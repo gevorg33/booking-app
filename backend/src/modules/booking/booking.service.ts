@@ -119,6 +119,9 @@ export class BookingService {
       }
     }
 
+    // Free any stuck micro-slots when no active booking occupies this window
+    await this.reconcileStuckSlotsInWindow(businessId, dto.employeeId, startTime, endTime);
+
     // Validate the entire booking window against applied schedule
     await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
 
@@ -288,27 +291,35 @@ export class BookingService {
 
   async cancel(id: string, reason?: string, userId?: string): Promise<Booking> {
     const booking = await this.findOne(id);
+    const wasAlreadyCancelled = booking.status === BookingStatus.CANCELLED;
 
-    // Release all micro-slots in the booking window
     await this.releaseSlotsByWindow(
       booking.employeeId,
       booking.businessId,
       booking.startTime,
       booking.endTime,
     );
+    await this.reconcileStuckSlotsInWindow(
+      booking.businessId,
+      booking.employeeId,
+      booking.startTime,
+      booking.endTime,
+    );
 
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancellationReason = reason || 'Cancelled';
-    await this.bookingRepo.save(booking);
+    if (!wasAlreadyCancelled) {
+      booking.status = BookingStatus.CANCELLED;
+      booking.cancellationReason = reason || 'Cancelled';
+      await this.bookingRepo.save(booking);
 
-    await this.eventStore.publish({
-      eventType: EventType.BOOKING_CANCELLED,
-      aggregateType: 'booking',
-      aggregateId: id,
-      businessId: booking.businessId,
-      payload: { reason, employeeId: booking.employeeId, startTime: booking.startTime },
-      userId,
-    });
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_CANCELLED,
+        aggregateType: 'booking',
+        aggregateId: id,
+        businessId: booking.businessId,
+        payload: { reason, employeeId: booking.employeeId, startTime: booking.startTime },
+        userId,
+      });
+    }
 
     return booking;
   }
@@ -393,8 +404,6 @@ export class BookingService {
       .getMany();
 
     if (microSlotsInWindow.length === 0) {
-      // No micro-slots in range — either no applied schedule (engine path) or all booked.
-      // Check if there are any booked/non-block slots in the window to distinguish:
       const anySlotInWindow = await this.slotRepo
         .createQueryBuilder('slot')
         .where('slot.business_id = :businessId', { businessId })
@@ -407,10 +416,19 @@ export class BookingService {
         .getCount();
 
       if (anySlotInWindow > 0) {
-        // Slots exist but none are available (all booked)
-        throw new ConflictException(
-          'All time slots in the requested window are already fully booked.',
+        const hasActiveBooking = await this.hasActiveBookingOverlap(
+          businessId,
+          employeeId,
+          startTime,
+          endTime,
         );
+        if (hasActiveBooking) {
+          throw new ConflictException(
+            'All time slots in the requested window are already fully booked.',
+          );
+        }
+        await this.reconcileStuckSlotsInWindow(businessId, employeeId, startTime, endTime);
+        return;
       }
       // No slots at all → engine path, allow
       return;
@@ -523,10 +541,59 @@ export class BookingService {
     return qb.getMany();
   }
 
+  private async hasActiveBookingOverlap(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<boolean> {
+    const count = await this.bookingRepo
+      .createQueryBuilder('booking')
+      .where('booking.business_id = :businessId', { businessId })
+      .andWhere('booking.employee_id = :employeeId', { employeeId })
+      .andWhere('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
+      .andWhere('booking.startTime < :endTime', { endTime })
+      .andWhere('booking.endTime > :startTime', { startTime })
+      .getCount();
+    return count > 0;
+  }
+
+  /**
+   * When no active booking occupies a window, reset micro-slots that were left
+   * booked after a cancellation (stuck state).
+   */
+  private async reconcileStuckSlotsInWindow(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<void> {
+    const hasActive = await this.hasActiveBookingOverlap(businessId, employeeId, startTime, endTime);
+    if (hasActive) return;
+
+    const stuckSlots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.endTime > :startTime', { startTime })
+      .andWhere('slot.status NOT IN (:...blockStatuses)', {
+        blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+      })
+      .getMany();
+
+    for (const slot of stuckSlots) {
+      if (slot.status !== SlotStatus.AVAILABLE || slot.appointmentCount > 0) {
+        slot.appointmentCount = 0;
+        slot.status = SlotStatus.AVAILABLE;
+        await this.slotRepo.save(slot);
+      }
+    }
+  }
+
   /**
    * Releases all micro-slots locked by a booking.
-   * Queries slots whose startTime falls within the original booking window
-   * (clinic-app's `revertBackSlotStatusAndCount` pattern).
+   * Uses overlap matching so partial slot coverage is handled correctly.
    */
   private async releaseSlotsByWindow(
     employeeId: string,
@@ -538,8 +605,8 @@ export class BookingService {
       .createQueryBuilder('slot')
       .where('slot.business_id = :businessId', { businessId })
       .andWhere('slot.employee_id = :employeeId', { employeeId })
-      .andWhere('slot.startTime >= :startTime', { startTime })
       .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.endTime > :startTime', { startTime })
       .andWhere('slot.status IN (:...statuses)', {
         statuses: [SlotStatus.BOOKED, SlotStatus.AVAILABLE],
       })

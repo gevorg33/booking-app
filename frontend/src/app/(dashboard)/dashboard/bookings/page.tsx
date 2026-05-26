@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -127,6 +127,20 @@ interface BookingItem {
   service?: { id: string; name: string; durationMinutes: number };
   employee?: { id: string; name: string };
   customer?: { id: string; name: string };
+}
+
+/** Calendar block label — includes time range so overlapping blocks stay readable. */
+function bookingBlockLabel(b: Pick<BookingItem, 'status' | 'service' | 'startTime' | 'endTime'>) {
+  const range = formatTimeRangeDisplay(b.startTime, b.endTime);
+  const name = b.service?.name || 'Booking';
+  return b.status === 'cancelled' ? `${range} · Cancelled — ${name}` : `${range} · ${name}`;
+}
+
+function formatStatusLabel(status: string) {
+  if (status === 'cancelled') return 'Cancelled';
+  if (status === 'no_show') return 'No show';
+  if (status === 'in_progress') return 'In progress';
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 // ─── Overlap layout helper ────────────────────────────────────────────────────
@@ -274,7 +288,8 @@ function PeriodLabelOverlay({
 
 function CalendarBlock({
   startISO, endISO, color, label, sublabel, onClick, faded, selected,
-  col = 0, totalCols = 1, showLabel = true, zIndex = 1,
+  col = 0, totalCols = 1, showLabel = true, zIndex = 1, pointerEventsNone = false,
+  compact = false,
 }: {
   startISO: string;
   endISO: string;
@@ -288,16 +303,22 @@ function CalendarBlock({
   totalCols?: number;
   showLabel?: boolean;
   zIndex?: number;
+  pointerEventsNone?: boolean;
+  compact?: boolean;
 }) {
   const pos = getBlockPosition(startISO, endISO, col, totalCols);
+  const isCompact = compact || totalCols > 1;
+  const minDurationForLabel = isCompact ? 8 : 15;
+  const showText = showLabel && pos.durationMin >= minDurationForLabel;
 
   return (
     <div
       className={`absolute rounded border overflow-hidden select-none transition-all
         ${color.bg} ${color.border} ${color.text}
-        ${onClick ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}
+        ${onClick && !pointerEventsNone ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}
         ${faded ? 'opacity-80' : ''}
-        ${selected ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900' : ''}`}
+        ${selected ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900' : ''}
+        ${pointerEventsNone ? 'pointer-events-none' : ''}`}
       style={{
         top: pos.top,
         height: pos.height,
@@ -307,13 +328,15 @@ function CalendarBlock({
         zIndex,
       }}
       onClick={onClick}
-      title={showLabel ? undefined : label}
+      title={label}
     >
-      {showLabel && pos.durationMin >= 15 && (
-        <div className="px-2 py-1 leading-tight">
-          <p className="text-[11px] font-semibold truncate">{label}</p>
-          {sublabel && pos.durationMin >= 30 && (
-            <p className="text-[10px] opacity-70 truncate">{sublabel}</p>
+      {showText && (
+        <div className={`${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'} leading-tight min-w-0 h-full`}>
+          <p className={`${isCompact ? 'text-[9px] leading-[1.15]' : 'text-[11px]'} font-semibold ${isCompact ? 'line-clamp-4 whitespace-normal break-words' : 'truncate'}`}>
+            {label}
+          </p>
+          {sublabel && pos.durationMin >= (isCompact ? 20 : 30) && (
+            <p className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} opacity-70 truncate`}>{sublabel}</p>
           )}
         </div>
       )}
@@ -729,28 +752,58 @@ export default function BookingsPage() {
                     );
                   })()}
 
-                  {/* Booking overlays (orange) — above period backgrounds, below period labels */}
+                  {/* Booking overlays — side-by-side when overlapping; cancelled blocks are click-through */}
                   {(() => {
                     const layout = computeLayout(bookings.map((b) => ({
                       id: b.id, startISO: b.startTime, endISO: b.endTime,
                     })));
-                    return bookings.map((b) => {
-                      const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
-                      return (
-                        <CalendarBlock
-                          key={b.id}
-                          startISO={b.startTime}
-                          endISO={b.endTime}
-                          color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
-                          label={b.service?.name || 'Booking'}
-                          sublabel={b.customer?.name || b.employee?.name || ''}
-                          faded={b.status === 'cancelled'}
-                          col={lay.col}
-                          totalCols={lay.totalCols}
-                          zIndex={10}
-                        />
-                      );
-                    });
+
+                    const cancelledNodes = bookings
+                      .filter((b) => b.status === 'cancelled')
+                      .map((b) => {
+                        const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
+                        return (
+                          <CalendarBlock
+                            key={b.id}
+                            startISO={b.startTime}
+                            endISO={b.endTime}
+                            color={{ bg: 'bg-red-900/35', border: 'border-red-600/60', text: 'text-red-200' }}
+                            label={bookingBlockLabel(b)}
+                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            faded
+                            pointerEventsNone
+                            col={lay.col}
+                            totalCols={lay.totalCols}
+                            zIndex={5}
+                          />
+                        );
+                      });
+
+                    const activeNodes = bookings
+                      .filter((b) => b.status !== 'cancelled')
+                      .map((b) => {
+                        const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
+                        return (
+                          <CalendarBlock
+                            key={b.id}
+                            startISO={b.startTime}
+                            endISO={b.endTime}
+                            color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
+                            label={bookingBlockLabel(b)}
+                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            col={lay.col}
+                            totalCols={lay.totalCols}
+                            zIndex={10}
+                          />
+                        );
+                      });
+
+                    return (
+                      <>
+                        {cancelledNodes}
+                        {activeNodes}
+                      </>
+                    );
                   })()}
 
                   {calPeriods.length === 0 && bookings.length === 0 && (
@@ -968,10 +1021,13 @@ export default function BookingsPage() {
                     <Clock className="w-4 h-4 text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{b.service?.name || 'Service'}</p>
+                    <p className={`font-medium text-sm truncate ${b.status === 'cancelled' ? 'text-red-300' : ''}`}>
+                      {bookingBlockLabel(b)}
+                    </p>
                     <p className="text-xs text-gray-400">
-                      {fmtUTC(new Date(b.startTime))} – {fmtUTC(new Date(b.endTime))}
-                      {b.customer && <> · {b.customer.name}</>}
+                      {b.customer && <>{b.customer.name}</>}
+                      {b.customer && b.employee && <> · </>}
+                      {b.employee?.name}
                     </p>
                     {b.description && <p className="text-xs text-gray-500 truncate mt-0.5">{b.description}</p>}
                   </div>
@@ -980,7 +1036,7 @@ export default function BookingsPage() {
                   <div className="text-right">
                     <p className="text-xs text-gray-300">{b.employee?.name}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status] || 'bg-gray-600/10 text-gray-400'}`}>
-                      {b.status}
+                      {formatStatusLabel(b.status)}
                     </span>
                   </div>
                   {b.status !== 'cancelled' && b.status !== 'completed' && (
