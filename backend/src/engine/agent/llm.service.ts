@@ -31,6 +31,12 @@ Rules:
 - All booking modifications require requires_approval
 - Keep steps minimal and purposeful — do not over-engineer
 - Never include steps that directly mutate data unless explicitly asked
+- Use ONLY these action names (snake_case):
+  fetch_current_schedule, list_appointments, analyze_utilization, identify_schedule_gaps,
+  generate_optimization_recommendations, find_freed_slots, find_rebooking_candidates,
+  propose_reassignment, detect_conflicts, analyze_resolution_options, propose_resolutions,
+  create_booking, cancel_bookings
+- Do NOT invent new action names
 `;
 
 @Injectable()

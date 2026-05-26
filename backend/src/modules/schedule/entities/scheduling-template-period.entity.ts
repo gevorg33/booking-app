@@ -31,10 +31,10 @@ export class SchedulingTemplatePeriod {
   type: TemplatePeriodType;
 
   @Column()
-  startTime: string; // HH:mm format
+  startTime: string; // HH:mm 24-hour
 
   @Column()
-  endTime: string; // HH:mm format
+  endTime: string; // HH:mm 24-hour
 
   @Column({ nullable: true })
   placeholderLabel: string;

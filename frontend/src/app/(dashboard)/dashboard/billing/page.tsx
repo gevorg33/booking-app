@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { formatDateDisplay } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Plan {
@@ -161,11 +162,7 @@ export default function BillingPage() {
               {subscription?.currentPeriodEnd && subscription.isActive && (
                 <p className="text-sm text-gray-400">
                   Renews{' '}
-                  {new Date(subscription.currentPeriodEnd).toLocaleDateString(undefined, {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
+                  {formatDateDisplay(subscription.currentPeriodEnd)}
                 </p>
               )}
             </div>

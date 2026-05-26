@@ -112,7 +112,7 @@ export class WorkflowExecutorService {
   ): Promise<WorkflowExecutionResult> {
     const completed = new Set<string>();
     const stepMap = new Map(steps.map((s) => [s.id, s]));
-    const context = { ...execution.context };
+    const context = { businessId: execution.businessId, ...execution.context };
 
     while (completed.size < steps.length) {
       const ready = steps.filter(
@@ -153,7 +153,7 @@ export class WorkflowExecutorService {
     execution.stepResults[step.id] = { status: StepStatus.RUNNING, startedAt: startedAt.toISOString() };
     await this.executionRepo.save(execution);
 
-    const executor = this.stepExecutors.get(step.action);
+    const executor = this.stepExecutors.get(this.resolveAction(step.action));
     if (!executor) {
       execution.stepResults[step.id] = {
         status: StepStatus.FAILED,
@@ -249,5 +249,22 @@ export class WorkflowExecutorService {
     const where: any = { businessId };
     if (status) where.status = status;
     return this.executionRepo.find({ where, order: { startedAt: 'DESC' }, take: 50 });
+  }
+
+  /** Map LLM-generated action names to registered executors. */
+  private resolveAction(action: string): string {
+    const aliases: Record<string, string> = {
+      createBooking: 'create_booking',
+      cancel_booking: 'cancel_bookings',
+      cancelBooking: 'cancel_bookings',
+      list_bookings: 'list_appointments',
+      show_appointments: 'list_appointments',
+      get_current_schedule: 'fetch_current_schedule',
+      retrieve_schedule: 'fetch_current_schedule',
+      fetch_schedule: 'fetch_current_schedule',
+      analyze_schedule: 'analyze_utilization',
+      optimize_schedule: 'generate_optimization_recommendations',
+    };
+    return aliases[action] ?? action;
   }
 }

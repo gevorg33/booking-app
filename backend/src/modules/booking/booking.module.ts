@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from './entities/booking.entity.js';
 import { BookingService } from './booking.service.js';
@@ -15,7 +15,7 @@ import { AgentModule } from '../../engine/agent/agent.module.js';
     TypeOrmModule.forFeature([Booking, SchedulingSlot, Service]),
     SchedulingEngineModule,
     EventStoreModule,
-    AgentModule,
+    forwardRef(() => AgentModule),
   ],
   controllers: [BookingController, AgentController],
   providers: [BookingService],

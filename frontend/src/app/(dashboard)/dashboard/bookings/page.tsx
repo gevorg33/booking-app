@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
+import { isValidTime24, isTimeInRange, normalizeTime24 } from '@/lib/time-format';
+import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
@@ -53,12 +56,10 @@ function toUTCMinutes(date: Date) {
   return date.getUTCHours() * 60 + date.getUTCMinutes();
 }
 function fmtUTC(date: Date) {
-  return new Date(date).toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
-  });
+  return formatTimeDisplay(date);
 }
 function fmtDate(d: Date) {
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  return formatDateDisplay(d);
 }
 function dateKey(d: Date) {
   return d.toISOString().split('T')[0];
@@ -178,9 +179,77 @@ function computeLayout(items: Array<{ id: string; startISO: string; endISO: stri
 
 // ─── CalendarBlock ────────────────────────────────────────────────────────────
 
+function getBlockPosition(
+  startISO: string,
+  endISO: string,
+  col = 0,
+  totalCols = 1,
+) {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const startMin = toUTCMinutes(start) - HOUR_START * 60;
+  const endMin = toUTCMinutes(end) - HOUR_START * 60;
+  const topPct = (startMin / TOTAL_MINUTES) * 100;
+  const heightPct = Math.max(((endMin - startMin) / TOTAL_MINUTES) * 100, 0.5);
+  const colWidthPct = 100 / totalCols;
+  const leftPct = col * colWidthPct;
+  const GAP = totalCols > 1 ? 2 : 4;
+
+  return {
+    top: `${topPct}%`,
+    height: `${heightPct}%`,
+    minHeight: 14,
+    left: `calc(${leftPct}% + ${GAP}px)`,
+    width: `calc(${colWidthPct}% - ${GAP * 2}px)`,
+    durationMin: endMin - startMin,
+  };
+}
+
+function PeriodLabelOverlay({
+  startISO,
+  endISO,
+  label,
+  sublabel,
+  textClass,
+  col = 0,
+  totalCols = 1,
+}: {
+  startISO: string;
+  endISO: string;
+  label: string;
+  sublabel?: string;
+  textClass: string;
+  col?: number;
+  totalCols?: number;
+}) {
+  const pos = getBlockPosition(startISO, endISO, col, totalCols);
+  if (pos.durationMin < 15) return null;
+
+  return (
+    <div
+      className="absolute flex items-center justify-center pointer-events-none px-1"
+      style={{
+        top: pos.top,
+        height: pos.height,
+        minHeight: pos.minHeight,
+        left: pos.left,
+        width: pos.width,
+        zIndex: 25,
+      }}
+    >
+      <div className={`text-center leading-tight max-w-full ${textClass}`}>
+        <p className="text-[11px] font-semibold truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">{label}</p>
+        {sublabel && pos.durationMin >= 30 && (
+          <p className="text-[10px] opacity-90 truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">{sublabel}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CalendarBlock({
   startISO, endISO, color, label, sublabel, onClick, faded, selected,
-  col = 0, totalCols = 1,
+  col = 0, totalCols = 1, showLabel = true, zIndex = 1,
 }: {
   startISO: string;
   endISO: string;
@@ -192,19 +261,10 @@ function CalendarBlock({
   selected?: boolean;
   col?: number;
   totalCols?: number;
+  showLabel?: boolean;
+  zIndex?: number;
 }) {
-  const start = new Date(startISO);
-  const end   = new Date(endISO);
-  const startMin  = toUTCMinutes(start) - HOUR_START * 60;
-  const endMin    = toUTCMinutes(end)   - HOUR_START * 60;
-  const topPct    = (startMin / TOTAL_MINUTES) * 100;
-  const heightPct = Math.max(((endMin - startMin) / TOTAL_MINUTES) * 100, 0.5);
-  const durationMin = endMin - startMin;
-
-  // Column layout: divide width evenly, leave 2px gap between columns
-  const colWidthPct = 100 / totalCols;
-  const leftPct     = col * colWidthPct;
-  const GAP = totalCols > 1 ? 2 : 4; // px
+  const pos = getBlockPosition(startISO, endISO, col, totalCols);
 
   return (
     <div
@@ -214,19 +274,20 @@ function CalendarBlock({
         ${faded ? 'opacity-80' : ''}
         ${selected ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900' : ''}`}
       style={{
-        top: `${topPct}%`,
-        height: `${heightPct}%`,
-        minHeight: 14,
-        left: `calc(${leftPct}% + ${GAP}px)`,
-        width: `calc(${colWidthPct}% - ${GAP * 2}px)`,
-        zIndex: faded ? 10 : 1,
+        top: pos.top,
+        height: pos.height,
+        minHeight: pos.minHeight,
+        left: pos.left,
+        width: pos.width,
+        zIndex,
       }}
       onClick={onClick}
+      title={showLabel ? undefined : label}
     >
-      {durationMin >= 15 && (
+      {showLabel && pos.durationMin >= 15 && (
         <div className="px-2 py-1 leading-tight">
           <p className="text-[11px] font-semibold truncate">{label}</p>
-          {sublabel && durationMin >= 30 && (
+          {sublabel && pos.durationMin >= 30 && (
             <p className="text-[10px] opacity-70 truncate">{sublabel}</p>
           )}
         </div>
@@ -361,10 +422,20 @@ export default function BookingsPage() {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
+  const periodMinTime = selectedPeriod ? fmtUTC(new Date(selectedPeriod.startTime)) : undefined;
+  const periodMaxTime = selectedPeriod ? fmtUTC(new Date(selectedPeriod.endTime)) : undefined;
+  const startTimeValid = form.startTime
+    && isValidTime24(form.startTime)
+    && isTimeInRange(form.startTime, periodMinTime, periodMaxTime);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPeriod || !form.startTime) throw new Error('No time selected');
-      const startISO = toISO(dayStr, snapTo10min(form.startTime));
+      const snapped = snapTo10min(normalizeTime24(form.startTime));
+      if (!isTimeInRange(snapped, periodMinTime, periodMaxTime)) {
+        throw new Error(`Start time must be between ${periodMinTime} and ${periodMaxTime}`);
+      }
+      const startISO = toISO(dayStr, snapped);
       const payload: any = {
         employeeId,
         serviceId: form.serviceId,
@@ -529,13 +600,13 @@ export default function BookingsPage() {
                     <div key={`h-${i}`} className="absolute w-full border-t border-gray-800/30 border-dashed" style={{ top: i * PX_PER_HOUR + PX_PER_HOUR / 2 }} />
                   ))}
 
-                  {/* Applied period blocks — compute side-by-side layout to prevent visual overlap */}
+                  {/* Applied period blocks — background layer; labels rendered separately above bookings */}
                   {(() => {
                     const layout = computeLayout(calPeriods.map((p) => ({
                       id: p.id, startISO: p.startTime as string, endISO: p.endTime as string,
                     })));
 
-                    return calPeriods.map((period) => {
+                    const periodNodes = calPeriods.map((period) => {
                       const isServiceBlock = period.type === 'service_block';
                       const isBlocked      = period.type === 'blocked_time' || period.type === 'unavailable_block';
                       const isSelected     = selectedPeriod?.id === period.id;
@@ -552,39 +623,72 @@ export default function BookingsPage() {
                         color = { bg: 'bg-emerald-600/25', border: 'border-emerald-500/50', text: 'text-emerald-300' };
                       }
 
-                      const svcNames = (period.serviceIds ?? [])
-                        .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
-                        .filter(Boolean);
-
-                      const typeLabel = period.type === 'unavailable_block' ? 'Unavailable' : 'Blocked';
-
-                      const label = isBlocked
-                        ? (period.placeholderLabel || typeLabel)
-                        : svcNames.length > 0
-                          ? svcNames.join(' · ')
-                          : period.placeholderLabel || 'Available';
-
-                      const sublabel = `${fmtUTC(new Date(period.startTime))} – ${fmtUTC(new Date(period.endTime))}`;
-
                       return (
                         <CalendarBlock
                           key={period.id}
                           startISO={period.startTime as string}
                           endISO={period.endTime as string}
                           color={color}
-                          label={label}
-                          sublabel={sublabel}
+                          label=""
                           onClick={isServiceBlock ? () => handlePeriodClick(period) : undefined}
                           faded={isBlocked}
                           selected={isSelected}
                           col={lay.col}
                           totalCols={lay.totalCols}
+                          showLabel={false}
+                          zIndex={isBlocked ? 2 : 1}
                         />
                       );
                     });
+
+                    const labelNodes = calPeriods.map((period) => {
+                      const isBlocked = period.type === 'blocked_time' || period.type === 'unavailable_block';
+                      const lay = layout.get(period.id) ?? { col: 0, totalCols: 1 };
+
+                      let textClass: string;
+                      if (isBlocked) {
+                        textClass = period.type === 'unavailable_block' ? 'text-red-100' : 'text-gray-100';
+                      } else if (period.serviceIds?.length) {
+                        textClass = SVC_COLORS[serviceColorMap[period.serviceIds[0]] ?? 0].text;
+                      } else {
+                        textClass = 'text-emerald-200';
+                      }
+
+                      const svcNames = (period.serviceIds ?? [])
+                        .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
+                        .filter(Boolean);
+
+                      const typeLabel = period.type === 'unavailable_block' ? 'Unavailable' : 'Blocked';
+                      const label = isBlocked
+                        ? (period.placeholderLabel || typeLabel)
+                        : svcNames.length > 0
+                          ? svcNames.join(' · ')
+                          : period.placeholderLabel || 'Available';
+                      const sublabel = `${fmtUTC(new Date(period.startTime))} – ${fmtUTC(new Date(period.endTime))}`;
+
+                      return (
+                        <PeriodLabelOverlay
+                          key={`label-${period.id}`}
+                          startISO={period.startTime as string}
+                          endISO={period.endTime as string}
+                          label={label}
+                          sublabel={sublabel}
+                          textClass={textClass}
+                          col={lay.col}
+                          totalCols={lay.totalCols}
+                        />
+                      );
+                    });
+
+                    return (
+                      <>
+                        {periodNodes}
+                        {labelNodes}
+                      </>
+                    );
                   })()}
 
-                  {/* Booking overlays (orange) — computed layout separate from periods */}
+                  {/* Booking overlays (orange) — above period backgrounds, below period labels */}
                   {(() => {
                     const layout = computeLayout(bookings.map((b) => ({
                       id: b.id, startISO: b.startTime, endISO: b.endTime,
@@ -602,6 +706,7 @@ export default function BookingsPage() {
                           faded={b.status === 'cancelled'}
                           col={lay.col}
                           totalCols={lay.totalCols}
+                          zIndex={10}
                         />
                       );
                     });
@@ -659,18 +764,17 @@ export default function BookingsPage() {
 
                 {/* Start time within the period */}
                 <div>
-                  <label className="label">Start Time <span className="text-gray-500 text-[10px]">(within the period)</span></label>
-                  <input
-                    type="time"
-                    step="600"
-                    className="input"
+                  <label className="label">
+                    Start Time <span className="text-gray-500 text-[10px]">(within the period, 24h)</span>
+                  </label>
+                  <TimeInput
                     value={form.startTime}
-                    min={fmtUTC(new Date(selectedPeriod.startTime))}
-                    max={fmtUTC(new Date(selectedPeriod.endTime))}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                    min={periodMinTime}
+                    max={periodMaxTime}
+                    onChange={(v) => setForm({ ...form, startTime: v })}
                   />
                   <p className="text-[10px] text-gray-500 mt-1">
-                    Snapped to 10-min intervals. Period: {fmtUTC(new Date(selectedPeriod.startTime))} – {fmtUTC(new Date(selectedPeriod.endTime))}
+                    Snapped to 10-min intervals. Period: {periodMinTime} – {periodMaxTime}
                   </p>
                 </div>
 
@@ -750,7 +854,7 @@ export default function BookingsPage() {
 
               <button
                 onClick={() => createMutation.mutate()}
-                disabled={!form.serviceId || !form.startTime || createMutation.isPending}
+                disabled={!form.serviceId || !startTimeValid || createMutation.isPending}
                 className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
               >
                 {createMutation.isPending

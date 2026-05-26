@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -65,11 +66,11 @@ function toMinutes(date: Date) {
 }
 
 function formatTime(date: Date) {
-  return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+  return formatTimeDisplay(date);
 }
 
 function formatDate(date: Date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return formatDateDisplay(date);
 }
 
 const TOTAL_MINUTES = (HOUR_END - HOUR_START) * 60;
@@ -237,9 +238,9 @@ export default function CalendarPage() {
             <ChevronRight className="w-4 h-4" />
           </button>
           <span className="text-sm text-gray-300 ml-2 font-medium">
-            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {formatDateDisplay(weekDates[0])}
             {' – '}
-            {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {formatDateDisplay(weekDates[6])}
           </span>
         </div>
 
@@ -323,10 +324,10 @@ export default function CalendarPage() {
                       }`}
                     >
                       <p className={`text-xs font-medium ${isToday ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                        {day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}
                       </p>
                       <p className={`text-sm font-bold ${isToday ? 'text-blue-300' : 'text-gray-200'}`}>
-                        {day.getDate()}
+                        {formatDateDisplay(day)}
                       </p>
                     </div>
 

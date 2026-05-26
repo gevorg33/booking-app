@@ -16,6 +16,9 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
+import { formatDateDisplay } from '@/lib/date-format';
+import { normalizeTime24 } from '@/lib/time-format';
+import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ─── Overlap detection ────────────────────────────────────────────────────────
@@ -73,6 +76,41 @@ const PERIOD_TYPES = [
   { value: 'unavailable_block', label: 'Unavailable' },
   { value: 'blocked_time', label: 'Blocked Time' },
 ];
+
+function mapPeriodsForSave(
+  periods: (TimePeriod & { serviceIds?: string[] })[],
+) {
+  return periods.map((p) => ({
+    startTime: normalizeTime24(p.startTime),
+    endTime: normalizeTime24(p.endTime),
+    type: p.type,
+    placeholderLabel: p.placeholderLabel || p.type,
+    serviceIds: p.serviceIds || [],
+    maxAppointmentCount: p.maxAppointmentCount || 1,
+    isActiveOnMonday: p.isActiveOnMonday,
+    isActiveOnTuesday: p.isActiveOnTuesday,
+    isActiveOnWednesday: p.isActiveOnWednesday,
+    isActiveOnThursday: p.isActiveOnThursday,
+    isActiveOnFriday: p.isActiveOnFriday,
+    isActiveOnSaturday: p.isActiveOnSaturday,
+    isActiveOnSunday: p.isActiveOnSunday,
+  }));
+}
+
+function mapDirectPeriodsForSave(
+  periods: (TimePeriod & { serviceIds?: string[] })[],
+) {
+  return mapPeriodsForSave(periods).map(
+    ({ startTime, endTime, type, placeholderLabel, serviceIds, maxAppointmentCount }) => ({
+      startTime,
+      endTime,
+      type,
+      placeholderLabel,
+      serviceIds,
+      maxAppointmentCount,
+    }),
+  );
+}
 
 const emptyPeriod = (): TimePeriod => ({
   startTime: '09:00',
@@ -154,21 +192,17 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
               </select>
             </div>
             <div>
-              <label className="label">Start Time</label>
-              <input
-                type="time"
-                className="input"
+              <label className="label">Start Time <span className="text-gray-500 text-[10px]">(24h)</span></label>
+              <TimeInput
                 value={period.startTime}
-                onChange={(e) => onUpdate(i, 'startTime', e.target.value)}
+                onChange={(v) => onUpdate(i, 'startTime', v)}
               />
             </div>
             <div>
-              <label className="label">End Time</label>
-              <input
-                type="time"
-                className="input"
+              <label className="label">End Time <span className="text-gray-500 text-[10px]">(24h)</span></label>
+              <TimeInput
                 value={period.endTime}
-                onChange={(e) => onUpdate(i, 'endTime', e.target.value)}
+                onChange={(v) => onUpdate(i, 'endTime', v)}
               />
             </div>
             <div>
@@ -379,14 +413,7 @@ function CreateScheduleTab({
       const { data } = await api.post(`/businesses/${business.id}/schedules/direct`, {
         employeeId,
         date,
-        periods: periods.map((p) => ({
-          startTime: p.startTime,
-          endTime: p.endTime,
-          type: p.type,
-          placeholderLabel: p.placeholderLabel || p.type,
-          serviceIds: p.serviceIds || [],
-          maxAppointmentCount: p.maxAppointmentCount || 1,
-        })),
+        periods: mapDirectPeriodsForSave(periods),
       });
       return data.data || data;
     },
@@ -415,7 +442,7 @@ function CreateScheduleTab({
           <div>
             <p className="font-semibold text-green-300">Schedule Created</p>
             <p className="text-sm text-gray-400">
-              {successInfo.slotsCreated} slot{successInfo.slotsCreated !== 1 ? 's' : ''} generated for {date}
+              {successInfo.slotsCreated} slot{successInfo.slotsCreated !== 1 ? 's' : ''} generated for {formatDateDisplay(date)}
             </p>
           </div>
         </div>
@@ -576,21 +603,7 @@ function TemplatesTab({
     mutationFn: () =>
       api.post(`/businesses/${business!.id}/schedules/templates`, {
         name: templateName,
-        timePeriods: periods.map((p) => ({
-          startTime: p.startTime,
-          endTime: p.endTime,
-          type: p.type,
-          placeholderLabel: p.placeholderLabel || p.type,
-          serviceIds: p.serviceIds || [],
-          isActiveOnMonday: p.isActiveOnMonday,
-          isActiveOnTuesday: p.isActiveOnTuesday,
-          isActiveOnWednesday: p.isActiveOnWednesday,
-          isActiveOnThursday: p.isActiveOnThursday,
-          isActiveOnFriday: p.isActiveOnFriday,
-          isActiveOnSaturday: p.isActiveOnSaturday,
-          isActiveOnSunday: p.isActiveOnSunday,
-          maxAppointmentCount: p.maxAppointmentCount || 1,
-        })),
+        timePeriods: mapPeriodsForSave(periods),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedules'] });

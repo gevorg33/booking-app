@@ -22,4 +22,12 @@ export class AiCommandController {
   ) {
     return this.aiCommandService.executeCommand(businessId, dto.prompt, user?.id);
   }
+
+  @Post('command/tasks/:taskId/approve')
+  approve(
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.aiCommandService.approveTask(taskId, user?.id);
+  }
 }

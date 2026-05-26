@@ -8,7 +8,16 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
-import { BookingService } from '../booking/booking.service.js';
+import { AgentType } from '../../engine/agent/interfaces/agent.interfaces.js';
+import { CommandOrchestrationService, OrchestrationResult } from './command-orchestration.service.js';
+import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+  formatTimeRangeDisplay,
+  todayDisplay,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
 
 export interface CommandResult {
   success: boolean;
@@ -17,20 +26,20 @@ export interface CommandResult {
   details: Record<string, any>;
 }
 
-const INTENT_SCHEMA = `You are an AI assistant for a booking/scheduling platform.
+const INTENT_SCHEMA = `You are the Orchestrix operational AI — an orchestration layer for service businesses.
 Given a user's natural-language command and the available business data, classify the intent
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "unknown",
+  "action": "create_booking" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — the service provider's name mentioned",
     "customerName": "string or null",
     "serviceName": "string or null — single service (mainly for create_booking)",
     "serviceNames": ["string"] or null — one or more service types to filter (for cancel_bookings / list_bookings), e.g. [\"hairdrying\", \"hairstyle\"],
-    "date": "YYYY-MM-DD or null — the date referenced (resolve relative dates like 'tomorrow' from today's date)",
-    "dateFrom": "YYYY-MM-DD or null — start of range if a range is mentioned",
-    "dateTo": "YYYY-MM-DD or null — end of range",
+    "date": "DD_MM_YYYY or null — the date referenced (resolve relative dates like 'tomorrow' from today's date)",
+    "dateFrom": "DD_MM_YYYY or null — start of range if a range is mentioned",
+    "dateTo": "DD_MM_YYYY or null — end of range",
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
     "timeSlot": "HH:MM in 24h format or null — appointment start time (e.g. 09:00, 14:30)",
@@ -48,8 +57,12 @@ Rules:
 - If the user mentions a reason/note for cancellation (e.g. "he is sick"), put it in "reason".
 - For new appointments (book, schedule, create appointment), use action "create_booking".
 - create_booking requires employeeName, serviceName, date, and timeSlot at minimum.
-- Use "show_appointments" or "list_bookings" when the user wants to view/display/see appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow", "list all provider appointments on 2026-05-28".
+- Use "show_appointments" or "list_bookings" when the user wants to view/display/see appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow", "list all provider appointments on 28_05_2026".
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
+- optimize_schedule / fill_unused_slots: use optimize_schedule or fill_unused_slots when user wants to optimize, fill gaps, reduce idle time, or improve utilization.
+- resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
+- reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
+- Mutating actions compile into workflow plans — they do not execute directly.
 - If you cannot determine the action, use "unknown".`;
 
 @Injectable()
@@ -63,7 +76,8 @@ export class AiCommandService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    private bookingService: BookingService,
+    private orchestration: CommandOrchestrationService,
+    private planBuilder: OperationalPlanBuilderService,
     private config: ConfigService,
   ) {
     const apiKey = config.get<string>('OPENAI_API_KEY');
@@ -72,6 +86,10 @@ export class AiCommandService {
     } else {
       this.logger.warn('OPENAI_API_KEY not set — AI commands unavailable');
     }
+  }
+
+  async approveTask(taskId: string, userId: string): Promise<CommandResult> {
+    return this.toCommandResult(await this.orchestration.approveTask(taskId, userId));
   }
 
   async executeCommand(
@@ -89,7 +107,7 @@ export class AiCommandService {
       this.customerRepo.find({ where: { businessId, isActive: true } }),
     ]);
 
-    const contextBlock = `Current date: ${new Date().toISOString().split('T')[0]}
+    const contextBlock = `Current date: ${todayDisplay()} (format DD_MM_YYYY, times in 24h HH:mm)
 Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', ')}
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}`;
@@ -100,6 +118,8 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     }
 
     this.logger.log(`AI classified action="${parsed.action}" — ${parsed.reasoning}`);
+
+    this.normalizeDateParams(parsed.params);
 
     const resolvedEmployee = parsed.params.employeeName
       ? this.resolveEmployee(employees, parsed.params.employeeName)
@@ -146,13 +166,47 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         return this.handleCheckAvailability(businessId, parsed.params, employeeId);
       case 'summarize_day':
         return this.handleSummarizeDay(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+      case 'optimize_schedule':
+      case 'fill_unused_slots':
+        return this.toCommandResult(
+          await this.orchestration.runOrchestrationIntent({
+            businessId,
+            intent: prompt,
+            agentType: AgentType.SCHEDULING_OPTIMIZATION,
+            userId,
+            date: parsed.params.date,
+            employeeId,
+          }),
+        );
+      case 'resolve_conflicts':
+        return this.toCommandResult(
+          await this.orchestration.runOrchestrationIntent({
+            businessId,
+            intent: prompt,
+            agentType: AgentType.CONFLICT_RESOLUTION,
+            userId,
+            date: parsed.params.date,
+            employeeId,
+          }),
+        );
+      case 'reassign_cancelled':
+        return this.toCommandResult(
+          await this.orchestration.runOrchestrationIntent({
+            businessId,
+            intent: prompt,
+            agentType: AgentType.CANCELLATION_RECOVERY,
+            userId,
+            date: parsed.params.date,
+            employeeId,
+          }),
+        );
       case 'reschedule_booking':
         return this.handleRescheduleBooking(businessId, parsed.params, employeeId, userId);
       default:
         return {
           success: false,
           action: 'unknown',
-          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported actions: book appointment, cancel bookings, show/list appointments, check availability, summarize a day, reschedule a booking.`,
+          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported: book, cancel, show appointments, optimize schedule, fill slots, resolve conflicts, reassign cancelled, check availability, summarize day.`,
           details: { parsed },
         };
     }
@@ -238,6 +292,19 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     return `${String(h).padStart(2, '0')}:${String(Math.floor(m / 10) * 10).padStart(2, '0')}`;
   }
 
+  private toCommandResult(result: OrchestrationResult): CommandResult {
+    return {
+      success: result.success,
+      action: result.action,
+      summary: result.summary,
+      details: {
+        ...result.details,
+        taskId: result.taskId,
+        requiresApproval: result.requiresApproval,
+      },
+    };
+  }
+
   // ─── Action handlers ────────────────────────────────────────────────────────
 
   private async handleCreateBooking(
@@ -299,66 +366,29 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     const snappedTime = this.snapTo10min(params.timeSlot);
     const startTime = `${params.date}T${snappedTime}:00.000Z`;
 
-    try {
-      const booking = await this.bookingService.create(
+    const plan = this.planBuilder.buildCreateBookingPlan({
+      businessId,
+      employeeId: resolvedEmployee.id,
+      serviceId: service.id,
+      customerId: customer?.id,
+      startTime,
+      notes: params.notes || params.reason || undefined,
+      userId,
+      employeeName: resolvedEmployee.name,
+      serviceName: service.name,
+      customerName: customer?.name,
+      date: formatDateDisplay(params.date),
+      timeSlot: snappedTime,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
         businessId,
-        {
-          employeeId: resolvedEmployee.id,
-          serviceId: service.id,
-          customerId: customer?.id,
-          startTime,
-          notes: params.notes || params.reason || undefined,
-          description: params.notes || undefined,
-        },
         userId,
-      );
-
-      const timeLabel = `${snappedTime} UTC`;
-      const customerLabel = customer?.name || 'Walk-in';
-
-      return {
-        success: true,
-        action: 'create_booking',
-        summary: [
-          `Booking created successfully.`,
-          `• Service: ${service.name}`,
-          `• Provider: ${resolvedEmployee.name}`,
-          `• Customer: ${customerLabel}`,
-          `• Date/time: ${params.date} ${timeLabel}`,
-          `• Booking ID: ${booking.id}`,
-        ].join('\n'),
-        details: {
-          bookingId: booking.id,
-          employee: resolvedEmployee.name,
-          service: service.name,
-          customer: customerLabel,
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          status: booking.status,
-        },
-      };
-    } catch (err: any) {
-      const message =
-        err?.response?.message ||
-        err?.message ||
-        'Failed to create booking';
-      const text = Array.isArray(message) ? message.join('; ') : String(message);
-
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: `Could not create booking: ${text}`,
-        details: {
-          params: {
-            employee: resolvedEmployee.name,
-            service: service.name,
-            customer: customer?.name,
-            startTime,
-          },
-          error: text,
-        },
-      };
-    }
+        autoExecute: true,
+      }),
+    );
   }
 
   private async handleCancelBookings(
@@ -414,7 +444,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         ? ` for service(s): ${matchedServices.map((s) => s.name).join(', ')}`
         : '';
       const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
-      const dateFilter = params.date ? ` on ${params.date}` : '';
+      const dateFilter = params.date ? ` on ${formatDateDisplay(params.date)}` : '';
       return {
         success: true,
         action: 'cancel_bookings',
@@ -424,51 +454,43 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
           filters: {
             employee: params.employeeName ?? null,
             services: matchedServices.map((s) => s.name),
-            date: params.date ?? null,
+            date: params.date ? formatDateDisplay(params.date) : null,
           },
         },
       };
     }
 
     const reason = params.reason || 'Cancelled via AI command';
-    const cancelled: string[] = [];
-
-    for (const booking of bookings) {
-      await this.bookingService.cancel(booking.id, reason, userId);
-      cancelled.push(booking.id);
-    }
-
-    const empName = params.employeeName || bookings[0]?.employee?.name || 'all providers';
-    const dateStr = params.date || `${params.dateFrom} to ${params.dateTo}` || 'all dates';
-    const serviceStr = matchedServices.length
-      ? matchedServices.map((s) => s.name).join(', ')
-      : 'all services';
-
-    return {
-      success: true,
-      action: 'cancel_bookings',
-      summary: `Cancelled ${cancelled.length} booking(s) for ${empName} (${serviceStr}) on ${dateStr}. Reason: "${reason}"`,
-      details: {
-        cancelledCount: cancelled.length,
-        cancelledIds: cancelled,
-        reason,
-        filters: {
-          employee: empName,
-          services: matchedServices.map((s) => s.name),
-          date: params.date ?? null,
-        },
-        bookings: bookings.map((b) => ({
-          id: b.id,
-          service: b.service?.name,
-          customer: b.customer?.name || 'Walk-in',
-          time: `${b.startTime.toISOString()} – ${b.endTime.toISOString()}`,
-        })),
+    const plan = this.planBuilder.buildCancelBookingsPlan(
+      businessId,
+      bookings.map((b) => b.id),
+      reason,
+      userId,
+      {
+        employeeName: params.employeeName,
+        date: params.date ? formatDateDisplay(params.date) : undefined,
+        services: matchedServices.map((s) => s.name),
       },
-    };
+    );
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: bookings.length <= 5,
+      }),
+    );
+  }
+
+  private normalizeDateParams(params: Record<string, any>) {
+    for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
+      if (params[key]) params[key] = toIsoDay(params[key]);
+    }
   }
 
   private formatBookingTime(start: Date, end: Date): string {
-    return `${start.toISOString().substring(11, 16)}–${end.toISOString().substring(11, 16)}`;
+    return formatTimeRangeDisplay(start, end);
   }
 
   private formatBookingLines(
@@ -491,8 +513,9 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     const where: any = { businessId };
     if (employeeId) where.employeeId = employeeId;
 
-    const targetDate = params.date || new Date().toISOString().split('T')[0];
-    const d = new Date(targetDate);
+    const isoDay = params.date || new Date().toISOString().split('T')[0];
+    const displayDay = formatDateDisplay(isoDay);
+    const d = new Date(isoDay);
     const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
     where.startTime = Between(dayStart, dayEnd);
@@ -509,13 +532,13 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
 
     let summaryBody: string;
     if (bookings.length === 0) {
-      summaryBody = `No appointments found for ${scopeLabel} on ${targetDate}.`;
+      summaryBody = `No appointments found for ${scopeLabel} on ${displayDay}.`;
     } else if (employeeId) {
       const lines = this.formatBookingLines(activeBookings);
       const cancelledNote =
         cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled — hidden)` : '';
       summaryBody = [
-        `${activeBookings.length} appointment(s) for ${scopeLabel} on ${targetDate}:${cancelledNote}`,
+        `${activeBookings.length} appointment(s) for ${scopeLabel} on ${displayDay}:${cancelledNote}`,
         ...lines,
       ].join('\n');
     } else {
@@ -537,7 +560,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       const cancelledNote =
         cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)` : '';
       summaryBody = [
-        `${activeBookings.length} appointment(s) for all service providers on ${targetDate}:${cancelledNote}`,
+        `${activeBookings.length} appointment(s) for all service providers on ${displayDay}:${cancelledNote}`,
         ...groupedLines,
       ].join('\n');
     }
@@ -550,7 +573,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         count: bookings.length,
         activeCount: activeBookings.length,
         cancelledCount: cancelledBookings.length,
-        date: targetDate,
+        date: displayDay,
         scope: employeeId ? 'provider' : 'all_providers',
         employee: employeeName ?? null,
         bookings: bookings.map((b) => ({
@@ -558,8 +581,8 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
           service: b.service?.name,
           customer: b.customer?.name,
           employee: b.employee?.name,
-          startTime: b.startTime,
-          endTime: b.endTime,
+          startTime: formatTimeDisplay(b.startTime),
+          endTime: formatTimeDisplay(b.endTime),
           status: b.status,
         })),
       },
@@ -571,8 +594,9 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     params: any,
     employeeId?: string,
   ): Promise<CommandResult> {
-    const targetDate = params.date || new Date().toISOString().split('T')[0];
-    const d = new Date(targetDate);
+    const isoDay = params.date || new Date().toISOString().split('T')[0];
+    const displayDay = formatDateDisplay(isoDay);
+    const d = new Date(isoDay);
     const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
 
@@ -590,29 +614,29 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       return {
         success: true,
         action: 'check_availability',
-        summary: `No schedule applied for ${empName} on ${targetDate}.`,
-        details: { date: targetDate, periods: [] },
+        summary: `No schedule applied for ${empName} on ${displayDay}.`,
+        details: { date: displayDay, periods: [] },
       };
     }
 
     const lines = serviceBlocks.map((p) => {
-      const from = p.startTime.toISOString().substring(11, 16);
-      const to = p.endTime.toISOString().substring(11, 16);
+      const from = formatTimeDisplay(p.startTime);
+      const to = formatTimeDisplay(p.endTime);
       return `• ${from}–${to} (service block${p.serviceIds?.length ? ': ' + p.serviceIds.join(', ') : ''})`;
     });
 
     return {
       success: true,
       action: 'check_availability',
-      summary: `Schedule for ${targetDate}: ${serviceBlocks.length} service block(s), ${blocked.length} blocked period(s).\n${lines.join('\n')}`,
+      summary: `Schedule for ${displayDay}: ${serviceBlocks.length} service block(s), ${blocked.length} blocked period(s).\n${lines.join('\n')}`,
       details: {
-        date: targetDate,
+        date: displayDay,
         serviceBlocks: serviceBlocks.length,
         blockedPeriods: blocked.length,
         periods: periods.map((p) => ({
           type: p.type,
-          startTime: p.startTime,
-          endTime: p.endTime,
+          startTime: formatTimeDisplay(p.startTime),
+          endTime: formatTimeDisplay(p.endTime),
           serviceIds: p.serviceIds,
         })),
       },
@@ -625,11 +649,12 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     employeeId?: string,
     employeeName?: string,
   ): Promise<CommandResult> {
-    const targetDate = params.date || new Date().toISOString().split('T')[0];
+    const isoDay = params.date || new Date().toISOString().split('T')[0];
+    const displayDay = formatDateDisplay(isoDay);
 
     const [bookingsResult, availResult] = await Promise.all([
-      this.handleListBookings(businessId, { ...params, date: targetDate }, employeeId, employeeName),
-      this.handleCheckAvailability(businessId, { ...params, date: targetDate }, employeeId),
+      this.handleListBookings(businessId, { ...params, date: isoDay }, employeeId, employeeName),
+      this.handleCheckAvailability(businessId, { ...params, date: isoDay }, employeeId),
     ]);
 
     const bookings = bookingsResult.details.bookings || [];
@@ -641,16 +666,16 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       success: true,
       action: 'summarize_day',
       summary: [
-        `Day summary for ${scopeLabel} on ${targetDate}:`,
+        `Day summary for ${scopeLabel} on ${displayDay}:`,
         `  Schedule: ${availResult.details.serviceBlocks || 0} service blocks, ${availResult.details.blockedPeriods || 0} blocked periods`,
         `  Appointments: ${active.length} active, ${cancelled.length} cancelled`,
         active.length > 0 ? `  Active appointments:` : '',
         ...active.map((b: any) =>
-          `    • ${b.startTime?.toString().substring(11, 16)}–${b.endTime?.toString().substring(11, 16)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
+          `    • ${formatTimeRangeDisplay(b.startTime, b.endTime)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
         ),
       ].filter(Boolean).join('\n'),
       details: {
-        date: targetDate,
+        date: displayDay,
         scope: employeeId ? 'provider' : 'all_providers',
         employee: employeeName ?? null,
         schedule: availResult.details,

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, ILike, Between } from 'typeorm';
 import { ScheduleTemplate } from './entities/schedule-template.entity.js';
@@ -18,9 +18,11 @@ import {
 } from './dto/create-schedule.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import { normalizeTime24, isValidTime24 } from '../../common/utils/time-format.util.js';
 
 @Injectable()
-export class ScheduleService {
+export class ScheduleService implements OnModuleInit {
+  private readonly logger = new Logger(ScheduleService.name);
   constructor(
     @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
     @InjectRepository(SchedulingTemplatePeriod) private periodRepo: Repository<SchedulingTemplatePeriod>,
@@ -30,6 +32,64 @@ export class ScheduleService {
     @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     private eventStore: EventStoreService,
   ) {}
+
+  async onModuleInit() {
+    await this.migratePeriodTimesTo24Hour();
+  }
+
+  private normalizePeriodFields<T extends { startTime: string; endTime: string }>(period: T): T {
+    const startTime = normalizeTime24(period.startTime);
+    const endTime = normalizeTime24(period.endTime);
+    if (!isValidTime24(startTime) || !isValidTime24(endTime)) {
+      throw new BadRequestException(
+        `Invalid period time. Use 24-hour HH:mm format (got "${period.startTime}"–"${period.endTime}").`,
+      );
+    }
+    return { ...period, startTime, endTime };
+  }
+
+  private async migratePeriodTimesTo24Hour() {
+    const periods = await this.periodRepo.find();
+    let updated = 0;
+
+    for (const period of periods) {
+      const startTime = normalizeTime24(period.startTime || '09:00');
+      const endTime = normalizeTime24(period.endTime || '17:00');
+      if (startTime !== period.startTime || endTime !== period.endTime) {
+        period.startTime = startTime;
+        period.endTime = endTime;
+        await this.periodRepo.save(period);
+        updated++;
+      }
+    }
+
+    const templates = await this.templateRepo.find();
+    for (const template of templates) {
+      let changed = false;
+      const workingHours = template.workingHours?.map((slot) => {
+        const startTime = normalizeTime24(slot.startTime);
+        const endTime = normalizeTime24(slot.endTime);
+        if (startTime !== slot.startTime || endTime !== slot.endTime) changed = true;
+        return { ...slot, startTime, endTime };
+      });
+      const breaks = template.breaks?.map((slot) => {
+        const startTime = normalizeTime24(slot.startTime);
+        const endTime = normalizeTime24(slot.endTime);
+        if (startTime !== slot.startTime || endTime !== slot.endTime) changed = true;
+        return { ...slot, startTime, endTime };
+      });
+      if (changed) {
+        template.workingHours = workingHours;
+        template.breaks = breaks;
+        await this.templateRepo.save(template);
+        updated++;
+      }
+    }
+
+    if (updated > 0) {
+      this.logger.log(`Normalized ${updated} schedule record(s) to 24-hour HH:mm format`);
+    }
+  }
 
   async createTemplate(businessId: string, dto: CreateScheduleTemplateDto, userId?: string): Promise<ScheduleTemplate> {
     const template = this.templateRepo.create({
@@ -42,9 +102,10 @@ export class ScheduleService {
     await this.templateRepo.save(template);
 
     if (dto.timePeriods && dto.timePeriods.length > 0) {
-      this.validateTemplatePeriodsDayOverlap(dto.timePeriods);
+      const normalizedPeriods = dto.timePeriods.map((tp) => this.normalizePeriodFields(tp));
+      this.validateTemplatePeriodsDayOverlap(normalizedPeriods);
 
-      const periods = dto.timePeriods.map((tp) =>
+      const periods = normalizedPeriods.map((tp) =>
         this.periodRepo.create({
           templateId: template.id,
           type: tp.type,
@@ -97,10 +158,11 @@ export class ScheduleService {
     if (dto.name) template.name = dto.name;
 
     if (dto.timePeriods) {
-      this.validateTemplatePeriodsDayOverlap(dto.timePeriods);
+      const normalizedPeriods = dto.timePeriods.map((tp) => this.normalizePeriodFields(tp));
+      this.validateTemplatePeriodsDayOverlap(normalizedPeriods);
       await this.periodRepo.delete({ templateId: template.id });
 
-      const periods = dto.timePeriods.map((tp) =>
+      const periods = normalizedPeriods.map((tp) =>
         this.periodRepo.create({
           templateId: template.id,
           type: tp.type,
@@ -255,7 +317,8 @@ export class ScheduleService {
     }
 
     // Validate that submitted periods do not overlap with each other
-    this.validatePeriodsNoOverlap(dto.periods);
+    const normalizedPeriods = dto.periods.map((p) => this.normalizePeriodFields(p));
+    this.validatePeriodsNoOverlap(normalizedPeriods);
 
     const SLOT_GRANULARITY = 10;
     const slotsToSave: Partial<SchedulingSlot>[] = [];
@@ -271,7 +334,7 @@ export class ScheduleService {
       this.schedulingPeriodRepo.delete({ employeeId: dto.employeeId, businessId, startTime: Between(dayStart, dayEnd) as any }),
     ]);
 
-    for (const period of dto.periods) {
+    for (const period of normalizedPeriods) {
       const [startH, startM] = period.startTime.split(':').map(Number);
       const [endH, endM] = period.endTime.split(':').map(Number);
 
