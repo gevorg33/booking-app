@@ -11,6 +11,7 @@ import {
   Briefcase,
   Clock,
   Brain,
+  CreditCard,
   LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/dashboard/schedule', label: 'Schedule', icon: Clock },
   { href: '/dashboard/employees', label: 'Employees', icon: Users },
   { href: '/dashboard/services', label: 'Services', icon: Briefcase },
+  { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
   { href: '/dashboard/ai-ops', label: 'AI Operations', icon: Brain },
 ];
 
