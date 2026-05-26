@@ -43,6 +43,22 @@ export class Business {
   @Column({ default: true })
   isActive: boolean;
 
+  /** Stripe billing */
+  @Column({ type: 'varchar', nullable: true, name: 'stripe_customer_id' })
+  stripeCustomerId: string | null;
+
+  @Column({ type: 'varchar', nullable: true, name: 'stripe_subscription_id' })
+  stripeSubscriptionId: string | null;
+
+  @Column({ type: 'varchar', default: 'inactive', name: 'subscription_status' })
+  subscriptionStatus: string;
+
+  @Column({ type: 'varchar', nullable: true, name: 'subscription_plan_id' })
+  subscriptionPlanId: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'subscription_current_period_end' })
+  subscriptionCurrentPeriodEnd: Date | null;
+
   @OneToMany(() => BusinessMember, (member) => member.business)
   members: BusinessMember[];
 

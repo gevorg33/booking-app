@@ -5,7 +5,7 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
