@@ -1,0 +1,487 @@
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Between, Not, In, DataSource } from 'typeorm';
+import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
+import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
+import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto } from './dto/create-booking.dto.js';
+import { Service } from '../service/entities/service.entity.js';
+import { EventStoreService } from '../../events/store/event-store.service.js';
+import { EventType } from '../../events/event-types.js';
+
+@Injectable()
+export class BookingService {
+  constructor(
+    @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(Service) private serviceRepo: Repository<Service>,
+    private schedulingEngine: SchedulingEngineService,
+    private eventStore: EventStoreService,
+    private dataSource: DataSource,
+  ) {}
+
+  async getAvailability(businessId: string, dto: GetAvailabilityDto) {
+    const date = new Date(dto.date);
+    const dayStart = new Date(date);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const qb = this.slotRepo
+      .createQueryBuilder('slot')
+      .leftJoinAndSelect('slot.employee', 'employee')
+      .leftJoinAndSelect('slot.service', 'service')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.startTime >= :dayStart', { dayStart })
+      .andWhere('slot.startTime <= :dayEnd', { dayEnd })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .andWhere('slot.appointmentCount < slot.maxAppointmentCount');
+
+    if (dto.employeeId) {
+      qb.andWhere('slot.employee_id = :employeeId', { employeeId: dto.employeeId });
+    }
+    if (dto.serviceId) {
+      qb.andWhere(this.serviceMatchClause(), { serviceId: dto.serviceId });
+    }
+
+    qb.orderBy('slot.startTime', 'ASC');
+
+    const slots = await qb.getMany();
+
+    if (slots.length > 0) {
+      return {
+        date: dto.date,
+        slots: slots.map((s) => ({
+          slotId: s.id,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          employeeId: s.employeeId,
+          employeeName: s.employee?.name,
+          serviceId: s.serviceId,
+          serviceIds: s.serviceIds ?? [],
+          availableCount: s.maxAppointmentCount - s.appointmentCount,
+          placeholderLabel: s.placeholderLabel,
+        })),
+      };
+    }
+
+    const engineSlots = await this.schedulingEngine.getAvailableSlots({
+      businessId,
+      serviceId: dto.serviceId,
+      date,
+      employeeId: dto.employeeId,
+    });
+
+    return {
+      date: dto.date,
+      slots: engineSlots.map((s) => ({
+        slotId: null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        employeeId: s.employeeId,
+        employeeName: s.employeeName,
+        serviceId: dto.serviceId,
+        serviceIds: [],
+        availableCount: 1,
+      })),
+    };
+  }
+
+  async create(businessId: string, dto: CreateBookingDto, userId?: string): Promise<Booking> {
+    const service = await this.serviceRepo.findOne({ where: { id: dto.serviceId, businessId } });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const startTime = new Date(dto.startTime);
+    const totalDuration = service.durationMinutes + service.bufferMinutes;
+    const endTime = new Date(startTime.getTime() + totalDuration * 60000);
+
+    if (startTime <= new Date()) {
+      throw new ConflictException('Cannot book in the past');
+    }
+
+    if (dto.customerId) {
+      const existingBooking = await this.bookingRepo.findOne({
+        where: {
+          customerId: dto.customerId,
+          businessId,
+          status: Not(In([BookingStatus.CANCELLED])) as any,
+          startTime: Between(
+            new Date(startTime.getTime() - 60000),
+            new Date(startTime.getTime() + 60000),
+          ) as any,
+        },
+      });
+      if (existingBooking) {
+        throw new ConflictException('Customer already has a booking at this time');
+      }
+    }
+
+    // Validate the entire booking window against applied schedule
+    await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+
+    // Find all available micro-slots that fall within the booking window
+    const slotsToLock = await this.findSlotsInWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+
+    const booking = await this.dataSource.transaction(async (manager) => {
+      if (slotsToLock.length > 0) {
+        // Lock ALL micro-slots in the booking window (clinic-app pattern)
+        for (const slot of slotsToLock) {
+          slot.appointmentCount += 1;
+          if (slot.appointmentCount >= slot.maxAppointmentCount) {
+            slot.status = SlotStatus.BOOKED;
+          }
+          await manager.save(SchedulingSlot, slot);
+        }
+      } else {
+        // No scheduled slots — fall back to engine / conflict check
+        const conflicts = await manager
+          .createQueryBuilder(Booking, 'booking')
+          .setLock('pessimistic_write')
+          .where('booking.employee_id = :employeeId', { employeeId: dto.employeeId })
+          .andWhere('booking.business_id = :businessId', { businessId })
+          .andWhere('booking.status NOT IN (:...excludedStatuses)', {
+            excludedStatuses: [BookingStatus.CANCELLED],
+          })
+          .andWhere('booking.startTime < :endTime', { endTime })
+          .andWhere('booking.endTime > :startTime', { startTime })
+          .getMany();
+
+        if (conflicts.length > 0) {
+          throw new ConflictException('Time slot is already booked');
+        }
+      }
+
+      const newBooking = manager.create(Booking, {
+        businessId,
+        employeeId: dto.employeeId,
+        serviceId: dto.serviceId,
+        customerId: dto.customerId,
+        startTime,
+        endTime,
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PENDING,
+        notes: dto.notes,
+        description: dto.description,
+        linkedEmployeeIds: dto.linkedEmployeeIds,
+        virtualMeetingUrl: dto.virtualMeetingUrl,
+        metadata: dto.metadata || {},
+        // Store the first slot id for backward compat
+        slotId: slotsToLock[0]?.id,
+      });
+
+      return manager.save(newBooking);
+    });
+
+    await this.eventStore.publish({
+      eventType: EventType.BOOKING_CREATED,
+      aggregateType: 'booking',
+      aggregateId: booking.id,
+      businessId,
+      payload: {
+        employeeId: booking.employeeId,
+        serviceId: booking.serviceId,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        lockedSlotsCount: slotsToLock.length,
+      },
+      userId,
+    });
+
+    return this.findOne(booking.id);
+  }
+
+  async update(bookingId: string, dto: UpdateBookingDto, userId?: string): Promise<Booking> {
+    const booking = await this.bookingRepo.findOne({
+      where: { id: bookingId },
+      relations: { employee: true, service: true, customer: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const isRescheduling = dto.startTime && dto.startTime !== booking.startTime.toISOString();
+
+    if (isRescheduling) {
+      // Release all micro-slots from the old booking window
+      await this.releaseSlotsByWindow(
+        booking.employeeId,
+        booking.businessId,
+        booking.startTime,
+        booking.endTime,
+      );
+
+      const targetServiceId = dto.serviceId || booking.serviceId;
+      const targetEmployeeId = dto.employeeId || booking.employeeId;
+      const service = await this.serviceRepo.findOneOrFail({ where: { id: targetServiceId } });
+      const newStart = new Date(dto.startTime!);
+      const totalDuration = service.durationMinutes + service.bufferMinutes;
+      const newEnd = new Date(newStart.getTime() + totalDuration * 60000);
+
+      // Validate and lock new window
+      await this.validateBookingWindow(booking.businessId, targetEmployeeId, newStart, newEnd, targetServiceId);
+      const newSlots = await this.findSlotsInWindow(booking.businessId, targetEmployeeId, newStart, newEnd, targetServiceId);
+
+      for (const slot of newSlots) {
+        slot.appointmentCount += 1;
+        if (slot.appointmentCount >= slot.maxAppointmentCount) {
+          slot.status = SlotStatus.BOOKED;
+        }
+        await this.slotRepo.save(slot);
+      }
+
+      booking.startTime = newStart;
+      booking.endTime = newEnd;
+      booking.slotId = newSlots[0]?.id;
+
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_RESCHEDULED,
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        businessId: booking.businessId,
+        payload: { newStartTime: dto.startTime },
+        userId,
+      });
+    }
+
+    if (dto.employeeId) booking.employeeId = dto.employeeId;
+    if (dto.serviceId) booking.serviceId = dto.serviceId;
+    if (dto.description !== undefined) booking.description = dto.description;
+    if (dto.notes !== undefined) booking.notes = dto.notes;
+    if (dto.status) booking.status = dto.status;
+    if (dto.paymentStatus) booking.paymentStatus = dto.paymentStatus;
+    if (dto.linkedEmployeeIds) booking.linkedEmployeeIds = dto.linkedEmployeeIds;
+    if (dto.virtualMeetingUrl !== undefined) booking.virtualMeetingUrl = dto.virtualMeetingUrl;
+    if (dto.metadata) booking.metadata = { ...booking.metadata, ...dto.metadata };
+
+    await this.bookingRepo.save(booking);
+    return this.findOne(booking.id);
+  }
+
+  async findAll(businessId: string, date?: string, employeeId?: string): Promise<Booking[]> {
+    const where: any = { businessId };
+    if (date) {
+      const dayStart = new Date(date);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(date);
+      dayEnd.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(dayStart, dayEnd);
+    }
+    if (employeeId) {
+      where.employeeId = employeeId;
+    }
+    return this.bookingRepo.find({
+      where,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  async findOne(id: string): Promise<Booking> {
+    const booking = await this.bookingRepo.findOne({
+      where: { id },
+      relations: { employee: true, service: true, customer: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return booking;
+  }
+
+  async cancel(id: string, reason?: string, userId?: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    // Release all micro-slots in the booking window
+    await this.releaseSlotsByWindow(
+      booking.employeeId,
+      booking.businessId,
+      booking.startTime,
+      booking.endTime,
+    );
+
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = reason || 'Cancelled';
+    await this.bookingRepo.save(booking);
+
+    await this.eventStore.publish({
+      eventType: EventType.BOOKING_CANCELLED,
+      aggregateType: 'booking',
+      aggregateId: id,
+      businessId: booking.businessId,
+      payload: { reason, employeeId: booking.employeeId, startTime: booking.startTime },
+      userId,
+    });
+
+    return booking;
+  }
+
+  async getUpcoming(businessId: string, limit = 10): Promise<Booking[]> {
+    return this.bookingRepo.find({
+      where: {
+        businessId,
+        startTime: Not(In([])) as any,
+        status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
+      },
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+      take: limit,
+    });
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Service-match helper: a slot covers a service if
+   *   (a) slot.service_ids contains the serviceId, OR
+   *   (b) slot.service_ids is NULL/empty (generic slot — any service allowed)
+   */
+  private serviceMatchClause(alias = 'slot'): string {
+    return (
+      `(${alias}.service_ids IS NULL ` +
+      `OR cardinality(${alias}.service_ids) = 0 ` +
+      `OR :serviceId = ANY(${alias}.service_ids))`
+    );
+  }
+
+  /**
+   * Validates the ENTIRE booking window [startTime, endTime) against the
+   * applied schedule (micro-slots).
+   *
+   * Rules (matching clinic app logic):
+   *  1. If NO slots exist in the window → no applied schedule, engine path OK.
+   *  2. If any slot in the window is BLOCKED or UNAVAILABLE → reject.
+   *  3. If any slot in the window has a service restriction that excludes
+   *     the requested serviceId → reject.
+   *
+   * Uses `startTime >= :startTime AND startTime < :endTime` (same as clinic app)
+   * so that each 10-min micro-slot is checked individually.
+   */
+  private async validateBookingWindow(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId: string,
+  ): Promise<void> {
+    // For BLOCKED / UNAVAILABLE periods we create ONE full-duration slot.
+    // A booking overlaps with it if:  slotStart < bookEnd AND slotEnd > bookStart
+    const blockingSlots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.endTime > :startTime', { startTime })
+      .andWhere('slot.status IN (:...blockStatuses)', {
+        blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+      })
+      .getCount();
+
+    if (blockingSlots > 0) {
+      throw new BadRequestException(
+        'This time window overlaps with a blocked or unavailable period. Booking is not allowed.',
+      );
+    }
+
+    // Check the 10-min micro-slots that start within [startTime, endTime)
+    const microSlotsInWindow = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .getMany();
+
+    if (microSlotsInWindow.length === 0) {
+      // No micro-slots in range — either no applied schedule (engine path) or all booked.
+      // Check if there are any booked/non-block slots in the window to distinguish:
+      const anySlotInWindow = await this.slotRepo
+        .createQueryBuilder('slot')
+        .where('slot.business_id = :businessId', { businessId })
+        .andWhere('slot.employee_id = :employeeId', { employeeId })
+        .andWhere('slot.startTime >= :startTime', { startTime })
+        .andWhere('slot.startTime < :endTime', { endTime })
+        .andWhere('slot.status NOT IN (:...blockStatuses)', {
+          blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+        })
+        .getCount();
+
+      if (anySlotInWindow > 0) {
+        // Slots exist but none are available (all booked)
+        throw new ConflictException(
+          'All time slots in the requested window are already fully booked.',
+        );
+      }
+      // No slots at all → engine path, allow
+      return;
+    }
+
+    // Verify service restriction: every slot in the window must permit this service
+    const mismatch = microSlotsInWindow.some((s) => {
+      const ids = s.serviceIds;
+      if (!ids || ids.length === 0) return false; // generic slot = OK
+      return !ids.includes(serviceId);
+    });
+
+    if (mismatch) {
+      throw new BadRequestException(
+        'The service provider does not offer this service for the entire requested time window. ' +
+        'Please choose a time when this service is scheduled.',
+      );
+    }
+  }
+
+  /**
+   * Returns all available micro-slots whose startTime falls within [startTime, endTime).
+   * Matches clinic-app's `findSlotsByServiceTypeProviderAndDates` query pattern.
+   */
+  private async findSlotsInWindow(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId?: string,
+  ): Promise<SchedulingSlot[]> {
+    const qb = this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .andWhere('slot.appointmentCount < slot.maxAppointmentCount')
+      .orderBy('slot.startTime', 'ASC');
+
+    if (serviceId) {
+      qb.andWhere(this.serviceMatchClause(), { serviceId });
+    }
+
+    return qb.getMany();
+  }
+
+  /**
+   * Releases all micro-slots locked by a booking.
+   * Queries slots whose startTime falls within the original booking window
+   * (clinic-app's `revertBackSlotStatusAndCount` pattern).
+   */
+  private async releaseSlotsByWindow(
+    employeeId: string,
+    businessId: string,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<void> {
+    const slots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.status IN (:...statuses)', {
+        statuses: [SlotStatus.BOOKED, SlotStatus.AVAILABLE],
+      })
+      .getMany();
+
+    for (const slot of slots) {
+      slot.appointmentCount = Math.max(0, slot.appointmentCount - 1);
+      if (slot.appointmentCount < slot.maxAppointmentCount) {
+        slot.status = SlotStatus.AVAILABLE;
+      }
+      await this.slotRepo.save(slot);
+    }
+  }
+}
