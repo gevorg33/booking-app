@@ -11,7 +11,7 @@ export class WorkflowCompilerService {
       id: step.id,
       name: step.description,
       action: step.action,
-      params: step.params,
+      params: { businessId: plan.businessId, ...step.params },
       dependsOn: step.dependsOn,
       retryPolicy: {
         maxRetries: 2,
@@ -28,6 +28,7 @@ export class WorkflowCompilerService {
       context: {
         planId: plan.id,
         intent: plan.intent,
+        businessId: plan.businessId,
       },
     };
   }

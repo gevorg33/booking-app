@@ -13,10 +13,11 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { DayOfWeek } from '../entities/schedule-template.entity.js';
 import { OverrideType } from '../entities/schedule-override.entity.js';
 import { TemplatePeriodType } from '../entities/scheduling-template-period.entity.js';
+import { normalizeTime24 } from '../../../common/utils/time-format.util.js';
 
 class TimeSlotRangeDto {
   @IsString()
@@ -67,11 +68,13 @@ export class CreateScheduleTemplateDto {
 }
 
 export class TimePeriodDto {
+  @Transform(({ value }) => normalizeTime24(value))
   @IsString()
-  startTime: string; // HH:mm
+  startTime: string; // HH:mm 24-hour
 
+  @Transform(({ value }) => normalizeTime24(value))
   @IsString()
-  endTime: string; // HH:mm
+  endTime: string; // HH:mm 24-hour
 
   @IsEnum(TemplatePeriodType)
   type: TemplatePeriodType;

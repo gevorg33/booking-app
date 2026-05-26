@@ -16,11 +16,43 @@ interface Message {
   timestamp: Date;
 }
 
+interface SessionContext {
+  employeeName?: string | null;
+  date?: string | null;
+  serviceName?: string | null;
+  timeSlot?: string | null;
+  customerName?: string | null;
+}
+
+function extractSessionContext(result: {
+  details?: { sessionContext?: SessionContext; employee?: string; date?: string; params?: Record<string, unknown> };
+}): SessionContext {
+  const ctx: SessionContext = { ...(result.details?.sessionContext ?? {}) };
+  if (result.details?.employee) ctx.employeeName = result.details.employee;
+  if (result.details?.date) ctx.date = result.details.date;
+  const params = result.details?.params;
+  if (params?.employeeName && !ctx.employeeName) ctx.employeeName = String(params.employeeName);
+  if (params?.date && !ctx.date) ctx.date = String(params.date);
+  if (params?.serviceName && !ctx.serviceName) ctx.serviceName = String(params.serviceName);
+  if (params?.timeSlot && !ctx.timeSlot) ctx.timeSlot = String(params.timeSlot);
+  return ctx;
+}
+
+function mergeSessionContext(prev: SessionContext, next: SessionContext): SessionContext {
+  return {
+    employeeName: next.employeeName ?? prev.employeeName,
+    date: next.date ?? prev.date,
+    serviceName: next.serviceName ?? prev.serviceName,
+    timeSlot: next.timeSlot ?? prev.timeSlot,
+    customerName: next.customerName ?? prev.customerName,
+  };
+}
+
 const EXAMPLES = [
-  'Cancel all hairdrying and hairstyle bookings for Gevorg Gasparyan on 2026-05-28',
-  'Book facemassage with Gevorg Gasparyan on 2026-06-02 at 09:00 for customer John',
-  'List all bookings for tomorrow',
-  'Check availability for next Monday',
+  'Optimize tomorrow\'s schedule',
+  'Show all service provider appointments for tomorrow',
+  'Fill unused appointment slots on Friday',
+  'Book facemassage with Gevorg Gasparyan on 02_06_2026 at 09:00',
 ];
 
 export function AiCommandBar() {
@@ -30,7 +62,9 @@ export function AiCommandBar() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +80,51 @@ export function AiCommandBar() {
     }
   }, [messages]);
 
+  const approveTask = useCallback(
+    async (taskId: string) => {
+      if (!business?.id || approvingId) return;
+      setApprovingId(taskId);
+      try {
+        const { data } = await api.post(
+          `/businesses/${business.id}/ai/command/tasks/${taskId}/approve`,
+        );
+        const result = data.data || data;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            text: result.summary,
+            details: result.details,
+            action: result.action,
+            success: result.success,
+            timestamp: new Date(),
+          },
+        ]);
+        setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+        if (result.success) {
+          queryClient.invalidateQueries({ queryKey: ['bookings'] });
+          queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+        }
+      } catch (err: any) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text: err?.response?.data?.message || 'Failed to approve plan',
+            success: false,
+            action: 'error',
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setApprovingId(null);
+      }
+    },
+    [approvingId, business?.id, queryClient],
+  );
+
   const submit = useCallback(async () => {
     const prompt = input.trim();
     if (!prompt || !business?.id || loading) return;
@@ -60,8 +139,17 @@ export function AiCommandBar() {
     setInput('');
     setLoading(true);
 
+    const history = messages.map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+
     try {
-      const { data } = await api.post(`/businesses/${business.id}/ai/command`, { prompt });
+      const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
+        prompt,
+        history,
+        context: sessionContext,
+      });
       const result = data.data || data;
 
       const assistantMsg: Message = {
@@ -74,10 +162,11 @@ export function AiCommandBar() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
 
       if (
-        (result.action === 'cancel_bookings' || result.action === 'create_booking') &&
-        result.success
+        result.success &&
+        (result.action === 'cancel_bookings' || result.action === 'create_booking')
       ) {
         queryClient.invalidateQueries({ queryKey: ['bookings'] });
         queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
@@ -97,7 +186,7 @@ export function AiCommandBar() {
     } finally {
       setLoading(false);
     }
-  }, [input, business?.id, loading, queryClient]);
+  }, [input, business?.id, loading, queryClient, messages, sessionContext]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -131,10 +220,14 @@ export function AiCommandBar() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-400" />
-              <span className="text-sm font-semibold text-gray-200">AI Assistant</span>
+              <span className="text-sm font-semibold text-gray-200">Orchestrix AI</span>
             </div>
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setMessages([]);
+                setSessionContext({});
+              }}
               className="text-gray-500 hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
@@ -147,7 +240,7 @@ export function AiCommandBar() {
               <div className="text-center py-6">
                 <Sparkles className="w-8 h-8 text-violet-500/50 mx-auto mb-3" />
                 <p className="text-sm text-gray-400 mb-4">
-                  Tell me what you need in plain English
+                  Express operational intent — AI plans, policy validates, workflows execute
                 </p>
                 <div className="space-y-2">
                   {EXAMPLES.map((ex, i) => (
@@ -190,6 +283,16 @@ export function AiCommandBar() {
                     <pre className="mt-2 text-[10px] text-gray-500 bg-gray-900 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto">
                       {JSON.stringify(msg.details, null, 2)}
                     </pre>
+                  )}
+
+                  {msg.details?.requiresApproval && msg.details?.taskId && (
+                    <button
+                      onClick={() => approveTask(msg.details.taskId)}
+                      disabled={approvingId === msg.details.taskId}
+                      className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                    >
+                      {approvingId === msg.details.taskId ? 'Executing…' : 'Approve & execute plan'}
+                    </button>
                   )}
 
                   {msg.action && msg.role === 'assistant' && (

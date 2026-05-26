@@ -8,27 +8,33 @@ import { SchedulingOptimizationAgent } from './agents/scheduling-optimization.ag
 import { CancellationRecoveryAgent } from './agents/cancellation-recovery.agent.js';
 import { ConflictResolutionAgent } from './agents/conflict-resolution.agent.js';
 import { ScheduleApplyAgent } from './agents/schedule-apply.agent.js';
+import { ContextBuilderService } from './context-builder.service.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { Employee } from '../../modules/employee/entities/employee.entity.js';
+import { Service } from '../../modules/service/entities/service.entity.js';
+import { Booking } from '../../modules/booking/entities/booking.entity.js';
+import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AgentTask]),
+    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod]),
     PolicyModule,
-    WorkflowModule,
+    forwardRef(() => WorkflowModule),
     EventStoreModule,
   ],
   providers: [
     AgentRegistryService,
     AgentOrchestratorService,
+    ContextBuilderService,
     LlmService,
     SchedulingOptimizationAgent,
     CancellationRecoveryAgent,
     ConflictResolutionAgent,
     ScheduleApplyAgent,
   ],
-  exports: [AgentOrchestratorService, AgentRegistryService],
+  exports: [AgentOrchestratorService, AgentRegistryService, ContextBuilderService],
 })
 export class AgentModule implements OnModuleInit {
   constructor(
