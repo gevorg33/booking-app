@@ -1,13 +1,8 @@
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { AiCommandService } from './ai-command.service.js';
+import { AiCommandDto } from './dto/ai-command.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { IsString } from 'class-validator';
-
-export class AiCommandDto {
-  @IsString()
-  prompt: string;
-}
 
 @Controller('businesses/:businessId/ai')
 @UseGuards(JwtAuthGuard)
@@ -20,7 +15,10 @@ export class AiCommandController {
     @Body() dto: AiCommandDto,
     @CurrentUser() user: any,
   ) {
-    return this.aiCommandService.executeCommand(businessId, dto.prompt, user?.id);
+    return this.aiCommandService.executeCommand(businessId, dto.prompt, user?.id, {
+      history: dto.history,
+      context: dto.context,
+    });
   }
 
   @Post('command/tasks/:taskId/approve')

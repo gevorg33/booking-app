@@ -16,7 +16,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
-import { isValidTime24, isTimeInRange, normalizeTime24 } from '@/lib/time-format';
+import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -61,16 +61,41 @@ function fmtUTC(date: Date) {
 function fmtDate(d: Date) {
   return formatDateDisplay(d);
 }
+function parsePickerDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T12:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function dateKey(d: Date) {
+  if (Number.isNaN(d.getTime())) {
+    return new Date().toISOString().split('T')[0];
+  }
   return d.toISOString().split('T')[0];
 }
+
 function addDays(d: Date, n: number) {
-  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+  const base = Number.isNaN(d.getTime()) ? new Date() : d;
+  const r = new Date(base);
+  r.setUTCDate(r.getUTCDate() + n);
+  return r;
 }
 
 /** Convert a UTC time (HH:mm) on a given date ISO string into an ISO timestamp. */
 function toISO(dayISO: string, timeHHmm: string): string {
   return `${dayISO}T${timeHHmm}:00.000Z`;
+}
+
+/** Latest HH:mm start so a service of `durationMin` ends by `periodEndISO`. */
+function latestStartTime(periodEndISO: string, durationMin: number): string {
+  const latest = new Date(new Date(periodEndISO).getTime() - durationMin * 60000);
+  return formatTimeDisplay(latest);
+}
+
+function bookingEndTime(startHHmm: string, durationMin: number): string {
+  const [h, m] = normalizeTime24(startHHmm).split(':').map(Number);
+  const total = h * 60 + m + durationMin;
+  return formatTimeDisplay(new Date(Date.UTC(1970, 0, 1, Math.floor(total / 60) % 24, total % 60)));
 }
 
 /** Snap HH:mm string down to the nearest 10-minute boundary. */
@@ -424,16 +449,29 @@ export default function BookingsPage() {
 
   const periodMinTime = selectedPeriod ? fmtUTC(new Date(selectedPeriod.startTime)) : undefined;
   const periodMaxTime = selectedPeriod ? fmtUTC(new Date(selectedPeriod.endTime)) : undefined;
+
+  const selectedService = form.serviceId
+    ? (allServices as any[]).find((s: any) => s.id === form.serviceId)
+    : null;
+  const serviceDurationMin = selectedService
+    ? (selectedService.durationMinutes || 0) + (selectedService.bufferMinutes || 0)
+    : 0;
+  const latestStart = selectedPeriod && serviceDurationMin > 0
+    ? latestStartTime(selectedPeriod.endTime, serviceDurationMin)
+    : periodMaxTime;
+
   const startTimeValid = form.startTime
     && isValidTime24(form.startTime)
-    && isTimeInRange(form.startTime, periodMinTime, periodMaxTime);
+    && isTimeInRange(form.startTime, periodMinTime, latestStart);
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPeriod || !form.startTime) throw new Error('No time selected');
+      if (!selectedPeriod || !form.startTime || !selectedService) throw new Error('No time selected');
       const snapped = snapTo10min(normalizeTime24(form.startTime));
-      if (!isTimeInRange(snapped, periodMinTime, periodMaxTime)) {
-        throw new Error(`Start time must be between ${periodMinTime} and ${periodMaxTime}`);
+      if (!isTimeInRange(snapped, periodMinTime, latestStart)) {
+        throw new Error(
+          `Start time must be between ${periodMinTime} and ${latestStart} so the ${serviceDurationMin}-minute service fits in the period`,
+        );
       }
       const startISO = toISO(dayStr, snapped);
       const payload: any = {
@@ -524,7 +562,10 @@ export default function BookingsPage() {
               type="date"
               className="input text-sm ml-1"
               value={dayStr}
-              onChange={(e) => setDay(new Date(e.target.value + 'T12:00:00'))}
+              onChange={(e) => {
+                const parsed = parsePickerDate(e.target.value);
+                if (parsed) setDay(parsed);
+              }}
             />
           </div>
         </div>
@@ -770,12 +811,28 @@ export default function BookingsPage() {
                   <TimeInput
                     value={form.startTime}
                     min={periodMinTime}
-                    max={periodMaxTime}
+                    max={latestStart}
                     onChange={(v) => setForm({ ...form, startTime: v })}
                   />
                   <p className="text-[10px] text-gray-500 mt-1">
                     Snapped to 10-min intervals. Period: {periodMinTime} – {periodMaxTime}
+                    {selectedService && serviceDurationMin > 0 && (
+                      <>
+                        {' · '}
+                        {selectedService.name} ({serviceDurationMin} min) must end by {periodMaxTime}
+                        {' · '}latest start: <span className="text-gray-400">{latestStart}</span>
+                        {form.startTime && isValidTime24(form.startTime) && (
+                          <> · ends at {bookingEndTime(snapTo10min(normalizeTime24(form.startTime)), serviceDurationMin)}</>
+                        )}
+                      </>
+                    )}
                   </p>
+                  {form.startTime && isValidTime24(form.startTime) && latestStart
+                    && timeToMinutes(normalizeTime24(form.startTime)) > timeToMinutes(latestStart) && (
+                    <p className="text-[10px] text-red-400 mt-1">
+                      This start time is too late — the service would run past the period end ({periodMaxTime}).
+                    </p>
+                  )}
                 </div>
 
                 {/* Service */}

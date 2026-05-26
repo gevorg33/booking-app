@@ -8,6 +8,8 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { AgentType } from '../../engine/agent/interfaces/agent.interfaces.js';
 import { CommandOrchestrationService, OrchestrationResult } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
@@ -57,13 +59,22 @@ Rules:
 - If the user mentions a reason/note for cancellation (e.g. "he is sick"), put it in "reason".
 - For new appointments (book, schedule, create appointment), use action "create_booking".
 - create_booking requires employeeName, serviceName, date, and timeSlot at minimum.
-- Use "show_appointments" or "list_bookings" when the user wants to view/display/see appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow", "list all provider appointments on 28_05_2026".
+- Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
+- Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - optimize_schedule / fill_unused_slots: use optimize_schedule or fill_unused_slots when user wants to optimize, fill gaps, reduce idle time, or improve utilization.
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
-- If you cannot determine the action, use "unknown".`;
+- If you cannot determine the action, use "unknown".
+- Multi-turn conversation: read prior messages and Active session context. Follow-up commands often omit provider, date, or customer — inherit them unless the user clearly switches topic.
+- Example follow-up: after "available slots for Gevorg on 30_06_2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30_06_2026", serviceName="facemassage", timeSlot="16:00".
+- Dates may appear as DD_MM_YYYY or DD/MM/YYYY — normalize to DD_MM_YYYY in params.`;
+
+export interface CommandSessionOptions {
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  context?: Record<string, any>;
+}
 
 @Injectable()
 export class AiCommandService {
@@ -76,6 +87,7 @@ export class AiCommandService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private config: ConfigService,
@@ -96,6 +108,7 @@ export class AiCommandService {
     businessId: string,
     prompt: string,
     userId?: string,
+    session?: CommandSessionOptions,
   ): Promise<CommandResult> {
     if (!this.client) {
       return { success: false, action: 'error', summary: 'OpenAI API key not configured', details: {} };
@@ -112,10 +125,12 @@ Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', '
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}`;
 
-    const parsed = await this.classifyIntent(prompt, contextBlock);
+    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context);
     if (!parsed) {
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
+
+    parsed.params = this.mergeSessionContext(parsed.params, session?.context);
 
     this.logger.log(`AI classified action="${parsed.action}" — ${parsed.reasoning}`);
 
@@ -133,17 +148,23 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         parsed.action,
       )
     ) {
-      return {
-        success: false,
-        action: parsed.action,
-        summary: `Service provider "${parsed.params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
-        details: { requestedEmployee: parsed.params.employeeName, availableEmployees: employees.map((e) => e.name) },
-      };
+      return this.attachSessionContext(
+        {
+          success: false,
+          action: parsed.action,
+          summary: `Service provider "${parsed.params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
+          details: { requestedEmployee: parsed.params.employeeName, availableEmployees: employees.map((e) => e.name) },
+        },
+        parsed.params,
+        undefined,
+      );
     }
+
+    let result: CommandResult;
 
     switch (parsed.action) {
       case 'create_booking':
-        return this.handleCreateBooking(
+        result = await this.handleCreateBooking(
           businessId,
           parsed.params,
           employees,
@@ -151,24 +172,34 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
           customers,
           userId,
         );
+        break;
       case 'cancel_bookings':
-        return this.handleCancelBookings(
+        result = await this.handleCancelBookings(
           businessId,
           parsed.params,
           services,
           employeeId,
           userId,
         );
+        break;
       case 'list_bookings':
       case 'show_appointments':
-        return this.handleListBookings(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        result = await this.handleListBookings(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        break;
       case 'check_availability':
-        return this.handleCheckAvailability(businessId, parsed.params, employeeId);
+        result = await this.handleCheckAvailability(
+          businessId,
+          parsed.params,
+          employeeId,
+          resolvedEmployee?.name,
+        );
+        break;
       case 'summarize_day':
-        return this.handleSummarizeDay(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        result = await this.handleSummarizeDay(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        break;
       case 'optimize_schedule':
       case 'fill_unused_slots':
-        return this.toCommandResult(
+        result = this.toCommandResult(
           await this.orchestration.runOrchestrationIntent({
             businessId,
             intent: prompt,
@@ -178,8 +209,9 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
             employeeId,
           }),
         );
+        break;
       case 'resolve_conflicts':
-        return this.toCommandResult(
+        result = this.toCommandResult(
           await this.orchestration.runOrchestrationIntent({
             businessId,
             intent: prompt,
@@ -189,8 +221,9 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
             employeeId,
           }),
         );
+        break;
       case 'reassign_cancelled':
-        return this.toCommandResult(
+        result = this.toCommandResult(
           await this.orchestration.runOrchestrationIntent({
             businessId,
             intent: prompt,
@@ -200,27 +233,99 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
             employeeId,
           }),
         );
+        break;
       case 'reschedule_booking':
-        return this.handleRescheduleBooking(businessId, parsed.params, employeeId, userId);
+        result = await this.handleRescheduleBooking(businessId, parsed.params, employeeId, userId);
+        break;
       default:
-        return {
+        result = {
           success: false,
           action: 'unknown',
           summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported: book, cancel, show appointments, optimize schedule, fill slots, resolve conflicts, reassign cancelled, check availability, summarize day.`,
           details: { parsed },
         };
     }
+
+    return this.attachSessionContext(result, parsed.params, resolvedEmployee?.name);
+  }
+
+  private mergeSessionContext(
+    params: Record<string, any>,
+    session?: Record<string, any>,
+  ): Record<string, any> {
+    if (!session) return params;
+
+    const merged = { ...params };
+    const inheritKeys = [
+      'employeeName',
+      'date',
+      'dateFrom',
+      'dateTo',
+      'serviceName',
+      'timeSlot',
+      'customerName',
+    ] as const;
+
+    for (const key of inheritKeys) {
+      const value = merged[key];
+      if ((value == null || value === '') && session[key]) {
+        merged[key] = session[key];
+      }
+    }
+
+    return merged;
+  }
+
+  private attachSessionContext(
+    result: CommandResult,
+    params: Record<string, any>,
+    employeeName?: string,
+  ): CommandResult {
+    const sessionContext = {
+      employeeName: employeeName ?? params.employeeName ?? null,
+      date: params.date ? formatDateDisplay(params.date) : null,
+      serviceName: params.serviceName ?? null,
+      timeSlot: params.timeSlot ?? null,
+      customerName: params.customerName ?? null,
+    };
+
+    return {
+      ...result,
+      details: {
+        ...result.details,
+        sessionContext,
+      },
+    };
   }
 
   private async classifyIntent(
     prompt: string,
     context: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    sessionContext?: Record<string, any>,
   ): Promise<{ action: string; params: any; reasoning: string } | null> {
     try {
+      const sessionBlock =
+        sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
+          ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
+          : '';
+
+      const historyMessages = (history ?? [])
+        .slice(-10)
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
       const response = await this.client!.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `${INTENT_SCHEMA}\n\n${context}` },
+          {
+            role: 'system',
+            content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
+          },
+          ...historyMessages,
           { role: 'user', content: prompt },
         ],
         response_format: { type: 'json_object' },
@@ -325,7 +430,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       return {
         success: false,
         action: 'create_booking',
-        summary: `Cannot book appointment — missing: ${missing.join(', ')}. Example: "Book facemassage with Gevorg Gasparyan for customer John on 2026-06-02 at 09:00"`,
+        summary: `Cannot book appointment — missing: ${missing.join(', ')}. Example: "Book facemassage with Gevorg Gasparyan on 30_06_2026 at 16:00" (follow-ups can omit provider/date if already discussed).`,
         details: { params, missing },
       };
     }
@@ -589,10 +694,74 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     };
   }
 
+  private async serviceNameMap(
+    businessId: string,
+    serviceIds: string[],
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(serviceIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+
+    const services = await this.serviceRepo.find({
+      where: { businessId, id: In(unique) },
+    });
+    return new Map(services.map((s) => [s.id, s.name]));
+  }
+
+  private formatPeriodServices(
+    serviceIds: string[] | null | undefined,
+    nameMap: Map<string, string>,
+  ): string {
+    if (!serviceIds?.length) return 'any service';
+    return serviceIds.map((id) => nameMap.get(id) || id).join(', ');
+  }
+
+  private formatNonServicePeriod(p: SchedulingPeriod): string {
+    const from = formatTimeDisplay(p.startTime);
+    const to = formatTimeDisplay(p.endTime);
+    const note = p.placeholderLabel?.trim();
+
+    if (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK) {
+      return `• ${from}–${to} — Unavailable${note ? `: ${note}` : ''}`;
+    }
+    if (p.type === TemplatePeriodType.BLOCKED_TIME) {
+      return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
+    }
+    return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
+  }
+
+  private timesOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
+    return startA < endB && endA > startB;
+  }
+
+  private mergeOpenSlotRanges(
+    slots: Array<{ startTime: Date; endTime: Date }>,
+  ): Array<{ start: string; end: string }> {
+    if (slots.length === 0) return [];
+
+    const sorted = [...slots].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    const merged: Array<{ start: Date; end: Date }> = [{ start: sorted[0].startTime, end: sorted[0].endTime }];
+
+    for (let i = 1; i < sorted.length; i++) {
+      const slot = sorted[i];
+      const last = merged[merged.length - 1];
+      if (slot.startTime.getTime() <= last.end.getTime()) {
+        if (slot.endTime > last.end) last.end = slot.endTime;
+      } else {
+        merged.push({ start: slot.startTime, end: slot.endTime });
+      }
+    }
+
+    return merged.map((r) => ({
+      start: formatTimeDisplay(r.start),
+      end: formatTimeDisplay(r.end),
+    }));
+  }
+
   private async handleCheckAvailability(
     businessId: string,
     params: any,
     employeeId?: string,
+    employeeName?: string,
   ): Promise<CommandResult> {
     const isoDay = params.date || new Date().toISOString().split('T')[0];
     const displayDay = formatDateDisplay(isoDay);
@@ -603,42 +772,143 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     const where: any = { businessId, startTime: Between(dayStart, dayEnd) as any };
     if (employeeId) where.employeeId = employeeId;
 
-    const periods = await this.periodRepo.find({ where, order: { startTime: 'ASC' } });
+    const [periods, bookings, openSlots] = await Promise.all([
+      this.periodRepo.find({ where, order: { startTime: 'ASC' } }),
+      this.bookingRepo.find({
+        where: {
+          businessId,
+          ...(employeeId ? { employeeId } : {}),
+          startTime: Between(dayStart, dayEnd) as any,
+          status: Not(BookingStatus.CANCELLED) as any,
+        },
+        relations: { service: true, customer: true },
+        order: { startTime: 'ASC' },
+      }),
+      employeeId
+        ? this.slotRepo
+            .createQueryBuilder('slot')
+            .where('slot.business_id = :businessId', { businessId })
+            .andWhere('slot.employee_id = :employeeId', { employeeId })
+            .andWhere('slot.startTime >= :dayStart', { dayStart })
+            .andWhere('slot.startTime <= :dayEnd', { dayEnd })
+            .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+            .andWhere('slot.appointmentCount < slot.maxAppointmentCount')
+            .orderBy('slot.startTime', 'ASC')
+            .getMany()
+        : Promise.resolve([]),
+    ]);
 
-    const serviceBlocks = periods.filter((p) => p.type === 'service_block');
-    const blocked = periods.filter((p) => p.type !== 'service_block');
+    const serviceBlocks = periods.filter((p) => p.type === TemplatePeriodType.SERVICE_BLOCK);
+    const nonService = periods.filter((p) => p.type !== TemplatePeriodType.SERVICE_BLOCK);
 
-    const empName = employeeId ? (periods[0]?.employeeId ? 'the provider' : 'all providers') : 'all providers';
+    const nameMap = await this.serviceNameMap(
+      businessId,
+      [
+        ...periods.flatMap((p) => p.serviceIds ?? []),
+        ...bookings.map((b) => b.serviceId).filter(Boolean),
+      ],
+    );
+
+    const scopeLabel = employeeName || 'all service providers';
 
     if (periods.length === 0) {
       return {
         success: true,
         action: 'check_availability',
-        summary: `No schedule applied for ${empName} on ${displayDay}.`,
-        details: { date: displayDay, periods: [] },
+        summary: `No schedule applied for ${scopeLabel} on ${displayDay}.`,
+        details: { date: displayDay, employee: employeeName ?? null, periods: [], bookings: [], openSlots: [] },
       };
     }
 
-    const lines = serviceBlocks.map((p) => {
-      const from = formatTimeDisplay(p.startTime);
-      const to = formatTimeDisplay(p.endTime);
-      return `• ${from}–${to} (service block${p.serviceIds?.length ? ': ' + p.serviceIds.join(', ') : ''})`;
+    const scheduleLines = [
+      ...serviceBlocks.map((p) => {
+        const from = formatTimeDisplay(p.startTime);
+        const to = formatTimeDisplay(p.endTime);
+        const services = this.formatPeriodServices(p.serviceIds, nameMap);
+        return `• ${from}–${to} — ${services}`;
+      }),
+      ...nonService.map((p) => this.formatNonServicePeriod(p)),
+    ];
+
+    const bookingLines =
+      bookings.length > 0
+        ? this.formatBookingLines(bookings)
+        : ['  (none)'];
+
+    const openSlotRanges = this.mergeOpenSlotRanges(openSlots);
+    const openSlotLines =
+      openSlotRanges.length > 0
+        ? openSlotRanges.map((r) => `• ${r.start}–${r.end}`)
+        : ['  (none — all bookable time is taken or no micro-slots generated)'];
+
+    const blockAvailabilityLines = serviceBlocks.map((block) => {
+      const from = formatTimeDisplay(block.startTime);
+      const to = formatTimeDisplay(block.endTime);
+      const services = this.formatPeriodServices(block.serviceIds, nameMap);
+      const blockBookings = bookings.filter((b) =>
+        this.timesOverlap(block.startTime, block.endTime, b.startTime, b.endTime),
+      );
+      const blockOpen = openSlots.filter(
+        (s) => s.startTime >= block.startTime && s.startTime < block.endTime,
+      );
+      const blockOpenRanges = this.mergeOpenSlotRanges(blockOpen);
+      const openSummary =
+        blockOpenRanges.length > 0
+          ? blockOpenRanges.map((r) => `${r.start}–${r.end}`).join(', ')
+          : 'fully booked or no open micro-slots';
+
+      return `• ${from}–${to} — ${services} | ${blockBookings.length} booked | open: ${openSummary}`;
     });
+
+    const summaryParts = [
+      `Available slots for ${scopeLabel} on ${displayDay}:`,
+      '',
+      'Applied schedule:',
+      ...scheduleLines,
+      '',
+      `Already booked (${bookings.length}):`,
+      ...bookingLines,
+      '',
+      'Open bookable slots:',
+      ...openSlotLines,
+      '',
+      'Availability by service block:',
+      ...blockAvailabilityLines,
+    ];
 
     return {
       success: true,
       action: 'check_availability',
-      summary: `Schedule for ${displayDay}: ${serviceBlocks.length} service block(s), ${blocked.length} blocked period(s).\n${lines.join('\n')}`,
+      summary: summaryParts.join('\n'),
       details: {
         date: displayDay,
+        employee: employeeName ?? null,
         serviceBlocks: serviceBlocks.length,
-        blockedPeriods: blocked.length,
+        blockedPeriods: nonService.length,
         periods: periods.map((p) => ({
           type: p.type,
           startTime: formatTimeDisplay(p.startTime),
           endTime: formatTimeDisplay(p.endTime),
-          serviceIds: p.serviceIds,
+          services:
+            p.type === TemplatePeriodType.SERVICE_BLOCK
+              ? this.formatPeriodServices(p.serviceIds, nameMap)
+              : null,
+          label:
+            p.type !== TemplatePeriodType.SERVICE_BLOCK
+              ? p.placeholderLabel ||
+                (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK ? 'Unavailable' : 'Blocked')
+              : p.placeholderLabel,
+          serviceIds: p.serviceIds ?? [],
         })),
+        bookings: bookings.map((b) => ({
+          service: b.service?.name || 'Service',
+          customer: b.customer?.name || 'Walk-in',
+          startTime: formatTimeDisplay(b.startTime),
+          endTime: formatTimeDisplay(b.endTime),
+          status: b.status,
+        })),
+        openSlots: openSlotRanges,
+        blockAvailability: blockAvailabilityLines,
       },
     };
   }
@@ -654,7 +924,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
 
     const [bookingsResult, availResult] = await Promise.all([
       this.handleListBookings(businessId, { ...params, date: isoDay }, employeeId, employeeName),
-      this.handleCheckAvailability(businessId, { ...params, date: isoDay }, employeeId),
+      this.handleCheckAvailability(businessId, { ...params, date: isoDay }, employeeId, employeeName),
     ]);
 
     const bookings = bookingsResult.details.bookings || [];

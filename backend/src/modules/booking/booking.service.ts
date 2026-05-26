@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, DataSource } from 'typeorm';
 import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto } from './dto/create-booking.dto.js';
 import { Service } from '../service/entities/service.entity.js';
@@ -14,6 +16,7 @@ export class BookingService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
@@ -358,6 +361,8 @@ export class BookingService {
     endTime: Date,
     serviceId: string,
   ): Promise<void> {
+    await this.validateAgainstServicePeriods(businessId, employeeId, startTime, endTime, serviceId);
+
     // For BLOCKED / UNAVAILABLE periods we create ONE full-duration slot.
     // A booking overlaps with it if:  slotStart < bookEnd AND slotEnd > bookStart
     const blockingSlots = await this.slotRepo
@@ -422,6 +427,70 @@ export class BookingService {
       throw new BadRequestException(
         'The service provider does not offer this service for the entire requested time window. ' +
         'Please choose a time when this service is scheduled.',
+      );
+    }
+
+    const slotGranularityMs = 10 * 60 * 1000;
+    const slotsNeeded = Math.ceil((endTime.getTime() - startTime.getTime()) / slotGranularityMs);
+    if (microSlotsInWindow.length < slotsNeeded) {
+      throw new BadRequestException(
+        'The full service duration does not fit within the available schedule. ' +
+        'Choose an earlier start time so the appointment ends within the service period.',
+      );
+    }
+  }
+
+  /**
+   * When an applied schedule exists for the day, the entire booking window must
+   * fall inside a service_block period that offers the requested service.
+   */
+  private async validateAgainstServicePeriods(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId: string,
+  ): Promise<void> {
+    const dayStart = new Date(startTime);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(startTime);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    if (dayPeriods.length === 0) {
+      return;
+    }
+
+    const containing = dayPeriods.filter(
+      (p) =>
+        p.type === TemplatePeriodType.SERVICE_BLOCK &&
+        p.startTime <= startTime &&
+        p.endTime >= endTime,
+    );
+
+    if (containing.length === 0) {
+      throw new BadRequestException(
+        'The booking does not fit within an available service period. ' +
+        'The full service duration must finish before the period ends.',
+      );
+    }
+
+    const serviceAllowed = containing.some((p) => {
+      const ids = p.serviceIds;
+      if (!ids || ids.length === 0) return true;
+      return ids.includes(serviceId);
+    });
+
+    if (!serviceAllowed) {
+      throw new BadRequestException(
+        'This service is not offered in the service period for the selected time.',
       );
     }
   }

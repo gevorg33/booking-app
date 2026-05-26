@@ -21,11 +21,15 @@ export function formatTimeRangeDisplay(start: Date | string, end: Date | string)
   return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
 }
 
-/** Parse DD_MM_YYYY or YYYY-MM-DD into a UTC midnight Date. */
+/** Parse DD_MM_YYYY, DD/MM/YYYY, or YYYY-MM-DD into a UTC midnight Date. */
 export function parseDateInput(value: string): Date | null {
   const display = value.match(/^(\d{2})_(\d{2})_(\d{4})$/);
   if (display) {
     return new Date(`${display[3]}-${display[2]}-${display[1]}T00:00:00.000Z`);
+  }
+  const slash = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (slash) {
+    return new Date(`${slash[3]}-${slash[2]}-${slash[1]}T00:00:00.000Z`);
   }
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) {
