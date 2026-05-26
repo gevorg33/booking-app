@@ -69,7 +69,7 @@ const DAYS_OF_WEEK = [
 ];
 
 const PERIOD_TYPES = [
-  { value: 'service_block', label: 'Service Block' },
+  { value: 'service_block', label: 'Available' },
   { value: 'unavailable_block', label: 'Unavailable' },
   { value: 'blocked_time', label: 'Blocked Time' },
 ];

@@ -17,10 +17,10 @@ interface Message {
 }
 
 const EXAMPLES = [
+  'Show Gevorg Gasparyan appointments on 2026-05-28',
+  'Show all service provider appointments for tomorrow',
   'Cancel all hairdrying and hairstyle bookings for Gevorg Gasparyan on 2026-05-28',
   'Book facemassage with Gevorg Gasparyan on 2026-06-02 at 09:00 for customer John',
-  'List all bookings for tomorrow',
-  'Check availability for next Monday',
 ];
 
 export function AiCommandBar() {

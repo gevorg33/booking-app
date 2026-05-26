@@ -22,7 +22,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "cancel_bookings" | "list_bookings" | "check_availability" | "reschedule_booking" | "summarize_day" | "unknown",
+  "action": "create_booking" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "unknown",
   "params": {
     "employeeName": "string or null — the service provider's name mentioned",
     "customerName": "string or null",
@@ -48,6 +48,8 @@ Rules:
 - If the user mentions a reason/note for cancellation (e.g. "he is sick"), put it in "reason".
 - For new appointments (book, schedule, create appointment), use action "create_booking".
 - create_booking requires employeeName, serviceName, date, and timeSlot at minimum.
+- Use "show_appointments" or "list_bookings" when the user wants to view/display/see appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow", "list all provider appointments on 2026-05-28".
+- show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - If you cannot determine the action, use "unknown".`;
 
 @Injectable()
@@ -99,9 +101,25 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
 
     this.logger.log(`AI classified action="${parsed.action}" — ${parsed.reasoning}`);
 
-    const employeeId = parsed.params.employeeName
-      ? this.resolveEmployee(employees, parsed.params.employeeName)?.id
+    const resolvedEmployee = parsed.params.employeeName
+      ? this.resolveEmployee(employees, parsed.params.employeeName)
       : undefined;
+    const employeeId = resolvedEmployee?.id;
+
+    if (
+      parsed.params.employeeName &&
+      !resolvedEmployee &&
+      ['list_bookings', 'show_appointments', 'summarize_day', 'check_availability', 'cancel_bookings'].includes(
+        parsed.action,
+      )
+    ) {
+      return {
+        success: false,
+        action: parsed.action,
+        summary: `Service provider "${parsed.params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
+        details: { requestedEmployee: parsed.params.employeeName, availableEmployees: employees.map((e) => e.name) },
+      };
+    }
 
     switch (parsed.action) {
       case 'create_booking':
@@ -122,18 +140,19 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
           userId,
         );
       case 'list_bookings':
-        return this.handleListBookings(businessId, parsed.params, employeeId);
+      case 'show_appointments':
+        return this.handleListBookings(businessId, parsed.params, employeeId, resolvedEmployee?.name);
       case 'check_availability':
         return this.handleCheckAvailability(businessId, parsed.params, employeeId);
       case 'summarize_day':
-        return this.handleSummarizeDay(businessId, parsed.params, employeeId);
+        return this.handleSummarizeDay(businessId, parsed.params, employeeId, resolvedEmployee?.name);
       case 'reschedule_booking':
         return this.handleRescheduleBooking(businessId, parsed.params, employeeId, userId);
       default:
         return {
           success: false,
           action: 'unknown',
-          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported actions: book appointment, cancel bookings, list bookings, check availability, summarize a day, reschedule a booking.`,
+          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported actions: book appointment, cancel bookings, show/list appointments, check availability, summarize a day, reschedule a booking.`,
           details: { parsed },
         };
     }
@@ -448,10 +467,26 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     };
   }
 
+  private formatBookingTime(start: Date, end: Date): string {
+    return `${start.toISOString().substring(11, 16)}–${end.toISOString().substring(11, 16)}`;
+  }
+
+  private formatBookingLines(
+    bookings: Booking[],
+    options: { includeProvider?: boolean } = {},
+  ): string[] {
+    return bookings.map((b) => {
+      const time = this.formatBookingTime(b.startTime, b.endTime);
+      const providerPart = options.includeProvider ? ` | ${b.employee?.name || 'Unknown'}` : '';
+      return `  • ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'}${providerPart} | ${b.status}`;
+    });
+  }
+
   private async handleListBookings(
     businessId: string,
     params: any,
     employeeId?: string,
+    employeeName?: string,
   ): Promise<CommandResult> {
     const where: any = { businessId };
     if (employeeId) where.employeeId = employeeId;
@@ -468,24 +503,56 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       order: { startTime: 'ASC' },
     });
 
-    const lines = bookings.map((b) => {
-      const time = `${b.startTime.toISOString().substring(11, 16)}–${b.endTime.toISOString().substring(11, 16)}`;
-      return `• ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'} | ${b.status}`;
-    });
+    const scopeLabel = employeeName || 'all service providers';
+    const activeBookings = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
+    const cancelledBookings = bookings.filter((b) => b.status === BookingStatus.CANCELLED);
 
-    const empName = employeeId
-      ? bookings[0]?.employee?.name || 'the provider'
-      : 'all providers';
+    let summaryBody: string;
+    if (bookings.length === 0) {
+      summaryBody = `No appointments found for ${scopeLabel} on ${targetDate}.`;
+    } else if (employeeId) {
+      const lines = this.formatBookingLines(activeBookings);
+      const cancelledNote =
+        cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled — hidden)` : '';
+      summaryBody = [
+        `${activeBookings.length} appointment(s) for ${scopeLabel} on ${targetDate}:${cancelledNote}`,
+        ...lines,
+      ].join('\n');
+    } else {
+      const byProvider = new Map<string, Booking[]>();
+      for (const booking of activeBookings) {
+        const name = booking.employee?.name || 'Unknown provider';
+        if (!byProvider.has(name)) byProvider.set(name, []);
+        byProvider.get(name)!.push(booking);
+      }
+
+      const groupedLines: string[] = [];
+      for (const [name, providerBookings] of [...byProvider.entries()].sort((a, b) =>
+        a[0].localeCompare(b[0]),
+      )) {
+        groupedLines.push(`\n${name} (${providerBookings.length}):`);
+        groupedLines.push(...this.formatBookingLines(providerBookings));
+      }
+
+      const cancelledNote =
+        cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)` : '';
+      summaryBody = [
+        `${activeBookings.length} appointment(s) for all service providers on ${targetDate}:${cancelledNote}`,
+        ...groupedLines,
+      ].join('\n');
+    }
 
     return {
       success: true,
-      action: 'list_bookings',
-      summary: bookings.length > 0
-        ? `${bookings.length} booking(s) for ${empName} on ${targetDate}:\n${lines.join('\n')}`
-        : `No bookings found for ${empName} on ${targetDate}.`,
+      action: 'show_appointments',
+      summary: summaryBody,
       details: {
         count: bookings.length,
+        activeCount: activeBookings.length,
+        cancelledCount: cancelledBookings.length,
         date: targetDate,
+        scope: employeeId ? 'provider' : 'all_providers',
+        employee: employeeName ?? null,
         bookings: bookings.map((b) => ({
           id: b.id,
           service: b.service?.name,
@@ -556,32 +623,36 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     businessId: string,
     params: any,
     employeeId?: string,
+    employeeName?: string,
   ): Promise<CommandResult> {
     const targetDate = params.date || new Date().toISOString().split('T')[0];
 
     const [bookingsResult, availResult] = await Promise.all([
-      this.handleListBookings(businessId, { ...params, date: targetDate }, employeeId),
+      this.handleListBookings(businessId, { ...params, date: targetDate }, employeeId, employeeName),
       this.handleCheckAvailability(businessId, { ...params, date: targetDate }, employeeId),
     ]);
 
     const bookings = bookingsResult.details.bookings || [];
     const active = bookings.filter((b: any) => b.status !== 'cancelled');
     const cancelled = bookings.filter((b: any) => b.status === 'cancelled');
+    const scopeLabel = employeeName || 'all service providers';
 
     return {
       success: true,
       action: 'summarize_day',
       summary: [
-        `Day summary for ${targetDate}:`,
+        `Day summary for ${scopeLabel} on ${targetDate}:`,
         `  Schedule: ${availResult.details.serviceBlocks || 0} service blocks, ${availResult.details.blockedPeriods || 0} blocked periods`,
-        `  Bookings: ${active.length} active, ${cancelled.length} cancelled`,
-        active.length > 0 ? `  Active bookings:` : '',
+        `  Appointments: ${active.length} active, ${cancelled.length} cancelled`,
+        active.length > 0 ? `  Active appointments:` : '',
         ...active.map((b: any) =>
-          `    • ${b.startTime?.toString().substring(11, 16)}–${b.endTime?.toString().substring(11, 16)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}`
+          `    • ${b.startTime?.toString().substring(11, 16)}–${b.endTime?.toString().substring(11, 16)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
         ),
       ].filter(Boolean).join('\n'),
       details: {
         date: targetDate,
+        scope: employeeId ? 'provider' : 'all_providers',
+        employee: employeeName ?? null,
         schedule: availResult.details,
         bookings: bookingsResult.details,
       },
