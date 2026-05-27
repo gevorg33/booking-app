@@ -200,3 +200,27 @@ export function formatPrice(price: number, currency: string): string {
     return `${price} ${currency}`;
   }
 }
+
+export interface PublicReviewContext {
+  businessName: string;
+  employeeName: string;
+  serviceName: string;
+  customerName: string;
+  appointmentDate: string;
+  alreadySubmitted: boolean;
+}
+
+export function getPublicReviewContext(slug: string, bookingId: string, token: string) {
+  const q = new URLSearchParams({ bookingId, token });
+  return publicFetch<PublicReviewContext>(`/public/${slug}/reviews/context?${q.toString()}`);
+}
+
+export function submitPublicReview(
+  slug: string,
+  body: { bookingId: string; token: string; rating: number; comment?: string; customerName?: string },
+) {
+  return publicFetch<{ id: string; rating: number }>(`/public/${slug}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}

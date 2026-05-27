@@ -9,7 +9,11 @@ import { useI18n } from '@/i18n';
 import { formatDateDisplay } from '@/lib/date-format';
 import {
   buildCustomerSearchQuery,
+  CUSTOMER_TAGS,
+  customerTagLabelKey,
   type CustomerSearchParams,
+  type CustomerSegment,
+  type CustomerTag,
   type CustomersSearchResult,
 } from '@/lib/customer-types';
 import { BOOKING_STATUS_LABELS, type BookingStatus } from '@/lib/booking-types';
@@ -103,16 +107,76 @@ export default function CustomersPage() {
         </div>
       )}
 
-      <div className="card mb-6">
-        <label className="label">{t('customers.search')}</label>
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            className="input pl-9"
-            placeholder={t('customers.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
+      <div className="card mb-6 space-y-4">
+        <div>
+          <label className="label">{t('customers.search')}</label>
+          <div className="relative max-w-md">
+            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              className="input pl-9"
+              placeholder={t('customers.searchPlaceholder')}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="label">{t('customers.customerTag')}</label>
+            <select
+              className="input max-w-[180px]"
+              value={params.tags ?? ''}
+              onChange={(e) =>
+                setParams((p) => ({
+                  ...p,
+                  tags: (e.target.value || undefined) as CustomerTag | undefined,
+                  page: 1,
+                }))
+              }
+            >
+              <option value="">{t('customers.allTags')}</option>
+              {CUSTOMER_TAGS.map((tag) => (
+                <option key={tag} value={tag}>
+                  {t(customerTagLabelKey(tag))}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">{t('customers.segment')}</label>
+            <select
+              className="input max-w-[180px]"
+              value={params.segment ?? ''}
+              onChange={(e) =>
+                setParams((p) => ({
+                  ...p,
+                  segment: (e.target.value || undefined) as CustomerSegment | undefined,
+                  page: 1,
+                }))
+              }
+            >
+              <option value="">{t('customers.allSegments')}</option>
+              <option value="vip">{t('customers.segmentVip')}</option>
+              <option value="at_risk">{t('customers.segmentAtRisk')}</option>
+              <option value="high_no_show">{t('customers.segmentHighNoShow')}</option>
+              <option value="new">{t('customers.segmentNew')}</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-400 pb-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={params.isVip === true}
+              onChange={(e) =>
+                setParams((p) => ({
+                  ...p,
+                  isVip: e.target.checked ? true : undefined,
+                  page: 1,
+                }))
+              }
+              className="rounded border-gray-600"
+            />
+            {t('customers.vipOnly')}
+          </label>
         </div>
       </div>
 
@@ -137,6 +201,7 @@ export default function CustomersPage() {
                       order={sortOrder}
                       onClick={() => toggleSort('name')}
                     />
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('customers.tags')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.email')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.phone')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.appointments')}</th>
@@ -164,7 +229,39 @@ export default function CustomersPage() {
                       className="border-b border-gray-800/80 hover:bg-gray-800/30 cursor-pointer"
                       onClick={() => setSelectedCustomerId(customer.id)}
                     >
-                      <td className="px-4 py-3 font-medium text-gray-100">{customer.name}</td>
+                      <td className="px-4 py-3 font-medium text-gray-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {customer.name}
+                          {(customer.isVip || customer.segment === 'vip') && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-600/10 text-amber-400 uppercase tracking-wide">
+                              {t('customers.vip')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {customer.segment && customer.segment !== 'vip' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300 capitalize">
+                              {customer.segment.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          {(customer.tags ?? []).map((tag) => {
+                            const isKnownTag = (CUSTOMER_TAGS as readonly string[]).includes(tag);
+                            return (
+                              <span
+                                key={tag}
+                                className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600/10 text-blue-400"
+                              >
+                                {isKnownTag
+                                  ? t(customerTagLabelKey(tag as CustomerTag))
+                                  : tag}
+                              </span>
+                            );
+                          })}
+                          {!customer.segment && !(customer.tags?.length) && !customer.isVip && '—'}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-gray-400">
                         {customer.email ? (
                           <span className="inline-flex items-center gap-1.5">

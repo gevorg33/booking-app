@@ -17,6 +17,11 @@ import {
   Store,
   UserCircle,
   Settings,
+  BarChart3,
+  Wallet,
+  Warehouse,
+  Star,
+  BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
@@ -39,10 +44,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/customers', label: t('nav.customers'), icon: UserCircle },
       { href: '/dashboard/appointments', label: t('nav.appointments'), icon: ClipboardList },
       { href: '/dashboard/services', label: t('nav.services'), icon: Briefcase },
+      { href: '/dashboard/reports', label: t('nav.reports'), icon: BarChart3 },
+      { href: '/dashboard/monetization', label: t('nav.monetization'), icon: Wallet },
+      { href: '/dashboard/operations', label: t('nav.operations'), icon: Warehouse },
+      { href: '/dashboard/reviews', label: t('nav.reviews'), icon: Star },
       { href: '/dashboard/business', label: t('nav.businessProfile'), icon: Store },
       { href: '/dashboard/billing', label: t('nav.billing'), icon: CreditCard },
       { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
       { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
+      { href: '/dashboard/guide', label: t('nav.guide'), icon: BookOpen },
     ],
     [t],
   );

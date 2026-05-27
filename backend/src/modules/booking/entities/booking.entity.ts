@@ -44,6 +44,9 @@ export class Booking {
   @Column({ name: 'business_id' })
   businessId: string;
 
+  @Column({ name: 'location_id', type: 'uuid', nullable: true })
+  locationId: string;
+
   @ManyToOne(() => Employee, (employee) => employee.bookings)
   @JoinColumn({ name: 'employee_id' })
   employee: Employee;

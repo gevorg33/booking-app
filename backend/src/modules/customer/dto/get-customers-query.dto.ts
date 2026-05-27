@@ -1,6 +1,7 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '../../booking/entities/booking.entity.js';
+import { CUSTOMER_TAGS } from '../customer-tag.constants.js';
 
 export class GetCustomersQueryDto {
   @IsOptional()
@@ -19,6 +20,20 @@ export class GetCustomersQueryDto {
   @IsOptional()
   @IsString()
   bookingStatus?: string;
+
+  /** Single customer tag filter */
+  @IsOptional()
+  @IsIn([...CUSTOMER_TAGS])
+  tags?: string;
+
+  @IsOptional()
+  @IsIn(['vip', 'at_risk', 'high_no_show', 'new'])
+  segment?: 'vip' | 'at_risk' | 'high_no_show' | 'new';
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isVip?: boolean;
 
   @IsOptional()
   @IsIn(['name', 'createdAt', 'updatedAt'])

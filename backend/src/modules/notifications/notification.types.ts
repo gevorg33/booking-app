@@ -4,7 +4,8 @@ export type NotificationKind =
   | 'confirmation'
   | 'reminder_immediate'
   | 'reminder_24h'
-  | 'reminder_1h';
+  | 'reminder_1h'
+  | 'review_request';
 
 export interface BusinessNotificationSettings {
   emailEnabled: boolean;

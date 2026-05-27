@@ -23,11 +23,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase 2 — CRM & reporting depth
 
-- [ ] **crm-3** — Customer segmentation (tags, last visit, no-show rate, VIP)
-- [ ] **analytics-2** — Staff performance reports (bookings, revenue, hours booked)
-- [ ] **analytics-3** — Service popularity + peak hours / day-of-week heatmaps
-- [ ] **analytics-4** — Exportable reports (CSV / PDF) for date ranges
-- [ ] **dist-1** — Embeddable booking widget (iframe / script for external sites)
+- [x] **crm-3** — Customer segmentation (tags, last visit, no-show rate, VIP)
+- [x] **analytics-2** — Staff performance reports (bookings, revenue, hours booked)
+- [x] **analytics-3** — Service popularity + peak hours / day-of-week heatmaps
+- [x] **analytics-4** — Exportable reports (CSV / PDF) for date ranges
+- [x] **dist-1** — Embeddable booking widget (iframe / script for external sites)
 
 ---
 
@@ -48,19 +48,20 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase 4 — Monetization extras
 
-- [ ] **pay-3** — Gift cards (purchase + redeem at checkout)
-- [ ] **pay-4** — Memberships / subscriptions (recurring plans + visit credits)
-- [ ] **crm-4** — Loyalty points / rewards program (earn on visit, redeem on booking)
-- [ ] **pay-5** — Additional payment providers (Adyen / VivaWallet) — post-MVP
+- [x] **pay-3** — Gift cards (purchase + redeem at checkout)
+- [x] **pay-4** — Memberships / subscriptions (recurring plans + visit credits)
+- [x] **crm-4** — Loyalty points / rewards program (earn on visit, redeem on booking)
+- [x] **reviews-5** — Customer reviews for service providers 5 star ratings with comments
+- [x] **staff-5** — add feature to invite service providers - adding them will send email notification to accept invitation, probably they gonna use the mobile app in the future to get push notifications but for now let's invite them into protal as a contributor role - they can add sevice types and book appointments in portal and create scedules for themselves only.
 
 ---
 
 ## Phase 5 — Operations ERP (salon chains)
 
-- [ ] **erp-1** — Inventory — products / consumables linked to services
-- [ ] **erp-2** — Payroll / commissions (per-service % or flat, payout reports)
-- [ ] **erp-3** — Business expenses tracking + basic P&L reports
-- [ ] **erp-4** — Multi-location (locations, staff per location, cross-location reporting)
+- [x] **erp-1** — Inventory — products / consumables linked to services
+- [x] **erp-2** — Payroll / commissions (per-service % or flat, payout reports)
+- [x] **erp-3** — Business expenses tracking + basic P&L reports
+- [x] **erp-4** — Multi-location (locations, staff per location, cross-location reporting)
 
 ---
 

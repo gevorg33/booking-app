@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity.js';
@@ -82,6 +82,10 @@ export class BusinessService {
       else delete settings.location.mapEmbedHtml;
     }
 
+    if (dto.embed) {
+      settings.embed = { ...(settings.embed || {}), ...dto.embed };
+    }
+
     if (dto.locale !== undefined) {
       settings.locale = dto.locale;
     }
@@ -110,5 +114,19 @@ export class BusinessService {
       relations: { business: true },
     });
     return memberships.map((m) => m.business);
+  }
+
+  async ensureMember(businessId: string, userId: string): Promise<BusinessMember> {
+    const membership = await this.memberRepo.findOne({
+      where: { businessId, userId },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You do not have access to this business');
+    }
+    return membership;
+  }
+
+  async getMembership(businessId: string, userId: string): Promise<BusinessMember | null> {
+    return this.memberRepo.findOne({ where: { businessId, userId } });
   }
 }

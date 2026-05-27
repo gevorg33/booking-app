@@ -312,6 +312,25 @@ export class BookingService {
     if (dto.metadata) booking.metadata = { ...booking.metadata, ...dto.metadata };
 
     await this.bookingRepo.save(booking);
+
+    if (
+      booking.status === BookingStatus.COMPLETED &&
+      previousStatus !== BookingStatus.COMPLETED
+    ) {
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_COMPLETED,
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        businessId: booking.businessId,
+        payload: {
+          customerId: booking.customerId,
+          serviceId: booking.serviceId,
+          employeeId: booking.employeeId,
+        },
+        userId,
+      });
+    }
+
     return this.findOne(booking.id);
   }
 
