@@ -23,4 +23,9 @@ export class PublicAssistantDto {
   @IsOptional()
   @IsObject()
   context?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['en', 'hy', 'ru'])
+  locale?: string;
 }

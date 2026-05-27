@@ -18,6 +18,7 @@ import {
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
+import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../../common/i18n/messages.js';
 
 export interface PublicAssistantNavigate {
   path: 'professionals' | 'services' | 'checkout';
@@ -87,17 +88,19 @@ export class PublicBookingAssistantService {
     session?: {
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
       context?: Record<string, any>;
+      locale?: string;
     },
   ): Promise<PublicAssistantResult> {
+    const business = await this.businessService.findBySlug(slug);
+    const locale = resolveLocale(session?.locale, resolveLocale(business.settings?.locale, 'en'));
+
     if (!this.client) {
       return {
         success: false,
         action: 'error',
-        summary: 'The booking assistant is temporarily unavailable. Please use the booking steps below.',
+        summary: t(locale, 'assistant.unavailable'),
       };
     }
-
-    const business = await this.businessService.findBySlug(slug);
     const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const todayDisplay = formatDateDisplay(todayKey);
@@ -115,12 +118,12 @@ Providers: ${employees.map((e) => {
     }).join(', ') || 'none'}
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context);
+    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context, locale);
     if (!parsed) {
       return {
         success: false,
         action: 'unknown',
-        summary: "I didn't quite catch that. Try asking who is available, what services you offer, or say something like \"Book a massage with Gevorg tomorrow at 10:00\".",
+        summary: t(locale, 'assistant.unknown'),
       };
     }
 
@@ -133,7 +136,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     switch (parsed.action) {
       case 'list_providers':
-        result = await this.handleListProviders(slug, parsed.params);
+        result = await this.handleListProviders(slug, parsed.params, locale);
         break;
       case 'list_services':
         result = await this.handleListServices(slug, parsed.params, employees);
@@ -148,26 +151,26 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = await this.handleBookAppointment(slug, parsed.params, employees, services);
         break;
       case 'booking_help':
-        result = this.handleBookingHelp();
+        result = this.handleBookingHelp(locale);
         break;
       default:
         result = {
           success: false,
           action: 'unknown',
-          summary: 'I can help you find a specialist, check open times, see services and prices, or book an appointment. What would you like to do?',
+          summary: t(locale, 'assistant.helpPrompt'),
         };
     }
 
     return this.attachSession(result, parsed.params, employees);
   }
 
-  private async handleListProviders(slug: string, params: any): Promise<PublicAssistantResult> {
+  private async handleListProviders(slug: string, params: any, locale: AppLocale): Promise<PublicAssistantResult> {
     const { providers } = await this.publicBookingService.getProviders(slug, params.date);
     if (providers.length === 0) {
       return {
         success: true,
         action: 'list_providers',
-        summary: 'No specialists are available for booking right now. Please contact the business directly.',
+        summary: t(locale, 'assistant.noSpecialists'),
       };
     }
 
@@ -176,16 +179,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       const slots = p.slots.slice(0, 4).map((s) => formatTimeDisplay(s.startTime)).join(', ');
       const slotText = slots
         ? p.nearestDateLabel
-          ? `Next on ${p.nearestDateLabel}: ${slots}${p.slots.length > 4 ? '…' : ''}`
-          : `Open: ${slots}`
-        : 'No upcoming slots';
+          ? `${t(locale, 'assistant.nextOn')} ${p.nearestDateLabel}: ${slots}${p.slots.length > 4 ? '…' : ''}`
+          : `${t(locale, 'assistant.open')}: ${slots}`
+        : t(locale, 'assistant.noUpcomingSlots');
       return `• ${p.name}${title} — ${slotText}`;
     });
 
     return {
       success: true,
       action: 'list_providers',
-      summary: ['Here are our specialists:', '', ...lines].join('\n'),
+      summary: [t(locale, 'assistant.specialistsHeader'), '', ...lines].join('\n'),
       navigate: { path: 'professionals', query: {} },
     };
   }
@@ -298,18 +301,39 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
-  private handleBookingHelp(): PublicAssistantResult {
+  private handleBookingHelp(locale: AppLocale): PublicAssistantResult {
+    const steps =
+      locale === 'hy'
+        ? [
+            'Առցանց ամրագրումը հեշտ է՝',
+            '1. Ընտրեք մասնագետ և ժամ',
+            '2. Ընտրեք ծառայություն',
+            '3. Մուտքագրեք անուն և կոնտակտ',
+            '',
+            'Կամ ասեք, թե ինչ է պետք — օրինակ «Ամրագրիր facemassage Gevorg-ի հետ վաղը 10:00» — և ես կօգնեմ։',
+          ]
+        : locale === 'ru'
+          ? [
+              'Онлайн-запись проста:',
+              '1. Выберите специалиста и время',
+              '2. Выберите услугу',
+              '3. Укажите имя и контакт',
+              '',
+              'Или скажите, что нужно — например «Запиши facemassage с Gevorg на завтра в 10:00» — и я помогу.',
+            ]
+          : [
+              'Booking online is easy:',
+              '1. Choose a specialist and time',
+              '2. Pick a service',
+              '3. Enter your name and contact details',
+              '',
+              'Or tell me what you need — e.g. "Book facemassage with Gevorg tomorrow at 10:00" — and I\'ll guide you.',
+            ];
+
     return {
       success: true,
       action: 'booking_help',
-      summary: [
-        'Booking online is easy:',
-        '1. Choose a specialist and time',
-        '2. Pick a service',
-        '3. Enter your name and contact details',
-        '',
-        'Or tell me what you need — e.g. "Book facemassage with Gevorg tomorrow at 10:00" — and I\'ll guide you.',
-      ].join('\n'),
+      summary: steps.join('\n'),
       navigate: { path: 'professionals', query: {} },
     };
   }
@@ -462,6 +486,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
+    locale: AppLocale = 'en',
   ) {
     try {
       const sessionBlock =
@@ -476,7 +501,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       const response = await this.client!.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `${PUBLIC_INTENT_SCHEMA}\n\n${context}${sessionBlock}` },
+          {
+            role: 'system',
+            content: `${PUBLIC_INTENT_SCHEMA}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+          },
           ...historyMessages,
           { role: 'user', content: prompt },
         ],

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatDateDisplay } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useI18n } from '@/i18n';
 
 interface Plan {
   id: string;
@@ -41,6 +42,7 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 };
 
 export default function BillingPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
@@ -114,7 +116,7 @@ export default function BillingPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <CreditCard className="w-6 h-6 text-blue-400" />
-          Billing & Subscription
+          {t('billing.title')}
         </h1>
         <p className="text-gray-400 text-sm mt-1">
           Manage your OptiSchedule plan. Powered by Stripe.

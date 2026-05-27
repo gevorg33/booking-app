@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, ValidateNested, IsHexColor } from 'class-validator';
+import { IsString, IsOptional, IsEmail, ValidateNested, IsHexColor, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BusinessBrandingDto {
@@ -86,4 +86,9 @@ export class UpdateBusinessProfileDto {
   @ValidateNested()
   @Type(() => BusinessLocationDto)
   location?: BusinessLocationDto;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['en', 'hy', 'ru'])
+  locale?: string;
 }

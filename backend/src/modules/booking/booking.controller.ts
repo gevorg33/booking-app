@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { BookingService } from './booking.service.js';
 import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto, CancelBookingDto } from './dto/create-booking.dto.js';
+import { GetBookingsQueryDto } from './dto/get-bookings-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -42,6 +43,15 @@ export class BookingController {
     @Query('employeeId') employeeId?: string,
   ) {
     return this.bookingService.findAll(businessId, date, employeeId);
+  }
+
+  @Get('dashboard')
+  @UseGuards(JwtAuthGuard)
+  searchDashboard(
+    @Param('businessId') businessId: string,
+    @Query() query: GetBookingsQueryDto,
+  ) {
+    return this.bookingService.searchDashboard(businessId, query);
   }
 
   @Get('upcoming')

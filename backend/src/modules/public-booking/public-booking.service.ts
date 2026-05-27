@@ -52,6 +52,7 @@ export interface PublicBusinessProfile {
   email?: string;
   address?: string;
   timezone: string;
+  locale: string;
   branding: PublicBranding;
   social?: PublicSocialLinks;
   location?: PublicLocation;
@@ -112,6 +113,7 @@ export class PublicBookingService {
       email: business.email ?? undefined,
       address: business.address ?? undefined,
       timezone: business.timezone,
+      locale: settings.locale || 'en',
       branding: {
         logoUrl: branding.logoUrl,
         primaryColor: branding.primaryColor || '#7c3aed',

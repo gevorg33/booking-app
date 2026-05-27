@@ -3,6 +3,8 @@ import { getPublicProfile } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { Globe, Mail, MapPin, Phone } from 'lucide-react';
+import { getMessages, translate } from '@/i18n';
+import { getServerLocale } from '@/lib/server-locale';
 
 function socialHref(url: string) {
   if (!url) return '#';
@@ -17,6 +19,9 @@ export default async function TenantProfilePage({
   const { slug } = await params;
   const tenant = await getPublicProfile(slug);
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const locale = await getServerLocale();
+  const messages = getMessages(locale);
+  const t = (key: string) => translate(messages, key);
   const social = tenant.social ?? {};
   const socialEntries = [
     { label: 'Website', url: social.website },
@@ -79,7 +84,7 @@ export default async function TenantProfilePage({
 
           {socialEntries.length > 0 && (
             <div className="mt-6 text-left">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Follow us</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('public.followUs')}</p>
               <div className="flex flex-wrap gap-2">
                 {socialEntries.map((item) => (
                   <a
@@ -102,14 +107,14 @@ export default async function TenantProfilePage({
             className="inline-block mt-8 w-full py-3.5 rounded-2xl font-semibold text-white text-center"
             style={{ backgroundColor: primary }}
           >
-            Book an appointment
+            {t('public.bookAppointment')}
           </Link>
         </div>
 
         {tenant.location?.mapEmbedHtml && (
           <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-sm font-medium text-gray-900">Location</p>
+              <p className="text-sm font-medium text-gray-900">{t('public.location')}</p>
             </div>
             <div
               className="w-full [&>iframe]:w-full [&>iframe]:min-h-[300px] [&>iframe]:border-0"

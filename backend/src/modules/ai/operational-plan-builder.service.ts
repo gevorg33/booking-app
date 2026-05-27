@@ -21,6 +21,23 @@ export interface ResolvedBookingParams {
   timeSlot: string;
 }
 
+export interface ResolvedCreateServiceParams {
+  businessId: string;
+  name: string;
+  description?: string;
+  durationMinutes: number;
+  bufferMinutes?: number;
+  price: number;
+  currency?: string;
+  userId?: string;
+}
+
+export interface ResolvedCreateServicesParams {
+  businessId: string;
+  services: Omit<ResolvedCreateServiceParams, 'businessId' | 'userId'>[];
+  userId?: string;
+}
+
 @Injectable()
 export class OperationalPlanBuilderService {
   buildCreateBookingPlan(params: ResolvedBookingParams): AgentPlan {
@@ -47,6 +64,66 @@ export class OperationalPlanBuilderService {
     return this.wrapPlan(params.businessId, 'create_booking', steps, {
       reasoning: `Create booking: ${params.serviceName} with ${params.employeeName} on ${params.date} at ${params.timeSlot}.`,
       risk: { level: 'low' as const, factors: ['Single booking mutation'] },
+    });
+  }
+
+  buildCreateServicePlan(params: ResolvedCreateServiceParams): AgentPlan {
+    const stepId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: stepId,
+        action: 'create_service',
+        description: `Add service "${params.name}"`,
+        params: {
+          businessId: params.businessId,
+          name: params.name,
+          description: params.description,
+          durationMinutes: params.durationMinutes,
+          bufferMinutes: params.bufferMinutes ?? 0,
+          price: params.price,
+          currency: params.currency ?? 'USD',
+          userId: params.userId,
+        },
+        dependsOn: [],
+        estimatedImpact: `Adds service "${params.name}" to the catalog`,
+      },
+    ];
+
+    return this.wrapPlan(params.businessId, 'create_service', steps, {
+      reasoning: `Create service "${params.name}" (${params.durationMinutes} min, ${params.currency ?? 'USD'} ${params.price}).`,
+      risk: { level: 'low' as const, factors: ['Single service catalog mutation'] },
+    });
+  }
+
+  buildCreateServicesPlan(params: ResolvedCreateServicesParams): AgentPlan {
+    const steps: AgentPlanStep[] = params.services.map((service) => ({
+      id: crypto.randomUUID(),
+      action: 'create_service',
+      description: `Add service "${service.name}"`,
+      params: {
+        businessId: params.businessId,
+        name: service.name,
+        description: service.description,
+        durationMinutes: service.durationMinutes,
+        bufferMinutes: service.bufferMinutes ?? 0,
+        price: service.price,
+        currency: service.currency ?? 'USD',
+        userId: params.userId,
+      },
+      dependsOn: [],
+      estimatedImpact: `Adds service "${service.name}" to the catalog`,
+    }));
+
+    const names = params.services.map((s) => s.name).join(', ');
+    const count = params.services.length;
+    const riskLevel = count > 10 ? 'high' : count > 3 ? 'medium' : 'low';
+
+    return this.wrapPlan(params.businessId, 'create_services', steps, {
+      reasoning: `Create ${count} service(s): ${names}.`,
+      risk: {
+        level: riskLevel,
+        factors: [`Bulk service catalog mutation (${count} items)`],
+      },
     });
   }
 

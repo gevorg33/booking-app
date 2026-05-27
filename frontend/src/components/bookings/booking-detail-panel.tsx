@@ -21,6 +21,7 @@ import {
   getStatusVariations,
   isBookingEditable,
   PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_OPTIONS,
   statusRequiresConfirmation,
   STATUS_BADGE,
   type BookingStatus,
@@ -59,6 +60,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDetailPanelProps) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<BookingStatus>('confirmed');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [notes, setNotes] = useState('');
   const [description, setDescription] = useState('');
   const [cancelReason, setCancelReason] = useState('');
@@ -77,6 +79,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   useEffect(() => {
     if (!booking) return;
     setStatus(booking.status as BookingStatus);
+    setPaymentStatus((booking.paymentStatus as PaymentStatus) ?? 'pending');
     setNotes(booking.notes ?? '');
     setDescription(booking.description ?? '');
     setCancelReason('');
@@ -121,10 +124,13 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const editable = booking ? isBookingEditable(booking.status) : false;
   const statusOptions = booking ? getStatusVariations(booking.status) : [];
   const statusChanged = booking ? status !== booking.status : false;
+  const paymentChanged = booking
+    ? paymentStatus !== ((booking.paymentStatus as PaymentStatus) ?? 'pending')
+    : false;
   const detailsChanged = booking
     ? notes !== (booking.notes ?? '') || description !== (booking.description ?? '')
     : false;
-  const dirty = statusChanged || detailsChanged;
+  const dirty = statusChanged || detailsChanged || paymentChanged;
 
   const applyStatusChange = (next: BookingStatus) => {
     if (next === 'cancelled') {
@@ -153,6 +159,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       payload.notes = notes;
       payload.description = description;
     }
+    if (paymentChanged) {
+      payload.paymentStatus = paymentStatus;
+    }
     updateMutation.mutate(payload, {
       onSuccess: () => {
         if (statusChanged && (status === 'completed' || status === 'no_show')) {
@@ -172,9 +181,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     );
   };
 
-  const paymentLabel = booking?.paymentStatus
-    ? PAYMENT_STATUS_LABELS[booking.paymentStatus as PaymentStatus] ?? booking.paymentStatus
-    : null;
+  const canSave = dirty && !showCancelConfirm && !pendingStatus && (editable || paymentChanged);
 
   return (
     <div
@@ -227,8 +234,22 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               {booking.employee?.name && (
                 <DetailRow label="Provider">{booking.employee.name}</DetailRow>
               )}
-              {paymentLabel && <DetailRow label="Payment">{paymentLabel}</DetailRow>}
             </dl>
+
+            <div className="mb-5">
+              <label className="label">Payment status</label>
+              <select
+                className="input"
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}
+              >
+                {PAYMENT_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {PAYMENT_STATUS_LABELS[option]}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80">
               <p className="text-xs font-medium text-gray-400 mb-2 flex items-center gap-1.5">
@@ -369,22 +390,20 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               </div>
             )}
 
-            {editable && !showCancelConfirm && (
-              <button
-                onClick={save}
-                disabled={!dirty || updateMutation.isPending}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {updateMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  'Save changes'
-                )}
-              </button>
-            )}
+            <button
+              onClick={save}
+              disabled={!canSave || updateMutation.isPending}
+              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                'Save changes'
+              )}
+            </button>
           </>
         )}
       </div>

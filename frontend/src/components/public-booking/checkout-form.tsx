@@ -5,6 +5,7 @@ import { Calendar, Pencil, Loader2 } from 'lucide-react';
 import { formatScheduleTime, formatDateDisplay } from '@/lib/date-format';
 import { createPublicBooking, formatPrice, type PublicBusinessProfile, type PublicService } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { useI18n } from '@/i18n';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
@@ -14,6 +15,7 @@ interface CheckoutFormProps {
 }
 
 export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutFormProps) {
+  const { t } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [form, setForm] = useState({
     name: '',
@@ -35,15 +37,15 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
     setError(null);
 
     if (!form.name.trim()) {
-      setError('Name is required');
+      setError(t('public.nameRequired'));
       return;
     }
     if (!form.email.trim() && !form.phone.trim()) {
-      setError('Email or phone number is required');
+      setError(t('public.contactRequired'));
       return;
     }
     if (!form.consent) {
-      setError('Please accept the privacy policy to continue');
+      setError(t('public.consentRequired'));
       return;
     }
 
@@ -62,7 +64,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
       });
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Booking failed');
+      setError(err instanceof Error ? err.message : t('public.bookingFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +76,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
         <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 text-2xl">
           ✓
         </div>
-        <h2 className="text-xl font-semibold text-gray-900">Appointment booked</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('public.appointmentBooked')}</h2>
         <p className="text-gray-500 mt-2 text-sm">
           {formatDateDisplay(start)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
         </p>
@@ -83,7 +85,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
           className="inline-block mt-8 px-6 py-3 rounded-2xl text-white font-semibold"
           style={{ backgroundColor: primary }}
         >
-          Book another appointment
+          {t('public.bookAnother')}
         </a>
       </div>
     );
@@ -94,7 +96,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
 
   return (
     <form onSubmit={handleSubmit} className="pb-36">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Booking details</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('public.checkoutTitle')}</h1>
 
       <section className="border-b border-gray-100 pb-4 mb-4">
         <div className="flex items-center justify-between gap-3">
@@ -150,7 +152,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
           </a>
         </div>
         <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
-          <span className="font-semibold text-gray-900">Total</span>
+          <span className="font-semibold text-gray-900">{t('public.total')}</span>
           <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
         </div>
       </section>
@@ -205,7 +207,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
             className="mt-1 rounded border-gray-300"
           />
           <span>
-            I agree to the processing of my personal data and confirm that I have read and accepted the Privacy Policy and User Agreement.
+            {t('public.privacyConsent')}
           </span>
         </label>
 
@@ -215,7 +217,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
       <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between text-sm mb-3">
-            <span className="text-gray-500">Total</span>
+            <span className="text-gray-500">{t('public.total')}</span>
             <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
           </div>
           <button
@@ -225,7 +227,7 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
             style={{ backgroundColor: primary }}
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Book appointment
+            {submitting ? t('public.submitting') : t('public.confirmBooking')}
           </button>
         </div>
       </div>

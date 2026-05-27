@@ -3,6 +3,8 @@ import { ChevronRight, Users } from 'lucide-react';
 import { getPublicProfile } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PublicHeader } from '@/components/public-booking/public-header';
+import { getMessages, translate } from '@/i18n';
+import { getServerLocale } from '@/lib/server-locale';
 
 export default async function PublicBookingHomePage({
   params,
@@ -12,6 +14,9 @@ export default async function PublicBookingHomePage({
   const { slug } = await params;
   const tenant = await getPublicProfile(slug);
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const locale = await getServerLocale();
+  const messages = getMessages(locale);
+  const t = (key: string) => translate(messages, key);
 
   return (
     <div>
@@ -38,9 +43,9 @@ export default async function PublicBookingHomePage({
             <Users className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <span className="block font-medium text-gray-900">Choose a specialist</span>
+            <span className="block font-medium text-gray-900">{t('public.chooseSpecialistShort')}</span>
             <span className="block text-sm text-gray-500 mt-0.5">
-              Or use the AI assistant to find your service and time
+              {t('public.specialistAiHintShort')}
             </span>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />

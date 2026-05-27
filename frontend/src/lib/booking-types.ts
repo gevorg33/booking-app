@@ -25,6 +25,13 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   not_applicable: 'N/A',
 };
 
+export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
+  'pending',
+  'paid',
+  'refunded',
+  'not_applicable',
+];
+
 export const STATUS_BADGE: Record<string, string> = {
   confirmed: 'bg-green-600/15 text-green-400',
   completed: 'bg-blue-600/15 text-blue-400',

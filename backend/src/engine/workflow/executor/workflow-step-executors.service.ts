@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { WorkflowExecutorService, StepExecutor } from './workflow-executor.service.js';
 import { BookingService } from '../../../modules/booking/booking.service.js';
+import { ServiceService } from '../../../modules/service/service.service.js';
 import { SchedulingEngineService } from '../../scheduling/scheduling-engine.service.js';
 import { Booking, BookingStatus } from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
@@ -16,6 +17,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   constructor(
     private executor: WorkflowExecutorService,
     private bookingService: BookingService,
+    private serviceService: ServiceService,
     private schedulingEngine: SchedulingEngineService,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
@@ -25,6 +27,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   onModuleInit() {
     const executors: Record<string, StepExecutor> = {
       create_booking: (step, ctx) => this.createBooking(step, ctx),
+      create_service: (step, ctx) => this.createService(step, ctx),
       cancel_booking: (step, ctx) => this.cancelBooking(step, ctx),
       cancel_bookings: (step, ctx) => this.cancelBookings(step, ctx),
       list_appointments: (step) => this.listAppointments(step),
@@ -61,6 +64,24 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     );
     ctx.lastBookingId = booking.id;
     return { bookingId: booking.id, startTime: booking.startTime, endTime: booking.endTime };
+  }
+
+  private async createService(step: WorkflowStep, ctx: Record<string, any>) {
+    const { businessId, name, description, durationMinutes, bufferMinutes, price, currency, userId } =
+      step.params;
+    const service = await this.serviceService.create(
+      businessId,
+      { name, description, durationMinutes, bufferMinutes, price, currency },
+      userId,
+    );
+    ctx.lastServiceId = service.id;
+    return {
+      serviceId: service.id,
+      name: service.name,
+      durationMinutes: service.durationMinutes,
+      price: service.price,
+      currency: service.currency,
+    };
   }
 
   private async cancelBooking(step: WorkflowStep, ctx: Record<string, any>) {

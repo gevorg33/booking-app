@@ -51,6 +51,8 @@ function mergeSessionContext(prev: SessionContext, next: SessionContext): Sessio
 const EXAMPLES = [
   'Optimize tomorrow\'s schedule',
   'Show all service provider appointments for tomorrow',
+  'Add a service deep tissue massage, 90 minutes, price 120',
+  'Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40',
   'Fill unused appointment slots on Friday',
   'Book facemassage with Gevorg Gasparyan on 02_06_2026 at 09:00',
 ];
@@ -105,6 +107,7 @@ export function AiCommandBar() {
         if (result.success) {
           queryClient.invalidateQueries({ queryKey: ['bookings'] });
           queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+          queryClient.invalidateQueries({ queryKey: ['services'] });
         }
       } catch (err: any) {
         setMessages((prev) => [
@@ -166,10 +169,16 @@ export function AiCommandBar() {
 
       if (
         result.success &&
-        (result.action === 'cancel_bookings' || result.action === 'create_booking')
+        (result.action === 'cancel_bookings' ||
+          result.action === 'create_booking' ||
+          result.action === 'create_service' ||
+          result.action === 'create_services')
       ) {
         queryClient.invalidateQueries({ queryKey: ['bookings'] });
         queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+        if (result.action === 'create_service' || result.action === 'create_services') {
+          queryClient.invalidateQueries({ queryKey: ['services'] });
+        }
       }
     } catch (err: any) {
       setMessages((prev) => [

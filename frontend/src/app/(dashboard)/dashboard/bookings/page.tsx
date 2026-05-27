@@ -21,7 +21,9 @@ import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
+import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE } from '@/lib/booking-types';
+import { useI18n } from '@/i18n';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -345,6 +347,7 @@ function CalendarBlock({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient  = useQueryClient();
 
@@ -407,16 +410,6 @@ export default function BookingsPage() {
     queryFn: async () => {
       if (!business?.id) return [];
       const { data } = await api.get(`/businesses/${business.id}/services`);
-      return data.data || data || [];
-    },
-    enabled: !!business?.id,
-  });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data } = await api.get(`/businesses/${business.id}/customers`);
       return data.data || data || [];
     },
     enabled: !!business?.id,
@@ -516,12 +509,13 @@ export default function BookingsPage() {
         );
       }
       const startISO = toISO(dayStr, snapped);
+      if (!form.customerId) throw new Error('Select a customer');
       const payload: any = {
         employeeId,
         serviceId: form.serviceId,
+        customerId: form.customerId,
         startTime: startISO,
       };
-      if (form.customerId) payload.customerId = form.customerId;
       if (form.notes)       payload.notes       = form.notes;
       if (form.description) payload.description = form.description;
       const { data } = await api.post(`/businesses/${business!.id}/bookings`, payload);
@@ -574,7 +568,7 @@ export default function BookingsPage() {
       {/* ── Top toolbar ── */}
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Bookings</h1>
+          <h1 className="text-2xl font-bold">{t('bookings.title')}</h1>
           <p className="text-gray-400 text-sm">Select a provider and day to manage their schedule</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -879,6 +873,52 @@ export default function BookingsPage() {
 
               <div className="space-y-3 flex-1">
 
+                {/* Service provider */}
+                <div>
+                  <label className="label">{t('bookings.provider')}</label>
+                  <div className="input bg-gray-900/60 text-gray-200 cursor-default">
+                    {employees.find((emp: any) => emp.id === employeeId)?.name ?? t('bookings.unknownProvider')}
+                  </div>
+                </div>
+
+                {/* Service */}
+                <div>
+                  <label className="label">{t('bookings.service')}</label>
+                  {periodServices.length === 0 ? (
+                    <p className="text-xs text-red-400 mt-1">No matching services found</p>
+                  ) : (
+                    <select
+                      className="input"
+                      value={form.serviceId}
+                      onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
+                    >
+                      <option value="">Select service...</option>
+                      {periodServices.map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.durationMinutes}min)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
+                    <p className="text-[10px] text-gray-500 mt-1">Only services offered in this period are shown</p>
+                  )}
+                </div>
+
+                {/* Customer */}
+                <div>
+                  <label className="label">{t('bookings.customer')}</label>
+                  {business?.id ? (
+                    <CustomerSelect
+                      businessId={business.id}
+                      value={form.customerId}
+                      onChange={(customerId) => setForm({ ...form, customerId })}
+                      required
+                      searchPlaceholder={t('customers.searchPlaceholder')}
+                    />
+                  ) : null}
+                </div>
+
                 {/* Start time within the period */}
                 <div>
                   <label className="label">
@@ -909,45 +949,6 @@ export default function BookingsPage() {
                       This start time is too late — the service would run past the period end ({periodMaxTime}).
                     </p>
                   )}
-                </div>
-
-                {/* Service */}
-                <div>
-                  <label className="label">Service</label>
-                  {periodServices.length === 0 ? (
-                    <p className="text-xs text-red-400 mt-1">No matching services found</p>
-                  ) : (
-                    <select
-                      className="input"
-                      value={form.serviceId}
-                      onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
-                    >
-                      <option value="">Select service...</option>
-                      {periodServices.map((s: any) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.durationMinutes}min)
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
-                    <p className="text-[10px] text-gray-500 mt-1">Only services offered in this period are shown</p>
-                  )}
-                </div>
-
-                {/* Customer */}
-                <div>
-                  <label className="label">Customer</label>
-                  <select
-                    className="input"
-                    value={form.customerId}
-                    onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                  >
-                    <option value="">Walk-in</option>
-                    {customers.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* Notes */}
@@ -987,7 +988,7 @@ export default function BookingsPage() {
 
               <button
                 onClick={() => createMutation.mutate()}
-                disabled={!form.serviceId || !startTimeValid || createMutation.isPending}
+                disabled={!form.serviceId || !form.customerId || !startTimeValid || createMutation.isPending}
                 className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
               >
                 {createMutation.isPending

@@ -3,12 +3,28 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Business } from './entities/business.entity.js';
 import { BusinessMember } from './entities/business-member.entity.js';
 import { BusinessService } from './business.service.js';
+import { DashboardService } from './dashboard.service.js';
 import { BusinessController } from './business.controller.js';
+import { Booking } from '../booking/entities/booking.entity.js';
+import { Employee } from '../employee/entities/employee.entity.js';
+import { Service } from '../service/entities/service.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Business, BusinessMember])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Business,
+      BusinessMember,
+      Booking,
+      Employee,
+      Service,
+      Customer,
+      SchedulingSlot,
+    ]),
+  ],
   controllers: [BusinessController],
-  providers: [BusinessService],
+  providers: [BusinessService, DashboardService],
   exports: [BusinessService],
 })
 export class BusinessModule {}

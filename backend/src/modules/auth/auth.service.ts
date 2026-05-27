@@ -9,6 +9,7 @@ import { BusinessMember, MemberRole } from '../business/entities/business-member
 import { Employee } from '../employee/entities/employee.entity.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 
@@ -75,7 +76,11 @@ export class AuthService {
     });
 
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
-    return { user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role }, business: { id: business.id, name: business.name, slug: business.slug }, token };
+    return {
+      user: this.toPublicUser(user),
+      business: { id: business.id, name: business.name, slug: business.slug },
+      token,
+    };
   }
 
   async login(dto: LoginDto) {
@@ -87,9 +92,35 @@ export class AuthService {
     const membership = await this.memberRepo.findOne({ where: { userId: user.id }, relations: { business: true } });
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
     return {
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
-      business: membership ? { id: membership.business.id, name: membership.business.name, slug: membership.business.slug } : null,
+      user: this.toPublicUser(user),
+      business: membership
+        ? {
+            id: membership.business.id,
+            name: membership.business.name,
+            slug: membership.business.slug,
+            locale: membership.business.settings?.locale || 'en',
+          }
+        : null,
       token,
+    };
+  }
+
+  async updatePreferences(userId: string, dto: UpdatePreferencesDto) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    if (dto.locale) user.locale = dto.locale;
+    await this.userRepo.save(user);
+    return { user: this.toPublicUser(user) };
+  }
+
+  private toPublicUser(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      locale: user.locale || 'en',
     };
   }
 

@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getPublicProfile } from '@/lib/public-api';
 import { PublicBookingAssistantHost } from '@/components/public-booking/public-booking-assistant-host';
+import { PublicLocaleBootstrap } from '@/components/public-booking/public-locale-bootstrap';
+import { PublicBookingFooter } from '@/components/public-booking/public-booking-footer';
 
 export default async function PublicBookingLayout({
   children,
@@ -23,11 +25,10 @@ export default async function PublicBookingLayout({
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-gray-900">
       <style>{`:root { --tenant-primary: ${primary}; }`}</style>
+      <PublicLocaleBootstrap businessLocale={tenant.locale} />
       {children}
       <PublicBookingAssistantHost slug={slug} tenant={tenant} />
-      <footer className="max-w-lg mx-auto px-4 py-8 text-center text-xs text-gray-400">
-        Powered by OptiSchedule
-      </footer>
+      <PublicBookingFooter />
     </div>
   );
 }

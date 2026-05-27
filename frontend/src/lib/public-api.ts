@@ -29,6 +29,7 @@ export interface PublicBusinessProfile {
   email?: string;
   address?: string;
   timezone: string;
+  locale: string;
   branding: PublicBranding;
   social?: PublicSocialLinks;
   location?: PublicLocation;
@@ -56,11 +57,20 @@ export interface PublicService {
 }
 
 async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
+    if (match?.[1]) headers['Accept-Language'] = match[1];
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
+      ...headers,
+      ...(init?.headers as Record<string, string> | undefined),
     },
     cache: 'no-store',
   });
@@ -129,6 +139,7 @@ export function sendPublicAssistantMessage(
     prompt: string;
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     context?: Record<string, unknown>;
+    locale?: string;
   },
 ) {
   return publicFetch<PublicAssistantResponse>(`/public/${slug}/assistant`, {

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Users, Info } from 'lucide-react';
 import { formatScheduleTime } from '@/lib/date-format';
 import type { PublicProvider } from '@/lib/public-api';
+import { useI18n } from '@/i18n';
 
 interface ProviderListProps {
   slug: string;
@@ -22,6 +23,7 @@ export function ProviderList({
   selectedStartTime,
   onSelect,
 }: ProviderListProps) {
+  const { t } = useI18n();
   const [anyProfessional, setAnyProfessional] = useState(false);
 
   const anySlots = useMemo(() => {
@@ -47,7 +49,7 @@ export function ProviderList({
           <Users className="w-5 h-5 text-gray-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-900">Any available specialist</p>
+          <p className="font-medium text-gray-900">{t('public.anySpecialist')}</p>
         </div>
         <span
           className="w-5 h-5 rounded-full border-2 shrink-0"
@@ -83,7 +85,7 @@ export function ProviderList({
                 <p className="font-semibold text-gray-900">{provider.name}</p>
                 {provider.role && <p className="text-sm text-gray-500">{provider.role}</p>}
               </div>
-              <button type="button" className="p-1 text-gray-400" title="Provider info">
+              <button type="button" className="p-1 text-gray-400" title={t('public.selectProviderInfo')}>
                 <Info className="w-4 h-4" />
               </button>
               <button
@@ -104,7 +106,7 @@ export function ProviderList({
             {provider.nearestDateLabel && provider.slots.length > 0 && (
               <div className="px-4 pb-4">
                 <p className="text-xs text-gray-500 mb-2">
-                  Nearest time slot for the appointment — {provider.nearestDateLabel}:
+                  {t('public.nearestSlots', { date: provider.nearestDateLabel })}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {provider.slots.map((slot) => {
@@ -134,7 +136,7 @@ export function ProviderList({
             )}
 
             {provider.slots.length === 0 && (
-              <p className="px-4 pb-4 text-sm text-gray-400">No available slots in the next two weeks</p>
+              <p className="px-4 pb-4 text-sm text-gray-400">{t('public.noSlots')}</p>
             )}
           </div>
         );

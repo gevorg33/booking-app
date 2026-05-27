@@ -13,19 +13,21 @@ import {
   type BusinessProfileForm,
 } from '@/lib/business-profile';
 import { bookPath } from '@/lib/tenant-host';
-
-const SOCIAL_FIELDS: Array<{ key: keyof BusinessProfileForm['social']; label: string; placeholder: string }> = [
-  { key: 'website', label: 'Website', placeholder: 'https://yourbusiness.com' },
-  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/yourpage' },
-  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/yourpage' },
-  { key: 'x', label: 'X (Twitter)', placeholder: 'https://x.com/yourpage' },
-  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@yourpage' },
-  { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/company/yourpage' },
-  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@yourchannel' },
-];
+import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
 
 export default function BusinessProfilePage() {
+  const { t } = useI18n();
   const { business, setAuth, user, token } = useAuthStore();
+
+  const SOCIAL_FIELDS: Array<{ key: keyof BusinessProfileForm['social']; label: string; placeholder: string }> = [
+    { key: 'website', label: t('business.website'), placeholder: 'https://yourbusiness.com' },
+    { key: 'instagram', label: t('business.instagram'), placeholder: 'https://instagram.com/yourpage' },
+    { key: 'facebook', label: t('business.facebook'), placeholder: 'https://facebook.com/yourpage' },
+    { key: 'x', label: t('business.x'), placeholder: 'https://x.com/yourpage' },
+    { key: 'tiktok', label: t('business.tiktok'), placeholder: 'https://tiktok.com/@yourpage' },
+    { key: 'linkedin', label: t('business.linkedin'), placeholder: 'https://linkedin.com/company/yourpage' },
+    { key: 'youtube', label: t('business.youtube'), placeholder: 'https://youtube.com/@yourchannel' },
+  ];
   const queryClient = useQueryClient();
   const [form, setForm] = useState<BusinessProfileForm | null>(null);
   const [saved, setSaved] = useState(false);
@@ -74,11 +76,9 @@ export default function BusinessProfilePage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Store className="w-6 h-6 text-violet-400" />
-            Business profile
+            {t('business.title')}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Manage how your business appears on the public booking page.
-          </p>
+          <p className="text-gray-400 text-sm mt-1">{t('business.subtitle')}</p>
         </div>
         {publicUrl && (
           <Link
@@ -86,7 +86,7 @@ export default function BusinessProfilePage() {
             target="_blank"
             className="btn-secondary text-sm inline-flex items-center gap-2"
           >
-            View public page
+            {t('business.viewPublicPage')}
             <ExternalLink className="w-3.5 h-3.5" />
           </Link>
         )}
@@ -209,7 +209,23 @@ export default function BusinessProfilePage() {
           </section>
 
           <section className="card space-y-4">
-            <h2 className="font-semibold text-lg">Social links</h2>
+            <h2 className="font-semibold text-lg">{t('business.publicLanguage')}</h2>
+            <p className="text-sm text-gray-500 -mt-2">{t('languages.publicDescription')}</p>
+            <select
+              className="input max-w-xs"
+              value={form.locale}
+              onChange={(e) => setForm({ ...form, locale: e.target.value as AppLocale })}
+            >
+              {SUPPORTED_LOCALES.map((code) => (
+                <option key={code} value={code}>
+                  {LOCALE_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          <section className="card space-y-4">
+            <h2 className="font-semibold text-lg">{t('business.socialLinks')}</h2>
             <p className="text-sm text-gray-500 -mt-2">
               Shown on your public profile page. Use full URLs.
             </p>
@@ -281,7 +297,7 @@ export default function BusinessProfilePage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                Save profile
+                {saveMutation.isPending ? t('common.saving') : t('business.saveProfile')}
               </>
             )}
           </button>

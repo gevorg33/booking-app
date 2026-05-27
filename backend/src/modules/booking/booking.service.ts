@@ -7,9 +7,35 @@ import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto } from './dto/create-booking.dto.js';
+import {
+  GetBookingsQueryDto,
+  parseBookingStatusFilter,
+} from './dto/get-bookings-query.dto.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+
+export interface AppointmentListItem {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer: { id: string; name: string; email: string | null; phone: string | null } | null;
+  employee: { id: string; name: string } | null;
+  service: { id: string; name: string } | null;
+}
+
+export interface AppointmentsSearchResult {
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  appointments: AppointmentListItem[];
+}
 
 @Injectable()
 export class BookingService {
@@ -18,6 +44,7 @@ export class BookingService {
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
     @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
@@ -100,6 +127,15 @@ export class BookingService {
 
     if (startTime <= new Date()) {
       throw new ConflictException('Cannot book in the past');
+    }
+
+    if (dto.customerId) {
+      const customer = await this.customerRepo.findOne({
+        where: { id: dto.customerId, businessId, isActive: true },
+      });
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
     }
 
     if (dto.customerId) {
@@ -285,6 +321,89 @@ export class BookingService {
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
+  }
+
+  async searchDashboard(
+    businessId: string,
+    query: GetBookingsQueryDto,
+  ): Promise<AppointmentsSearchResult> {
+    const statuses = parseBookingStatusFilter(query.status);
+    const sortBy = query.sortBy ?? 'startTime';
+    const sortOrder = query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    const page = query.page && query.page > 0 ? query.page : 1;
+    const pageSize =
+      query.pageSize && query.pageSize > 0 ? Math.min(query.pageSize, 100) : 20;
+    const skip = (page - 1) * pageSize;
+
+    const qb = this.bookingRepo
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.employee', 'employee')
+      .leftJoinAndSelect('booking.service', 'service')
+      .where('booking.business_id = :businessId', { businessId });
+
+    if (query.search?.trim()) {
+      const term = `%${query.search.trim()}%`;
+      qb.andWhere(
+        `(customer.name ILIKE :term OR customer.email ILIKE :term OR customer.phone ILIKE :term OR service.name ILIKE :term OR employee.name ILIKE :term OR COALESCE(booking.notes, '') ILIKE :term)`,
+        { term },
+      );
+    }
+
+    if (statuses.length > 0) {
+      qb.andWhere('booking.status IN (:...statuses)', { statuses });
+    }
+
+    switch (sortBy) {
+      case 'customerName':
+        qb.orderBy('LOWER(customer.name)', sortOrder);
+        break;
+      case 'serviceName':
+        qb.orderBy('LOWER(service.name)', sortOrder);
+        break;
+      case 'employeeName':
+        qb.orderBy('LOWER(employee.name)', sortOrder);
+        break;
+      case 'status':
+        qb.orderBy('booking.status', sortOrder);
+        break;
+      case 'createdAt':
+        qb.orderBy('booking.createdAt', sortOrder);
+        break;
+      case 'updatedAt':
+        qb.orderBy('booking.updatedAt', sortOrder);
+        break;
+      default:
+        qb.orderBy('booking.startTime', sortOrder);
+    }
+
+    const [bookings, totalItems] = await qb.skip(skip).take(pageSize).getManyAndCount();
+
+    return {
+      totalItems,
+      page,
+      pageSize,
+      appointments: bookings.map((b) => ({
+        id: b.id,
+        startTime: b.startTime.toISOString(),
+        endTime: b.endTime.toISOString(),
+        status: b.status,
+        paymentStatus: b.paymentStatus,
+        notes: b.notes ?? null,
+        createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
+        customer: b.customer
+          ? {
+              id: b.customer.id,
+              name: b.customer.name,
+              email: b.customer.email ?? null,
+              phone: b.customer.phone ?? null,
+            }
+          : null,
+        employee: b.employee ? { id: b.employee.id, name: b.employee.name } : null,
+        service: b.service ? { id: b.service.id, name: b.service.name } : null,
+      })),
+    };
   }
 
   async findOne(id: string): Promise<Booking> {

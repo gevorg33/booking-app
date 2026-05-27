@@ -82,6 +82,10 @@ export class BusinessService {
       else delete settings.location.mapEmbedHtml;
     }
 
+    if (dto.locale !== undefined) {
+      settings.locale = dto.locale;
+    }
+
     business.settings = settings;
     return this.businessRepo.save(business);
   }

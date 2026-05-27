@@ -12,8 +12,10 @@ import {
   formToPayload,
   type EmployeeRecord,
 } from '@/lib/employee-types';
+import { useI18n } from '@/i18n';
 
 export default function EmployeesPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
@@ -120,7 +122,7 @@ export default function EmployeesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Employees</h1>
+          <h1 className="text-2xl font-bold">{t('employees.title')}</h1>
           <p className="text-gray-400 text-sm">Manage team profiles, titles, and photos</p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">

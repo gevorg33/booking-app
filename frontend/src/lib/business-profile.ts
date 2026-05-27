@@ -24,6 +24,7 @@ export interface BusinessProfileForm {
   phone: string;
   email: string;
   address: string;
+  locale: string;
   branding: BusinessBranding;
   social: BusinessSocialLinks;
   location: BusinessLocationSettings;
@@ -35,6 +36,7 @@ export const emptyBusinessProfileForm = (): BusinessProfileForm => ({
   phone: '',
   email: '',
   address: '',
+  locale: 'en',
   branding: { logoUrl: '', primaryColor: '#7c3aed', tagline: '' },
   social: {
     website: '',
@@ -59,6 +61,7 @@ export function businessToProfileForm(business: any): BusinessProfileForm {
     phone: business.phone ?? '',
     email: business.email ?? '',
     address: business.address ?? '',
+    locale: business.settings?.locale ?? 'en',
     branding: {
       logoUrl: branding.logoUrl ?? '',
       primaryColor: branding.primaryColor ?? '#7c3aed',
@@ -86,6 +89,7 @@ export function profileFormToPayload(form: BusinessProfileForm) {
     phone: form.phone.trim() || undefined,
     email: form.email.trim() || undefined,
     address: form.address.trim() || undefined,
+    locale: form.locale || undefined,
     branding: {
       logoUrl: (form.branding.logoUrl ?? '').trim() || undefined,
       primaryColor: (form.branding.primaryColor ?? '').trim() || undefined,

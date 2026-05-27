@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { Zap } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({
     email: '',
@@ -30,7 +32,7 @@ export default function RegisterPage() {
       setAuth(result.user, result.business, result.token);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(err.response?.data?.message || t('auth.registrationFailed'));
     } finally {
       setLoading(false);
     }
@@ -43,8 +45,8 @@ export default function RegisterPage() {
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Zap className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="text-gray-400 mt-1">Start scheduling smarter today</p>
+          <h1 className="text-2xl font-bold">{t('auth.createAccount')}</h1>
+          <p className="text-gray-400 mt-1">{t('auth.registerSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -55,7 +57,7 @@ export default function RegisterPage() {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">First Name</label>
+              <label className="label">{t('auth.firstName')}</label>
               <input
                 type="text"
                 className="input"
@@ -65,7 +67,7 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="label">Last Name</label>
+              <label className="label">{t('auth.lastName')}</label>
               <input
                 type="text"
                 className="input"
@@ -76,17 +78,17 @@ export default function RegisterPage() {
             </div>
           </div>
           <div>
-            <label className="label">Business Name</label>
+            <label className="label">{t('auth.businessName')}</label>
             <input
               type="text"
               className="input"
-              placeholder="Optional — defaults to personal"
+              placeholder={t('auth.businessNamePlaceholder')}
               value={form.businessName}
               onChange={(e) => setForm({ ...form, businessName: e.target.value })}
             />
           </div>
           <div>
-            <label className="label">Email</label>
+            <label className="label">{t('common.email')}</label>
             <input
               type="email"
               className="input"
@@ -96,7 +98,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="label">Password</label>
+            <label className="label">{t('common.password')}</label>
             <input
               type="password"
               className="input"
@@ -107,12 +109,12 @@ export default function RegisterPage() {
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? t('auth.creatingAccount') : t('auth.createAccountBtn')}
           </button>
           <p className="text-center text-sm text-gray-400">
-            Already have an account?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link href="/login" className="text-blue-400 hover:text-blue-300">
-              Sign In
+              {t('nav.signIn')}
             </Link>
           </p>
         </form>

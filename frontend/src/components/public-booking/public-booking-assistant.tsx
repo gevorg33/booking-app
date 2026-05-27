@@ -9,6 +9,7 @@ import {
   type PublicBusinessProfile,
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { useI18n } from '@/i18n';
 
 interface Message {
   id: string;
@@ -26,12 +27,12 @@ interface SessionContext {
   customerName?: string | null;
 }
 
-const EXAMPLES = [
-  'Who is available today?',
-  'What services do you offer?',
-  'Book a massage tomorrow at 10:00',
-  'Where are you located?',
-];
+const EXAMPLE_KEYS = [
+  'public.exampleAvailable',
+  'public.exampleServices',
+  'public.exampleBook',
+  'public.exampleLocation',
+] as const;
 
 interface PublicBookingAssistantProps {
   slug: string;
@@ -40,6 +41,7 @@ interface PublicBookingAssistantProps {
 
 export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantProps) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -88,6 +90,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         prompt,
         history,
         context: sessionContext as Record<string, unknown>,
+        locale,
       });
 
       setMessages((prev) => [
@@ -110,14 +113,14 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: err?.message || 'Something went wrong. Please try again.',
+          text: err?.message || t('common.errorGeneric'),
           success: false,
         },
       ]);
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, sessionContext, slug]);
+  }, [input, loading, messages, sessionContext, slug, locale, t]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -135,7 +138,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-105 transition-transform"
           style={{ backgroundColor: primary }}
-          title="Booking assistant"
+          title={t('public.assistantTitle')}
         >
           <Sparkles className="w-6 h-6" />
         </button>
@@ -146,7 +149,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" style={{ color: primary }} />
-              <span className="text-sm font-semibold text-gray-900">Booking assistant</span>
+              <span className="text-sm font-semibold text-gray-900">{t('public.assistantTitle')}</span>
             </div>
             <button
               type="button"
@@ -165,12 +168,14 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
             {messages.length === 0 && (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-4">
-                  Ask about availability, services, or book an appointment in plain language.
+                  {t('public.assistantHint')}
                 </p>
                 <div className="space-y-2">
-                  {EXAMPLES.map((ex) => (
+                  {EXAMPLE_KEYS.map((key) => {
+                    const ex = t(key);
+                    return (
                     <button
-                      key={ex}
+                      key={key}
                       type="button"
                       onClick={() => {
                         setInput(ex);
@@ -180,7 +185,8 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                     >
                       &ldquo;{ex}&rdquo;
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -205,7 +211,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                       className="mt-2 text-xs font-medium px-3 py-1.5 rounded-full text-white"
                       style={{ backgroundColor: primary }}
                     >
-                      Continue booking
+                      {t('public.continueBooking')}
                     </button>
                   )}
                 </div>
@@ -216,7 +222,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
               <div className="flex justify-start">
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: primary }} />
-                  <span className="text-xs text-gray-500">Thinking…</span>
+                  <span className="text-xs text-gray-500">{t('ai.thinking')}</span>
                 </div>
               </div>
             )}
@@ -231,7 +237,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 disabled={loading}
-                placeholder="Ask anything about booking…"
+                placeholder={t('public.assistantPlaceholder')}
                 className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
               />
               <button

@@ -54,6 +54,7 @@ export class PublicBookingController {
     return this.publicAssistantService.chat(slug, dto.prompt, {
       history: dto.history,
       context: dto.context,
+      locale: dto.locale,
     });
   }
 }

@@ -12,12 +12,14 @@ import {
   CalendarDays,
   LayoutTemplate,
   AlertCircle,
+  Pencil,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
 import { formatDateDisplay } from '@/lib/date-format';
 import { normalizeTime24 } from '@/lib/time-format';
+import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -126,6 +128,30 @@ const emptyPeriod = (): TimePeriod => ({
   isActiveOnSunday: false,
   maxAppointmentCount: 1,
 });
+
+function mapPeriodsFromTemplate(
+  template: { periods?: any[] },
+): (TimePeriod & { serviceIds?: string[] })[] {
+  const periodsArr = template.periods || [];
+  if (periodsArr.length === 0) {
+    return [{ ...emptyPeriod(), serviceIds: [] }];
+  }
+  return periodsArr.map((p) => ({
+    startTime: p.startTime,
+    endTime: p.endTime,
+    type: p.type || 'service_block',
+    placeholderLabel: p.placeholderLabel || '',
+    serviceIds: p.serviceIds || [],
+    maxAppointmentCount: p.maxAppointmentCount || 1,
+    isActiveOnMonday: p.isActiveOnMonday ?? false,
+    isActiveOnTuesday: p.isActiveOnTuesday ?? false,
+    isActiveOnWednesday: p.isActiveOnWednesday ?? false,
+    isActiveOnThursday: p.isActiveOnThursday ?? false,
+    isActiveOnFriday: p.isActiveOnFriday ?? false,
+    isActiveOnSaturday: p.isActiveOnSaturday ?? false,
+    isActiveOnSunday: p.isActiveOnSunday ?? false,
+  }));
+}
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
@@ -293,6 +319,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
 type Tab = 'create' | 'templates';
 
 export default function SchedulePage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const { setTemplates, setApplyResult } = useSchedulingStore();
   const queryClient = useQueryClient();
@@ -323,7 +350,7 @@ export default function SchedulePage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Scheduling</h1>
+        <h1 className="text-2xl font-bold">{t('schedule.title')}</h1>
         <p className="text-gray-400 text-sm mt-1">
           Directly create schedules for a specific day, or manage reusable templates
         </p>
@@ -554,10 +581,13 @@ function TemplatesTab({
   setTemplates: (templates: any[], total: number) => void;
   setApplyResult: (result: any) => void;
 }) {
-  const [showCreate, setShowCreate] = useState(false);
+  const { t } = useI18n();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showApply, setShowApply] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [templateName, setTemplateName] = useState('');
   const [periods, setPeriods] = useState<(TimePeriod & { serviceIds?: string[] })[]>([
@@ -598,6 +628,32 @@ function TemplatesTab({
   const updatePeriod = useCallback((i: number, field: string, value: any) =>
     setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p))), []);
 
+  const resetTemplateForm = useCallback(() => {
+    setFormOpen(false);
+    setEditingId(null);
+    setFormError(null);
+    setTemplateName('');
+    setPeriods([{ ...emptyPeriod(), serviceIds: [] }]);
+  }, []);
+
+  const openCreateForm = useCallback(() => {
+    setShowApply(null);
+    setEditingId(null);
+    setFormError(null);
+    setTemplateName('');
+    setPeriods([{ ...emptyPeriod(), serviceIds: [] }]);
+    setFormOpen(true);
+  }, []);
+
+  const openEditForm = useCallback((template: any) => {
+    setShowApply(null);
+    setEditingId(template.id);
+    setFormError(null);
+    setTemplateName(template.name);
+    setPeriods(mapPeriodsFromTemplate(template));
+    setFormOpen(true);
+  }, []);
+
   // ── Mutations ───
   const createMutation = useMutation({
     mutationFn: () =>
@@ -607,9 +663,25 @@ function TemplatesTab({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
-      setShowCreate(false);
-      setTemplateName('');
-      setPeriods([{ ...emptyPeriod(), serviceIds: [] }]);
+      resetTemplateForm();
+    },
+    onError: (err: any) => {
+      setFormError(err?.response?.data?.message || t('schedule.saveFailed'));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      api.put(`/businesses/${business!.id}/schedules/templates/${editingId}`, {
+        name: templateName,
+        timePeriods: mapPeriodsForSave(periods),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      resetTemplateForm();
+    },
+    onError: (err: any) => {
+      setFormError(err?.response?.data?.message || t('schedule.saveFailed'));
     },
   });
 
@@ -677,26 +749,32 @@ function TemplatesTab({
             </button>
           )}
           <button
-            onClick={() => { setShowCreate(!showCreate); setShowApply(null); }}
+            onClick={openCreateForm}
             className="btn-primary flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> New Template
+            <Plus className="w-4 h-4" /> {t('schedule.createTemplate')}
           </button>
         </div>
       </div>
 
-      {/* Create Form */}
-      {showCreate && (
+      {/* Create / Edit Form */}
+      {formOpen && (
         <div className="card mb-6 border border-blue-500/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <LayoutTemplate className="w-5 h-5 text-blue-400" />
-              Create Template
+              {editingId ? t('schedule.editTemplate') : t('schedule.createTemplate')}
             </h3>
-            <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
+            <button onClick={resetTemplateForm} className="text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          {editingId && (
+            <p className="text-xs text-amber-600 dark:text-amber-400/90 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-700/40 rounded-lg px-3 py-2 mb-4">
+              {t('schedule.editTemplateNote')}
+            </p>
+          )}
 
           <div className="mb-5">
             <label className="label">Template Name</label>
@@ -723,6 +801,7 @@ function TemplatesTab({
               getOverlappingIndexes(periods, dayKey).forEach((i) => templateOverlaps.add(i));
             });
             const hasTemplateOverlap = templateOverlaps.size > 0;
+            const isSaving = createMutation.isPending || updateMutation.isPending;
             return (
               <>
                 <PeriodEditor
@@ -734,16 +813,30 @@ function TemplatesTab({
                   showActiveDays={true}
                   overlapIndexes={templateOverlaps}
                 />
+
+                {formError && (
+                  <div className="mt-4 flex items-start gap-2 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    {formError}
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-5 items-center">
                   <button
-                    onClick={() => createMutation.mutate()}
+                    onClick={() => (editingId ? updateMutation.mutate() : createMutation.mutate())}
                     className="btn-primary"
-                    disabled={!templateName || periods.length === 0 || hasTemplateOverlap || createMutation.isPending}
+                    disabled={!templateName || periods.length === 0 || hasTemplateOverlap || isSaving}
                     title={hasTemplateOverlap ? 'Fix overlapping periods before saving' : undefined}
                   >
-                    {createMutation.isPending ? 'Creating...' : 'Save Template'}
+                    {isSaving
+                      ? t('schedule.saving')
+                      : editingId
+                        ? t('schedule.saveChanges')
+                        : t('schedule.saveTemplate')}
                   </button>
-                  <button onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
+                  <button onClick={resetTemplateForm} className="btn-secondary">
+                    {t('common.cancel')}
+                  </button>
                   {hasTemplateOverlap && (
                     <p className="text-xs text-red-400">Fix overlapping periods first</p>
                   )}
@@ -885,8 +978,8 @@ function TemplatesTab({
           </div>
         ) : (
           <div className="divide-y divide-gray-800">
-            {templates.map((t: any) => {
-              const periodsArr: any[] = t.periods || [];
+            {templates.map((template: any) => {
+              const periodsArr: any[] = template.periods || [];
               const serviceNames = periodsArr
                 .flatMap((p: any) =>
                   (p.serviceIds || []).map((id: string) => {
@@ -898,25 +991,25 @@ function TemplatesTab({
               const uniqueServiceNames = [...new Set(serviceNames)];
 
               return (
-                <div key={t.id} className="py-4 flex items-start justify-between gap-4">
+                <div key={template.id} className="py-4 flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
-                      checked={selected.includes(t.id)}
-                      onChange={() => toggleSelect(t.id)}
+                      checked={selected.includes(template.id)}
+                      onChange={() => toggleSelect(template.id)}
                       className="w-4 h-4 mt-1 rounded border-gray-600 bg-gray-800"
                     />
                     <div>
-                      <p className="font-medium">{t.name}</p>
+                      <p className="font-medium">{template.name}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         {periodsArr.length > 0 ? (
                           <span className="text-xs text-gray-400">
                             {periodsArr.length} period{periodsArr.length > 1 ? 's' : ''} &middot;{' '}
                             {periodsArr.map((p: any) => `${p.startTime}–${p.endTime}`).join(', ')}
                           </span>
-                        ) : t.workingHours ? (
+                        ) : template.workingHours ? (
                           <span className="text-xs text-gray-400">
-                            {t.workingHours.map((h: any) => `${h.startTime}–${h.endTime}`).join(', ')}
+                            {template.workingHours.map((h: any) => `${h.startTime}–${h.endTime}`).join(', ')}
                           </span>
                         ) : null}
                         {uniqueServiceNames.map((name) => (
@@ -927,9 +1020,9 @@ function TemplatesTab({
                             {name}
                           </span>
                         ))}
-                        {t.countDaysComplete > 0 && (
+                        {template.countDaysComplete > 0 && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-green-600/10 text-green-400">
-                            {t.countDaysComplete} days
+                            {template.countDaysComplete} days
                           </span>
                         )}
                       </div>
@@ -938,21 +1031,28 @@ function TemplatesTab({
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => { setShowApply(t.id); setShowCreate(false); }}
+                      onClick={() => { setShowApply(template.id); resetTemplateForm(); }}
                       className="p-2 text-green-400 hover:text-green-300 hover:bg-green-600/10 rounded-lg transition-colors"
-                      title="Apply Template"
+                      title={t('schedule.applyTemplate')}
                     >
                       <Play className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => duplicateMutation.mutate(t.id)}
+                      onClick={() => openEditForm(template)}
+                      className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-600/10 rounded-lg transition-colors"
+                      title={t('schedule.editTemplate')}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => duplicateMutation.mutate(template.id)}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                       title="Duplicate"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate([t.id])}
+                      onClick={() => deleteMutation.mutate([template.id])}
                       className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
                       title="Delete"
                     >

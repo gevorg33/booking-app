@@ -8,13 +8,14 @@ import { AgentController } from './agent.controller.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, SchedulingSlot, SchedulingPeriod, Service]),
+    TypeOrmModule.forFeature([Booking, SchedulingSlot, SchedulingPeriod, Service, Customer]),
     SchedulingEngineModule,
     EventStoreModule,
     forwardRef(() => AgentModule),
