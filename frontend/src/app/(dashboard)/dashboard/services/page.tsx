@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { Briefcase, Plus, Clock, DollarSign, CreditCard, Pencil, Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Briefcase, Plus, Clock, DollarSign, CreditCard, Pencil, Loader2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+
+type ServicesTab = 'categories' | 'types';
+
+interface ServiceCategoryRecord {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
 
 interface ServiceRecord {
   id: string;
@@ -17,56 +25,76 @@ interface ServiceRecord {
   currency?: string;
   prepaymentMode?: 'none' | 'full' | 'deposit';
   depositAmount?: number | null;
+  categoryId?: string | null;
+  category?: ServiceCategoryRecord | null;
 }
 
 interface ServiceFormState {
   name: string;
-  durationMinutes: number;
-  price: number;
-  bufferMinutes: number;
+  durationMinutes: string;
+  price: string;
+  bufferMinutes: string;
   description: string;
+  categoryId: string;
   onlinePaymentEnabled: boolean;
   prepaymentMode: 'full' | 'deposit';
-  depositAmount: number;
+  depositAmount: string;
 }
 
 const defaultForm = (): ServiceFormState => ({
   name: '',
-  durationMinutes: 30,
-  price: 0,
-  bufferMinutes: 0,
+  durationMinutes: '30',
+  price: '',
+  bufferMinutes: '0',
   description: '',
+  categoryId: '',
   onlinePaymentEnabled: false,
   prepaymentMode: 'full',
-  depositAmount: 0,
+  depositAmount: '',
 });
 
-function formToPayload(form: ServiceFormState) {
-  return {
+function parseIntField(value: string, fallback = 0): number {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseFloatField(value: string, fallback = 0): number {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'create') {
+  const depositAmount = parseFloatField(form.depositAmount);
+  const base = {
     name: form.name,
     description: form.description || undefined,
-    durationMinutes: form.durationMinutes,
-    bufferMinutes: form.bufferMinutes,
-    price: form.price,
+    durationMinutes: parseIntField(form.durationMinutes, 30),
+    bufferMinutes: parseIntField(form.bufferMinutes),
+    price: parseFloatField(form.price),
     prepaymentMode: form.onlinePaymentEnabled ? form.prepaymentMode : 'none',
     depositAmount:
-      form.onlinePaymentEnabled && form.prepaymentMode === 'deposit' && form.depositAmount > 0
-        ? form.depositAmount
+      form.onlinePaymentEnabled && form.prepaymentMode === 'deposit' && depositAmount > 0
+        ? depositAmount
         : undefined,
   };
+  if (mode === 'update') {
+    return { ...base, categoryId: form.categoryId || null };
+  }
+  return { ...base, ...(form.categoryId ? { categoryId: form.categoryId } : {}) };
 }
 
 function serviceToForm(svc: ServiceRecord): ServiceFormState {
   const online = svc.prepaymentMode && svc.prepaymentMode !== 'none';
   return {
     name: svc.name,
-    durationMinutes: svc.durationMinutes,
-    price: Number(svc.price),
-    bufferMinutes: svc.bufferMinutes ?? 0,
+    durationMinutes: String(svc.durationMinutes),
+    price: String(Number(svc.price)),
+    bufferMinutes: String(svc.bufferMinutes ?? 0),
     description: svc.description ?? '',
+    categoryId: svc.categoryId ?? svc.category?.id ?? '',
     onlinePaymentEnabled: Boolean(online),
     prepaymentMode: svc.prepaymentMode === 'deposit' ? 'deposit' : 'full',
-    depositAmount: svc.depositAmount != null ? Number(svc.depositAmount) : 0,
+    depositAmount: svc.depositAmount != null ? String(Number(svc.depositAmount)) : '',
   };
 }
 
@@ -74,15 +102,32 @@ function ServiceFormFields({
   form,
   setForm,
   stripeReady,
+  categories,
   t,
 }: {
   form: ServiceFormState;
   setForm: (f: ServiceFormState) => void;
   stripeReady: boolean;
+  categories: ServiceCategoryRecord[];
   t: (key: string) => string;
 }) {
   return (
     <>
+      <div>
+        <label className="label">{t('servicesPage.serviceCategory')}</label>
+        <select
+          className="input"
+          value={form.categoryId}
+          onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+        >
+          <option value="">{t('servicesPage.noCategory')}</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="label">{t('servicesPage.name')}</label>
         <input
@@ -103,35 +148,38 @@ function ServiceFormFields({
       <div>
         <label className="label">{t('servicesPage.durationMinutes')}</label>
         <input
-          type="number"
-          min={10}
-          step={10}
+          type="text"
+          inputMode="numeric"
           className="input"
           value={form.durationMinutes}
-          onChange={(e) => setForm({ ...form, durationMinutes: +e.target.value })}
+          onChange={(e) => setForm({ ...form, durationMinutes: e.target.value.replace(/\D/g, '') })}
+          onFocus={(e) => e.target.select()}
           required
         />
       </div>
       <div>
         <label className="label">{t('servicesPage.bufferMinutes')}</label>
         <input
-          type="number"
-          min={0}
-          step={5}
+          type="text"
+          inputMode="numeric"
           className="input"
           value={form.bufferMinutes}
-          onChange={(e) => setForm({ ...form, bufferMinutes: +e.target.value })}
+          onChange={(e) => setForm({ ...form, bufferMinutes: e.target.value.replace(/\D/g, '') })}
+          onFocus={(e) => e.target.select()}
         />
       </div>
       <div>
         <label className="label">{t('servicesPage.price')}</label>
         <input
-          type="number"
-          min={0}
-          step={0.01}
+          type="text"
+          inputMode="decimal"
           className="input"
           value={form.price}
-          onChange={(e) => setForm({ ...form, price: +e.target.value })}
+          onChange={(e) => {
+            const next = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+            setForm({ ...form, price: next });
+          }}
+          onFocus={(e) => e.target.select()}
           required
         />
       </div>
@@ -177,12 +225,15 @@ function ServiceFormFields({
               <div>
                 <label className="label">{t('servicesPage.depositAmount')}</label>
                 <input
-                  type="number"
-                  min={0}
-                  step={0.01}
+                  type="text"
+                  inputMode="decimal"
                   className="input"
                   value={form.depositAmount}
-                  onChange={(e) => setForm({ ...form, depositAmount: +e.target.value })}
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setForm({ ...form, depositAmount: next });
+                  }}
+                  onFocus={(e) => e.target.select()}
                 />
               </div>
             )}
@@ -193,14 +244,334 @@ function ServiceFormFields({
   );
 }
 
+function CategoriesTab({
+  businessId,
+  categories,
+  services,
+  categoryName,
+  setCategoryName,
+  categorySortOrder,
+  setCategorySortOrder,
+  showCategoryForm,
+  setShowCategoryForm,
+  createCategoryMutation,
+  deleteCategoryMutation,
+  t,
+}: {
+  businessId: string;
+  categories: ServiceCategoryRecord[];
+  services: ServiceRecord[];
+  categoryName: string;
+  setCategoryName: (v: string) => void;
+  categorySortOrder: string;
+  setCategorySortOrder: (v: string) => void;
+  showCategoryForm: boolean;
+  setShowCategoryForm: (v: boolean) => void;
+  createCategoryMutation: { mutate: () => void; isPending: boolean };
+  deleteCategoryMutation: { mutate: (id: string) => void; isPending: boolean };
+  t: (key: string) => string;
+}) {
+  const serviceCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const svc of services) {
+      const id = svc.categoryId ?? svc.category?.id;
+      if (!id) continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [services]);
+
+  if (!businessId) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">{t('servicesPage.categoriesTitle')}</h2>
+          <p className="text-sm text-gray-500 mt-1">{t('servicesPage.categoriesSubtitle')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCategoryForm(!showCategoryForm)}
+          className="btn-primary inline-flex items-center gap-2 shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          {t('servicesPage.addCategory')}
+        </button>
+      </div>
+
+      {showCategoryForm && (
+        <form
+          className="card grid grid-cols-1 md:grid-cols-3 gap-4 items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createCategoryMutation.mutate();
+          }}
+        >
+          <div>
+            <label className="label">{t('servicesPage.categoryName')}</label>
+            <input
+              className="input"
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">{t('servicesPage.categorySortOrder')}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="input"
+              value={categorySortOrder}
+              onChange={(e) => setCategorySortOrder(e.target.value.replace(/\D/g, ''))}
+              onFocus={(e) => e.target.select()}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={createCategoryMutation.isPending} className="btn-primary inline-flex items-center gap-2">
+              {createCategoryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {t('servicesPage.create')}
+            </button>
+            <button type="button" onClick={() => setShowCategoryForm(false)} className="btn-secondary">
+              {t('common.cancel')}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="card overflow-hidden p-0">
+        {categories.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-12">{t('servicesPage.noCategories')}</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-left">
+                <th className="px-4 py-3 font-medium text-gray-400">{t('servicesPage.categoryName')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('servicesPage.categorySortOrder')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('servicesPage.serviceTypesCount')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400" />
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((cat) => (
+                <tr key={cat.id} className="border-b border-gray-800/80">
+                  <td className="px-4 py-3 font-medium">{cat.name}</td>
+                  <td className="px-4 py-3 text-gray-400">{cat.sortOrder}</td>
+                  <td className="px-4 py-3 text-gray-400">{serviceCountByCategory.get(cat.id) ?? 0}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                      disabled={deleteCategoryMutation.isPending}
+                      className="p-2 text-gray-400 hover:text-red-400 rounded-lg"
+                      aria-label={t('common.delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ServiceTypesTab({
+  categories,
+  services,
+  isLoading,
+  stripeReady,
+  showForm,
+  setShowForm,
+  editingId,
+  setEditingId,
+  form,
+  setForm,
+  formError,
+  setFormError,
+  createMutation,
+  updateMutation,
+  startEdit,
+  cancelEdit,
+  groupedServices,
+  t,
+}: {
+  categories: ServiceCategoryRecord[];
+  services: ServiceRecord[] | undefined;
+  isLoading: boolean;
+  stripeReady: boolean;
+  showForm: boolean;
+  setShowForm: (v: boolean) => void;
+  editingId: string | null;
+  setEditingId: (v: string | null) => void;
+  form: ServiceFormState;
+  setForm: (f: ServiceFormState) => void;
+  formError: string | null;
+  setFormError: (v: string | null) => void;
+  createMutation: { mutate: (data: ReturnType<typeof formToPayload>) => void; isPending: boolean };
+  updateMutation: { mutate: (args: { id: string; data: ReturnType<typeof formToPayload> }) => void; isPending: boolean };
+  startEdit: (svc: ServiceRecord) => void;
+  cancelEdit: () => void;
+  groupedServices: Array<{ label: string; sortOrder: number; items: ServiceRecord[] }>;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">{t('servicesPage.serviceTypesTitle')}</h2>
+          <p className="text-sm text-gray-500 mt-1">{t('servicesPage.serviceTypesSubtitle')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setShowForm(!showForm);
+            setEditingId(null);
+            setForm(defaultForm());
+            setFormError(null);
+          }}
+          className="btn-primary inline-flex items-center gap-2 shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          {t('servicesPage.addService')}
+        </button>
+      </div>
+
+      {categories.length === 0 && (
+        <p className="text-sm text-amber-500/90">{t('servicesPage.createCategoryFirst')}</p>
+      )}
+
+      {showForm && (
+        <div className="card">
+          <h3 className="font-semibold mb-4">{t('servicesPage.newService')}</h3>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              createMutation.mutate(formToPayload(form, 'create'));
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} categories={categories} t={t} />
+            {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
+            <div className="md:col-span-2 flex gap-2">
+              <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
+                {createMutation.isPending ? t('servicesPage.saving') : t('servicesPage.create')}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="card">
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
+        ) : !services || services.length === 0 ? (
+          <div className="text-center py-12">
+            <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400">{t('servicesPage.noServices')}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-800">
+            {groupedServices.map((group) => (
+              <div key={group.label} className="py-2">
+                <h3 className="text-sm font-bold text-gray-200 px-1 py-3">{group.label}</h3>
+                <div className="divide-y divide-gray-800">
+                  {group.items.map((svc) => (
+                    <div key={svc.id} className="py-4">
+                      {editingId === svc.id ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            updateMutation.mutate({ id: svc.id, data: formToPayload(form, 'update') });
+                          }}
+                          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        >
+                          <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} categories={categories} t={t} />
+                          {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
+                          <div className="md:col-span-2 flex gap-2">
+                            <button type="submit" className="btn-primary" disabled={updateMutation.isPending}>
+                              {updateMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
+                                  {t('servicesPage.saving')}
+                                </>
+                              ) : (
+                                t('servicesPage.save')
+                              )}
+                            </button>
+                            <button type="button" onClick={cancelEdit} className="btn-secondary">
+                              {t('common.cancel')}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="font-medium">{svc.name}</p>
+                            {svc.description && <p className="text-sm text-gray-500">{svc.description}</p>}
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-400 flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {svc.durationMinutes} min
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />${svc.price}
+                              </span>
+                              {svc.prepaymentMode && svc.prepaymentMode !== 'none' && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-violet-600/15 text-violet-300">
+                                  {svc.prepaymentMode === 'full'
+                                    ? t('servicesPage.badgeFullPrepay')
+                                    : t('servicesPage.badgeDeposit')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(svc)}
+                            className="text-gray-400 hover:text-gray-200 p-2"
+                            aria-label={t('servicesPage.editService')}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ServicesPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
+  const [tab, setTab] = useState<ServicesTab>('types');
   const [showForm, setShowForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceFormState>(defaultForm());
   const [formError, setFormError] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+  const [categorySortOrder, setCategorySortOrder] = useState('0');
+
+  const tabs: { id: ServicesTab; label: string }[] = [
+    { id: 'types', label: t('servicesPage.tabServiceTypes') },
+    { id: 'categories', label: t('servicesPage.tabCategories') },
+  ];
 
   const { data: stripeConnect } = useQuery({
     queryKey: ['stripe-connect', business?.id],
@@ -212,6 +583,42 @@ export default function ServicesPage() {
   });
 
   const stripeReady = Boolean(stripeConnect?.configured && stripeConnect?.chargesEnabled);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['service-categories', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data } = await api.get(`/businesses/${business.id}/service-categories`);
+      return (data.data || data || []) as ServiceCategoryRecord[];
+    },
+    enabled: !!business?.id,
+  });
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/businesses/${business!.id}/service-categories`, {
+        name: categoryName,
+        sortOrder: parseIntField(categorySortOrder),
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service-categories'] });
+      setCategoryName('');
+      setCategorySortOrder('0');
+      setShowCategoryForm(false);
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/businesses/${business!.id}/service-categories/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+  });
 
   const { data: services, isLoading } = useQuery({
     queryKey: ['services', business?.id],
@@ -274,125 +681,94 @@ export default function ServicesPage() {
     setFormError(null);
   };
 
+  const groupedServices = useMemo(() => {
+    const list = services ?? [];
+    const groups = new Map<string, { label: string; sortOrder: number; items: ServiceRecord[] }>();
+    for (const svc of list) {
+      const key = svc.categoryId ?? svc.category?.id ?? '__none__';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          label:
+            svc.category?.name ??
+            categories.find((c) => c.id === svc.categoryId)?.name ??
+            t('servicesPage.uncategorizedGroup'),
+          sortOrder:
+            svc.category?.sortOrder ??
+            categories.find((c) => c.id === svc.categoryId)?.sortOrder ??
+            9999,
+          items: [],
+        });
+      }
+      groups.get(key)!.items.push(svc);
+    }
+    return Array.from(groups.values()).sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+    );
+  }, [services, categories, t]);
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">{t('servicesPage.title')}</h1>
-          <p className="text-gray-400 text-sm">{t('servicesPage.subtitle')}</p>
-        </div>
-        <button
-          onClick={() => {
-            setShowForm(!showForm);
-            setEditingId(null);
-            setForm(defaultForm());
-            setFormError(null);
-          }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> {t('servicesPage.addService')}
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{t('servicesPage.title')}</h1>
+        <p className="text-gray-400 text-sm mt-1">{t('servicesPage.subtitle')}</p>
       </div>
 
-      {showForm && (
-        <div className="card mb-6">
-          <h3 className="font-semibold mb-4">{t('servicesPage.newService')}</h3>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              createMutation.mutate(formToPayload(form));
-            }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setTab(item.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === item.id
+                ? 'bg-blue-600/10 text-blue-400'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+            }`}
           >
-            <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} t={t} />
-            {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
-            <div className="md:col-span-2 flex gap-2">
-              <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
-                {createMutation.isPending ? t('servicesPage.saving') : t('servicesPage.create')}
-              </button>
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
-                {t('common.cancel')}
-              </button>
-            </div>
-          </form>
-        </div>
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'categories' && business?.id && (
+        <CategoriesTab
+          businessId={business.id}
+          categories={categories}
+          services={services ?? []}
+          categoryName={categoryName}
+          setCategoryName={setCategoryName}
+          categorySortOrder={categorySortOrder}
+          setCategorySortOrder={setCategorySortOrder}
+          showCategoryForm={showCategoryForm}
+          setShowCategoryForm={setShowCategoryForm}
+          createCategoryMutation={createCategoryMutation}
+          deleteCategoryMutation={deleteCategoryMutation}
+          t={t}
+        />
       )}
 
-      <div className="card">
-        {isLoading ? (
-          <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
-        ) : !services || services.length === 0 ? (
-          <div className="text-center py-12">
-            <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-400">{t('servicesPage.noServices')}</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800">
-            {services.map((svc) => (
-              <div key={svc.id} className="py-4">
-                {editingId === svc.id ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      updateMutation.mutate({ id: svc.id, data: formToPayload(form) });
-                    }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                  >
-                    <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} t={t} />
-                    {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
-                    <div className="md:col-span-2 flex gap-2">
-                      <button type="submit" className="btn-primary" disabled={updateMutation.isPending}>
-                        {updateMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
-                            {t('servicesPage.saving')}
-                          </>
-                        ) : (
-                          t('servicesPage.save')
-                        )}
-                      </button>
-                      <button type="button" onClick={cancelEdit} className="btn-secondary">
-                        {t('common.cancel')}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">{svc.name}</p>
-                      {svc.description && <p className="text-sm text-gray-500">{svc.description}</p>}
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-400 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {svc.durationMinutes} min
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />${svc.price}
-                        </span>
-                        {svc.prepaymentMode && svc.prepaymentMode !== 'none' && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-violet-600/15 text-violet-300">
-                            {svc.prepaymentMode === 'full'
-                              ? t('servicesPage.badgeFullPrepay')
-                              : t('servicesPage.badgeDeposit')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => startEdit(svc)}
-                      className="text-gray-400 hover:text-gray-200 p-2"
-                      aria-label={t('servicesPage.editService')}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {tab === 'types' && (
+        <ServiceTypesTab
+          categories={categories}
+          services={services}
+          isLoading={isLoading}
+          stripeReady={stripeReady}
+          showForm={showForm}
+          setShowForm={setShowForm}
+          editingId={editingId}
+          setEditingId={setEditingId}
+          form={form}
+          setForm={setForm}
+          formError={formError}
+          setFormError={setFormError}
+          createMutation={createMutation}
+          updateMutation={updateMutation}
+          startEdit={startEdit}
+          cancelEdit={cancelEdit}
+          groupedServices={groupedServices}
+          t={t}
+        />
+      )}
     </div>
   );
 }

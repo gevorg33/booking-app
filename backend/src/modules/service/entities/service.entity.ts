@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
+import { ServiceCategory } from './service-category.entity.js';
 
 export enum PrepaymentMode {
   NONE = 'none',
@@ -26,6 +27,16 @@ export class Service {
 
   @Column({ name: 'business_id' })
   businessId: string;
+
+  @ManyToOne(() => ServiceCategory, (category) => category.services, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'category_id' })
+  category: ServiceCategory | null;
+
+  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  categoryId: string | null;
 
   @Column()
   name: string;

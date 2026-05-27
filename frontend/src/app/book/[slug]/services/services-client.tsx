@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { ServiceList } from '@/components/public-booking/service-list';
 import type { PublicBusinessProfile, PublicService } from '@/lib/public-api';
+import { useI18n } from '@/i18n';
 
 interface ServicesClientProps {
   slug: string;
@@ -23,6 +24,7 @@ export function ServicesClient({
   startTime,
   backHref,
 }: ServicesClientProps) {
+  const { t } = useI18n();
   const [serviceId, setServiceId] = useState<string | null>(null);
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
@@ -39,6 +41,7 @@ export function ServicesClient({
           onSelect={setServiceId}
           employeeId={employeeId}
           startTime={startTime}
+          uncategorizedLabel={t('public.uncategorizedServices')}
         />
       </main>
     </>

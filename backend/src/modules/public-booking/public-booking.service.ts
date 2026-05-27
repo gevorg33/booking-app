@@ -156,7 +156,28 @@ export class PublicBookingService {
       prepaymentMode: service.prepaymentMode,
       onlinePaymentEnabled: onlinePaymentsEnabled && wantsOnline,
       depositAmount: service.depositAmount != null ? Number(service.depositAmount) : null,
+      category: service.category
+        ? {
+            id: service.category.id,
+            name: service.category.name,
+            sortOrder: service.category.sortOrder,
+          }
+        : null,
     };
+  }
+
+  private sortPublicServices<T extends { category?: { sortOrder: number; name: string } | null; name: string }>(
+    services: T[],
+  ): T[] {
+    return [...services].sort((a, b) => {
+      const aOrder = a.category?.sortOrder ?? 9999;
+      const bOrder = b.category?.sortOrder ?? 9999;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      const aCat = a.category?.name ?? '';
+      const bCat = b.category?.name ?? '';
+      if (aCat !== bCat) return aCat.localeCompare(bCat);
+      return a.name.localeCompare(b.name);
+    });
   }
 
   async getProfile(slug: string): Promise<PublicBusinessProfile> {
@@ -215,6 +236,7 @@ export class PublicBookingService {
 
     let services = await this.serviceRepo.find({
       where: { businessId: business.id, isActive: true },
+      relations: { category: true },
       order: { name: 'ASC' },
     });
 
@@ -229,8 +251,10 @@ export class PublicBookingService {
     }
 
     return {
-      services: services.map((s) =>
-        this.mapPublicService(s, this.stripeIntegrationService.isConnectReady(business.settings)),
+      services: this.sortPublicServices(
+        services.map((s) =>
+          this.mapPublicService(s, this.stripeIntegrationService.isConnectReady(business.settings)),
+        ),
       ),
     };
   }

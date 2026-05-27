@@ -48,6 +48,12 @@ export interface PublicProvider {
   slots: Array<{ startTime: string; endTime: string }>;
 }
 
+export interface PublicServiceCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface PublicService {
   id: string;
   name: string;
@@ -59,6 +65,7 @@ export interface PublicService {
   prepaymentMode?: 'none' | 'full' | 'deposit';
   onlinePaymentEnabled?: boolean;
   depositAmount?: number | null;
+  category?: PublicServiceCategory | null;
 }
 
 export function prepaymentDue(service: PublicService): number {
