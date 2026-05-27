@@ -401,6 +401,164 @@ export class BookingService {
     await this.validateBookingWindow(businessId, employeeId, startTime, endTime, serviceId);
   }
 
+  /** Explains why a service cannot be booked at a given start time (for assistant UX). */
+  async explainServiceSlotFit(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    serviceId: string,
+  ): Promise<{
+    fits: boolean;
+    requiredMinutes?: number;
+    remainingMinutes?: number;
+    availableUntil?: Date;
+    failureReason?: 'duration' | 'service_period' | 'service_restriction' | 'blocked' | 'booked' | 'other';
+    message?: string;
+  }> {
+    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    if (!service) {
+      return { fits: false, failureReason: 'other', message: 'Service not found.' };
+    }
+
+    const requiredMinutes = service.durationMinutes + service.bufferMinutes;
+    const endTime = new Date(startTime.getTime() + requiredMinutes * 60000);
+
+    try {
+      await this.validateServiceFitsWindow(businessId, employeeId, startTime, endTime, serviceId);
+      return { fits: true, requiredMinutes };
+    } catch (err: any) {
+      const availableUntil = await this.getAvailableUntilAfterStart(businessId, employeeId, startTime);
+      const remainingMinutes = Math.max(
+        0,
+        Math.floor((availableUntil.getTime() - startTime.getTime()) / 60000),
+      );
+
+      const msg: string = err?.message || '';
+      let failureReason: 'duration' | 'service_period' | 'service_restriction' | 'blocked' | 'booked' | 'other' =
+        'other';
+      if (msg.includes('full service duration does not fit') || remainingMinutes < requiredMinutes) {
+        failureReason = 'duration';
+      } else if (msg.includes('service period')) {
+        failureReason = 'service_period';
+      } else if (msg.includes('does not offer this service')) {
+        failureReason = 'service_restriction';
+      } else if (msg.includes('blocked or unavailable')) {
+        failureReason = 'blocked';
+      } else if (msg.includes('fully booked')) {
+        failureReason = 'booked';
+      }
+
+      return {
+        fits: false,
+        requiredMinutes,
+        remainingMinutes,
+        availableUntil,
+        failureReason,
+        message: msg,
+      };
+    }
+  }
+
+  /** Latest instant a booking may end when starting at `startTime` (consecutive open micro-slots). */
+  async getAvailableUntilAfterStart(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+  ): Promise<Date> {
+    const SLOT_MS = 10 * 60 * 1000;
+    const dayEnd = new Date(startTime);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const microSlots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime <= :dayEnd', { dayEnd })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .orderBy('slot.startTime', 'ASC')
+      .getMany();
+
+    const slotByStart = new Map(microSlots.map((s) => [s.startTime.getTime(), s]));
+
+    let cursor = new Date(startTime);
+    let availableUntil = new Date(startTime);
+
+    while (true) {
+      const slot = slotByStart.get(cursor.getTime());
+      if (!slot || slot.appointmentCount >= slot.maxAppointmentCount) {
+        break;
+      }
+      availableUntil = slot.endTime;
+      cursor = new Date(cursor.getTime() + SLOT_MS);
+    }
+
+    const blockEnd = await this.getServiceBlockEndCoveringInstant(businessId, employeeId, startTime);
+    if (blockEnd && blockEnd.getTime() < availableUntil.getTime()) {
+      availableUntil = blockEnd;
+    }
+
+    const nextBlockStart = await this.getNextBlockingPeriodStart(
+      businessId,
+      employeeId,
+      startTime,
+      dayEnd,
+    );
+    if (nextBlockStart && nextBlockStart.getTime() < availableUntil.getTime()) {
+      availableUntil = nextBlockStart;
+    }
+
+    return availableUntil;
+  }
+
+  private async getServiceBlockEndCoveringInstant(
+    businessId: string,
+    employeeId: string,
+    instant: Date,
+  ): Promise<Date | null> {
+    const dayStart = new Date(instant);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(instant);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const active = dayPeriods.find(
+      (p) =>
+        p.type === TemplatePeriodType.SERVICE_BLOCK &&
+        p.startTime <= instant &&
+        p.endTime > instant,
+    );
+    return active?.endTime ?? null;
+  }
+
+  private async getNextBlockingPeriodStart(
+    businessId: string,
+    employeeId: string,
+    after: Date,
+    dayEnd: Date,
+  ): Promise<Date | null> {
+    const block = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime > :after', { after })
+      .andWhere('slot.startTime <= :dayEnd', { dayEnd })
+      .andWhere('slot.status IN (:...statuses)', {
+        statuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+      })
+      .orderBy('slot.startTime', 'ASC')
+      .getOne();
+
+    return block?.startTime ?? null;
+  }
+
   /**
    * Service IDs allowed at an instant based on applied service_block periods.
    * Returns null when any active service is permitted.

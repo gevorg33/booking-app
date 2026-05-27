@@ -154,7 +154,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = {
           success: false,
           action: 'unknown',
-          summary: 'I can help you find a professional, check open times, see services and prices, or book an appointment. What would you like to do?',
+          summary: 'I can help you find a specialist, check open times, see services and prices, or book an appointment. What would you like to do?',
         };
     }
 
@@ -167,7 +167,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: true,
         action: 'list_providers',
-        summary: 'No professionals are available for booking right now. Please contact the business directly.',
+        summary: 'No specialists are available for booking right now. Please contact the business directly.',
       };
     }
 
@@ -185,7 +185,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return {
       success: true,
       action: 'list_providers',
-      summary: ['Here are our professionals:', '', ...lines].join('\n'),
+      summary: ['Here are our specialists:', '', ...lines].join('\n'),
       navigate: { path: 'professionals', query: {} },
     };
   }
@@ -234,7 +234,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: true,
         action: 'check_availability',
-        summary: 'Which professional would you like to check? ' + employees.map((e) => e.name).join(', '),
+        summary: 'Which specialist would you like to check? ' + employees.map((e) => e.name).join(', '),
       };
     }
 
@@ -304,7 +304,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       action: 'booking_help',
       summary: [
         'Booking online is easy:',
-        '1. Choose a professional and time',
+        '1. Choose a specialist and time',
         '2. Pick a service',
         '3. Enter your name and contact details',
         '',
@@ -321,7 +321,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     services: Service[],
   ): Promise<PublicAssistantResult> {
     const missing: string[] = [];
-    if (!params.employeeName) missing.push('professional');
+    if (!params.employeeName) missing.push('specialist');
     if (!params.serviceName) missing.push('service');
     if (!params.date) missing.push('date');
     if (!params.timeSlot) missing.push('time');
@@ -337,7 +337,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: false,
         action: 'book_appointment',
-        summary: `Professional "${params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
+        summary: `Specialist "${params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
       };
     }
 
@@ -380,11 +380,24 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     );
     const fits = slotServices.some((s) => s.id === service.id);
     if (!fits) {
-      const names = slotServices.map((s) => s.name).join(', ') || 'none';
+      const fit = await this.publicBookingService.explainServiceSlotFit(
+        slug,
+        employee.id,
+        startTime,
+        service.id,
+      );
+      const summary = this.buildServiceUnfitSummary(
+        service,
+        employee,
+        params.date,
+        snappedTime,
+        slotServices,
+        fit,
+      );
       return {
         success: false,
         action: 'book_appointment',
-        summary: `${service.name} isn't available at ${snappedTime} on ${formatDateDisplay(params.date)}. Services at that time: ${names}`,
+        summary,
         navigate: {
           path: 'services',
           query: { employeeId: employee.id, startTime },
@@ -497,6 +510,61 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       }
     }
     return merged;
+  }
+
+  private buildServiceUnfitSummary(
+    service: Service,
+    employee: Employee,
+    date: string,
+    time: string,
+    slotServices: Array<{ name: string; durationMinutes: number; bufferMinutes: number }>,
+    fit: {
+      requiredMinutes?: number;
+      remainingMinutes?: number;
+      availableUntil?: Date;
+      failureReason?: string;
+      message?: string;
+    },
+  ): string {
+    const dateStr = formatDateDisplay(date);
+    const lines: string[] = [`${service.name} isn't available at ${time} on ${dateStr}.`];
+
+    const required = fit.requiredMinutes ?? service.durationMinutes + service.bufferMinutes;
+    const remaining = fit.remainingMinutes;
+    const until = fit.availableUntil ? formatTimeDisplay(fit.availableUntil) : null;
+
+    if (
+      (fit.failureReason === 'duration' || fit.failureReason === 'service_period') &&
+      until &&
+      remaining !== undefined &&
+      remaining < required
+    ) {
+      lines.push(
+        `${employee.name} is only available until ${until} — that leaves ${remaining} minutes from ${time}, but ${service.name} needs ${required} minutes.`,
+      );
+    } else if (fit.failureReason === 'service_restriction') {
+      lines.push(
+        `${employee.name} does not offer ${service.name} during the entire time window starting at ${time}.`,
+      );
+    } else if (fit.message) {
+      lines.push(fit.message);
+    }
+
+    if (slotServices.length > 0) {
+      const list = slotServices
+        .map((s) => `${s.name} (${s.durationMinutes + s.bufferMinutes} min)`)
+        .join(', ');
+      lines.push(`Services you can book at that time: ${list}.`);
+      if (remaining !== undefined && remaining < required) {
+        lines.push(
+          `Try an earlier start time so the full ${required}-minute appointment fits, or choose one of the shorter services above.`,
+        );
+      }
+    } else {
+      lines.push('No services fit that time slot. Please choose a different time.');
+    }
+
+    return lines.join('\n');
   }
 
   private normalizeDateParams(params: Record<string, any>, fallbackDateKey: string) {

@@ -37,7 +37,12 @@ export default async function PublicBookingHomePage({
           >
             <Users className="w-5 h-5" />
           </div>
-          <span className="flex-1 font-medium text-gray-900">Choose a professional</span>
+          <div className="flex-1">
+            <span className="block font-medium text-gray-900">Choose a specialist</span>
+            <span className="block text-sm text-gray-500 mt-0.5">
+              Or use the AI assistant to find your service and time
+            </span>
+          </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </Link>
       </div>

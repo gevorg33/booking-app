@@ -260,6 +260,22 @@ export class PublicBookingService {
     return { services: eligible };
   }
 
+  async explainServiceSlotFit(
+    slug: string,
+    employeeId: string,
+    startTime: string,
+    serviceId: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.bookingService.explainServiceSlotFit(
+      business.id,
+      employeeId,
+      new Date(startTime),
+      serviceId,
+    );
+  }
+
   async createBooking(slug: string, dto: CreatePublicBookingDto) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);

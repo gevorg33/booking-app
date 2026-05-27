@@ -55,7 +55,10 @@ export function ProfessionalsClient({ slug, tenant, providers, backHref }: Profe
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <div className="max-w-lg mx-auto px-4 py-6 pb-32 -mt-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-5">Choose a professional</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose a specialist</h1>
+        <p className="text-sm text-gray-500 mb-5">
+          Or use the AI assistant below to find your desired service and time.
+        </p>
         <ProviderList
           slug={slug}
           providers={providers}
