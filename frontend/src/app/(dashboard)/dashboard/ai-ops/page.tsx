@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useI18n } from '@/i18n';
 
 const AGENT_TYPES = [
   { value: 'scheduling_optimization', label: 'Schedule Optimization', description: 'Optimize staff schedules and fill gaps' },
@@ -35,6 +36,7 @@ function getStatusConfig(status: string) {
 }
 
 export default function AiOpsPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [intent, setIntent] = useState('');
@@ -80,7 +82,7 @@ export default function AiOpsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">AI Operations</h1>
+        <h1 className="text-2xl font-bold">{t('ai.opsTitle')}</h1>
         <p className="text-gray-400 text-sm">Express intent and let AI plan optimal operations</p>
       </div>
 

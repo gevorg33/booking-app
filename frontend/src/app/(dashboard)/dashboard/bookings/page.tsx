@@ -15,10 +15,15 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useOperationalEvents } from '@/lib/use-operational-events';
+import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
+import { CustomerSelect } from '@/components/customers/customer-select';
+import { formatStatusLabel, STATUS_BADGE } from '@/lib/booking-types';
+import { useI18n } from '@/i18n';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -27,15 +32,6 @@ const HOUR_END   = 22;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 const PX_PER_HOUR = 64;
 const TOTAL_MINUTES = TOTAL_HOURS * 60;
-
-const STATUS_BADGE: Record<string, string> = {
-  confirmed:   'bg-green-600/15 text-green-400',
-  completed:   'bg-blue-600/15 text-blue-400',
-  cancelled:   'bg-red-600/15 text-red-400',
-  pending:     'bg-yellow-600/15 text-yellow-400',
-  no_show:     'bg-orange-600/15 text-orange-400',
-  in_progress: 'bg-purple-600/15 text-purple-400',
-};
 
 const SVC_COLORS = [
   { bg: 'bg-blue-600/30',    border: 'border-blue-500/60',    text: 'text-blue-200'   },
@@ -123,10 +119,28 @@ interface BookingItem {
   endTime: string;
   status: string;
   paymentStatus?: string;
+  notes?: string;
   description?: string;
+  cancellationReason?: string;
   service?: { id: string; name: string; durationMinutes: number };
   employee?: { id: string; name: string };
-  customer?: { id: string; name: string };
+  customer?: { id: string; name: string; email?: string; phone?: string };
+}
+
+/** Calendar block label — includes time range so overlapping blocks stay readable. */
+function bookingBlockLabel(b: Pick<BookingItem, 'status' | 'service' | 'startTime' | 'endTime'>) {
+  const range = formatTimeRangeDisplay(b.startTime, b.endTime);
+  const name = b.service?.name || 'Booking';
+  return b.status === 'cancelled' ? `${range} · Cancelled — ${name}` : `${range} · ${name}`;
+}
+
+function openBookingDetail(
+  bookingId: string,
+  setSelectedBookingId: (id: string) => void,
+  setSelectedPeriod: (period: CalPeriod | null) => void,
+) {
+  setSelectedPeriod(null);
+  setSelectedBookingId(bookingId);
 }
 
 // ─── Overlap layout helper ────────────────────────────────────────────────────
@@ -274,7 +288,8 @@ function PeriodLabelOverlay({
 
 function CalendarBlock({
   startISO, endISO, color, label, sublabel, onClick, faded, selected,
-  col = 0, totalCols = 1, showLabel = true, zIndex = 1,
+  col = 0, totalCols = 1, showLabel = true, zIndex = 1, pointerEventsNone = false,
+  compact = false,
 }: {
   startISO: string;
   endISO: string;
@@ -288,16 +303,22 @@ function CalendarBlock({
   totalCols?: number;
   showLabel?: boolean;
   zIndex?: number;
+  pointerEventsNone?: boolean;
+  compact?: boolean;
 }) {
   const pos = getBlockPosition(startISO, endISO, col, totalCols);
+  const isCompact = compact || totalCols > 1;
+  const minDurationForLabel = isCompact ? 8 : 15;
+  const showText = showLabel && pos.durationMin >= minDurationForLabel;
 
   return (
     <div
       className={`absolute rounded border overflow-hidden select-none transition-all
         ${color.bg} ${color.border} ${color.text}
-        ${onClick ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}
+        ${onClick && !pointerEventsNone ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}
         ${faded ? 'opacity-80' : ''}
-        ${selected ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900' : ''}`}
+        ${selected ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900' : ''}
+        ${pointerEventsNone ? 'pointer-events-none' : ''}`}
       style={{
         top: pos.top,
         height: pos.height,
@@ -307,13 +328,15 @@ function CalendarBlock({
         zIndex,
       }}
       onClick={onClick}
-      title={showLabel ? undefined : label}
+      title={label}
     >
-      {showLabel && pos.durationMin >= 15 && (
-        <div className="px-2 py-1 leading-tight">
-          <p className="text-[11px] font-semibold truncate">{label}</p>
-          {sublabel && pos.durationMin >= 30 && (
-            <p className="text-[10px] opacity-70 truncate">{sublabel}</p>
+      {showText && (
+        <div className={`${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'} leading-tight min-w-0 h-full`}>
+          <p className={`${isCompact ? 'text-[9px] leading-[1.15]' : 'text-[11px]'} font-semibold ${isCompact ? 'line-clamp-4 whitespace-normal break-words' : 'truncate'}`}>
+            {label}
+          </p>
+          {sublabel && pos.durationMin >= (isCompact ? 20 : 30) && (
+            <p className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} opacity-70 truncate`}>{sublabel}</p>
           )}
         </div>
       )}
@@ -324,12 +347,34 @@ function CalendarBlock({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient  = useQueryClient();
+
+  const refreshScheduleData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+  }, [queryClient]);
+
+  const onOperationalEvent = useCallback(
+    (type: string) => {
+      if (
+        type === 'appointment.created' ||
+        type === 'availability.updated' ||
+        type === 'booking.created'
+      ) {
+        refreshScheduleData();
+      }
+    },
+    [refreshScheduleData],
+  );
+
+  useOperationalEvents(business?.id, onOperationalEvent);
 
   const [day, setDay]                       = useState(new Date());
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
 
@@ -365,16 +410,6 @@ export default function BookingsPage() {
     queryFn: async () => {
       if (!business?.id) return [];
       const { data } = await api.get(`/businesses/${business.id}/services`);
-      return data.data || data || [];
-    },
-    enabled: !!business?.id,
-  });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data } = await api.get(`/businesses/${business.id}/customers`);
       return data.data || data || [];
     },
     enabled: !!business?.id,
@@ -474,12 +509,13 @@ export default function BookingsPage() {
         );
       }
       const startISO = toISO(dayStr, snapped);
+      if (!form.customerId) throw new Error('Select a customer');
       const payload: any = {
         employeeId,
         serviceId: form.serviceId,
+        customerId: form.customerId,
         startTime: startISO,
       };
-      if (form.customerId) payload.customerId = form.customerId;
       if (form.notes)       payload.notes       = form.notes;
       if (form.description) payload.description = form.description;
       const { data } = await api.post(`/businesses/${business!.id}/bookings`, payload);
@@ -509,6 +545,7 @@ export default function BookingsPage() {
 
   const handlePeriodClick = useCallback((period: CalPeriod) => {
     if (period.type !== 'service_block') return;
+    setSelectedBookingId(null);
     setSelectedPeriod(period);
     createMutation.reset();
     // Default start time = period start (HH:mm in UTC)
@@ -531,7 +568,7 @@ export default function BookingsPage() {
       {/* ── Top toolbar ── */}
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Bookings</h1>
+          <h1 className="text-2xl font-bold">{t('bookings.title')}</h1>
           <p className="text-gray-400 text-sm">Select a provider and day to manage their schedule</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -729,28 +766,61 @@ export default function BookingsPage() {
                     );
                   })()}
 
-                  {/* Booking overlays (orange) — above period backgrounds, below period labels */}
+                  {/* Booking overlays — side-by-side when overlapping; cancelled blocks are click-through */}
                   {(() => {
                     const layout = computeLayout(bookings.map((b) => ({
                       id: b.id, startISO: b.startTime, endISO: b.endTime,
                     })));
-                    return bookings.map((b) => {
-                      const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
-                      return (
-                        <CalendarBlock
-                          key={b.id}
-                          startISO={b.startTime}
-                          endISO={b.endTime}
-                          color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
-                          label={b.service?.name || 'Booking'}
-                          sublabel={b.customer?.name || b.employee?.name || ''}
-                          faded={b.status === 'cancelled'}
-                          col={lay.col}
-                          totalCols={lay.totalCols}
-                          zIndex={10}
-                        />
-                      );
-                    });
+
+                    const cancelledNodes = bookings
+                      .filter((b) => b.status === 'cancelled')
+                      .map((b) => {
+                        const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
+                        return (
+                          <CalendarBlock
+                            key={b.id}
+                            startISO={b.startTime}
+                            endISO={b.endTime}
+                            color={{ bg: 'bg-red-900/35', border: 'border-red-600/60', text: 'text-red-200' }}
+                            label={bookingBlockLabel(b)}
+                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
+                            faded
+                            selected={selectedBookingId === b.id}
+                            col={lay.col}
+                            totalCols={lay.totalCols}
+                            zIndex={5}
+                          />
+                        );
+                      });
+
+                    const activeNodes = bookings
+                      .filter((b) => b.status !== 'cancelled')
+                      .map((b) => {
+                        const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
+                        return (
+                          <CalendarBlock
+                            key={b.id}
+                            startISO={b.startTime}
+                            endISO={b.endTime}
+                            color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
+                            label={bookingBlockLabel(b)}
+                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
+                            selected={selectedBookingId === b.id}
+                            col={lay.col}
+                            totalCols={lay.totalCols}
+                            zIndex={10}
+                          />
+                        );
+                      });
+
+                    return (
+                      <>
+                        {cancelledNodes}
+                        {activeNodes}
+                      </>
+                    );
                   })()}
 
                   {calPeriods.length === 0 && bookings.length === 0 && (
@@ -803,6 +873,52 @@ export default function BookingsPage() {
 
               <div className="space-y-3 flex-1">
 
+                {/* Service provider */}
+                <div>
+                  <label className="label">{t('bookings.provider')}</label>
+                  <div className="input bg-gray-900/60 text-gray-200 cursor-default">
+                    {employees.find((emp: any) => emp.id === employeeId)?.name ?? t('bookings.unknownProvider')}
+                  </div>
+                </div>
+
+                {/* Service */}
+                <div>
+                  <label className="label">{t('bookings.service')}</label>
+                  {periodServices.length === 0 ? (
+                    <p className="text-xs text-red-400 mt-1">No matching services found</p>
+                  ) : (
+                    <select
+                      className="input"
+                      value={form.serviceId}
+                      onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
+                    >
+                      <option value="">Select service...</option>
+                      {periodServices.map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.durationMinutes}min)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
+                    <p className="text-[10px] text-gray-500 mt-1">Only services offered in this period are shown</p>
+                  )}
+                </div>
+
+                {/* Customer */}
+                <div>
+                  <label className="label">{t('bookings.customer')}</label>
+                  {business?.id ? (
+                    <CustomerSelect
+                      businessId={business.id}
+                      value={form.customerId}
+                      onChange={(customerId) => setForm({ ...form, customerId })}
+                      required
+                      searchPlaceholder={t('customers.searchPlaceholder')}
+                    />
+                  ) : null}
+                </div>
+
                 {/* Start time within the period */}
                 <div>
                   <label className="label">
@@ -833,45 +949,6 @@ export default function BookingsPage() {
                       This start time is too late — the service would run past the period end ({periodMaxTime}).
                     </p>
                   )}
-                </div>
-
-                {/* Service */}
-                <div>
-                  <label className="label">Service</label>
-                  {periodServices.length === 0 ? (
-                    <p className="text-xs text-red-400 mt-1">No matching services found</p>
-                  ) : (
-                    <select
-                      className="input"
-                      value={form.serviceId}
-                      onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
-                    >
-                      <option value="">Select service...</option>
-                      {periodServices.map((s: any) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.durationMinutes}min)
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
-                    <p className="text-[10px] text-gray-500 mt-1">Only services offered in this period are shown</p>
-                  )}
-                </div>
-
-                {/* Customer */}
-                <div>
-                  <label className="label">Customer</label>
-                  <select
-                    className="input"
-                    value={form.customerId}
-                    onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                  >
-                    <option value="">Walk-in</option>
-                    {customers.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* Notes */}
@@ -911,7 +988,7 @@ export default function BookingsPage() {
 
               <button
                 onClick={() => createMutation.mutate()}
-                disabled={!form.serviceId || !startTimeValid || createMutation.isPending}
+                disabled={!form.serviceId || !form.customerId || !startTimeValid || createMutation.isPending}
                 className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
               >
                 {createMutation.isPending
@@ -962,16 +1039,33 @@ export default function BookingsPage() {
         ) : (
           <div className="divide-y divide-gray-800">
             {bookings.map((b) => (
-              <div key={b.id} className="py-3 flex items-center justify-between gap-3">
+              <div
+                key={b.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod);
+                  }
+                }}
+                className={`py-3 flex items-center justify-between gap-3 cursor-pointer rounded-lg px-2 -mx-2 transition-colors hover:bg-gray-800/50 ${
+                  selectedBookingId === b.id ? 'bg-gray-800/70 ring-1 ring-blue-500/40' : ''
+                }`}
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-lg bg-blue-600/10 flex items-center justify-center shrink-0">
                     <Clock className="w-4 h-4 text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{b.service?.name || 'Service'}</p>
+                    <p className={`font-medium text-sm truncate ${b.status === 'cancelled' ? 'text-red-300' : ''}`}>
+                      {bookingBlockLabel(b)}
+                    </p>
                     <p className="text-xs text-gray-400">
-                      {fmtUTC(new Date(b.startTime))} – {fmtUTC(new Date(b.endTime))}
-                      {b.customer && <> · {b.customer.name}</>}
+                      {b.customer && <>{b.customer.name}</>}
+                      {b.customer && b.employee && <> · </>}
+                      {b.employee?.name}
                     </p>
                     {b.description && <p className="text-xs text-gray-500 truncate mt-0.5">{b.description}</p>}
                   </div>
@@ -980,12 +1074,15 @@ export default function BookingsPage() {
                   <div className="text-right">
                     <p className="text-xs text-gray-300">{b.employee?.name}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status] || 'bg-gray-600/10 text-gray-400'}`}>
-                      {b.status}
+                      {formatStatusLabel(b.status)}
                     </span>
                   </div>
                   {b.status !== 'cancelled' && b.status !== 'completed' && (
                     <button
-                      onClick={() => setShowCancel(b.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCancel(b.id);
+                      }}
                       className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
                       title="Cancel"
                     >
@@ -998,6 +1095,14 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {business?.id && (
+        <BookingDetailPanel
+          businessId={business.id}
+          bookingId={selectedBookingId}
+          onClose={() => setSelectedBookingId(null)}
+        />
+      )}
     </div>
   );
 }

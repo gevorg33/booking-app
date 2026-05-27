@@ -173,6 +173,11 @@ export class CommandOrchestrationService {
       if (step.result?.bookingId) {
         lines.push(`• Booking created: ${step.result.bookingId}`);
       }
+      if (step.result?.serviceId) {
+        lines.push(
+          `• Service created: ${step.result.name} (${step.result.durationMinutes} min, ${step.result.currency ?? 'USD'} ${step.result.price})`,
+        );
+      }
       if (step.result?.cancelledCount) {
         lines.push(`• Cancelled ${step.result.cancelledCount} booking(s)`);
       }

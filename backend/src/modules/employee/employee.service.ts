@@ -6,6 +6,8 @@ import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 
+type ProfileFields = Pick<CreateEmployeeDto, 'title' | 'avatarUrl'>;
+
 @Injectable()
 export class EmployeeService {
   constructor(
@@ -14,8 +16,11 @@ export class EmployeeService {
   ) {}
 
   async create(businessId: string, dto: CreateEmployeeDto, userId?: string): Promise<Employee> {
+    const { title, avatarUrl, ...rest } = dto;
+    const metadata = this.buildMetadata({}, { title, avatarUrl });
+
     const employee = await this.employeeRepo.save(
-      this.employeeRepo.create({ ...dto, businessId }),
+      this.employeeRepo.create({ ...rest, businessId, metadata }),
     );
     await this.eventStore.publish({
       eventType: EventType.EMPLOYEE_CREATED,
@@ -40,7 +45,14 @@ export class EmployeeService {
 
   async update(id: string, dto: UpdateEmployeeDto, userId?: string): Promise<Employee> {
     const employee = await this.findOne(id);
-    Object.assign(employee, dto);
+    const { title, avatarUrl, ...rest } = dto;
+
+    Object.assign(employee, rest);
+
+    if (title !== undefined || avatarUrl !== undefined) {
+      employee.metadata = this.buildMetadata(employee.metadata ?? {}, { title, avatarUrl });
+    }
+
     const updated = await this.employeeRepo.save(employee);
     await this.eventStore.publish({
       eventType: EventType.EMPLOYEE_UPDATED,
@@ -53,7 +65,35 @@ export class EmployeeService {
     return updated;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId?: string): Promise<void> {
+    const employee = await this.findOne(id);
     await this.employeeRepo.update(id, { isActive: false });
+    await this.eventStore.publish({
+      eventType: EventType.EMPLOYEE_UPDATED,
+      aggregateType: 'employee',
+      aggregateId: id,
+      businessId: employee.businessId,
+      payload: { isActive: false },
+      userId,
+    });
+  }
+
+  private buildMetadata(
+    existing: Record<string, any>,
+    fields: Partial<ProfileFields>,
+  ): Record<string, any> {
+    const metadata = { ...existing };
+
+    if (fields.title !== undefined) {
+      if (fields.title?.trim()) metadata.title = fields.title.trim();
+      else delete metadata.title;
+    }
+
+    if (fields.avatarUrl !== undefined) {
+      if (fields.avatarUrl?.trim()) metadata.avatarUrl = fields.avatarUrl.trim();
+      else delete metadata.avatarUrl;
+    }
+
+    return metadata;
   }
 }

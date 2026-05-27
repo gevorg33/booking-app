@@ -41,6 +41,9 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'varchar', length: 10, default: 'en' })
+  locale: string;
+
   @OneToMany(() => BusinessMember, (member) => member.user)
   businessMemberships: BusinessMember[];
 

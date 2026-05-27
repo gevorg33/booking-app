@@ -11,6 +11,7 @@ import { Booking } from '../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
+import { ServiceModule } from '../../modules/service/service.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-per
     EventStoreModule,
     forwardRef(() => BookingModule),
     forwardRef(() => SchedulingEngineModule),
+    ServiceModule,
   ],
   providers: [WorkflowCompilerService, WorkflowExecutorService, WorkflowStepExecutorsService],
   exports: [WorkflowCompilerService, WorkflowExecutorService],

@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { Calendar, Brain, Shield, Zap, ArrowRight } from 'lucide-react';
+import { useI18n } from '@/i18n';
 
 export default function HomePage() {
+  const { t } = useI18n();
+
   return (
     <div className="min-h-screen">
       <nav className="border-b border-gray-800 px-6 py-4">
@@ -16,10 +19,10 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-gray-400 hover:text-white transition-colors">
-              Sign In
+              {t('nav.signIn')}
             </Link>
             <Link href="/register" className="btn-primary">
-              Get Started
+              {t('nav.getStarted')}
             </Link>
           </div>
         </div>
@@ -29,25 +32,23 @@ export default function HomePage() {
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-400 text-sm mb-6">
             <Brain className="w-4 h-4" />
-            AI-Native Operations Platform
+            {t('landing.badge')}
           </div>
           <h1 className="text-5xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Scheduling that thinks for your business
+            {t('landing.title')}
           </h1>
           <p className="text-xl text-gray-400 mb-10 leading-relaxed">
-            Express intent, not instructions. Our AI operator understands your business goals and
-            orchestrates optimal schedules, resolves conflicts, and maximizes utilization —
-            automatically.
+            {t('landing.subtitle')}
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link
               href="/register"
               className="btn-primary text-lg px-8 py-3 flex items-center gap-2"
             >
-              Start Free <ArrowRight className="w-5 h-5" />
+              {t('landing.startFree')} <ArrowRight className="w-5 h-5" />
             </Link>
             <Link href="/login" className="btn-secondary text-lg px-8 py-3">
-              Sign In
+              {t('nav.signIn')}
             </Link>
           </div>
         </div>
@@ -59,30 +60,27 @@ export default function HomePage() {
             <div className="w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center mb-4">
               <Brain className="w-6 h-6 text-blue-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Intent-Driven AI</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('landing.featureAiTitle')}</h3>
             <p className="text-gray-400">
-              Say &quot;fill empty slots tomorrow&quot; and the AI builds a validated plan. No manual
-              scheduling required.
+              {t('landing.featureAiBody')}
             </p>
           </div>
           <div className="card">
             <div className="w-12 h-12 bg-green-600/10 rounded-xl flex items-center justify-center mb-4">
               <Shield className="w-6 h-6 text-green-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Safe by Design</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('landing.featureSafeTitle')}</h3>
             <p className="text-gray-400">
-              AI proposes, the system validates. Every action passes through policy checks, constraint
-              validation, and audit logging.
+              {t('landing.featureSafeBody')}
             </p>
           </div>
           <div className="card">
             <div className="w-12 h-12 bg-purple-600/10 rounded-xl flex items-center justify-center mb-4">
               <Calendar className="w-6 h-6 text-purple-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Deterministic Engine</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('landing.featureCalendarTitle')}</h3>
             <p className="text-gray-400">
-              10-minute slot precision. Prevents double-booking. Handles breaks, vacations, and
-              business rules automatically.
+              {t('landing.featureCalendarBody')}
             </p>
           </div>
         </div>

@@ -5,8 +5,10 @@ import { Briefcase, Plus, Clock, DollarSign } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useI18n } from '@/i18n';
 
 export default function ServicesPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -38,7 +40,7 @@ export default function ServicesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Services</h1>
+          <h1 className="text-2xl font-bold">{t('servicesPage.title')}</h1>
           <p className="text-gray-400 text-sm">Define what you offer</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">

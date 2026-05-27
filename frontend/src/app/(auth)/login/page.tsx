@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { Zap } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -24,7 +26,7 @@ export default function LoginPage() {
       setAuth(result.user, result.business, result.token);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -37,8 +39,8 @@ export default function LoginPage() {
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Zap className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">Welcome back</h1>
-          <p className="text-gray-400 mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold">{t('auth.welcomeBack')}</h1>
+          <p className="text-gray-400 mt-1">{t('auth.signInSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -48,7 +50,7 @@ export default function LoginPage() {
             </div>
           )}
           <div>
-            <label className="label">Email</label>
+            <label className="label">{t('common.email')}</label>
             <input
               type="email"
               className="input"
@@ -58,7 +60,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="label">Password</label>
+            <label className="label">{t('common.password')}</label>
             <input
               type="password"
               className="input"
@@ -68,12 +70,12 @@ export default function LoginPage() {
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </button>
           <p className="text-center text-sm text-gray-400">
-            Don&apos;t have an account?{' '}
+            {t('auth.noAccount')}{' '}
             <Link href="/register" className="text-blue-400 hover:text-blue-300">
-              Register
+              {t('nav.register')}
             </Link>
           </p>
         </form>

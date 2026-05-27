@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -13,25 +13,39 @@ import {
   Brain,
   CreditCard,
   LogOut,
+  ClipboardList,
+  Store,
+  UserCircle,
+  Settings,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/bookings', label: 'Bookings & Calendar', icon: Calendar },
-  { href: '/dashboard/schedule', label: 'Schedule', icon: Clock },
-  { href: '/dashboard/employees', label: 'Employees', icon: Users },
-  { href: '/dashboard/services', label: 'Services', icon: Briefcase },
-  { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
-  { href: '/dashboard/ai-ops', label: 'AI Operations', icon: Brain },
-];
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useI18n } from '@/i18n';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { business, logout, token } = useAuthStore();
+  const { business, logout, token, user } = useAuthStore();
+  const { t, setLocale } = useI18n();
   const [mounted, setMounted] = useState(false);
+
+  const navItems = useMemo(
+    () => [
+      { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+      { href: '/dashboard/bookings', label: t('nav.bookings'), icon: Calendar },
+      { href: '/dashboard/schedule', label: t('nav.schedule'), icon: Clock },
+      { href: '/dashboard/employees', label: t('nav.employees'), icon: Users },
+      { href: '/dashboard/customers', label: t('nav.customers'), icon: UserCircle },
+      { href: '/dashboard/appointments', label: t('nav.appointments'), icon: ClipboardList },
+      { href: '/dashboard/services', label: t('nav.services'), icon: Briefcase },
+      { href: '/dashboard/business', label: t('nav.businessProfile'), icon: Store },
+      { href: '/dashboard/billing', label: t('nav.billing'), icon: CreditCard },
+      { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
+      { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -41,23 +55,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (mounted && !token) router.push('/login');
   }, [mounted, token, router]);
 
+  useEffect(() => {
+    if (user?.locale) setLocale(user.locale);
+  }, [user?.locale, setLocale]);
+
   if (!mounted || !token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 border-r border-gray-800 bg-gray-950 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
+    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+      <aside className="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold">OptiSchedule</span>
+            <span className="font-bold text-gray-900 dark:text-gray-100">OptiSchedule</span>
           </div>
           {business && <p className="text-xs text-gray-500 mt-2 truncate">{business.name}</p>}
         </div>
@@ -71,8 +89,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive
-                    ? 'bg-blue-600/10 text-blue-400'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
                 <item.icon className="w-4 h-4" />
@@ -82,16 +100,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-3 border-t border-gray-800">
+        <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-3">
+          <LanguageSwitcher />
           <button
             onClick={() => {
               logout();
               router.push('/login');
             }}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 w-full"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 w-full"
           >
             <LogOut className="w-4 h-4" />
-            Sign Out
+            {t('nav.signOut')}
           </button>
         </div>
       </aside>

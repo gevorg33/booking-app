@@ -28,17 +28,41 @@ export interface CommandResult {
   details: Record<string, any>;
 }
 
+interface ParsedServiceDraft {
+  name: string;
+  description?: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  price: number;
+  currency: string;
+}
+
 const INTENT_SCHEMA = `You are the Orchestrix operational AI — an orchestration layer for service businesses.
 Given a user's natural-language command and the available business data, classify the intent
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — the service provider's name mentioned",
     "customerName": "string or null",
-    "serviceName": "string or null — single service (mainly for create_booking)",
+    "serviceName": "string or null — single service (for create_booking or create_service name)",
     "serviceNames": ["string"] or null — one or more service types to filter (for cancel_bookings / list_bookings), e.g. [\"hairdrying\", \"hairstyle\"],
+    "services": [
+      {
+        "serviceName": "string",
+        "durationMinutes": number,
+        "price": number,
+        "description": "string or null",
+        "bufferMinutes": number or null,
+        "currency": "string or null"
+      }
+    ] or null — for create_services (bulk add to catalog), one object per new service,
+    "description": "string or null — service description (create_service) or booking description",
+    "durationMinutes": number or null — service duration in minutes (create_service), minimum 10,
+    "bufferMinutes": number or null — buffer after service in minutes (create_service), default 0,
+    "price": number or null — service price (create_service), e.g. 50 or 29.99,
+    "currency": "string or null — ISO currency code (create_service), default USD",
     "date": "DD_MM_YYYY or null — the date referenced (resolve relative dates like 'tomorrow' from today's date)",
     "dateFrom": "DD_MM_YYYY or null — start of range if a range is mentioned",
     "dateTo": "DD_MM_YYYY or null — end of range",
@@ -59,6 +83,11 @@ Rules:
 - If the user mentions a reason/note for cancellation (e.g. "he is sick"), put it in "reason".
 - For new appointments (book, schedule, create appointment), use action "create_booking".
 - create_booking requires employeeName, serviceName, date, and timeSlot at minimum.
+- For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
+- create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc.
+- create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
+- Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
+- Do not use create_service when booking an appointment — that is create_booking.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
@@ -173,6 +202,16 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
           userId,
         );
         break;
+      case 'create_service':
+        if (Array.isArray(parsed.params.services) && parsed.params.services.length > 1) {
+          result = await this.handleCreateServices(businessId, parsed.params, services, userId);
+        } else {
+          result = await this.handleCreateService(businessId, parsed.params, services, userId);
+        }
+        break;
+      case 'create_services':
+        result = await this.handleCreateServices(businessId, parsed.params, services, userId);
+        break;
       case 'cancel_bookings':
         result = await this.handleCancelBookings(
           businessId,
@@ -241,7 +280,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         result = {
           success: false,
           action: 'unknown',
-          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported: book, cancel, show appointments, optimize schedule, fill slots, resolve conflicts, reassign cancelled, check availability, summarize day.`,
+          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported: book, add service(s), cancel, show appointments, optimize schedule, fill slots, resolve conflicts, reassign cancelled, check availability, summarize day.`,
           details: { parsed },
         };
     }
@@ -494,6 +533,203 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         autoExecute: true,
       }),
     );
+  }
+
+  private async handleCreateService(
+    businessId: string,
+    params: any,
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const parsed = this.parseServiceDraft(params, params.currency || 'USD');
+    if (parsed.errors.length > 0 || !parsed.draft) {
+      return {
+        success: false,
+        action: 'create_service',
+        summary: `Cannot add service — ${parsed.errors.join(', ') || 'invalid service data'}. Example: "Add a service facemassage, 60 minutes, price 50".`,
+        details: { params, errors: parsed.errors },
+      };
+    }
+
+    const draft = parsed.draft;
+    const existing = this.resolveService(services, draft.name);
+    if (existing) {
+      return {
+        success: false,
+        action: 'create_service',
+        summary: `A service matching "${draft.name}" already exists: "${existing.name}". Choose a different name or update the existing service in Services.`,
+        details: { params, existingServiceId: existing.id, existingServiceName: existing.name },
+      };
+    }
+
+    const plan = this.planBuilder.buildCreateServicePlan({
+      businessId,
+      ...draft,
+      userId,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
+  }
+
+  private async handleCreateServices(
+    businessId: string,
+    params: any,
+    catalog: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const rawList = Array.isArray(params.services) ? params.services : [];
+    const defaultCurrency = (params.currency || 'USD').trim().toUpperCase();
+
+    if (rawList.length === 0) {
+      return {
+        success: false,
+        action: 'create_services',
+        summary:
+          'Cannot bulk-add services — no services listed. Example: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40".',
+        details: { params },
+      };
+    }
+
+    if (rawList.length > 25) {
+      return {
+        success: false,
+        action: 'create_services',
+        summary: 'Too many services in one request (max 25). Split into smaller batches.',
+        details: { params, count: rawList.length },
+      };
+    }
+
+    const skipped: { name: string; reason: string }[] = [];
+    const toCreate: ParsedServiceDraft[] = [];
+    const batchNames = new Set<string>();
+
+    for (const raw of rawList) {
+      const label = (raw?.serviceName || raw?.name || 'Unnamed').trim();
+      const parsed = this.parseServiceDraft(raw ?? {}, defaultCurrency);
+
+      if (parsed.errors.length > 0 || !parsed.draft) {
+        skipped.push({ name: label || 'Unnamed', reason: parsed.errors.join(', ') });
+        continue;
+      }
+
+      const draft = parsed.draft;
+      const key = draft.name.toLowerCase();
+      if (batchNames.has(key)) {
+        skipped.push({ name: draft.name, reason: 'Duplicate in this request' });
+        continue;
+      }
+
+      const existing = this.resolveService(catalog, draft.name);
+      if (existing) {
+        skipped.push({ name: draft.name, reason: `Already exists as "${existing.name}"` });
+        continue;
+      }
+
+      batchNames.add(key);
+      toCreate.push(draft);
+    }
+
+    if (toCreate.length === 0) {
+      return {
+        success: false,
+        action: 'create_services',
+        summary: `No services could be created. Skipped ${skipped.length}: ${skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}.`,
+        details: { params, skipped },
+      };
+    }
+
+    const plan = this.planBuilder.buildCreateServicesPlan({
+      businessId,
+      services: toCreate,
+      userId,
+    });
+
+    const orchResult = await this.orchestration.executePlan({
+      plan,
+      businessId,
+      userId,
+      autoExecute: true,
+    });
+
+    const result = this.toCommandResult(orchResult);
+    result.action = 'create_services';
+    result.details = { ...result.details, skipped, createdCount: toCreate.length };
+
+    if (skipped.length > 0) {
+      result.summary = [
+        result.summary,
+        '',
+        `Skipped ${skipped.length}: ${skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}.`,
+      ].join('\n');
+    }
+
+    return result;
+  }
+
+  private parseServiceDraft(
+    raw: Record<string, any>,
+    defaultCurrency = 'USD',
+  ): { draft: ParsedServiceDraft | null; errors: string[] } {
+    const name = (raw.serviceName || raw.name || '').trim();
+    const durationMinutes = this.parseMinutes(raw.durationMinutes ?? raw.duration);
+    const price = this.parsePrice(raw.price);
+    const bufferMinutes = this.parseMinutes(raw.bufferMinutes) ?? 0;
+    const currency = (raw.currency || defaultCurrency).trim().toUpperCase();
+    const description = raw.description?.trim() || undefined;
+
+    const errors: string[] = [];
+    if (!name) errors.push('name required');
+    if (durationMinutes == null) errors.push('duration required');
+    else if (durationMinutes < 10) errors.push('duration min 10 minutes');
+    if (price == null) errors.push('price required');
+    else if (price < 0) errors.push('price cannot be negative');
+
+    if (errors.length > 0) {
+      return { draft: null, errors };
+    }
+
+    return {
+      draft: {
+        name,
+        description,
+        durationMinutes: durationMinutes as number,
+        bufferMinutes,
+        price: price as number,
+        currency,
+      },
+      errors: [],
+    };
+  }
+
+  private parseMinutes(value: unknown): number | undefined {
+    if (typeof value === 'number' && !Number.isNaN(value)) return Math.round(value);
+    if (typeof value === 'string') {
+      const trimmed = value.trim().toLowerCase();
+      const hourMatch = trimmed.match(/([\d.]+)\s*h(?:our|rs?)?/);
+      if (hourMatch) return Math.round(parseFloat(hourMatch[1]) * 60);
+      const minMatch = trimmed.match(/([\d.]+)/);
+      if (minMatch) return Math.round(parseFloat(minMatch[1]));
+    }
+    return undefined;
+  }
+
+  private parsePrice(value: unknown): number | undefined {
+    if (typeof value === 'number' && !Number.isNaN(value)) return value;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.]/g, '');
+      if (cleaned) {
+        const parsed = parseFloat(cleaned);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      }
+    }
+    return undefined;
   }
 
   private async handleCancelBookings(
