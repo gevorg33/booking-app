@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Pencil, Phone, Plus, Trash2, Users } from 'lucide-react';
+import { Mail, Pencil, Phone, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +22,10 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EmployeeRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: '', employeeName: '' });
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees', business?.id],
@@ -93,6 +97,29 @@ export default function EmployeesPage() {
     },
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/invitations`, {
+        email: inviteForm.email.trim(),
+        employeeName: inviteForm.employeeName.trim() || undefined,
+        role: 'contributor',
+      });
+      return data;
+    },
+    onSuccess: () => {
+      setInviteSuccess(true);
+      setInviteForm({ email: '', employeeName: '' });
+      setInviteError(null);
+      setTimeout(() => {
+        setInviteOpen(false);
+        setInviteSuccess(false);
+      }, 2000);
+    },
+    onError: (err: any) => {
+      setInviteError(err?.response?.data?.message || 'Failed to send invitation');
+    },
+  });
+
   const openCreate = () => {
     setEditingEmployee(null);
     setFormError(null);
@@ -125,9 +152,21 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold">{t('employees.title')}</h1>
           <p className="text-gray-400 text-sm">Manage team profiles, titles, and photos</p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Employee
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setInviteError(null);
+              setInviteSuccess(false);
+              setInviteOpen(true);
+            }}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" /> Invite contributor
+          </button>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add Employee
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -232,6 +271,63 @@ export default function EmployeesPage() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {inviteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setInviteOpen(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-lg mb-2">{t('invite.sendInvite')}</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Send an email invitation for a contributor to join your portal.
+            </p>
+            {inviteSuccess ? (
+              <p className="text-green-400 text-sm">{t('invite.inviteSent')}</p>
+            ) : (
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  inviteMutation.mutate();
+                }}
+              >
+                <div>
+                  <label className="label">{t('common.email')}</label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={inviteForm.email}
+                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">{t('invite.employeeName')}</label>
+                  <input
+                    className="input"
+                    value={inviteForm.employeeName}
+                    onChange={(e) => setInviteForm({ ...inviteForm, employeeName: e.target.value })}
+                    placeholder="Optional display name"
+                  />
+                </div>
+                {inviteError && <p className="text-red-400 text-sm">{inviteError}</p>}
+                <div className="flex gap-2">
+                  <button type="submit" disabled={inviteMutation.isPending} className="btn-primary text-sm">
+                    {inviteMutation.isPending ? t('common.saving') : t('invite.sendInvite')}
+                  </button>
+                  <button type="button" onClick={() => setInviteOpen(false)} className="btn-secondary text-sm">
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -11,6 +11,7 @@ import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StripeIntegrationModule } from '../billing/stripe-integration.module.js
     CustomerModule,
     SchedulingEngineModule,
     StripeIntegrationModule,
+    ReviewsModule,
   ],
   controllers: [PublicBookingController],
   providers: [PublicBookingService, PublicBookingAssistantService],

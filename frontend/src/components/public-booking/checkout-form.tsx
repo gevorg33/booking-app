@@ -141,6 +141,7 @@ export function CheckoutForm({
         <p className="text-gray-500 mt-2 text-sm">
           {formatDateDisplay(start)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
         </p>
+        <p className="text-gray-500 mt-3 text-sm max-w-sm mx-auto">{t('public.reviewAfterVisitHint')}</p>
         <a
           href={bookPath(tenant.slug)}
           className="inline-block mt-8 px-6 py-3 rounded-2xl text-white font-semibold"

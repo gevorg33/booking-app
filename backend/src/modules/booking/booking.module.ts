@@ -6,6 +6,11 @@ import { BookingService } from './booking.service.js';
 import { BookingPaymentService } from './booking-payment.service.js';
 import { BookingController } from './booking.controller.js';
 import { BookingCreatedListener } from './listeners/booking-created.listener.js';
+import { BookingCompletedListener } from './listeners/booking-completed.listener.js';
+import { LoyaltyModule } from '../loyalty/loyalty.module.js';
+import { InventoryModule } from '../inventory/inventory.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AgentController } from './agent.controller.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
@@ -34,9 +39,13 @@ import { CustomerModule } from '../customer/customer.module.js';
     forwardRef(() => BillingModule),
     CustomerModule,
     forwardRef(() => AgentModule),
+    LoyaltyModule,
+    InventoryModule,
+    ReviewsModule,
+    NotificationsModule,
   ],
   controllers: [BookingController, AgentController],
-  providers: [BookingService, BookingPaymentService, BookingCreatedListener],
+  providers: [BookingService, BookingPaymentService, BookingCreatedListener, BookingCompletedListener],
   exports: [BookingService, BookingPaymentService],
 })
 export class BookingModule {}

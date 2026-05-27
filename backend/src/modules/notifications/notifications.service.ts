@@ -115,6 +115,35 @@ export class NotificationsService {
     }
   }
 
+  async sendReviewRequest(bookingId: string): Promise<void> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return;
+
+    const { booking, businessSettings } = ctx;
+    if (booking.status !== BookingStatus.COMPLETED) return;
+
+    const customer = booking.customer;
+    if (!customer) return;
+
+    const token = booking.metadata?.reviewToken;
+    if (!token || typeof token !== 'string') return;
+
+    const reviewUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/book/${ctx.business.slug}/review?bookingId=${booking.id}&token=${token}`;
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+
+    if (businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
+      await this.dispatch(ctx, 'review_request', 'email', customer.email, () =>
+        this.buildReviewRequestEmail(ctx, reviewUrl),
+      );
+    }
+
+    if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
+      await this.dispatch(ctx, 'review_request', 'sms', customer.phone, () =>
+        this.buildReviewRequestSms(ctx, reviewUrl),
+      );
+    }
+  }
+
   async processDueReminders(): Promise<number> {
     const now = new Date();
     let sent = 0;
@@ -380,6 +409,25 @@ export class NotificationsService {
     const label = minutesBefore >= 60 ? `${Math.round(minutesBefore / 60)}h` : `${minutesBefore}m`;
     return {
       text: `${business.name}: Reminder — ${booking.service?.name ?? 'appointment'} in ${label} (${when} ${time}).`,
+    };
+  }
+
+  private buildReviewRequestEmail(ctx: BookingNotificationContext, reviewUrl: string) {
+    const { booking, business } = ctx;
+    const providerName = booking.employee?.name ?? 'your provider';
+    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nThank you for visiting ${business.name}! How was your appointment with ${providerName}?\n\nLeave a review: ${reviewUrl}`;
+
+    return {
+      subject: `How was your visit at ${business.name}?`,
+      html: `<p>Hi ${booking.customer?.name ?? 'there'},</p><p>Thank you for visiting <strong>${business.name}</strong>! How was your appointment with ${providerName}?</p><p><a href="${reviewUrl}">Leave a review</a></p>`,
+      text,
+    };
+  }
+
+  private buildReviewRequestSms(ctx: BookingNotificationContext, reviewUrl: string) {
+    const { business } = ctx;
+    return {
+      text: `${business.name}: Thanks for visiting! Leave a review: ${reviewUrl}`,
     };
   }
 }

@@ -35,6 +35,12 @@ export class Customer {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, any>;
 
+  @Column({ type: 'simple-array', nullable: true })
+  tags: string[];
+
+  @Column({ default: false })
+  isVip: boolean;
+
   @Column({ default: true })
   isActive: boolean;
 

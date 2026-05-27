@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, ValidateNested, IsHexColor, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsEmail, ValidateNested, IsHexColor, IsIn, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BusinessBrandingDto {
@@ -51,6 +51,20 @@ export class BusinessLocationDto {
   mapEmbedHtml?: string;
 }
 
+export class BusinessEmbedDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  theme?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultPath?: string;
+}
+
 export class UpdateBusinessProfileDto {
   @IsOptional()
   @IsString()
@@ -86,6 +100,11 @@ export class UpdateBusinessProfileDto {
   @ValidateNested()
   @Type(() => BusinessLocationDto)
   location?: BusinessLocationDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessEmbedDto)
+  embed?: BusinessEmbedDto;
 
   @IsOptional()
   @IsString()

@@ -191,24 +191,42 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
               </div>
             )}
 
-            {messages.map((msg) => (
+            {messages.map((msg) => {
+              const isAssistant = msg.role === 'assistant';
+              const isError = isAssistant && msg.success === false && !msg.navigate;
+              const isAction = isAssistant && !!msg.navigate;
+
+              return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
                     msg.role === 'user'
                       ? 'text-white'
-                      : msg.success === false
+                      : isError
                         ? 'bg-red-50 border border-red-100 text-red-800'
-                        : 'bg-gray-50 border border-gray-100 text-gray-800'
+                        : isAction
+                          ? 'border text-gray-800'
+                          : msg.success === true
+                            ? 'bg-emerald-50 border border-emerald-100 text-emerald-900'
+                            : 'bg-gray-50 border border-gray-100 text-gray-800'
                   }`}
-                  style={msg.role === 'user' ? { backgroundColor: primary } : undefined}
+                  style={
+                    msg.role === 'user'
+                      ? { backgroundColor: primary }
+                      : isAction
+                        ? {
+                            backgroundColor: `${primary}14`,
+                            borderColor: `${primary}33`,
+                          }
+                        : undefined
+                  }
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                   {msg.navigate && msg.role === 'assistant' && (
                     <button
                       type="button"
                       onClick={() => followNavigate(msg.navigate)}
-                      className="mt-2 text-xs font-medium px-3 py-1.5 rounded-full text-white"
+                      className="mt-2 text-xs font-medium px-3 py-1.5 rounded-full text-white hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: primary }}
                     >
                       {t('public.continueBooking')}
@@ -216,7 +234,8 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {loading && (
               <div className="flex justify-start">

@@ -18,6 +18,16 @@ import { AiModule } from './modules/ai/ai.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { UploadModule } from './modules/upload/upload.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js';
+import { LocationsModule } from './modules/locations/locations.module.js';
+import { InvitationsModule } from './modules/invitations/invitations.module.js';
+import { ReviewsModule } from './modules/reviews/reviews.module.js';
+import { GiftCardsModule } from './modules/gift-cards/gift-cards.module.js';
+import { MembershipsModule } from './modules/memberships/memberships.module.js';
+import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
+import { InventoryModule } from './modules/inventory/inventory.module.js';
+import { CommissionsModule } from './modules/commissions/commissions.module.js';
+import { ExpensesModule } from './modules/expenses/expenses.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -54,6 +64,16 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     BillingModule,
     UploadModule,
     NotificationsModule,
+    AnalyticsModule,
+    LocationsModule,
+    InvitationsModule,
+    ReviewsModule,
+    GiftCardsModule,
+    MembershipsModule,
+    LoyaltyModule,
+    InventoryModule,
+    CommissionsModule,
+    ExpensesModule,
 
     // Engine
     SchedulingEngineModule,

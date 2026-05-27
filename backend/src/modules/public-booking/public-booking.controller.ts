@@ -4,6 +4,8 @@ import { PublicBookingAssistantService } from './public-booking-assistant.servic
 import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto } from './dto/public-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
+import { SubmitPublicReviewDto } from '../reviews/dto/submit-public-review.dto.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -11,6 +13,7 @@ export class PublicBookingController {
     private publicBookingService: PublicBookingService,
     private publicAssistantService: PublicBookingAssistantService,
     private bookingPaymentService: BookingPaymentService,
+    private reviewsService: ReviewsService,
   ) {}
 
   @Get()
@@ -68,5 +71,19 @@ export class PublicBookingController {
       context: dto.context,
       locale: dto.locale,
     });
+  }
+
+  @Get('reviews/context')
+  getReviewContext(
+    @Param('slug') slug: string,
+    @Query('bookingId') bookingId: string,
+    @Query('token') token: string,
+  ) {
+    return this.reviewsService.getPublicContext(slug, bookingId, token);
+  }
+
+  @Post('reviews')
+  submitReview(@Param('slug') slug: string, @Body() dto: SubmitPublicReviewDto) {
+    return this.reviewsService.submitPublic(slug, dto);
   }
 }

@@ -14,6 +14,7 @@ export enum MemberRole {
   ADMIN = 'admin',
   MANAGER = 'manager',
   STAFF = 'staff',
+  CONTRIBUTOR = 'contributor',
 }
 
 @Entity('business_members')

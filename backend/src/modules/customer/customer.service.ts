@@ -8,6 +8,10 @@ import {
   GetCustomersQueryDto,
   parseBookingStatusFilter,
 } from './dto/get-customers-query.dto.js';
+import {
+  sanitizeCustomerTags,
+  isCustomerTag,
+} from './customer-tag.constants.js';
 
 export interface CustomerBookingStats {
   total: number;
@@ -22,6 +26,9 @@ export interface CustomerListItem {
   name: string;
   email: string | null;
   phone: string | null;
+  tags: string[];
+  isVip: boolean;
+  segment: string;
   createdAt: string;
   updatedAt: string;
   stats: CustomerBookingStats;
@@ -51,6 +58,9 @@ export interface CustomerDetailResult {
     name: string;
     email: string | null;
     phone: string | null;
+    tags: string[];
+    isVip: boolean;
+    segment: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -137,16 +147,22 @@ export class CustomerService {
       for (const [status, count] of Object.entries(stats.byStatus)) {
         appointmentsByStatus[status] = (appointmentsByStatus[status] ?? 0) + count;
       }
+      const segment = this.computeSegment(c, stats);
       return {
         id: c.id,
         name: c.name,
         email: c.email ?? null,
         phone: c.phone ?? null,
+        tags: c.tags ?? [],
+        isVip: c.isVip ?? false,
+        segment,
         createdAt: c.createdAt.toISOString(),
         updatedAt: c.updatedAt.toISOString(),
         stats,
       };
     });
+
+    const filtered = this.applySegmentFilter(list, query);
 
     const totalCustomers = await this.customerRepo.count({
       where: { businessId, isActive: true },
@@ -155,15 +171,49 @@ export class CustomerService {
     return {
       stats: {
         totalCustomers,
-        filteredCustomers: totalItems,
+        filteredCustomers: filtered.length,
         totalAppointments,
         appointmentsByStatus,
       },
-      customers: list,
-      totalItems,
+      customers: filtered,
+      totalItems: query.segment || query.isVip !== undefined ? filtered.length : totalItems,
       page,
       pageSize,
     };
+  }
+
+  computeSegment(
+    customer: Customer,
+    stats: CustomerBookingStats,
+  ): 'vip' | 'at_risk' | 'high_no_show' | 'regular' | 'new' {
+    const completed = stats.byStatus[BookingStatus.COMPLETED] ?? 0;
+    const tags = (customer.tags ?? []).map((t) => t.toLowerCase());
+    if (customer.isVip || tags.includes('vip') || completed >= 5) return 'vip';
+    if (stats.total === 0) return 'new';
+    const noShowRate = stats.total > 0 ? stats.noShowCount / stats.total : 0;
+    if (stats.noShowCount >= 2 && noShowRate > 0.2) return 'high_no_show';
+    if (stats.lastBookingAt) {
+      const daysSince =
+        (Date.now() - new Date(stats.lastBookingAt).getTime()) / 86400000;
+      if (daysSince > 90 && completed > 0) return 'at_risk';
+    }
+    return 'regular';
+  }
+
+  private applySegmentFilter(
+    list: CustomerListItem[],
+    query: GetCustomersQueryDto,
+  ): CustomerListItem[] {
+    let result = list;
+    if (query.tags?.trim()) {
+      const tag = query.tags.trim().toLowerCase();
+      if (isCustomerTag(tag)) {
+        result = result.filter((c) => c.tags.map((x) => x.toLowerCase()).includes(tag));
+      }
+    }
+    if (query.isVip === true) result = result.filter((c) => c.isVip || c.segment === 'vip');
+    if (query.segment) result = result.filter((c) => c.segment === query.segment);
+    return result;
   }
 
   private applyCustomerFilters(
@@ -188,6 +238,23 @@ export class CustomerService {
         qb.andWhere(
           "REGEXP_REPLACE(COALESCE(customer.phone, ''), '\\\\D', '', 'g') LIKE :phone",
           { phone: `%${digits}%` },
+        );
+      }
+    }
+    if (query.isVip === true) {
+      qb.andWhere('(customer.isVip = true OR customer.tags LIKE :vipTag)', { vipTag: '%vip%' });
+    }
+    if (query.tags?.trim()) {
+      const tag = query.tags.trim().toLowerCase();
+      if (isCustomerTag(tag)) {
+        qb.andWhere(
+          '(customer.tags = :tag OR customer.tags LIKE :tagPrefix OR customer.tags LIKE :tagSuffix OR customer.tags LIKE :tagMiddle)',
+          {
+            tag,
+            tagPrefix: `${tag},%`,
+            tagSuffix: `%,${tag}`,
+            tagMiddle: `%,${tag},%`,
+          },
         );
       }
     }
@@ -291,6 +358,9 @@ export class CustomerService {
         name: customer.name,
         email: customer.email ?? null,
         phone: customer.phone ?? null,
+        tags: customer.tags ?? [],
+        isVip: customer.isVip ?? false,
+        segment: this.computeSegment(customer, stats),
         createdAt: customer.createdAt.toISOString(),
         updatedAt: customer.updatedAt.toISOString(),
       },
@@ -310,7 +380,21 @@ export class CustomerService {
 
   async update(id: string, dto: UpdateCustomerDto): Promise<Customer> {
     const customer = await this.findOne(id);
-    Object.assign(customer, dto);
+    if (dto.tags !== undefined) {
+      customer.tags = sanitizeCustomerTags(dto.tags);
+      customer.isVip = customer.tags.includes('vip');
+    } else if (dto.isVip !== undefined) {
+      customer.isVip = dto.isVip;
+      const tags = sanitizeCustomerTags(customer.tags);
+      if (dto.isVip && !tags.includes('vip')) {
+        customer.tags = ['vip', ...tags.filter((t) => t !== 'vip')];
+      } else if (!dto.isVip) {
+        customer.tags = tags.filter((t) => t !== 'vip');
+      }
+    }
+    if (dto.name !== undefined) customer.name = dto.name;
+    if (dto.email !== undefined) customer.email = dto.email;
+    if (dto.phone !== undefined) customer.phone = dto.phone;
     return this.customerRepo.save(customer);
   }
 

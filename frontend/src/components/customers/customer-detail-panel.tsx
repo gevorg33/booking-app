@@ -1,10 +1,17 @@
 'use client';
 
-import { Loader2, X } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { Loader2, Save, X } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { BOOKING_STATUS_LABELS, type BookingStatus } from '@/lib/booking-types';
+import {
+  CUSTOMER_TAGS,
+  customerTagLabelKey,
+  type CustomerTag,
+} from '@/lib/customer-types';
+import { useI18n } from '@/i18n';
 
 export interface CustomerDetail {
   customer: {
@@ -12,6 +19,9 @@ export interface CustomerDetail {
     name: string;
     email: string | null;
     phone: string | null;
+    tags: string[];
+    isVip: boolean;
+    segment: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -40,7 +50,18 @@ interface CustomerDetailPanelProps {
   onClose: () => void;
 }
 
+function primaryTag(tags?: string[]): CustomerTag | '' {
+  const match = (tags ?? []).find((tag): tag is CustomerTag =>
+    (CUSTOMER_TAGS as readonly string[]).includes(tag),
+  );
+  return match ?? '';
+}
+
 export function CustomerDetailPanel({ businessId, customerId, onClose }: CustomerDetailPanelProps) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [selectedTag, setSelectedTag] = useState<CustomerTag | ''>('');
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['customer-detail', businessId, customerId],
     queryFn: async () => {
@@ -50,6 +71,26 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
       return (res.data || res) as CustomerDetail;
     },
     enabled: !!businessId && !!customerId,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setSelectedTag(primaryTag(data.customer.tags));
+    }
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const tags = selectedTag ? [selectedTag] : [];
+      const { data: res } = await api.put(`/businesses/${businessId}/customers/${customerId}`, {
+        tags,
+      });
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-detail', businessId, customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customers-dashboard', businessId] });
+    },
   });
 
   if (!customerId) return null;
@@ -81,6 +122,43 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
               {data.customer.phone && (
                 <p className="text-sm text-gray-500">{data.customer.phone}</p>
               )}
+              {data.customer.segment && (
+                <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 capitalize">
+                  {data.customer.segment.replace(/_/g, ' ')}
+                </span>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('customers.editTags')}</h4>
+              <div>
+                <label className="label">{t('customers.customerTag')}</label>
+                <select
+                  className="input"
+                  value={selectedTag}
+                  onChange={(e) => setSelectedTag((e.target.value || '') as CustomerTag | '')}
+                >
+                  <option value="">{t('customers.tagNone')}</option>
+                  {CUSTOMER_TAGS.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {t(customerTagLabelKey(tag))}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className="btn-primary text-sm inline-flex items-center gap-2"
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {t('common.save')}
+              </button>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
