@@ -1,6 +1,8 @@
 export enum EventType {
   // Booking events
   BOOKING_CREATED = 'booking.created',
+  /** Alias emitted after booking.created for downstream availability/calendar handlers (clinic-app pattern). */
+  APPOINTMENT_CREATED = 'appointment.created',
   BOOKING_CONFIRMED = 'booking.confirmed',
   BOOKING_CANCELLED = 'booking.cancelled',
   BOOKING_COMPLETED = 'booking.completed',

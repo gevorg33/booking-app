@@ -8,8 +8,23 @@ export function formatDateDisplay(input: Date | string): string {
   return `${dd}_${mm}_${yyyy}`;
 }
 
-/** User-facing time: 24-hour HH:mm (UTC). */
-export function formatTimeDisplay(input: Date | string): string {
+/** User-facing time: 24-hour HH:mm (defaults to UTC). Pass timeZone for timezone-aware display. */
+export function formatTimeDisplay(input: Date | string, timeZone = 'UTC'): string {
+  const d = typeof input === 'string' ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return String(input);
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(d);
+}
+
+/**
+ * Schedule/booking times are stored with UTC hour/minute matching business wall clock
+ * (e.g. 10:00 in the dashboard = 10:00 UTC). Use this for public booking slot labels.
+ */
+export function formatScheduleTime(input: Date | string): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
   const hh = String(d.getUTCHours()).padStart(2, '0');
@@ -17,8 +32,12 @@ export function formatTimeDisplay(input: Date | string): string {
   return `${hh}:${min}`;
 }
 
-export function formatTimeRangeDisplay(start: Date | string, end: Date | string): string {
-  return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
+export function formatTimeRangeDisplay(
+  start: Date | string,
+  end: Date | string,
+  timeZone = 'UTC',
+): string {
+  return `${formatTimeDisplay(start, timeZone)}–${formatTimeDisplay(end, timeZone)}`;
 }
 
 /** Parse DD_MM_YYYY, DD/MM/YYYY, or YYYY-MM-DD into a UTC midnight Date. */

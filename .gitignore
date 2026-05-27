@@ -8,6 +8,7 @@ dist/
 coverage/
 .next/
 .DS_Store
+uploads/
 
 # Reference clinic app (local only — large nested deps)
 clinic-app/

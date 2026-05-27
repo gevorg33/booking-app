@@ -12,8 +12,10 @@ import { CustomerModule } from './modules/customer/customer.module.js';
 import { ServiceModule } from './modules/service/service.module.js';
 import { ScheduleModule } from './modules/schedule/schedule.module.js';
 import { BookingModule } from './modules/booking/booking.module.js';
+import { PublicBookingModule } from './modules/public-booking/public-booking.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
+import { UploadModule } from './modules/upload/upload.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -44,8 +46,10 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     ServiceModule,
     ScheduleModule,
     BookingModule,
+    PublicBookingModule,
     AiModule,
     BillingModule,
+    UploadModule,
 
     // Engine
     SchedulingEngineModule,

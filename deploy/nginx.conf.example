@@ -1,0 +1,50 @@
+# See deploy/SUBDOMAIN.md for full setup guide.
+# Wildcard frontend proxy — copy and adjust server_name / upstream ports.
+
+upstream booking_frontend {
+    server 127.0.0.1:3000;
+}
+
+upstream booking_api {
+    server 127.0.0.1:3001;
+}
+
+server {
+    listen 80;
+    server_name *.example.com example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name *.example.com;
+
+    ssl_certificate     /etc/ssl/example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://booking_frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate     /etc/ssl/example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://booking_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

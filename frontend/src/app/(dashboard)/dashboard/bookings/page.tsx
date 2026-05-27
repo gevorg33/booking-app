@@ -19,6 +19,9 @@ import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/
 import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useOperationalEvents } from '@/lib/use-operational-events';
+import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
+import { formatStatusLabel, STATUS_BADGE } from '@/lib/booking-types';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -27,15 +30,6 @@ const HOUR_END   = 22;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 const PX_PER_HOUR = 64;
 const TOTAL_MINUTES = TOTAL_HOURS * 60;
-
-const STATUS_BADGE: Record<string, string> = {
-  confirmed:   'bg-green-600/15 text-green-400',
-  completed:   'bg-blue-600/15 text-blue-400',
-  cancelled:   'bg-red-600/15 text-red-400',
-  pending:     'bg-yellow-600/15 text-yellow-400',
-  no_show:     'bg-orange-600/15 text-orange-400',
-  in_progress: 'bg-purple-600/15 text-purple-400',
-};
 
 const SVC_COLORS = [
   { bg: 'bg-blue-600/30',    border: 'border-blue-500/60',    text: 'text-blue-200'   },
@@ -123,10 +117,12 @@ interface BookingItem {
   endTime: string;
   status: string;
   paymentStatus?: string;
+  notes?: string;
   description?: string;
+  cancellationReason?: string;
   service?: { id: string; name: string; durationMinutes: number };
   employee?: { id: string; name: string };
-  customer?: { id: string; name: string };
+  customer?: { id: string; name: string; email?: string; phone?: string };
 }
 
 /** Calendar block label — includes time range so overlapping blocks stay readable. */
@@ -136,11 +132,13 @@ function bookingBlockLabel(b: Pick<BookingItem, 'status' | 'service' | 'startTim
   return b.status === 'cancelled' ? `${range} · Cancelled — ${name}` : `${range} · ${name}`;
 }
 
-function formatStatusLabel(status: string) {
-  if (status === 'cancelled') return 'Cancelled';
-  if (status === 'no_show') return 'No show';
-  if (status === 'in_progress') return 'In progress';
-  return status.charAt(0).toUpperCase() + status.slice(1);
+function openBookingDetail(
+  bookingId: string,
+  setSelectedBookingId: (id: string) => void,
+  setSelectedPeriod: (period: CalPeriod | null) => void,
+) {
+  setSelectedPeriod(null);
+  setSelectedBookingId(bookingId);
 }
 
 // ─── Overlap layout helper ────────────────────────────────────────────────────
@@ -350,9 +348,30 @@ export default function BookingsPage() {
   const { business } = useAuthStore();
   const queryClient  = useQueryClient();
 
+  const refreshScheduleData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+  }, [queryClient]);
+
+  const onOperationalEvent = useCallback(
+    (type: string) => {
+      if (
+        type === 'appointment.created' ||
+        type === 'availability.updated' ||
+        type === 'booking.created'
+      ) {
+        refreshScheduleData();
+      }
+    },
+    [refreshScheduleData],
+  );
+
+  useOperationalEvents(business?.id, onOperationalEvent);
+
   const [day, setDay]                       = useState(new Date());
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
 
@@ -532,6 +551,7 @@ export default function BookingsPage() {
 
   const handlePeriodClick = useCallback((period: CalPeriod) => {
     if (period.type !== 'service_block') return;
+    setSelectedBookingId(null);
     setSelectedPeriod(period);
     createMutation.reset();
     // Default start time = period start (HH:mm in UTC)
@@ -770,8 +790,9 @@ export default function BookingsPage() {
                             color={{ bg: 'bg-red-900/35', border: 'border-red-600/60', text: 'text-red-200' }}
                             label={bookingBlockLabel(b)}
                             sublabel={b.customer?.name || b.employee?.name || ''}
+                            onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
                             faded
-                            pointerEventsNone
+                            selected={selectedBookingId === b.id}
                             col={lay.col}
                             totalCols={lay.totalCols}
                             zIndex={5}
@@ -791,6 +812,8 @@ export default function BookingsPage() {
                             color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
                             label={bookingBlockLabel(b)}
                             sublabel={b.customer?.name || b.employee?.name || ''}
+                            onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
+                            selected={selectedBookingId === b.id}
                             col={lay.col}
                             totalCols={lay.totalCols}
                             zIndex={10}
@@ -1015,7 +1038,21 @@ export default function BookingsPage() {
         ) : (
           <div className="divide-y divide-gray-800">
             {bookings.map((b) => (
-              <div key={b.id} className="py-3 flex items-center justify-between gap-3">
+              <div
+                key={b.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod);
+                  }
+                }}
+                className={`py-3 flex items-center justify-between gap-3 cursor-pointer rounded-lg px-2 -mx-2 transition-colors hover:bg-gray-800/50 ${
+                  selectedBookingId === b.id ? 'bg-gray-800/70 ring-1 ring-blue-500/40' : ''
+                }`}
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-lg bg-blue-600/10 flex items-center justify-center shrink-0">
                     <Clock className="w-4 h-4 text-blue-400" />
@@ -1041,7 +1078,10 @@ export default function BookingsPage() {
                   </div>
                   {b.status !== 'cancelled' && b.status !== 'completed' && (
                     <button
-                      onClick={() => setShowCancel(b.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCancel(b.id);
+                      }}
                       className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
                       title="Cancel"
                     >
@@ -1054,6 +1094,14 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {business?.id && (
+        <BookingDetailPanel
+          businessId={business.id}
+          bookingId={selectedBookingId}
+          onClose={() => setSelectedBookingId(null)}
+        />
+      )}
     </div>
   );
 }

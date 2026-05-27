@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from './entities/booking.entity.js';
 import { BookingService } from './booking.service.js';
 import { BookingController } from './booking.controller.js';
+import { BookingCreatedListener } from './listeners/booking-created.listener.js';
 import { AgentController } from './agent.controller.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
@@ -19,7 +20,7 @@ import { AgentModule } from '../../engine/agent/agent.module.js';
     forwardRef(() => AgentModule),
   ],
   controllers: [BookingController, AgentController],
-  providers: [BookingService],
+  providers: [BookingService, BookingCreatedListener],
   exports: [BookingService],
 })
 export class BookingModule {}

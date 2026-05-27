@@ -13,14 +13,14 @@ export class BusinessController {
     return this.businessService.getUserBusinesses(user.id);
   }
 
+  @Get('by-slug/:slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.businessService.findBySlug(slug);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.businessService.findOne(id);
-  }
-
-  @Get('slug/:slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.businessService.findBySlug(slug);
   }
 
   @Put(':id')

@@ -251,8 +251,15 @@ export class BookingService {
     if (dto.serviceId) booking.serviceId = dto.serviceId;
     if (dto.description !== undefined) booking.description = dto.description;
     if (dto.notes !== undefined) booking.notes = dto.notes;
+
+    const previousStatus = booking.status;
     if (dto.status) booking.status = dto.status;
-    if (dto.paymentStatus) booking.paymentStatus = dto.paymentStatus;
+    this.applyPaymentStatusOnStatusChange(
+      booking,
+      previousStatus,
+      booking.status,
+      dto.paymentStatus,
+    );
     if (dto.linkedEmployeeIds) booking.linkedEmployeeIds = dto.linkedEmployeeIds;
     if (dto.virtualMeetingUrl !== undefined) booking.virtualMeetingUrl = dto.virtualMeetingUrl;
     if (dto.metadata) booking.metadata = { ...booking.metadata, ...dto.metadata };
@@ -307,8 +314,14 @@ export class BookingService {
     );
 
     if (!wasAlreadyCancelled) {
+      const previousStatus = booking.status;
       booking.status = BookingStatus.CANCELLED;
       booking.cancellationReason = reason || 'Cancelled';
+      this.applyPaymentStatusOnStatusChange(
+        booking,
+        previousStatus,
+        BookingStatus.CANCELLED,
+      );
       await this.bookingRepo.save(booking);
 
       await this.eventStore.publish({
@@ -340,6 +353,31 @@ export class BookingService {
   // ─── Private helpers ────────────────────────────────────────────────────────
 
   /**
+   * Cancelled and no-show appointments don't need payment tracking.
+   * If the client omits paymentStatus on a status change, default to not_applicable.
+   */
+  private applyPaymentStatusOnStatusChange(
+    booking: Booking,
+    previousStatus: BookingStatus,
+    nextStatus: BookingStatus,
+    explicitPaymentStatus?: PaymentStatus,
+  ): void {
+    if (explicitPaymentStatus) {
+      booking.paymentStatus = explicitPaymentStatus;
+      return;
+    }
+
+    if (previousStatus === nextStatus) return;
+
+    if (
+      nextStatus === BookingStatus.CANCELLED ||
+      nextStatus === BookingStatus.NO_SHOW
+    ) {
+      booking.paymentStatus = PaymentStatus.NOT_APPLICABLE;
+    }
+  }
+
+  /**
    * Service-match helper: a slot covers a service if
    *   (a) slot.service_ids contains the serviceId, OR
    *   (b) slot.service_ids is NULL/empty (generic slot — any service allowed)
@@ -352,19 +390,56 @@ export class BookingService {
     );
   }
 
+  /** Public API: checks whether a service fits the selected time slot (used by public booking). */
+  async validateServiceFitsWindow(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId: string,
+  ): Promise<void> {
+    await this.validateBookingWindow(businessId, employeeId, startTime, endTime, serviceId);
+  }
+
   /**
-   * Validates the ENTIRE booking window [startTime, endTime) against the
-   * applied schedule (micro-slots).
-   *
-   * Rules (matching clinic app logic):
-   *  1. If NO slots exist in the window → no applied schedule, engine path OK.
-   *  2. If any slot in the window is BLOCKED or UNAVAILABLE → reject.
-   *  3. If any slot in the window has a service restriction that excludes
-   *     the requested serviceId → reject.
-   *
-   * Uses `startTime >= :startTime AND startTime < :endTime` (same as clinic app)
-   * so that each 10-min micro-slot is checked individually.
+   * Service IDs allowed at an instant based on applied service_block periods.
+   * Returns null when any active service is permitted.
    */
+  async getAllowedServiceIdsAtInstant(
+    businessId: string,
+    employeeId: string,
+    instant: Date,
+  ): Promise<string[] | null> {
+    const dayStart = new Date(instant);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(instant);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const active = dayPeriods.filter(
+      (p) =>
+        p.type === TemplatePeriodType.SERVICE_BLOCK &&
+        p.startTime <= instant &&
+        p.endTime > instant,
+    );
+
+    if (active.length === 0) return null;
+
+    const allowed = new Set<string>();
+    for (const period of active) {
+      if (!period.serviceIds || period.serviceIds.length === 0) return null;
+      period.serviceIds.forEach((id) => allowed.add(id));
+    }
+    return [...allowed];
+  }
+
   private async validateBookingWindow(
     businessId: string,
     employeeId: string,

@@ -13,7 +13,16 @@ export class CreateEmployeeDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   serviceIds?: string[];
 }
 
@@ -31,7 +40,16 @@ export class UpdateEmployeeDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   serviceIds?: string[];
 
   @IsOptional()
