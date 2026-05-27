@@ -8,10 +8,10 @@ export default async function CheckoutPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ employeeId?: string; startTime?: string; serviceId?: string }>;
+  searchParams: Promise<{ employeeId?: string; startTime?: string; serviceId?: string; session_id?: string; paid?: string }>;
 }) {
   const { slug } = await params;
-  const { employeeId, startTime, serviceId } = await searchParams;
+  const { employeeId, startTime, serviceId, session_id: sessionId } = await searchParams;
 
   if (!employeeId || !startTime || !serviceId) {
     redirect(bookPath(slug, '/professionals'));
@@ -41,6 +41,7 @@ export default async function CheckoutPage({
       service={service}
       startTime={startTime}
       backHref={`${bookPath(slug, '/services')}?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`}
+      paymentSessionId={sessionId}
     />
   );
 }

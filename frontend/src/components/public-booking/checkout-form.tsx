@@ -1,36 +1,94 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Pencil, Loader2 } from 'lucide-react';
 import { formatScheduleTime, formatDateDisplay } from '@/lib/date-format';
-import { createPublicBooking, formatPrice, type PublicBusinessProfile, type PublicService } from '@/lib/public-api';
+import {
+  createPublicBooking,
+  createPublicBookingCheckout,
+  confirmPublicBookingPayment,
+  formatPrice,
+  prepaymentDue,
+  type PublicBusinessProfile,
+  type PublicService,
+} from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { PhoneInput } from '@/components/public-booking/phone-input';
+import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
   employee: { id: string; name: string; role?: string };
   service: PublicService;
   startTime: string;
+  paymentSessionId?: string;
 }
 
-export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutFormProps) {
-  const { t } = useI18n();
+export function CheckoutForm({
+  tenant,
+  employee,
+  service,
+  startTime,
+  paymentSessionId,
+}: CheckoutFormProps) {
+  const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const dueNow = prepaymentDue(service);
+  const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
   const [form, setForm] = useState({
     name: '',
     email: '',
-    phone: '',
+    phone: undefined as string | undefined,
     notes: '',
     consent: false,
+    emailReminders: true,
+    whatsappReminders: true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  useEffect(() => {
+    if (!paymentSessionId) return;
+    let cancelled = false;
+    (async () => {
+      setSubmitting(true);
+      try {
+        await confirmPublicBookingPayment(tenant.slug, paymentSessionId);
+        if (!cancelled) setSuccess(true);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : t('public.bookingFailed'));
+        }
+      } finally {
+        if (!cancelled) setSubmitting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentSessionId, tenant.slug, t]);
+
   const start = new Date(startTime);
   const totalMin = service.durationMinutes + service.bufferMinutes;
   const end = new Date(start.getTime() + totalMin * 60000);
+
+  const fullPhone = () => formatPhoneForApi(form.phone);
+
+  const payload = () => ({
+    employeeId: employee.id,
+    serviceId: service.id,
+    startTime,
+    notes: form.notes || undefined,
+    customer: {
+      name: form.name.trim(),
+      email: form.email.trim() || undefined,
+      phone: fullPhone() || undefined,
+      emailReminders: form.emailReminders,
+      whatsappReminders: form.whatsappReminders,
+    },
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,8 +98,16 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
       setError(t('public.nameRequired'));
       return;
     }
-    if (!form.email.trim() && !form.phone.trim()) {
+    if (!form.email.trim() && !fullPhone()) {
       setError(t('public.contactRequired'));
+      return;
+    }
+    if (form.phone?.trim() && !isValidPhone(form.phone)) {
+      setError(t('public.phoneInvalid'));
+      return;
+    }
+    if (form.whatsappReminders && !fullPhone()) {
+      setError(t('public.whatsappPhoneRequired'));
       return;
     }
     if (!form.consent) {
@@ -51,17 +117,12 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
 
     setSubmitting(true);
     try {
-      await createPublicBooking(tenant.slug, {
-        employeeId: employee.id,
-        serviceId: service.id,
-        startTime,
-        notes: form.notes || undefined,
-        customer: {
-          name: form.name.trim(),
-          email: form.email.trim() || undefined,
-          phone: form.phone.trim() || undefined,
-        },
-      });
+      if (dueNow > 0) {
+        const { url } = await createPublicBookingCheckout(tenant.slug, payload());
+        window.location.href = url;
+        return;
+      }
+      await createPublicBooking(tenant.slug, payload());
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('public.bookingFailed'));
@@ -155,6 +216,12 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
           <span className="font-semibold text-gray-900">{t('public.total')}</span>
           <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
         </div>
+        {dueNow > 0 && (
+          <p className="text-sm text-violet-700 mt-2">
+            Due now: {formatPrice(dueNow, service.currency)}
+            {service.prepaymentMode === 'deposit' ? ' (deposit)' : ''}
+          </p>
+        )}
       </section>
 
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal information</h2>
@@ -170,15 +237,16 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
             required
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
-            placeholder="Enter your phone number"
-            value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          />
-        </div>
+        <PhoneInput
+          label={t('public.phone')}
+          placeholder={t('public.phonePlaceholder')}
+          searchPlaceholder={t('public.phoneCountrySearch')}
+          searchNotFound={t('public.phoneCountryNotFound')}
+          defaultCountry={defaultPhoneCountry}
+          locale={locale}
+          value={form.phone}
+          onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+        />
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
           <input
@@ -202,6 +270,25 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
         <label className="flex items-start gap-3 text-sm text-gray-600">
           <input
             type="checkbox"
+            checked={form.emailReminders}
+            onChange={(e) => setForm((f) => ({ ...f, emailReminders: e.target.checked }))}
+            className="mt-1 rounded border-gray-300"
+          />
+          <span>Send me email reminders about this appointment</span>
+        </label>
+        <label className="flex items-start gap-3 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={form.whatsappReminders}
+            onChange={(e) => setForm((f) => ({ ...f, whatsappReminders: e.target.checked }))}
+            className="mt-1 rounded border-gray-300"
+          />
+          <span>{t('public.whatsappReminders')}</span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm text-gray-600">
+          <input
+            type="checkbox"
             checked={form.consent}
             onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
             className="mt-1 rounded border-gray-300"
@@ -217,8 +304,10 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
       <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between text-sm mb-3">
-            <span className="text-gray-500">{t('public.total')}</span>
-            <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
+            <span className="text-gray-500">{dueNow > 0 ? 'Due now' : t('public.total')}</span>
+            <span className="font-semibold text-gray-900">
+              {formatPrice(dueNow > 0 ? dueNow : service.price, service.currency)}
+            </span>
           </div>
           <button
             type="submit"
@@ -227,7 +316,11 @@ export function CheckoutForm({ tenant, employee, service, startTime }: CheckoutF
             style={{ backgroundColor: primary }}
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {submitting ? t('public.submitting') : t('public.confirmBooking')}
+            {submitting
+              ? t('public.submitting')
+              : dueNow > 0
+                ? `Pay ${formatPrice(dueNow, service.currency)} & book`
+                : t('public.confirmBooking')}
           </button>
         </div>
       </div>

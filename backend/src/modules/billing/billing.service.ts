@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +17,7 @@ import {
   mapStripeSubscriptionStatus,
   isSubscriptionUsable,
 } from './subscription-status.enum.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
 
 interface StripeCheckoutSession {
   metadata?: Record<string, string> | null;
@@ -40,6 +43,8 @@ export class BillingService {
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private stripeService: StripeService,
+    @Inject(forwardRef(() => BookingPaymentService))
+    private bookingPaymentService: BookingPaymentService,
   ) {}
 
   listPlans() {
@@ -170,6 +175,9 @@ export class BillingService {
   async handleWebhookEvent(event: { type: string; data: { object: unknown } }): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed':
+        await this.bookingPaymentService.handleCheckoutCompleted(
+          event.data.object as StripeCheckoutSession,
+        );
         await this.onCheckoutCompleted(event.data.object as StripeCheckoutSession);
         break;
       case 'customer.subscription.updated':
@@ -193,6 +201,9 @@ export class BillingService {
   }
 
   private async onCheckoutCompleted(session: StripeCheckoutSession) {
+    if (session.metadata?.type === 'booking_payment') {
+      return;
+    }
     const businessId = session.metadata?.businessId;
     const planId = session.metadata?.planId;
     if (!businessId) return;

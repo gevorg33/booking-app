@@ -1,4 +1,5 @@
-import { IsString, IsNumber, IsOptional, Min, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min, IsBoolean, IsEnum } from 'class-validator';
+import { PrepaymentMode } from '../entities/service.entity.js';
 
 export class CreateServiceDto {
   @IsString()
@@ -24,6 +25,15 @@ export class CreateServiceDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  @IsOptional()
+  @IsEnum(PrepaymentMode)
+  prepaymentMode?: PrepaymentMode;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  depositAmount?: number;
 }
 
 export class UpdateServiceDto {
@@ -53,4 +63,13 @@ export class UpdateServiceDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsEnum(PrepaymentMode)
+  prepaymentMode?: PrepaymentMode;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  depositAmount?: number;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -13,6 +13,11 @@ export interface DashboardOverview {
   services: number;
   totalCustomers: number;
   utilizationPercent: number;
+  revenueThisMonth: number;
+  bookingsThisMonth: number;
+  noShowCount: number;
+  noShowRatePercent: number;
+  completedThisMonth: number;
 }
 
 @Injectable()
@@ -31,20 +36,30 @@ export class DashboardService {
     const dayEnd = new Date();
     dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [todaysBookings, activeEmployees, services, totalCustomers, utilizationPercent] =
-      await Promise.all([
-        this.bookingRepo.count({
-          where: {
-            businessId,
-            startTime: Between(dayStart, dayEnd) as any,
-            status: Not(In([BookingStatus.CANCELLED])) as any,
-          },
-        }),
-        this.employeeRepo.count({ where: { businessId, isActive: true } }),
-        this.serviceRepo.count({ where: { businessId, isActive: true } }),
-        this.customerRepo.count({ where: { businessId, isActive: true } }),
-        this.computeTodayUtilization(businessId, dayStart, dayEnd),
-      ]);
+    const monthStart = new Date(Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth(), 1));
+    const monthEnd = new Date(Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+    const [
+      todaysBookings,
+      activeEmployees,
+      services,
+      totalCustomers,
+      utilizationPercent,
+      monthStats,
+    ] = await Promise.all([
+      this.bookingRepo.count({
+        where: {
+          businessId,
+          startTime: Between(dayStart, dayEnd) as any,
+          status: Not(In([BookingStatus.CANCELLED])) as any,
+        },
+      }),
+      this.employeeRepo.count({ where: { businessId, isActive: true } }),
+      this.serviceRepo.count({ where: { businessId, isActive: true } }),
+      this.customerRepo.count({ where: { businessId, isActive: true } }),
+      this.computeTodayUtilization(businessId, dayStart, dayEnd),
+      this.computeMonthStats(businessId, monthStart, monthEnd),
+    ]);
 
     return {
       todaysBookings,
@@ -52,6 +67,37 @@ export class DashboardService {
       services,
       totalCustomers,
       utilizationPercent,
+      ...monthStats,
+    };
+  }
+
+  private async computeMonthStats(businessId: string, monthStart: Date, monthEnd: Date) {
+    const bookings = await this.bookingRepo.find({
+      where: {
+        businessId,
+        startTime: Between(monthStart, monthEnd) as any,
+      },
+      relations: { service: true },
+    });
+
+    const nonCancelled = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
+    const completed = nonCancelled.filter((b) => b.status === BookingStatus.COMPLETED);
+    const noShows = nonCancelled.filter((b) => b.status === BookingStatus.NO_SHOW);
+    const denom = completed.length + noShows.length;
+
+    let revenueThisMonth = 0;
+    for (const b of nonCancelled) {
+      if (b.paymentStatus === PaymentStatus.PAID && b.service) {
+        revenueThisMonth += Number(b.service.price);
+      }
+    }
+
+    return {
+      bookingsThisMonth: nonCancelled.length,
+      revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
+      noShowCount: noShows.length,
+      noShowRatePercent: denom > 0 ? Math.round((noShows.length / denom) * 100) : 0,
+      completedThisMonth: completed.length,
     };
   }
 

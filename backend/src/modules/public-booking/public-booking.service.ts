@@ -8,7 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
-import { Service } from '../service/entities/service.entity.js';
+import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
+import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
@@ -22,6 +23,7 @@ import {
   getUtcBoundsForDateKey,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
+import { getBusinessWhatsAppIntegration } from '../notifications/whatsapp-integration.types.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -57,6 +59,7 @@ export interface PublicBusinessProfile {
   social?: PublicSocialLinks;
   location?: PublicLocation;
   publicBookingEnabled: boolean;
+  defaultPhoneCountryCode: string;
 }
 
 export interface ProviderSlotPreview {
@@ -132,6 +135,8 @@ export class PublicBookingService {
         mapEmbedHtml: location.mapEmbedHtml,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
+      defaultPhoneCountryCode:
+        getBusinessWhatsAppIntegration(settings).defaultCountryCode || '374',
     };
   }
 
@@ -213,6 +218,8 @@ export class PublicBookingService {
         bufferMinutes: s.bufferMinutes,
         price: Number(s.price),
         currency: s.currency,
+        prepaymentMode: s.prepaymentMode,
+        depositAmount: s.depositAmount != null ? Number(s.depositAmount) : null,
       })),
     };
   }
@@ -286,10 +293,25 @@ export class PublicBookingService {
       throw new BadRequestException('Email or phone number is required');
     }
 
-    const { customer, created } = await this.customerService.findOrCreateByContact(
-      business.id,
-      dto.customer,
-    );
+    const service = await this.serviceRepo.findOne({
+      where: { id: dto.serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    if (!dto.markPaid && service.prepaymentMode !== PrepaymentMode.NONE) {
+      throw new BadRequestException(
+        'Prepayment is required for this service. Complete payment at checkout.',
+      );
+    }
+
+    const { customer, created } = await this.customerService.findOrCreateByContact(business.id, {
+      name: dto.customer.name,
+      email: dto.customer.email,
+      phone: dto.customer.phone,
+      emailReminders: dto.customer.emailReminders,
+      smsReminders: dto.customer.smsReminders,
+      whatsappReminders: dto.customer.whatsappReminders,
+    });
 
     const booking = await this.bookingService.create(
       business.id,
@@ -299,9 +321,10 @@ export class PublicBookingService {
         customerId: customer.id,
         startTime: dto.startTime,
         notes: dto.notes,
-        metadata: { source: 'public_booking' },
+        metadata: { source: 'public_booking', ...(dto.metadata || {}) },
       },
       undefined,
+      dto.markPaid ? { paymentStatus: PaymentStatus.PAID } : undefined,
     );
 
     return {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { ConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -10,12 +11,13 @@ import { BusinessModule } from './modules/business/business.module.js';
 import { EmployeeModule } from './modules/employee/employee.module.js';
 import { CustomerModule } from './modules/customer/customer.module.js';
 import { ServiceModule } from './modules/service/service.module.js';
-import { ScheduleModule } from './modules/schedule/schedule.module.js';
+import { ScheduleModule as AppScheduleModule } from './modules/schedule/schedule.module.js';
 import { BookingModule } from './modules/booking/booking.module.js';
 import { PublicBookingModule } from './modules/public-booking/public-booking.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { UploadModule } from './modules/upload/upload.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -33,6 +35,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     ConfigModule,
     DatabaseModule,
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
 
     // Infrastructure
     EventStoreModule,
@@ -44,12 +47,13 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     EmployeeModule,
     CustomerModule,
     ServiceModule,
-    ScheduleModule,
+    AppScheduleModule,
     BookingModule,
     PublicBookingModule,
     AiModule,
     BillingModule,
     UploadModule,
+    NotificationsModule,
 
     // Engine
     SchedulingEngineModule,

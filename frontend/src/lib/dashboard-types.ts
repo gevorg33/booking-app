@@ -4,4 +4,9 @@ export interface DashboardOverview {
   services: number;
   totalCustomers: number;
   utilizationPercent: number;
+  revenueThisMonth: number;
+  bookingsThisMonth: number;
+  noShowCount: number;
+  noShowRatePercent: number;
+  completedThisMonth: number;
 }

@@ -5,6 +5,7 @@ export interface CustomerBookingStats {
   byStatus: Record<string, number>;
   lastBookingAt: string | null;
   upcomingCount: number;
+  noShowCount: number;
 }
 
 export interface CustomerListItem {

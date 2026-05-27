@@ -12,7 +12,15 @@ export default function ServicesPage() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', durationMinutes: 30, price: 0, bufferMinutes: 0, description: '' });
+  const [form, setForm] = useState({
+    name: '',
+    durationMinutes: 30,
+    price: 0,
+    bufferMinutes: 0,
+    description: '',
+    prepaymentMode: 'none' as 'none' | 'full' | 'deposit',
+    depositAmount: 0,
+  });
 
   const { data: services, isLoading } = useQuery({
     queryKey: ['services', business?.id],
@@ -32,7 +40,7 @@ export default function ServicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       setShowForm(false);
-      setForm({ name: '', durationMinutes: 30, price: 0, bufferMinutes: 0, description: '' });
+      setForm({ name: '', durationMinutes: 30, price: 0, bufferMinutes: 0, description: '', prepaymentMode: 'none', depositAmount: 0 });
     },
   });
 
@@ -75,6 +83,31 @@ export default function ServicesPage() {
               <label className="label">Price</label>
               <input type="number" min={0} step={0.01} className="input" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} required />
             </div>
+            <div>
+              <label className="label">Prepayment</label>
+              <select
+                className="input"
+                value={form.prepaymentMode}
+                onChange={(e) => setForm({ ...form, prepaymentMode: e.target.value as 'none' | 'full' | 'deposit' })}
+              >
+                <option value="none">None</option>
+                <option value="full">Full prepay online</option>
+                <option value="deposit">Deposit online</option>
+              </select>
+            </div>
+            {form.prepaymentMode === 'deposit' && (
+              <div>
+                <label className="label">Deposit amount (blank = 50%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  className="input"
+                  value={form.depositAmount}
+                  onChange={(e) => setForm({ ...form, depositAmount: +e.target.value })}
+                />
+              </div>
+            )}
             <div className="md:col-span-2 flex gap-2">
               <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creating...' : 'Create'}
@@ -103,7 +136,11 @@ export default function ServicesPage() {
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{svc.durationMinutes} min</span>
                     <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${svc.price}</span>
-                    {svc.bufferMinutes > 0 && <span>{svc.bufferMinutes}m buffer</span>}
+                    {svc.prepaymentMode && svc.prepaymentMode !== 'none' && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-violet-600/15 text-violet-300">
+                        {svc.prepaymentMode === 'full' ? 'Full prepay' : 'Deposit'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
