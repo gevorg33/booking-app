@@ -28,6 +28,8 @@ import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
+import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
+import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -74,6 +76,8 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     InventoryModule,
     CommissionsModule,
     ExpensesModule,
+    OnboardingModule,
+    IntegrationsModule,
 
     // Engine
     SchedulingEngineModule,

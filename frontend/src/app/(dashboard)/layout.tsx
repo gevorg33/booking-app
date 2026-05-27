@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 import {
   Zap,
   LayoutDashboard,
@@ -22,6 +24,7 @@ import {
   Warehouse,
   Star,
   BookOpen,
+  Plug,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
@@ -34,6 +37,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { business, logout, token, user } = useAuthStore();
   const { t, setLocale } = useI18n();
   const [mounted, setMounted] = useState(false);
+  const isOnboardingRoute = pathname === '/dashboard/onboarding';
+
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ['onboarding-status', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/onboarding/status`);
+      return ((data as { data?: { completed: boolean } })?.data ?? data) as { completed: boolean };
+    },
+    enabled: !!business?.id && !!token && mounted,
+  });
 
   const navItems = useMemo(
     () => [
@@ -49,6 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/operations', label: t('nav.operations'), icon: Warehouse },
       { href: '/dashboard/reviews', label: t('nav.reviews'), icon: Star },
       { href: '/dashboard/business', label: t('nav.businessProfile'), icon: Store },
+      { href: '/dashboard/integrations', label: t('nav.integrations'), icon: Plug },
       { href: '/dashboard/billing', label: t('nav.billing'), icon: CreditCard },
       { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
       { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
@@ -69,10 +83,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (user?.locale) setLocale(user.locale);
   }, [user?.locale, setLocale]);
 
+  useEffect(() => {
+    if (!onboardingStatus || isOnboardingRoute) return;
+    if (!onboardingStatus.completed) router.push('/dashboard/onboarding');
+  }, [onboardingStatus, isOnboardingRoute, router]);
+
   if (!mounted || !token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (isOnboardingRoute) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-7xl mx-auto p-6">{children}</div>
       </div>
     );
   }

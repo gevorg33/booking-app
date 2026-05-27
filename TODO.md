@@ -33,16 +33,17 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase 3 — Growth & distribution
 
-- [ ] **int-1** — Public REST API docs + API keys for business admins
-- [ ] **int-2** — Outbound webhooks (`booking.created`, `cancelled`, `payment.received`, etc.)
-- [ ] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
+- [x] **int-1** — Public REST API docs + API keys for business admins
+- [x] **int-2** — Outbound webhooks (`booking.created`, `cancelled`, `payment.received`, etc.)
+- [x] **polish-1** — Onboarding wizard (services → schedule → booking link)
+<!-- - [ ] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
 - [ ] **int-6** — Zendesk — embed Web Widget in dashboard + public booking (help / contact support)
 - [ ] **int-7** — Zendesk — auto-create tickets from in-app support form (attach business, customer, booking context)
-- [ ] **int-8** — Zendesk — sync customer profile to Zendesk user (email, phone, appointment history link)
-- [ ] **dist-2** — Google Reserve / Reserve with Google integration
+- [ ] **int-8** — Zendesk — sync customer profile to Zendesk user (email, phone, appointment history link) -->
+<!-- - [ ] **dist-2** — Google Reserve / Reserve with Google integration
 - [ ] **dist-3** — Meta / Facebook & Instagram booking integration
 - [ ] **dist-4** — Messenger booking (Telegram deep links or bots; WhatsApp outbound reminders via comms-2b)
-- [ ] **polish-1** — Onboarding wizard (services → schedule → booking link)
+ -->
 
 ---
 
@@ -70,10 +71,10 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **dist-5** — Branded mobile app (white-label PWA or native wrapper with capacitor)
 - [ ] **comms-4** — Push / app reminders (requires mobile app or PWA)
 - [ ] **int-3** — Zapier / Make connector or marketplace listing
-- [ ] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP
-- [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional)
 - [ ] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
 - [ ] **polish-4** — Expand localization (dates, currencies, more languages)
+<!-- - [ ] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP -->
+<!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
 
 ---
 

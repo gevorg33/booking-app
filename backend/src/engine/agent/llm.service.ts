@@ -58,6 +58,30 @@ export class LlmService {
     return this.client !== null;
   }
 
+  async completeJson<T>(systemPrompt: string, userPrompt: string, temperature = 0.2): Promise<T | null> {
+    if (!this.client) return null;
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature,
+        max_tokens: 2000,
+      });
+
+      const raw = response.choices[0]?.message?.content;
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    } catch (err: any) {
+      this.logger.error(`LLM JSON completion failed: ${err.message}`);
+      return null;
+    }
+  }
+
   async buildPlan(
     agentType: AgentType,
     intent: string,

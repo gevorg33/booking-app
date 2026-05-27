@@ -9,6 +9,9 @@ export enum EventType {
   BOOKING_RESCHEDULED = 'booking.rescheduled',
   BOOKING_NO_SHOW = 'booking.no_show',
 
+  // Payment events
+  PAYMENT_RECEIVED = 'payment.received',
+
   // Schedule events
   SCHEDULE_UPDATED = 'schedule.updated',
   SCHEDULE_OVERRIDE_CREATED = 'schedule.override.created',
