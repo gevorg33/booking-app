@@ -1,5 +1,6 @@
 import { Controller, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { BusinessService } from './business.service.js';
+import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -27,5 +28,11 @@ export class BusinessController {
   @UseGuards(JwtAuthGuard)
   update(@Param('id') id: string, @Body() data: any) {
     return this.businessService.update(id, data);
+  }
+
+  @Put(':id/profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@Param('id') id: string, @Body() dto: UpdateBusinessProfileDto) {
+    return this.businessService.updateProfile(id, dto);
   }
 }

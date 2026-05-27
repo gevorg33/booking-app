@@ -29,6 +29,20 @@ export interface PublicBranding {
   tagline?: string;
 }
 
+export interface PublicSocialLinks {
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  x?: string;
+  tiktok?: string;
+  linkedin?: string;
+  youtube?: string;
+}
+
+export interface PublicLocation {
+  mapEmbedHtml?: string;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -39,6 +53,8 @@ export interface PublicBusinessProfile {
   address?: string;
   timezone: string;
   branding: PublicBranding;
+  social?: PublicSocialLinks;
+  location?: PublicLocation;
   publicBookingEnabled: boolean;
 }
 
@@ -84,6 +100,8 @@ export class PublicBookingService {
     const settings = business.settings || {};
     const branding = settings.branding || {};
     const publicBooking = settings.publicBooking || {};
+    const social = settings.social || {};
+    const location = settings.location || {};
 
     return {
       id: business.id,
@@ -98,6 +116,18 @@ export class PublicBookingService {
         logoUrl: branding.logoUrl,
         primaryColor: branding.primaryColor || '#7c3aed',
         tagline: branding.tagline,
+      },
+      social: {
+        website: social.website,
+        instagram: social.instagram,
+        facebook: social.facebook,
+        x: social.x || social.twitter,
+        tiktok: social.tiktok,
+        linkedin: social.linkedin,
+        youtube: social.youtube,
+      },
+      location: {
+        mapEmbedHtml: location.mapEmbedHtml,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
     };

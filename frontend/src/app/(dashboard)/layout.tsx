@@ -13,6 +13,7 @@ import {
   Brain,
   CreditCard,
   LogOut,
+  Store,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/dashboard/schedule', label: 'Schedule', icon: Clock },
   { href: '/dashboard/employees', label: 'Employees', icon: Users },
   { href: '/dashboard/services', label: 'Services', icon: Briefcase },
+  { href: '/dashboard/business', label: 'Business Profile', icon: Store },
   { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
   { href: '/dashboard/ai-ops', label: 'AI Operations', icon: Brain },
 ];

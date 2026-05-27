@@ -21,18 +21,18 @@ const imagePipe = new ParseFilePipe({
   ],
 });
 
+const fileInterceptor = FileInterceptor('file', {
+  storage: memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 @Controller('businesses/:businessId/uploads')
 export class UploadController {
   constructor(private uploadService: UploadService) {}
 
   @Post('avatar')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(fileInterceptor)
   uploadAvatar(
     @Param('businessId') businessId: string,
     @UploadedFile(imagePipe) file: Express.Multer.File,
@@ -40,14 +40,19 @@ export class UploadController {
     return this.uploadService.uploadAvatar(file, businessId);
   }
 
+  @Post('logo')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(fileInterceptor)
+  uploadLogo(
+    @Param('businessId') businessId: string,
+    @UploadedFile(imagePipe) file: Express.Multer.File,
+  ) {
+    return this.uploadService.uploadImage(file, businessId, 'logos');
+  }
+
   @Post('image')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(fileInterceptor)
   uploadImage(
     @Param('businessId') businessId: string,
     @UploadedFile(imagePipe) file: Express.Multer.File,

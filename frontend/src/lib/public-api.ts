@@ -6,6 +6,20 @@ export interface PublicBranding {
   tagline?: string;
 }
 
+export interface PublicSocialLinks {
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  x?: string;
+  tiktok?: string;
+  linkedin?: string;
+  youtube?: string;
+}
+
+export interface PublicLocation {
+  mapEmbedHtml?: string;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -16,6 +30,8 @@ export interface PublicBusinessProfile {
   address?: string;
   timezone: string;
   branding: PublicBranding;
+  social?: PublicSocialLinks;
+  location?: PublicLocation;
   publicBookingEnabled: boolean;
 }
 
