@@ -10,6 +10,7 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
+import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engin
     BookingModule,
     CustomerModule,
     SchedulingEngineModule,
+    StripeIntegrationModule,
   ],
   controllers: [PublicBookingController],
   providers: [PublicBookingService, PublicBookingAssistantService],

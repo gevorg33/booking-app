@@ -2,7 +2,6 @@ export interface BusinessWhatsAppIntegration {
   phoneNumberId?: string;
   businessAccountId?: string;
   accessTokenEnc?: string;
-  defaultCountryCode?: string;
   templateConfirmation?: string;
   templateReminder?: string;
   templateLanguage?: string;
@@ -24,7 +23,6 @@ export interface WhatsAppRuntimeConfig {
   templateLanguage: string;
   templateBodyParamCount: number;
   reminderBodyParamCount: number;
-  defaultCountryCode: string;
   fallbackTemplate: string;
   fallbackLanguage: string;
   fallbackBodyParamCount: number;
@@ -37,7 +35,6 @@ export interface WhatsAppIntegrationPublicView {
   businessAccountId?: string;
   hasAccessToken: boolean;
   accessTokenHint?: string;
-  defaultCountryCode: string;
   templateConfirmation: string;
   templateReminder: string;
   templateLanguage: string;
@@ -60,10 +57,8 @@ export const DEFAULT_WHATSAPP_INTEGRATION: Required<
     | 'fallbackTemplate'
     | 'fallbackLanguage'
     | 'fallbackBodyParams'
-    | 'defaultCountryCode'
   >
 > = {
-  defaultCountryCode: '374',
   templateConfirmation: 'appointment_confirmation',
   templateReminder: 'appointment_reminder',
   templateLanguage: 'en',
@@ -77,9 +72,12 @@ export const DEFAULT_WHATSAPP_INTEGRATION: Required<
 export function mergeBusinessWhatsAppIntegration(
   raw?: Record<string, unknown>,
 ): BusinessWhatsAppIntegration {
+  const { defaultCountryCode: _legacy, ...rest } = (raw || {}) as BusinessWhatsAppIntegration & {
+    defaultCountryCode?: string;
+  };
   return {
     ...DEFAULT_WHATSAPP_INTEGRATION,
-    ...(raw as BusinessWhatsAppIntegration | undefined),
+    ...rest,
   };
 }
 

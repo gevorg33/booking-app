@@ -10,6 +10,7 @@ import { BookingCheckoutDraft } from './entities/booking-checkout-draft.entity.j
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { StripeService } from '../billing/stripe.service.js';
+import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { BookingService } from './booking.service.js';
 import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto.js';
@@ -32,6 +33,7 @@ export class BookingPaymentService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private stripeService: StripeService,
+    private stripeIntegrationService: StripeIntegrationService,
     private customerService: CustomerService,
     private bookingService: BookingService,
   ) {}
@@ -51,7 +53,10 @@ export class BookingPaymentService {
   }
 
   requiresPrepayment(service: Service): boolean {
-    return service.prepaymentMode !== PrepaymentMode.NONE && this.calculatePrepaymentAmount(service) > 0;
+    return (
+      service.prepaymentMode !== PrepaymentMode.NONE &&
+      this.calculatePrepaymentAmount(service) > 0
+    );
   }
 
   async createCheckoutSession(
@@ -65,6 +70,10 @@ export class BookingPaymentService {
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
+    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+      business.id,
+    );
+
     const service = await this.serviceRepo.findOne({
       where: { id: dto.serviceId, businessId: business.id, isActive: true },
     });
@@ -72,7 +81,7 @@ export class BookingPaymentService {
 
     const amount = this.calculatePrepaymentAmount(service);
     if (amount <= 0) {
-      throw new BadRequestException('This service does not require prepayment');
+      throw new BadRequestException('This service does not require online payment');
     }
 
     if (!dto.customer.email && !dto.customer.phone) {
@@ -87,38 +96,44 @@ export class BookingPaymentService {
         currency: service.currency || 'USD',
         status: 'pending',
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        stripeConnectAccountId: connectAccountId,
       }),
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const session = await this.stripeService.client.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: dto.customer.email || undefined,
-      line_items: [
-        {
-          price_data: {
-            currency: (service.currency || 'USD').toLowerCase(),
-            unit_amount: Math.round(amount * 100),
-            product_data: {
-              name: service.name,
-              description:
-                service.prepaymentMode === PrepaymentMode.DEPOSIT
-                  ? `Deposit for ${service.name}`
-                  : service.name,
+    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
+    const session = await this.stripeService.client.checkout.sessions.create(
+      {
+        mode: 'payment',
+        customer_email: dto.customer.email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: (service.currency || 'USD').toLowerCase(),
+              unit_amount: Math.round(amount * 100),
+              product_data: {
+                name: service.name,
+                description:
+                  service.prepaymentMode === PrepaymentMode.DEPOSIT
+                    ? `Deposit for ${service.name}`
+                    : service.name,
+              },
             },
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          type: 'booking_payment',
+          draftId: draft.id,
+          businessId: business.id,
+          slug,
+          connectAccountId,
         },
-      ],
-      metadata: {
-        type: 'booking_payment',
-        draftId: draft.id,
-        businessId: business.id,
-        slug,
+        success_url: `${frontendUrl}/book/${slug}/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}&employeeId=${encodeURIComponent(dto.employeeId)}&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}`,
+        cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1`,
       },
-      success_url: `${frontendUrl}/book/${slug}/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}&employeeId=${encodeURIComponent(dto.employeeId)}&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}`,
-      cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1`,
-    });
+      connectOpts,
+    );
 
     if (!session.url) {
       throw new BadRequestException('Failed to create payment session');
@@ -140,7 +155,21 @@ export class BookingPaymentService {
       throw new BadRequestException('Stripe is not configured');
     }
 
-    const session = await this.stripeService.client.checkout.sessions.retrieve(sessionId);
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = this.stripeIntegrationService.resolveConnectAccountId(
+      business.settings,
+    );
+    if (!connectAccountId) {
+      throw new BadRequestException('Stripe is not connected for this business');
+    }
+
+    const session = await this.stripeService.client.checkout.sessions.retrieve(
+      sessionId,
+      {},
+      this.stripeService.connectRequestOptions(connectAccountId),
+    );
     if (session.metadata?.type !== 'booking_payment' || session.metadata.slug !== slug) {
       throw new BadRequestException('Invalid payment session');
     }
@@ -199,6 +228,7 @@ export class BookingPaymentService {
         metadata: {
           source: 'public_booking',
           stripeSessionId: sessionId,
+          stripeConnectAccountId: draft.stripeConnectAccountId,
           prepaymentAmount: Number(draft.amount),
           ...(dto.metadata || {}),
         },

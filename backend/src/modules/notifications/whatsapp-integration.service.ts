@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -62,9 +62,6 @@ export class WhatsAppIntegrationService {
         this.config.get<string>('WHATSAPP_TEMPLATE_REMINDER_BODY_PARAMS') ??
           DEFAULT_WHATSAPP_INTEGRATION.templateReminderBodyParams,
       ),
-      defaultCountryCode:
-        this.config.get<string>('WHATSAPP_DEFAULT_COUNTRY_CODE') ||
-        DEFAULT_WHATSAPP_INTEGRATION.defaultCountryCode,
       fallbackTemplate:
         this.config.get<string>('WHATSAPP_FALLBACK_TEMPLATE') ||
         DEFAULT_WHATSAPP_INTEGRATION.fallbackTemplate,
@@ -109,8 +106,6 @@ export class WhatsAppIntegrationService {
       reminderBodyParamCount:
         integration.templateReminderBodyParams ??
         DEFAULT_WHATSAPP_INTEGRATION.templateReminderBodyParams,
-      defaultCountryCode:
-        integration.defaultCountryCode || DEFAULT_WHATSAPP_INTEGRATION.defaultCountryCode,
       fallbackTemplate:
         integration.fallbackTemplate || DEFAULT_WHATSAPP_INTEGRATION.fallbackTemplate,
       fallbackLanguage:
@@ -159,7 +154,6 @@ export class WhatsAppIntegrationService {
       businessAccountId: merged.businessAccountId,
       hasAccessToken: Boolean(integration.accessTokenEnc),
       accessTokenHint,
-      defaultCountryCode: merged.defaultCountryCode,
       templateConfirmation: merged.templateConfirmation,
       templateReminder: merged.templateReminder,
       templateLanguage: merged.templateLanguage,
@@ -195,7 +189,6 @@ export class WhatsAppIntegrationService {
       ...current,
       phoneNumberId: dto.phoneNumberId?.trim() || current.phoneNumberId,
       businessAccountId: dto.businessAccountId?.trim() || current.businessAccountId,
-      defaultCountryCode: dto.defaultCountryCode?.trim() || current.defaultCountryCode,
       templateConfirmation:
         dto.templateConfirmation?.trim() || current.templateConfirmation,
       templateReminder: dto.templateReminder?.trim() || current.templateReminder,
@@ -212,11 +205,34 @@ export class WhatsAppIntegrationService {
       next.accessTokenEnc = encryptSecret(dto.accessToken.trim(), this.encryptionKey());
     }
 
+    this.assertCompleteBusinessWhatsApp(next);
+
     integrations.whatsapp = next;
     settings.integrations = integrations;
     business.settings = settings;
     await this.businessRepo.save(business);
 
     return this.getPublicSettings(businessId);
+  }
+
+  private assertCompleteBusinessWhatsApp(integration: BusinessWhatsAppIntegration): void {
+    if (!integration.phoneNumberId?.trim()) {
+      throw new BadRequestException('Phone number ID is required');
+    }
+    if (!integration.businessAccountId?.trim()) {
+      throw new BadRequestException('WhatsApp Business Account ID (WABA) is required');
+    }
+    if (!integration.accessTokenEnc) {
+      throw new BadRequestException('Access token is required');
+    }
+    if (!integration.templateConfirmation?.trim()) {
+      throw new BadRequestException('Confirmation template name is required');
+    }
+    if (!integration.templateReminder?.trim()) {
+      throw new BadRequestException('Reminder template name is required');
+    }
+    if (!integration.templateLanguage?.trim()) {
+      throw new BadRequestException('Template language code is required');
+    }
   }
 }

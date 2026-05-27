@@ -17,10 +17,6 @@ export class UpdateWhatsAppIntegrationDto {
 
   @IsOptional()
   @IsString()
-  defaultCountryCode?: string;
-
-  @IsOptional()
-  @IsString()
   templateConfirmation?: string;
 
   @IsOptional()

@@ -33,22 +33,22 @@ interface WhatsAppIntegrationSettings {
   businessAccountId?: string;
   hasAccessToken: boolean;
   accessTokenHint?: string;
-  defaultCountryCode: string;
   templateConfirmation: string;
   templateReminder: string;
   templateLanguage: string;
   usingPlatformDefault: boolean;
 }
 
+type WhatsAppConnectionMode = 'platform' | 'custom';
+
 interface WhatsAppIntegrationForm {
   phoneNumberId: string;
   businessAccountId: string;
   accessToken: string;
-  defaultCountryCode: string;
   templateConfirmation: string;
   templateReminder: string;
   templateLanguage: string;
-  usePlatformDefault: boolean;
+  connectionMode: WhatsAppConnectionMode;
 }
 
 const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -70,11 +70,10 @@ const DEFAULT_WHATSAPP_FORM: WhatsAppIntegrationForm = {
   phoneNumberId: '',
   businessAccountId: '',
   accessToken: '',
-  defaultCountryCode: '374',
   templateConfirmation: 'appointment_confirmation',
   templateReminder: 'appointment_reminder',
   templateLanguage: 'en',
-  usePlatformDefault: false,
+  connectionMode: 'platform',
 };
 
 function normalizeNotificationSettings(
@@ -103,16 +102,21 @@ function normalizeNotificationSettings(
   };
 }
 
+function whatsappConnectionModeFromApi(data: WhatsAppIntegrationSettings): WhatsAppConnectionMode {
+  if (data.usingPlatformDefault) return 'platform';
+  if (data.source === 'business') return 'custom';
+  return 'platform';
+}
+
 function whatsappFormFromApi(data: WhatsAppIntegrationSettings): WhatsAppIntegrationForm {
   return {
     phoneNumberId: data.phoneNumberId ?? '',
     businessAccountId: data.businessAccountId ?? '',
     accessToken: '',
-    defaultCountryCode: data.defaultCountryCode || '374',
     templateConfirmation: data.templateConfirmation || 'appointment_confirmation',
     templateReminder: data.templateReminder || 'appointment_reminder',
     templateLanguage: data.templateLanguage || 'en',
-    usePlatformDefault: false,
+    connectionMode: whatsappConnectionModeFromApi(data),
   };
 }
 
@@ -140,17 +144,39 @@ function ToggleRow({
 
 function FieldRow({
   label,
+  required,
   children,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <label className="block text-sm py-2">
-      <span className="text-gray-700 dark:text-gray-300">{label}</span>
+      <span className="text-gray-700 dark:text-gray-300">
+        {label}
+        {required ? ' *' : ''}
+      </span>
       <div className="mt-1">{children}</div>
     </label>
   );
+}
+
+function validateWhatsAppForm(
+  form: WhatsAppIntegrationForm,
+  hasSavedToken: boolean,
+  t: (key: string) => string,
+): string | null {
+  if (form.connectionMode === 'platform') return null;
+
+  if (!form.phoneNumberId.trim()) return t('settings.whatsappPhoneNumberIdRequired');
+  if (!form.businessAccountId.trim()) return t('settings.whatsappBusinessAccountIdRequired');
+  if (!form.accessToken.trim() && !hasSavedToken) return t('settings.whatsappAccessTokenRequired');
+  if (!form.templateConfirmation.trim()) return t('settings.whatsappTemplateConfirmationRequired');
+  if (!form.templateReminder.trim()) return t('settings.whatsappTemplateReminderRequired');
+  if (!form.templateLanguage.trim()) return t('settings.whatsappTemplateLanguageRequired');
+
+  return null;
 }
 
 export default function SettingsPage() {
@@ -161,6 +187,7 @@ export default function SettingsPage() {
   const [notif, setNotif] = useState<NotificationSettings | null>(null);
   const [whatsapp, setWhatsapp] = useState<WhatsAppIntegrationForm>(DEFAULT_WHATSAPP_FORM);
   const [whatsappMeta, setWhatsappMeta] = useState<WhatsAppIntegrationSettings | null>(null);
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
 
   const { data: notifData } = useQuery({
     queryKey: ['notification-settings', business?.id],
@@ -221,20 +248,33 @@ export default function SettingsPage() {
   });
 
   const saveWhatsApp = useMutation({
-    mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        phoneNumberId: whatsapp.phoneNumberId.trim() || undefined,
-        businessAccountId: whatsapp.businessAccountId.trim() || undefined,
-        defaultCountryCode: whatsapp.defaultCountryCode.trim() || undefined,
-        templateConfirmation: whatsapp.templateConfirmation.trim() || undefined,
-        templateReminder: whatsapp.templateReminder.trim() || undefined,
-        templateLanguage: whatsapp.templateLanguage.trim() || undefined,
-      };
-      if (whatsapp.accessToken.trim()) {
-        payload.accessToken = whatsapp.accessToken.trim();
+    mutationFn: async (form: WhatsAppIntegrationForm) => {
+      if (form.connectionMode === 'platform') {
+        const { data: res } = await api.put(
+          `/businesses/${business!.id}/notifications/whatsapp`,
+          { usePlatformDefault: true },
+        );
+        return (res.data || res) as WhatsAppIntegrationSettings;
       }
-      if (whatsapp.usePlatformDefault) {
-        payload.usePlatformDefault = true;
+
+      const validationError = validateWhatsAppForm(
+        form,
+        Boolean(whatsappMeta?.hasAccessToken),
+        t,
+      );
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
+      const payload: Record<string, unknown> = {
+        phoneNumberId: form.phoneNumberId.trim(),
+        businessAccountId: form.businessAccountId.trim(),
+        templateConfirmation: form.templateConfirmation.trim(),
+        templateReminder: form.templateReminder.trim(),
+        templateLanguage: form.templateLanguage.trim(),
+      };
+      if (form.accessToken.trim()) {
+        payload.accessToken = form.accessToken.trim();
       }
       const { data: res } = await api.put(
         `/businesses/${business!.id}/notifications/whatsapp`,
@@ -243,10 +283,14 @@ export default function SettingsPage() {
       return (res.data || res) as WhatsAppIntegrationSettings;
     },
     onSuccess: (result) => {
+      setWhatsappError(null);
       setWhatsappMeta(result);
       setWhatsapp(whatsappFormFromApi(result));
       queryClient.invalidateQueries({ queryKey: ['whatsapp-integration', business?.id] });
       queryClient.invalidateQueries({ queryKey: ['notification-settings', business?.id] });
+    },
+    onError: (err) => {
+      setWhatsappError(err instanceof Error ? err.message : t('errors.saveFailed'));
     },
   });
 
@@ -338,30 +382,46 @@ export default function SettingsPage() {
             </p>
           )}
           <div className="space-y-1">
-            <ToggleRow
-              label={t('settings.whatsappUsePlatformDefault')}
-              checked={whatsapp.usePlatformDefault}
-              onChange={(v) => setWhatsapp({ ...whatsapp, usePlatformDefault: v })}
-            />
-            {!whatsapp.usePlatformDefault && (
+            <FieldRow label={t('settings.whatsappConnectionMode')}>
+              <select
+                value={whatsapp.connectionMode}
+                disabled={saveWhatsApp.isPending}
+                onChange={(e) => {
+                  const connectionMode = e.target.value as WhatsAppConnectionMode;
+                  setWhatsappError(null);
+                  const next = { ...whatsapp, connectionMode };
+                  setWhatsapp(next);
+                  if (connectionMode === 'platform') {
+                    saveWhatsApp.mutate(next);
+                  }
+                }}
+                className="input w-full text-sm"
+              >
+                <option value="platform">{t('settings.whatsappModePlatform')}</option>
+                <option value="custom">{t('settings.whatsappModeCustom')}</option>
+              </select>
+            </FieldRow>
+            {whatsapp.connectionMode === 'custom' && (
               <>
-                <FieldRow label={t('settings.whatsappPhoneNumberId')}>
+                <FieldRow label={t('settings.whatsappPhoneNumberId')} required>
                   <input
                     type="text"
+                    required
                     value={whatsapp.phoneNumberId}
                     onChange={(e) => setWhatsapp({ ...whatsapp, phoneNumberId: e.target.value })}
                     className="input w-full text-sm"
                   />
                 </FieldRow>
-                <FieldRow label={t('settings.whatsappBusinessAccountId')}>
+                <FieldRow label={t('settings.whatsappBusinessAccountId')} required>
                   <input
                     type="text"
+                    required
                     value={whatsapp.businessAccountId}
                     onChange={(e) => setWhatsapp({ ...whatsapp, businessAccountId: e.target.value })}
                     className="input w-full text-sm"
                   />
                 </FieldRow>
-                <FieldRow label={t('settings.whatsappAccessToken')}>
+                <FieldRow label={t('settings.whatsappAccessToken')} required={!whatsappMeta?.hasAccessToken}>
                   {whatsappMeta?.hasAccessToken && whatsappMeta.accessTokenHint && (
                     <p className="text-xs text-gray-500 mb-1">
                       {t('settings.whatsappAccessTokenHint')}: {whatsappMeta.accessTokenHint}
@@ -369,39 +429,39 @@ export default function SettingsPage() {
                   )}
                   <input
                     type="password"
+                    required={!whatsappMeta?.hasAccessToken}
                     value={whatsapp.accessToken}
                     onChange={(e) => setWhatsapp({ ...whatsapp, accessToken: e.target.value })}
-                    placeholder={t('settings.whatsappAccessTokenPlaceholder')}
+                    placeholder={
+                      whatsappMeta?.hasAccessToken
+                        ? t('settings.whatsappAccessTokenPlaceholder')
+                        : t('settings.whatsappAccessTokenRequiredPlaceholder')
+                    }
                     className="input w-full text-sm"
                   />
                 </FieldRow>
-                <FieldRow label={t('settings.whatsappDefaultCountryCode')}>
+                <FieldRow label={t('settings.whatsappTemplateConfirmation')} required>
                   <input
                     type="text"
-                    value={whatsapp.defaultCountryCode}
-                    onChange={(e) => setWhatsapp({ ...whatsapp, defaultCountryCode: e.target.value })}
-                    className="input w-full text-sm"
-                  />
-                </FieldRow>
-                <FieldRow label={t('settings.whatsappTemplateConfirmation')}>
-                  <input
-                    type="text"
+                    required
                     value={whatsapp.templateConfirmation}
                     onChange={(e) => setWhatsapp({ ...whatsapp, templateConfirmation: e.target.value })}
                     className="input w-full text-sm"
                   />
                 </FieldRow>
-                <FieldRow label={t('settings.whatsappTemplateReminder')}>
+                <FieldRow label={t('settings.whatsappTemplateReminder')} required>
                   <input
                     type="text"
+                    required
                     value={whatsapp.templateReminder}
                     onChange={(e) => setWhatsapp({ ...whatsapp, templateReminder: e.target.value })}
                     className="input w-full text-sm"
                   />
                 </FieldRow>
-                <FieldRow label={t('settings.whatsappTemplateLanguage')}>
+                <FieldRow label={t('settings.whatsappTemplateLanguage')} required>
                   <input
                     type="text"
+                    required
                     value={whatsapp.templateLanguage}
                     onChange={(e) => setWhatsapp({ ...whatsapp, templateLanguage: e.target.value })}
                     className="input w-full text-sm"
@@ -410,14 +470,22 @@ export default function SettingsPage() {
               </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => saveWhatsApp.mutate()}
-            disabled={saveWhatsApp.isPending}
-            className="btn-primary mt-4 text-sm"
-          >
-            {saveWhatsApp.isPending ? 'Saving…' : t('settings.saveWhatsAppIntegration')}
-          </button>
+          {whatsappError && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-3">{whatsappError}</p>
+          )}
+          {whatsapp.connectionMode === 'platform' && saveWhatsApp.isPending && (
+            <p className="text-sm text-gray-500 mt-3">{t('common.saving')}</p>
+          )}
+          {whatsapp.connectionMode === 'custom' && (
+            <button
+              type="button"
+              onClick={() => saveWhatsApp.mutate(whatsapp)}
+              disabled={saveWhatsApp.isPending}
+              className="btn-primary mt-4 text-sm"
+            >
+              {saveWhatsApp.isPending ? 'Saving…' : t('settings.saveWhatsAppIntegration')}
+            </button>
+          )}
           {saveWhatsApp.isSuccess && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">
               {t('settings.whatsappIntegrationSaved')}

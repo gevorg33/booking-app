@@ -19,7 +19,7 @@ import { ServiceModule } from '../../modules/service/service.module.js';
     EventStoreModule,
     forwardRef(() => BookingModule),
     forwardRef(() => SchedulingEngineModule),
-    ServiceModule,
+    forwardRef(() => ServiceModule),
   ],
   providers: [WorkflowCompilerService, WorkflowExecutorService, WorkflowStepExecutorsService],
   exports: [WorkflowCompilerService, WorkflowExecutorService],

@@ -35,6 +35,7 @@ export interface PublicBusinessProfile {
   location?: PublicLocation;
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode?: string;
+  onlinePaymentsEnabled?: boolean;
 }
 
 export interface PublicProvider {
@@ -56,11 +57,12 @@ export interface PublicService {
   price: number;
   currency: string;
   prepaymentMode?: 'none' | 'full' | 'deposit';
+  onlinePaymentEnabled?: boolean;
   depositAmount?: number | null;
 }
 
 export function prepaymentDue(service: PublicService): number {
-  if (!service.prepaymentMode || service.prepaymentMode === 'none') return 0;
+  if (!service.onlinePaymentEnabled) return 0;
   if (service.prepaymentMode === 'full') return service.price;
   if (service.depositAmount != null && service.depositAmount > 0) {
     return Math.min(service.depositAmount, service.price);

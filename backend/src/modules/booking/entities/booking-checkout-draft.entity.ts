@@ -18,6 +18,9 @@ export class BookingCheckoutDraft {
   @Column({ name: 'stripe_session_id', type: 'varchar', nullable: true })
   stripeSessionId: string | null;
 
+  @Column({ name: 'stripe_connect_account_id', type: 'varchar', nullable: true })
+  stripeConnectAccountId: string | null;
+
   @Column({ type: 'jsonb' })
   payload: Record<string, unknown>;
 

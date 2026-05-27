@@ -23,7 +23,8 @@ import {
   getUtcBoundsForDateKey,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
-import { getBusinessWhatsAppIntegration } from '../notifications/whatsapp-integration.types.js';
+import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
+import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -60,6 +61,7 @@ export interface PublicBusinessProfile {
   location?: PublicLocation;
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode: string;
+  onlinePaymentsEnabled: boolean;
 }
 
 export interface ProviderSlotPreview {
@@ -87,6 +89,7 @@ export class PublicBookingService {
     private bookingService: BookingService,
     private customerService: CustomerService,
     private schedulingEngine: SchedulingEngineService,
+    private stripeIntegrationService: StripeIntegrationService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -135,8 +138,24 @@ export class PublicBookingService {
         mapEmbedHtml: location.mapEmbedHtml,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
-      defaultPhoneCountryCode:
-        getBusinessWhatsAppIntegration(settings).defaultCountryCode || '374',
+      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
+      onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
+    };
+  }
+
+  private mapPublicService(service: Service, onlinePaymentsEnabled: boolean) {
+    const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
+    return {
+      id: service.id,
+      name: service.name,
+      description: service.description,
+      durationMinutes: service.durationMinutes,
+      bufferMinutes: service.bufferMinutes,
+      price: Number(service.price),
+      currency: service.currency,
+      prepaymentMode: service.prepaymentMode,
+      onlinePaymentEnabled: onlinePaymentsEnabled && wantsOnline,
+      depositAmount: service.depositAmount != null ? Number(service.depositAmount) : null,
     };
   }
 
@@ -210,17 +229,9 @@ export class PublicBookingService {
     }
 
     return {
-      services: services.map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        durationMinutes: s.durationMinutes,
-        bufferMinutes: s.bufferMinutes,
-        price: Number(s.price),
-        currency: s.currency,
-        prepaymentMode: s.prepaymentMode,
-        depositAmount: s.depositAmount != null ? Number(s.depositAmount) : null,
-      })),
+      services: services.map((s) =>
+        this.mapPublicService(s, this.stripeIntegrationService.isConnectReady(business.settings)),
+      ),
     };
   }
 
@@ -298,9 +309,15 @@ export class PublicBookingService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
-    if (!dto.markPaid && service.prepaymentMode !== PrepaymentMode.NONE) {
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    const onlineRequired =
+      paymentsReady &&
+      service.prepaymentMode !== PrepaymentMode.NONE &&
+      !dto.markPaid;
+
+    if (onlineRequired) {
       throw new BadRequestException(
-        'Prepayment is required for this service. Complete payment at checkout.',
+        'Online payment is required for this service. Complete payment at checkout.',
       );
     }
 

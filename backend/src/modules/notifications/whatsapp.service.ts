@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { NotificationKind } from './notification.types.js';
 import type { WhatsAppRuntimeConfig } from './whatsapp-integration.types.js';
 import { WhatsAppIntegrationService } from './whatsapp-integration.service.js';
+import { normalizeE164Phone } from '../../common/utils/phone-country.util.js';
 
 export interface WhatsAppBookingPayload {
   toPhone: string;
@@ -48,19 +49,9 @@ export class WhatsAppService implements OnModuleInit {
     await this.validateTemplatesOnStartup(platform);
   }
 
-  /** E.164 digits only, no + (Meta Cloud API format). */
-  normalizeRecipient(phone: string, defaultCountryCode: string): string | null {
-    const countryCode = defaultCountryCode.replace(/\D/g, '');
-    let digits = phone.replace(/\D/g, '');
-    if (!digits) return null;
-
-    if (digits.startsWith('0') && digits.length >= 9) {
-      digits = countryCode + digits.slice(1);
-    } else if (digits.length <= 9 && countryCode) {
-      digits = countryCode + digits;
-    }
-
-    return digits.length >= 10 ? digits : null;
+  /** E.164 digits only, no + (Meta Cloud API format). Country code must be included. */
+  normalizeRecipient(phone: string): string | null {
+    return normalizeE164Phone(phone);
   }
 
   private accountCacheKey(config: WhatsAppRuntimeConfig): string {
@@ -233,7 +224,7 @@ export class WhatsAppService implements OnModuleInit {
     payload: WhatsAppBookingPayload,
     config: WhatsAppRuntimeConfig,
   ): Promise<{ ok: boolean; error?: string }> {
-    const to = this.normalizeRecipient(payload.toPhone, config.defaultCountryCode);
+    const to = this.normalizeRecipient(payload.toPhone);
     if (!to) {
       return { ok: false, error: `Invalid phone number for WhatsApp: ${payload.toPhone}` };
     }
