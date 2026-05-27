@@ -45,7 +45,13 @@ export class AuthService {
     const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + user.id.slice(0, 8);
 
     const business = await this.businessRepo.save(
-      this.businessRepo.create({ name: businessName, slug }),
+      this.businessRepo.create({
+        name: businessName,
+        slug,
+        settings: {
+          onboarding: { completed: false },
+        },
+      }),
     );
 
     await this.memberRepo.save(
@@ -85,9 +91,19 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({ where: { email: dto.email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException({
+        message: 'No account found with this email',
+        code: 'ACCOUNT_NOT_FOUND',
+      });
+    }
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      throw new UnauthorizedException({
+        message: 'Incorrect password',
+        code: 'INVALID_CREDENTIALS',
+      });
+    }
 
     const membership = await this.memberRepo.findOne({ where: { userId: user.id }, relations: { business: true } });
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });

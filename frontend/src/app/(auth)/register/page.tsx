@@ -30,7 +30,7 @@ export default function RegisterPage() {
       const { data } = await api.post('/auth/register', form);
       const result = data.data || data;
       setAuth(result.user, result.business, result.token);
-      router.push('/dashboard');
+      router.push('/dashboard/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.registrationFailed'));
     } finally {

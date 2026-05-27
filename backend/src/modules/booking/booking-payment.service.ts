@@ -15,6 +15,8 @@ import { CustomerService } from '../customer/customer.service.js';
 import { BookingService } from './booking.service.js';
 import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto.js';
 import { PaymentStatus } from './entities/booking.entity.js';
+import { EventStoreService } from '../../events/store/event-store.service.js';
+import { EventType } from '../../events/event-types.js';
 
 interface StripeCheckoutSession {
   id?: string;
@@ -36,6 +38,7 @@ export class BookingPaymentService {
     private stripeIntegrationService: StripeIntegrationService,
     private customerService: CustomerService,
     private bookingService: BookingService,
+    private eventStore: EventStoreService,
   ) {}
 
   calculatePrepaymentAmount(service: Service): number {
@@ -240,6 +243,21 @@ export class BookingPaymentService {
     draft.status = 'completed';
     draft.stripeSessionId = sessionId;
     await this.draftRepo.save(draft);
+
+    await this.eventStore.publish({
+      eventType: EventType.PAYMENT_RECEIVED,
+      aggregateType: 'booking',
+      aggregateId: booking.id,
+      businessId: business.id,
+      payload: {
+        bookingId: booking.id,
+        customerId: customer.id,
+        amount: Number(draft.amount),
+        currency: draft.currency,
+        stripeSessionId: sessionId,
+        source: 'public_booking',
+      },
+    });
 
     return {
       alreadyCompleted: false,

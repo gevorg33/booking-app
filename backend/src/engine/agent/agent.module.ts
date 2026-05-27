@@ -34,7 +34,7 @@ import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-per
     ConflictResolutionAgent,
     ScheduleApplyAgent,
   ],
-  exports: [AgentOrchestratorService, AgentRegistryService, ContextBuilderService],
+  exports: [AgentOrchestratorService, AgentRegistryService, ContextBuilderService, LlmService],
 })
 export class AgentModule implements OnModuleInit {
   constructor(

@@ -14,19 +14,32 @@ export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setErrorCode(null);
     try {
       const { data } = await api.post('/auth/login', form);
       const result = data.data || data;
       setAuth(result.user, result.business, result.token);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || t('auth.loginFailed'));
+      const code = err.response?.data?.code ?? null;
+      const rawMessage = err.response?.data?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage[0] : rawMessage;
+
+      if (code === 'ACCOUNT_NOT_FOUND') {
+        setError(t('auth.accountNotFound'));
+        setErrorCode('ACCOUNT_NOT_FOUND');
+      } else if (code === 'INVALID_CREDENTIALS') {
+        setError(t('auth.invalidCredentials'));
+      } else {
+        setError(message || t('auth.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -46,7 +59,14 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="card space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-3 text-sm">
-              {error}
+              <p>{error}</p>
+              {errorCode === 'ACCOUNT_NOT_FOUND' && (
+                <p className="mt-2">
+                  <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium underline">
+                    {t('auth.registerPrompt')}
+                  </Link>
+                </p>
+              )}
             </div>
           )}
           <div>

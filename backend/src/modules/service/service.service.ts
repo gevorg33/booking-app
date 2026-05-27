@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service, PrepaymentMode } from './entities/service.entity.js';
+import { ServiceCategory } from './entities/service-category.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { CreateServiceDto, UpdateServiceDto } from './dto/create-service.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
@@ -12,6 +13,7 @@ import { StripeIntegrationService } from '../billing/stripe-integration.service.
 export class ServiceService {
   constructor(
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
+    @InjectRepository(ServiceCategory) private categoryRepo: Repository<ServiceCategory>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private eventStore: EventStoreService,
     private stripeIntegrationService: StripeIntegrationService,
@@ -33,13 +35,29 @@ export class ServiceService {
     }
   }
 
+  private async resolveCategoryId(
+    businessId: string,
+    categoryId?: string | null,
+  ): Promise<string | null | undefined> {
+    if (categoryId === undefined) return undefined;
+    if (categoryId === null) return null;
+    const category = await this.categoryRepo.findOne({
+      where: { id: categoryId, businessId, isActive: true },
+    });
+    if (!category) throw new BadRequestException('Service category not found');
+    return categoryId;
+  }
+
   async create(businessId: string, dto: CreateServiceDto, userId?: string): Promise<Service> {
     await this.assertOnlinePaymentAllowed(businessId, dto.prepaymentMode);
+    const categoryId = await this.resolveCategoryId(businessId, dto.categoryId);
+    const { categoryId: _inputCategoryId, ...serviceData } = dto;
 
     const service = await this.serviceRepo.save(
       this.serviceRepo.create({
-        ...dto,
+        ...serviceData,
         businessId,
+        categoryId: categoryId ?? null,
         bufferMinutes: dto.bufferMinutes || 0,
         currency: dto.currency || 'USD',
       }),
@@ -56,11 +74,18 @@ export class ServiceService {
   }
 
   async findAll(businessId: string): Promise<Service[]> {
-    return this.serviceRepo.find({ where: { businessId, isActive: true }, order: { name: 'ASC' } });
+    return this.serviceRepo.find({
+      where: { businessId, isActive: true },
+      relations: { category: true },
+      order: { name: 'ASC' },
+    });
   }
 
   async findOne(id: string): Promise<Service> {
-    const service = await this.serviceRepo.findOne({ where: { id } });
+    const service = await this.serviceRepo.findOne({
+      where: { id },
+      relations: { category: true },
+    });
     if (!service) throw new NotFoundException('Service not found');
     return service;
   }
@@ -70,7 +95,11 @@ export class ServiceService {
     const nextMode = dto.prepaymentMode ?? service.prepaymentMode;
     await this.assertOnlinePaymentAllowed(service.businessId, nextMode);
 
-    Object.assign(service, dto);
+    const categoryId = await this.resolveCategoryId(service.businessId, dto.categoryId);
+    if (categoryId !== undefined) service.categoryId = categoryId;
+
+    const { categoryId: _omit, ...rest } = dto;
+    Object.assign(service, rest);
     const updated = await this.serviceRepo.save(service);
     await this.eventStore.publish({
       eventType: EventType.SERVICE_UPDATED,
