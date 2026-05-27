@@ -10,14 +10,28 @@ interface CheckoutClientProps {
   service: PublicService;
   startTime: string;
   backHref: string;
+  paymentSessionId?: string;
 }
 
-export function CheckoutClient({ tenant, employee, service, startTime, backHref }: CheckoutClientProps) {
+export function CheckoutClient({
+  tenant,
+  employee,
+  service,
+  startTime,
+  backHref,
+  paymentSessionId,
+}: CheckoutClientProps) {
   return (
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <main className="max-w-lg mx-auto px-4 py-6">
-        <CheckoutForm tenant={tenant} employee={employee} service={service} startTime={startTime} />
+        <CheckoutForm
+          tenant={tenant}
+          employee={employee}
+          service={service}
+          startTime={startTime}
+          paymentSessionId={paymentSessionId}
+        />
       </main>
     </>
   );

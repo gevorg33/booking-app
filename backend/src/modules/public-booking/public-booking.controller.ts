@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
-import { CreatePublicBookingDto, GetProviderSlotsQueryDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto } from './dto/public-booking.dto.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
 
 @Controller('public/:slug')
@@ -9,6 +10,7 @@ export class PublicBookingController {
   constructor(
     private publicBookingService: PublicBookingService,
     private publicAssistantService: PublicBookingAssistantService,
+    private bookingPaymentService: BookingPaymentService,
   ) {}
 
   @Get()
@@ -47,6 +49,16 @@ export class PublicBookingController {
   @Post('bookings')
   createBooking(@Param('slug') slug: string, @Body() dto: CreatePublicBookingDto) {
     return this.publicBookingService.createBooking(slug, dto);
+  }
+
+  @Post('bookings/checkout')
+  createBookingCheckout(@Param('slug') slug: string, @Body() dto: CreatePublicBookingDto) {
+    return this.bookingPaymentService.createCheckoutSession(slug, dto);
+  }
+
+  @Post('bookings/confirm-payment')
+  confirmBookingPayment(@Param('slug') slug: string, @Body() dto: ConfirmBookingPaymentDto) {
+    return this.bookingPaymentService.confirmCheckoutSession(slug, dto.sessionId);
   }
 
   @Post('assistant')

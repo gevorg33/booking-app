@@ -14,6 +14,7 @@ export interface CustomerBookingStats {
   byStatus: Record<string, number>;
   lastBookingAt: string | null;
   upcomingCount: number;
+  noShowCount: number;
 }
 
 export interface CustomerListItem {
@@ -31,6 +32,30 @@ export interface CustomersDashboardStats {
   filteredCustomers: number;
   totalAppointments: number;
   appointmentsByStatus: Record<string, number>;
+}
+
+export interface CustomerAppointmentItem {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
+  notes: string | null;
+  service: { id: string; name: string } | null;
+  employee: { id: string; name: string } | null;
+}
+
+export interface CustomerDetailResult {
+  customer: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  stats: CustomerBookingStats;
+  appointments: CustomerAppointmentItem[];
 }
 
 export interface CustomersSearchResult {
@@ -174,6 +199,7 @@ export class CustomerService {
       byStatus: {},
       lastBookingAt: null,
       upcomingCount: 0,
+      noShowCount: 0,
     };
   }
 
@@ -207,6 +233,9 @@ export class CustomerService {
       const count = parseInt(row.count, 10);
       entry.total += count;
       entry.byStatus[row.status] = count;
+      if (row.status === BookingStatus.NO_SHOW) {
+        entry.noShowCount += count;
+      }
       const last = row.lastStart ? new Date(row.lastStart) : null;
       if (last && (!entry.lastBookingAt || last > new Date(entry.lastBookingAt))) {
         entry.lastBookingAt = last.toISOString();
@@ -238,6 +267,45 @@ export class CustomerService {
     const customer = await this.customerRepo.findOne({ where: { id } });
     if (!customer) throw new NotFoundException('Customer not found');
     return customer;
+  }
+
+  async getCustomerDetail(businessId: string, customerId: string): Promise<CustomerDetailResult> {
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId, isActive: true },
+    });
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    const statsMap = await this.loadBookingStatsMap(businessId, [customerId]);
+    const stats = statsMap.get(customerId) ?? this.emptyStats();
+
+    const bookings = await this.bookingRepo.find({
+      where: { businessId, customerId },
+      relations: { service: true, employee: true },
+      order: { startTime: 'DESC' },
+      take: 100,
+    });
+
+    return {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email ?? null,
+        phone: customer.phone ?? null,
+        createdAt: customer.createdAt.toISOString(),
+        updatedAt: customer.updatedAt.toISOString(),
+      },
+      stats,
+      appointments: bookings.map((b) => ({
+        id: b.id,
+        startTime: b.startTime.toISOString(),
+        endTime: b.endTime.toISOString(),
+        status: b.status,
+        paymentStatus: b.paymentStatus,
+        notes: b.notes ?? null,
+        service: b.service ? { id: b.service.id, name: b.service.name } : null,
+        employee: b.employee ? { id: b.employee.id, name: b.employee.name } : null,
+      })),
+    };
   }
 
   async update(id: string, dto: UpdateCustomerDto): Promise<Customer> {
@@ -286,7 +354,8 @@ export class CustomerService {
           byEmail.name = dto.name;
           await this.customerRepo.save(byEmail);
         }
-        return { customer: byEmail, created: false };
+        const saved = await this.applyNotificationPreferences(byEmail, dto);
+        return { customer: saved, created: false };
       }
     }
 
@@ -306,7 +375,8 @@ export class CustomerService {
           byPhone.name = dto.name;
           await this.customerRepo.save(byPhone);
         }
-        return { customer: byPhone, created: false };
+        const saved = await this.applyNotificationPreferences(byPhone, dto);
+        return { customer: saved, created: false };
       }
     }
 
@@ -315,6 +385,31 @@ export class CustomerService {
       email: dto.email,
       phone: dto.phone,
     });
-    return { customer, created: true };
+
+    const saved = await this.applyNotificationPreferences(customer, dto);
+    return { customer: saved, created: true };
+  }
+
+  private async applyNotificationPreferences(
+    customer: Customer,
+    dto: CreateCustomerDto,
+  ): Promise<Customer> {
+    if (
+      dto.emailReminders === undefined &&
+      dto.smsReminders === undefined &&
+      dto.whatsappReminders === undefined
+    ) {
+      return customer;
+    }
+    const existing = (customer.metadata?.notifications ?? {}) as Record<string, boolean>;
+    customer.metadata = {
+      ...customer.metadata,
+      notifications: {
+        emailReminders: dto.emailReminders ?? existing.emailReminders ?? true,
+        smsReminders: dto.smsReminders ?? existing.smsReminders ?? false,
+        whatsappReminders: dto.whatsappReminders ?? existing.whatsappReminders ?? true,
+      },
+    };
+    return this.customerRepo.save(customer);
   }
 }

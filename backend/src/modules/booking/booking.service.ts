@@ -11,7 +11,7 @@ import {
   GetBookingsQueryDto,
   parseBookingStatusFilter,
 } from './dto/get-bookings-query.dto.js';
-import { Service } from '../service/entities/service.entity.js';
+import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
@@ -117,7 +117,12 @@ export class BookingService {
     };
   }
 
-  async create(businessId: string, dto: CreateBookingDto, userId?: string): Promise<Booking> {
+  async create(
+    businessId: string,
+    dto: CreateBookingDto,
+    userId?: string,
+    options?: { paymentStatus?: PaymentStatus },
+  ): Promise<Booking> {
     const service = await this.serviceRepo.findOne({ where: { id: dto.serviceId, businessId } });
     if (!service) throw new NotFoundException('Service not found');
 
@@ -193,6 +198,12 @@ export class BookingService {
         }
       }
 
+      const paymentStatus =
+        options?.paymentStatus ??
+        (service.prepaymentMode === PrepaymentMode.NONE
+          ? PaymentStatus.NOT_APPLICABLE
+          : PaymentStatus.PENDING);
+
       const newBooking = manager.create(Booking, {
         businessId,
         employeeId: dto.employeeId,
@@ -201,7 +212,7 @@ export class BookingService {
         startTime,
         endTime,
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PENDING,
+        paymentStatus,
         notes: dto.notes,
         description: dto.description,
         linkedEmployeeIds: dto.linkedEmployeeIds,

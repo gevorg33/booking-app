@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   UseGuards,
@@ -15,6 +16,8 @@ import type { Request } from 'express';
 import { BillingService } from './billing.service.js';
 import { CreateCheckoutDto } from './dto/create-checkout.dto.js';
 import { ConfirmCheckoutDto } from './dto/confirm-checkout.dto.js';
+import { UpdateStripeIntegrationDto } from './dto/update-stripe-integration.dto.js';
+import { StripeIntegrationService } from './stripe-integration.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -36,6 +39,7 @@ export class BillingController {
   constructor(
     private billingService: BillingService,
     private businessService: BusinessService,
+    private stripeIntegrationService: StripeIntegrationService,
   ) {}
 
   @Get('subscription')
@@ -78,6 +82,25 @@ export class BillingController {
   ) {
     await this.ensureMember(businessId, user.id);
     return this.billingService.createPortalSession(businessId);
+  }
+
+  @Get('stripe-connect')
+  async getStripeConnect(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('stripe-connect')
+  async updateStripeConnect(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateStripeIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.updateSettings(businessId, dto);
   }
 
   private async ensureMember(businessId: string, userId: string) {

@@ -41,4 +41,8 @@ export class StripeService implements OnModuleInit {
   get frontendUrl(): string {
     return this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   }
+
+  connectRequestOptions(connectAccountId: string) {
+    return { stripeAccount: connectAccountId };
+  }
 }

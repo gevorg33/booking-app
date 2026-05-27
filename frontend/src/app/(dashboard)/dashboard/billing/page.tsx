@@ -8,6 +8,7 @@ import {
   ExternalLink,
   AlertCircle,
   CheckCircle2,
+  Wallet,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
@@ -33,6 +34,14 @@ interface SubscriptionInfo {
   isActive: boolean;
 }
 
+interface StripeConnectInfo {
+  configured: boolean;
+  connectAccountId?: string;
+  chargesEnabled: boolean;
+  detailsSubmitted: boolean;
+  displayName?: string;
+}
+
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   active: { label: 'Active', className: 'bg-green-600/15 text-green-400' },
   trialing: { label: 'Trial', className: 'bg-blue-600/15 text-blue-400' },
@@ -47,6 +56,9 @@ export default function BillingPage() {
   const queryClient = useQueryClient();
   const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [connectAccountId, setConnectAccountId] = useState('');
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectSaved, setConnectSaved] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -84,6 +96,21 @@ export default function BillingPage() {
     enabled: !!business?.id,
   });
 
+  const { data: stripeConnect, isLoading: connectLoading } = useQuery<StripeConnectInfo>({
+    queryKey: ['stripe-connect', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/billing/stripe-connect`);
+      return data.data || data;
+    },
+    enabled: !!business?.id,
+  });
+
+  useEffect(() => {
+    if (stripeConnect?.connectAccountId) {
+      setConnectAccountId(stripeConnect.connectAccountId);
+    }
+  }, [stripeConnect?.connectAccountId]);
+
   const checkoutMutation = useMutation({
     mutationFn: async (planId: string) => {
       const { data } = await api.post(`/businesses/${business!.id}/billing/checkout`, {
@@ -104,12 +131,44 @@ export default function BillingPage() {
     },
   });
 
+  const saveConnectMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.put(`/businesses/${business!.id}/billing/stripe-connect`, {
+        connectAccountId: connectAccountId.trim(),
+      });
+      return data.data || data;
+    },
+    onSuccess: () => {
+      setConnectError(null);
+      setConnectSaved(true);
+      queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
+    },
+    onError: (err: unknown) => {
+      setConnectSaved(false);
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
+
+  const disconnectConnectMutation = useMutation({
+    mutationFn: async () => {
+      await api.put(`/businesses/${business!.id}/billing/stripe-connect`, { disconnect: true });
+    },
+    onSuccess: () => {
+      setConnectAccountId('');
+      setConnectError(null);
+      queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
+    },
+  });
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['billing-subscription'] });
   };
 
   const statusInfo = STATUS_LABEL[subscription?.status ?? 'inactive'] ?? STATUS_LABEL.inactive;
-  const loading = plansLoading || subLoading || confirming;
+  const loading = plansLoading || subLoading || confirming || connectLoading;
 
   return (
     <div className="max-w-4xl">
@@ -118,9 +177,73 @@ export default function BillingPage() {
           <CreditCard className="w-6 h-6 text-blue-400" />
           {t('billing.title')}
         </h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Manage your OptiSchedule plan. Powered by Stripe.
+        <p className="text-gray-400 text-sm mt-1">{t('billing.subtitle')}</p>
+      </div>
+
+      {/* Stripe Connect for client payments */}
+      <div className="card mb-8">
+        <h2 className="font-semibold mb-1 flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-violet-400" />
+          {t('billing.clientPayments')}
+        </h2>
+        <p className="text-sm text-gray-400 mb-4">{t('billing.clientPaymentsDescription')}</p>
+        <p className="text-xs mb-4">
+          {stripeConnect?.configured && stripeConnect.chargesEnabled ? (
+            <span className="text-green-400">{t('billing.stripeConnectConfigured')}</span>
+          ) : stripeConnect?.connectAccountId ? (
+            <span className="text-amber-400">{t('billing.stripeConnectPending')}</span>
+          ) : (
+            <span className="text-gray-500">{t('billing.stripeConnectNotConfigured')}</span>
+          )}
+          {stripeConnect?.displayName && (
+            <span className="text-gray-400 ml-2">
+              · {t('billing.stripeDisplayName')}: {stripeConnect.displayName}
+            </span>
+          )}
         </p>
+        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+          <input
+            className="input flex-1 font-mono text-sm"
+            placeholder={t('billing.stripeConnectPlaceholder')}
+            value={connectAccountId}
+            onChange={(e) => {
+              setConnectAccountId(e.target.value);
+              setConnectSaved(false);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!connectAccountId.trim()) {
+                setConnectError(t('billing.stripeConnectRequired'));
+                return;
+              }
+              saveConnectMutation.mutate();
+            }}
+            disabled={saveConnectMutation.isPending}
+            className="btn-primary shrink-0"
+          >
+            {saveConnectMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              t('billing.stripeConnectSave')
+            )}
+          </button>
+          {stripeConnect?.connectAccountId && (
+            <button
+              type="button"
+              onClick={() => disconnectConnectMutation.mutate()}
+              disabled={disconnectConnectMutation.isPending}
+              className="btn-secondary shrink-0"
+            >
+              {t('billing.stripeConnectDisconnect')}
+            </button>
+          )}
+        </div>
+        {connectError && <p className="text-sm text-red-400 mt-2">{connectError}</p>}
+        {connectSaved && (
+          <p className="text-sm text-green-400 mt-2">{t('billing.stripeConnectSaved')}</p>
+        )}
       </div>
 
       {banner === 'success' && (

@@ -8,7 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
-import { Service } from '../service/entities/service.entity.js';
+import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
+import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
@@ -22,6 +23,8 @@ import {
   getUtcBoundsForDateKey,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
+import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
+import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -57,6 +60,8 @@ export interface PublicBusinessProfile {
   social?: PublicSocialLinks;
   location?: PublicLocation;
   publicBookingEnabled: boolean;
+  defaultPhoneCountryCode: string;
+  onlinePaymentsEnabled: boolean;
 }
 
 export interface ProviderSlotPreview {
@@ -84,6 +89,7 @@ export class PublicBookingService {
     private bookingService: BookingService,
     private customerService: CustomerService,
     private schedulingEngine: SchedulingEngineService,
+    private stripeIntegrationService: StripeIntegrationService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -132,6 +138,24 @@ export class PublicBookingService {
         mapEmbedHtml: location.mapEmbedHtml,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
+      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
+      onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
+    };
+  }
+
+  private mapPublicService(service: Service, onlinePaymentsEnabled: boolean) {
+    const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
+    return {
+      id: service.id,
+      name: service.name,
+      description: service.description,
+      durationMinutes: service.durationMinutes,
+      bufferMinutes: service.bufferMinutes,
+      price: Number(service.price),
+      currency: service.currency,
+      prepaymentMode: service.prepaymentMode,
+      onlinePaymentEnabled: onlinePaymentsEnabled && wantsOnline,
+      depositAmount: service.depositAmount != null ? Number(service.depositAmount) : null,
     };
   }
 
@@ -205,15 +229,9 @@ export class PublicBookingService {
     }
 
     return {
-      services: services.map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        durationMinutes: s.durationMinutes,
-        bufferMinutes: s.bufferMinutes,
-        price: Number(s.price),
-        currency: s.currency,
-      })),
+      services: services.map((s) =>
+        this.mapPublicService(s, this.stripeIntegrationService.isConnectReady(business.settings)),
+      ),
     };
   }
 
@@ -286,10 +304,31 @@ export class PublicBookingService {
       throw new BadRequestException('Email or phone number is required');
     }
 
-    const { customer, created } = await this.customerService.findOrCreateByContact(
-      business.id,
-      dto.customer,
-    );
+    const service = await this.serviceRepo.findOne({
+      where: { id: dto.serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    const onlineRequired =
+      paymentsReady &&
+      service.prepaymentMode !== PrepaymentMode.NONE &&
+      !dto.markPaid;
+
+    if (onlineRequired) {
+      throw new BadRequestException(
+        'Online payment is required for this service. Complete payment at checkout.',
+      );
+    }
+
+    const { customer, created } = await this.customerService.findOrCreateByContact(business.id, {
+      name: dto.customer.name,
+      email: dto.customer.email,
+      phone: dto.customer.phone,
+      emailReminders: dto.customer.emailReminders,
+      smsReminders: dto.customer.smsReminders,
+      whatsappReminders: dto.customer.whatsappReminders,
+    });
 
     const booking = await this.bookingService.create(
       business.id,
@@ -299,9 +338,10 @@ export class PublicBookingService {
         customerId: customer.id,
         startTime: dto.startTime,
         notes: dto.notes,
-        metadata: { source: 'public_booking' },
+        metadata: { source: 'public_booking', ...(dto.metadata || {}) },
       },
       undefined,
+      dto.markPaid ? { paymentStatus: PaymentStatus.PAID } : undefined,
     );
 
     return {

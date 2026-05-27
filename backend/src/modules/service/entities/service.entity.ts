@@ -9,6 +9,12 @@ import {
 } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
 
+export enum PrepaymentMode {
+  NONE = 'none',
+  FULL = 'full',
+  DEPOSIT = 'deposit',
+}
+
 @Entity('services')
 export class Service {
   @PrimaryGeneratedColumn('uuid')
@@ -38,6 +44,12 @@ export class Service {
 
   @Column({ default: 'USD' })
   currency: string;
+
+  @Column({ type: 'varchar', default: PrepaymentMode.NONE, name: 'prepayment_mode' })
+  prepaymentMode: PrepaymentMode;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'deposit_amount' })
+  depositAmount: number | null;
 
   @Column({ default: true })
   isActive: boolean;

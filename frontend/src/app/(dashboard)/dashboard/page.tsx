@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/lib/store';
-import { Calendar, Users, Briefcase, Brain, TrendingUp, Clock, UserCircle, Loader2 } from 'lucide-react';
+import { Calendar, Users, Briefcase, Brain, TrendingUp, Clock, UserCircle, Loader2, DollarSign, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -42,24 +42,26 @@ export default function DashboardPage() {
       href: '/dashboard/bookings',
     },
     {
-      label: t('dashboard.activeEmployees'),
-      value: formatStat(overview?.activeEmployees),
-      icon: Users,
-      colorClass: 'text-green-400 bg-green-600/10',
-      href: '/dashboard/employees',
+      label: t('dashboard.revenueThisMonth'),
+      value: isLoading || overview?.revenueThisMonth === undefined
+        ? '—'
+        : `$${overview.revenueThisMonth.toFixed(0)}`,
+      icon: DollarSign,
+      colorClass: 'text-emerald-400 bg-emerald-600/10',
+      href: '/dashboard/bookings',
     },
     {
-      label: t('dashboard.services'),
-      value: formatStat(overview?.services),
-      icon: Briefcase,
-      colorClass: 'text-purple-400 bg-purple-600/10',
-      href: '/dashboard/services',
+      label: t('dashboard.bookingsThisMonth'),
+      value: formatStat(overview?.bookingsThisMonth),
+      icon: Calendar,
+      colorClass: 'text-indigo-400 bg-indigo-600/10',
+      href: '/dashboard/appointments',
     },
     {
-      label: t('dashboard.totalCustomers'),
-      value: formatStat(overview?.totalCustomers),
-      icon: UserCircle,
-      colorClass: 'text-cyan-400 bg-cyan-600/10',
+      label: t('dashboard.noShowRate'),
+      value: formatStat(overview?.noShowRatePercent, overview ? '%' : ''),
+      icon: AlertTriangle,
+      colorClass: 'text-orange-400 bg-orange-600/10',
       href: '/dashboard/customers',
     },
     {
@@ -68,6 +70,13 @@ export default function DashboardPage() {
       icon: TrendingUp,
       colorClass: 'text-orange-400 bg-orange-600/10',
       href: '/dashboard/bookings',
+    },
+    {
+      label: t('dashboard.totalCustomers'),
+      value: formatStat(overview?.totalCustomers),
+      icon: UserCircle,
+      colorClass: 'text-cyan-400 bg-cyan-600/10',
+      href: '/dashboard/customers',
     },
   ];
 
@@ -86,7 +95,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {stats.map((stat) => (
           <Link
             key={stat.label}

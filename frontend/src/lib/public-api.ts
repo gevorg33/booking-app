@@ -34,6 +34,8 @@ export interface PublicBusinessProfile {
   social?: PublicSocialLinks;
   location?: PublicLocation;
   publicBookingEnabled: boolean;
+  defaultPhoneCountryCode?: string;
+  onlinePaymentsEnabled?: boolean;
 }
 
 export interface PublicProvider {
@@ -54,6 +56,18 @@ export interface PublicService {
   bufferMinutes: number;
   price: number;
   currency: string;
+  prepaymentMode?: 'none' | 'full' | 'deposit';
+  onlinePaymentEnabled?: boolean;
+  depositAmount?: number | null;
+}
+
+export function prepaymentDue(service: PublicService): number {
+  if (!service.onlinePaymentEnabled) return 0;
+  if (service.prepaymentMode === 'full') return service.price;
+  if (service.depositAmount != null && service.depositAmount > 0) {
+    return Math.min(service.depositAmount, service.price);
+  }
+  return Math.round(service.price * 50) / 100;
 }
 
 async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -110,12 +124,36 @@ export function createPublicBooking(
     serviceId: string;
     startTime: string;
     notes?: string;
-    customer: { name: string; email?: string; phone?: string };
+    customer: {
+      name: string;
+      email?: string;
+      phone?: string;
+      emailReminders?: boolean;
+      smsReminders?: boolean;
+      whatsappReminders?: boolean;
+    };
   },
 ) {
   return publicFetch<{ booking: unknown; customer: { id: string; name: string; created: boolean } }>(
     `/public/${slug}/bookings`,
     { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function createPublicBookingCheckout(
+  slug: string,
+  body: Parameters<typeof createPublicBooking>[1],
+) {
+  return publicFetch<{ url: string; sessionId: string; amount: number; currency: string }>(
+    `/public/${slug}/bookings/checkout`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function confirmPublicBookingPayment(slug: string, sessionId: string) {
+  return publicFetch<{ booking: unknown; customer: { id: string; name: string } }>(
+    `/public/${slug}/bookings/confirm-payment`,
+    { method: 'POST', body: JSON.stringify({ sessionId }) },
   );
 }
 

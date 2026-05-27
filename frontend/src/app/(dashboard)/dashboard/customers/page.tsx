@@ -14,6 +14,7 @@ import {
 } from '@/lib/customer-types';
 import { BOOKING_STATUS_LABELS, type BookingStatus } from '@/lib/booking-types';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { CustomerDetailPanel } from '@/components/customers/customer-detail-panel';
 import { SortableColumnHeader } from '@/components/table/sortable-column-header';
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
 
@@ -30,6 +31,7 @@ export default function CustomersPage() {
   const [params, setParams] = useState<CustomerSearchParams>(defaultParams);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
     setParams((p) => ({ ...p, page: 1 }));
@@ -138,6 +140,7 @@ export default function CustomersPage() {
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.email')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.phone')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.appointments')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">No-shows</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.upcoming')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.lastVisit')}</th>
                     <SortableColumnHeader
@@ -158,7 +161,8 @@ export default function CustomersPage() {
                   {customers.map((customer) => (
                     <tr
                       key={customer.id}
-                      className="border-b border-gray-800/80 hover:bg-gray-800/30"
+                      className="border-b border-gray-800/80 hover:bg-gray-800/30 cursor-pointer"
+                      onClick={() => setSelectedCustomerId(customer.id)}
                     >
                       <td className="px-4 py-3 font-medium text-gray-100">{customer.name}</td>
                       <td className="px-4 py-3 text-gray-400">
@@ -194,6 +198,7 @@ export default function CustomersPage() {
                           </p>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-orange-400">{customer.stats.noShowCount ?? 0}</td>
                       <td className="px-4 py-3 text-gray-300">{customer.stats.upcomingCount}</td>
                       <td className="px-4 py-3 text-gray-400">
                         {customer.stats.lastBookingAt
@@ -220,6 +225,12 @@ export default function CustomersPage() {
           </>
         )}
       </div>
+
+      <CustomerDetailPanel
+        businessId={business?.id ?? ''}
+        customerId={selectedCustomerId}
+        onClose={() => setSelectedCustomerId(null)}
+      />
     </div>
   );
 }

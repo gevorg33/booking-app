@@ -27,6 +27,11 @@ export class CustomerController {
     return this.customerService.findAll(businessId);
   }
 
+  @Get(':id/detail')
+  getDetail(@Param('businessId') businessId: string, @Param('id') id: string) {
+    return this.customerService.getCustomerDetail(businessId, id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.customerService.findOne(id);

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -11,6 +11,18 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  emailReminders?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  smsReminders?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  whatsappReminders?: boolean;
 }
 
 export class UpdateCustomerDto {
