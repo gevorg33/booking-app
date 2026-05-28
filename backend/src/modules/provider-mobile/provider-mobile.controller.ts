@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -14,7 +15,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
-import { SubscribePushDto, RegisterNativePushDto } from './dto/provider-mobile.dto.js';
+import { SubscribePushDto, RegisterNativePushDto, UpdateProviderBookingDto, CancelProviderBookingDto, SuggestCancelNoteDto } from './dto/provider-mobile.dto.js';
 
 @Controller('businesses/:businessId/provider')
 @UseGuards(JwtAuthGuard)
@@ -42,6 +43,45 @@ export class ProviderMobileController {
   ) {
     const n = days ? Math.min(30, Math.max(1, parseInt(days, 10) || 7)) : 7;
     return this.providerService.getUpcomingBookings(businessId, user.id, n);
+  }
+
+  @Get('bookings/:bookingId')
+  getBooking(
+    @Param('businessId') businessId: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getBookingDetail(businessId, user.id, bookingId);
+  }
+
+  @Put('bookings/:bookingId')
+  updateBooking(
+    @Param('businessId') businessId: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: UpdateProviderBookingDto,
+  ) {
+    return this.providerService.updateBooking(businessId, user.id, bookingId, dto);
+  }
+
+  @Put('bookings/:bookingId/cancel')
+  cancelBooking(
+    @Param('businessId') businessId: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: CancelProviderBookingDto,
+  ) {
+    return this.providerService.cancelBooking(businessId, user.id, bookingId, dto);
+  }
+
+  @Post('bookings/:bookingId/cancel/suggest-note')
+  suggestCancelNote(
+    @Param('businessId') businessId: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: SuggestCancelNoteDto,
+  ) {
+    return this.providerService.suggestCancelNote(businessId, user.id, bookingId, dto);
   }
 
   @Get('schedule/summary')
