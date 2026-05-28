@@ -1,0 +1,126 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Between } from 'typeorm';
+import { AiUsageLog } from '../entities/ai-usage-log.entity.js';
+import {
+  AiActorType,
+  AiCallContext,
+  AiKeySource,
+  AiUsageSummary,
+  AiUsageSurface,
+} from './openai.types.js';
+
+/** gpt-4o-mini list pricing (USD per 1M tokens) — used for platform-key billing estimates */
+const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
+  'gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.6 },
+};
+
+@Injectable()
+export class AiUsageService {
+  constructor(
+    @InjectRepository(AiUsageLog) private usageRepo: Repository<AiUsageLog>,
+  ) {}
+
+  estimateCostUsd(
+    model: string,
+    promptTokens: number,
+    completionTokens: number,
+    keySource: AiKeySource,
+  ): number {
+    if (keySource !== 'platform') return 0;
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['gpt-4o-mini'];
+    const inputCost = (promptTokens / 1_000_000) * pricing.inputPer1M;
+    const outputCost = (completionTokens / 1_000_000) * pricing.outputPer1M;
+    return Number((inputCost + outputCost).toFixed(6));
+  }
+
+  async recordUsage(params: {
+    context: AiCallContext;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    keySource: AiKeySource;
+  }): Promise<void> {
+    const { context, model, promptTokens, completionTokens, keySource } = params;
+    const totalTokens = promptTokens + completionTokens;
+    const estimatedCostUsd = this.estimateCostUsd(model, promptTokens, completionTokens, keySource);
+
+    await this.usageRepo.save(
+      this.usageRepo.create({
+        businessId: context.businessId,
+        userId: context.userId ?? null,
+        actorType: context.actorType,
+        surface: context.surface,
+        operation: context.operation,
+        model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCostUsd: estimatedCostUsd.toFixed(6),
+        keySource,
+      }),
+    );
+  }
+
+  async getMonthlySummary(businessId: string): Promise<AiUsageSummary> {
+    const now = new Date();
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+    const logs = await this.usageRepo.find({
+      where: {
+        businessId,
+        createdAt: Between(periodStart, periodEnd),
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const bySurfaceMap = new Map<AiUsageSurface, { requests: number; totalTokens: number; platformCostUsd: number }>();
+    const byActorMap = new Map<AiActorType, { requests: number; totalTokens: number }>();
+
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let estimatedPlatformCostUsd = 0;
+
+    for (const log of logs) {
+      promptTokens += log.promptTokens;
+      completionTokens += log.completionTokens;
+      estimatedPlatformCostUsd += Number(log.estimatedCostUsd);
+
+      const surfaceEntry = bySurfaceMap.get(log.surface) ?? {
+        requests: 0,
+        totalTokens: 0,
+        platformCostUsd: 0,
+      };
+      surfaceEntry.requests += 1;
+      surfaceEntry.totalTokens += log.totalTokens;
+      surfaceEntry.platformCostUsd += Number(log.estimatedCostUsd);
+      bySurfaceMap.set(log.surface, surfaceEntry);
+
+      const actorEntry = byActorMap.get(log.actorType) ?? { requests: 0, totalTokens: 0 };
+      actorEntry.requests += 1;
+      actorEntry.totalTokens += log.totalTokens;
+      byActorMap.set(log.actorType, actorEntry);
+    }
+
+    return {
+      period: 'month',
+      periodStart: periodStart.toISOString().split('T')[0],
+      periodEnd: periodEnd.toISOString().split('T')[0],
+      totalRequests: logs.length,
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+      estimatedPlatformCostUsd: Number(estimatedPlatformCostUsd.toFixed(6)),
+      bySurface: [...bySurfaceMap.entries()].map(([surface, stats]) => ({
+        surface,
+        ...stats,
+        platformCostUsd: Number(stats.platformCostUsd.toFixed(6)),
+      })),
+      byActorType: [...byActorMap.entries()].map(([actorType, stats]) => ({
+        actorType,
+        ...stats,
+      })),
+    };
+  }
+}

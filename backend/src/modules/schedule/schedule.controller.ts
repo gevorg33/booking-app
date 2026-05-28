@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { ScheduleService } from './schedule.service.js';
 import { TemplateApplyService } from './services/template-apply.service.js';
+import { BlockScheduleService } from './services/block-schedule.service.js';
 import {
   CreateScheduleTemplateDto,
   UpdateScheduleTemplateDto,
@@ -11,6 +12,7 @@ import {
   GetTemplatesQueryDto,
   CreateDirectScheduleDto,
 } from './dto/create-schedule.dto.js';
+import { CreateBlockScheduleDto, UpdateBlockScheduleDto } from './dto/block-schedule.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -19,6 +21,7 @@ export class ScheduleController {
   constructor(
     private scheduleService: ScheduleService,
     private templateApplyService: TemplateApplyService,
+    private blockScheduleService: BlockScheduleService,
   ) {}
 
   // ─── Templates ────────────────────────────────────────────
@@ -102,6 +105,54 @@ export class ScheduleController {
     @CurrentUser() user: any,
   ) {
     return this.scheduleService.createDirectSchedule(businessId, dto, user?.id);
+  }
+
+  // ─── Block Schedules ──────────────────────────────────────
+
+  @Get('block-schedules')
+  @UseGuards(JwtAuthGuard)
+  listBlockSchedules(
+    @Param('businessId') businessId: string,
+    @Query('employeeId') employeeId?: string,
+  ) {
+    return this.blockScheduleService.list(businessId, employeeId);
+  }
+
+  @Get('block-schedules/:id')
+  @UseGuards(JwtAuthGuard)
+  getBlockSchedule(@Param('businessId') businessId: string, @Param('id') id: string) {
+    return this.blockScheduleService.getOne(businessId, id);
+  }
+
+  @Post('block-schedules')
+  @UseGuards(JwtAuthGuard)
+  createBlockSchedule(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateBlockScheduleDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.blockScheduleService.create(businessId, dto, user?.id);
+  }
+
+  @Put('block-schedules/:id')
+  @UseGuards(JwtAuthGuard)
+  updateBlockSchedule(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateBlockScheduleDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.blockScheduleService.update(businessId, id, dto, user?.id);
+  }
+
+  @Delete('block-schedules/:id')
+  @UseGuards(JwtAuthGuard)
+  deleteBlockSchedule(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.blockScheduleService.remove(businessId, id, user?.id);
   }
 
   // ─── Provider Calendar ────────────────────────────────────

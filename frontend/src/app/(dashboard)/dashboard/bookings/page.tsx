@@ -24,6 +24,8 @@ import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -512,6 +514,8 @@ export default function BookingsPage() {
     && isValidTime24(form.startTime)
     && isTimeInRange(form.startTime, periodMinTime, latestStart);
 
+  const [formResetKey, setFormResetKey] = useState(0);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPeriod || !form.startTime || !selectedService) throw new Error('No time selected');
@@ -539,6 +543,7 @@ export default function BookingsPage() {
       queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
       setSelectedPeriod(null);
       setForm({ startTime: '', serviceId: '', customerId: '', notes: '', description: '' });
+      setFormResetKey((k) => k + 1);
     },
   });
 
@@ -571,12 +576,22 @@ export default function BookingsPage() {
       notes: '',
       description: '',
     });
+    setFormResetKey((k) => k + 1);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full gap-4">
+
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
+        context={{
+          route: '/dashboard/bookings',
+          employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+          date: day.toISOString().split('T')[0],
+        }}
+      />
 
       {/* ── Top toolbar ── */}
       <div className="flex flex-wrap items-center gap-3">
@@ -923,6 +938,7 @@ export default function BookingsPage() {
                   <label className="label">{t('bookings.customer')}</label>
                   {business?.id ? (
                     <CustomerSelect
+                      key={`${selectedPeriod.id}-${formResetKey}`}
                       businessId={business.id}
                       value={form.customerId}
                       onChange={(customerId) => setForm({ ...form, customerId })}

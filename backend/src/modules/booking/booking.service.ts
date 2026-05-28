@@ -357,6 +357,18 @@ export class BookingService {
     if (dto.description !== undefined) booking.description = dto.description;
     if (dto.notes !== undefined) booking.notes = dto.notes;
 
+    if (dto.customerId !== undefined) {
+      if (dto.customerId) {
+        const customer = await this.customerRepo.findOne({
+          where: { id: dto.customerId, businessId: booking.businessId, isActive: true },
+        });
+        if (!customer) throw new NotFoundException('Customer not found');
+        booking.customerId = dto.customerId;
+      } else {
+        booking.customerId = null as any;
+      }
+    }
+
     const previousStatus = booking.status;
     if (dto.status) booking.status = dto.status;
     this.applyPaymentStatusOnStatusChange(

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Settings, Bell, MessageCircle } from 'lucide-react';
+import { Settings, Bell, MessageCircle, KeyRound } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
@@ -41,6 +41,44 @@ interface WhatsAppIntegrationSettings {
 
 type WhatsAppConnectionMode = 'platform' | 'custom';
 
+type OpenAiConnectionMode = 'platform' | 'custom';
+
+interface AiUsageSummary {
+  period: 'month';
+  periodStart: string;
+  periodEnd: string;
+  totalRequests: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedPlatformCostUsd: number;
+  bySurface: Array<{
+    surface: string;
+    requests: number;
+    totalTokens: number;
+    platformCostUsd: number;
+  }>;
+  byActorType: Array<{
+    actorType: string;
+    requests: number;
+    totalTokens: number;
+  }>;
+}
+
+interface OpenAiIntegrationSettings {
+  configured: boolean;
+  source: 'business' | 'platform' | null;
+  hasApiKey: boolean;
+  apiKeyHint?: string;
+  usingPlatformDefault: boolean;
+  usage: AiUsageSummary;
+}
+
+interface OpenAiIntegrationForm {
+  apiKey: string;
+  connectionMode: OpenAiConnectionMode;
+}
+
 interface WhatsAppIntegrationForm {
   phoneNumberId: string;
   businessAccountId: string;
@@ -73,6 +111,11 @@ const DEFAULT_WHATSAPP_FORM: WhatsAppIntegrationForm = {
   templateConfirmation: 'appointment_confirmation',
   templateReminder: 'appointment_reminder',
   templateLanguage: 'en',
+  connectionMode: 'platform',
+};
+
+const DEFAULT_OPENAI_FORM: OpenAiIntegrationForm = {
+  apiKey: '',
   connectionMode: 'platform',
 };
 
@@ -118,6 +161,34 @@ function whatsappFormFromApi(data: WhatsAppIntegrationSettings): WhatsAppIntegra
     templateLanguage: data.templateLanguage || 'en',
     connectionMode: whatsappConnectionModeFromApi(data),
   };
+}
+
+function openAiConnectionModeFromApi(data: OpenAiIntegrationSettings): OpenAiConnectionMode {
+  if (data.usingPlatformDefault) return 'platform';
+  if (data.source === 'business') return 'custom';
+  return 'platform';
+}
+
+function openAiFormFromApi(data: OpenAiIntegrationSettings): OpenAiIntegrationForm {
+  return {
+    apiKey: '',
+    connectionMode: openAiConnectionModeFromApi(data),
+  };
+}
+
+function formatUsd(amount: number): string {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(amount);
+}
+
+function formatSurfaceLabel(surface: string, t: (key: string) => string): string {
+  const key = `settings.openAiSurface_${surface}`;
+  const translated = t(key);
+  return translated !== key ? translated : surface.replace(/_/g, ' ');
 }
 
 function ToggleRow({
@@ -188,6 +259,9 @@ export default function SettingsPage() {
   const [whatsapp, setWhatsapp] = useState<WhatsAppIntegrationForm>(DEFAULT_WHATSAPP_FORM);
   const [whatsappMeta, setWhatsappMeta] = useState<WhatsAppIntegrationSettings | null>(null);
   const [whatsappError, setWhatsappError] = useState<string | null>(null);
+  const [openAi, setOpenAi] = useState<OpenAiIntegrationForm>(DEFAULT_OPENAI_FORM);
+  const [openAiMeta, setOpenAiMeta] = useState<OpenAiIntegrationSettings | null>(null);
+  const [openAiError, setOpenAiError] = useState<string | null>(null);
 
   const { data: notifData } = useQuery({
     queryKey: ['notification-settings', business?.id],
@@ -207,6 +281,15 @@ export default function SettingsPage() {
     enabled: !!business?.id,
   });
 
+  const { data: openAiData } = useQuery({
+    queryKey: ['openai-integration', business?.id],
+    queryFn: async () => {
+      const { data: res } = await api.get(`/businesses/${business!.id}/integrations/openai`);
+      return (res.data || res) as OpenAiIntegrationSettings;
+    },
+    enabled: !!business?.id,
+  });
+
   useEffect(() => {
     if (notifData?.settings) {
       setNotif(normalizeNotificationSettings(notifData.settings));
@@ -219,6 +302,13 @@ export default function SettingsPage() {
       setWhatsapp(whatsappFormFromApi(whatsappData));
     }
   }, [whatsappData]);
+
+  useEffect(() => {
+    if (openAiData) {
+      setOpenAiMeta(openAiData);
+      setOpenAi(openAiFormFromApi(openAiData));
+    }
+  }, [openAiData]);
 
   const saveLocale = useMutation({
     mutationFn: async (nextLocale: AppLocale) => {
@@ -291,6 +381,40 @@ export default function SettingsPage() {
     },
     onError: (err) => {
       setWhatsappError(err instanceof Error ? err.message : t('errors.saveFailed'));
+    },
+  });
+
+  const saveOpenAi = useMutation({
+    mutationFn: async (form: OpenAiIntegrationForm) => {
+      if (form.connectionMode === 'platform') {
+        const { data: res } = await api.put(
+          `/businesses/${business!.id}/integrations/openai`,
+          { usePlatformDefault: true },
+        );
+        return (res.data || res) as OpenAiIntegrationSettings;
+      }
+
+      if (!form.apiKey.trim() && !openAiMeta?.hasApiKey) {
+        throw new Error(t('settings.openAiApiKeyRequired'));
+      }
+
+      const payload: Record<string, unknown> = {};
+      if (form.apiKey.trim()) payload.apiKey = form.apiKey.trim();
+
+      const { data: res } = await api.put(
+        `/businesses/${business!.id}/integrations/openai`,
+        payload,
+      );
+      return (res.data || res) as OpenAiIntegrationSettings;
+    },
+    onSuccess: (result) => {
+      setOpenAiError(null);
+      setOpenAiMeta(result);
+      setOpenAi(openAiFormFromApi(result));
+      queryClient.invalidateQueries({ queryKey: ['openai-integration', business?.id] });
+    },
+    onError: (err) => {
+      setOpenAiError(err instanceof Error ? err.message : t('errors.saveFailed'));
     },
   });
 
@@ -489,6 +613,134 @@ export default function SettingsPage() {
           {saveWhatsApp.isSuccess && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">
               {t('settings.whatsappIntegrationSaved')}
+            </p>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+          <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <KeyRound className="w-4 h-4" />
+            {t('settings.openAiSection')}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            {t('settings.openAiDescription')}
+          </p>
+          {openAiMeta && (
+            <p className="text-xs text-gray-500 mb-4">
+              {openAiMeta.usingPlatformDefault
+                ? t('settings.openAiUsingPlatformDefault')
+                : openAiMeta.source === 'business'
+                  ? t('settings.openAiUsingOwnKey')
+                  : t('settings.openAiNotConfigured')}
+            </p>
+          )}
+
+          <FieldRow label={t('settings.openAiConnectionMode')}>
+            <select
+              className="input w-full"
+              value={openAi.connectionMode}
+              disabled={saveOpenAi.isPending}
+              onChange={(e) => {
+                const connectionMode = e.target.value as OpenAiConnectionMode;
+                setOpenAiError(null);
+                const next = { ...openAi, connectionMode };
+                setOpenAi(next);
+                if (connectionMode === 'platform') {
+                  saveOpenAi.mutate(next);
+                }
+              }}
+            >
+              <option value="platform">{t('settings.openAiModePlatform')}</option>
+              <option value="custom">{t('settings.openAiModeCustom')}</option>
+            </select>
+          </FieldRow>
+
+          {openAi.connectionMode === 'custom' && (
+            <FieldRow label={t('settings.openAiApiKey')} required={!openAiMeta?.hasApiKey}>
+              {openAiMeta?.hasApiKey && openAiMeta.apiKeyHint && (
+                <p className="text-xs text-gray-500 mb-1">
+                  {t('settings.openAiApiKeyHint')}: {openAiMeta.apiKeyHint}
+                </p>
+              )}
+              <input
+                type="password"
+                className="input w-full"
+                required={!openAiMeta?.hasApiKey}
+                value={openAi.apiKey}
+                onChange={(e) => setOpenAi({ ...openAi, apiKey: e.target.value })}
+                placeholder={
+                  openAiMeta?.hasApiKey
+                    ? t('settings.openAiApiKeyPlaceholder')
+                    : t('settings.openAiApiKeyRequiredPlaceholder')
+                }
+                autoComplete="off"
+              />
+            </FieldRow>
+          )}
+
+          {openAiMeta?.usage && (
+            <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {t('settings.openAiUsageTitle')}
+              </h3>
+              <p className="text-xs text-gray-500">
+                {t('settings.openAiUsagePeriod')}: {openAiMeta.usage.periodStart} → {openAiMeta.usage.periodEnd}
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">{t('settings.openAiUsageRequests')}</p>
+                  <p className="font-medium">{openAiMeta.usage.totalRequests}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">{t('settings.openAiUsageTokens')}</p>
+                  <p className="font-medium">{openAiMeta.usage.totalTokens.toLocaleString()}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-500 text-xs">{t('settings.openAiUsagePlatformCost')}</p>
+                  <p className="font-medium">{formatUsd(openAiMeta.usage.estimatedPlatformCostUsd)}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('settings.openAiUsagePlatformCostHint')}</p>
+                </div>
+              </div>
+              {openAiMeta.usage.bySurface.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                    {t('settings.openAiUsageBySurface')}
+                  </p>
+                  <ul className="text-xs space-y-1 text-gray-600 dark:text-gray-400">
+                    {openAiMeta.usage.bySurface.map((row) => (
+                      <li key={row.surface} className="flex justify-between gap-2">
+                        <span>{formatSurfaceLabel(row.surface, t)}</span>
+                        <span>
+                          {row.totalTokens.toLocaleString()} {t('settings.openAiUsageTokensShort')}
+                          {row.platformCostUsd > 0 ? ` · ${formatUsd(row.platformCostUsd)}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {openAiError && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-3">{openAiError}</p>
+          )}
+          {openAi.connectionMode === 'platform' && saveOpenAi.isPending && (
+            <p className="text-sm text-gray-500 mt-3">{t('settings.openAiSaving')}</p>
+          )}
+          {openAi.connectionMode === 'custom' && (
+            <button
+              type="button"
+              onClick={() => saveOpenAi.mutate(openAi)}
+              disabled={saveOpenAi.isPending}
+              className="btn-primary mt-4 text-sm"
+            >
+              {saveOpenAi.isPending ? 'Saving…' : t('settings.saveOpenAiIntegration')}
+            </button>
+          )}
+          {saveOpenAi.isSuccess && (
+            <p className="text-sm text-green-600 dark:text-green-400 mt-2">
+              {t('settings.openAiIntegrationSaved')}
             </p>
           )}
         </div>

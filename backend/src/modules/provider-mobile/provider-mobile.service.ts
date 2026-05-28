@@ -264,17 +264,24 @@ export class ProviderMobileService {
       ? dto.draft.trim()
       : `${customerName} cancelled the ${serviceName} scheduled for ${when}.`;
 
-    if (!this.llm.isAvailable) {
+    if (!(await this.llm.isAvailableForBusiness(businessId))) {
       return { suggestion: fallback, aiAvailable: false };
     }
 
     const result = await this.llm.completeJson<{ note: string }>(
+      businessId,
       `You help service providers write short, professional appointment cancellation notes for their records.
 Return JSON: { "note": "..." }
 Rules: one or two sentences max, no greeting, no quotes, factual and polite.`,
       `Appointment: ${serviceName} with ${customerName} at ${when}.
 Provider input: "${userInput}"
 Write a cancellation note the provider can save.`,
+      {
+        surface: 'provider_mobile',
+        operation: 'suggest_cancel_note',
+        actorType: 'provider',
+        userId,
+      },
       0.3,
     );
 

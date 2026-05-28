@@ -12,17 +12,21 @@ import { ContextBuilderService } from './context-builder.service.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { OpenAiModule } from '../../modules/integrations/openai/openai.module.js';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Booking } from '../../modules/booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
+import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
+import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod]),
+    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod, ScheduleTemplate, BlockSchedule]),
     PolicyModule,
     forwardRef(() => WorkflowModule),
     EventStoreModule,
+    OpenAiModule,
   ],
   providers: [
     AgentRegistryService,

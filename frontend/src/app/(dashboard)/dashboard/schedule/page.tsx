@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   AlertCircle,
   Pencil,
+  Ban,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
@@ -21,6 +22,9 @@ import { formatDateDisplay } from '@/lib/date-format';
 import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
+import { BlockScheduleTab } from '@/components/scheduling/block-schedule-tab';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ─── Overlap detection ────────────────────────────────────────────────────────
@@ -76,7 +80,6 @@ const DAYS_OF_WEEK = [
 const PERIOD_TYPES = [
   { value: 'service_block', label: 'Available' },
   { value: 'unavailable_block', label: 'Unavailable' },
-  { value: 'blocked_time', label: 'Blocked Time' },
 ];
 
 function mapPeriodsForSave(
@@ -316,7 +319,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Tab = 'create' | 'templates';
+type Tab = 'create' | 'templates' | 'blocks';
 
 export default function SchedulePage() {
   const { t } = useI18n();
@@ -352,9 +355,11 @@ export default function SchedulePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('schedule.title')}</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Directly create schedules for a specific day, or manage reusable templates
+          Create day schedules, manage templates, or block time on existing schedules
         </p>
       </div>
+
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']} context={{ route: '/dashboard/schedule' }} />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 mb-6">
@@ -380,6 +385,17 @@ export default function SchedulePage() {
           <LayoutTemplate className="w-4 h-4" />
           Schedule Templates
         </button>
+        <button
+          onClick={() => setTab('blocks')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'blocks'
+              ? 'border-blue-500 text-blue-400'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Ban className="w-4 h-4" />
+          Block Schedule
+        </button>
       </div>
 
       {tab === 'create' ? (
@@ -389,7 +405,7 @@ export default function SchedulePage() {
           services={services}
           queryClient={queryClient}
         />
-      ) : (
+      ) : tab === 'templates' ? (
         <TemplatesTab
           business={business}
           employees={employees}
@@ -398,6 +414,8 @@ export default function SchedulePage() {
           setTemplates={setTemplates}
           setApplyResult={setApplyResult}
         />
+      ) : (
+        <BlockScheduleTab business={business} employees={employees} />
       )}
     </div>
   );

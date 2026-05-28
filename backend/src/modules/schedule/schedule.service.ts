@@ -412,6 +412,133 @@ export class ScheduleService implements OnModuleInit {
     return { slotsCreated: slotsToSave.length };
   }
 
+  /**
+   * Append service_block periods (and micro-slots) for a day without removing existing schedule.
+   */
+  async addServicePeriods(
+    businessId: string,
+    dto: {
+      employeeId: string;
+      date: string;
+      periods: Array<{
+        startTime: string;
+        endTime: string;
+        serviceIds: string[];
+        maxAppointmentCount?: number;
+      }>;
+    },
+    userId?: string,
+  ): Promise<{ periodsCreated: number; slotsCreated: number }> {
+    if (!dto.periods.length) {
+      return { periodsCreated: 0, slotsCreated: 0 };
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const targetDate = new Date(dto.date);
+    targetDate.setUTCHours(0, 0, 0, 0);
+
+    if (targetDate < today) {
+      throw new BadRequestException('Cannot add schedule periods for a past date');
+    }
+
+    const dayStart = new Date(targetDate);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const existingPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId: dto.employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const normalizedNew = dto.periods.map((p) => this.normalizePeriodFields(p));
+    const combinedForValidation = [
+      ...existingPeriods.map((p) => ({
+        startTime: this.periodToHHmm(p.startTime),
+        endTime: this.periodToHHmm(p.endTime),
+      })),
+      ...normalizedNew,
+    ];
+    this.validatePeriodsNoOverlap(combinedForValidation);
+
+    const SLOT_GRANULARITY = 10;
+    const slotsToSave: Partial<SchedulingSlot>[] = [];
+    const periodsToSave: Partial<SchedulingPeriod>[] = [];
+
+    for (const period of normalizedNew) {
+      const [startH, startM] = period.startTime.split(':').map(Number);
+      const [endH, endM] = period.endTime.split(':').map(Number);
+
+      const periodStart = new Date(targetDate);
+      periodStart.setUTCHours(startH, startM, 0, 0);
+      const periodEnd = new Date(targetDate);
+      periodEnd.setUTCHours(endH, endM, 0, 0);
+
+      const validServiceIds = (period.serviceIds || []).filter(Boolean);
+
+      periodsToSave.push({
+        businessId,
+        employeeId: dto.employeeId,
+        startTime: new Date(periodStart),
+        endTime: new Date(periodEnd),
+        type: TemplatePeriodType.SERVICE_BLOCK,
+        serviceIds: validServiceIds.length > 0 ? validServiceIds : null,
+        maxAppointmentCount: period.maxAppointmentCount || 1,
+        templateId: null,
+      });
+
+      let current = new Date(periodStart);
+      while (current.getTime() + SLOT_GRANULARITY * 60000 <= periodEnd.getTime()) {
+        const slotEnd = new Date(current.getTime() + SLOT_GRANULARITY * 60000);
+        slotsToSave.push({
+          businessId,
+          employeeId: dto.employeeId,
+          startTime: new Date(current),
+          endTime: slotEnd,
+          status: SlotStatus.AVAILABLE,
+          serviceId: validServiceIds[0] || undefined,
+          serviceIds: validServiceIds.length > 0 ? validServiceIds : null,
+          maxAppointmentCount: period.maxAppointmentCount || 1,
+          appointmentCount: 0,
+        });
+        current = new Date(current.getTime() + SLOT_GRANULARITY * 60000);
+      }
+    }
+
+    if (periodsToSave.length > 0) {
+      await this.schedulingPeriodRepo.save(periodsToSave as SchedulingPeriod[]);
+    }
+    if (slotsToSave.length > 0) {
+      await this.slotRepo.save(slotsToSave as SchedulingSlot[]);
+    }
+
+    await this.eventStore.publish({
+      eventType: EventType.SCHEDULE_SLOTS_GENERATED,
+      aggregateType: 'schedule_slot',
+      aggregateId: dto.employeeId,
+      businessId,
+      payload: {
+        employeeId: dto.employeeId,
+        date: dto.date,
+        periodsCreated: periodsToSave.length,
+        slotsCreated: slotsToSave.length,
+      },
+      userId,
+    });
+
+    return { periodsCreated: periodsToSave.length, slotsCreated: slotsToSave.length };
+  }
+
+  private periodToHHmm(date: Date): string {
+    const hh = String(date.getUTCHours()).padStart(2, '0');
+    const mm = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
   async assignSchedule(businessId: string, dto: AssignScheduleDto, userId?: string): Promise<ScheduleAssignment> {
     const assignment = await this.assignmentRepo.save(
       this.assignmentRepo.create({

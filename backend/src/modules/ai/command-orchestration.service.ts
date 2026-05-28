@@ -170,6 +170,15 @@ export class CommandOrchestrationService {
     const lines = [`Orchestration completed (${completed.length}/${steps.length} steps).`];
 
     for (const step of completed) {
+      if (step.result?.periodsCreated) {
+        lines.push(`• Added ${step.result.periodsCreated} schedule period(s)`);
+      }
+      if (step.result?.slotsCreated && !step.result?.periodsCreated) {
+        lines.push(`• Created ${step.result.slotsCreated} schedule slot(s)`);
+      }
+      if (step.result?.blockScheduleId) {
+        lines.push(`• Block schedule created: ${step.result.blockScheduleId}`);
+      }
       if (step.result?.bookingId) {
         lines.push(`• Booking created: ${step.result.bookingId}`);
       }

@@ -1,9 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In } from 'typeorm';
+import { Repository, Between, Not, In, ILike } from 'typeorm';
 import { WorkflowExecutorService, StepExecutor } from './workflow-executor.service.js';
 import { BookingService } from '../../../modules/booking/booking.service.js';
 import { ServiceService } from '../../../modules/service/service.service.js';
+import { ScheduleService } from '../../../modules/schedule/schedule.service.js';
+import { TemplateApplyService } from '../../../modules/schedule/services/template-apply.service.js';
+import { BlockScheduleService } from '../../../modules/schedule/services/block-schedule.service.js';
+import { EmployeeService } from '../../../modules/employee/employee.service.js';
 import { SchedulingEngineService } from '../../scheduling/scheduling-engine.service.js';
 import { Booking, BookingStatus } from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
@@ -18,6 +22,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     private executor: WorkflowExecutorService,
     private bookingService: BookingService,
     private serviceService: ServiceService,
+    private scheduleService: ScheduleService,
+    private templateApplyService: TemplateApplyService,
+    private blockScheduleService: BlockScheduleService,
+    private employeeService: EmployeeService,
     private schedulingEngine: SchedulingEngineService,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
@@ -42,6 +50,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       detect_conflicts: (step) => this.detectConflicts(step),
       analyze_resolution_options: (step, ctx) => this.analyzeResolutionOptions(step, ctx),
       propose_resolutions: (step, ctx) => this.proposeResolutions(step, ctx),
+      fill_schedule_gaps: (step, ctx) => this.fillScheduleGaps(step, ctx),
+      apply_template: (step, ctx) => this.applyTemplate(step, ctx),
+      create_block_schedule: (step, ctx) => this.createBlockSchedule(step, ctx),
+      remove_block_schedule: (step, ctx) => this.removeBlockSchedule(step, ctx),
+      create_direct_schedule: (step, ctx) => this.createDirectSchedule(step, ctx),
+      reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
+      assign_employee_services: (step, ctx) => this.assignEmployeeServices(step, ctx),
+      summarize_utilization: (step) => this.summarizeUtilization(step),
     };
 
     for (const [action, handler] of Object.entries(executors)) {
@@ -55,8 +71,39 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async createBooking(step: WorkflowStep, ctx: Record<string, any>) {
-    const { businessId, employeeId, serviceId, customerId, startTime, notes, userId } =
-      step.params;
+    const businessId = step.params.businessId ?? ctx.businessId;
+    let { employeeId, serviceId, customerId, startTime, notes, userId } = step.params;
+    const { employeeName, serviceName } = step.params;
+
+    if (!employeeId && employeeName) {
+      const employee = await this.employeeRepo.findOne({
+        where: { businessId, name: ILike(`%${employeeName}%`), isActive: true },
+      });
+      if (!employee) {
+        throw new BadRequestException(`Service provider not found: ${employeeName}`);
+      }
+      employeeId = employee.id;
+    }
+
+    if (!serviceId && serviceName) {
+      const services = await this.serviceService.findAll(businessId);
+      const lower = String(serviceName).toLowerCase();
+      const service =
+        services.find((s) => s.name.toLowerCase() === lower) ||
+        services.find((s) => s.name.toLowerCase().includes(lower)) ||
+        services.find((s) => lower.includes(s.name.toLowerCase()));
+      if (!service) {
+        throw new BadRequestException(`Service not found: ${serviceName}`);
+      }
+      serviceId = service.id;
+    }
+
+    if (!employeeId || !serviceId) {
+      throw new BadRequestException(
+        'create_booking requires employeeId and serviceId (or resolvable employeeName and serviceName)',
+      );
+    }
+
     const booking = await this.bookingService.create(
       businessId,
       { employeeId, serviceId, customerId, startTime, notes },
@@ -64,6 +111,127 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     );
     ctx.lastBookingId = booking.id;
     return { bookingId: booking.id, startTime: booking.startTime, endTime: booking.endTime };
+  }
+
+  private async fillScheduleGaps(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { employeeId, date, periods, userId } = step.params as {
+      employeeId: string;
+      date: string;
+      periods: Array<{ startTime: string; endTime: string; serviceIds: string[] }>;
+      userId?: string;
+    };
+
+    if (!employeeId || !date || !periods?.length) {
+      throw new BadRequestException('fill_schedule_gaps requires employeeId, date, and at least one period');
+    }
+
+    const result = await this.scheduleService.addServicePeriods(
+      businessId,
+      { employeeId, date, periods },
+      userId,
+    );
+
+    return {
+      periodsCreated: result.periodsCreated,
+      slotsCreated: result.slotsCreated,
+      periods: periods.map((p) => ({
+        startTime: p.startTime,
+        endTime: p.endTime,
+        serviceIds: p.serviceIds,
+      })),
+    };
+  }
+
+  private async applyTemplate(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { templateId, employeeId, startDate, endDate, applyDays, repeatWeeksCount, userId } =
+      step.params;
+    const result = await this.templateApplyService.applyTemplate(
+      { templateId, employeeId, startDate, endDate, applyDays, repeatWeeksCount },
+      businessId,
+      userId,
+    );
+    return { slotsCreated: result.slotsCreated, employeeId, templateId };
+  }
+
+  private async createBlockSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { employeeId, placeholder, isRepetitive, singleBlock, repetitiveBlock, userId } =
+      step.params;
+    const result = await this.blockScheduleService.create(
+      businessId,
+      {
+        employeeId,
+        placeholder,
+        isRepetitive,
+        singleBlock,
+        repetitiveBlock,
+      } as any,
+      userId,
+    );
+    return { blockScheduleId: result.id, employeeId };
+  }
+
+  private async removeBlockSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { blockScheduleId, userId } = step.params;
+    await this.blockScheduleService.remove(businessId, blockScheduleId, userId);
+    return { removedBlockScheduleId: blockScheduleId };
+  }
+
+  private async createDirectSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { employeeId, date, periods, userId } = step.params;
+    const result = await this.scheduleService.createDirectSchedule(
+      businessId,
+      { employeeId, date, periods },
+      userId,
+    );
+    return { slotsCreated: result.slotsCreated, employeeId, date };
+  }
+
+  private async rescheduleBooking(step: WorkflowStep, ctx: Record<string, any>) {
+    const { bookingId, startTime, employeeId, serviceId, userId } = step.params;
+    const booking = await this.bookingService.update(
+      bookingId,
+      { startTime, employeeId, serviceId },
+      userId,
+    );
+    return {
+      bookingId: booking.id,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    };
+  }
+
+  private async assignEmployeeServices(step: WorkflowStep, ctx: Record<string, any>) {
+    const { employeeId, serviceIds, userId } = step.params;
+    const employee = await this.employeeService.update(employeeId, { serviceIds }, userId);
+    return { employeeId: employee.id, serviceIds: employee.serviceIds };
+  }
+
+  private async summarizeUtilization(step: WorkflowStep) {
+    const { businessId } = step.params;
+    const { start, end } = this.resolveDateRange(step.params);
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
+    const utilization = await Promise.all(
+      employees.map(async (e) => ({
+        employeeId: e.id,
+        employeeName: e.name,
+        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+      })),
+    );
+    const sorted = [...utilization].sort(
+      (a, b) => (a.utilizationPercent ?? 0) - (b.utilizationPercent ?? 0),
+    );
+    return {
+      utilization: sorted,
+      lowest: sorted.slice(0, 3),
+      highest: sorted.slice(-3).reverse(),
+    };
   }
 
   private async createService(step: WorkflowStep, ctx: Record<string, any>) {

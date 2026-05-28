@@ -125,9 +125,9 @@ export class OnboardingService {
     let summary: string;
     let source: 'ai' | 'template' = 'template';
 
-    if (this.llm.isAvailable) {
+    if (await this.llm.isAvailableForBusiness(businessId)) {
       try {
-        const generated = await this.generateWithAi(business.name, typeLabel, notes);
+        const generated = await this.generateWithAi(businessId, business.name, typeLabel, notes);
         categories = generated.categories;
         summary = generated.summary;
         source = 'ai';
@@ -344,6 +344,7 @@ export class OnboardingService {
   }
 
   private async generateWithAi(
+    businessId: string,
     businessName: string,
     businessType: string,
     notes: string,
@@ -366,8 +367,14 @@ Rules:
 - Keep descriptions under 120 characters when provided`;
 
     const parsed = await this.llm.completeJson<{ categories?: CatalogCategoryDraft[]; summary?: string }>(
+      businessId,
       'You output only valid JSON for service business onboarding catalogs.',
       prompt,
+      {
+        surface: 'onboarding',
+        operation: 'recommend_catalog',
+        actorType: 'owner',
+      },
       0.3,
     );
     if (!parsed?.categories?.length) throw new Error('No categories in AI response');

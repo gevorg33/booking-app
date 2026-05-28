@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -19,14 +18,24 @@ import {
   formatTimeRangeDisplay,
   todayDisplay,
   toIsoDay,
+  parseDateInput,
 } from '../../common/utils/date-format.util.js';
+import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
+import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
+import {
+  resolveEmployees,
+  resolveServices,
+  resolveDateRange,
+  shouldAutoExecute,
+} from './ai-orchestration.helpers.js';
+import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
+import { shouldValidateAction } from './command-completion.validator.js';
+import { CommandResult } from './command-completion.types.js';
+import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 
-export interface CommandResult {
-  success: boolean;
-  action: string;
-  summary: string;
-  details: Record<string, any>;
-}
+export type { CommandResult };
 
 interface ParsedServiceDraft {
   name: string;
@@ -42,9 +51,12 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
-    "employeeName": "string or null — the service provider's name mentioned",
+    "employeeName": "string or null — one service provider",
+    "employeeNames": ["string"] or null — multiple providers,
+    "allProviders": boolean or null — true when user says all providers/everyone/all staff,
+    "templateName": "string or null — schedule template name for apply_schedule",
     "customerName": "string or null",
     "serviceName": "string or null — single service (for create_booking or create_service name)",
     "serviceNames": ["string"] or null — one or more service types to filter (for cancel_bookings / list_bookings), e.g. [\"hairdrying\", \"hairstyle\"],
@@ -69,6 +81,13 @@ and extract structured parameters. Return a JSON object with:
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
     "timeSlot": "HH:MM in 24h format or null — appointment start time (e.g. 09:00, 14:30)",
+    "timeFrom": "HH:MM or null — start of daily window for fill/optimize commands (e.g. 09:00)",
+    "timeTo": "HH:MM or null — end of daily window for fill/optimize commands (e.g. 19:00)",
+    "blockFullDay": boolean or null — true when blocking entire day(s),
+    "weeksCount": number or null — repeat weeks for repetitive blocks,
+    "applyDays": [0-6] or null — weekdays (0=Sun) for template apply or repetitive blocks,
+    "repeatWeeksCount": number or null — template apply repeat weeks,
+    "periods": [{"startTime":"HH:MM","endTime":"HH:MM","type":"service_block|unavailable_block","serviceNames":["string"],"label":"string"}] or null — for create_direct_schedule,
     "bookingId": "string or null — if a specific booking ID is mentioned"
   },
   "reasoning": "one sentence explaining your interpretation"
@@ -91,7 +110,13 @@ Rules:
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
-- optimize_schedule / fill_unused_slots: use optimize_schedule or fill_unused_slots when user wants to optimize, fill gaps, reduce idle time, or improve utilization.
+- optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows.
+- apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
+- block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
+- create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods.
+- assign_employee_services: assign services from catalog to a provider.
+- summarize_utilization: report who is under/over utilized for a date range.
+- setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
@@ -108,7 +133,6 @@ export interface CommandSessionOptions {
 @Injectable()
 export class AiCommandService {
   private readonly logger = new Logger(AiCommandService.name);
-  private client: OpenAI | null = null;
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
@@ -117,17 +141,14 @@ export class AiCommandService {
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
-    private config: ConfigService,
-  ) {
-    const apiKey = config.get<string>('OPENAI_API_KEY');
-    if (apiKey) {
-      this.client = new OpenAI({ apiKey });
-    } else {
-      this.logger.warn('OPENAI_API_KEY not set — AI commands unavailable');
-    }
-  }
+    private scheduleHandlers: AiScheduleHandlersService,
+    private schedulingEngine: SchedulingEngineService,
+    private completionPipeline: CommandCompletionPipelineService,
+    private openAi: OpenAiGatewayService,
+  ) {}
 
   async approveTask(taskId: string, userId: string): Promise<CommandResult> {
     return this.toCommandResult(await this.orchestration.approveTask(taskId, userId));
@@ -139,55 +160,66 @@ export class AiCommandService {
     userId?: string,
     session?: CommandSessionOptions,
   ): Promise<CommandResult> {
-    if (!this.client) {
-      return { success: false, action: 'error', summary: 'OpenAI API key not configured', details: {} };
+    if (!(await this.openAi.isAvailableForBusiness(businessId))) {
+      return {
+        success: false,
+        action: 'error',
+        summary: 'AI is not configured. Add an OpenAI API key in Settings → API Keys, or contact your platform administrator.',
+        details: {},
+      };
     }
 
-    const [employees, services, customers] = await Promise.all([
+    const [employees, services, customers, templates] = await Promise.all([
       this.employeeRepo.find({ where: { businessId, isActive: true } }),
       this.serviceRepo.find({ where: { businessId } }),
       this.customerRepo.find({ where: { businessId, isActive: true } }),
+      this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
     ]);
 
     const contextBlock = `Current date: ${todayDisplay()} (format DD_MM_YYYY, times in 24h HH:mm)
 Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', ')}
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
-Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}`;
+Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}
+Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context);
+    const parsed = await this.classifyIntent(businessId, userId, prompt, contextBlock, session?.history, session?.context);
     if (!parsed) {
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
 
-    parsed.params = this.mergeSessionContext(parsed.params, session?.context);
+    parsed.params = this.completionPipeline.mergeSessionContext(parsed.params, session?.context);
 
     this.logger.log(`AI classified action="${parsed.action}" — ${parsed.reasoning}`);
 
-    this.normalizeDateParams(parsed.params);
+    this.completionPipeline.normalizeDateParams(parsed.params);
 
-    const resolvedEmployee = parsed.params.employeeName
-      ? this.resolveEmployee(employees, parsed.params.employeeName)
-      : undefined;
-    const employeeId = resolvedEmployee?.id;
+    const catalog = { employees, services, customers, templates };
+    const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog);
+    const pipelineTrace = [
+      this.completionPipeline.trace('classify', parsed.action, parsed.reasoning),
+      this.completionPipeline.trace('resolve', parsed.action),
+    ];
 
-    if (
-      parsed.params.employeeName &&
-      !resolvedEmployee &&
-      ['list_bookings', 'show_appointments', 'summarize_day', 'check_availability', 'cancel_bookings'].includes(
-        parsed.action,
-      )
-    ) {
-      return this.attachSessionContext(
-        {
-          success: false,
-          action: parsed.action,
-          summary: `Service provider "${parsed.params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
-          details: { requestedEmployee: parsed.params.employeeName, availableEmployees: employees.map((e) => e.name) },
-        },
-        parsed.params,
-        undefined,
+    if (shouldValidateAction(parsed.action)) {
+      const validation = this.completionPipeline.validate(resolved);
+      pipelineTrace.push(
+        this.completionPipeline.trace(
+          'validate',
+          parsed.action,
+          validation.ok ? 'passed' : `${validation.issues.length} issue(s)`,
+        ),
       );
+
+      if (!validation.ok) {
+        const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
+        clarify.details.pipelineTrace = pipelineTrace;
+        return clarify;
+      }
     }
+
+    const params = resolved.enrichedParams;
+    const employeeId = params.employeeId ?? resolved.entities.employeeId;
+    const resolvedEmployee = resolved.entities.employee;
 
     let result: CommandResult;
 
@@ -195,7 +227,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
       case 'create_booking':
         result = await this.handleCreateBooking(
           businessId,
-          parsed.params,
+          params,
           employees,
           services,
           customers,
@@ -203,19 +235,19 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         );
         break;
       case 'create_service':
-        if (Array.isArray(parsed.params.services) && parsed.params.services.length > 1) {
-          result = await this.handleCreateServices(businessId, parsed.params, services, userId);
+        if (Array.isArray(params.services) && params.services.length > 1) {
+          result = await this.handleCreateServices(businessId, params, services, userId);
         } else {
-          result = await this.handleCreateService(businessId, parsed.params, services, userId);
+          result = await this.handleCreateService(businessId, params, services, userId);
         }
         break;
       case 'create_services':
-        result = await this.handleCreateServices(businessId, parsed.params, services, userId);
+        result = await this.handleCreateServices(businessId, params, services, userId);
         break;
       case 'cancel_bookings':
         result = await this.handleCancelBookings(
           businessId,
-          parsed.params,
+          params,
           services,
           employeeId,
           userId,
@@ -223,28 +255,87 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         break;
       case 'list_bookings':
       case 'show_appointments':
-        result = await this.handleListBookings(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        result = await this.handleListBookings(businessId, params, employeeId, resolvedEmployee?.name);
         break;
       case 'check_availability':
         result = await this.handleCheckAvailability(
           businessId,
-          parsed.params,
+          params,
           employeeId,
           resolvedEmployee?.name,
         );
         break;
       case 'summarize_day':
-        result = await this.handleSummarizeDay(businessId, parsed.params, employeeId, resolvedEmployee?.name);
+        result = await this.handleSummarizeDay(businessId, params, employeeId, resolvedEmployee?.name);
+        break;
+      case 'fill_unused_slots':
+        result = await this.scheduleHandlers.handleFillScheduleGaps(
+          businessId,
+          prompt,
+          params,
+          employees,
+          services,
+          userId,
+        );
+        break;
+      case 'apply_schedule':
+        result = await this.scheduleHandlers.handleApplySchedule(
+          businessId,
+          prompt,
+          params,
+          employees,
+          userId,
+        );
+        break;
+      case 'block_schedule':
+        result = await this.scheduleHandlers.handleBlockSchedule(
+          businessId,
+          prompt,
+          params,
+          employees,
+          userId,
+        );
+        break;
+      case 'create_direct_schedule':
+        result = await this.scheduleHandlers.handleCreateDirectSchedule(
+          businessId,
+          params,
+          employees,
+          services,
+          userId,
+        );
+        break;
+      case 'assign_employee_services':
+        result = await this.handleAssignEmployeeServices(
+          businessId,
+          params,
+          employees,
+          services,
+          userId,
+        );
+        break;
+      case 'summarize_utilization':
+        result = await this.handleSummarizeUtilization(businessId, prompt, params, employees);
+        break;
+      case 'setup_week_schedule':
+        result = await this.handleSetupWeekSchedule(
+          businessId,
+          prompt,
+          params,
+          employees,
+          services,
+          templates,
+          userId,
+        );
         break;
       case 'optimize_schedule':
-      case 'fill_unused_slots':
         result = this.toCommandResult(
           await this.orchestration.runOrchestrationIntent({
             businessId,
             intent: prompt,
             agentType: AgentType.SCHEDULING_OPTIMIZATION,
             userId,
-            date: parsed.params.date,
+            date: params.date,
             employeeId,
           }),
         );
@@ -256,7 +347,7 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
             intent: prompt,
             agentType: AgentType.CONFLICT_RESOLUTION,
             userId,
-            date: parsed.params.date,
+            date: params.date,
             employeeId,
           }),
         );
@@ -268,13 +359,13 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
             intent: prompt,
             agentType: AgentType.CANCELLATION_RECOVERY,
             userId,
-            date: parsed.params.date,
+            date: params.date,
             employeeId,
           }),
         );
         break;
       case 'reschedule_booking':
-        result = await this.handleRescheduleBooking(businessId, parsed.params, employeeId, userId);
+        result = await this.handleRescheduleBooking(businessId, params, employeeId, userId);
         break;
       default:
         result = {
@@ -285,96 +376,63 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         };
     }
 
-    return this.attachSessionContext(result, parsed.params, resolvedEmployee?.name);
-  }
-
-  private mergeSessionContext(
-    params: Record<string, any>,
-    session?: Record<string, any>,
-  ): Record<string, any> {
-    if (!session) return params;
-
-    const merged = { ...params };
-    const inheritKeys = [
-      'employeeName',
-      'date',
-      'dateFrom',
-      'dateTo',
-      'serviceName',
-      'timeSlot',
-      'customerName',
-    ] as const;
-
-    for (const key of inheritKeys) {
-      const value = merged[key];
-      if ((value == null || value === '') && session[key]) {
-        merged[key] = session[key];
-      }
-    }
-
-    return merged;
-  }
-
-  private attachSessionContext(
-    result: CommandResult,
-    params: Record<string, any>,
-    employeeName?: string,
-  ): CommandResult {
-    const sessionContext = {
-      employeeName: employeeName ?? params.employeeName ?? null,
-      date: params.date ? formatDateDisplay(params.date) : null,
-      serviceName: params.serviceName ?? null,
-      timeSlot: params.timeSlot ?? null,
-      customerName: params.customerName ?? null,
-    };
-
-    return {
-      ...result,
-      details: {
-        ...result.details,
-        sessionContext,
-      },
-    };
+    result.details = { ...result.details, pipelineTrace };
+    return this.completionPipeline.attachSessionToResult(result, resolved);
   }
 
   private async classifyIntent(
+    businessId: string,
+    userId: string | undefined,
     prompt: string,
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
   ): Promise<{ action: string; params: any; reasoning: string } | null> {
-    try {
-      const sessionBlock =
-        sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
-          ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
-          : '';
+    const sessionBlock =
+      sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
+        ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
+        : '';
 
-      const historyMessages = (history ?? [])
-        .slice(-10)
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
+    const historyMessages = (history ?? [])
+      .slice(-10)
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
 
-      const response = await this.client!.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
-          },
-          ...historyMessages,
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
+      },
+      ...historyMessages,
+      { role: 'user', content: prompt },
+    ];
+
+    const response = await this.openAi.chatCompletion(
+      {
+        businessId,
+        surface: 'dashboard',
+        operation: 'classify_intent',
+        actorType: 'manager',
+        userId,
+      },
+      {
+        messages,
+        responseFormat: 'json_object',
         temperature: 0.1,
-        max_tokens: 500,
-      });
-      const raw = response.choices[0]?.message?.content;
-      return raw ? JSON.parse(raw) : null;
+        maxTokens: 500,
+      },
+    );
+
+    const raw = response?.choices[0]?.message?.content;
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
     } catch (err: any) {
-      this.logger.error(`Intent classification failed: ${err.message}`);
+      this.logger.error(`Intent classification parse failed: ${err.message}`);
       return null;
     }
   }
@@ -459,50 +517,27 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     customers: Customer[],
     userId?: string,
   ): Promise<CommandResult> {
-    const missing: string[] = [];
-    if (!params.employeeName) missing.push('service provider name');
-    if (!params.serviceName) missing.push('service name');
-    if (!params.date) missing.push('date');
-    if (!params.timeSlot) missing.push('start time');
+    const resolvedEmployee = params.employeeId
+      ? employees.find((e) => e.id === params.employeeId)
+      : params.employeeName
+        ? this.resolveEmployee(employees, params.employeeName)
+        : undefined;
+    const service = params.serviceId
+      ? services.find((s) => s.id === params.serviceId)
+      : params.serviceName
+        ? this.resolveService(services, params.serviceName)
+        : undefined;
+    const customer = params.customerId
+      ? customers.find((c) => c.id === params.customerId)
+      : params.customerName
+        ? this.resolveCustomer(customers, params.customerName)
+        : undefined;
 
-    if (missing.length > 0) {
+    if (!resolvedEmployee || !service || !params.date || !params.timeSlot) {
       return {
         success: false,
         action: 'create_booking',
-        summary: `Cannot book appointment — missing: ${missing.join(', ')}. Example: "Book facemassage with Gevorg Gasparyan on 30_06_2026 at 16:00" (follow-ups can omit provider/date if already discussed).`,
-        details: { params, missing },
-      };
-    }
-
-    const resolvedEmployee = this.resolveEmployee(employees, params.employeeName);
-    const service = this.resolveService(services, params.serviceName);
-    const customer = params.customerName
-      ? this.resolveCustomer(customers, params.customerName)
-      : undefined;
-
-    if (!resolvedEmployee) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: `Service provider "${params.employeeName}" not found. Available: ${employees.map((e) => e.name).join(', ')}`,
-        details: { params },
-      };
-    }
-
-    if (!service) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: `Service "${params.serviceName}" not found. Available: ${services.map((s) => s.name).join(', ')}`,
-        details: { params },
-      };
-    }
-
-    if (params.customerName && !customer) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: `Customer "${params.customerName}" not found. Available: ${customers.map((c) => c.name).join(', ') || 'none — omit customer for walk-in'}`,
+        summary: 'Cannot book appointment — missing required details.',
         details: { params },
       };
     }
@@ -533,6 +568,130 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         autoExecute: true,
       }),
     );
+  }
+
+  private async handleAssignEmployeeServices(
+    businessId: string,
+    params: any,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    if (targets.length !== 1) {
+      return {
+        success: false,
+        action: 'assign_employee_services',
+        summary: 'Specify one service provider to assign services to.',
+        details: { params },
+      };
+    }
+
+    const matched = resolveServices(services, params);
+    if (matched.length === 0) {
+      return {
+        success: false,
+        action: 'assign_employee_services',
+        summary: 'Specify which service(s) to assign.',
+        details: { availableServices: services.map((s) => s.name) },
+      };
+    }
+
+    const plan = this.planBuilder.buildAssignEmployeeServicesPlan({
+      businessId,
+      employeeId: targets[0].id,
+      employeeName: targets[0].name,
+      serviceIds: matched.map((s) => s.id),
+      serviceNames: matched.map((s) => s.name),
+      userId,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
+  }
+
+  private async handleSummarizeUtilization(
+    businessId: string,
+    prompt: string,
+    params: any,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const range = resolveDateRange(params, prompt) ?? (() => {
+      const start = new Date();
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 6);
+      return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    })();
+
+    const start = new Date(range.start);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(range.end);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const util = await Promise.all(
+      employees.map(async (e) => ({
+        employeeName: e.name,
+        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+      })),
+    );
+
+    const sorted = [...util].sort((a, b) => (a.utilizationPercent ?? 0) - (b.utilizationPercent ?? 0));
+    const lines = sorted.map(
+      (u) => `• ${u.employeeName}: ${u.utilizationPercent ?? 0}% utilized (${u.bookedMinutes ?? 0}/${u.totalMinutes ?? 0} min)`,
+    );
+
+    return {
+      success: true,
+      action: 'summarize_utilization',
+      summary: [`Utilization ${range.start} → ${range.end}:`, ...lines].join('\n'),
+      details: { range, utilization: sorted },
+    };
+  }
+
+  private async handleSetupWeekSchedule(
+    businessId: string,
+    prompt: string,
+    params: any,
+    employees: Employee[],
+    services: Service[],
+    templates: ScheduleTemplate[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const weekParams = { ...params, dateFrom: params.dateFrom, dateTo: params.dateTo };
+    const applyResult = await this.scheduleHandlers.handleApplySchedule(
+      businessId,
+      prompt.includes('week') ? prompt : `${prompt} this week`,
+      { ...weekParams, allProviders: params.allProviders ?? true, templateName: params.templateName ?? templates[0]?.name },
+      employees,
+      userId,
+    );
+
+    if (!applyResult.success && applyResult.details?.requiresApproval) {
+      return applyResult;
+    }
+
+    const fillResult = await this.scheduleHandlers.handleFillScheduleGaps(
+      businessId,
+      'Fill gaps this week for all providers between 9-19',
+      { allProviders: true, dateFrom: weekParams.dateFrom, dateTo: weekParams.dateTo, timeFrom: '09:00', timeTo: '19:00' },
+      employees,
+      services,
+      userId,
+    );
+
+    return {
+      success: applyResult.success && fillResult.success,
+      action: 'setup_week_schedule',
+      summary: [applyResult.summary, fillResult.summary].filter(Boolean).join('\n\n'),
+      details: { apply: applyResult.details, fill: fillResult.details },
+    };
   }
 
   private async handleCreateService(
@@ -822,12 +981,6 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
         autoExecute: bookings.length <= 5,
       }),
     );
-  }
-
-  private normalizeDateParams(params: Record<string, any>) {
-    for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
-      if (params[key]) params[key] = toIsoDay(params[key]);
-    }
   }
 
   private formatBookingTime(start: Date, end: Date): string {
@@ -1196,29 +1349,79 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    if (!params.bookingId) {
+    let booking: Booking | null = null;
+
+    if (params.bookingId) {
+      booking = await this.bookingRepo.findOne({
+        where: { id: params.bookingId, businessId },
+        relations: { employee: true, service: true, customer: true },
+      });
+    } else if (params.customerName && (params.date || params.timeSlot)) {
+      const customers = await this.customerRepo.find({ where: { businessId, isActive: true } });
+      const customer = this.resolveCustomer(customers, params.customerName);
+      if (customer) {
+        const isoDay = params.date ? toIsoDay(params.date) : null;
+        const bookings = await this.bookingRepo.find({
+          where: {
+            businessId,
+            customerId: customer.id,
+            ...(employeeId ? { employeeId } : {}),
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+          relations: { employee: true, service: true, customer: true },
+          order: { startTime: 'ASC' },
+        });
+        booking =
+          bookings.find((b) => {
+            if (isoDay && !b.startTime.toISOString().startsWith(isoDay)) return false;
+            if (params.timeSlot) {
+              const slot = this.snapTo10min(params.timeSlot);
+              return formatTimeDisplay(b.startTime) === slot;
+            }
+            return true;
+          }) ?? bookings[0] ?? null;
+      }
+    }
+
+    if (!booking) {
       return {
         success: false,
         action: 'reschedule_booking',
-        summary: 'Please specify which booking to reschedule (by ID or more details about the booking).',
-        details: {},
+        summary: 'Could not find the booking to reschedule. Specify bookingId, or customer + date/time.',
+        details: { params },
       };
     }
 
-    if (!params.timeSlot && !params.date) {
+    if (!params.date && !params.timeSlot) {
       return {
         success: false,
         action: 'reschedule_booking',
-        summary: 'Please specify the new date/time for the rescheduled booking.',
-        details: {},
+        summary: 'Specify the new date and/or time for the rescheduled booking.',
+        details: { bookingId: booking.id },
       };
     }
 
-    return {
-      success: false,
-      action: 'reschedule_booking',
-      summary: 'Rescheduling via AI command is not yet implemented. Please use the booking form to reschedule.',
-      details: { params },
-    };
+    const isoDay = toIsoDay(params.date ?? booking.startTime.toISOString().split('T')[0]);
+    const timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : formatTimeDisplay(booking.startTime);
+    const startTime = `${isoDay}T${timeSlot}:00.000Z`;
+
+    const plan = this.planBuilder.buildRescheduleBookingPlan({
+      businessId,
+      bookingId: booking.id,
+      startTime,
+      employeeId: employeeId ?? booking.employeeId,
+      serviceId: booking.serviceId,
+      userId,
+      label: `Reschedule ${booking.customer?.name ?? 'walk-in'} — ${booking.service?.name} to ${formatDateDisplay(isoDay)} ${timeSlot}`,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
   }
 }
