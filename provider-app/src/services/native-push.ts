@@ -76,6 +76,30 @@ async function attachPushListeners(businessId: string): Promise<void> {
     console.log('Push received in foreground', notification);
   });
 
+  await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
+    const data = action.notification.data ?? {};
+    const bookingId = data.bookingId as string | undefined;
+    const actionId = (action.actionId || data.actionId) as string | undefined;
+    const bizId = (data.businessId as string | undefined) ?? activeBusinessId;
+    if (!bookingId || !actionId || !bizId) return;
+
+    try {
+      await api.post(`/businesses/${bizId}/provider/push/action`, {
+        actionId,
+        bookingId,
+      });
+      if (actionId === 'suggest_reschedule') {
+        window.dispatchEvent(
+          new CustomEvent('provider:ai-prompt', {
+            detail: { prompt: `Reschedule booking ${bookingId} to next available slot` },
+          }),
+        );
+      }
+    } catch (err) {
+      console.error('Push action failed', err);
+    }
+  });
+
   listenersAttached = true;
 }
 

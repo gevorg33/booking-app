@@ -115,6 +115,32 @@ export class NotificationsService {
     }
   }
 
+  async sendBookingCancellation(bookingId: string, reason?: string): Promise<void> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return;
+
+    const { booking, businessSettings } = ctx;
+    if (booking.status !== BookingStatus.CANCELLED) return;
+
+    const customer = booking.customer;
+    if (!customer) return;
+
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    const cancelReason = reason || 'Your appointment was cancelled';
+
+    if (businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
+      await this.dispatch(ctx, 'cancellation', 'email', customer.email, () =>
+        this.buildCancellationEmail(ctx, cancelReason),
+      );
+    }
+
+    if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
+      await this.dispatch(ctx, 'cancellation', 'sms', customer.phone, () =>
+        this.buildCancellationSms(ctx, cancelReason),
+      );
+    }
+  }
+
   async sendReviewRequest(bookingId: string): Promise<void> {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
@@ -362,6 +388,29 @@ export class NotificationsService {
     }
 
     return result.ok;
+  }
+
+  private buildCancellationEmail(ctx: BookingNotificationContext, reason: string) {
+    const { booking, business } = ctx;
+    const when = formatDateDisplay(booking.startTime);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const serviceName = booking.service?.name ?? 'Appointment';
+    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nYour appointment at ${business.name} has been cancelled.\n\n${serviceName} on ${when} · ${time}\nReason: ${reason}\n\nContact us to rebook.`;
+
+    return {
+      subject: `Cancelled: ${serviceName} at ${business.name}`,
+      html: `<p>${text.replace(/\n/g, '<br/>')}</p>`,
+      text,
+    };
+  }
+
+  private buildCancellationSms(ctx: BookingNotificationContext, reason: string) {
+    const { booking, business } = ctx;
+    const when = formatDateDisplay(booking.startTime);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    return {
+      text: `${business.name}: Your ${booking.service?.name ?? 'appointment'} on ${when} at ${time} was cancelled. ${reason}`,
+    };
   }
 
   private buildConfirmationEmail(ctx: BookingNotificationContext) {

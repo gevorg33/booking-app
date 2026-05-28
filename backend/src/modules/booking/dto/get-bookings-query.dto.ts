@@ -7,6 +7,11 @@ export class GetBookingsQueryDto {
   @IsString()
   search?: string;
 
+  /** Filter appointments on this calendar day (YYYY-MM-DD, UTC). */
+  @IsOptional()
+  @IsString()
+  date?: string;
+
   /** Comma-separated booking statuses. */
   @IsOptional()
   @IsString()

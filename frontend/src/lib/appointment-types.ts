@@ -35,6 +35,7 @@ export interface AppointmentsSearchResult {
 export interface AppointmentSearchParams {
   search?: string;
   status?: BookingStatus | '';
+  date?: string;
   sortBy?: AppointmentSortBy;
   sortOrder?: SortOrder;
   page?: number;
@@ -45,6 +46,7 @@ export function buildAppointmentSearchQuery(params: AppointmentSearchParams): st
   const q = new URLSearchParams();
   if (params.search?.trim()) q.set('search', params.search.trim());
   if (params.status) q.set('status', params.status);
+  if (params.date) q.set('date', params.date);
   if (params.sortBy) q.set('sortBy', params.sortBy);
   if (params.sortOrder) q.set('sortOrder', params.sortOrder);
   if (params.page) q.set('page', String(params.page));

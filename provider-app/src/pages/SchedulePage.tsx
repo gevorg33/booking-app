@@ -22,6 +22,7 @@ import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-
 import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiAssistant from '../components/ProviderAiAssistant';
+import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
 
@@ -29,6 +30,7 @@ export default function SchedulePage() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [seedPrompt, setSeedPrompt] = useState<string | null>(null);
 
   const refreshBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-schedule-summary', business?.id] });
@@ -86,15 +88,23 @@ export default function SchedulePage() {
       </IonHeader>
       <IonContent className="ion-padding">
         {business?.id && (
-          <ProviderAiAssistant
-            businessId={business.id}
-            screenContext={buildProviderAiScreenContext(
-              'schedule',
-              {},
-              upcoming?.bookings ?? [],
-              selectedId,
-            )}
-          />
+          <>
+            <ProviderAiSuggestions
+              businessId={business.id}
+              onSelectPrompt={(prompt) => setSeedPrompt(prompt)}
+            />
+            <ProviderAiAssistant
+              businessId={business.id}
+              seedPrompt={seedPrompt}
+              onSeedPromptConsumed={() => setSeedPrompt(null)}
+              screenContext={buildProviderAiScreenContext(
+                'schedule',
+                {},
+                upcoming?.bookings ?? [],
+                selectedId,
+              )}
+            />
+          </>
         )}
 
         {isLoading ? (
@@ -147,6 +157,7 @@ export default function SchedulePage() {
             businessId={business.id}
             bookingId={selectedId}
             onClose={() => setSelectedId(null)}
+            onAiPrompt={(prompt) => setSeedPrompt(prompt)}
           />
         )}
       </IonContent>

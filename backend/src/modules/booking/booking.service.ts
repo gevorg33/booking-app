@@ -473,6 +473,15 @@ export class BookingService {
       qb.andWhere('booking.status IN (:...statuses)', { statuses });
     }
 
+    if (query.date?.trim()) {
+      const dayStart = new Date(`${query.date.trim()}T00:00:00.000Z`);
+      if (!Number.isNaN(dayStart.getTime())) {
+        const dayEnd = new Date(`${query.date.trim()}T23:59:59.999Z`);
+        qb.andWhere('booking.startTime >= :dayStart', { dayStart });
+        qb.andWhere('booking.startTime <= :dayEnd', { dayEnd });
+      }
+    }
+
     switch (sortBy) {
       case 'customerName':
         qb.orderBy('LOWER(customer.name)', sortOrder);

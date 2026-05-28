@@ -305,6 +305,111 @@ export class AiScheduleHandlersService {
     return this.executePlan(plan, businessId, userId, targets.length);
   }
 
+  async handleListScheduleGaps(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|all staff/i.test(prompt);
+
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (targets.length === 0) {
+      return {
+        success: false,
+        action: 'list_schedule_gaps',
+        summary: 'Specify which service provider to check (e.g. "which days does Gevorg have gaps").',
+        details: { params },
+      };
+    }
+
+    const range = resolveDateRange(params, prompt);
+    if (!range) {
+      return {
+        success: false,
+        action: 'list_schedule_gaps',
+        summary: 'Specify a date range (e.g. "this week" or the same range as your prior question).',
+        details: { params },
+      };
+    }
+
+    const window = parseTimeWindow(params, prompt);
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const reports: Array<{
+      employeeName: string;
+      days: Array<{ date: string; weekday: string; gaps: Array<{ startTime: string; endTime: string }> }>;
+    }> = [];
+
+    for (const employee of targets) {
+      const days: Array<{ date: string; weekday: string; gaps: Array<{ startTime: string; endTime: string }> }> = [];
+
+      for (const day of enumerateDaysInRange(range)) {
+        const isoDay = day.toISOString().split('T')[0];
+        const dayStart = new Date(day);
+        dayStart.setUTCHours(0, 0, 0, 0);
+        const dayEnd = new Date(day);
+        dayEnd.setUTCHours(23, 59, 59, 999);
+
+        const existingPeriods = await this.periodRepo.find({
+          where: {
+            businessId,
+            employeeId: employee.id,
+            startTime: Between(dayStart, dayEnd) as any,
+          },
+          order: { startTime: 'ASC' },
+        });
+
+        const gaps = findScheduleGapsInWindow(
+          day,
+          window.timeFrom,
+          window.timeTo,
+          existingPeriods.map((p) => ({ startTime: p.startTime, endTime: p.endTime })),
+        );
+
+        if (gaps.length > 0) {
+          days.push({
+            date: formatDateDisplay(isoDay),
+            weekday: weekday[day.getUTCDay()],
+            gaps,
+          });
+        }
+      }
+
+      reports.push({ employeeName: employee.name, days });
+    }
+
+    const rangeLabel = `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
+    const windowLabel = `${window.timeFrom}–${window.timeTo}`;
+    const lines: string[] = [];
+
+    for (const report of reports) {
+      if (targets.length > 1) {
+        lines.push(`${report.employeeName}:`);
+      } else {
+        lines.push(`Open gaps for ${report.employeeName} · ${rangeLabel} · ${windowLabel}:`);
+      }
+
+      if (report.days.length === 0) {
+        lines.push(`• No open gaps in ${windowLabel} during this range.`);
+        continue;
+      }
+
+      for (const day of report.days) {
+        const slots = day.gaps.map((g) => `${g.startTime}–${g.endTime}`).join(', ');
+        lines.push(`• ${day.weekday} ${day.date}: ${slots}`);
+      }
+    }
+
+    return {
+      success: true,
+      action: 'list_schedule_gaps',
+      summary: lines.join('\n'),
+      details: { range, window, reports },
+    };
+  }
+
   async handleCreateDirectSchedule(
     businessId: string,
     params: Record<string, any>,
@@ -363,6 +468,359 @@ export class AiScheduleHandlersService {
     });
 
     return this.executePlan(plan, businessId, userId, 1);
+  }
+
+  /** ai-s1: Single merged plan — apply template to team then fill gaps in one workflow. */
+  async handleTemplateCascade(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|whole team|all staff/i.test(prompt);
+
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (targets.length === 0) {
+      return {
+        success: false,
+        action: 'setup_week_schedule',
+        summary: 'Specify provider(s) or say "all providers" for template cascade.',
+        details: { params },
+      };
+    }
+
+    const range = resolveDateRange(params, prompt);
+    if (!range) {
+      return {
+        success: false,
+        action: 'setup_week_schedule',
+        summary: 'Specify a date range (e.g. "next week", "this week").',
+        details: { params },
+      };
+    }
+
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) {
+      return {
+        success: false,
+        action: 'setup_week_schedule',
+        summary: `No schedule template found${params.templateName ? ` matching "${params.templateName}"` : ''}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const applyDays = parseWeekdaysFromParams(params, prompt);
+    const repeatWeeksCount = params.repeatWeeksCount ?? 1;
+    const window = parseTimeWindow(params, prompt, { timeFrom: '09:00', timeTo: '19:00' });
+
+    const applyParams = {
+      businessId,
+      templateId: template.id,
+      templateName: template.name,
+      employeeIds: targets.map((e) => e.id),
+      employeeNames: targets.map((e) => e.name),
+      startDate: range.start,
+      endDate: range.end,
+      applyDays,
+      repeatWeeksCount,
+      userId,
+    };
+
+    const allPeriods = await this.collectGapPeriods(
+      businessId,
+      targets,
+      services,
+      range,
+      window,
+      params,
+    );
+
+    const fillParams = {
+      businessId,
+      timeFrom: window.timeFrom,
+      timeTo: window.timeTo,
+      periods: allPeriods,
+      userId,
+    };
+
+    const plan = this.planBuilder.buildTemplateCascadePlan(applyParams, fillParams);
+    return this.executePlan(plan, businessId, userId, targets.length);
+  }
+
+  async prepareTemplateCascadePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ) {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|whole team|all staff/i.test(prompt);
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (!targets.length) return null;
+
+    const range = resolveDateRange(params, prompt);
+    if (!range) return null;
+
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) return null;
+
+    const window = parseTimeWindow(params, prompt, { timeFrom: '09:00', timeTo: '19:00' });
+    const applyParams = {
+      businessId,
+      templateId: template.id,
+      templateName: template.name,
+      employeeIds: targets.map((e) => e.id),
+      employeeNames: targets.map((e) => e.name),
+      startDate: range.start,
+      endDate: range.end,
+      applyDays: parseWeekdaysFromParams(params, prompt),
+      repeatWeeksCount: params.repeatWeeksCount ?? 1,
+      userId,
+    };
+    const allPeriods = await this.collectGapPeriods(
+      businessId,
+      targets,
+      services,
+      range,
+      window,
+      params,
+    );
+    return this.planBuilder.buildTemplateCascadePlan(applyParams, {
+      businessId,
+      timeFrom: window.timeFrom,
+      timeTo: window.timeTo,
+      periods: allPeriods,
+      userId,
+    });
+  }
+
+  async prepareApplySchedulePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ) {
+    const targets = resolveEmployees(employees, params);
+    if (!targets.length) return null;
+    const range = resolveDateRange(params, prompt);
+    if (!range) return null;
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) return null;
+    return this.planBuilder.buildApplySchedulePlan({
+      businessId,
+      templateId: template.id,
+      templateName: template.name,
+      employeeIds: targets.map((e) => e.id),
+      employeeNames: targets.map((e) => e.name),
+      startDate: range.start,
+      endDate: range.end,
+      applyDays: parseWeekdaysFromParams(params, prompt),
+      repeatWeeksCount: params.repeatWeeksCount ?? 1,
+      userId,
+    });
+  }
+
+  async prepareFillGapsPlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ) {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|all staff/i.test(prompt);
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (!targets.length) return null;
+    const range = resolveDateRange(params, prompt);
+    if (!range) return null;
+    const window = parseTimeWindow(params, prompt);
+    const allPeriods = await this.collectGapPeriods(
+      businessId,
+      targets,
+      services,
+      range,
+      window,
+      params,
+    );
+    if (!allPeriods.length) return null;
+    return this.planBuilder.buildFillScheduleGapsPlan({
+      businessId,
+      timeFrom: window.timeFrom,
+      timeTo: window.timeTo,
+      periods: allPeriods,
+      userId,
+    });
+  }
+
+  async prepareBlockSchedulePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ) {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|all staff|all employees/i.test(prompt);
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (!targets.length) return null;
+    const range = resolveDateRange(params, prompt);
+    const fullDay = isFullDayBlock(params, prompt);
+    const window = parseTimeWindow(params, prompt, { timeFrom: '00:00', timeTo: '23:59' });
+    const applyDays = parseWeekdaysFromParams(params, prompt);
+    const placeholder = params.reason || params.notes || params.placeholder || 'Blocked';
+    const isRepetitive = !!range && range.start !== range.end && !fullDay && applyDays.length < 7;
+    const singleDate = range?.start ?? (params.date ? toIsoDay(params.date) : null);
+    if (!isRepetitive && !singleDate) return null;
+
+    const blockPayloads = targets.map((employee) => {
+      if (fullDay && singleDate) {
+        const dayStart = `${singleDate}T00:00:00.000Z`;
+        const dayEnd = `${singleDate}T23:59:59.000Z`;
+        return {
+          employeeId: employee.id,
+          employeeName: employee.name,
+          isRepetitive: false,
+          placeholder,
+          singleBlock: { startTime: dayStart, endTime: dayEnd },
+        };
+      }
+      if (isRepetitive && range) {
+        return {
+          employeeId: employee.id,
+          employeeName: employee.name,
+          isRepetitive: true,
+          placeholder,
+          repetitiveBlock: {
+            startDay: range.start,
+            endDay: range.end,
+            startTime: normalizeTime24(window.timeFrom),
+            endTime: normalizeTime24(window.timeTo),
+            weeksCount: params.weeksCount ?? params.repeatWeeksCount ?? 1,
+            isActiveOnMonday: applyDays.includes(1),
+            isActiveOnTuesday: applyDays.includes(2),
+            isActiveOnWednesday: applyDays.includes(3),
+            isActiveOnThursday: applyDays.includes(4),
+            isActiveOnFriday: applyDays.includes(5),
+            isActiveOnSaturday: applyDays.includes(6),
+            isActiveOnSunday: applyDays.includes(0),
+          },
+        };
+      }
+      const iso = singleDate!;
+      const [sh, sm] = window.timeFrom.split(':').map(Number);
+      const [eh, em] = window.timeTo.split(':').map(Number);
+      const start = new Date(iso);
+      start.setUTCHours(sh, sm, 0, 0);
+      const end = new Date(iso);
+      end.setUTCHours(eh, em, 0, 0);
+      return {
+        employeeId: employee.id,
+        employeeName: employee.name,
+        isRepetitive: false,
+        placeholder,
+        singleBlock: { startTime: start.toISOString(), endTime: end.toISOString() },
+      };
+    });
+
+    return this.planBuilder.buildBlockSchedulePlan({
+      businessId,
+      blocks: blockPayloads,
+      userId,
+    });
+  }
+
+  private async collectGapPeriods(
+    businessId: string,
+    targets: Employee[],
+    services: Service[],
+    range: { start: string; end: string },
+    window: { timeFrom: string; timeTo: string },
+    params: Record<string, any>,
+  ) {
+    const selectedServices = resolveServices(services, params);
+    const allPeriods: Array<{
+      employeeId: string;
+      employeeName: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+      serviceNames: string[];
+    }> = [];
+
+    for (const employee of targets) {
+      const employeeServices = selectedServices.length
+        ? selectedServices.filter((s) =>
+            getEmployeeServices(employee, services).some((es) => es.id === s.id),
+          )
+        : getEmployeeServices(employee, services);
+
+      if (employeeServices.length === 0) continue;
+
+      const serviceIds = employeeServices.map((s) => s.id);
+      const serviceNames = employeeServices.map((s) => s.name);
+
+      for (const day of enumerateDaysInRange(range)) {
+        const isoDay = day.toISOString().split('T')[0];
+        const dayStart = new Date(day);
+        dayStart.setUTCHours(0, 0, 0, 0);
+        const dayEnd = new Date(day);
+        dayEnd.setUTCHours(23, 59, 59, 999);
+
+        const existingPeriods = await this.periodRepo.find({
+          where: {
+            businessId,
+            employeeId: employee.id,
+            startTime: Between(dayStart, dayEnd) as any,
+          },
+          order: { startTime: 'ASC' },
+        });
+
+        const gaps = findScheduleGapsInWindow(
+          day,
+          window.timeFrom,
+          window.timeTo,
+          existingPeriods,
+        );
+
+        for (const gap of gaps) {
+          allPeriods.push({
+            employeeId: employee.id,
+            employeeName: employee.name,
+            date: isoDay,
+            startTime: gap.startTime,
+            endTime: gap.endTime,
+            serviceIds,
+            serviceNames,
+          });
+        }
+      }
+    }
+
+    return allPeriods;
   }
 
   private async executePlan(

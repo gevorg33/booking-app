@@ -24,6 +24,7 @@ import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
 import { BlockScheduleTab } from '@/components/scheduling/block-schedule-tab';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -359,6 +360,10 @@ export default function SchedulePage() {
         </p>
       </div>
 
+      <AiContextualSuggestions
+        context={{ route: '/dashboard/schedule', scheduleTab: tab }}
+        title="Schedule opportunities"
+      />
       <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']} context={{ route: '/dashboard/schedule', scheduleTab: tab }} />
 
       {/* Tabs */}

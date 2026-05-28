@@ -24,6 +24,14 @@ export const AI_BOOKING_EXAMPLES = [
   'Summarize utilization this week',
 ];
 
+export const AI_CUSTOMER_EXAMPLES = [
+  'Which customer has the most no-shows?',
+  'Show at-risk customers',
+  'Who are our VIP customers?',
+  'Which customers book the most?',
+  'Summarize customer no-shows and at-risk counts',
+];
+
 export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
   '/dashboard/schedule': [
     'Apply weekday template to Gevorg this week',
@@ -37,12 +45,22 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
   ],
   '/dashboard/bookings': [
     'Show all appointments for today',
+    'Which appointment is the most expensive today?',
+    'Which is the longest appointment today?',
     'Cancel all bookings for tomorrow',
     'Book facemassage with Gevorg tomorrow at 10:00',
   ],
   '/dashboard/appointments': [
+    'Which appointment is the most expensive today?',
+    'Which is the longest appointment today?',
     'Summarize today for all providers',
     'Show cancelled appointments this week',
+  ],
+  '/dashboard/customers': [
+    'Which customer has the most no-shows?',
+    'Show at-risk customers',
+    'Who are our VIP customers?',
+    'Which customers cancel the most?',
   ],
   '/dashboard/employees': [
     'Assign all massage services to Gevorg',
@@ -71,6 +89,11 @@ export interface AiPageContext {
   viewMode?: string | null;
   statusFilter?: string | null;
   search?: string | null;
+  /** ai-d2: calendar drag-selection range */
+  selectionDate?: string | null;
+  selectionTimeFrom?: string | null;
+  selectionTimeTo?: string | null;
+  selectionEmployeeId?: string | null;
 }
 
 let pageContext: AiPageContext = {};

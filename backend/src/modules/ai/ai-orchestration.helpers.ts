@@ -9,12 +9,50 @@ export interface DateRange {
   end: string;
 }
 
+export function normalizeEmployeeNameToken(name: string): string {
+  return name
+    .trim()
+    .replace(/^both\s+/i, '')
+    .replace(/^all\s+/i, '')
+    .replace(/['']s$/i, '')
+    .trim();
+}
+
+export function splitEmployeeNameList(input: string): string[] {
+  return input
+    .split(/[/,]|(?:\s+and\s+)|(?:\s+or\s+)/i)
+    .map(normalizeEmployeeNameToken)
+    .filter(Boolean);
+}
+
+export function getRequestedEmployeeNames(params: {
+  employeeName?: string | null;
+  employeeNames?: string[] | null;
+  allProviders?: boolean | null;
+}): string[] {
+  if (params.allProviders) return [];
+  if (params.employeeNames?.length) {
+    return params.employeeNames.map(normalizeEmployeeNameToken).filter(Boolean);
+  }
+  if (params.employeeName) return splitEmployeeNameList(params.employeeName);
+  return [];
+}
+
 export function fuzzyMatchByName<T extends { name: string }>(items: T[], name: string): T | undefined {
-  const lower = name.toLowerCase().trim();
+  const normalized = normalizeEmployeeNameToken(name);
+  const lower = normalized.toLowerCase();
+  if (!lower) return undefined;
+
   return (
     items.find((item) => item.name.toLowerCase() === lower) ||
     items.find((item) => item.name.toLowerCase().includes(lower)) ||
-    items.find((item) => lower.includes(item.name.toLowerCase()))
+    items.find((item) => lower.includes(item.name.toLowerCase())) ||
+    items.find((item) =>
+      item.name
+        .toLowerCase()
+        .split(/\s+/)
+        .some((part) => part === lower || part.startsWith(lower) || lower.startsWith(part)),
+    )
   );
 }
 
@@ -28,16 +66,7 @@ export function resolveEmployees(
 ): Employee[] {
   if (params.allProviders) return employees;
 
-  const names: string[] = [];
-  if (params.employeeNames?.length) names.push(...params.employeeNames);
-  else if (params.employeeName) {
-    names.push(
-      ...params.employeeName
-        .split(/[/,]|(?:\s+and\s+)|(?:\s+or\s+)/i)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-  }
+  const names = getRequestedEmployeeNames(params);
 
   const resolved: Employee[] = [];
   const seen = new Set<string>();
@@ -224,10 +253,26 @@ export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt
 export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {
   const readOnly = [
     'list_bookings', 'show_appointments', 'check_availability', 'summarize_day',
-    'optimize_schedule', 'summarize_utilization', 'resolve_conflicts', 'reassign_cancelled',
+    'optimize_schedule', 'summarize_utilization', 'list_schedule_gaps', 'summarize_customers',
+    'analyze_appointments', 'resolve_conflicts', 'reassign_cancelled',
   ];
   if (readOnly.includes(action)) return false;
 
   if (providerCount > 1 || stepCount > 3) return false;
   return true;
+}
+
+/** ai-i4: combine heuristic auto-execute with LLM confidence thresholds */
+export function resolveAutoExecute(params: {
+  action: string;
+  stepCount: number;
+  providerCount: number;
+  confidence?: number;
+  thresholds?: { low: number; high: number };
+}): boolean {
+  if (params.confidence != null && params.thresholds) {
+    if (params.confidence < params.thresholds.low) return false;
+    if (params.confidence < params.thresholds.high) return false;
+  }
+  return shouldAutoExecute(params.action, params.stepCount, params.providerCount);
 }

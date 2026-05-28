@@ -6,6 +6,8 @@ const PROVIDER_VALIDATED_ACTIONS = new Set([
   'update_bookings',
   'list_bookings',
   'summarize_day',
+  'reschedule_booking',
+  'fill_unused_slots',
 ]);
 
 export function shouldValidateProviderAction(action: string): boolean {
@@ -61,6 +63,42 @@ const PROVIDER_ACTION_RULES: Record<string, (params: Record<string, unknown>) =>
 
   list_bookings: () => [],
   summarize_day: () => [],
+
+  reschedule_booking: (params) => {
+    const hasTarget =
+      !!params.customerName ||
+      !!params.timeSlot ||
+      params.allAppointments === true;
+    const hasNewTime = !!params.date || !!params.timeSlot;
+    return [
+      ...(hasTarget
+        ? []
+        : [{
+            field: 'customerName',
+            label: 'Appointment',
+            message: 'Specify which appointment to reschedule',
+            example: 'Reschedule John at 13:00 to 16:00',
+          }]),
+      ...(hasNewTime
+        ? []
+        : [{
+            field: 'timeSlot',
+            label: 'New time',
+            message: 'Specify the new time',
+            example: 'Move to 16:00',
+          }]),
+    ];
+  },
+
+  fill_unused_slots: (params) =>
+    params.date || params.dateFrom || params.timeFrom
+      ? []
+      : [{
+          field: 'date',
+          label: 'When',
+          message: 'Specify when to fill gaps',
+          example: 'Fill gaps this afternoon between 14:00 and 18:00',
+        }],
 };
 
 export function validateProviderCommand(

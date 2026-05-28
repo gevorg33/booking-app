@@ -115,10 +115,10 @@ Shared work that unlocks dashboard + mobile extensions.
 - [x] **ai-0.3** — Port completion pipeline to mobile — resolve, validate, clarify parity with dashboard
 - [x] **ai-0.4** — Shared session memory — `employeeName`, `date`, `serviceName`, `timeSlot`, `templateName`, `allProviders`; mobile sends `context` on every command; optional server-side session keyed by user
 - [x] **ai-0.5** — Unify task approval — one task model, one approve endpoint; deprecate duplicate `POST /ai/command/tasks` vs `PUT /agents/tasks`
-- [ ] **ai-0.6** — Wire dead agents — register `ScheduleApplyAgent` in `agent.module.ts`; connect `SchedulingAgentService`
-- [ ] **ai-0.7** — Complete stub executors — `propose_reassignment`, `find_rebooking_candidates`, `propose_resolutions`; add `execute_reassignment`, waitlist lookup
-- [ ] **ai-0.8** — Enrich policy engine — pass real booking counts, business hours, buffer rules into plans; show violations in preview
-- [ ] **ai-0.9** — WebSocket AI events — `ai.clarify`, `ai.task.progress`, `ai.task.completed`; live progress in command bar + mobile toast
+- [x] **ai-0.6** — Wire dead agents — register `ScheduleApplyAgent` in `agent.module.ts`; connect `SchedulingAgentService`
+- [x] **ai-0.7** — Complete stub executors — `propose_reassignment`, `find_rebooking_candidates`, `propose_resolutions`; add `execute_reassignment`, waitlist lookup
+- [x] **ai-0.8** — Enrich policy engine — pass real booking counts, business hours, buffer rules into plans; show violations in preview
+- [x] **ai-0.9** — WebSocket AI events — `ai.clarify`, `ai.task.progress`, `ai.task.completed`; live progress in command bar + mobile toast
 - [ ] **ai-0.10** — Extract shared hooks/libs — `useAiCommand`, `useAiSuggestions`, `useProviderAiCommand`; shared AI client types
 
 ### Phase 7.1 — Dashboard advanced orchestration
@@ -126,7 +126,7 @@ Shared work that unlocks dashboard + mobile extensions.
 #### Context-aware command layer
 
 - [x] **ai-d1** — Rich page context — calendar: selected range, providers, view mode; schedule: active tab, template, employee; bookings: filters, selected row
-- [ ] **ai-d2** — Selection → AI actions — drag-select on calendar → chip bar: "Block", "Fill gaps", "Apply template to selection"
+- [x] **ai-d2** — Selection → AI actions — drag-select on calendar → chip bar: "Block", "Fill gaps", "Apply template to selection"
 - [ ] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
 - [ ] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
 - [ ] **ai-d5** — Command templates / macros — save frequent ops: "Monday morning setup", "End-of-week gap fill"
@@ -135,19 +135,19 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Unified AI Ops experience
 
-- [ ] **ai-d8** — Single task inbox — command bar shows pending agent + command tasks; link to AI Ops for detail
-- [ ] **ai-d9** — Plan diff preview — before approve: calendar diff (periods added/removed, bookings moved)
+- [x] **ai-d8** — Single task inbox — command bar shows pending agent + command tasks; link to AI Ops for detail
+- [x] **ai-d9** — Plan diff preview — before approve: calendar diff (periods added/removed, bookings moved)
 - [ ] **ai-d10** — Risk badges + policy explain — why approval required: "3 providers × 7 days = high risk"
 - [ ] **ai-d11** — Execution timeline — step-by-step workflow progress with retry on failed step
-- [ ] **ai-d12** — Conflict resolution workspace — dedicated UI for overlaps: side-by-side options, one-click apply fix
-- [ ] **ai-d13** — Cancellation recovery board — freed slots + waitlist candidates + "Rebook all" AI action
+- [x] **ai-d12** — Conflict resolution workspace — dedicated UI for overlaps: side-by-side options, one-click apply fix
+- [x] **ai-d13** — Cancellation recovery board — freed slots + waitlist candidates + "Rebook all" AI action
 
 #### Proactive & autonomous dashboard
 
-- [ ] **ai-d14** — Suggestions on every page — not just home; schedule gaps on Schedule, conflicts on Calendar
-- [ ] **ai-d15** — Realtime suggestion refresh — hook `useOperationalEvents` → invalidate suggestions on booking/schedule change
-- [ ] **ai-d16** — Autopilot rules — owner configures: "Auto-fill gaps <30min", "Auto-apply weekday template every Sunday"
-- [ ] **ai-d17** — Morning briefing card — dashboard home: today's utilization, conflicts, cancellations, suggested actions
+- [x] **ai-d14** — Suggestions on every page — not just home; schedule gaps on Schedule, conflicts on Calendar
+- [x] **ai-d15** — Realtime suggestion refresh — hook `useOperationalEvents` → invalidate suggestions on booking/schedule change
+- [x] **ai-d16** — Autopilot rules — owner configures: "Auto-fill gaps <30min", "Auto-apply weekday template every Sunday"
+- [x] **ai-d17** — Morning briefing card — dashboard home: today's utilization, conflicts, cancellations, suggested actions
 - [ ] **ai-d18** — Weekly ops report — AI-generated: underutilized staff, top gaps, recommended template changes
 - [ ] **ai-d19** — Notification center integration — in-app alerts: "Conflict detected — tap to resolve"
 
@@ -167,27 +167,27 @@ Shared work that unlocks dashboard + mobile extensions.
 - [x] **ai-m1** — Completion pipeline parity — same clarify chips, session inheritance, structured `missing[]` as dashboard
 - [x] **ai-m2** — Context from screen — Today: selected date; booking detail: customer, time, service pre-filled
 - [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
-- [ ] **ai-m4** — Booking-detail AI entry — "Cancel because sick", "Mark done + paid", "Reschedule to 4pm" from modal
+- [x] **ai-m4** — Booking-detail AI entry — "Cancel because sick", "Mark done + paid", "Reschedule to 4pm" from modal
 - [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)
 - [ ] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
-- [ ] **ai-m7** — Confirm UX upgrade — preview list with avatars/times before bulk cancel; swipe to confirm
+- [x] **ai-m7** — Confirm UX upgrade — preview list with avatars/times before bulk cancel; swipe to confirm
 
 #### Safe dashboard intent port (mobile)
 
 - [ ] **ai-m8** — `check_availability` — own schedule only (provider view)
 - [ ] **ai-m9** — `show_appointments` / `list_bookings` — enrich with service filters
-- [ ] **ai-m10** — `reschedule_booking` — own bookings only; conflict check
+- [x] **ai-m10** — `reschedule_booking` — own bookings only; conflict check
 - [ ] **ai-m11** — `block_schedule` — own lunch/break blocks only
-- [ ] **ai-m12** — `fill_unused_slots` — own gaps only; managers see team in team view
+- [x] **ai-m12** — `fill_unused_slots` — own gaps only; managers see team in team view
 - [ ] **ai-m13** — `summarize_utilization` — own week stats; managers see team summary
 
 #### Mobile proactive & push
 
-- [ ] **ai-m14** — `GET /provider/ai/suggestions` — filtered: overdue confirmations, gap fill nudge, "3 unpaid today"
-- [ ] **ai-m15** — Proactive cards on Today — top of Today page: 2–3 AI suggestion cards
+- [x] **ai-m14** — `GET /provider/ai/suggestions` — filtered: overdue confirmations, gap fill nudge, "3 unpaid today"
+- [x] **ai-m15** — Proactive cards on Today — top of Today page: 2–3 AI suggestion cards
 - [ ] **ai-m16** — Push deep links — `pushNotificationActionPerformed` → route + prefill AI prompt
 - [ ] **ai-m17** — Foreground push banner — in-app toast: "New booking 14:00 — Add buffer?"
-- [ ] **ai-m18** — AI push actions — notification actions: "Confirm", "Suggest reschedule", "Mark paid"
+- [x] **ai-m18** — AI push actions — notification actions: "Confirm", "Suggest reschedule", "Mark paid"
 - [ ] **ai-m19** — End-of-day summary push — "4 appointments, 1 unpaid, 2 gaps tomorrow"
 
 #### Mobile reliability & offline
@@ -198,13 +198,13 @@ Shared work that unlocks dashboard + mobile extensions.
 
 ### Phase 7.3 — Shared intelligence layer
 
-- [ ] **ai-i1** — Business playbooks — stored recipes: "Salon weekday", "Holiday closure"; NL triggers playbook
+- [x] **ai-i1** — Business playbooks — stored recipes: "Salon weekday", "Holiday closure"; NL triggers playbook
 - [ ] **ai-i2** — Entity memory — "Gevorg" → default provider; "facemassage" → default service for this business
 - [ ] **ai-i3** — Conversation summaries — compress long AI threads for session handoff dashboard ↔ mobile
-- [ ] **ai-i4** — Intent confidence routing — low confidence → clarify; medium → plan preview; high → auto-execute
-- [ ] **ai-i5** — Multi-intent decomposition — "Block lunch Mon-Fri and fill gaps this week" → sub-plan fan-out
+- [x] **ai-i4** — Intent confidence routing — low confidence → clarify; medium → plan preview; high → auto-execute
+- [x] **ai-i5** — Multi-intent decomposition — "Block lunch Mon-Fri and fill gaps this week" → sub-plan fan-out
 - [ ] **ai-i6** — Cross-provider coordination — "If Maria cancels, offer slot to waitlist customer John"
-- [ ] **ai-i7** — Utilization agent (real) — implement `UTILIZATION_OPTIMIZATION` agent; recommend template changes
+- [x] **ai-i7** — Utilization agent (real) — implement `UTILIZATION_OPTIMIZATION` agent; recommend template changes
 - [ ] **ai-i8** — Optional RAG — embed SOP docs, past successful plans, business notes for better planning
 - [ ] **ai-i9** — Evaluation harness — golden NL prompts + expected plans; regression on prompt/schema changes
 - [ ] **ai-i10** — Cost & latency budgets — route simple reads to rules; reserve LLM for classify + complex plans
@@ -213,7 +213,7 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Scheduling orchestration
 
-- [ ] **ai-s1** — Template cascade — "Apply weekday template to whole team next week, then fill 9–19 gaps"
+- [x] **ai-s1** — Template cascade — "Apply weekday template to whole team next week, then fill 9–19 gaps"
 - [ ] **ai-s2** — Smart block propagation — "Block lunch 12–13 for everyone, repeat 4 weeks, skip holidays"
 - [ ] **ai-s3** — Schedule swap — "Swap Friday schedules between Gevorg and Maria"
 - [ ] **ai-s4** — Capacity rebalance — "Move 2 facemassage slots from Gevorg to Maria on Friday"
@@ -222,8 +222,8 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Booking orchestration
 
-- [ ] **ai-b1** — Bulk smart cancel — "Cancel all facemassage tomorrow, notify customers, free slots for waitlist"
-- [ ] **ai-b2** — Waitlist auto-fill — "Fill cancelled 14:00 slot from waitlist"
+- [x] **ai-b1** — Bulk smart cancel — "Cancel all facemassage tomorrow, notify customers, free slots for waitlist"
+- [x] **ai-b2** — Waitlist auto-fill — "Fill cancelled 14:00 slot from waitlist"
 - [ ] **ai-b3** — No-show handling — "Mark no-shows today, release slots, suggest rebooking messages"
 - [ ] **ai-b4** — Payment sweep — "Mark all completed today as paid except walk-ins"
 - [ ] **ai-b5** — Day replan — "Maria is sick — cancel her day and redistribute urgent bookings"
@@ -239,7 +239,7 @@ Shared work that unlocks dashboard + mobile extensions.
 ### Phase 7.5 — Enterprise & scale
 
 - [ ] **ai-e1** — Multi-location businesses — AI scoped by branch
-- [ ] **ai-e2** — Audit log for every AI mutation (who approved, which plan, diff)
+- [x] **ai-e2** — Audit log for every AI mutation (who approved, which plan, diff)
 - [ ] **ai-e3** — Role-based intent permissions (receptionist vs owner)
 - [ ] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
 - [ ] **ai-e5** — A/B test suggestion copy and auto-execute thresholds

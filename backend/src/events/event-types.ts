@@ -46,6 +46,8 @@ export enum EventType {
   AGENT_PLAN_VALIDATED = 'agent.plan.validated',
   AGENT_PLAN_REJECTED = 'agent.plan.rejected',
   AGENT_PLAN_EXECUTING = 'agent.plan.executing',
+  AGENT_PLAN_APPROVED = 'agent.plan.approved',
+  AGENT_PLAN_COMPLETED = 'agent.plan.completed',
 }
 
 export interface DomainEvent {

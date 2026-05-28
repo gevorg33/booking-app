@@ -51,6 +51,12 @@ export interface AgentContext {
   templates?: any[];
   blockSchedules?: any[];
   constraints?: string[];
+  policyMetrics?: {
+    activeBookingCount: number;
+    employeeCount: number;
+    avgServiceBufferMinutes: number;
+    businessHoursLabel: string;
+  };
 }
 
 export interface AgentResult {

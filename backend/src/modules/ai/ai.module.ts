@@ -15,10 +15,20 @@ import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../schedule/entities/block-schedule.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
+import { WebSocketModule } from '../../websocket/websocket.module.js';
+import { AiEventsService } from './ai-events.service.js';
+import { IntentDecompositionService } from './intent-decomposition.service.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AiBriefingService } from './ai-briefing.service.js';
+import { AiAuditService } from './ai-audit.service.js';
+import { AiAutopilotScheduler } from './ai-autopilot.scheduler.js';
 import { OpenAiModule } from '../integrations/openai/openai.module.js';
+import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { CustomerModule } from '../customer/customer.module.js';
 
 @Module({
   imports: [
@@ -31,11 +41,15 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
       SchedulingSlot,
       ScheduleTemplate,
       BlockSchedule,
+      Business,
     ]),
     BookingModule,
     AgentModule,
     SchedulingEngineModule,
     OpenAiModule,
+    WebSocketModule,
+    EventStoreModule,
+    CustomerModule,
   ],
   controllers: [AiCommandController],
   providers: [
@@ -45,7 +59,21 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
     AiScheduleHandlersService,
     AiSuggestionsService,
     CommandCompletionPipelineService,
+    AiEventsService,
+    IntentDecompositionService,
+    AiSettingsService,
+    AiBriefingService,
+    AiAuditService,
+    AiAutopilotScheduler,
   ],
-  exports: [CommandCompletionPipelineService],
+  exports: [
+    CommandCompletionPipelineService,
+    AiEventsService,
+    AiSuggestionsService,
+    AiScheduleHandlersService,
+    OperationalPlanBuilderService,
+    CommandOrchestrationService,
+    AiSettingsService,
+  ],
 })
 export class AiModule {}

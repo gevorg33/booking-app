@@ -26,6 +26,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
+  emitBusinessEvent(businessId: string, type: string, payload: unknown) {
+    this.server.emit(`business:${businessId}`, {
+      type,
+      payload,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   @OnEvent('domain.event')
   handleDomainEvent(event: any) {
     if (event.businessId) {

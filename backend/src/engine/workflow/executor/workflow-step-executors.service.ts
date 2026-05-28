@@ -11,7 +11,10 @@ import { EmployeeService } from '../../../modules/employee/employee.service.js';
 import { SchedulingEngineService } from '../../scheduling/scheduling-engine.service.js';
 import { Booking, BookingStatus } from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
+import { Customer } from '../../../modules/customer/entities/customer.entity.js';
+import { Business } from '../../../modules/business/entities/business.entity.js';
 import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-period.entity.js';
+import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
 
 @Injectable()
@@ -30,6 +33,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
+    private notificationsService: NotificationsService,
   ) {}
 
   onModuleInit() {
@@ -50,6 +56,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       detect_conflicts: (step) => this.detectConflicts(step),
       analyze_resolution_options: (step, ctx) => this.analyzeResolutionOptions(step, ctx),
       propose_resolutions: (step, ctx) => this.proposeResolutions(step, ctx),
+      execute_reassignment: (step, ctx) => this.executeReassignment(step, ctx),
+      notify_cancelled_customers: (step, ctx) => this.notifyCancelledCustomers(step, ctx),
       fill_schedule_gaps: (step, ctx) => this.fillScheduleGaps(step, ctx),
       apply_template: (step, ctx) => this.applyTemplate(step, ctx),
       create_block_schedule: (step, ctx) => this.createBlockSchedule(step, ctx),
@@ -193,6 +201,38 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async rescheduleBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const { bookingId, startTime, employeeId, serviceId, userId } = step.params;
+    const existing = await this.bookingRepo.findOne({
+      where: { id: bookingId },
+      relations: { service: true },
+    });
+    if (!existing) {
+      throw new BadRequestException(`Booking not found: ${bookingId}`);
+    }
+
+    const targetStart = new Date(startTime);
+    const durationMs =
+      existing.endTime.getTime() - existing.startTime.getTime();
+    const targetEnd = new Date(targetStart.getTime() + durationMs);
+    const targetEmployeeId = employeeId ?? existing.employeeId;
+
+    const conflicts = await this.bookingRepo
+      .createQueryBuilder('b')
+      .where('b.business_id = :businessId', { businessId: existing.businessId })
+      .andWhere('b.employee_id = :employeeId', { employeeId: targetEmployeeId })
+      .andWhere('b.id != :bookingId', { bookingId })
+      .andWhere('b.status NOT IN (:...terminal)', {
+        terminal: [BookingStatus.CANCELLED, BookingStatus.COMPLETED],
+      })
+      .andWhere('b.start_time < :targetEnd', { targetEnd })
+      .andWhere('b.end_time > :targetStart', { targetStart })
+      .getMany();
+
+    if (conflicts.length > 0) {
+      throw new BadRequestException(
+        `Reschedule conflict: ${conflicts.length} overlapping booking(s) at the requested time`,
+      );
+    }
+
     const booking = await this.bookingService.update(
       bookingId,
       { startTime, employeeId, serviceId },
@@ -203,6 +243,33 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       startTime: booking.startTime,
       endTime: booking.endTime,
     };
+  }
+
+  private async notifyCancelledCustomers(step: WorkflowStep, ctx: Record<string, any>) {
+    const { bookingIds, reason } = step.params as {
+      bookingIds?: string[];
+      reason?: string;
+    };
+    const prior = step.dependsOn?.[0]
+      ? this.priorResult(ctx, step.dependsOn[0])
+      : null;
+    const ids =
+      bookingIds ??
+      prior?.cancelledIds ??
+      [];
+
+    let notified = 0;
+    const errors: string[] = [];
+    for (const id of ids) {
+      try {
+        await this.notificationsService.sendBookingCancellation(id, reason);
+        notified += 1;
+      } catch (error: any) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    return { notifiedCount: notified, bookingIds: ids, errors };
   }
 
   private async assignEmployeeServices(step: WorkflowStep, ctx: Record<string, any>) {
@@ -445,7 +512,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         status: BookingStatus.CANCELLED,
         startTime: Between(start, end),
       },
-      relations: { employee: true, service: true },
+      relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
 
@@ -454,7 +521,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         bookingId: b.id,
         employeeId: b.employeeId,
         employeeName: b.employee?.name,
+        serviceId: b.serviceId,
         serviceName: b.service?.name,
+        customerId: b.customerId,
+        customerName: b.customer?.name,
         startTime: b.startTime,
         endTime: b.endTime,
       })),
@@ -462,24 +532,200 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async findRebookingCandidates(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
     const freed = this.priorResult(ctx, step.dependsOn[0]);
-    return {
-      candidates: (freed?.freedSlots ?? []).map((slot: any) => ({
+    const slots = freed?.freedSlots ?? [];
+
+    if (!slots.length) {
+      return { candidates: [], waitlistCount: 0 };
+    }
+
+    const serviceIds = [...new Set(slots.map((s: any) => s.serviceId).filter(Boolean))];
+    const { start, end } = this.resolveDateRange(step.params);
+    const lookbackStart = new Date(start);
+    lookbackStart.setUTCDate(lookbackStart.getUTCDate() - 60);
+
+    const [taggedWaitlist, recentCancelled, activeCustomers] = await Promise.all([
+      this.customerRepo
+        .createQueryBuilder('c')
+        .where('c.business_id = :businessId', { businessId })
+        .andWhere(`'waitlist' = ANY(c.tags)`)
+        .getMany(),
+      this.bookingRepo.find({
+        where: {
+          businessId,
+          status: BookingStatus.CANCELLED,
+          startTime: Between(lookbackStart, end),
+        },
+        relations: { customer: true, service: true },
+        order: { startTime: 'DESC' },
+        take: 50,
+      }),
+      this.bookingRepo.find({
+        where: {
+          businessId,
+          status: Not(In([BookingStatus.CANCELLED])),
+          startTime: Between(start, end),
+        },
+        relations: { customer: true, service: true },
+      }),
+    ]);
+
+    const activeCustomerIds = new Set(
+      activeCustomers.map((b) => b.customerId).filter(Boolean) as string[],
+    );
+
+    const candidateMap = new Map<
+      string,
+      {
+        customerId: string;
+        customerName: string;
+        phone?: string;
+        email?: string;
+        source: string;
+        serviceNames: string[];
+        score: number;
+      }
+    >();
+
+    const addCandidate = (
+      customer: Customer | null | undefined,
+      source: string,
+      serviceName: string | undefined,
+      score: number,
+    ) => {
+      if (!customer?.id || activeCustomerIds.has(customer.id)) return;
+      const existing = candidateMap.get(customer.id);
+      if (existing) {
+        existing.score = Math.max(existing.score, score);
+        if (serviceName && !existing.serviceNames.includes(serviceName)) {
+          existing.serviceNames.push(serviceName);
+        }
+        return;
+      }
+      candidateMap.set(customer.id, {
+        customerId: customer.id,
+        customerName: customer.name,
+        phone: customer.phone ?? undefined,
+        email: customer.email ?? undefined,
+        source,
+        serviceNames: serviceName ? [serviceName] : [],
+        score,
+      });
+    };
+
+    for (const c of taggedWaitlist) {
+      addCandidate(c, 'waitlist_tag', undefined, 100);
+    }
+
+    for (const booking of recentCancelled) {
+      if (!booking.customer) continue;
+      const matchesService =
+        !serviceIds.length ||
+        (booking.serviceId && serviceIds.includes(booking.serviceId));
+      if (matchesService) {
+        addCandidate(booking.customer, 'recent_cancellation', booking.service?.name, 80);
+      }
+    }
+
+    const candidates = slots.flatMap((slot: any) => {
+      const ranked = [...candidateMap.values()]
+        .filter((c) => {
+          if (!slot.serviceName) return true;
+          return (
+            c.source === 'waitlist_tag' ||
+            c.serviceNames.length === 0 ||
+            c.serviceNames.some((n) =>
+              n.toLowerCase().includes(String(slot.serviceName).toLowerCase()),
+            )
+          );
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      return ranked.map((c) => ({
         slot,
-        suggestion: 'Match with waitlisted or flexible customers for this service window.',
-      })),
+        customerId: c.customerId,
+        customerName: c.customerName,
+        phone: c.phone,
+        email: c.email,
+        source: c.source,
+        score: c.score,
+        suggestion: `Offer ${slot.serviceName ?? 'appointment'} at ${new Date(slot.startTime).toISOString()} to ${c.customerName}`,
+      }));
+    });
+
+    return {
+      candidates,
+      waitlistCount: taggedWaitlist.length,
+      uniqueCandidates: candidateMap.size,
     };
   }
 
   private async proposeReassignment(step: WorkflowStep, ctx: Record<string, any>) {
-    const candidates = this.priorResult(ctx, step.dependsOn[0]);
-    return {
-      proposals: (candidates?.candidates ?? []).map((c: any, i: number) => ({
+    const prior = this.priorResult(ctx, step.dependsOn[0]);
+    const grouped = new Map<string, any>();
+
+    for (const entry of prior?.candidates ?? []) {
+      const slotKey = entry.slot?.bookingId ?? entry.slot?.startTime;
+      if (!slotKey) continue;
+      const list = grouped.get(String(slotKey)) ?? { slot: entry.slot, options: [] };
+      list.options.push({
+        customerId: entry.customerId,
+        customerName: entry.customerName,
+        source: entry.source,
+        score: entry.score,
+        phone: entry.phone,
+      });
+      grouped.set(String(slotKey), list);
+    }
+
+    const proposals = [...grouped.values()].map((group, i) => {
+      const top = [...group.options].sort((a: any, b: any) => b.score - a.score)[0];
+      return {
         id: `proposal-${i + 1}`,
-        slot: c.slot,
-        action: 'rebook_when_customer_confirms',
+        slot: group.slot,
+        recommendedCustomer: top ?? null,
+        alternatives: group.options.slice(1, 4),
+        action: top ? 'execute_reassignment' : 'manual_outreach',
         status: 'pending_review',
-      })),
+        params: top
+          ? {
+              bookingId: group.slot?.bookingId,
+              customerId: top.customerId,
+              employeeId: group.slot?.employeeId,
+              serviceId: group.slot?.serviceId,
+              startTime: group.slot?.startTime,
+            }
+          : undefined,
+      };
+    });
+
+    return { proposals, proposalCount: proposals.length };
+  }
+
+  private async executeReassignment(step: WorkflowStep, ctx: Record<string, any>) {
+    const { proposalId, customerId, employeeId, serviceId, startTime, userId, notes } =
+      step.params as Record<string, any>;
+
+    if (!customerId || !employeeId || !serviceId || !startTime) {
+      throw new BadRequestException(
+        'execute_reassignment requires customerId, employeeId, serviceId, and startTime',
+      );
+    }
+
+    const booking = await this.bookingService.create(
+      step.params.businessId ?? ctx.businessId,
+      { employeeId, serviceId, customerId, startTime, notes },
+      userId,
+    );
+
+    return {
+      proposalId,
+      reassigned: true,
+      bookingId: booking.id,
+      customerId,
+      startTime: booking.startTime,
     };
   }
 
@@ -488,29 +734,105 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const { start, end } = this.resolveDateRange(step.params);
 
     const conflicts = await this.schedulingEngine.findConflicts(businessId, { start, end });
-    return { conflictCount: conflicts.length, conflicts };
+    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const employeeNames = new Map(employees.map((e) => [e.id, e.name]));
+    const bookingIds = conflicts.flatMap((c) => c.bookings.map((b) => b.id));
+    const detailed =
+      bookingIds.length > 0
+        ? await this.bookingRepo.find({
+            where: { id: In(bookingIds) },
+            relations: { customer: true, service: true, employee: true },
+          })
+        : [];
+    const bookingMap = new Map(detailed.map((b) => [b.id, b]));
+
+    return {
+      conflictCount: conflicts.length,
+      conflicts: conflicts.map((c) => ({
+        employeeId: c.employeeId,
+        employeeName: employeeNames.get(c.employeeId),
+        bookings: c.bookings.map((b) => {
+          const full = bookingMap.get(b.id) ?? b;
+          return {
+            id: full.id,
+            customerName: full.customer?.name ?? 'Walk-in',
+            serviceName: full.service?.name,
+            startTime: full.startTime,
+            endTime: full.endTime,
+            status: full.status,
+          };
+        }),
+      })),
+    };
   }
 
   private async analyzeResolutionOptions(step: WorkflowStep, ctx: Record<string, any>) {
     const detected = this.priorResult(ctx, step.dependsOn[0]);
-    const strategies = step.params.strategies ?? ['reschedule', 'reassign_employee'];
+    const strategies = step.params.strategies ?? ['reschedule', 'reassign_employee', 'cancel_lower_priority'];
+
     return {
-      options: (detected?.conflicts ?? []).map((c: any) => ({
-        employeeId: c.employeeId,
-        strategies,
-        suggested: 'reschedule_lower_priority_booking',
-      })),
+      options: (detected?.conflicts ?? []).map((c: any, index: number) => {
+        const [a, b] = c.bookings ?? [];
+        const overlapMinutes =
+          a && b
+            ? Math.max(
+                0,
+                Math.round((new Date(a.endTime).getTime() - new Date(b.startTime).getTime()) / 60000),
+              )
+            : 0;
+
+        return {
+          conflictIndex: index + 1,
+          employeeId: c.employeeId,
+          bookings: c.bookings,
+          overlapMinutes,
+          strategies,
+          suggested:
+            overlapMinutes <= 15
+              ? 'reschedule_second_booking_plus_15min'
+              : 'reschedule_lower_priority_booking',
+          suggestedParams: b
+            ? {
+                bookingId: b.id,
+                newStartTime: new Date(new Date(b.startTime).getTime() + 15 * 60000).toISOString(),
+              }
+            : undefined,
+        };
+      }),
     };
   }
 
   private async proposeResolutions(step: WorkflowStep, ctx: Record<string, any>) {
     const options = this.priorResult(ctx, step.dependsOn[0]);
+    const employees = await this.employeeRepo.find({
+      where: { businessId: step.params.businessId ?? ctx.businessId, isActive: true },
+    });
+    const employeeNames = new Map(employees.map((e) => [e.id, e.name]));
+
     return {
       resolutions: (options?.options ?? []).map((o: any, i: number) => ({
         id: `resolution-${i + 1}`,
         employeeId: o.employeeId,
+        employeeName: employeeNames.get(o.employeeId) ?? o.employeeId,
+        conflictIndex: o.conflictIndex,
+        overlapMinutes: o.overlapMinutes,
+        bookings: (o.bookings ?? []).map((b: any) => ({
+          id: b.id,
+          customer: b.customer?.name ?? b.customerName ?? 'Walk-in',
+          service: b.service?.name ?? b.serviceName,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          status: b.status,
+        })),
         action: o.suggested,
         status: 'pending_approval',
+        fix: o.suggestedParams
+          ? {
+              type: 'reschedule_booking',
+              bookingId: o.suggestedParams.bookingId,
+              startTime: o.suggestedParams.newStartTime,
+            }
+          : null,
       })),
     };
   }

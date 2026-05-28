@@ -25,6 +25,7 @@ import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
@@ -584,6 +585,14 @@ export default function BookingsPage() {
   return (
     <div className="flex flex-col h-full gap-4">
 
+      <AiContextualSuggestions
+        context={{
+          route: '/dashboard/bookings',
+          employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+          date: day.toISOString().split('T')[0],
+        }}
+        title="Booking opportunities"
+      />
       <AiPagePanel
         suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
         context={{

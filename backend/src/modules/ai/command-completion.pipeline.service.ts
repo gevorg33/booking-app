@@ -33,6 +33,7 @@ const SESSION_INHERIT_KEYS = [
   'timeFrom',
   'timeTo',
   'allProviders',
+  'lastAction',
 ] as const;
 
 const PROVIDER_SESSION_INHERIT_KEYS = [
@@ -201,6 +202,7 @@ export class CommandCompletionPipelineService {
       timeFrom: p.timeFrom ?? null,
       timeTo: p.timeTo ?? null,
       allProviders: p.allProviders ?? null,
+      lastAction: resolved.action ?? null,
     };
   }
 
@@ -236,11 +238,20 @@ export class CommandCompletionPipelineService {
   }
 
   attachSessionToResult(result: CommandResult, resolved: ResolvedCommand): CommandResult {
+    const sessionContext = this.buildSessionContext(resolved);
+    const range = result.details?.range as { start?: string; end?: string } | undefined;
+    if (range?.start && !sessionContext.dateFrom) {
+      sessionContext.dateFrom = formatDateDisplay(range.start);
+    }
+    if (range?.end && !sessionContext.dateTo) {
+      sessionContext.dateTo = formatDateDisplay(range.end);
+    }
+
     return {
       ...result,
       details: {
         ...result.details,
-        sessionContext: this.buildSessionContext(resolved),
+        sessionContext,
         pipelineTrace: result.details?.pipelineTrace,
       },
     };

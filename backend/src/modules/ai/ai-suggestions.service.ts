@@ -18,6 +18,19 @@ export interface AiSuggestion {
   category: 'schedule' | 'booking' | 'utilization' | 'conflict';
 }
 
+export interface AiSuggestionsContext {
+  route?: string;
+  scheduleTab?: string;
+  viewMode?: string;
+}
+
+const ROUTE_CATEGORY_PRIORITY: Record<string, AiSuggestion['category'][]> = {
+  '/dashboard/schedule': ['schedule', 'utilization', 'booking'],
+  '/dashboard/calendar': ['conflict', 'schedule', 'utilization'],
+  '/dashboard/bookings': ['booking', 'schedule'],
+  '/dashboard/appointments': ['booking', 'utilization'],
+};
+
 @Injectable()
 export class AiSuggestionsService {
   constructor(
@@ -29,7 +42,7 @@ export class AiSuggestionsService {
     private schedulingEngine: SchedulingEngineService,
   ) {}
 
-  async getSuggestions(businessId: string): Promise<AiSuggestion[]> {
+  async getSuggestions(businessId: string, context?: AiSuggestionsContext): Promise<AiSuggestion[]> {
     const suggestions: AiSuggestion[] = [];
     const range = resolveDateRange({}, 'this week');
     if (!range) return suggestions;
@@ -150,6 +163,27 @@ export class AiSuggestionsService {
       });
     }
 
-    return suggestions.slice(0, 6);
+    return this.filterForContext(suggestions.slice(0, 6), context);
+  }
+
+  private filterForContext(suggestions: AiSuggestion[], context?: AiSuggestionsContext): AiSuggestion[] {
+    if (!context?.route || suggestions.length === 0) return suggestions;
+
+    const categories = ROUTE_CATEGORY_PRIORITY[context.route];
+    if (!categories) return suggestions;
+
+    const prioritized = [
+      ...categories.flatMap((cat) => suggestions.filter((s) => s.category === cat)),
+      ...suggestions.filter((s) => !categories.includes(s.category)),
+    ];
+
+    const seen = new Set<string>();
+    const unique = prioritized.filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+
+    return unique.slice(0, 4);
   }
 }

@@ -76,6 +76,34 @@ export interface CustomersSearchResult {
   pageSize: number;
 }
 
+export type CustomerInsightMetric =
+  | 'most_no_shows'
+  | 'most_bookings'
+  | 'most_cancellations'
+  | 'at_risk'
+  | 'high_no_show'
+  | 'vip'
+  | 'overview';
+
+export interface CustomerInsightRow {
+  id: string;
+  name: string;
+  segment: string;
+  stats: CustomerBookingStats;
+}
+
+export interface CustomerInsightsResult {
+  metric: CustomerInsightMetric;
+  rows: CustomerInsightRow[];
+  summary: {
+    totalCustomers: number;
+    totalNoShows: number;
+    atRiskCount: number;
+    highNoShowCount: number;
+    vipCount: number;
+  };
+}
+
 @Injectable()
 export class CustomerService {
   constructor(
@@ -495,5 +523,84 @@ export class CustomerService {
       },
     };
     return this.customerRepo.save(customer);
+  }
+
+  async getCustomerInsights(
+    businessId: string,
+    metric: CustomerInsightMetric,
+    limit = 5,
+  ): Promise<CustomerInsightsResult> {
+    const customers = await this.customerRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
+    const statsMap = await this.loadBookingStatsMap(
+      businessId,
+      customers.map((c) => c.id),
+    );
+
+    const enriched: CustomerInsightRow[] = customers.map((c) => {
+      const stats = statsMap.get(c.id) ?? this.emptyStats();
+      return {
+        id: c.id,
+        name: c.name,
+        segment: this.computeSegment(c, stats),
+        stats,
+      };
+    });
+
+    const summary = {
+      totalCustomers: enriched.length,
+      totalNoShows: enriched.reduce((n, r) => n + r.stats.noShowCount, 0),
+      atRiskCount: enriched.filter((r) => r.segment === 'at_risk').length,
+      highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show').length,
+      vipCount: enriched.filter((r) => r.segment === 'vip').length,
+    };
+
+    const cap = Math.min(Math.max(limit, 1), 20);
+    let rows: CustomerInsightRow[] = [];
+
+    switch (metric) {
+      case 'most_no_shows':
+        rows = [...enriched]
+          .filter((r) => r.stats.noShowCount > 0)
+          .sort((a, b) => b.stats.noShowCount - a.stats.noShowCount);
+        break;
+      case 'most_bookings':
+        rows = [...enriched]
+          .filter((r) => r.stats.total > 0)
+          .sort((a, b) => b.stats.total - a.stats.total);
+        break;
+      case 'most_cancellations':
+        rows = [...enriched]
+          .filter((r) => (r.stats.byStatus[BookingStatus.CANCELLED] ?? 0) > 0)
+          .sort(
+            (a, b) =>
+              (b.stats.byStatus[BookingStatus.CANCELLED] ?? 0) -
+              (a.stats.byStatus[BookingStatus.CANCELLED] ?? 0),
+          );
+        break;
+      case 'at_risk':
+        rows = enriched.filter((r) => r.segment === 'at_risk');
+        break;
+      case 'high_no_show':
+        rows = enriched.filter((r) => r.segment === 'high_no_show');
+        break;
+      case 'vip':
+        rows = enriched.filter((r) => r.segment === 'vip');
+        break;
+      case 'overview':
+      default:
+        rows = [...enriched]
+          .filter((r) => r.stats.noShowCount > 0)
+          .sort((a, b) => b.stats.noShowCount - a.stats.noShowCount);
+        break;
+    }
+
+    return {
+      metric,
+      rows: rows.slice(0, cap),
+      summary,
+    };
   }
 }

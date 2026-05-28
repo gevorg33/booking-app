@@ -28,12 +28,20 @@ import {
   resolveEmployees,
   resolveServices,
   resolveDateRange,
-  shouldAutoExecute,
+  resolveAutoExecute,
 } from './ai-orchestration.helpers.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
+import { AiEventsService } from './ai-events.service.js';
+import { IntentDecompositionService } from './intent-decomposition.service.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
+import {
+  CustomerService,
+  type CustomerInsightMetric,
+} from '../customer/customer.service.js';
 
 export type { CommandResult };
 
@@ -51,7 +59,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "optimize_schedule" | "fill_unused_slots" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "analyze_appointments" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -88,9 +96,13 @@ and extract structured parameters. Return a JSON object with:
     "applyDays": [0-6] or null — weekdays (0=Sun) for template apply or repetitive blocks,
     "repeatWeeksCount": number or null — template apply repeat weeks,
     "periods": [{"startTime":"HH:MM","endTime":"HH:MM","type":"service_block|unavailable_block","serviceNames":["string"],"label":"string"}] or null — for create_direct_schedule,
-    "bookingId": "string or null — if a specific booking ID is mentioned"
+    "bookingId": "string or null — if a specific booking ID is mentioned",
+    "customerMetric": "most_no_shows | most_bookings | most_cancellations | at_risk | high_no_show | vip | overview | null — for summarize_customers",
+    "appointmentMetric": "most_expensive | longest | shortest | earliest | latest | null — for analyze_appointments",
+    "limit": number or null — max customers to list (default 5)
   },
-  "reasoning": "one sentence explaining your interpretation"
+  "reasoning": "one sentence explaining your interpretation",
+  "confidence": number from 0.0 to 1.0 — how certain you are about action and extracted params
 }
 
 Rules:
@@ -109,19 +121,25 @@ Rules:
 - Do not use create_service when booking an appointment — that is create_booking.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
+- analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
-- optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows.
-- apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
+- optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows. For two or more providers use employeeNames array, e.g. ["Gevorg Gasparyan", "Mary Torgomyan"], or employeeName "Gevorg and Mary".
+- list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
+- summarize_utilization: team-level utilization percentages for a date range — NOT per-day gap detail. Do not use for "which days" or "show gaps" questions.
+- summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "most cancellations". Set customerMetric when clear; limit defaults to 5.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
 - create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods.
 - assign_employee_services: assign services from catalog to a provider.
-- summarize_utilization: report who is under/over utilized for a date range.
+- apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
+- bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
+- fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
 - If you cannot determine the action, use "unknown".
 - Multi-turn conversation: read prior messages and Active session context. Follow-up commands often omit provider, date, or customer — inherit them unless the user clearly switches topic.
+- Example follow-up: after utilization summary for this week, "which exact days does Gevorg have gaps" → action list_schedule_gaps, employeeName="Gevorg Gasparyan", inherit dateFrom/dateTo from session.
 - Example follow-up: after "available slots for Gevorg on 30_06_2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30_06_2026", serviceName="facemassage", timeSlot="16:00".
 - Dates may appear as DD_MM_YYYY or DD/MM/YYYY — normalize to DD_MM_YYYY in params.`;
 
@@ -148,10 +166,24 @@ export class AiCommandService {
     private schedulingEngine: SchedulingEngineService,
     private completionPipeline: CommandCompletionPipelineService,
     private openAi: OpenAiGatewayService,
+    private aiEvents: AiEventsService,
+    private decomposition: IntentDecompositionService,
+    private aiSettings: AiSettingsService,
+    private customerService: CustomerService,
   ) {}
 
-  async approveTask(taskId: string, userId: string): Promise<CommandResult> {
-    return this.toCommandResult(await this.orchestration.approveTask(taskId, userId));
+  async approveTask(taskId: string, userId: string, businessId?: string): Promise<CommandResult> {
+    const orch = await this.orchestration.approveTask(taskId, userId);
+    const result = this.toCommandResult(orch);
+    if (businessId) {
+      this.aiEvents.emitTaskCompleted(businessId, {
+        taskId,
+        action: result.action,
+        success: result.success,
+        summary: result.summary,
+      });
+    }
+    return result;
   }
 
   async executeCommand(
@@ -176,25 +208,59 @@ export class AiCommandService {
       this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
     ]);
 
+    const catalog = { employees, services, customers, templates };
+    const aiConfig = await this.aiSettings.getSettings(businessId);
+
+    const playbook = this.aiSettings.matchPlaybook(aiConfig, prompt);
+    const effectivePrompt = playbook ? playbook.prompt : prompt;
+
+    if (this.decomposition.isCompoundPrompt(effectivePrompt)) {
+      const subIntents = await this.decomposition.decompose(businessId, userId, effectivePrompt);
+      if (subIntents.length > 1) {
+        return this.executeCompoundIntents(
+          businessId,
+          effectivePrompt,
+          userId,
+          session,
+          subIntents,
+          catalog,
+          aiConfig.confidence,
+        );
+      }
+    }
+
     const contextBlock = `Current date: ${todayDisplay()} (format DD_MM_YYYY, times in 24h HH:mm)
 Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', ')}
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}
 Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(businessId, userId, prompt, contextBlock, session?.history, session?.context);
+    const parsed =
+      this.detectListScheduleGapsIntent(effectivePrompt, session?.context, employees) ??
+      this.detectAppointmentAnalysisIntent(effectivePrompt, session?.context) ??
+      this.detectCustomerInsightsIntent(effectivePrompt) ??
+      (await this.classifyIntent(
+        businessId,
+        userId,
+        effectivePrompt,
+        contextBlock,
+        session?.history,
+        session?.context,
+      ));
     if (!parsed) {
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
 
     parsed.params = this.completionPipeline.mergeSessionContext(parsed.params, session?.context);
+    this.enrichMultiEmployeeFromPrompt(effectivePrompt, parsed.params, employees);
 
-    this.logger.log(`AI classified action="${parsed.action}" — ${parsed.reasoning}`);
+    const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
+
+    this.logger.log(`AI classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
 
     this.completionPipeline.normalizeDateParams(parsed.params);
 
-    const catalog = { employees, services, customers, templates };
-    const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog);
+    const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog);
     const pipelineTrace = [
       this.completionPipeline.trace('classify', parsed.action, parsed.reasoning),
       this.completionPipeline.trace('resolve', parsed.action),
@@ -213,9 +279,46 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       if (!validation.ok) {
         const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
         clarify.details.pipelineTrace = pipelineTrace;
+        this.aiEvents.emitClarify(businessId, {
+          action: parsed.action,
+          summary: clarify.summary,
+          missing: clarify.details.missing,
+        });
         return clarify;
       }
     }
+
+    const mutatingActions = new Set([
+      'create_booking', 'create_service', 'create_services', 'cancel_bookings',
+      'bulk_smart_cancel', 'fill_slot_from_waitlist', 'reschedule_booking',
+      'fill_unused_slots', 'apply_schedule', 'block_schedule', 'setup_week_schedule',
+    ]);
+    if (
+      mutatingActions.has(parsed.action) &&
+      confidence < aiConfig.confidence.low
+    ) {
+      return {
+        success: false,
+        action: parsed.action,
+        summary: `I'm not fully confident I understood that (${Math.round(confidence * 100)}% confidence). Did you mean to "${parsed.action.replace(/_/g, ' ')}"? Please rephrase or add more detail.`,
+        details: {
+          needsClarification: true,
+          confidence,
+          reasoning: parsed.reasoning,
+          playbook: playbook?.name,
+        },
+      };
+    }
+
+    const autoExecuteFlag = resolveAutoExecute({
+      action: parsed.action,
+      stepCount: 1,
+      providerCount: 1,
+      confidence,
+      thresholds: aiConfig.confidence,
+    });
+
+    void autoExecuteFlag;
 
     const params = resolved.enrichedParams;
     const employeeId = params.employeeId ?? resolved.entities.employeeId;
@@ -245,10 +348,37 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         result = await this.handleCreateServices(businessId, params, services, userId);
         break;
       case 'cancel_bookings':
-        result = await this.handleCancelBookings(
+        if (/notify|waitlist|rebook|customer/i.test(prompt)) {
+          result = await this.handleBulkSmartCancel(
+            businessId,
+            params,
+            services,
+            employeeId,
+            userId,
+          );
+        } else {
+          result = await this.handleCancelBookings(
+            businessId,
+            params,
+            services,
+            employeeId,
+            userId,
+          );
+        }
+        break;
+      case 'bulk_smart_cancel':
+        result = await this.handleBulkSmartCancel(
           businessId,
           params,
           services,
+          employeeId,
+          userId,
+        );
+        break;
+      case 'fill_slot_from_waitlist':
+        result = await this.handleFillSlotFromWaitlist(
+          businessId,
+          params,
           employeeId,
           userId,
         );
@@ -268,6 +398,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'summarize_day':
         result = await this.handleSummarizeDay(businessId, params, employeeId, resolvedEmployee?.name);
         break;
+      case 'analyze_appointments':
+        result = await this.handleAnalyzeAppointments(
+          businessId,
+          prompt,
+          params,
+          employeeId,
+          resolvedEmployee?.name,
+        );
+        break;
       case 'fill_unused_slots':
         result = await this.scheduleHandlers.handleFillScheduleGaps(
           businessId,
@@ -276,6 +415,14 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           employees,
           services,
           userId,
+        );
+        break;
+      case 'list_schedule_gaps':
+        result = await this.scheduleHandlers.handleListScheduleGaps(
+          businessId,
+          prompt,
+          params,
+          employees,
         );
         break;
       case 'apply_schedule':
@@ -317,14 +464,16 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'summarize_utilization':
         result = await this.handleSummarizeUtilization(businessId, prompt, params, employees);
         break;
+      case 'summarize_customers':
+        result = await this.handleSummarizeCustomers(businessId, prompt, params);
+        break;
       case 'setup_week_schedule':
-        result = await this.handleSetupWeekSchedule(
+        result = await this.scheduleHandlers.handleTemplateCascade(
           businessId,
           prompt,
           params,
           employees,
           services,
-          templates,
           userId,
         );
         break;
@@ -376,8 +525,247 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         };
     }
 
-    result.details = { ...result.details, pipelineTrace };
-    return this.completionPipeline.attachSessionToResult(result, resolved);
+    result.details = { ...result.details, pipelineTrace, confidence, playbook: playbook?.name ?? null };
+    const final = this.completionPipeline.attachSessionToResult(result, resolved);
+    this.emitCommandEvents(businessId, final);
+    return final;
+  }
+
+  private emitCommandEvents(businessId: string, result: CommandResult) {
+    if (result.details?.needsClarification) {
+      this.aiEvents.emitClarify(businessId, {
+        action: result.action,
+        summary: result.summary,
+        missing: result.details.missing,
+      });
+      return;
+    }
+
+    if (result.details?.requiresApproval && result.details?.taskId) {
+      this.aiEvents.emitTaskProgress(businessId, {
+        taskId: String(result.details.taskId),
+        action: result.action,
+        status: 'requires_approval',
+        summary: result.summary,
+      });
+      return;
+    }
+
+    if (result.success && result.details?.taskId) {
+      this.aiEvents.emitTaskCompleted(businessId, {
+        taskId: String(result.details.taskId),
+        action: result.action,
+        success: true,
+        summary: result.summary,
+      });
+    }
+  }
+
+  private enrichMultiEmployeeFromPrompt(
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): void {
+    if (params.allProviders || (params.employeeNames?.length ?? 0) > 1) return;
+
+    const lower = prompt.toLowerCase();
+    const mentionsMultiple =
+      /\bboth\b/i.test(prompt) ||
+      /\band\b/i.test(prompt) ||
+      /[,/]/.test(prompt);
+
+    if (!mentionsMultiple) return;
+
+    const matched: Employee[] = [];
+    const seen = new Set<string>();
+    for (const employee of employees) {
+      if (lower.includes(employee.name.toLowerCase())) {
+        if (!seen.has(employee.id)) {
+          seen.add(employee.id);
+          matched.push(employee);
+        }
+        continue;
+      }
+      const first = employee.name.split(/\s+/)[0];
+      if (first.length >= 3 && new RegExp(`\\b${first.toLowerCase()}\\b`).test(lower)) {
+        if (!seen.has(employee.id)) {
+          seen.add(employee.id);
+          matched.push(employee);
+        }
+      }
+    }
+
+    if (matched.length > 1) {
+      params.employeeNames = matched.map((e) => e.name);
+      params.employeeName = null;
+    }
+  }
+
+  private detectAppointmentAnalysisIntent(
+    prompt: string,
+    sessionContext?: Record<string, any>,
+  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
+    const metric = this.resolveAppointmentMetric({}, prompt);
+    if (!metric) return null;
+
+    const lower = prompt.toLowerCase();
+    const hasContext =
+      /\bappointments?\b|\bbooking/i.test(prompt) ||
+      /\btoday\b|\btomorrow\b|\byesterday\b/i.test(lower) ||
+      /\bfor today\b|\bfor tomorrow\b/i.test(lower) ||
+      sessionContext?.lastAction === 'analyze_appointments' ||
+      sessionContext?.lastAction === 'show_appointments' ||
+      sessionContext?.lastAction === 'summarize_day';
+
+    if (!hasContext) return null;
+
+    const params: Record<string, any> = { appointmentMetric: metric };
+    if (sessionContext?.date) params.date = sessionContext.date;
+
+    return {
+      action: 'analyze_appointments',
+      params,
+      reasoning: `Appointment analysis — ${metric.replace(/_/g, ' ')}`,
+      confidence: 0.92,
+    };
+  }
+
+  private resolveAppointmentMetric(
+    params: Record<string, any>,
+    prompt: string,
+  ): 'most_expensive' | 'longest' | 'shortest' | 'earliest' | 'latest' | null {
+    type AppointmentMetric = 'most_expensive' | 'longest' | 'shortest' | 'earliest' | 'latest';
+    const allowed: AppointmentMetric[] = [
+      'most_expensive',
+      'longest',
+      'shortest',
+      'earliest',
+      'latest',
+    ];
+    const raw = params.appointmentMetric as string | undefined;
+    if (raw && allowed.includes(raw as AppointmentMetric)) {
+      return raw as AppointmentMetric;
+    }
+
+    const lower = prompt.toLowerCase();
+    if (/most expensive|highest price|priciest|costs the most|expensive appointment/i.test(lower)) {
+      return 'most_expensive';
+    }
+    if (/longest|most time|takes the longest|longest appointment/i.test(lower)) return 'longest';
+    if (/shortest|least time|quickest|shortest appointment/i.test(lower)) return 'shortest';
+    if (/earliest|first appointment/i.test(lower)) return 'earliest';
+    if (/latest|last appointment/i.test(lower)) return 'latest';
+    return null;
+  }
+
+  private detectCustomerInsightsIntent(
+    prompt: string,
+  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
+    const lower = prompt.toLowerCase();
+    const asksAboutCustomers =
+      /\bcustomers?\b/i.test(prompt) ||
+      /\bwho\b/i.test(prompt) ||
+      /\bwhich\b/i.test(prompt);
+
+    const customerAnalytics =
+      /no[\s-]?show|at[\s-]?risk|vip|cancellation|cancelled|book(s|ed)? the most|most appointment|frequent|churn|inactive|haven't been|not been back|top customer|best customer|crm|segment/i.test(
+        lower,
+      );
+
+    if (!asksAboutCustomers && !customerAnalytics) {
+      if (!/(most no[\s-]?show|at[\s-]?risk|top vip)/i.test(lower)) {
+        return null;
+      }
+    }
+
+    if (!customerAnalytics && !/\bcustomers?\b/i.test(prompt)) {
+      return null;
+    }
+
+    return {
+      action: 'summarize_customers',
+      params: {
+        customerMetric: this.resolveCustomerMetric({}, prompt),
+        limit: 5,
+      },
+      reasoning: 'Customer CRM insight question',
+      confidence: 0.9,
+    };
+  }
+
+  private resolveCustomerMetric(params: Record<string, any>, prompt: string): CustomerInsightMetric {
+    const raw = params.customerMetric as string | undefined;
+    const allowed: CustomerInsightMetric[] = [
+      'most_no_shows',
+      'most_bookings',
+      'most_cancellations',
+      'at_risk',
+      'high_no_show',
+      'vip',
+      'overview',
+    ];
+    if (raw && allowed.includes(raw as CustomerInsightMetric)) {
+      return raw as CustomerInsightMetric;
+    }
+
+    const lower = prompt.toLowerCase();
+    if (/high no[\s-]?show|no[\s-]?show rate/i.test(lower)) return 'high_no_show';
+    if (/no[\s-]?show|no show/i.test(lower)) return 'most_no_shows';
+    if (/at[\s-]?risk|churn|inactive|not been back|haven't been/i.test(lower)) return 'at_risk';
+    if (/cancel/i.test(lower)) return 'most_cancellations';
+    if (/vip|best customer|top customer|loyal/i.test(lower)) return 'vip';
+    if (/most booking|most appointment|books the most|frequent|top booker/i.test(lower)) {
+      return 'most_bookings';
+    }
+    return 'overview';
+  }
+
+  private detectListScheduleGapsIntent(
+    prompt: string,
+    sessionContext: Record<string, any> | undefined,
+    employees: Employee[],
+  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
+    const lower = prompt.toLowerCase();
+    const asksAboutDaysWithGaps =
+      /\b(which|what)\s+(exact\s+)?days?\b/i.test(prompt) ||
+      /\bdays?\s+(with|have|has|contain)\s+(gaps?|open|empty|free|unused)/i.test(prompt) ||
+      /\b(gaps?|open\s+slots?|empty\s+slots?|unused\s+slots?)\s+(on\s+)?which\s+days?\b/i.test(prompt) ||
+      (/\bgaps?\b/i.test(prompt) && /\b(which|what|when)\b/i.test(prompt));
+
+    const followUpAfterUtilization =
+      sessionContext?.lastAction === 'summarize_utilization' &&
+      (/\bgaps?\b/i.test(prompt) || asksAboutDaysWithGaps || /\bdays?\b/i.test(prompt));
+
+    if (!asksAboutDaysWithGaps && !followUpAfterUtilization) {
+      return null;
+    }
+
+    let employeeName: string | null = null;
+    for (const employee of employees) {
+      if (lower.includes(employee.name.toLowerCase())) {
+        employeeName = employee.name;
+        break;
+      }
+      const first = employee.name.split(/\s+/)[0];
+      if (first.length >= 3 && new RegExp(`\\b${first.toLowerCase()}\\b`).test(lower)) {
+        employeeName = employee.name;
+        break;
+      }
+    }
+
+    const params: Record<string, any> = {};
+    if (employeeName) params.employeeName = employeeName;
+    if (sessionContext?.dateFrom) params.dateFrom = sessionContext.dateFrom;
+    if (sessionContext?.dateTo) params.dateTo = sessionContext.dateTo;
+    if (sessionContext?.timeFrom) params.timeFrom = sessionContext.timeFrom;
+    if (sessionContext?.timeTo) params.timeTo = sessionContext.timeTo;
+
+    return {
+      action: 'list_schedule_gaps',
+      params,
+      reasoning: 'Gap drill-down — list open windows per day',
+      confidence: 0.92,
+    };
   }
 
   private async classifyIntent(
@@ -387,7 +775,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
-  ): Promise<{ action: string; params: any; reasoning: string } | null> {
+  ): Promise<{ action: string; params: any; reasoning: string; confidence?: number } | null> {
     const sessionBlock =
       sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
         ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
@@ -655,43 +1043,636 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     };
   }
 
-  private async handleSetupWeekSchedule(
+  private async handleSummarizeCustomers(
     businessId: string,
     prompt: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    templates: ScheduleTemplate[],
-    userId?: string,
+    params: Record<string, any>,
   ): Promise<CommandResult> {
-    const weekParams = { ...params, dateFrom: params.dateFrom, dateTo: params.dateTo };
-    const applyResult = await this.scheduleHandlers.handleApplySchedule(
-      businessId,
-      prompt.includes('week') ? prompt : `${prompt} this week`,
-      { ...weekParams, allProviders: params.allProviders ?? true, templateName: params.templateName ?? templates[0]?.name },
-      employees,
-      userId,
-    );
+    const metric = this.resolveCustomerMetric(params, prompt);
+    const limit =
+      typeof params.limit === 'number' && params.limit > 0
+        ? Math.min(params.limit, 20)
+        : 5;
 
-    if (!applyResult.success && applyResult.details?.requiresApproval) {
-      return applyResult;
+    const insights = await this.customerService.getCustomerInsights(businessId, metric, limit);
+    const { rows, summary } = insights;
+
+    const metricTitles: Record<CustomerInsightMetric, string> = {
+      most_no_shows: 'Customers with the most no-shows',
+      most_bookings: 'Customers with the most appointments',
+      most_cancellations: 'Customers with the most cancellations',
+      at_risk: 'At-risk customers (90+ days since last visit)',
+      high_no_show: 'High no-show segment customers',
+      vip: 'VIP customers',
+      overview: 'Customer overview',
+    };
+
+    const lines: string[] = [metricTitles[metric] + ':'];
+
+    if (metric === 'overview') {
+      lines.push(
+        `• ${summary.totalCustomers} active customers`,
+        `• ${summary.totalNoShows} total no-shows across all customers`,
+        `• ${summary.atRiskCount} at-risk · ${summary.highNoShowCount} high no-show · ${summary.vipCount} VIP`,
+      );
+      if (rows.length > 0) {
+        lines.push('', 'Top no-shows:');
+      }
     }
 
-    const fillResult = await this.scheduleHandlers.handleFillScheduleGaps(
-      businessId,
-      'Fill gaps this week for all providers between 9-19',
-      { allProviders: true, dateFrom: weekParams.dateFrom, dateTo: weekParams.dateTo, timeFrom: '09:00', timeTo: '19:00' },
-      employees,
-      services,
-      userId,
-    );
+    if (rows.length === 0) {
+      lines.push('• No matching customers found.');
+    } else {
+      for (const row of rows) {
+        const cancelled = row.stats.byStatus.cancelled ?? 0;
+        const completed = row.stats.byStatus.completed ?? 0;
+        let detail = `${row.stats.noShowCount} no-show(s), ${row.stats.total} total appt(s)`;
+        if (metric === 'most_cancellations') detail = `${cancelled} cancellation(s)`;
+        if (metric === 'most_bookings') detail = `${row.stats.total} appointment(s)`;
+        if (metric === 'at_risk' && row.stats.lastBookingAt) {
+          detail = `last visit ${formatDateDisplay(row.stats.lastBookingAt)}, ${completed} completed`;
+        }
+        if (metric === 'vip') detail = `${completed} completed, ${row.stats.total} total`;
+        lines.push(`• ${row.name}: ${detail} · segment: ${row.segment}`);
+      }
+    }
 
     return {
-      success: applyResult.success && fillResult.success,
-      action: 'setup_week_schedule',
-      summary: [applyResult.summary, fillResult.summary].filter(Boolean).join('\n\n'),
-      details: { apply: applyResult.details, fill: fillResult.details },
+      success: true,
+      action: 'summarize_customers',
+      summary: lines.join('\n'),
+      details: { metric, rows, summary },
     };
+  }
+
+  private bookingDurationMinutes(booking: Booking): number {
+    return Math.round((booking.endTime.getTime() - booking.startTime.getTime()) / 60_000);
+  }
+
+  private formatServicePrice(service: Service | null | undefined): string {
+    if (!service) return '—';
+    const currency = service.currency || 'USD';
+    return `${currency} ${Number(service.price).toFixed(2)}`;
+  }
+
+  private formatAppointmentLine(booking: Booking): string {
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const duration = this.bookingDurationMinutes(booking);
+    const price = this.formatServicePrice(booking.service);
+    return `• ${time} | ${booking.service?.name || 'Service'} | ${booking.customer?.name || 'Walk-in'} | ${booking.employee?.name || 'Unknown'} | ${duration} min | ${price} | ${booking.status}`;
+  }
+
+  private async handleAnalyzeAppointments(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employeeId?: string,
+    employeeName?: string,
+  ): Promise<CommandResult> {
+    const metric = this.resolveAppointmentMetric(params, prompt);
+    if (!metric) {
+      return {
+        success: false,
+        action: 'analyze_appointments',
+        summary: 'Specify what to analyze: most expensive, longest, shortest, earliest, or latest appointment.',
+        details: { params },
+      };
+    }
+
+    const range = resolveDateRange(params, prompt);
+    const isoDay = range?.start ?? params.date ?? new Date().toISOString().split('T')[0];
+    const displayDay = formatDateDisplay(isoDay);
+    const d = new Date(isoDay);
+    const dayStart = new Date(d);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(dayStart, dayEnd),
+    };
+    if (employeeId) where.employeeId = employeeId;
+
+    const bookings = await this.bookingRepo.find({
+      where: where as any,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const active = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
+    const scopeLabel = employeeName || 'all providers';
+
+    if (active.length === 0) {
+      return {
+        success: true,
+        action: 'analyze_appointments',
+        summary: `No appointments found for ${scopeLabel} on ${displayDay}.`,
+        details: { metric, date: displayDay, count: 0 },
+      };
+    }
+
+    const metricTitles: Record<typeof metric, string> = {
+      most_expensive: 'Most expensive appointment',
+      longest: 'Longest appointment',
+      shortest: 'Shortest appointment',
+      earliest: 'Earliest appointment',
+      latest: 'Latest appointment',
+    };
+
+    let matches: Booking[] = [];
+
+    switch (metric) {
+      case 'most_expensive': {
+        const priced = active.filter((b) => b.service && Number(b.service.price) >= 0);
+        if (priced.length === 0) {
+          return {
+            success: true,
+            action: 'analyze_appointments',
+            summary: `No priced appointments found for ${scopeLabel} on ${displayDay}.`,
+            details: { metric, date: displayDay, count: 0 },
+          };
+        }
+        const maxPrice = Math.max(...priced.map((b) => Number(b.service!.price)));
+        matches = priced.filter((b) => Number(b.service!.price) === maxPrice);
+        break;
+      }
+      case 'longest': {
+        const maxDuration = Math.max(...active.map((b) => this.bookingDurationMinutes(b)));
+        matches = active.filter((b) => this.bookingDurationMinutes(b) === maxDuration);
+        break;
+      }
+      case 'shortest': {
+        const minDuration = Math.min(...active.map((b) => this.bookingDurationMinutes(b)));
+        matches = active.filter((b) => this.bookingDurationMinutes(b) === minDuration);
+        break;
+      }
+      case 'earliest':
+        matches = [active[0]];
+        break;
+      case 'latest':
+        matches = [active[active.length - 1]];
+        break;
+    }
+
+    const lines = [
+      `${metricTitles[metric]} on ${displayDay} (${scopeLabel}):`,
+      ...matches.map((b) => this.formatAppointmentLine(b)),
+    ];
+    if (matches.length > 1) {
+      lines.push(`(${matches.length} tied)`);
+    }
+
+    return {
+      success: true,
+      action: 'analyze_appointments',
+      summary: lines.join('\n'),
+      details: {
+        metric,
+        date: displayDay,
+        count: active.length,
+        matches: matches.map((b) => ({
+          id: b.id,
+          service: b.service?.name,
+          customer: b.customer?.name,
+          employee: b.employee?.name,
+          startTime: b.startTime.toISOString(),
+          endTime: b.endTime.toISOString(),
+          durationMinutes: this.bookingDurationMinutes(b),
+          price: b.service ? Number(b.service.price) : null,
+          currency: b.service?.currency ?? null,
+          status: b.status,
+        })),
+      },
+    };
+  }
+
+  private async handleBulkSmartCancel(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employeeId?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const matchedServices = this.resolveServices(services, params);
+    const where: any = {
+      businessId,
+      status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
+    };
+
+    if (employeeId) where.employeeId = employeeId;
+    if (matchedServices.length > 0) {
+      where.serviceId = In(matchedServices.map((s) => s.id));
+    }
+
+    if (params.date) {
+      const d = new Date(params.date);
+      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(dayStart, dayEnd);
+    } else if (params.dateFrom && params.dateTo) {
+      const from = new Date(params.dateFrom); from.setUTCHours(0, 0, 0, 0);
+      const to = new Date(params.dateTo); to.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(from, to);
+    }
+
+    const bookings = await this.bookingRepo.find({
+      where,
+      relations: { employee: true, service: true, customer: true },
+    });
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action: 'bulk_smart_cancel',
+        summary: 'No matching bookings to cancel.',
+        details: { matchedCount: 0 },
+      };
+    }
+
+    const reason = params.reason || 'Cancelled via AI command';
+    const dateRange =
+      params.dateFrom && params.dateTo
+        ? { start: toIsoDay(params.dateFrom), end: toIsoDay(params.dateTo) }
+        : params.date
+          ? { start: toIsoDay(params.date), end: toIsoDay(params.date) }
+          : undefined;
+
+    const plan = this.planBuilder.buildBulkSmartCancelPlan(
+      businessId,
+      bookings.map((b) => b.id),
+      reason,
+      userId,
+      {
+        employeeName: params.employeeName,
+        date: params.date ? formatDateDisplay(params.date) : undefined,
+        services: matchedServices.map((s) => s.name),
+        dateRange,
+      },
+    );
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: bookings.length <= 3,
+      }),
+    );
+  }
+
+  private async handleFillSlotFromWaitlist(
+    businessId: string,
+    params: any,
+    employeeId?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const where: any = {
+      businessId,
+      status: BookingStatus.CANCELLED,
+    };
+    if (employeeId) where.employeeId = employeeId;
+
+    if (params.date) {
+      const d = new Date(params.date);
+      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(dayStart, dayEnd);
+    }
+
+    const cancelled = await this.bookingRepo.find({
+      where,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    let slot = cancelled[0] ?? null;
+    if (params.timeSlot && slot) {
+      const target = this.snapTo10min(params.timeSlot);
+      slot =
+        cancelled.find((b) => formatTimeDisplay(b.startTime) === target) ??
+        cancelled[0] ??
+        null;
+    }
+
+    if (!slot) {
+      return {
+        success: false,
+        action: 'fill_slot_from_waitlist',
+        summary: 'No cancelled slot found to fill. Specify provider, date, and time (e.g. "Fill cancelled 14:00 slot from waitlist").',
+        details: { params },
+      };
+    }
+
+    const waitlist = await this.customerRepo
+      .createQueryBuilder('c')
+      .where('c.business_id = :businessId', { businessId })
+      .andWhere(`'waitlist' = ANY(c.tags)`)
+      .getMany();
+
+    if (waitlist.length === 0) {
+      return {
+        success: false,
+        action: 'fill_slot_from_waitlist',
+        summary: 'No waitlist customers found. Tag customers with "waitlist" in CRM.',
+        details: { slotId: slot.id },
+      };
+    }
+
+    const candidate = waitlist[0];
+    const plan = this.planBuilder.buildFillSlotFromWaitlistPlan({
+      businessId,
+      slot: {
+        bookingId: slot.id,
+        employeeId: slot.employeeId,
+        serviceId: slot.serviceId,
+        startTime: slot.startTime.toISOString(),
+        customerName: slot.customer?.name,
+      },
+      candidate: { customerId: candidate.id, customerName: candidate.name },
+      userId,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
+  }
+
+  private async executeCompoundIntents(
+    businessId: string,
+    prompt: string,
+    userId: string | undefined,
+    session: CommandSessionOptions | undefined,
+    subIntents: Array<{ action: string; params: Record<string, any>; reasoning: string }>,
+    catalog: {
+      employees: Employee[];
+      services: Service[];
+      customers: Customer[];
+      templates: ScheduleTemplate[];
+    },
+    confidenceThresholds: { low: number; high: number },
+  ): Promise<CommandResult> {
+    const plans: AgentPlan[] = [];
+    const pipelineTrace = [
+      this.completionPipeline.trace('classify', 'compound_intent', `${subIntents.length} sub-intent(s)`),
+    ];
+
+    for (const sub of subIntents) {
+      const parsed = {
+        action: sub.action,
+        params: this.completionPipeline.mergeSessionContext(sub.params, session?.context),
+        reasoning: sub.reasoning,
+      };
+      this.completionPipeline.normalizeDateParams(parsed.params);
+      const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog);
+
+      if (shouldValidateAction(parsed.action)) {
+        const validation = this.completionPipeline.validate(resolved);
+        if (!validation.ok) {
+          const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
+          clarify.details.pipelineTrace = pipelineTrace;
+          clarify.details.compoundStep = parsed.action;
+          return clarify;
+        }
+      }
+
+      const plan = await this.buildPlanForResolvedIntent(
+        businessId,
+        prompt,
+        parsed.action,
+        resolved.enrichedParams,
+        resolved.entities.employeeId,
+        catalog,
+        userId,
+      );
+
+      if (plan) plans.push(plan);
+    }
+
+    if (plans.length === 0) {
+      return {
+        success: false,
+        action: 'compound_intent',
+        summary: 'Could not build a plan from the compound command.',
+        details: { subIntents },
+      };
+    }
+
+    const merged = this.planBuilder.mergePlans(businessId, 'compound_intent', plans);
+    const providerCount = catalog.employees.length;
+
+    const result = this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan: merged,
+        businessId,
+        userId,
+        autoExecute: resolveAutoExecute({
+          action: 'compound_intent',
+          stepCount: merged.steps.length,
+          providerCount,
+          confidence: 0.9,
+          thresholds: confidenceThresholds,
+        }),
+      }),
+    );
+
+    result.details = {
+      ...result.details,
+      pipelineTrace,
+      subIntents: subIntents.map((s) => s.action),
+      decomposed: true,
+    };
+    return result;
+  }
+
+  private async buildPlanForResolvedIntent(
+    businessId: string,
+    prompt: string,
+    action: string,
+    params: Record<string, any>,
+    employeeId: string | undefined,
+    catalog: {
+      employees: Employee[];
+      services: Service[];
+      customers: Customer[];
+      templates: ScheduleTemplate[];
+    },
+    userId?: string,
+  ): Promise<AgentPlan | null> {
+    switch (action) {
+      case 'setup_week_schedule': {
+        const cascadeResult = await this.scheduleHandlers.prepareTemplateCascadePlan(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          catalog.services,
+          userId,
+        );
+        return cascadeResult;
+      }
+      case 'apply_schedule':
+      case 'fill_unused_slots':
+      case 'block_schedule':
+      case 'create_direct_schedule':
+      case 'assign_employee_services':
+      case 'bulk_smart_cancel':
+      case 'fill_slot_from_waitlist':
+      case 'cancel_bookings':
+      case 'reschedule_booking': {
+        const handlerResult = await this.dispatchMutatingIntent(
+          businessId,
+          prompt,
+          action === 'cancel_bookings' && /notify|waitlist|rebook/i.test(prompt)
+            ? 'bulk_smart_cancel'
+            : action,
+          params,
+          catalog,
+          employeeId,
+          userId,
+          { planOnly: true },
+        );
+        return (handlerResult.details?.plan as AgentPlan) ?? null;
+      }
+      default:
+        return null;
+    }
+  }
+
+  private async dispatchMutatingIntent(
+    businessId: string,
+    prompt: string,
+    action: string,
+    params: any,
+    catalog: {
+      employees: Employee[];
+      services: Service[];
+      customers: Customer[];
+      templates: ScheduleTemplate[];
+    },
+    employeeId: string | undefined,
+    userId: string | undefined,
+    options?: { planOnly?: boolean },
+  ): Promise<CommandResult> {
+    let result: CommandResult;
+
+    switch (action) {
+      case 'fill_unused_slots':
+        if (options?.planOnly) {
+          const plan = await this.scheduleHandlers.prepareFillGapsPlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            catalog.services,
+            userId,
+          );
+          return { success: !!plan, action, summary: '', details: { plan } };
+        }
+        result = await this.scheduleHandlers.handleFillScheduleGaps(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          catalog.services,
+          userId,
+        );
+        break;
+      case 'apply_schedule':
+        if (options?.planOnly) {
+          const plan = await this.scheduleHandlers.prepareApplySchedulePlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            userId,
+          );
+          return { success: !!plan, action, summary: '', details: { plan } };
+        }
+        result = await this.scheduleHandlers.handleApplySchedule(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          userId,
+        );
+        break;
+      case 'block_schedule':
+        if (options?.planOnly) {
+          const plan = await this.scheduleHandlers.prepareBlockSchedulePlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            userId,
+          );
+          return { success: !!plan, action, summary: '', details: { plan } };
+        }
+        result = await this.scheduleHandlers.handleBlockSchedule(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          userId,
+        );
+        break;
+      case 'bulk_smart_cancel': {
+        if (options?.planOnly) {
+          const bookings = await this.findBookingsForCancel(businessId, params, catalog.services, employeeId);
+          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          const plan = this.planBuilder.buildBulkSmartCancelPlan(
+            businessId,
+            bookings.map((b) => b.id),
+            params.reason || 'Cancelled via AI',
+            userId,
+            { employeeName: params.employeeName, services: params.serviceNames },
+          );
+          return { success: true, action, summary: '', details: { plan } };
+        }
+        result = await this.handleBulkSmartCancel(businessId, params, catalog.services, employeeId, userId);
+        break;
+      }
+      case 'fill_slot_from_waitlist':
+        if (options?.planOnly) {
+          const fillResult = await this.handleFillSlotFromWaitlist(businessId, params, employeeId, userId);
+          return { ...fillResult, details: { plan: fillResult.details?.plan } };
+        }
+        result = await this.handleFillSlotFromWaitlist(businessId, params, employeeId, userId);
+        break;
+      default:
+        result = { success: false, action, summary: 'Unsupported compound step', details: {} };
+    }
+
+    return result;
+  }
+
+  private async findBookingsForCancel(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employeeId?: string,
+  ) {
+    const matchedServices = this.resolveServices(services, params);
+    const where: any = {
+      businessId,
+      status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
+    };
+    if (employeeId) where.employeeId = employeeId;
+    if (matchedServices.length > 0) {
+      where.serviceId = In(matchedServices.map((s) => s.id));
+    }
+    if (params.date) {
+      const d = new Date(params.date);
+      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(dayStart, dayEnd);
+    }
+    return this.bookingRepo.find({ where });
   }
 
   private async handleCreateService(

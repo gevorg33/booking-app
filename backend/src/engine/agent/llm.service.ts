@@ -35,6 +35,7 @@ Rules:
   fetch_current_schedule, list_appointments, analyze_utilization, identify_schedule_gaps,
   generate_optimization_recommendations, find_freed_slots, find_rebooking_candidates,
   propose_reassignment, detect_conflicts, analyze_resolution_options, propose_resolutions,
+  execute_reassignment,
   create_booking, cancel_bookings, fill_schedule_gaps, apply_template, create_block_schedule,
   create_direct_schedule, reschedule_booking, assign_employee_services, summarize_utilization
 - Do NOT invent new action names

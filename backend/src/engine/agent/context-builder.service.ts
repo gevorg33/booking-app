@@ -7,6 +7,7 @@ import { Booking, BookingStatus } from '../../modules/booking/entities/booking.e
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
 import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
+import { Business } from '../../modules/business/entities/business.entity.js';
 import { AgentContext } from './interfaces/agent.interfaces.js';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class ContextBuilderService {
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
     @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
   ) {}
 
   async build(
@@ -45,7 +47,8 @@ export class ContextBuilderService {
     };
     if (options?.employeeId) periodWhere.employeeId = options.employeeId;
 
-    const [employees, services, bookings, schedules, templates, blockSchedules] = await Promise.all([
+    const [employees, services, bookings, schedules, templates, blockSchedules, business] =
+      await Promise.all([
       this.employeeRepo.find({ where: employeeWhere }),
       this.serviceRepo.find({ where: { businessId } }),
       this.bookingRepo.find({
@@ -56,7 +59,23 @@ export class ContextBuilderService {
       this.periodRepo.find({ where: periodWhere, order: { startTime: 'ASC' } }),
       this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
       this.blockScheduleRepo.find({ where: { businessId, isDeleted: false }, take: 20 }),
+      this.businessRepo.findOne({ where: { id: businessId } }),
     ]);
+
+    const buffers = services
+      .map((s) => s.bufferMinutes ?? 0)
+      .filter((n) => n > 0);
+    const avgServiceBufferMinutes = buffers.length
+      ? Math.round(buffers.reduce((a, b) => a + b, 0) / buffers.length)
+      : 10;
+
+    const hours = business?.settings?.hours ?? business?.settings?.businessHours;
+    const businessHoursLabel =
+      typeof hours === 'string'
+        ? hours
+        : hours?.open && hours?.close
+          ? `${hours.open}–${hours.close}`
+          : '09:00–19:00';
 
     return {
       businessId,
@@ -72,6 +91,12 @@ export class ContextBuilderService {
         '10-minute slot boundaries',
         'Respect employee schedules and breaks',
       ],
+      policyMetrics: {
+        activeBookingCount: bookings.length,
+        employeeCount: employees.length,
+        avgServiceBufferMinutes,
+        businessHoursLabel,
+      },
     };
   }
 

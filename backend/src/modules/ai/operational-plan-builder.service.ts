@@ -391,7 +391,7 @@ export class OperationalPlanBuilderService {
         id: stepId,
         action: 'cancel_bookings',
         description: `Cancel ${bookingIds.length} booking(s)`,
-        params: { bookingIds, reason, userId },
+        params: { bookingIds, reason, userId, businessId },
         dependsOn: [],
         estimatedImpact: `Cancels ${bookingIds.length} booking(s)`,
       },
@@ -411,6 +411,179 @@ export class OperationalPlanBuilderService {
         level: bookingIds.length > 5 ? 'high' : bookingIds.length > 1 ? 'medium' : 'low',
         factors: [`Affects ${bookingIds.length} booking(s)`],
       },
+    });
+  }
+
+  buildBulkSmartCancelPlan(
+    businessId: string,
+    bookingIds: string[],
+    reason: string,
+    userId?: string,
+    meta?: { employeeName?: string; date?: string; services?: string[]; dateRange?: { start: string; end: string } },
+  ): AgentPlan {
+    const cancelId = crypto.randomUUID();
+    const notifyId = crypto.randomUUID();
+    const freedId = crypto.randomUUID();
+    const candidatesId = crypto.randomUUID();
+    const proposalsId = crypto.randomUUID();
+
+    const steps: AgentPlanStep[] = [
+      {
+        id: cancelId,
+        action: 'cancel_bookings',
+        description: `Cancel ${bookingIds.length} booking(s)`,
+        params: { bookingIds, reason, userId, businessId },
+        dependsOn: [],
+        estimatedImpact: `Cancels ${bookingIds.length} booking(s)`,
+      },
+      {
+        id: notifyId,
+        action: 'notify_cancelled_customers',
+        description: `Notify ${bookingIds.length} customer(s) about cancellation`,
+        params: { bookingIds, reason, businessId },
+        dependsOn: [cancelId],
+        estimatedImpact: 'Sends cancellation notifications',
+      },
+      {
+        id: freedId,
+        action: 'find_freed_slots',
+        description: 'Identify freed slots from cancellations',
+        params: {
+          businessId,
+          dateRange: meta?.dateRange,
+          date: meta?.date,
+        },
+        dependsOn: [cancelId],
+        estimatedImpact: 'Maps open slots for waitlist recovery',
+      },
+      {
+        id: candidatesId,
+        action: 'find_rebooking_candidates',
+        description: 'Find waitlist and rebooking candidates',
+        params: { businessId, dateRange: meta?.dateRange, date: meta?.date },
+        dependsOn: [freedId],
+        estimatedImpact: 'Scores waitlist matches',
+      },
+      {
+        id: proposalsId,
+        action: 'propose_reassignment',
+        description: 'Propose waitlist reassignments for freed slots',
+        params: { businessId },
+        dependsOn: [candidatesId],
+        estimatedImpact: 'Generates reassignment proposals',
+      },
+    ];
+
+    const filterDesc = [meta?.employeeName, meta?.services?.join(', '), meta?.date]
+      .filter(Boolean)
+      .join(' · ');
+
+    return this.wrapPlan(businessId, 'bulk_smart_cancel', steps, {
+      reasoning: `Smart cancel ${bookingIds.length} booking(s)${filterDesc ? `: ${filterDesc}` : ''}, notify customers, and propose waitlist recovery.`,
+      risk: {
+        level: bookingIds.length > 5 ? 'high' : 'medium',
+        factors: [
+          `Cancels ${bookingIds.length} booking(s)`,
+          'Customer notifications',
+          'Waitlist reassignment proposals',
+        ],
+      },
+    });
+  }
+
+  buildFillSlotFromWaitlistPlan(params: {
+    businessId: string;
+    slot: {
+      bookingId?: string;
+      employeeId: string;
+      serviceId: string;
+      startTime: string;
+      customerName?: string;
+    };
+    candidate: {
+      customerId: string;
+      customerName: string;
+    };
+    userId?: string;
+  }): AgentPlan {
+    const stepId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: stepId,
+        action: 'execute_reassignment',
+        description: `Rebook ${params.candidate.customerName} into freed slot`,
+        params: {
+          businessId: params.businessId,
+          proposalId: 'waitlist-auto',
+          customerId: params.candidate.customerId,
+          employeeId: params.slot.employeeId,
+          serviceId: params.slot.serviceId,
+          startTime: params.slot.startTime,
+          userId: params.userId,
+          notes: 'Auto-filled from waitlist via AI',
+        },
+        dependsOn: [],
+        estimatedImpact: `Creates booking for ${params.candidate.customerName}`,
+      },
+    ];
+
+    return this.wrapPlan(params.businessId, 'fill_slot_from_waitlist', steps, {
+      reasoning: `Fill freed slot with waitlist customer ${params.candidate.customerName}.`,
+      risk: { level: 'low', factors: ['Single waitlist auto-fill'] },
+    });
+  }
+
+  buildTemplateCascadePlan(
+    applyParams: ResolvedApplyScheduleParams,
+    fillParams: ResolvedFillScheduleGapsParams,
+  ): AgentPlan {
+    const applyPlan = this.buildApplySchedulePlan(applyParams);
+    const applyStepIds = applyPlan.steps.map((s) => s.id);
+    const fillPlan = this.buildFillScheduleGapsPlan(fillParams);
+    const fillSteps = fillPlan.steps.map((step) => ({
+      ...step,
+      dependsOn: [...new Set([...(step.dependsOn ?? []), ...applyStepIds])],
+    }));
+
+    const allSteps = [...applyPlan.steps, ...fillSteps];
+    const providerNames = applyParams.employeeNames.join(', ');
+
+    return this.wrapPlan(applyParams.businessId, 'setup_week_schedule', allSteps, {
+      reasoning: `Template cascade: apply "${applyParams.templateName}" to ${providerNames}, then fill ${fillParams.periods.length} gap(s) between ${fillParams.timeFrom}–${fillParams.timeTo}.`,
+      risk: {
+        level: allSteps.length > 6 ? 'high' : allSteps.length > 3 ? 'medium' : 'low',
+        factors: [
+          `${applyPlan.steps.length} template apply step(s)`,
+          `${fillSteps.length} gap fill step(s)`,
+        ],
+      },
+    });
+  }
+
+  mergePlans(businessId: string, intent: string, plans: AgentPlan[]): AgentPlan {
+    const allSteps: AgentPlanStep[] = [];
+    let priorIds: string[] = [];
+
+    for (const plan of plans) {
+      for (const step of plan.steps) {
+        allSteps.push({
+          ...step,
+          dependsOn: [...new Set([...(step.dependsOn ?? []), ...priorIds])],
+        });
+      }
+      priorIds = plan.steps.map((s) => s.id);
+    }
+
+    const riskOrder = { low: 0, medium: 1, high: 2 };
+    const maxRisk = plans.reduce(
+      (max, p) =>
+        riskOrder[p.riskAssessment.level] > riskOrder[max.riskAssessment.level] ? p : max,
+      plans[0],
+    );
+
+    return this.wrapPlan(businessId, intent, allSteps, {
+      reasoning: plans.map((p) => p.reasoning).filter(Boolean).join(' → '),
+      risk: maxRisk.riskAssessment,
     });
   }
 

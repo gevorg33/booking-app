@@ -2,6 +2,7 @@ export type NotificationChannel = 'email' | 'sms' | 'whatsapp';
 
 export type NotificationKind =
   | 'confirmation'
+  | 'cancellation'
   | 'reminder_immediate'
   | 'reminder_24h'
   | 'reminder_1h'
