@@ -31,3 +31,17 @@ export function normalizeE164Phone(phone: string): string | null {
   if (!digits || digits.length < 10) return null;
   return digits;
 }
+
+/** Store phones as E.164 with leading + (e.g. +37491234567). */
+export function normalizeStoredPhone(phone: string): string | null {
+  const trimmed = phone.trim();
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  return trimmed.startsWith('+') ? `+${digits}` : `+${digits}`;
+}
+
+/** Compare phones by digits only. */
+export function phoneDigits(phone: string): string {
+  return phone.replace(/\D/g, '');
+}

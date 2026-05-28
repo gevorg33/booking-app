@@ -17,7 +17,7 @@ import {
   useIonActionSheet,
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
-import { formatDateDisplay, formatTimeRangeDisplay } from '../lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '../lib/date-format';
 import {
   type BookingDetail,
   type BookingStatus,
@@ -39,8 +39,33 @@ interface BookingDetailModalProps {
 }
 
 function readError(err: unknown): string {
-  const ax = err as { response?: { data?: { message?: string } } };
-  return ax.response?.data?.message ?? 'Something went wrong. Please try again.';
+  const ax = err as {
+    response?: {
+      data?: {
+        message?: string | { message?: string; code?: string; updatedAt?: string };
+      };
+    };
+  };
+  const msg = ax.response?.data?.message;
+  if (typeof msg === 'object' && msg?.message) return msg.message;
+  return typeof msg === 'string' ? msg : 'Something went wrong. Please try again.';
+}
+
+function readErrorCode(err: unknown): string | undefined {
+  const ax = err as {
+    response?: { data?: { message?: { code?: string } } };
+  };
+  const msg = ax.response?.data?.message;
+  return typeof msg === 'object' ? msg?.code : undefined;
+}
+
+function bookingDayISO(iso: string): string {
+  return iso.split('T')[0];
+}
+
+function toRescheduleISO(dayISO: string, timeHHmm: string): string {
+  const [h, m] = timeHHmm.split(':');
+  return `${dayISO}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000Z`;
 }
 
 function PickerField({
@@ -79,8 +104,11 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<BookingStatus | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [versionConflict, setVersionConflict] = useState(false);
 
-  const { data: booking, isLoading, isError } = useQuery({
+  const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['provider-booking', businessId, bookingId],
     queryFn: async () => {
       const { data: res } = await api.get(
@@ -99,6 +127,9 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
     setCancelReason('');
     setShowCancel(false);
     setPendingStatus(null);
+    setRescheduleDate(bookingDayISO(booking.startTime));
+    setRescheduleTime(formatTimeDisplay(booking.startTime));
+    setVersionConflict(false);
   }, [booking]);
 
   const invalidateLists = () => {
@@ -119,6 +150,8 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
       status?: BookingStatus;
       paymentStatus?: PaymentStatus;
       notes?: string;
+      startTime?: string;
+      expectedUpdatedAt?: string;
     }) => {
       const { data: res } = await api.put(
         `/businesses/${businessId}/provider/bookings/${bookingId}`,
@@ -127,8 +160,15 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
       return unwrap<BookingDetail>(res);
     },
     onSuccess: (updated) => {
+      setVersionConflict(false);
       syncFromBooking(updated);
       invalidateLists();
+    },
+    onError: (err) => {
+      if (readErrorCode(err) === 'BOOKING_VERSION_CONFLICT') {
+        setVersionConflict(true);
+        void refetch();
+      }
     },
   });
 
@@ -136,13 +176,22 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
     mutationFn: async () => {
       const { data: res } = await api.put(
         `/businesses/${businessId}/provider/bookings/${bookingId}/cancel`,
-        { reason: cancelReason.trim() || 'Cancelled by provider' },
+        {
+          reason: cancelReason.trim() || 'Cancelled by provider',
+          expectedUpdatedAt: booking?.updatedAt,
+        },
       );
       return unwrap<BookingDetail>(res);
     },
     onSuccess: () => {
       invalidateLists();
       onClose();
+    },
+    onError: (err) => {
+      if (readErrorCode(err) === 'BOOKING_VERSION_CONFLICT') {
+        setVersionConflict(true);
+        void refetch();
+      }
     },
   });
 
@@ -162,6 +211,10 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
   const editable = booking ? isBookingEditable(booking.status) : false;
   const statusOptions = booking ? getStatusVariations(booking.status) : [];
   const notesChanged = booking ? notes !== (booking.notes ?? '') : false;
+  const rescheduleChanged = booking
+    ? rescheduleDate !== bookingDayISO(booking.startTime) ||
+      rescheduleTime !== formatTimeDisplay(booking.startTime)
+    : false;
   const savedStatus = (booking?.status as BookingStatus) ?? 'confirmed';
   const displayStatus: BookingStatus = showCancel ? 'cancelled' : (pendingStatus ?? status);
 
@@ -191,7 +244,7 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
     setPendingStatus(null);
     setStatus(next);
     if (next !== savedStatus) {
-      updateMutation.mutate({ status: next });
+      updateMutation.mutate({ status: next, expectedUpdatedAt: booking?.updatedAt });
     }
   };
 
@@ -199,7 +252,7 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
     setPaymentStatus(next);
     const current = (booking?.paymentStatus as PaymentStatus) ?? 'pending';
     if (next !== current) {
-      updateMutation.mutate({ paymentStatus: next });
+      updateMutation.mutate({ paymentStatus: next, expectedUpdatedAt: booking?.updatedAt });
     }
   };
 
@@ -244,13 +297,21 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
 
   const saveNotes = () => {
     if (!booking || !notesChanged || showCancel || pendingStatus) return;
-    updateMutation.mutate({ notes });
+    updateMutation.mutate({ notes, expectedUpdatedAt: booking.updatedAt });
+  };
+
+  const saveReschedule = () => {
+    if (!booking || !rescheduleChanged || showCancel || pendingStatus) return;
+    updateMutation.mutate({
+      startTime: toRescheduleISO(rescheduleDate, rescheduleTime),
+      expectedUpdatedAt: booking.updatedAt,
+    });
   };
 
   const confirmPendingStatus = () => {
-    if (!pendingStatus) return;
+    if (!pendingStatus || !booking) return;
     updateMutation.mutate(
-      { status: pendingStatus },
+      { status: pendingStatus, expectedUpdatedAt: booking.updatedAt },
       {
         onSuccess: () => {
           setPendingStatus(null);
@@ -299,6 +360,40 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
                   <a className="contact-link" href={`mailto:${booking.customer.email}`}>
                     {booking.customer.email}
                   </a>
+                )}
+              </div>
+            )}
+
+            {editable && (
+              <div className="ion-margin-bottom">
+                <h3>Reschedule</h3>
+                <IonItem lines="full">
+                  <IonLabel position="stacked">Date</IonLabel>
+                  <input
+                    type="date"
+                    className="native-date-input"
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                  />
+                </IonItem>
+                <IonItem lines="full">
+                  <IonLabel position="stacked">Start time (24h)</IonLabel>
+                  <input
+                    type="time"
+                    className="native-date-input"
+                    value={rescheduleTime}
+                    onChange={(e) => setRescheduleTime(e.target.value)}
+                  />
+                </IonItem>
+                {rescheduleChanged && (
+                  <IonButton
+                    expand="block"
+                    className="ion-margin-top"
+                    onClick={saveReschedule}
+                    disabled={updateMutation.isPending}
+                  >
+                    {updateMutation.isPending ? <IonSpinner name="crescent" /> : 'Save new time'}
+                  </IonButton>
                 )}
               </div>
             )}
@@ -386,10 +481,12 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
               </div>
             ) : null}
 
-            {(updateMutation.isError || cancelMutation.isError || suggestMutation.isError) && (
+            {(versionConflict || updateMutation.isError || cancelMutation.isError || suggestMutation.isError) && (
               <IonText color="warning">
                 <p className="booking-meta">
-                  {readError(updateMutation.error ?? cancelMutation.error ?? suggestMutation.error)}
+                  {versionConflict
+                    ? 'This appointment was updated elsewhere. Details refreshed — review and try again.'
+                    : readError(updateMutation.error ?? cancelMutation.error ?? suggestMutation.error)}
                 </p>
               </IonText>
             )}

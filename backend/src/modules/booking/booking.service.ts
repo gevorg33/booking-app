@@ -27,7 +27,7 @@ export interface AppointmentListItem {
   updatedAt: string;
   customer: { id: string; name: string; email: string | null; phone: string | null } | null;
   employee: { id: string; name: string } | null;
-  service: { id: string; name: string } | null;
+  service: { id: string; name: string; price?: number; currency?: string } | null;
 }
 
 export interface AppointmentsSearchResult {
@@ -250,10 +250,30 @@ export class BookingService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    const isRescheduling = dto.startTime && dto.startTime !== booking.startTime.toISOString();
+    this.assertExpectedUpdatedAt(booking, dto.expectedUpdatedAt);
+
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('Cancelled appointments cannot be updated');
+    }
+
+    const targetEmployeeId = dto.employeeId ?? booking.employeeId;
+    const targetServiceId = dto.serviceId ?? booking.serviceId;
+    const targetStart = dto.startTime ? new Date(dto.startTime) : booking.startTime;
+
+    const isRescheduling =
+      targetStart.getTime() !== booking.startTime.getTime() ||
+      targetEmployeeId !== booking.employeeId ||
+      targetServiceId !== booking.serviceId;
+
+    const oldStart = booking.startTime;
+    const oldEnd = booking.endTime;
+    const oldEmployeeId = booking.employeeId;
 
     if (isRescheduling) {
-      // Release all micro-slots from the old booking window
+      if (targetStart <= new Date()) {
+        throw new ConflictException('Cannot reschedule to a time in the past');
+      }
+
       await this.releaseSlotsByWindow(
         booking.employeeId,
         booking.businessId,
@@ -261,41 +281,79 @@ export class BookingService {
         booking.endTime,
       );
 
-      const targetServiceId = dto.serviceId || booking.serviceId;
-      const targetEmployeeId = dto.employeeId || booking.employeeId;
       const service = await this.serviceRepo.findOneOrFail({ where: { id: targetServiceId } });
-      const newStart = new Date(dto.startTime!);
       const totalDuration = service.durationMinutes + service.bufferMinutes;
-      const newEnd = new Date(newStart.getTime() + totalDuration * 60000);
+      const newEnd = new Date(targetStart.getTime() + totalDuration * 60000);
 
-      // Validate and lock new window
-      await this.validateBookingWindow(booking.businessId, targetEmployeeId, newStart, newEnd, targetServiceId);
-      const newSlots = await this.findSlotsInWindow(booking.businessId, targetEmployeeId, newStart, newEnd, targetServiceId);
+      await this.reconcileStuckSlotsInWindow(
+        booking.businessId,
+        targetEmployeeId,
+        targetStart,
+        newEnd,
+      );
 
-      for (const slot of newSlots) {
-        slot.appointmentCount += 1;
-        if (slot.appointmentCount >= slot.maxAppointmentCount) {
-          slot.status = SlotStatus.BOOKED;
+      await this.validateBookingWindow(
+        booking.businessId,
+        targetEmployeeId,
+        targetStart,
+        newEnd,
+        targetServiceId,
+        bookingId,
+      );
+
+      const newSlots = await this.findSlotsInWindow(
+        booking.businessId,
+        targetEmployeeId,
+        targetStart,
+        newEnd,
+        targetServiceId,
+      );
+
+      if (newSlots.length === 0) {
+        const conflicts = await this.findOverlappingBookings(
+          booking.businessId,
+          targetEmployeeId,
+          targetStart,
+          newEnd,
+          bookingId,
+        );
+        if (conflicts.length > 0) {
+          throw new ConflictException('Time slot is already booked');
         }
-        await this.slotRepo.save(slot);
+      } else {
+        for (const slot of newSlots) {
+          slot.appointmentCount += 1;
+          if (slot.appointmentCount >= slot.maxAppointmentCount) {
+            slot.status = SlotStatus.BOOKED;
+          }
+          await this.slotRepo.save(slot);
+        }
       }
 
-      booking.startTime = newStart;
+      booking.startTime = targetStart;
       booking.endTime = newEnd;
-      booking.slotId = newSlots[0]?.id;
+      booking.employeeId = targetEmployeeId;
+      booking.serviceId = targetServiceId;
+      booking.slotId = newSlots[0]?.id ?? null;
 
       await this.eventStore.publish({
         eventType: EventType.BOOKING_RESCHEDULED,
         aggregateType: 'booking',
         aggregateId: booking.id,
         businessId: booking.businessId,
-        payload: { newStartTime: dto.startTime },
+        payload: {
+          bookingId: booking.id,
+          employeeId: targetEmployeeId,
+          serviceId: targetServiceId,
+          oldStartTime: oldStart.toISOString(),
+          oldEndTime: oldEnd.toISOString(),
+          newStartTime: targetStart.toISOString(),
+          newEndTime: newEnd.toISOString(),
+        },
         userId,
       });
     }
 
-    if (dto.employeeId) booking.employeeId = dto.employeeId;
-    if (dto.serviceId) booking.serviceId = dto.serviceId;
     if (dto.description !== undefined) booking.description = dto.description;
     if (dto.notes !== undefined) booking.notes = dto.notes;
 
@@ -330,6 +388,25 @@ export class BookingService {
         userId,
       });
     }
+
+    await this.eventStore.publish({
+      eventType: EventType.BOOKING_UPDATED,
+      aggregateType: 'booking',
+      aggregateId: booking.id,
+      businessId: booking.businessId,
+      payload: {
+        bookingId: booking.id,
+        employeeId: booking.employeeId,
+        serviceId: booking.serviceId,
+        startTime: booking.startTime.toISOString(),
+        endTime: booking.endTime.toISOString(),
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        rescheduled: isRescheduling,
+        previousEmployeeId: isRescheduling ? oldEmployeeId : undefined,
+      },
+      userId,
+    });
 
     return this.findOne(booking.id);
   }
@@ -431,7 +508,14 @@ export class BookingService {
             }
           : null,
         employee: b.employee ? { id: b.employee.id, name: b.employee.name } : null,
-        service: b.service ? { id: b.service.id, name: b.service.name } : null,
+        service: b.service
+          ? {
+              id: b.service.id,
+              name: b.service.name,
+              price: Number(b.service.price),
+              currency: b.service.currency,
+            }
+          : null,
       })),
     };
   }
@@ -445,8 +529,14 @@ export class BookingService {
     return booking;
   }
 
-  async cancel(id: string, reason?: string, userId?: string): Promise<Booking> {
+  async cancel(
+    id: string,
+    reason?: string,
+    userId?: string,
+    expectedUpdatedAt?: string,
+  ): Promise<Booking> {
     const booking = await this.findOne(id);
+    this.assertExpectedUpdatedAt(booking, expectedUpdatedAt);
     const wasAlreadyCancelled = booking.status === BookingStatus.CANCELLED;
 
     await this.releaseSlotsByWindow(
@@ -478,7 +568,27 @@ export class BookingService {
         aggregateType: 'booking',
         aggregateId: id,
         businessId: booking.businessId,
-        payload: { reason, employeeId: booking.employeeId, startTime: booking.startTime },
+        payload: {
+          reason,
+          employeeId: booking.employeeId,
+          startTime: booking.startTime.toISOString(),
+          endTime: booking.endTime.toISOString(),
+        },
+        userId,
+      });
+
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_UPDATED,
+        aggregateType: 'booking',
+        aggregateId: id,
+        businessId: booking.businessId,
+        payload: {
+          bookingId: id,
+          status: BookingStatus.CANCELLED,
+          employeeId: booking.employeeId,
+          startTime: booking.startTime.toISOString(),
+          endTime: booking.endTime.toISOString(),
+        },
         userId,
       });
     }
@@ -753,6 +863,7 @@ export class BookingService {
     startTime: Date,
     endTime: Date,
     serviceId: string,
+    excludeBookingId?: string,
   ): Promise<void> {
     await this.validateAgainstServicePeriods(businessId, employeeId, startTime, endTime, serviceId);
 
@@ -803,6 +914,7 @@ export class BookingService {
           employeeId,
           startTime,
           endTime,
+          excludeBookingId,
         );
         if (hasActiveBooking) {
           throw new ConflictException(
@@ -928,16 +1040,58 @@ export class BookingService {
     employeeId: string,
     startTime: Date,
     endTime: Date,
+    excludeBookingId?: string,
   ): Promise<boolean> {
-    const count = await this.bookingRepo
+    const qb = this.bookingRepo
       .createQueryBuilder('booking')
       .where('booking.business_id = :businessId', { businessId })
       .andWhere('booking.employee_id = :employeeId', { employeeId })
       .andWhere('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
       .andWhere('booking.startTime < :endTime', { endTime })
-      .andWhere('booking.endTime > :startTime', { startTime })
-      .getCount();
+      .andWhere('booking.endTime > :startTime', { startTime });
+
+    if (excludeBookingId) {
+      qb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
+    }
+
+    const count = await qb.getCount();
     return count > 0;
+  }
+
+  private async findOverlappingBookings(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingId?: string,
+  ): Promise<Booking[]> {
+    const qb = this.bookingRepo
+      .createQueryBuilder('booking')
+      .where('booking.business_id = :businessId', { businessId })
+      .andWhere('booking.employee_id = :employeeId', { employeeId })
+      .andWhere('booking.status NOT IN (:...excluded)', {
+        excluded: [BookingStatus.CANCELLED],
+      })
+      .andWhere('booking.startTime < :endTime', { endTime })
+      .andWhere('booking.endTime > :startTime', { startTime });
+
+    if (excludeBookingId) {
+      qb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
+    }
+
+    return qb.getMany();
+  }
+
+  private assertExpectedUpdatedAt(booking: Booking, expected?: string): void {
+    if (!expected) return;
+    const expectedMs = new Date(expected).getTime();
+    if (Number.isNaN(expectedMs) || expectedMs !== booking.updatedAt.getTime()) {
+      throw new ConflictException({
+        message: 'This appointment was updated by someone else. Refresh and try again.',
+        code: 'BOOKING_VERSION_CONFLICT',
+        updatedAt: booking.updatedAt.toISOString(),
+      });
+    }
   }
 
   /**

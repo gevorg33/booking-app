@@ -7,6 +7,7 @@ export enum EventType {
   BOOKING_CANCELLED = 'booking.cancelled',
   BOOKING_COMPLETED = 'booking.completed',
   BOOKING_RESCHEDULED = 'booking.rescheduled',
+  BOOKING_UPDATED = 'booking.updated',
   BOOKING_NO_SHOW = 'booking.no_show',
 
   // Payment events

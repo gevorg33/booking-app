@@ -7,6 +7,7 @@ import { BookingPaymentService } from './booking-payment.service.js';
 import { BookingController } from './booking.controller.js';
 import { BookingCreatedListener } from './listeners/booking-created.listener.js';
 import { BookingCompletedListener } from './listeners/booking-completed.listener.js';
+import { BookingLifecycleListener } from './listeners/booking-lifecycle.listener.js';
 import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { InventoryModule } from '../inventory/inventory.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
@@ -45,7 +46,7 @@ import { CustomerModule } from '../customer/customer.module.js';
     NotificationsModule,
   ],
   controllers: [BookingController, AgentController],
-  providers: [BookingService, BookingPaymentService, BookingCreatedListener, BookingCompletedListener],
+  providers: [BookingService, BookingPaymentService, BookingCreatedListener, BookingCompletedListener, BookingLifecycleListener],
   exports: [BookingService, BookingPaymentService],
 })
 export class BookingModule {}

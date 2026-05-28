@@ -1,4 +1,6 @@
 /** Mirrors backend `BookingStatus` with clinic-portal-style labels. */
+import { formatTimeRangeDisplay } from '@/lib/date-format';
+
 export type BookingStatus =
   | 'pending'
   | 'confirmed'
@@ -95,4 +97,51 @@ export function buildStatusUpdatePayload(
     ...(extra?.description !== undefined ? { description: extra.description } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
   };
+}
+
+export interface ServicePriceInfo {
+  price?: number | string | null;
+  currency?: string | null;
+}
+
+export function formatServicePrice(
+  price?: number | string | null,
+  currency = 'USD',
+): string | null {
+  if (price === undefined || price === null || price === '') return null;
+  const amount = Number(price);
+  if (Number.isNaN(amount)) return null;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${amount} ${currency || 'USD'}`;
+  }
+}
+
+/** Primary calendar/card line: time · status · cost */
+export function formatBookingBlockHeadline(input: {
+  startTime: string;
+  endTime: string;
+  status: string;
+  service?: ServicePriceInfo | null;
+}): string {
+  const parts = [formatTimeRangeDisplay(input.startTime, input.endTime)];
+  parts.push(formatStatusLabel(input.status));
+  const cost = formatServicePrice(input.service?.price, input.service?.currency ?? undefined);
+  if (cost) parts.push(cost);
+  return parts.join(' · ');
+}
+
+export function formatBookingBlockSublabel(input: {
+  service?: { name?: string | null } | null;
+  customer?: { name?: string | null } | null;
+  employee?: { name?: string | null } | null;
+}): string {
+  const name = input.service?.name || 'Appointment';
+  const who = input.customer?.name || input.employee?.name || '';
+  return who ? `${name} · ${who}` : name;
 }

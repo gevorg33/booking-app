@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
+import { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
 
 @Controller('businesses/:businessId/invitations')
 @UseGuards(JwtAuthGuard)
@@ -40,10 +41,7 @@ export class PublicInvitationsController {
   }
 
   @Post(':token/accept')
-  accept(
-    @Param('token') token: string,
-    @Body() dto: { password: string; firstName: string; lastName: string },
-  ) {
+  accept(@Param('token') token: string, @Body() dto: AcceptInvitationDto) {
     return this.invitationsService.accept(token, dto);
   }
 }

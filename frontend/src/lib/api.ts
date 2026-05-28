@@ -36,7 +36,7 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     const requestUrl = error.config?.url ?? '';
-    const isAuthRequest = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'].some((path) => requestUrl.includes(path));
+    const isAuthRequest = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/switch-business'].some((path) => requestUrl.includes(path));
 
     if (
       error.response?.status === 401 &&

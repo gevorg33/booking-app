@@ -78,6 +78,10 @@ export class UpdateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
 }
 
 export class GetAvailabilityDto {
@@ -96,4 +100,8 @@ export class CancelBookingDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
 }

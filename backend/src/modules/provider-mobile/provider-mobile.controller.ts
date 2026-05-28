@@ -16,6 +16,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
 import { SubscribePushDto, RegisterNativePushDto, UpdateProviderBookingDto, CancelProviderBookingDto, SuggestCancelNoteDto } from './dto/provider-mobile.dto.js';
+import { ProviderAiCommandDto, ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
+import { ProviderAiCommandService } from './provider-ai-command.service.js';
 
 @Controller('businesses/:businessId/provider')
 @UseGuards(JwtAuthGuard)
@@ -23,11 +25,36 @@ export class ProviderMobileController {
   constructor(
     private providerService: ProviderMobileService,
     private pushService: PushService,
+    private providerAi: ProviderAiCommandService,
   ) {}
 
   @Get('context')
   getContext(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
     return this.providerService.getContext(businessId, user.id);
+  }
+
+  @Post('ai/command')
+  runAiCommand(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: ProviderAiCommandDto,
+  ) {
+    return this.providerAi.executeCommand(
+      businessId,
+      user.id,
+      dto.prompt,
+      dto.history,
+      dto.context,
+    );
+  }
+
+  @Post('ai/command/confirm')
+  confirmAiCommand(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: ProviderAiConfirmDto,
+  ) {
+    return this.providerAi.confirmAction(businessId, user.id, dto);
   }
 
   @Get('bookings/today')

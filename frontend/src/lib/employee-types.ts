@@ -50,11 +50,22 @@ export function employeeToForm(employee: EmployeeRecord): EmployeeFormValues {
   };
 }
 
+import { formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
+
 export function formToPayload(form: EmployeeFormValues) {
+  const phoneRaw = form.phone.trim();
+  let phone: string | undefined;
+  if (phoneRaw) {
+    if (!isValidPhone(phoneRaw)) {
+      throw new Error('INVALID_PHONE');
+    }
+    phone = formatPhoneForApi(phoneRaw);
+  }
+
   return {
     name: form.name.trim(),
     email: form.email.trim() || undefined,
-    phone: form.phone.trim() || undefined,
+    phone,
     title: form.title.trim() || undefined,
     avatarUrl: form.avatarUrl.trim() || undefined,
     serviceIds: form.serviceIds.length > 0 ? form.serviceIds : undefined,

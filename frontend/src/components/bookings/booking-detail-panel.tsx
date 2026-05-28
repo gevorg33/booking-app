@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { isValidTime24, normalizeTime24 } from '@/lib/time-format';
+import { TimeInput } from '@/components/time-input';
 import {
   BOOKING_STATUS_LABELS,
   buildStatusUpdatePayload,
@@ -37,9 +39,45 @@ export interface BookingDetail {
   notes?: string;
   description?: string;
   cancellationReason?: string;
+  updatedAt?: string;
   service?: { id: string; name: string; durationMinutes?: number };
   employee?: { id: string; name: string };
   customer?: { id: string; name: string; email?: string; phone?: string };
+}
+
+function bookingDayISO(iso: string): string {
+  return iso.split('T')[0];
+}
+
+function bookingTimeHHmm(iso: string): string {
+  return formatTimeDisplay(iso);
+}
+
+function toRescheduleISO(dayISO: string, timeHHmm: string): string {
+  return `${dayISO}T${normalizeTime24(timeHHmm)}:00.000Z`;
+}
+
+function readBookingError(err: unknown): {
+  message: string;
+  code?: string;
+  updatedAt?: string;
+} {
+  const ax = err as {
+    response?: {
+      data?: {
+        message?: string | { message?: string; code?: string; updatedAt?: string };
+      };
+    };
+  };
+  const msg = ax.response?.data?.message;
+  if (typeof msg === 'object' && msg) {
+    return {
+      message: msg.message ?? 'Failed to save changes',
+      code: msg.code,
+      updatedAt: msg.updatedAt,
+    };
+  }
+  return { message: typeof msg === 'string' ? msg : 'Failed to save changes' };
 }
 
 interface BookingDetailPanelProps {
@@ -66,14 +104,37 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<BookingStatus | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleEmployeeId, setRescheduleEmployeeId] = useState('');
+  const [rescheduleServiceId, setRescheduleServiceId] = useState('');
+  const [versionConflict, setVersionConflict] = useState(false);
 
-  const { data: booking, isLoading, isError } = useQuery({
+  const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['booking', businessId, bookingId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/bookings/${bookingId}`);
       return (data.data || data) as BookingDetail;
     },
     enabled: !!businessId && !!bookingId,
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/employees`);
+      return data.data || data || [];
+    },
+    enabled: !!businessId,
+  });
+
+  const { data: allServices = [] } = useQuery({
+    queryKey: ['services', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/services`);
+      return data.data || data || [];
+    },
+    enabled: !!businessId,
   });
 
   useEffect(() => {
@@ -85,6 +146,11 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     setCancelReason('');
     setShowCancelConfirm(false);
     setPendingStatus(null);
+    setRescheduleDate(bookingDayISO(booking.startTime));
+    setRescheduleTime(bookingTimeHHmm(booking.startTime));
+    setRescheduleEmployeeId(booking.employee?.id ?? '');
+    setRescheduleServiceId(booking.service?.id ?? '');
+    setVersionConflict(false);
   }, [booking]);
 
   const refreshBookings = () => {
@@ -99,23 +165,45 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       notes?: string;
       description?: string;
       paymentStatus?: PaymentStatus;
+      startTime?: string;
+      employeeId?: string;
+      serviceId?: string;
+      expectedUpdatedAt?: string;
     }) => {
       const { data } = await api.put(`/businesses/${businessId}/bookings/${bookingId}`, payload);
       return data;
     },
-    onSuccess: refreshBookings,
+    onSuccess: () => {
+      setVersionConflict(false);
+      refreshBookings();
+    },
+    onError: (err) => {
+      const parsed = readBookingError(err);
+      if (parsed.code === 'BOOKING_VERSION_CONFLICT') {
+        setVersionConflict(true);
+        void refetch();
+      }
+    },
   });
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
       const { data } = await api.put(`/businesses/${businessId}/bookings/${bookingId}/cancel`, {
         reason: cancelReason || 'Cancelled',
+        expectedUpdatedAt: booking?.updatedAt,
       });
       return data;
     },
     onSuccess: () => {
       refreshBookings();
       onClose();
+    },
+    onError: (err) => {
+      const parsed = readBookingError(err);
+      if (parsed.code === 'BOOKING_VERSION_CONFLICT') {
+        setVersionConflict(true);
+        void refetch();
+      }
     },
   });
 
@@ -130,7 +218,18 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const detailsChanged = booking
     ? notes !== (booking.notes ?? '') || description !== (booking.description ?? '')
     : false;
-  const dirty = statusChanged || detailsChanged || paymentChanged;
+  const rescheduleChanged = booking
+    ? rescheduleDate !== bookingDayISO(booking.startTime) ||
+      rescheduleTime !== bookingTimeHHmm(booking.startTime) ||
+      rescheduleEmployeeId !== (booking.employee?.id ?? '') ||
+      rescheduleServiceId !== (booking.service?.id ?? '')
+    : false;
+  const rescheduleValid =
+    !!rescheduleDate &&
+    isValidTime24(rescheduleTime) &&
+    !!rescheduleEmployeeId &&
+    !!rescheduleServiceId;
+  const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged;
 
   const applyStatusChange = (next: BookingStatus) => {
     if (next === 'cancelled') {
@@ -151,7 +250,11 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       notes?: string;
       description?: string;
       paymentStatus?: PaymentStatus;
-    } = {};
+      startTime?: string;
+      employeeId?: string;
+      serviceId?: string;
+      expectedUpdatedAt?: string;
+    } = { expectedUpdatedAt: booking.updatedAt };
     if (statusChanged) {
       Object.assign(payload, buildStatusUpdatePayload(status));
     }
@@ -161,6 +264,11 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     }
     if (paymentChanged) {
       payload.paymentStatus = paymentStatus;
+    }
+    if (rescheduleChanged && rescheduleValid) {
+      payload.startTime = toRescheduleISO(rescheduleDate, rescheduleTime);
+      payload.employeeId = rescheduleEmployeeId;
+      payload.serviceId = rescheduleServiceId;
     }
     updateMutation.mutate(payload, {
       onSuccess: () => {
@@ -172,16 +280,21 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   };
 
   const confirmPendingStatus = () => {
-    if (!pendingStatus || !bookingId) return;
+    if (!pendingStatus || !bookingId || !booking) return;
     setStatus(pendingStatus);
     setPendingStatus(null);
     updateMutation.mutate(
-      buildStatusUpdatePayload(pendingStatus),
+      { ...buildStatusUpdatePayload(pendingStatus), expectedUpdatedAt: booking.updatedAt },
       { onSuccess: () => onClose() },
     );
   };
 
-  const canSave = dirty && !showCancelConfirm && !pendingStatus && (editable || paymentChanged);
+  const canSave =
+    dirty &&
+    !showCancelConfirm &&
+    !pendingStatus &&
+    (editable || paymentChanged) &&
+    (!rescheduleChanged || rescheduleValid);
 
   return (
     <div
@@ -222,19 +335,81 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
             </div>
 
             <dl className="space-y-2.5 mb-5">
-              <DetailRow label="Date">
-                {formatDateDisplay(new Date(booking.startTime))}
-              </DetailRow>
-              <DetailRow label="Time">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-gray-500" />
-                  {formatTimeRangeDisplay(booking.startTime, booking.endTime)}
-                </span>
-              </DetailRow>
-              {booking.employee?.name && (
-                <DetailRow label="Provider">{booking.employee.name}</DetailRow>
+              {!editable && (
+                <>
+                  <DetailRow label="Date">
+                    {formatDateDisplay(new Date(booking.startTime))}
+                  </DetailRow>
+                  <DetailRow label="Time">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-gray-500" />
+                      {formatTimeRangeDisplay(booking.startTime, booking.endTime)}
+                    </span>
+                  </DetailRow>
+                  {booking.employee?.name && (
+                    <DetailRow label="Provider">{booking.employee.name}</DetailRow>
+                  )}
+                </>
               )}
             </dl>
+
+            {editable && (
+              <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80 space-y-3">
+                <p className="text-xs font-medium text-gray-400">Reschedule</p>
+                <div>
+                  <label className="label">Date</label>
+                  <input
+                    type="date"
+                    className="input text-sm"
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Start time (24h)</label>
+                  <TimeInput
+                    value={rescheduleTime}
+                    onChange={setRescheduleTime}
+                  />
+                </div>
+                <div>
+                  <label className="label">Provider</label>
+                  <select
+                    className="input text-sm"
+                    value={rescheduleEmployeeId}
+                    onChange={(e) => setRescheduleEmployeeId(e.target.value)}
+                  >
+                    <option value="">Select provider...</option>
+                    {employees.map((emp: { id: string; name: string }) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Service</label>
+                  <select
+                    className="input text-sm"
+                    value={rescheduleServiceId}
+                    onChange={(e) => setRescheduleServiceId(e.target.value)}
+                  >
+                    <option value="">Select service...</option>
+                    {allServices.map((svc: { id: string; name: string; durationMinutes?: number }) => (
+                      <option key={svc.id} value={svc.id}>
+                        {svc.name}
+                        {svc.durationMinutes != null ? ` (${svc.durationMinutes} min)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {rescheduleChanged && (
+                  <p className="text-[10px] text-gray-500">
+                    Availability, service period, and conflicts are validated when you save.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="mb-5">
               <label className="label">Payment status</label>
@@ -379,13 +554,13 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               </div>
             )}
 
-            {(updateMutation.isError || cancelMutation.isError) && (
+            {(versionConflict || updateMutation.isError || cancelMutation.isError) && (
               <div className="mb-4 p-2.5 bg-red-600/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-xs">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>
-                  {(updateMutation.error as any)?.response?.data?.message ||
-                    (cancelMutation.error as any)?.response?.data?.message ||
-                    'Failed to save changes'}
+                  {versionConflict
+                    ? 'This appointment was updated elsewhere. Details were refreshed — review and save again.'
+                    : readBookingError(updateMutation.error ?? cancelMutation.error).message}
                 </span>
               </div>
             )}

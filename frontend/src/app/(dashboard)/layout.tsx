@@ -29,6 +29,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { BusinessSwitcher } from '@/components/business-switcher';
 import { useI18n } from '@/i18n';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -114,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <span className="font-bold text-gray-900 dark:text-gray-100">OptiSchedule</span>
           </div>
-          {business && <p className="text-xs text-gray-500 mt-2 truncate">{business.name}</p>}
+          {business && <BusinessSwitcher />}
         </div>
 
         <nav className="flex-1 p-3 space-y-1">

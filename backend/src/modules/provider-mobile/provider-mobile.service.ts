@@ -9,6 +9,12 @@ import { BookingService } from '../booking/booking.service.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import {
+  isMobileManagerRole,
+  MOBILE_MANAGER_ROLES,
+  type MobileAccess,
+  type MobileViewMode,
+} from './provider-mobile-access.js';
+import {
   UpdateProviderBookingDto,
   CancelProviderBookingDto,
   SuggestCancelNoteDto,
@@ -24,6 +30,7 @@ const ACTIVE_STATUSES = [
 export class ProviderMobileService {
   constructor(
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
     private businessService: BusinessService,
@@ -32,80 +39,103 @@ export class ProviderMobileService {
   ) {}
 
   async getContext(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+
+    return {
+      membershipRole: access.membershipRole,
+      viewMode: access.viewMode,
+      employee: access.employee
+        ? {
+            id: access.employee.id,
+            name: access.employee.name,
+            email: access.employee.email,
+            phone: access.employee.phone,
+          }
+        : null,
+      canUseProviderApp: true,
+    };
+  }
+
+  async resolveMobileAccess(businessId: string, userId: string): Promise<MobileAccess> {
     const membership = await this.businessService.ensureMember(businessId, userId);
     const employee = await this.employeeRepo.findOne({
       where: { businessId, userId, isActive: true },
     });
 
-    return {
-      membershipRole: membership.role,
-      employee: employee
-        ? {
-            id: employee.id,
-            name: employee.name,
-            email: employee.email,
-            phone: employee.phone,
-          }
-        : null,
-      canUseProviderApp: Boolean(employee),
-    };
-  }
-
-  private async resolveEmployee(businessId: string, userId: string): Promise<Employee> {
-    const employee = await this.employeeRepo.findOne({
-      where: { businessId, userId, isActive: true },
-    });
-    if (!employee) {
-      throw new ForbiddenException('No provider profile linked to your account');
+    if (isMobileManagerRole(membership.role)) {
+      return {
+        viewMode: 'team',
+        membershipRole: membership.role,
+        employee,
+      };
     }
-    return employee;
+
+    if (employee) {
+      return {
+        viewMode: 'provider',
+        membershipRole: membership.role,
+        employee,
+      };
+    }
+
+    throw new ForbiddenException('No provider profile or admin access for this business');
   }
 
   async getTodayBookings(businessId: string, userId: string) {
-    const employee = await this.resolveEmployee(businessId, userId);
+    const access = await this.resolveMobileAccess(businessId, userId);
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(today);
     dayEnd.setUTCHours(23, 59, 59, 999);
 
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(today, dayEnd),
+      status: Not(In([BookingStatus.CANCELLED])),
+    };
+    if (access.viewMode === 'provider') {
+      where.employeeId = access.employee!.id;
+    }
+
     const bookings = await this.bookingRepo.find({
-      where: {
-        businessId,
-        employeeId: employee.id,
-        startTime: Between(today, dayEnd),
-        status: Not(In([BookingStatus.CANCELLED])),
-      },
-      relations: { service: true, customer: true },
+      where: where as any,
+      relations: { service: true, customer: true, employee: true },
       order: { startTime: 'ASC' },
     });
 
     return {
       date: today.toISOString().slice(0, 10),
-      employee: { id: employee.id, name: employee.name },
+      viewMode: access.viewMode,
+      employee: access.employee ? { id: access.employee.id, name: access.employee.name } : null,
       bookings: bookings.map((b) => this.toBookingSummary(b)),
     };
   }
 
   async getUpcomingBookings(businessId: string, userId: string, days = 7) {
-    const employee = await this.resolveEmployee(businessId, userId);
+    const access = await this.resolveMobileAccess(businessId, userId);
     const start = new Date();
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setUTCDate(end.getUTCDate() + days);
     end.setUTCHours(23, 59, 59, 999);
 
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(start, end),
+      status: In(ACTIVE_STATUSES),
+    };
+    if (access.viewMode === 'provider') {
+      where.employeeId = access.employee!.id;
+    }
+
     const bookings = await this.bookingRepo.find({
-      where: {
-        businessId,
-        employeeId: employee.id,
-        startTime: Between(start, end),
-        status: In(ACTIVE_STATUSES),
-      },
-      relations: { service: true, customer: true },
+      where: where as any,
+      relations: { service: true, customer: true, employee: true },
       order: { startTime: 'ASC' },
     });
 
     return {
+      viewMode: access.viewMode,
       from: start.toISOString().slice(0, 10),
       to: end.toISOString().slice(0, 10),
       bookings: bookings.map((b) => this.toBookingSummary(b)),
@@ -113,18 +143,22 @@ export class ProviderMobileService {
   }
 
   async getScheduleSummary(businessId: string, userId: string, days = 14) {
-    const employee = await this.resolveEmployee(businessId, userId);
+    const access = await this.resolveMobileAccess(businessId, userId);
     const start = new Date();
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setUTCDate(end.getUTCDate() + days);
 
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(start, end),
+    };
+    if (access.viewMode === 'provider') {
+      where.employeeId = access.employee!.id;
+    }
+
     const slots = await this.slotRepo.find({
-      where: {
-        businessId,
-        employeeId: employee.id,
-        startTime: Between(start, end),
-      },
+      where: where as any,
       order: { startTime: 'ASC' },
       take: 500,
     });
@@ -139,7 +173,8 @@ export class ProviderMobileService {
     }
 
     return {
-      employee: { id: employee.id, name: employee.name },
+      viewMode: access.viewMode,
+      employee: access.employee ? { id: access.employee.id, name: access.employee.name } : null,
       days: [...byDay.entries()].map(([date, counts]) => ({ date, ...counts })),
     };
   }
@@ -149,8 +184,18 @@ export class ProviderMobileService {
     return employee?.userId ?? null;
   }
 
+  async findMobileManagerUserIds(businessId: string): Promise<string[]> {
+    const members = await this.memberRepo.find({
+      where: {
+        businessId,
+        role: In(MOBILE_MANAGER_ROLES),
+      },
+    });
+    return members.map((m) => m.userId);
+  }
+
   async getBookingDetail(businessId: string, userId: string, bookingId: string) {
-    const booking = await this.getOwnedBooking(businessId, userId, bookingId);
+    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
     return this.toBookingDetail(booking);
   }
 
@@ -160,7 +205,7 @@ export class ProviderMobileService {
     bookingId: string,
     dto: UpdateProviderBookingDto,
   ) {
-    const booking = await this.getOwnedBooking(businessId, userId, bookingId);
+    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
 
     if (dto.status === BookingStatus.CANCELLED) {
       throw new BadRequestException('Use the cancel endpoint to cancel an appointment');
@@ -176,6 +221,10 @@ export class ProviderMobileService {
         status: dto.status,
         paymentStatus: dto.paymentStatus,
         notes: dto.notes,
+        startTime: dto.startTime,
+        employeeId: dto.employeeId,
+        serviceId: dto.serviceId,
+        expectedUpdatedAt: dto.expectedUpdatedAt,
       },
       userId,
     );
@@ -189,11 +238,12 @@ export class ProviderMobileService {
     bookingId: string,
     dto: CancelProviderBookingDto,
   ) {
-    await this.getOwnedBooking(businessId, userId, bookingId);
+    await this.getAccessibleBooking(businessId, userId, bookingId);
     const cancelled = await this.bookingService.cancel(
       bookingId,
       dto.reason?.trim() || 'Cancelled by provider',
       userId,
+      dto.expectedUpdatedAt,
     );
     return this.toBookingDetail(cancelled);
   }
@@ -204,7 +254,7 @@ export class ProviderMobileService {
     bookingId: string,
     dto: SuggestCancelNoteDto,
   ) {
-    const booking = await this.getOwnedBooking(businessId, userId, bookingId);
+    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
     const customerName = booking.customer?.name ?? 'the customer';
     const serviceName = booking.service?.name ?? 'appointment';
     const when = booking.startTime.toISOString().slice(0, 16).replace('T', ' ');
@@ -234,14 +284,27 @@ Write a cancellation note the provider can save.`,
     };
   }
 
-  private async getOwnedBooking(
+  getViewMode(access: MobileAccess): MobileViewMode {
+    return access.viewMode;
+  }
+
+  getScopedEmployeeId(access: MobileAccess): string | undefined {
+    return access.viewMode === 'provider' ? access.employee!.id : undefined;
+  }
+
+  private async getAccessibleBooking(
     businessId: string,
     userId: string,
     bookingId: string,
   ): Promise<Booking> {
-    const employee = await this.resolveEmployee(businessId, userId);
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const where: Record<string, unknown> = { id: bookingId, businessId };
+    if (access.viewMode === 'provider') {
+      where.employeeId = access.employee!.id;
+    }
+
     const booking = await this.bookingRepo.findOne({
-      where: { id: bookingId, businessId, employeeId: employee.id },
+      where: where as any,
       relations: { service: true, customer: true, employee: true },
     });
     if (!booking) {
@@ -266,7 +329,15 @@ Write a cancellation note the provider can save.`,
       endTime: booking.endTime.toISOString(),
       status: booking.status,
       notes: booking.notes,
-      service: booking.service ? { id: booking.service.id, name: booking.service.name } : null,
+      updatedAt: booking.updatedAt.toISOString(),
+      service: booking.service
+        ? {
+            id: booking.service.id,
+            name: booking.service.name,
+            price: Number(booking.service.price),
+            currency: booking.service.currency,
+          }
+        : null,
       customer: booking.customer
         ? {
             id: booking.customer.id,
@@ -274,6 +345,9 @@ Write a cancellation note the provider can save.`,
             phone: booking.customer.phone,
             email: booking.customer.email,
           }
+        : null,
+      employee: booking.employee
+        ? { id: booking.employee.id, name: booking.employee.name }
         : null,
     };
   }

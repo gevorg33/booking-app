@@ -18,13 +18,13 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { getGoogleIdToken, isGoogleSignInAvailable } from '../services/google-auth';
 import { enableNativePush } from '../services/native-push';
-
-type AuthResult = {
-  user: { id: string; email: string; firstName?: string; lastName?: string };
-  business: { id: string; name: string; slug?: string };
-  employee: { id: string; name: string } | null;
-  token: string;
-};
+import { canAccessProviderApp } from '../lib/provider-access';
+import {
+  getLoginTenantHint,
+  savePreferredBusinessSlug,
+  unwrapAuthResult,
+  type AuthResult,
+} from '../lib/auth-session';
 
 export default function LoginPage() {
   const history = useHistory();
@@ -36,24 +36,43 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotMsg, setForgotMsg] = useState('');
+  const [pendingBusinesses, setPendingBusinesses] = useState<AuthResult['businesses'] | null>(null);
   const googleEnabled = isGoogleSignInAvailable();
 
   const finishLogin = (result: AuthResult) => {
-    if (!result.employee) {
-      setError('Your account is not linked to a provider profile. Ask your admin to send app access.');
+    if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
+      setError('Your account does not have provider or manager access. Ask your business owner for an invite.');
       return;
     }
-    setAuth(result.user, result.business, result.token);
+    if (!result.token || !result.business) {
+      setError('Login failed. Try again.');
+      return;
+    }
+    setAuth(result.user, result.business, result.token, {
+      businesses: result.businesses,
+      employee: result.employee,
+    });
+    savePreferredBusinessSlug(result.business.slug);
     void enableNativePush(result.business.id);
     history.replace('/tabs/today');
   };
 
-  const handleLogin = async () => {
+  const completeLogin = async (businessId?: string) => {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.post('/auth/login', { email, password });
-      finishLogin(unwrap<AuthResult>(data));
+      const { data } = await api.post('/auth/login', {
+        email,
+        password,
+        ...getLoginTenantHint(),
+        ...(businessId ? { businessId } : {}),
+      });
+      const result = unwrapAuthResult(data);
+      if (result.requiresBusinessSelection) {
+        setPendingBusinesses(result.businesses);
+        return;
+      }
+      finishLogin(result);
     } catch (err: unknown) {
       setError(readAuthError(err));
     } finally {
@@ -61,13 +80,27 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleLogin = async () => {
+    setPendingBusinesses(null);
+    await completeLogin();
+  };
+
+  const handleGoogleLogin = async (businessId?: string) => {
     setGoogleLoading(true);
     setError('');
     try {
       const idToken = await getGoogleIdToken();
-      const { data } = await api.post('/auth/google', { idToken });
-      finishLogin(unwrap<AuthResult>(data));
+      const { data } = await api.post('/auth/google', {
+        idToken,
+        ...getLoginTenantHint(),
+        ...(businessId ? { businessId } : {}),
+      });
+      const result = unwrapAuthResult(data);
+      if (result.requiresBusinessSelection) {
+        setPendingBusinesses(result.businesses);
+        return;
+      }
+      finishLogin(result);
     } catch (err: unknown) {
       setError(readAuthError(err, 'Google sign-in failed.'));
     } finally {
@@ -86,15 +119,45 @@ export default function LoginPage() {
     }
   };
 
+  if (pendingBusinesses) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Choose business</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <p className="booking-meta">This email is linked to more than one business.</p>
+          {pendingBusinesses.map((biz) => (
+            <IonButton
+              key={biz.id}
+              expand="block"
+              fill="outline"
+              className="ion-margin-bottom"
+              disabled={loading || googleLoading}
+              onClick={() => void completeLogin(biz.id)}
+            >
+              {biz.name}
+            </IonButton>
+          ))}
+          <IonButton fill="clear" expand="block" onClick={() => setPendingBusinesses(null)}>
+            Back
+          </IonButton>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Provider sign in</IonTitle>
+          <IonTitle>Sign in</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <p className="booking-meta">For service providers — appointments and alerts only.</p>
+        <p className="booking-meta">For service providers and schedule managers (owner, admin, manager).</p>
 
         {error && (
           <IonText color="danger">

@@ -1,0 +1,42 @@
+.provider-phone-field {
+  margin-bottom: 1rem;
+}
+
+.provider-phone-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+}
+
+.provider-phone-field .PhoneInput {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.provider-phone-field .PhoneInputCountry {
+  align-self: stretch;
+}
+
+.provider-phone-field .PhoneInputCountrySelect,
+.provider-phone-field .PhoneInputInput {
+  background: var(--ion-background-color, #1e1e1e);
+  border: 1px solid var(--ion-color-step-300, #4d4d4d);
+  border-radius: 8px;
+  color: var(--ion-text-color, #fff);
+  font-size: 1rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+}
+
+.provider-phone-field .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.provider-phone-field .PhoneInputCountrySelect:focus,
+.provider-phone-field .PhoneInputInput:focus {
+  outline: 2px solid var(--ion-color-primary, #3880ff);
+  outline-offset: 0;
+}

@@ -71,6 +71,6 @@ export class BookingController {
     @Body() dto: CancelBookingDto,
     @CurrentUser() user: any,
   ) {
-    return this.bookingService.cancel(id, dto.reason, user?.id);
+    return this.bookingService.cancel(id, dto.reason, user?.id, dto.expectedUpdatedAt);
   }
 }

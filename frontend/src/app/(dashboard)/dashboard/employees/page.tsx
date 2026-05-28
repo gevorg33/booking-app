@@ -7,6 +7,9 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EmployeeFormModal } from '@/components/employees/employee-form-modal';
+import TeamMembersCard from '@/components/employees/team-members-card';
+import type { TeamMemberRole } from '@/components/employees/team-members-card';
+import { roleLabel } from '@/components/employees/team-members-card';
 import {
   employeeAvatarUrl,
   employeeTitle,
@@ -18,13 +21,18 @@ import { useI18n } from '@/i18n';
 export default function EmployeesPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const isOwner = business?.membershipRole === 'owner';
   const queryClient = useQueryClient();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EmployeeRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: '', employeeName: '' });
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    employeeName: '',
+    role: 'contributor' as TeamMemberRole,
+  });
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [accessSentId, setAccessSentId] = useState<string | null>(null);
@@ -105,14 +113,15 @@ export default function EmployeesPage() {
       const { data } = await api.post(`/businesses/${business!.id}/invitations`, {
         email: inviteForm.email.trim(),
         employeeName: inviteForm.employeeName.trim() || undefined,
-        role: 'contributor',
+        role: inviteForm.role,
       });
       return data;
     },
     onSuccess: () => {
       setInviteSuccess(true);
-      setInviteForm({ email: '', employeeName: '' });
+      setInviteForm({ email: '', employeeName: '', role: 'contributor' });
       setInviteError(null);
+      void queryClient.invalidateQueries({ queryKey: ['team-members', business?.id] });
       setTimeout(() => {
         setInviteOpen(false);
         setInviteSuccess(false);
@@ -184,7 +193,7 @@ export default function EmployeesPage() {
             }}
             className="btn-secondary flex items-center gap-2"
           >
-            <UserPlus className="w-4 h-4" /> Invite contributor
+            <UserPlus className="w-4 h-4" /> {t('invite.sendInvite')}
           </button>
           <button onClick={openCreate} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Employee
@@ -313,6 +322,8 @@ export default function EmployeesPage() {
         )}
       </div>
 
+      <TeamMembersCard />
+
       {deleteTarget && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
@@ -354,7 +365,8 @@ export default function EmployeesPage() {
           >
             <h3 className="font-semibold text-lg mb-2">{t('invite.sendInvite')}</h3>
             <p className="text-sm text-gray-400 mb-4">
-              Send an email invitation for a contributor to join your portal, or use Send app access on an existing employee row.
+              Invite someone to your dashboard. Choose their role — admins and managers can see all
+              appointments in the mobile app.
             </p>
             {inviteSuccess ? (
               <p className="text-green-400 text-sm">{t('invite.inviteSent')}</p>
@@ -385,6 +397,29 @@ export default function EmployeesPage() {
                     placeholder="Optional display name"
                   />
                 </div>
+                {isOwner ? (
+                  <div>
+                    <label className="label">{t('invite.accessRole')}</label>
+                    <select
+                      className="input"
+                      value={inviteForm.role}
+                      onChange={(e) =>
+                        setInviteForm({
+                          ...inviteForm,
+                          role: e.target.value as TeamMemberRole,
+                        })
+                      }
+                    >
+                      {(['admin', 'manager', 'staff', 'contributor'] as TeamMemberRole[]).map(
+                        (role) => (
+                          <option key={role} value={role}>
+                            {roleLabel(role, t)}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </div>
+                ) : null}
                 {inviteError && <p className="text-red-400 text-sm">{inviteError}</p>}
                 <div className="flex gap-2">
                   <button type="submit" disabled={inviteMutation.isPending} className="btn-primary text-sm">
