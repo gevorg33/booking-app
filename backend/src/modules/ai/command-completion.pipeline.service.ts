@@ -279,6 +279,12 @@ export class CommandCompletionPipelineService {
     if (result.details?.date && !sessionContext.date) {
       sessionContext.date = String(result.details.date);
     }
+    if (Array.isArray(result.details?.availableProviders)) {
+      sessionContext.availableProviders = result.details.availableProviders;
+    }
+    if (result.details?.serviceName && !sessionContext.serviceName) {
+      sessionContext.serviceName = String(result.details.serviceName);
+    }
 
     return {
       ...result,

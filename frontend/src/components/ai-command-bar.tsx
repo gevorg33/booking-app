@@ -31,6 +31,7 @@ interface Message {
 interface SessionContext extends Partial<AiPageContext> {
   lastAction?: string | null;
   lastMetric?: string | null;
+  availableProviders?: string[];
 }
 
 interface ClarifyIssue {
@@ -42,7 +43,13 @@ interface ClarifyIssue {
 
 function extractSessionContext(result: {
   action?: string;
-  details?: { sessionContext?: SessionContext; employee?: string; date?: string; params?: Record<string, unknown> };
+  details?: {
+    sessionContext?: SessionContext;
+    employee?: string;
+    date?: string;
+    availableProviders?: string[];
+    params?: Record<string, unknown>;
+  };
 }): SessionContext {
   const ctx: SessionContext = { ...(result.details?.sessionContext ?? {}) };
   if (result.details?.employee) ctx.employeeName = result.details.employee;
@@ -53,6 +60,10 @@ function extractSessionContext(result: {
   if (params?.date && !ctx.date) ctx.date = String(params.date);
   if (params?.serviceName && !ctx.serviceName) ctx.serviceName = String(params.serviceName);
   if (params?.timeSlot && !ctx.timeSlot) ctx.timeSlot = String(params.timeSlot);
+  const available = result.details?.availableProviders;
+  if (Array.isArray(available) && available.length > 0) {
+    ctx.availableProviders = available.map(String);
+  }
   if (result.action) ctx.lastAction = result.action;
   if (details?.metric) ctx.customerMetric = String(details.metric);
   if (details?.appointmentMetric) ctx.appointmentMetric = String(details.appointmentMetric);
@@ -81,6 +92,7 @@ function mergeSessionContext(prev: SessionContext, next: SessionContext): Sessio
     customerMetric: next.customerMetric ?? prev.customerMetric,
     bookingMetric: next.bookingMetric ?? prev.bookingMetric,
     route: next.route ?? prev.route,
+    availableProviders: next.availableProviders ?? prev.availableProviders,
   };
 }
 

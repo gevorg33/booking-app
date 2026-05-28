@@ -1,10 +1,12 @@
 import { todayDisplay, formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { extractSingleDateFromPrompt, resolveDateRange } from './ai-orchestration.helpers.js';
+import { normalizeMultilingualPrompt } from './ai-prompt-i18n.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
 
 export type ServiceInsightMetric = 'most_booked' | 'top_revenue' | 'least_booked' | 'overview';
 export type StaffInsightMetric = 'busiest' | 'most_revenue' | 'most_bookings' | 'overview';
+export type ServiceAssignmentLookup = 'providers_for_service' | 'services_for_provider';
 
 export interface HeuristicIntent {
   action: string;
@@ -16,7 +18,7 @@ export interface HeuristicIntent {
 export interface HeuristicDetectionInput {
   prompt: string;
   sessionContext?: Record<string, any>;
-  employees: Array<{ id: string; name: string }>;
+  employees: Array<{ id: string; name: string; serviceIds?: string[] | null }>;
   customers?: Array<{ id: string; name: string }>;
   services?: Array<{ id: string; name: string }>;
   templates?: Array<{ id: string; name: string }>;
@@ -426,16 +428,32 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
   if (
     (lastAction === 'check_availability' ||
       lastAction === 'show_appointments' ||
-      lastAction === 'summarize_day') &&
-    /\b(book|schedule|add|create)\b/i.test(prompt) &&
+      lastAction === 'summarize_day' ||
+      lastAction === 'lookup_service_assignment') &&
+    (/\b(book|schedule|add|create|reserve)\b/i.test(prompt) ||
+      (extractTimeSlotFromPrompt(prompt) &&
+        (inherited.serviceName || sessionContext?.serviceName))) &&
     (/\bappointment\b|\bbooking\b/i.test(prompt) ||
       inherited.serviceName ||
+      sessionContext?.serviceName ||
       extractTimeSlotFromPrompt(prompt) ||
       input.services?.some((s) => prompt.toLowerCase().includes(s.name.toLowerCase())))
   ) {
     const params = { ...inherited };
     const service = input.services ? matchEntityInPrompt(prompt, input.services) : undefined;
     if (service) params.serviceName = service.name;
+    if (!params.serviceName && sessionContext?.serviceName) {
+      params.serviceName = sessionContext.serviceName;
+    }
+    const employee = input.employees ? matchEntityInPrompt(prompt, input.employees) : undefined;
+    if (employee) params.employeeName = employee.name;
+    if (
+      !params.employeeName &&
+      Array.isArray(sessionContext?.availableProviders) &&
+      sessionContext.availableProviders.length === 1
+    ) {
+      params.employeeName = sessionContext.availableProviders[0];
+    }
     const slot = extractTimeSlotFromPrompt(prompt);
     if (slot) params.timeSlot = slot;
     if (!params.date && !params.dateFrom) params.date = sessionContext?.date ?? todayDisplay();
@@ -443,7 +461,7 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
     return {
       action: 'create_booking',
       params,
-      reasoning: 'Follow-up — book after availability or appointment view',
+      reasoning: 'Follow-up — book after provider lookup or availability view',
       confidence: 0.93,
     };
   }
@@ -992,6 +1010,36 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
     };
   }
 
+  const timeOnlyBooking =
+    extractTimeSlotFromPrompt(prompt) &&
+    (params.serviceName || input.sessionContext?.serviceName) &&
+    (params.date || input.sessionContext?.date) &&
+    (params.employeeName ||
+      input.sessionContext?.employeeName ||
+      (Array.isArray(input.sessionContext?.availableProviders) &&
+        input.sessionContext.availableProviders.length === 1));
+  if (timeOnlyBooking && !/\b(cancel|show|list|how many|who can)\b/i.test(lower)) {
+    if (!params.serviceName && input.sessionContext?.serviceName) {
+      params.serviceName = input.sessionContext.serviceName;
+    }
+    if (!params.date && input.sessionContext?.date) {
+      params.date = input.sessionContext.date;
+    }
+    if (
+      !params.employeeName &&
+      Array.isArray(input.sessionContext?.availableProviders) &&
+      input.sessionContext.availableProviders.length === 1
+    ) {
+      params.employeeName = input.sessionContext.availableProviders[0];
+    }
+    return {
+      action: 'create_booking',
+      params,
+      reasoning: 'Time-only booking follow-up from prior provider/service context',
+      confidence: 0.9,
+    };
+  }
+
   if (
     /\bcancel\b/i.test(lower) &&
     /\b(all|every|appointments?|bookings?|tomorrow|today|facemassage|haircut|\w+\s+\d{1,2}:\d{2})/i.test(
@@ -1153,6 +1201,125 @@ function detectListEmployeesIntent(input: HeuristicDetectionInput): HeuristicInt
   };
 }
 
+function buildServiceAssignmentIntent(
+  assignmentLookup: ServiceAssignmentLookup,
+  params: Record<string, any>,
+): HeuristicIntent {
+  return {
+    action: 'lookup_service_assignment',
+    params: { assignmentLookup, ...params },
+    reasoning:
+      assignmentLookup === 'providers_for_service'
+        ? params.withAvailability
+          ? 'Which providers can perform a service on a given day (with availability)'
+          : 'Which providers can perform a service'
+        : 'Which services a provider can perform',
+    confidence: 0.91,
+  };
+}
+
+function hasSchedulingDateContext(
+  prompt: string,
+  params: Record<string, any>,
+): boolean {
+  const lower = prompt.toLowerCase();
+  return !!(
+    params.date ||
+    params.dateFrom ||
+    /\btoday\b|\btomorrow\b|\byesterday\b|\btonight\b/i.test(lower) ||
+    /\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i.test(
+      lower,
+    ) ||
+    /\d{1,2}[/_]\d{1,2}[/_]\d{4}/i.test(prompt)
+  );
+}
+
+function applyServiceAssignmentDateMode(params: Record<string, any>, prompt: string): void {
+  if (hasSchedulingDateContext(prompt, params)) {
+    params.withAvailability = true;
+  }
+}
+
+function detectSummarizeWaitlistIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
+  const { prompt } = input;
+  const lower = prompt.toLowerCase();
+
+  const wantsWaitlist =
+    /\bwaitlist\b/i.test(lower) ||
+    /\bwaiting\s*list\b/i.test(lower) ||
+    /\b(list|show|how many|count|who is on)\b.*\bwaitlist\b/i.test(lower) ||
+    /\bwaitlist\b.*\b(customers?|clients?|people)\b/i.test(lower);
+
+  if (!wantsWaitlist) return null;
+  if (/\bfill\b.*\bwaitlist\b/i.test(lower) || /\bfrom waitlist\b/i.test(lower)) return null;
+
+  const params: Record<string, any> = {
+    limit: extractLimitFromPrompt(prompt),
+  };
+  enrichParamsFromPrompt(params, input);
+
+  return {
+    action: 'summarize_waitlist',
+    params,
+    reasoning: 'Waitlist summary — tagged customers and open recovery slots',
+    confidence: 0.92,
+  };
+}
+
+function detectLookupServiceAssignmentIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
+  const { prompt, employees, services } = input;
+  const lower = prompt.toLowerCase();
+
+  const employee = employees ? matchEntityInPrompt(prompt, employees) : undefined;
+  const service = services ? matchEntityInPrompt(prompt, services) : undefined;
+
+  const servicesForProvider =
+    employee &&
+    (/\bwhat services\b/i.test(lower) ||
+      /\bwhich services\b/i.test(lower) ||
+      /\bservices (can|does)\b/i.test(lower) ||
+      /\b(offer|perform|provide)\b/i.test(lower));
+
+  const providersForService =
+    service &&
+    (/\bwho (can|does|offers|performs|provides)\b/i.test(lower) ||
+      /\bwhich providers?\b/i.test(lower) ||
+      /\bwhich (staff|employees|providers)\b/i.test(lower) ||
+      /\bwho does\b/i.test(lower));
+
+  if (!servicesForProvider && !providersForService) {
+    if (
+      (/\bwho can do\b/i.test(lower) || /\bwho (offers|performs)\b/i.test(lower)) &&
+      service
+    ) {
+      const p: Record<string, any> = { serviceName: service.name };
+      enrichParamsFromPrompt(p, input);
+      applyServiceAssignmentDateMode(p, prompt);
+      return buildServiceAssignmentIntent('providers_for_service', p);
+    }
+    return null;
+  }
+
+  if (servicesForProvider && employee) {
+    return buildServiceAssignmentIntent('services_for_provider', {
+      ...inheritSessionParams(input.sessionContext, ['employeeName']),
+      employeeName: employee.name,
+    });
+  }
+
+  if (providersForService && service) {
+    const p: Record<string, any> = {
+      ...inheritSessionParams(input.sessionContext, ['serviceName']),
+      serviceName: service.name,
+    };
+    enrichParamsFromPrompt(p, input);
+    applyServiceAssignmentDateMode(p, prompt);
+    return buildServiceAssignmentIntent('providers_for_service', p);
+  }
+
+  return null;
+}
+
 function detectListTemplatesIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt, templates } = input;
   const lower = prompt.toLowerCase();
@@ -1189,12 +1356,19 @@ function detectListTemplatesIntent(input: HeuristicDetectionInput): HeuristicInt
 export function runHeuristicIntentDetection(
   input: HeuristicDetectionInput,
 ): HeuristicIntent | null {
+  const normalizedInput: HeuristicDetectionInput = {
+    ...input,
+    prompt: normalizeMultilingualPrompt(input.prompt),
+  };
+
   const detectors = [
     detectFollowUpIntents,
     detectContextShiftIntent,
     detectDirectMutationIntents,
     detectListScheduleGapsIntent,
     detectLookupCustomerIntent,
+    detectSummarizeWaitlistIntent,
+    detectLookupServiceAssignmentIntent,
     detectAppointmentAnalysisIntent,
     detectAnalyzeServicesIntent,
     detectSummarizeStaffIntent,
@@ -1211,9 +1385,9 @@ export function runHeuristicIntentDetection(
   ];
 
   for (const detect of detectors) {
-    const result = detect(input);
+    const result = detect(normalizedInput);
     if (result) {
-      enrichParamsFromPrompt(result.params, input);
+      enrichParamsFromPrompt(result.params, normalizedInput);
       return result;
     }
   }

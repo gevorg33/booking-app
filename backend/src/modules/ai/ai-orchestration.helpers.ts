@@ -311,7 +311,7 @@ export function shouldAutoExecute(action: string, stepCount: number, providerCou
   const readOnly = [
     'list_bookings', 'show_appointments', 'check_availability', 'summarize_day',
     'summarize_bookings', 'list_services', 'analyze_services', 'summarize_staff',
-    'lookup_customer', 'list_employees', 'list_templates', 'optimize_schedule',
+    'lookup_customer', 'summarize_waitlist', 'lookup_service_assignment', 'list_employees', 'list_templates', 'optimize_schedule',
     'summarize_utilization', 'list_schedule_gaps', 'summarize_customers',
     'analyze_appointments', 'resolve_conflicts', 'reassign_cancelled',
   ];

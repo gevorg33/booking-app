@@ -64,6 +64,21 @@ export const AI_LOOKUP_EXAMPLES = [
   'Show new customers',
   'List our schedule templates',
   'Who works on our team?',
+  'Who can do facemassage?',
+  'What services can Gevorg perform?',
+  'Who can do facemassage tomorrow?',
+  'How many customers on the waitlist?',
+  'Show waitlist customers',
+];
+
+export const AI_MULTILINGUAL_EXAMPLES = [
+  'Որքան ամրագրումներ կան այսօր?',
+  'Ցույց տուր չեղարկված ամրագրումները',
+  'Ով կարող է անել facemassage?',
+  'Сколько записей сегодня?',
+  'Покажи отменённые записи',
+  'Кто может делать facemassage?',
+  'Сколько клиентов в листе ожидания?',
 ];
 
 export const AI_AVAILABILITY_EXAMPLES = [
@@ -154,6 +169,21 @@ export const AI_SCENARIO_CHAINS = [
       'Top 10 customers who paid the most',
     ],
   },
+  {
+    title: 'Waitlist & recovery',
+    steps: [
+      'How many customers on the waitlist?',
+      'Show waitlist customers',
+      'Fill cancelled 14:00 slot from waitlist',
+    ],
+  },
+  {
+    title: 'Service assignments',
+    steps: [
+      'Who can do facemassage tomorrow?',
+      'Book Gevorg at 10:00',
+    ],
+  },
 ];
 
 export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
@@ -202,6 +232,8 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Show new customers',
     'Who are our VIP customers?',
     'Which customers cancel the most?',
+    'How many customers on the waitlist?',
+    'Show waitlist customers',
   ],
   '/dashboard/employees': [
     'Assign all massage services to Gevorg',
@@ -209,12 +241,15 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Who is the busiest provider today?',
     'Top providers by revenue this week',
     'List our team members',
+    'What services can Gevorg perform?',
+    'Who can do facemassage tomorrow?',
   ],
   '/dashboard/services': [
     'What services do we offer?',
     'Most popular service this month',
     'How much is facemassage?',
     'Add services: facemassage 60min $50, haircut 30min $25',
+    'Who can do facemassage?',
   ],
   '/dashboard/reports': [
     'Summarize utilization this week',
@@ -260,11 +295,11 @@ export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
   '/dashboard/appointments':
     'Prefer: show_appointments, analyze_appointments, summarize_bookings, summarize_day. Respect statusFilter/todayOnly context.',
   '/dashboard/customers':
-    'Prefer: summarize_customers (no-shows, at-risk, VIP, top_spenders, new_customers, top bookers).',
+    'Prefer: summarize_customers (no-shows, at-risk, VIP, top_spenders, new_customers, top bookers), summarize_waitlist.',
   '/dashboard/employees':
-    'Prefer: assign_employee_services, summarize_utilization, check_availability, summarize_bookings busiest_provider.',
+    'Prefer: assign_employee_services, lookup_service_assignment, summarize_utilization, check_availability, summarize_bookings busiest_provider.',
   '/dashboard/services':
-    'Prefer: list_services, create_service, create_services, analyze_appointments most_expensive.',
+    'Prefer: list_services, create_service, create_services, analyze_services, lookup_service_assignment providers_for_service.',
   '/dashboard/reports':
     'Prefer: summarize_utilization, summarize_bookings revenue/count, summarize_customers top_spenders.',
   '/dashboard/ai-ops':
@@ -357,4 +392,5 @@ export const AI_ALL_EXAMPLE_GROUPS = [
   { label: 'Availability', items: AI_AVAILABILITY_EXAMPLES },
   { label: 'Services & catalog', items: AI_SERVICE_EXAMPLES },
   { label: 'Lookup & reference', items: AI_LOOKUP_EXAMPLES },
+  { label: 'Armenian & Russian', items: AI_MULTILINGUAL_EXAMPLES },
 ];
