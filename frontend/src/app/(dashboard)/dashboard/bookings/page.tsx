@@ -22,7 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { CustomerSelect } from '@/components/customers/customer-select';
-import { formatStatusLabel, STATUS_BADGE } from '@/lib/booking-types';
+import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
 import { useI18n } from '@/i18n';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
@@ -122,16 +122,17 @@ interface BookingItem {
   notes?: string;
   description?: string;
   cancellationReason?: string;
-  service?: { id: string; name: string; durationMinutes: number };
+  service?: { id: string; name: string; durationMinutes?: number; price?: number; currency?: string };
   employee?: { id: string; name: string };
   customer?: { id: string; name: string; email?: string; phone?: string };
 }
 
-/** Calendar block label — includes time range so overlapping blocks stay readable. */
-function bookingBlockLabel(b: Pick<BookingItem, 'status' | 'service' | 'startTime' | 'endTime'>) {
-  const range = formatTimeRangeDisplay(b.startTime, b.endTime);
-  const name = b.service?.name || 'Booking';
-  return b.status === 'cancelled' ? `${range} · Cancelled — ${name}` : `${range} · ${name}`;
+function bookingBlockLabel(b: BookingItem) {
+  return formatBookingBlockHeadline(b);
+}
+
+function bookingBlockSublabel(b: BookingItem) {
+  return formatBookingBlockSublabel(b);
 }
 
 function openBookingDetail(
@@ -308,7 +309,7 @@ function CalendarBlock({
 }) {
   const pos = getBlockPosition(startISO, endISO, col, totalCols);
   const isCompact = compact || totalCols > 1;
-  const minDurationForLabel = isCompact ? 8 : 15;
+  const minDurationForLabel = isCompact ? 6 : 12;
   const showText = showLabel && pos.durationMin >= minDurationForLabel;
 
   return (
@@ -361,12 +362,24 @@ export default function BookingsPage() {
       if (
         type === 'appointment.created' ||
         type === 'availability.updated' ||
-        type === 'booking.created'
+        type === 'booking.created' ||
+        type === 'booking.updated' ||
+        type === 'booking.rescheduled' ||
+        type === 'booking.cancelled' ||
+        type === 'booking.completed'
       ) {
         refreshScheduleData();
+        if (
+          type === 'booking.updated' ||
+          type === 'booking.rescheduled' ||
+          type === 'booking.cancelled' ||
+          type === 'booking.completed'
+        ) {
+          queryClient.invalidateQueries({ queryKey: ['booking'] });
+        }
       }
     },
-    [refreshScheduleData],
+    [refreshScheduleData, queryClient],
   );
 
   useOperationalEvents(business?.id, onOperationalEvent);
@@ -783,7 +796,7 @@ export default function BookingsPage() {
                             endISO={b.endTime}
                             color={{ bg: 'bg-red-900/35', border: 'border-red-600/60', text: 'text-red-200' }}
                             label={bookingBlockLabel(b)}
-                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            sublabel={bookingBlockSublabel(b)}
                             onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
                             faded
                             selected={selectedBookingId === b.id}
@@ -805,7 +818,7 @@ export default function BookingsPage() {
                             endISO={b.endTime}
                             color={{ bg: 'bg-orange-600/30', border: 'border-orange-500/60', text: 'text-orange-200' }}
                             label={bookingBlockLabel(b)}
-                            sublabel={b.customer?.name || b.employee?.name || ''}
+                            sublabel={bookingBlockSublabel(b)}
                             onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
                             selected={selectedBookingId === b.id}
                             col={lay.col}
@@ -1062,21 +1075,13 @@ export default function BookingsPage() {
                     <p className={`font-medium text-sm truncate ${b.status === 'cancelled' ? 'text-red-300' : ''}`}>
                       {bookingBlockLabel(b)}
                     </p>
-                    <p className="text-xs text-gray-400">
-                      {b.customer && <>{b.customer.name}</>}
-                      {b.customer && b.employee && <> · </>}
-                      {b.employee?.name}
+                    <p className="text-xs text-gray-400 truncate">
+                      {bookingBlockSublabel(b)}
                     </p>
                     {b.description && <p className="text-xs text-gray-500 truncate mt-0.5">{b.description}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <p className="text-xs text-gray-300">{b.employee?.name}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status] || 'bg-gray-600/10 text-gray-400'}`}>
-                      {formatStatusLabel(b.status)}
-                    </span>
-                  </div>
                   {b.status !== 'cancelled' && b.status !== 'completed' && (
                     <button
                       onClick={(e) => {

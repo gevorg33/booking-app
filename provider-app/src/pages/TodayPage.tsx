@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  IonBadge,
   IonCard,
   IonCardContent,
   IonCardHeader,
@@ -15,19 +14,52 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
-import { formatDateDisplay, formatTimeRangeDisplay } from '../lib/date-format';
-import { formatStatusLabel, STATUS_COLOR, type BookingSummary } from '../lib/booking-types';
+import { formatDateDisplay } from '../lib/date-format';
+import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
+import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
+import ProviderAiAssistant from '../components/ProviderAiAssistant';
+import { useOperationalEvents } from '../lib/use-operational-events';
 
 export default function TodayPage() {
   const { business, user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const refreshBookings = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['provider-today', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-upcoming', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-schedule-summary', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-booking'] });
+  }, [queryClient, business?.id]);
+
+  const onOperationalEvent = useCallback(
+    (type: string) => {
+      if (
+        type === 'booking.updated' ||
+        type === 'booking.rescheduled' ||
+        type === 'booking.cancelled' ||
+        type === 'booking.completed' ||
+        type === 'availability.updated' ||
+        type === 'booking.created'
+      ) {
+        refreshBookings();
+      }
+    },
+    [refreshBookings],
+  );
+
+  useOperationalEvents(business?.id, onOperationalEvent);
 
   const { data, isLoading } = useQuery({
     queryKey: ['provider-today', business?.id],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${business!.id}/provider/bookings/today`);
-      return unwrap<{ employee: { name: string }; bookings: BookingSummary[] }>(res);
+      return unwrap<{
+        viewMode: 'provider' | 'team' | 'admin' | 'owner';
+        employee: { name: string } | null;
+        bookings: BookingSummary[];
+      }>(res);
     },
     enabled: !!business?.id,
     refetchInterval: 60_000,
@@ -43,7 +75,13 @@ export default function TodayPage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        {data?.employee && <p className="booking-meta">{data.employee.name}</p>}
+        {business?.id && <ProviderAiAssistant businessId={business.id} />}
+
+        {isTeamView(data?.viewMode) ? (
+          <p className="booking-meta">All providers — today</p>
+        ) : (
+          data?.employee && <p className="booking-meta">{data.employee.name}</p>
+        )}
 
         {isLoading ? (
           <div className="empty-state"><IonSpinner /></div>
@@ -53,11 +91,15 @@ export default function TodayPage() {
           data.bookings.map((b) => (
             <IonCard key={b.id} button onClick={() => setSelectedId(b.id)}>
               <IonCardHeader>
-                <IonCardTitle>{formatTimeRangeDisplay(b.startTime, b.endTime)}</IonCardTitle>
+                <IonCardTitle className="appointment-block-title">
+                  {formatBookingBlockHeadline(b)}
+                </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>
                 <p className="booking-meta">{formatDateDisplay(b.startTime)}</p>
-                <IonBadge color={STATUS_COLOR[b.status] ?? 'medium'}>{formatStatusLabel(b.status)}</IonBadge>
+                {b.employee && isTeamView(data?.viewMode) && (
+                  <p className="booking-meta">Provider: {b.employee.name}</p>
+                )}
                 {b.service && <p><strong>{b.service.name}</strong></p>}
                 {b.customer && (
                   <>

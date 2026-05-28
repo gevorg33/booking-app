@@ -1,7 +1,9 @@
-import { Controller, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { BusinessService } from './business.service.js';
 import { DashboardService } from './dashboard.service.js';
+import { TeamMembersService } from './team-members.service.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -10,6 +12,7 @@ export class BusinessController {
   constructor(
     private businessService: BusinessService,
     private dashboardService: DashboardService,
+    private teamMembersService: TeamMembersService,
   ) {}
 
   @Get('my')
@@ -21,6 +24,23 @@ export class BusinessController {
   @Get('by-slug/:slug')
   findBySlug(@Param('slug') slug: string) {
     return this.businessService.findBySlug(slug);
+  }
+
+  @Get(':id/team-members')
+  @UseGuards(JwtAuthGuard)
+  listTeamMembers(@Param('id') id: string, @CurrentUser() user: { id: string }) {
+    return this.teamMembersService.list(id, user.id);
+  }
+
+  @Patch(':id/team-members/:memberId/role')
+  @UseGuards(JwtAuthGuard)
+  updateTeamMemberRole(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamMembersService.updateRole(id, memberId, dto.role, user.id);
   }
 
   @Get(':id/dashboard/overview')

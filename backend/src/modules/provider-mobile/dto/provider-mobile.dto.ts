@@ -1,4 +1,4 @@
-import { IsString, IsObject, ValidateNested, IsIn, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsObject, ValidateNested, IsIn, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
 
@@ -39,12 +39,32 @@ export class UpdateProviderBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startTime?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
 }
 
 export class CancelProviderBookingDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
 }
 
 export class SuggestCancelNoteDto {

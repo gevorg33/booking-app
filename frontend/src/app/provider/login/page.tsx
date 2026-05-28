@@ -6,6 +6,11 @@ import Link from 'next/link';
 import { Loader2, Smartphone } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { unwrapAuthResult } from '@/lib/auth-types';
+import { getLoginTenantHint, savePreferredBusinessSlug } from '@/lib/auth-session';
+import { BusinessPicker } from '@/components/business-picker';
+import type { BusinessSummary } from '@/lib/auth-types';
+import { canAccessProviderApp } from '@/lib/provider-access';
 import { useI18n } from '@/i18n';
 
 export default function ProviderLoginPage() {
@@ -15,26 +20,47 @@ export default function ProviderLoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingBusinesses, setPendingBusinesses] = useState<BusinessSummary[] | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const finishLogin = (result: ReturnType<typeof unwrapAuthResult>) => {
+    if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
+      setError(t('provider.noEmployeeProfile'));
+      return;
+    }
+    if (!result.token || !result.business) {
+      setError(t('auth.loginFailed'));
+      return;
+    }
+    setAuth(result.user, result.business, result.token, {
+      businesses: result.businesses,
+      employee: result.employee,
+    });
+    savePreferredBusinessSlug(result.business.slug);
+    router.replace('/provider/today');
+  };
+
+  const completeLogin = async (businessId?: string) => {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.post('/auth/login', form);
-      const result = (data as { data?: typeof data }).data ?? data;
-      setAuth(result.user, result.business, result.token);
+      const { data } = await api.post('/auth/login', {
+        email: form.email,
+        password: form.password,
+        ...getLoginTenantHint(),
+        ...(businessId ? { businessId } : {}),
+      });
+      const result = unwrapAuthResult(data);
 
-      if (!result.employee) {
-        setError(t('provider.noEmployeeProfile'));
+      if (result.requiresBusinessSelection) {
+        setPendingBusinesses(result.businesses);
         return;
       }
 
-      router.replace('/provider/today');
+      finishLogin(result);
     } catch (err: any) {
       if (!err.response) {
         setError(t('provider.networkError'));
@@ -51,6 +77,12 @@ export default function ProviderLoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPendingBusinesses(null);
+    await completeLogin();
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -84,46 +116,64 @@ export default function ProviderLoginPage() {
         </div>
       )}
 
-      <form onSubmit={(e) => void handleSubmit(e)} className="card space-y-4">
-        <div>
-          <label className="label">{t('common.email')}</label>
-          <input
-            type="email"
-            className="input"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-            autoComplete="email"
+      {pendingBusinesses ? (
+        <div className="card space-y-4">
+          <h2 className="font-semibold">{t('auth.selectBusiness')}</h2>
+          <BusinessPicker
+            businesses={pendingBusinesses}
+            disabled={loading}
+            onSelect={(businessId) => void completeLogin(businessId)}
           />
+          <button
+            type="button"
+            className="btn-secondary w-full text-sm"
+            onClick={() => setPendingBusinesses(null)}
+          >
+            {t('common.back')}
+          </button>
         </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="label mb-0">{t('common.password')}</label>
-            <button
-              type="button"
-              onClick={() => {
-                setForgotOpen(true);
-                setForgotEmail(form.email);
-                setForgotMessage('');
-              }}
-              className="text-xs text-blue-400 hover:underline"
-            >
-              {t('auth.forgotPassword')}
-            </button>
+      ) : (
+        <form onSubmit={(e) => void handleSubmit(e)} className="card space-y-4">
+          <div>
+            <label className="label">{t('common.email')}</label>
+            <input
+              type="email"
+              className="input"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              autoComplete="email"
+            />
           </div>
-          <input
-            type="password"
-            className="input"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-            autoComplete="current-password"
-          />
-        </div>
-        <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('auth.signIn')}
-        </button>
-      </form>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="label mb-0">{t('common.password')}</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotOpen(true);
+                  setForgotEmail(form.email);
+                  setForgotMessage('');
+                }}
+                className="text-xs text-blue-400 hover:underline"
+              >
+                {t('auth.forgotPassword')}
+              </button>
+            </div>
+            <input
+              type="password"
+              className="input"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+              autoComplete="current-password"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="btn-primary w-full">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('auth.signIn')}
+          </button>
+        </form>
+      )}
 
       <p className="text-center text-sm text-gray-500 mt-6">
         {t('provider.adminPortal')}{' '}

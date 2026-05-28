@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, Phone, Mail, User } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { formatTimeRangeDisplay, formatDateDisplay } from '@/lib/date-format';
-import { formatStatusLabel, STATUS_BADGE } from '@/lib/booking-types';
+import { formatDateDisplay } from '@/lib/date-format';
+import { formatBookingBlockHeadline } from '@/lib/booking-types';
 import { useI18n } from '@/i18n';
 
 interface BookingItem {
@@ -14,7 +14,7 @@ interface BookingItem {
   endTime: string;
   status: string;
   notes: string | null;
-  service: { id: string; name: string } | null;
+  service: { id: string; name: string; price?: number; currency?: string } | null;
   customer: { id: string; name: string; phone: string | null; email: string | null } | null;
 }
 
@@ -61,15 +61,12 @@ export default function ProviderTodayPage() {
           {data.bookings.map((b) => (
             <li key={b.id} className="card">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-lg">
-                    {formatTimeRangeDisplay(b.startTime, b.endTime)}
+                    {formatBookingBlockHeadline(b)}
                   </p>
                   <p className="text-sm text-gray-400">{formatDateDisplay(b.startTime)}</p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${STATUS_BADGE[b.status as keyof typeof STATUS_BADGE] ?? 'bg-gray-800'}`}>
-                  {formatStatusLabel(b.status)}
-                </span>
               </div>
               {b.service && (
                 <p className="mt-2 font-medium">{b.service.name}</p>

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity.js';
-import { BusinessMember } from './entities/business-member.entity.js';
+import { BusinessMember, MemberRole } from './entities/business-member.entity.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 
 const FORBIDDEN_MAP_EMBED = /<script|javascript:/i;
@@ -122,6 +122,14 @@ export class BusinessService {
     });
     if (!membership) {
       throw new ForbiddenException('You do not have access to this business');
+    }
+    return membership;
+  }
+
+  async ensureOwner(businessId: string, userId: string): Promise<BusinessMember> {
+    const membership = await this.ensureMember(businessId, userId);
+    if (membership.role !== MemberRole.OWNER) {
+      throw new ForbiddenException('Only the business owner can manage team roles');
     }
     return membership;
   }

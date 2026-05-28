@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { EmployeeAvatarField } from '@/components/employees/employee-avatar-field';
+import { DashboardPhoneInput } from '@/components/dashboard-phone-input';
+import { useAuthStore } from '@/lib/store';
 import {
   emptyEmployeeForm,
   employeeToForm,
@@ -34,11 +36,18 @@ export function EmployeeFormModal({
   onClose,
   onSubmit,
 }: EmployeeFormModalProps) {
+  const { business, user } = useAuthStore();
+  const defaultPhoneCountry =
+    business?.defaultPhoneCountryCode ||
+    (user?.locale === 'ru' ? '7' : user?.locale === 'hy' ? '374' : '374');
+
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm());
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setForm(employee ? employeeToForm(employee) : emptyEmployeeForm());
+    setPhoneError(null);
   }, [open, employee]);
 
   if (!open) return null;
@@ -78,7 +87,16 @@ export function EmployeeFormModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit(formToPayload(form));
+            setPhoneError(null);
+            try {
+              onSubmit(formToPayload(form));
+            } catch (err) {
+              if (err instanceof Error && err.message === 'INVALID_PHONE') {
+                setPhoneError('Enter a valid phone number with country code');
+                return;
+              }
+              throw err;
+            }
           }}
           className="space-y-4"
         >
@@ -110,7 +128,7 @@ export function EmployeeFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="label">Email</label>
               <input
@@ -120,14 +138,16 @@ export function EmployeeFormModal({
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div>
-              <label className="label">Phone</label>
-              <input
-                className="input"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
+            <DashboardPhoneInput
+              label="Phone"
+              value={form.phone || undefined}
+              onChange={(phone) => {
+                setPhoneError(null);
+                setForm({ ...form, phone: phone ?? '' });
+              }}
+              defaultCountryCode={defaultPhoneCountry}
+            />
+            {phoneError && <p className="text-sm text-red-400">{phoneError}</p>}
           </div>
 
           {services.length > 0 && (

@@ -12,11 +12,14 @@ import {
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { useAuthStore } from '../services/auth-store';
+import { isMobileManagerRole, managerRoleLabel } from '../lib/provider-access';
 import PushToggle from '../components/PushToggle';
 
 export default function ProfilePage() {
   const history = useHistory();
   const { user, business, logout } = useAuthStore();
+  const isManager = isMobileManagerRole(business?.membershipRole);
+  const roleLabel = managerRoleLabel(business?.membershipRole);
 
   return (
     <IonPage>
@@ -32,7 +35,12 @@ export default function ProfilePage() {
           </IonCardHeader>
           <IonCardContent>
             <p>{user?.email}</p>
-            {business && <p className="booking-meta">{business.name}</p>}
+            {business && (
+              <p className="booking-meta">
+                {business.name}
+                {roleLabel ? ` · ${roleLabel}` : ''}
+              </p>
+            )}
           </IonCardContent>
         </IonCard>
 
@@ -42,7 +50,11 @@ export default function ProfilePage() {
           </IonCardHeader>
           <IonCardContent>
             <PushToggle />
-            <p className="booking-meta">Get notified when a new appointment is booked for you.</p>
+            <p className="booking-meta">
+              {isManager
+                ? 'Get notified when any provider receives a new booking.'
+                : 'Get notified when a new appointment is booked for you.'}
+            </p>
           </IonCardContent>
         </IonCard>
 

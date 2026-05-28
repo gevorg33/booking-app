@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { formatDateDisplay } from '@/lib/date-format';
+import { formatBookingBlockHeadline } from '@/lib/booking-types';
 import { useI18n } from '@/i18n';
 
 export default function ProviderSchedulePage() {
@@ -31,7 +32,8 @@ export default function ProviderSchedulePage() {
           id: string;
           startTime: string;
           endTime: string;
-          service: { name: string } | null;
+          status: string;
+          service: { name: string; price?: number; currency?: string } | null;
           customer: { name: string } | null;
         }>;
       };
@@ -78,8 +80,8 @@ export default function ProviderSchedulePage() {
               <ul className="space-y-2">
                 {upcoming.bookings.map((b) => (
                   <li key={b.id} className="card text-sm">
-                    <p className="font-medium">{formatDateDisplay(b.startTime)}</p>
-                    <p className="text-gray-400">{formatTimeRangeDisplay(b.startTime, b.endTime)}</p>
+                    <p className="text-gray-400">{formatDateDisplay(b.startTime)}</p>
+                    <p className="font-medium">{formatBookingBlockHeadline(b)}</p>
                     <p className="mt-1">{b.service?.name} — {b.customer?.name}</p>
                   </li>
                 ))}

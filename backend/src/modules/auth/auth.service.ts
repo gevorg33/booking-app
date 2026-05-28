@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -16,6 +16,12 @@ import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { EmailService } from '../notifications/email.service.js';
 import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
+import {
+  AuthResponse,
+  BusinessAuthSummary,
+  JwtPayload,
+  TenantHint,
+} from './auth.types.js';
 
 @Injectable()
 export class AuthService {
@@ -47,7 +53,6 @@ export class AuthService {
       }),
     );
 
-    // Every user gets a business (individuals = business with single employee)
     const businessName = dto.businessName || `${dto.firstName}'s Business`;
     const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + user.id.slice(0, 8);
 
@@ -69,7 +74,6 @@ export class AuthService {
       }),
     );
 
-    // Create the owner as an employee too
     await this.employeeRepo.save(
       this.employeeRepo.create({
         businessId: business.id,
@@ -88,13 +92,13 @@ export class AuthService {
       userId: user.id,
     });
 
-    const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
-    return {
-      user: this.toPublicUser(user),
-      business: { id: business.id, name: business.name, slug: business.slug, membershipRole: MemberRole.OWNER },
-      employee: await this.findLinkedEmployee(business.id, user.id),
-      token,
-    };
+    const membership = await this.memberRepo.findOne({
+      where: { userId: user.id, businessId: business.id },
+      relations: { business: true },
+    });
+    const employee = await this.findLinkedEmployee(business.id, user.id);
+    const summary = this.membershipToSummary(membership!, employee);
+    return this.toAuthResponse(user, membership!, employee, [summary]);
   }
 
   async login(dto: LoginDto) {
@@ -113,10 +117,13 @@ export class AuthService {
       });
     }
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, {
+      businessId: dto.businessId,
+      businessSlug: dto.businessSlug,
+    });
   }
 
-  async loginWithGoogle(idToken: string) {
+  async loginWithGoogle(idToken: string, hint?: TenantHint) {
     if (!this.firebase.isReady) {
       throw new BadRequestException('Google sign-in is not configured on the server');
     }
@@ -147,48 +154,208 @@ export class AuthService {
       });
     }
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, hint);
   }
 
-  private async buildAuthResponse(user: User) {
-    const membership = await this.memberRepo.findOne({ where: { userId: user.id }, relations: { business: true } });
-    const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
-    return {
-      user: this.toPublicUser(user),
-      business: membership
-        ? {
-            id: membership.business.id,
-            name: membership.business.name,
-            slug: membership.business.slug,
-            locale: membership.business.settings?.locale || 'en',
-            membershipRole: membership.role,
-          }
-        : null,
-      employee: membership ? await this.findLinkedEmployee(membership.business.id, user.id) : null,
-      token,
-    };
-  }
-
-  async getMe(userId: string) {
+  async switchBusiness(userId: string, businessId: string): Promise<AuthResponse> {
     const user = await this.userRepo.findOne({ where: { id: userId, isActive: true } });
     if (!user) throw new UnauthorizedException('User not found');
-    const membership = await this.memberRepo.findOne({
-      where: { userId },
-      relations: { business: true },
-    });
+
+    const memberships = await this.loadMemberships(userId);
+    const membership = memberships.find((m) => m.businessId === businessId);
+    if (!membership) {
+      throw new ForbiddenException('You do not have access to this business');
+    }
+
+    const summaries = await this.buildSummaries(memberships);
+    const employee = await this.findLinkedEmployee(businessId, userId);
+    return this.toAuthResponse(user, membership, employee, summaries);
+  }
+
+  async getMe(userId: string, activeBusinessId?: string | null) {
+    const user = await this.userRepo.findOne({ where: { id: userId, isActive: true } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const memberships = await this.loadMemberships(userId);
+    const summaries = await this.buildSummaries(memberships);
+
+    if (!activeBusinessId) {
+      if (summaries.length === 1) {
+        const membership = memberships[0];
+        const employee = summaries[0].employee;
+        return this.toAuthResponse(user, membership, employee, summaries, false);
+      }
+      return {
+        user: this.toPublicUser(user),
+        business: null,
+        employee: null,
+        businesses: summaries,
+        token: null,
+        requiresBusinessSelection: summaries.length > 1,
+      } satisfies AuthResponse;
+    }
+
+    const membership = memberships.find((m) => m.businessId === activeBusinessId);
+    if (!membership) {
+      return {
+        user: this.toPublicUser(user),
+        business: null,
+        employee: null,
+        businesses: summaries,
+        token: null,
+        requiresBusinessSelection: summaries.length > 0,
+      } satisfies AuthResponse;
+    }
+
+    const summary = summaries.find((s) => s.id === activeBusinessId);
     return {
       user: this.toPublicUser(user),
-      business: membership
+      business: summary
         ? {
-            id: membership.business.id,
-            name: membership.business.name,
-            slug: membership.business.slug,
-            locale: membership.business.settings?.locale || 'en',
-            membershipRole: membership.role,
+            id: summary.id,
+            name: summary.name,
+            slug: summary.slug,
+            locale: summary.locale,
+            membershipRole: summary.membershipRole,
           }
         : null,
-      employee: membership ? await this.findLinkedEmployee(membership.business.id, user.id) : null,
+      employee: summary?.employee ?? null,
+      businesses: summaries,
+      token: null,
+      requiresBusinessSelection: false,
+    } satisfies AuthResponse;
+  }
+
+  private async buildAuthResponse(user: User, hint?: TenantHint): Promise<AuthResponse> {
+    const memberships = await this.loadMemberships(user.id);
+    const summaries = await this.buildSummaries(memberships);
+
+    if (memberships.length === 0) {
+      return {
+        user: this.toPublicUser(user),
+        business: null,
+        employee: null,
+        businesses: [],
+        token: this.signToken(user, null),
+        requiresBusinessSelection: false,
+      };
+    }
+
+    if (memberships.length === 1) {
+      const employee = summaries[0].employee;
+      return this.toAuthResponse(user, memberships[0], employee, summaries);
+    }
+
+    const selected = await this.resolveMembership(memberships, hint);
+    if (!selected) {
+      return {
+        user: this.toPublicUser(user),
+        business: null,
+        employee: null,
+        businesses: summaries,
+        token: null,
+        requiresBusinessSelection: true,
+      };
+    }
+
+    const summary = summaries.find((s) => s.id === selected.businessId)!;
+    return this.toAuthResponse(user, selected, summary.employee, summaries);
+  }
+
+  private async resolveMembership(
+    memberships: BusinessMember[],
+    hint?: TenantHint,
+  ): Promise<BusinessMember | null> {
+    if (!hint?.businessId && !hint?.businessSlug) {
+      return null;
+    }
+
+    if (hint.businessId) {
+      const match = memberships.find((m) => m.businessId === hint.businessId);
+      if (!match) {
+        throw new ForbiddenException('You do not have access to this business');
+      }
+      return match;
+    }
+
+    const slug = hint.businessSlug!.trim().toLowerCase();
+    const match = memberships.find((m) => m.business.slug.toLowerCase() === slug);
+    if (!match) {
+      throw new ForbiddenException('You do not have access to this business');
+    }
+    return match;
+  }
+
+  private async loadMemberships(userId: string): Promise<BusinessMember[]> {
+    return this.memberRepo.find({
+      where: { userId },
+      relations: { business: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  private async buildSummaries(memberships: BusinessMember[]): Promise<BusinessAuthSummary[]> {
+    const summaries: BusinessAuthSummary[] = [];
+    for (const membership of memberships) {
+      const employee = await this.findLinkedEmployee(membership.businessId, membership.userId);
+      summaries.push(this.membershipToSummary(membership, employee));
+    }
+    return summaries;
+  }
+
+  private membershipToSummary(
+    membership: BusinessMember,
+    employee: { id: string; name: string } | null,
+  ): BusinessAuthSummary {
+    return {
+      id: membership.business.id,
+      name: membership.business.name,
+      slug: membership.business.slug,
+      locale: membership.business.settings?.locale || 'en',
+      membershipRole: membership.role,
+      employee,
     };
+  }
+
+  private toAuthResponse(
+    user: User,
+    membership: BusinessMember,
+    employee: { id: string; name: string } | null,
+    summaries: BusinessAuthSummary[],
+    issueToken = true,
+  ): AuthResponse {
+    return {
+      user: this.toPublicUser(user),
+      business: {
+        id: membership.business.id,
+        name: membership.business.name,
+        slug: membership.business.slug,
+        locale: membership.business.settings?.locale || 'en',
+        membershipRole: membership.role,
+      },
+      employee,
+      businesses: summaries,
+      token: issueToken ? this.signToken(user, membership, employee?.id ?? null) : null,
+      requiresBusinessSelection: false,
+    };
+  }
+
+  private signToken(
+    user: User,
+    membership: BusinessMember | null,
+    employeeId?: string | null,
+  ): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    if (membership) {
+      payload.businessId = membership.businessId;
+      payload.membershipRole = membership.role;
+      payload.employeeId = employeeId ?? null;
+    }
+    return this.jwtService.sign(payload);
   }
 
   async updatePreferences(userId: string, dto: UpdatePreferencesDto) {

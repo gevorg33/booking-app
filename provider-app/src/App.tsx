@@ -15,6 +15,7 @@ import { IonReactRouter } from '@ionic/react-router';
 import { calendarOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
 import LoginPage from './pages/LoginPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 import TodayPage from './pages/TodayPage';
 import SchedulePage from './pages/SchedulePage';
 import ProfilePage from './pages/ProfilePage';
@@ -76,6 +77,7 @@ export default function App() {
       <IonReactRouter>
         <IonRouterOutlet>
           <Route exact path="/login" component={LoginPage} />
+          <Route exact path="/accept-invite" component={AcceptInvitePage} />
           <Route path="/tabs" render={() => (isAuthenticated ? <AuthedTabs /> : <Redirect to="/login" />)} />
           <Route exact path="/">
             <Redirect to={isAuthenticated ? '/tabs/today' : '/login'} />

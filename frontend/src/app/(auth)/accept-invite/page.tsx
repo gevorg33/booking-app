@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Zap } from 'lucide-react';
 import api from '@/lib/api';
+import { DashboardPhoneInput } from '@/components/dashboard-phone-input';
+import { formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 import { useI18n } from '@/i18n';
 
 interface InviteInfo {
@@ -13,6 +15,8 @@ interface InviteInfo {
   role: string;
   employeeName?: string;
   isAppAccess?: boolean;
+  hasExistingAccount?: boolean;
+  defaultPhoneCountryCode?: string;
 }
 
 function AcceptInviteForm() {
@@ -23,8 +27,9 @@ function AcceptInviteForm() {
 
   const [invite, setInvite] = useState<InviteInfo | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [form, setForm] = useState({ firstName: '', lastName: '', password: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', password: '', phone: '' });
   const [submitError, setSubmitError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -59,8 +64,25 @@ function AcceptInviteForm() {
     e.preventDefault();
     setSubmitting(true);
     setSubmitError('');
+    setPhoneError('');
+
+    let phone: string | undefined;
+    if (form.phone.trim()) {
+      if (!isValidPhone(form.phone)) {
+        setPhoneError(t('public.phoneInvalid'));
+        setSubmitting(false);
+        return;
+      }
+      phone = formatPhoneForApi(form.phone);
+    }
+
     try {
-      await api.post(`/invitations/${token}/accept`, form);
+      await api.post(`/invitations/${token}/accept`, {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        password: form.password || undefined,
+        phone,
+      });
       setSuccess(true);
       setTimeout(() => router.push('/provider/login'), 2000);
     } catch (err: any) {
@@ -139,17 +161,37 @@ function AcceptInviteForm() {
                 />
               </div>
             </div>
-            <div>
-              <label className="label">{t('common.password')}</label>
-              <input
-                type="password"
-                className="input"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                minLength={8}
-                required
-              />
-            </div>
+
+            <DashboardPhoneInput
+              label={t('invite.phone')}
+              value={form.phone || undefined}
+              onChange={(phone) => {
+                setPhoneError('');
+                setForm((f) => ({ ...f, phone: phone ?? '' }));
+              }}
+              defaultCountryCode={invite.defaultPhoneCountryCode || '374'}
+            />
+            {phoneError && <p className="text-sm text-red-400">{phoneError}</p>}
+            <p className="text-xs text-gray-500">{t('invite.phoneHint')}</p>
+
+            {!invite.hasExistingAccount && (
+              <div>
+                <label className="label">{t('common.password')}</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  minLength={8}
+                  required
+                />
+              </div>
+            )}
+
+            {invite.hasExistingAccount && (
+              <p className="text-xs text-gray-500">{t('invite.existingAccountHint')}</p>
+            )}
+
             <button type="submit" disabled={submitting} className="btn-primary w-full">
               {submitting ? t('invite.accepting') : t('invite.accept')}
             </button>

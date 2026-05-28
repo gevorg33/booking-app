@@ -1,0 +1,90 @@
+.dashboard-phone-field .PhoneInput {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.dashboard-phone-field .searchable-country-select__trigger,
+.dashboard-phone-field .PhoneInputInput {
+  background: rgb(17 24 39);
+  border: 1px solid rgb(55 65 81);
+  border-radius: 0.5rem;
+  color: rgb(243 244 246);
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.dashboard-phone-field .searchable-country-select__trigger:focus,
+.dashboard-phone-field .PhoneInputInput:focus {
+  outline: none;
+  border-color: rgb(59 130 246);
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 0.25);
+}
+
+.dashboard-phone-field .searchable-country-select__chevron,
+.dashboard-phone-field .searchable-country-select__code {
+  color: rgb(156 163 175);
+}
+
+.dashboard-phone-field .searchable-country-select__menu {
+  background: rgb(17 24 39);
+  border: 1px solid rgb(55 65 81);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.35);
+}
+
+.dashboard-phone-field .searchable-country-select__search {
+  background: rgb(17 24 39);
+  border: 1px solid rgb(55 65 81);
+  border-radius: 0.5rem;
+  color: rgb(243 244 246);
+}
+
+.dashboard-phone-field .searchable-country-select__option {
+  color: rgb(243 244 246);
+}
+
+.dashboard-phone-field .searchable-country-select__option:hover,
+.dashboard-phone-field .searchable-country-select__option.is-active {
+  background: rgb(37 99 235 / 0.15);
+}
+
+.dashboard-phone-field .PhoneInputInput::placeholder {
+  color: rgb(107 114 128);
+}
+
+.dashboard-phone-field .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-phone-field .searchable-country-select__trigger {
+  min-width: 6.75rem;
+  height: auto;
+}
+
+.dashboard-phone-field .searchable-country-select {
+  position: relative;
+}
+
+.dashboard-phone-field .searchable-country-select__menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 40;
+  width: min(20rem, calc(100vw - 2rem));
+}
+
+.dashboard-phone-field .searchable-country-select__list {
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+}
+
+.dashboard-phone-field .searchable-country-select__empty {
+  padding: 0.75rem;
+  color: rgb(156 163 175);
+  font-size: 0.875rem;
+}

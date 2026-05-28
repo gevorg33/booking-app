@@ -1,3 +1,5 @@
+import { formatTimeRangeDisplay } from './date-format';
+
 export type BookingStatus =
   | 'pending'
   | 'confirmed'
@@ -81,8 +83,10 @@ export interface BookingDetail {
   notes?: string | null;
   description?: string | null;
   cancellationReason?: string | null;
-  service: { id: string; name: string } | null;
+  updatedAt?: string;
+  service: { id: string; name: string; price?: number; currency?: string } | null;
   customer: { id: string; name: string; phone: string | null; email: string | null } | null;
+  employee?: { id: string; name: string } | null;
 }
 
 export interface BookingSummary {
@@ -91,6 +95,43 @@ export interface BookingSummary {
   endTime: string;
   status: string;
   notes: string | null;
-  service: { name: string } | null;
+  service: { name: string; price?: number; currency?: string } | null;
   customer: { name: string; phone: string | null; email: string | null } | null;
+  employee?: { id: string; name: string } | null;
+}
+
+export interface ServicePriceInfo {
+  price?: number | string | null;
+  currency?: string | null;
+}
+
+export function formatServicePrice(
+  price?: number | string | null,
+  currency = 'USD',
+): string | null {
+  if (price === undefined || price === null || price === '') return null;
+  const amount = Number(price);
+  if (Number.isNaN(amount)) return null;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${amount} ${currency || 'USD'}`;
+  }
+}
+
+export function formatBookingBlockHeadline(input: {
+  startTime: string;
+  endTime: string;
+  status: string;
+  service?: ServicePriceInfo | null;
+}): string {
+  const parts = [formatTimeRangeDisplay(input.startTime, input.endTime)];
+  parts.push(formatStatusLabel(input.status));
+  const cost = formatServicePrice(input.service?.price, input.service?.currency ?? undefined);
+  if (cost) parts.push(cost);
+  return parts.join(' · ');
 }

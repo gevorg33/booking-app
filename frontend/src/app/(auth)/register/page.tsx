@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Zap } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { unwrapAuthResult } from '@/lib/auth-types';
+import { savePreferredBusinessSlug } from '@/lib/auth-session';
 import { useI18n } from '@/i18n';
 
 export default function RegisterPage() {
@@ -28,8 +30,16 @@ export default function RegisterPage() {
     setError('');
     try {
       const { data } = await api.post('/auth/register', form);
-      const result = data.data || data;
-      setAuth(result.user, result.business, result.token);
+      const result = unwrapAuthResult(data);
+      if (!result.token || !result.business) {
+        setError(t('auth.registrationFailed'));
+        return;
+      }
+      setAuth(result.user, result.business, result.token, {
+        businesses: result.businesses,
+        employee: result.employee,
+      });
+      savePreferredBusinessSlug(result.business?.slug);
       router.push('/dashboard/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.registrationFailed'));

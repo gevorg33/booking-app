@@ -5,6 +5,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
+import { SwitchBusinessDto } from './dto/switch-business.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -26,7 +27,17 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   loginWithGoogle(@Body() dto: GoogleLoginDto) {
-    return this.authService.loginWithGoogle(dto.idToken);
+    return this.authService.loginWithGoogle(dto.idToken, {
+      businessId: dto.businessId,
+      businessSlug: dto.businessSlug,
+    });
+  }
+
+  @Post('switch-business')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  switchBusiness(@CurrentUser() user: { id: string }, @Body() dto: SwitchBusinessDto) {
+    return this.authService.switchBusiness(user.id, dto.businessId);
   }
 
   @Post('forgot-password')
@@ -54,7 +65,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getMe(@CurrentUser() user: { id: string }) {
-    return this.authService.getMe(user.id);
+  getMe(@CurrentUser() user: { id: string; businessId?: string | null }) {
+    return this.authService.getMe(user.id, user.businessId);
   }
 }

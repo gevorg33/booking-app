@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ClipboardList, Loader2, Search } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { SortableColumnHeader } from '@/components/table/sortable-column-header';
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
+import { useOperationalEvents } from '@/lib/use-operational-events';
 
 const defaultParams: AppointmentSearchParams = {
   sortBy: 'startTime',
@@ -29,11 +30,35 @@ const defaultParams: AppointmentSearchParams = {
 export default function AppointmentsPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const queryClient = useQueryClient();
   const [params, setParams] = useState<AppointmentSearchParams>(defaultParams);
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+
+  const refreshAppointments = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['appointments-dashboard', business?.id] });
+    queryClient.invalidateQueries({ queryKey: ['booking'] });
+  }, [queryClient, business?.id]);
+
+  const onOperationalEvent = useCallback(
+    (type: string) => {
+      if (
+        type === 'booking.updated' ||
+        type === 'booking.rescheduled' ||
+        type === 'booking.cancelled' ||
+        type === 'booking.completed' ||
+        type === 'booking.created' ||
+        type === 'availability.updated'
+      ) {
+        refreshAppointments();
+      }
+    },
+    [refreshAppointments],
+  );
+
+  useOperationalEvents(business?.id, onOperationalEvent);
 
   useEffect(() => {
     setParams((p) => ({ ...p, page: 1 }));
