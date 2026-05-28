@@ -12,6 +12,7 @@ import { ContextBuilderService } from './context-builder.service.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { OpenAiModule } from '../../modules/integrations/openai/openai.module.js';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Booking } from '../../modules/booking/entities/booking.entity.js';
@@ -25,6 +26,7 @@ import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.en
     PolicyModule,
     forwardRef(() => WorkflowModule),
     EventStoreModule,
+    OpenAiModule,
   ],
   providers: [
     AgentRegistryService,

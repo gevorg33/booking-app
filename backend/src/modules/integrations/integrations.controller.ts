@@ -15,6 +15,9 @@ import { BusinessService } from '../business/business.service.js';
 import { ApiKeyService } from './api-key.service.js';
 import { WebhooksService } from './webhooks.service.js';
 import { CreateApiKeyDto, CreateWebhookDto, UpdateWebhookDto } from './dto/integrations.dto.js';
+import { UpdateOpenAiIntegrationDto } from './dto/update-openai-integration.dto.js';
+import { OpenAiIntegrationService } from './openai/openai-integration.service.js';
+import { OpenAiGatewayService } from './openai/openai-gateway.service.js';
 
 @Controller('businesses/:businessId/integrations')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +26,8 @@ export class IntegrationsController {
     private businessService: BusinessService,
     private apiKeyService: ApiKeyService,
     private webhooksService: WebhooksService,
+    private openAiIntegrationService: OpenAiIntegrationService,
+    private openAiGateway: OpenAiGatewayService,
   ) {}
 
   @Get('docs')
@@ -147,5 +152,28 @@ export class IntegrationsController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.webhooksService.listDeliveries(businessId, subscriptionId);
+  }
+
+  @Get('openai')
+  async getOpenAiIntegration(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.openAiIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('openai')
+  async updateOpenAiIntegration(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateOpenAiIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    const result = await this.openAiIntegrationService.updateSettings(businessId, dto);
+    this.openAiGateway.invalidateBusiness(businessId);
+    return result;
   }
 }

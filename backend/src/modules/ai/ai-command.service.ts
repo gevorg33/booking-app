@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -34,6 +33,7 @@ import {
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
+import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 
 export type { CommandResult };
 
@@ -133,7 +133,6 @@ export interface CommandSessionOptions {
 @Injectable()
 export class AiCommandService {
   private readonly logger = new Logger(AiCommandService.name);
-  private client: OpenAI | null = null;
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
@@ -148,15 +147,8 @@ export class AiCommandService {
     private scheduleHandlers: AiScheduleHandlersService,
     private schedulingEngine: SchedulingEngineService,
     private completionPipeline: CommandCompletionPipelineService,
-    private config: ConfigService,
-  ) {
-    const apiKey = config.get<string>('OPENAI_API_KEY');
-    if (apiKey) {
-      this.client = new OpenAI({ apiKey });
-    } else {
-      this.logger.warn('OPENAI_API_KEY not set — AI commands unavailable');
-    }
-  }
+    private openAi: OpenAiGatewayService,
+  ) {}
 
   async approveTask(taskId: string, userId: string): Promise<CommandResult> {
     return this.toCommandResult(await this.orchestration.approveTask(taskId, userId));
@@ -168,8 +160,13 @@ export class AiCommandService {
     userId?: string,
     session?: CommandSessionOptions,
   ): Promise<CommandResult> {
-    if (!this.client) {
-      return { success: false, action: 'error', summary: 'OpenAI API key not configured', details: {} };
+    if (!(await this.openAi.isAvailableForBusiness(businessId))) {
+      return {
+        success: false,
+        action: 'error',
+        summary: 'AI is not configured. Add an OpenAI API key in Settings → API Keys, or contact your platform administrator.',
+        details: {},
+      };
     }
 
     const [employees, services, customers, templates] = await Promise.all([
@@ -185,7 +182,7 @@ Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}
 Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context);
+    const parsed = await this.classifyIntent(businessId, userId, prompt, contextBlock, session?.history, session?.context);
     if (!parsed) {
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
@@ -384,43 +381,58 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   }
 
   private async classifyIntent(
+    businessId: string,
+    userId: string | undefined,
     prompt: string,
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
   ): Promise<{ action: string; params: any; reasoning: string } | null> {
-    try {
-      const sessionBlock =
-        sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
-          ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
-          : '';
+    const sessionBlock =
+      sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
+        ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
+        : '';
 
-      const historyMessages = (history ?? [])
-        .slice(-10)
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
+    const historyMessages = (history ?? [])
+      .slice(-10)
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
 
-      const response = await this.client!.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
-          },
-          ...historyMessages,
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
+      },
+      ...historyMessages,
+      { role: 'user', content: prompt },
+    ];
+
+    const response = await this.openAi.chatCompletion(
+      {
+        businessId,
+        surface: 'dashboard',
+        operation: 'classify_intent',
+        actorType: 'manager',
+        userId,
+      },
+      {
+        messages,
+        responseFormat: 'json_object',
         temperature: 0.1,
-        max_tokens: 500,
-      });
-      const raw = response.choices[0]?.message?.content;
-      return raw ? JSON.parse(raw) : null;
+        maxTokens: 500,
+      },
+    );
+
+    const raw = response?.choices[0]?.message?.content;
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
     } catch (err: any) {
-      this.logger.error(`Intent classification failed: ${err.message}`);
+      this.logger.error(`Intent classification parse failed: ${err.message}`);
       return null;
     }
   }

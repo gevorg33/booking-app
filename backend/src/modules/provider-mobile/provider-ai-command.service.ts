@@ -79,18 +79,26 @@ export class ProviderAiCommandService {
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     context?: Record<string, unknown>,
   ): Promise<ProviderCommandResult> {
-    if (!this.llm.isAvailable) {
+    if (!(await this.llm.isAvailableForBusiness(businessId))) {
       return {
         success: false,
         action: 'error',
-        summary: 'AI assistant is not configured. Add OPENAI_API_KEY on the server.',
+        summary: 'AI assistant is not configured. Ask your business owner to add an OpenAI API key in Settings.',
         details: {},
       };
     }
 
     const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
     const providerName = access.employee?.name ?? 'Admin';
-    const parsed = await this.classifyIntent(prompt, providerName, access.viewMode, history, context);
+    const parsed = await this.classifyIntent(
+      businessId,
+      userId,
+      prompt,
+      providerName,
+      access.viewMode,
+      history,
+      context,
+    );
     if (!parsed) {
       return {
         success: false,
@@ -148,6 +156,8 @@ export class ProviderAiCommandService {
   }
 
   private async classifyIntent(
+    businessId: string,
+    userId: string,
     prompt: string,
     providerName: string,
     viewMode: string,
@@ -169,8 +179,15 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       .join('\n');
 
     const result = await this.llm.completeJson<ParsedIntent>(
+      businessId,
       `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${sessionBlock}${historyText ? `\nRecent conversation:\n${historyText}` : ''}`,
       prompt,
+      {
+        surface: 'provider_mobile',
+        operation: 'classify_intent',
+        actorType: viewMode === 'team' ? 'manager' : 'provider',
+        userId,
+      },
       0.1,
     );
     return result?.action ? result : null;

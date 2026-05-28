@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import OpenAI from 'openai';
@@ -7,6 +6,7 @@ import { PublicBookingService } from './public-booking.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { BusinessService } from '../business/business.service.js';
+import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import {
   formatDateDisplay,
   formatTimeDisplay,
@@ -67,20 +67,14 @@ Rules:
 @Injectable()
 export class PublicBookingAssistantService {
   private readonly logger = new Logger(PublicBookingAssistantService.name);
-  private client: OpenAI | null = null;
 
   constructor(
     private publicBookingService: PublicBookingService,
     private businessService: BusinessService,
-    private config: ConfigService,
+    private openAi: OpenAiGatewayService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
-  ) {
-    const apiKey = config.get<string>('OPENAI_API_KEY');
-    if (apiKey) {
-      this.client = new OpenAI({ apiKey });
-    }
-  }
+  ) {}
 
   async chat(
     slug: string,
@@ -94,7 +88,7 @@ export class PublicBookingAssistantService {
     const business = await this.businessService.findBySlug(slug);
     const locale = resolveLocale(session?.locale, resolveLocale(business.settings?.locale, 'en'));
 
-    if (!this.client) {
+    if (!(await this.openAi.isAvailableForBusiness(business.id))) {
       return {
         success: false,
         action: 'error',
@@ -118,7 +112,7 @@ Providers: ${employees.map((e) => {
     }).join(', ') || 'none'}
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(prompt, contextBlock, session?.history, session?.context, locale);
+    const parsed = await this.classifyIntent(business.id, prompt, contextBlock, session?.history, session?.context, locale);
     if (!parsed) {
       return {
         success: false,
@@ -482,41 +476,53 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   }
 
   private async classifyIntent(
+    businessId: string,
     prompt: string,
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
     locale: AppLocale = 'en',
   ) {
-    try {
-      const sessionBlock =
-        sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
-          ? `\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
-          : '';
+    const sessionBlock =
+      sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
+        ? `\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
+        : '';
 
-      const historyMessages = (history ?? [])
-        .slice(-8)
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    const historyMessages = (history ?? [])
+      .slice(-8)
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-      const response = await this.client!.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `${PUBLIC_INTENT_SCHEMA}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
-          },
-          ...historyMessages,
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `${PUBLIC_INTENT_SCHEMA}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+      },
+      ...historyMessages,
+      { role: 'user', content: prompt },
+    ];
+
+    const response = await this.openAi.chatCompletion(
+      {
+        businessId,
+        surface: 'public_booking',
+        operation: 'classify_intent',
+        actorType: 'customer',
+      },
+      {
+        messages,
+        responseFormat: 'json_object',
         temperature: 0.2,
-        max_tokens: 450,
-      });
+        maxTokens: 450,
+      },
+    );
 
-      const raw = response.choices[0]?.message?.content;
-      return raw ? JSON.parse(raw) : null;
+    const raw = response?.choices[0]?.message?.content;
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
     } catch (err: any) {
-      this.logger.error(`Public assistant classification failed: ${err.message}`);
+      this.logger.error(`Public assistant classification parse failed: ${err.message}`);
       return null;
     }
   }

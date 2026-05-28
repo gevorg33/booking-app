@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
-import { AgentPlan, AgentContext, AgentType, PlanStatus } from './interfaces/agent.interfaces.js';
+import { AgentPlan, AgentContext, AgentType } from './interfaces/agent.interfaces.js';
+import { OpenAiGatewayService } from '../../modules/integrations/openai/openai-gateway.service.js';
+import { AiCallContext } from '../../modules/integrations/openai/openai.types.js';
 
 const PLAN_SCHEMA = `
 Return a JSON object with this exact structure:
@@ -43,50 +43,30 @@ Rules:
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
-  private client: OpenAI | null = null;
 
-  constructor(private config: ConfigService) {
-    const apiKey = config.get<string>('OPENAI_API_KEY');
-    if (apiKey) {
-      this.client = new OpenAI({ apiKey });
-      this.logger.log('OpenAI client initialized — agents will use GPT-4o-mini');
-    } else {
-      this.logger.warn('OPENAI_API_KEY not set — agents will use fallback plans');
-    }
+  constructor(private readonly openAi: OpenAiGatewayService) {}
+
+  async isAvailableForBusiness(businessId: string): Promise<boolean> {
+    return this.openAi.isAvailableForBusiness(businessId);
   }
 
-  get isAvailable(): boolean {
-    return this.client !== null;
-  }
-
-  async completeJson<T>(systemPrompt: string, userPrompt: string, temperature = 0.2): Promise<T | null> {
-    if (!this.client) return null;
-
-    try {
-      const response = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature,
-        max_tokens: 2000,
-      });
-
-      const raw = response.choices[0]?.message?.content;
-      if (!raw) return null;
-      return JSON.parse(raw) as T;
-    } catch (err: any) {
-      this.logger.error(`LLM JSON completion failed: ${err.message}`);
-      return null;
-    }
+  async completeJson<T>(
+    businessId: string,
+    systemPrompt: string,
+    userPrompt: string,
+    meta: Omit<AiCallContext, 'businessId'>,
+    temperature = 0.2,
+    maxTokens = 2000,
+  ): Promise<T | null> {
+    const context: AiCallContext = { businessId, ...meta };
+    return this.openAi.completeJson<T>(context, systemPrompt, userPrompt, { temperature, maxTokens });
   }
 
   async buildPlan(
     agentType: AgentType,
     intent: string,
     context: AgentContext,
+    userId?: string,
   ): Promise<{
     reasoning: string;
     steps: AgentPlan['steps'];
@@ -94,8 +74,6 @@ export class LlmService {
     riskAssessment: AgentPlan['riskAssessment'];
     executionMode: 'suggestion' | 'requires_approval' | 'autonomous';
   } | null> {
-    if (!this.client) return null;
-
     const systemPrompt = `You are an AI scheduling operations planner for a service business.
 Your job is to interpret user intent and produce a structured, safe execution plan.
 You NEVER directly execute anything — you only plan.
@@ -105,25 +83,31 @@ Agent type: ${agentType}
 
 ${PLAN_SCHEMA}`;
 
-    try {
-      const response = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `User intent: "${intent}"` },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 1000,
-      });
+    const callContext: AiCallContext = {
+      businessId: context.businessId,
+      surface: 'agent',
+      operation: `build_plan_${agentType}`,
+      actorType: userId ? 'manager' : 'system',
+      userId,
+    };
 
-      const raw = response.choices[0]?.message?.content;
-      if (!raw) return null;
+    const result = await this.openAi.completeJson<{
+      reasoning: string;
+      steps: AgentPlan['steps'];
+      constraints: string[];
+      riskAssessment: AgentPlan['riskAssessment'];
+      executionMode: 'suggestion' | 'requires_approval' | 'autonomous';
+    }>(
+      callContext,
+      systemPrompt,
+      `User intent: "${intent}"`,
+      { temperature: 0.2, maxTokens: 1000 },
+    );
 
-      return JSON.parse(raw);
-    } catch (err: any) {
-      this.logger.error(`LLM plan generation failed: ${err.message}`);
-      return null;
+    if (!result) {
+      this.logger.warn(`LLM plan generation returned null for business ${context.businessId}`);
     }
+
+    return result;
   }
 }

@@ -18,6 +18,7 @@ import { BlockSchedule } from '../schedule/entities/block-schedule.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
+import { OpenAiModule } from '../integrations/openai/openai.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engin
     BookingModule,
     AgentModule,
     SchedulingEngineModule,
+    OpenAiModule,
   ],
   controllers: [AiCommandController],
   providers: [
