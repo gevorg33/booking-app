@@ -34,6 +34,14 @@ const SESSION_INHERIT_KEYS = [
   'timeTo',
   'allProviders',
   'lastAction',
+  'lastMetric',
+  'appointmentMetric',
+  'customerMetric',
+  'bookingMetric',
+  'route',
+  'statusFilter',
+  'todayOnly',
+  'segmentFilter',
 ] as const;
 
 const PROVIDER_SESSION_INHERIT_KEYS = [
@@ -203,6 +211,16 @@ export class CommandCompletionPipelineService {
       timeTo: p.timeTo ?? null,
       allProviders: p.allProviders ?? null,
       lastAction: resolved.action ?? null,
+      lastMetric:
+        p.lastMetric ??
+        resolved.params.appointmentMetric ??
+        resolved.params.customerMetric ??
+        resolved.params.bookingMetric ??
+        null,
+      appointmentMetric: resolved.params.appointmentMetric ?? null,
+      customerMetric: resolved.params.customerMetric ?? null,
+      bookingMetric: resolved.params.bookingMetric ?? null,
+      route: resolved.params.route ?? null,
     };
   }
 
@@ -245,6 +263,21 @@ export class CommandCompletionPipelineService {
     }
     if (range?.end && !sessionContext.dateTo) {
       sessionContext.dateTo = formatDateDisplay(range.end);
+    }
+    if (result.details?.metric && !sessionContext.customerMetric) {
+      sessionContext.customerMetric = String(result.details.metric);
+      sessionContext.lastMetric = String(result.details.metric);
+    }
+    if (result.details?.appointmentMetric) {
+      sessionContext.appointmentMetric = String(result.details.appointmentMetric);
+      sessionContext.lastMetric = String(result.details.appointmentMetric);
+    }
+    if (result.details?.bookingMetric) {
+      sessionContext.bookingMetric = String(result.details.bookingMetric);
+      sessionContext.lastMetric = String(result.details.bookingMetric);
+    }
+    if (result.details?.date && !sessionContext.date) {
+      sessionContext.date = String(result.details.date);
     }
 
     return {

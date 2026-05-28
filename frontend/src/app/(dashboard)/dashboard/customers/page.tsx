@@ -94,6 +94,7 @@ export default function CustomersPage() {
         context={{
           route: '/dashboard/customers',
           search: debouncedSearch.trim() || null,
+          segmentFilter: params.segment ?? null,
         }}
         title="Customer insights"
       />
@@ -102,6 +103,7 @@ export default function CustomersPage() {
         context={{
           route: '/dashboard/customers',
           search: debouncedSearch.trim() || null,
+          segmentFilter: params.segment ?? null,
         }}
       />
 

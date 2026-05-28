@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import OpenAI from 'openai';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -42,6 +42,13 @@ import {
   CustomerService,
   type CustomerInsightMetric,
 } from '../customer/customer.service.js';
+import {
+  runHeuristicIntentDetection,
+  resolveAppointmentMetric,
+  resolveBookingMetric,
+  resolveCustomerMetric,
+  extractLimitFromPrompt,
+} from './ai-intent-heuristics.js';
 
 export type { CommandResult };
 
@@ -59,7 +66,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "analyze_appointments" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "list_services" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -97,8 +104,10 @@ and extract structured parameters. Return a JSON object with:
     "repeatWeeksCount": number or null — template apply repeat weeks,
     "periods": [{"startTime":"HH:MM","endTime":"HH:MM","type":"service_block|unavailable_block","serviceNames":["string"],"label":"string"}] or null — for create_direct_schedule,
     "bookingId": "string or null — if a specific booking ID is mentioned",
-    "customerMetric": "most_no_shows | most_bookings | most_cancellations | at_risk | high_no_show | vip | overview | null — for summarize_customers",
+    "customerMetric": "most_no_shows | most_bookings | most_cancellations | at_risk | high_no_show | vip | top_spenders | new_customers | overview | null — for summarize_customers",
     "appointmentMetric": "most_expensive | longest | shortest | earliest | latest | null — for analyze_appointments",
+    "bookingMetric": "count | revenue | busiest_provider | cancelled | no_shows | unpaid | upcoming | confirmed | pending | completed | overview | null — for summarize_bookings",
+    "statusFilter": "cancelled | no_show | confirmed | pending | completed | in_progress | null — filter appointments by status",
     "limit": number or null — max customers to list (default 5)
   },
   "reasoning": "one sentence explaining your interpretation",
@@ -122,11 +131,14 @@ Rules:
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
 - analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
+- summarize_bookings: READ-ONLY booking analytics — counts, revenue, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "who is the busiest provider today", "how many cancelled today". NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows. For two or more providers use employeeNames array, e.g. ["Gevorg Gasparyan", "Mary Torgomyan"], or employeeName "Gevorg and Mary".
 - list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
 - summarize_utilization: team-level utilization percentages for a date range — NOT per-day gap detail. Do not use for "which days" or "show gaps" questions.
-- summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "most cancellations". Set customerMetric when clear; limit defaults to 5.
+- summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "top 10 customers who paid the most", "new customers", "most cancellations". Set customerMetric when clear; set limit from "top N" (default 5).
+- list_services: READ-ONLY service catalog — list offerings or look up price/duration. Use for "what services do we offer", "how much is facemassage", "show our service menu". NOT for adding services (use create_service).
+- show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
 - create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods.
 - assign_employee_services: assign services from catalog to a provider.
@@ -140,6 +152,8 @@ Rules:
 - If you cannot determine the action, use "unknown".
 - Multi-turn conversation: read prior messages and Active session context. Follow-up commands often omit provider, date, or customer — inherit them unless the user clearly switches topic.
 - Example follow-up: after utilization summary for this week, "which exact days does Gevorg have gaps" → action list_schedule_gaps, employeeName="Gevorg Gasparyan", inherit dateFrom/dateTo from session.
+- Example follow-up: after list_schedule_gaps or summarize_utilization, "fill those gaps" / "fill them with his services" → action fill_unused_slots, inherit employeeName, dateFrom/dateTo, timeFrom/timeTo from session.
+- Example follow-up: after "how many appointments today", "who is the busiest" → action summarize_bookings, bookingMetric="busiest_provider", inherit date from session.
 - Example follow-up: after "available slots for Gevorg on 30_06_2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30_06_2026", serviceName="facemassage", timeSlot="16:00".
 - Dates may appear as DD_MM_YYYY or DD/MM/YYYY — normalize to DD_MM_YYYY in params.`;
 
@@ -236,9 +250,13 @@ Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', '
 Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
     const parsed =
-      this.detectListScheduleGapsIntent(effectivePrompt, session?.context, employees) ??
-      this.detectAppointmentAnalysisIntent(effectivePrompt, session?.context) ??
-      this.detectCustomerInsightsIntent(effectivePrompt) ??
+      runHeuristicIntentDetection({
+        prompt: effectivePrompt,
+        sessionContext: session?.context,
+        employees,
+        customers,
+        services,
+      }) ??
       (await this.classifyIntent(
         businessId,
         userId,
@@ -398,6 +416,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'summarize_day':
         result = await this.handleSummarizeDay(businessId, params, employeeId, resolvedEmployee?.name);
         break;
+      case 'summarize_bookings':
+        result = await this.handleSummarizeBookings(
+          businessId,
+          effectivePrompt,
+          params,
+          employeeId,
+          resolvedEmployee?.name,
+        );
+        break;
       case 'analyze_appointments':
         result = await this.handleAnalyzeAppointments(
           businessId,
@@ -406,6 +433,9 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           employeeId,
           resolvedEmployee?.name,
         );
+        break;
+      case 'list_services':
+        result = this.handleListServices(services, params, prompt);
         break;
       case 'fill_unused_slots':
         result = await this.scheduleHandlers.handleFillScheduleGaps(
@@ -601,173 +631,6 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
   }
 
-  private detectAppointmentAnalysisIntent(
-    prompt: string,
-    sessionContext?: Record<string, any>,
-  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
-    const metric = this.resolveAppointmentMetric({}, prompt);
-    if (!metric) return null;
-
-    const lower = prompt.toLowerCase();
-    const hasContext =
-      /\bappointments?\b|\bbooking/i.test(prompt) ||
-      /\btoday\b|\btomorrow\b|\byesterday\b/i.test(lower) ||
-      /\bfor today\b|\bfor tomorrow\b/i.test(lower) ||
-      sessionContext?.lastAction === 'analyze_appointments' ||
-      sessionContext?.lastAction === 'show_appointments' ||
-      sessionContext?.lastAction === 'summarize_day';
-
-    if (!hasContext) return null;
-
-    const params: Record<string, any> = { appointmentMetric: metric };
-    if (sessionContext?.date) params.date = sessionContext.date;
-
-    return {
-      action: 'analyze_appointments',
-      params,
-      reasoning: `Appointment analysis — ${metric.replace(/_/g, ' ')}`,
-      confidence: 0.92,
-    };
-  }
-
-  private resolveAppointmentMetric(
-    params: Record<string, any>,
-    prompt: string,
-  ): 'most_expensive' | 'longest' | 'shortest' | 'earliest' | 'latest' | null {
-    type AppointmentMetric = 'most_expensive' | 'longest' | 'shortest' | 'earliest' | 'latest';
-    const allowed: AppointmentMetric[] = [
-      'most_expensive',
-      'longest',
-      'shortest',
-      'earliest',
-      'latest',
-    ];
-    const raw = params.appointmentMetric as string | undefined;
-    if (raw && allowed.includes(raw as AppointmentMetric)) {
-      return raw as AppointmentMetric;
-    }
-
-    const lower = prompt.toLowerCase();
-    if (/most expensive|highest price|priciest|costs the most|expensive appointment/i.test(lower)) {
-      return 'most_expensive';
-    }
-    if (/longest|most time|takes the longest|longest appointment/i.test(lower)) return 'longest';
-    if (/shortest|least time|quickest|shortest appointment/i.test(lower)) return 'shortest';
-    if (/earliest|first appointment/i.test(lower)) return 'earliest';
-    if (/latest|last appointment/i.test(lower)) return 'latest';
-    return null;
-  }
-
-  private detectCustomerInsightsIntent(
-    prompt: string,
-  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
-    const lower = prompt.toLowerCase();
-    const asksAboutCustomers =
-      /\bcustomers?\b/i.test(prompt) ||
-      /\bwho\b/i.test(prompt) ||
-      /\bwhich\b/i.test(prompt);
-
-    const customerAnalytics =
-      /no[\s-]?show|at[\s-]?risk|vip|cancellation|cancelled|book(s|ed)? the most|most appointment|frequent|churn|inactive|haven't been|not been back|top customer|best customer|crm|segment/i.test(
-        lower,
-      );
-
-    if (!asksAboutCustomers && !customerAnalytics) {
-      if (!/(most no[\s-]?show|at[\s-]?risk|top vip)/i.test(lower)) {
-        return null;
-      }
-    }
-
-    if (!customerAnalytics && !/\bcustomers?\b/i.test(prompt)) {
-      return null;
-    }
-
-    return {
-      action: 'summarize_customers',
-      params: {
-        customerMetric: this.resolveCustomerMetric({}, prompt),
-        limit: 5,
-      },
-      reasoning: 'Customer CRM insight question',
-      confidence: 0.9,
-    };
-  }
-
-  private resolveCustomerMetric(params: Record<string, any>, prompt: string): CustomerInsightMetric {
-    const raw = params.customerMetric as string | undefined;
-    const allowed: CustomerInsightMetric[] = [
-      'most_no_shows',
-      'most_bookings',
-      'most_cancellations',
-      'at_risk',
-      'high_no_show',
-      'vip',
-      'overview',
-    ];
-    if (raw && allowed.includes(raw as CustomerInsightMetric)) {
-      return raw as CustomerInsightMetric;
-    }
-
-    const lower = prompt.toLowerCase();
-    if (/high no[\s-]?show|no[\s-]?show rate/i.test(lower)) return 'high_no_show';
-    if (/no[\s-]?show|no show/i.test(lower)) return 'most_no_shows';
-    if (/at[\s-]?risk|churn|inactive|not been back|haven't been/i.test(lower)) return 'at_risk';
-    if (/cancel/i.test(lower)) return 'most_cancellations';
-    if (/vip|best customer|top customer|loyal/i.test(lower)) return 'vip';
-    if (/most booking|most appointment|books the most|frequent|top booker/i.test(lower)) {
-      return 'most_bookings';
-    }
-    return 'overview';
-  }
-
-  private detectListScheduleGapsIntent(
-    prompt: string,
-    sessionContext: Record<string, any> | undefined,
-    employees: Employee[],
-  ): { action: string; params: Record<string, any>; reasoning: string; confidence: number } | null {
-    const lower = prompt.toLowerCase();
-    const asksAboutDaysWithGaps =
-      /\b(which|what)\s+(exact\s+)?days?\b/i.test(prompt) ||
-      /\bdays?\s+(with|have|has|contain)\s+(gaps?|open|empty|free|unused)/i.test(prompt) ||
-      /\b(gaps?|open\s+slots?|empty\s+slots?|unused\s+slots?)\s+(on\s+)?which\s+days?\b/i.test(prompt) ||
-      (/\bgaps?\b/i.test(prompt) && /\b(which|what|when)\b/i.test(prompt));
-
-    const followUpAfterUtilization =
-      sessionContext?.lastAction === 'summarize_utilization' &&
-      (/\bgaps?\b/i.test(prompt) || asksAboutDaysWithGaps || /\bdays?\b/i.test(prompt));
-
-    if (!asksAboutDaysWithGaps && !followUpAfterUtilization) {
-      return null;
-    }
-
-    let employeeName: string | null = null;
-    for (const employee of employees) {
-      if (lower.includes(employee.name.toLowerCase())) {
-        employeeName = employee.name;
-        break;
-      }
-      const first = employee.name.split(/\s+/)[0];
-      if (first.length >= 3 && new RegExp(`\\b${first.toLowerCase()}\\b`).test(lower)) {
-        employeeName = employee.name;
-        break;
-      }
-    }
-
-    const params: Record<string, any> = {};
-    if (employeeName) params.employeeName = employeeName;
-    if (sessionContext?.dateFrom) params.dateFrom = sessionContext.dateFrom;
-    if (sessionContext?.dateTo) params.dateTo = sessionContext.dateTo;
-    if (sessionContext?.timeFrom) params.timeFrom = sessionContext.timeFrom;
-    if (sessionContext?.timeTo) params.timeTo = sessionContext.timeTo;
-
-    return {
-      action: 'list_schedule_gaps',
-      params,
-      reasoning: 'Gap drill-down — list open windows per day',
-      confidence: 0.92,
-    };
-  }
-
   private async classifyIntent(
     businessId: string,
     userId: string | undefined,
@@ -781,6 +644,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(sessionContext, null, 2)}`
         : '';
 
+    const routeHintBlock = sessionContext?.routeHint
+      ? `\nPage context hint (prefer actions relevant to the current dashboard page):\n${sessionContext.routeHint}`
+      : '';
+
     const historyMessages = (history ?? [])
       .slice(-10)
       .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -792,7 +659,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       { role: 'user', content: prompt },
@@ -1048,11 +915,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     prompt: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    const metric = this.resolveCustomerMetric(params, prompt);
+    const metric = resolveCustomerMetric(params, prompt);
     const limit =
       typeof params.limit === 'number' && params.limit > 0
         ? Math.min(params.limit, 20)
-        : 5;
+        : extractLimitFromPrompt(prompt);
 
     const insights = await this.customerService.getCustomerInsights(businessId, metric, limit);
     const { rows, summary } = insights;
@@ -1064,10 +931,12 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       at_risk: 'At-risk customers (90+ days since last visit)',
       high_no_show: 'High no-show segment customers',
       vip: 'VIP customers',
+      top_spenders: 'Top customers by total paid',
+      new_customers: 'New customers (no appointments yet)',
       overview: 'Customer overview',
     };
 
-    const lines: string[] = [metricTitles[metric] + ':'];
+    const lines: string[] = [metricTitles[metric] + (metric === 'top_spenders' ? ` (top ${limit})` : '') + ':'];
 
     if (metric === 'overview') {
       lines.push(
@@ -1093,7 +962,14 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           detail = `last visit ${formatDateDisplay(row.stats.lastBookingAt)}, ${completed} completed`;
         }
         if (metric === 'vip') detail = `${completed} completed, ${row.stats.total} total`;
-        lines.push(`• ${row.name}: ${detail} · segment: ${row.segment}`);
+        if (metric === 'top_spenders') {
+          const currency = row.currency ?? 'USD';
+          detail = `${currency} ${Number(row.paidTotal ?? 0).toFixed(2)} from ${row.paidCount ?? 0} paid appt(s)`;
+        }
+        if (metric === 'new_customers') {
+          detail = row.stats.total === 0 ? 'no appointments yet' : `${row.stats.total} appointment(s)`;
+        }
+        lines.push(`• ${row.name}: ${detail}${metric === 'top_spenders' ? '' : ` · segment: ${row.segment}`}`);
       }
     }
 
@@ -1102,6 +978,259 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       action: 'summarize_customers',
       summary: lines.join('\n'),
       details: { metric, rows, summary },
+    };
+  }
+
+  private async handleSummarizeBookings(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employeeId?: string,
+    employeeName?: string,
+  ): Promise<CommandResult> {
+    const metric = resolveBookingMetric(params, prompt) ?? 'overview';
+    const range =
+      resolveDateRange(params, prompt) ??
+      (() => {
+        const iso = params.date ?? new Date().toISOString().split('T')[0];
+        return { start: iso, end: iso };
+      })();
+
+    const start = new Date(range.start);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(range.end);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(start, end),
+    };
+    if (employeeId) where.employeeId = employeeId;
+
+    const bookings = await this.bookingRepo.find({
+      where: where as any,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const statusFilter = params.statusFilter as string | undefined;
+    const filtered = statusFilter
+      ? bookings.filter((b) => b.status === statusFilter)
+      : bookings;
+
+    const now = new Date();
+    const upcoming = filtered.filter(
+      (b) =>
+        b.startTime > now &&
+        b.status !== BookingStatus.CANCELLED &&
+        b.status !== BookingStatus.COMPLETED &&
+        b.status !== BookingStatus.NO_SHOW,
+    );
+    const confirmed = filtered.filter((b) => b.status === BookingStatus.CONFIRMED);
+    const pending = filtered.filter((b) => b.status === BookingStatus.PENDING);
+    const completed = filtered.filter((b) => b.status === BookingStatus.COMPLETED);
+
+    const active = filtered.filter((b) => b.status !== BookingStatus.CANCELLED);
+    const cancelled = filtered.filter((b) => b.status === BookingStatus.CANCELLED);
+    const noShows = filtered.filter((b) => b.status === BookingStatus.NO_SHOW);
+    const unpaid = filtered.filter(
+      (b) =>
+        b.status !== BookingStatus.CANCELLED &&
+        b.paymentStatus === PaymentStatus.PENDING,
+    );
+
+    const revenueBookings = active.filter(
+      (b) =>
+        b.status === BookingStatus.COMPLETED ||
+        b.status === BookingStatus.CONFIRMED ||
+        b.status === BookingStatus.IN_PROGRESS ||
+        b.status === BookingStatus.PENDING,
+    );
+    const totalRevenue = revenueBookings.reduce(
+      (sum, b) => sum + Number(b.service?.price ?? 0),
+      0,
+    );
+    const currency = revenueBookings.find((b) => b.service?.currency)?.service?.currency ?? 'USD';
+
+    const byProvider = new Map<string, number>();
+    for (const booking of active) {
+      const name = booking.employee?.name || 'Unknown';
+      byProvider.set(name, (byProvider.get(name) ?? 0) + 1);
+    }
+    const busiest = [...byProvider.entries()].sort((a, b) => b[1] - a[1]);
+
+    const rangeLabel =
+      range.start === range.end
+        ? formatDateDisplay(range.start)
+        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
+    const scopeLabel = employeeName || 'all providers';
+    const statusNote = statusFilter ? ` (${statusFilter} only)` : '';
+
+    const metricTitles: Record<string, string> = {
+      count: 'Appointment count',
+      revenue: 'Revenue',
+      busiest_provider: 'Busiest provider',
+      cancelled: 'Cancelled appointments',
+      no_shows: 'No-shows',
+      unpaid: 'Unpaid appointments',
+      upcoming: 'Upcoming appointments',
+      confirmed: 'Confirmed appointments',
+      pending: 'Pending appointments',
+      completed: 'Completed appointments',
+      overview: 'Booking overview',
+    };
+
+    const lines: string[] = [`${metricTitles[metric]} for ${scopeLabel} on ${rangeLabel}${statusNote}:`];
+
+    switch (metric) {
+      case 'count':
+        lines.push(`• ${active.length} active appointment(s)`);
+        if (!statusFilter) {
+          lines.push(`• ${cancelled.length} cancelled · ${noShows.length} no-show(s)`);
+        }
+        break;
+      case 'revenue':
+        lines.push(`• ${currency} ${totalRevenue.toFixed(2)} from ${revenueBookings.length} appointment(s)`);
+        break;
+      case 'busiest_provider':
+        if (busiest.length === 0) {
+          lines.push('• No active appointments in this period.');
+        } else {
+          const [topName, topCount] = busiest[0];
+          const tied = busiest.filter(([, c]) => c === topCount);
+          lines.push(`• ${topName}: ${topCount} appointment(s)`);
+          if (tied.length > 1) {
+            lines.push(`• Tied with: ${tied.slice(1).map(([n, c]) => `${n} (${c})`).join(', ')}`);
+          }
+          if (busiest.length > 1 && tied.length === 1) {
+            lines.push('', 'All providers:');
+            for (const [name, count] of busiest) {
+              lines.push(`• ${name}: ${count}`);
+            }
+          }
+        }
+        break;
+      case 'cancelled':
+        lines.push(`• ${cancelled.length} cancelled appointment(s)`);
+        break;
+      case 'no_shows':
+        lines.push(`• ${noShows.length} no-show(s)`);
+        break;
+      case 'unpaid':
+        lines.push(`• ${unpaid.length} unpaid appointment(s)`);
+        break;
+      case 'upcoming':
+        lines.push(`• ${upcoming.length} upcoming appointment(s)`);
+        break;
+      case 'confirmed':
+        lines.push(`• ${confirmed.length} confirmed appointment(s)`);
+        break;
+      case 'pending':
+        lines.push(`• ${pending.length} pending appointment(s)`);
+        break;
+      case 'completed':
+        lines.push(`• ${completed.length} completed appointment(s)`);
+        break;
+      case 'overview':
+        lines.push(
+          `• ${active.length} active · ${cancelled.length} cancelled · ${noShows.length} no-show(s)`,
+          `• Revenue: ${currency} ${totalRevenue.toFixed(2)} · ${unpaid.length} unpaid`,
+        );
+        if (busiest.length > 0) {
+          lines.push(`• Busiest: ${busiest[0][0]} (${busiest[0][1]} appt(s))`);
+        }
+        break;
+    }
+
+    return {
+      success: true,
+      action: 'summarize_bookings',
+      summary: lines.join('\n'),
+      details: {
+        bookingMetric: metric,
+        date: range.start === range.end ? formatDateDisplay(range.start) : null,
+        range,
+        scope: employeeId ? 'provider' : 'all_providers',
+        employee: employeeName ?? null,
+        counts: {
+          total: filtered.length,
+          active: active.length,
+          cancelled: cancelled.length,
+          noShows: noShows.length,
+          unpaid: unpaid.length,
+          upcoming: upcoming.length,
+          confirmed: confirmed.length,
+          pending: pending.length,
+          completed: completed.length,
+        },
+        revenue: { total: totalRevenue, currency },
+        busiestProvider: busiest.length > 0 ? { name: busiest[0][0], count: busiest[0][1] } : null,
+        byProvider: Object.fromEntries(busiest),
+      },
+    };
+  }
+
+  private handleListServices(
+    services: Service[],
+    params: Record<string, any>,
+    prompt: string,
+  ): CommandResult {
+    const target = params.serviceName
+      ? this.resolveService(services, String(params.serviceName))
+      : undefined;
+
+    if (target) {
+      const currency = target.currency || 'USD';
+      return {
+        success: true,
+        action: 'list_services',
+        summary: [
+          `${target.name}:`,
+          `• Duration: ${target.durationMinutes} min${target.bufferMinutes ? ` (+${target.bufferMinutes} min buffer)` : ''}`,
+          `• Price: ${currency} ${Number(target.price).toFixed(2)}`,
+          target.description ? `• ${target.description}` : '',
+        ].filter(Boolean).join('\n'),
+        details: {
+          services: [{
+            id: target.id,
+            name: target.name,
+            durationMinutes: target.durationMinutes,
+            bufferMinutes: target.bufferMinutes,
+            price: Number(target.price),
+            currency,
+            description: target.description,
+          }],
+        },
+      };
+    }
+
+    if (services.length === 0) {
+      return {
+        success: true,
+        action: 'list_services',
+        summary: 'No services in catalog yet. Add one with "Add service facemassage 60min $50".',
+        details: { services: [] },
+      };
+    }
+
+    const lines = services.map(
+      (s) =>
+        `• ${s.name} — ${s.durationMinutes} min · ${s.currency || 'USD'} ${Number(s.price).toFixed(2)}`,
+    );
+
+    return {
+      success: true,
+      action: 'list_services',
+      summary: [`Service catalog (${services.length}):`, ...lines].join('\n'),
+      details: {
+        services: services.map((s) => ({
+          id: s.id,
+          name: s.name,
+          durationMinutes: s.durationMinutes,
+          price: Number(s.price),
+          currency: s.currency || 'USD',
+        })),
+      },
     };
   }
 
@@ -1129,7 +1258,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     employeeId?: string,
     employeeName?: string,
   ): Promise<CommandResult> {
-    const metric = this.resolveAppointmentMetric(params, prompt);
+    const metric = resolveAppointmentMetric(params, prompt);
     if (!metric) {
       return {
         success: false,
@@ -1987,13 +2116,20 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   ): Promise<CommandResult> {
     const where: any = { businessId };
     if (employeeId) where.employeeId = employeeId;
+    if (params.customerId) where.customerId = params.customerId;
 
-    const isoDay = params.date || new Date().toISOString().split('T')[0];
-    const displayDay = formatDateDisplay(isoDay);
-    const d = new Date(isoDay);
-    const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
-    where.startTime = Between(dayStart, dayEnd);
+    const range =
+      resolveDateRange(params) ??
+      (() => {
+        const iso = params.date || new Date().toISOString().split('T')[0];
+        return { start: iso, end: iso };
+      })();
+
+    const start = new Date(range.start);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(range.end);
+    end.setUTCHours(23, 59, 59, 999);
+    where.startTime = Between(start, end);
 
     const bookings = await this.bookingRepo.find({
       where,
@@ -2001,24 +2137,39 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       order: { startTime: 'ASC' },
     });
 
+    const statusFilter = params.statusFilter as string | undefined;
+    const scopedBookings = statusFilter
+      ? bookings.filter((b) => b.status === statusFilter)
+      : bookings;
+
+    const rangeLabel =
+      range.start === range.end
+        ? formatDateDisplay(range.start)
+        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
     const scopeLabel = employeeName || 'all service providers';
-    const activeBookings = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const cancelledBookings = bookings.filter((b) => b.status === BookingStatus.CANCELLED);
+    const customerLabel = params.customerName ? ` for ${params.customerName}` : '';
+    const statusLabel = statusFilter ? ` (${statusFilter})` : '';
+
+    const activeBookings = scopedBookings.filter((b) => b.status !== BookingStatus.CANCELLED);
+    const cancelledBookings = scopedBookings.filter((b) => b.status === BookingStatus.CANCELLED);
+    const displayBookings = statusFilter ? scopedBookings : activeBookings;
 
     let summaryBody: string;
-    if (bookings.length === 0) {
-      summaryBody = `No appointments found for ${scopeLabel} on ${displayDay}.`;
-    } else if (employeeId) {
-      const lines = this.formatBookingLines(activeBookings);
+    if (scopedBookings.length === 0) {
+      summaryBody = `No appointments found for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}.`;
+    } else if (employeeId || params.customerId) {
+      const lines = this.formatBookingLines(displayBookings);
       const cancelledNote =
-        cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled — hidden)` : '';
+        !statusFilter && cancelledBookings.length > 0
+          ? `\n(${cancelledBookings.length} cancelled — hidden)`
+          : '';
       summaryBody = [
-        `${activeBookings.length} appointment(s) for ${scopeLabel} on ${displayDay}:${cancelledNote}`,
+        `${displayBookings.length} appointment(s) for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}`,
         ...lines,
       ].join('\n');
     } else {
       const byProvider = new Map<string, Booking[]>();
-      for (const booking of activeBookings) {
+      for (const booking of displayBookings) {
         const name = booking.employee?.name || 'Unknown provider';
         if (!byProvider.has(name)) byProvider.set(name, []);
         byProvider.get(name)!.push(booking);
@@ -2033,9 +2184,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       }
 
       const cancelledNote =
-        cancelledBookings.length > 0 ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)` : '';
+        !statusFilter && cancelledBookings.length > 0
+          ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)`
+          : '';
       summaryBody = [
-        `${activeBookings.length} appointment(s) for all service providers on ${displayDay}:${cancelledNote}`,
+        `${displayBookings.length} appointment(s) for all service providers${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}`,
         ...groupedLines,
       ].join('\n');
     }
@@ -2045,13 +2198,16 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       action: 'show_appointments',
       summary: summaryBody,
       details: {
-        count: bookings.length,
+        count: scopedBookings.length,
         activeCount: activeBookings.length,
         cancelledCount: cancelledBookings.length,
-        date: displayDay,
-        scope: employeeId ? 'provider' : 'all_providers',
+        date: range.start === range.end ? formatDateDisplay(range.start) : null,
+        range,
+        statusFilter: statusFilter ?? null,
+        customer: params.customerName ?? null,
+        scope: employeeId ? 'provider' : params.customerId ? 'customer' : 'all_providers',
         employee: employeeName ?? null,
-        bookings: bookings.map((b) => ({
+        bookings: scopedBookings.map((b) => ({
           id: b.id,
           service: b.service?.name,
           customer: b.customer?.name,

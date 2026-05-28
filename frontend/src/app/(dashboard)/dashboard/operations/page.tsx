@@ -7,6 +7,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 type Tab = 'locations' | 'inventory' | 'expenses' | 'commissions' | 'pl';
 
@@ -56,6 +58,11 @@ export default function OperationsPage() {
 
   return (
     <div>
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/operations']}
+        context={{ route: '/dashboard/operations' }}
+      />
+
       <div className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

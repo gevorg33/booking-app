@@ -253,8 +253,9 @@ export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt
 export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {
   const readOnly = [
     'list_bookings', 'show_appointments', 'check_availability', 'summarize_day',
-    'optimize_schedule', 'summarize_utilization', 'list_schedule_gaps', 'summarize_customers',
-    'analyze_appointments', 'resolve_conflicts', 'reassign_cancelled',
+    'summarize_bookings', 'list_services', 'optimize_schedule', 'summarize_utilization',
+    'list_schedule_gaps', 'summarize_customers', 'analyze_appointments', 'resolve_conflicts',
+    'reassign_cancelled',
   ];
   if (readOnly.includes(action)) return false;
 

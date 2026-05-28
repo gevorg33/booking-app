@@ -19,7 +19,7 @@ Return JSON:
   ]
 }
 
-Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, analyze_appointments, assign_employee_services.
+Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, list_services, assign_employee_services.
 
 Rules:
 - Preserve order of operations.

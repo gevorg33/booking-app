@@ -9,6 +9,8 @@ import { useI18n } from '@/i18n';
 import type { DashboardOverview } from '@/lib/dashboard-types';
 import { AiProactiveSuggestions } from '@/components/ai-proactive-suggestions';
 import { AiMorningBriefing } from '@/components/ai-morning-briefing';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 export default function DashboardPage() {
   const { user, business } = useAuthStore();
@@ -99,6 +101,10 @@ export default function DashboardPage() {
 
       <AiMorningBriefing />
       <AiProactiveSuggestions />
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard']}
+        context={{ route: '/dashboard' }}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {stats.map((stat) => (

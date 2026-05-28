@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
 import {
   GetCustomersQueryDto,
@@ -83,6 +83,8 @@ export type CustomerInsightMetric =
   | 'at_risk'
   | 'high_no_show'
   | 'vip'
+  | 'top_spenders'
+  | 'new_customers'
   | 'overview';
 
 export interface CustomerInsightRow {
@@ -90,6 +92,9 @@ export interface CustomerInsightRow {
   name: string;
   segment: string;
   stats: CustomerBookingStats;
+  paidTotal?: number;
+  paidCount?: number;
+  currency?: string;
 }
 
 export interface CustomerInsightsResult {
@@ -589,6 +594,48 @@ export class CustomerService {
       case 'vip':
         rows = enriched.filter((r) => r.segment === 'vip');
         break;
+      case 'new_customers':
+        rows = enriched.filter((r) => r.segment === 'new');
+        break;
+      case 'top_spenders': {
+        const paidRows = await this.bookingRepo
+          .createQueryBuilder('booking')
+          .innerJoin('booking.service', 'service')
+          .innerJoin('booking.customer', 'customer')
+          .select('booking.customer_id', 'customerId')
+          .addSelect('customer.name', 'customerName')
+          .addSelect('COUNT(*)', 'paidCount')
+          .addSelect('SUM(service.price)', 'paidTotal')
+          .addSelect('MAX(service.currency)', 'currency')
+          .where('booking.business_id = :businessId', { businessId })
+          .andWhere('booking.paymentStatus = :paid', { paid: PaymentStatus.PAID })
+          .andWhere('booking.customer_id IS NOT NULL')
+          .groupBy('booking.customer_id')
+          .addGroupBy('customer.name')
+          .orderBy('SUM(service.price)', 'DESC')
+          .limit(cap)
+          .getRawMany<{
+            customerId: string;
+            customerName: string;
+            paidCount: string;
+            paidTotal: string;
+            currency: string | null;
+          }>();
+
+        rows = paidRows.map((r) => {
+          const match = enriched.find((e) => e.id === r.customerId);
+          return {
+            id: r.customerId,
+            name: r.customerName,
+            segment: match?.segment ?? 'regular',
+            stats: match?.stats ?? this.emptyStats(),
+            paidTotal: Math.round(Number(r.paidTotal) * 100) / 100,
+            paidCount: parseInt(r.paidCount, 10),
+            currency: r.currency || 'USD',
+          };
+        });
+        break;
+      }
       case 'overview':
       default:
         rows = [...enriched]

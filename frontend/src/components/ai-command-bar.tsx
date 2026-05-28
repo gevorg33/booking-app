@@ -9,7 +9,9 @@ import {
   AI_MUTATION_QUERY_KEYS,
   AI_SCHEDULE_EXAMPLES,
   AI_BOOKING_EXAMPLES,
+  buildAiRequestContext,
   getAiPageContext,
+  type AiPageContext,
 } from '@/lib/ai-orchestration';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { useAiEvents } from '@/lib/use-ai-events';
@@ -26,19 +28,9 @@ interface Message {
   timestamp: Date;
 }
 
-interface SessionContext {
-  employeeName?: string | null;
-  date?: string | null;
-  dateFrom?: string | null;
-  dateTo?: string | null;
-  serviceName?: string | null;
-  timeSlot?: string | null;
-  customerName?: string | null;
-  templateName?: string | null;
-  timeFrom?: string | null;
-  timeTo?: string | null;
-  allProviders?: boolean | null;
+interface SessionContext extends Partial<AiPageContext> {
   lastAction?: string | null;
+  lastMetric?: string | null;
 }
 
 interface ClarifyIssue {
@@ -49,16 +41,24 @@ interface ClarifyIssue {
 }
 
 function extractSessionContext(result: {
+  action?: string;
   details?: { sessionContext?: SessionContext; employee?: string; date?: string; params?: Record<string, unknown> };
 }): SessionContext {
   const ctx: SessionContext = { ...(result.details?.sessionContext ?? {}) };
   if (result.details?.employee) ctx.employeeName = result.details.employee;
   if (result.details?.date) ctx.date = result.details.date;
   const params = result.details?.params;
+  const details = result.details as Record<string, unknown> | undefined;
   if (params?.employeeName && !ctx.employeeName) ctx.employeeName = String(params.employeeName);
   if (params?.date && !ctx.date) ctx.date = String(params.date);
   if (params?.serviceName && !ctx.serviceName) ctx.serviceName = String(params.serviceName);
   if (params?.timeSlot && !ctx.timeSlot) ctx.timeSlot = String(params.timeSlot);
+  if (result.action) ctx.lastAction = result.action;
+  if (details?.metric) ctx.customerMetric = String(details.metric);
+  if (details?.appointmentMetric) ctx.appointmentMetric = String(details.appointmentMetric);
+  if (details?.bookingMetric) ctx.bookingMetric = String(details.bookingMetric);
+  const metric = details?.appointmentMetric ?? details?.customerMetric ?? details?.bookingMetric ?? details?.metric;
+  if (metric) ctx.lastMetric = String(metric);
   return ctx;
 }
 
@@ -76,6 +76,11 @@ function mergeSessionContext(prev: SessionContext, next: SessionContext): Sessio
     timeTo: next.timeTo ?? prev.timeTo,
     allProviders: next.allProviders ?? prev.allProviders,
     lastAction: next.lastAction ?? prev.lastAction,
+    lastMetric: next.lastMetric ?? prev.lastMetric,
+    appointmentMetric: next.appointmentMetric ?? prev.appointmentMetric,
+    customerMetric: next.customerMetric ?? prev.customerMetric,
+    bookingMetric: next.bookingMetric ?? prev.bookingMetric,
+    route: next.route ?? prev.route,
   };
 }
 
@@ -237,7 +242,7 @@ export function AiCommandBar() {
       const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
         prompt,
         history,
-        context: { ...sessionContext, ...pageCtx, route: pathname },
+        context: buildAiRequestContext(pathname, sessionContext, pageCtx),
       });
       const result = data.data || data;
 
