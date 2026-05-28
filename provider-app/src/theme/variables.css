@@ -40,3 +40,75 @@ ion-tab-bar {
   display: block;
   margin-top: 0.25rem;
 }
+
+.picker-field {
+  --background: #111827;
+  --border-color: #374151;
+}
+
+.picker-field__value {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  color: #f3f4f6;
+}
+
+/* Custom picker action sheets */
+.provider-picker-sheet .action-sheet-group:not(.action-sheet-group-cancel) {
+  background: #ffffff !important;
+}
+
+.provider-picker-sheet .action-sheet-title {
+  color: #6b7280 !important;
+  font-size: 0.875rem;
+}
+
+.provider-picker-sheet
+  .action-sheet-group:not(.action-sheet-group-cancel)
+  .action-sheet-button,
+.provider-picker-sheet
+  .action-sheet-group:not(.action-sheet-group-cancel)
+  .action-sheet-button
+  .action-sheet-button-inner {
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+
+.provider-picker-sheet
+  .action-sheet-group:not(.action-sheet-group-cancel)
+  .action-sheet-button:active,
+.provider-picker-sheet
+  .action-sheet-group:not(.action-sheet-group-cancel)
+  .action-sheet-button.ion-activated,
+.provider-picker-sheet
+  .action-sheet-group:not(.action-sheet-group-cancel)
+  .action-sheet-button.ion-focused {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.provider-picker-sheet .provider-sheet-selected,
+.provider-picker-sheet .provider-sheet-selected .action-sheet-button-inner {
+  color: #2563eb !important;
+  font-weight: 600;
+}
+
+.provider-picker-sheet .action-sheet-group-cancel {
+  background: #111827 !important;
+}
+
+.provider-picker-sheet .action-sheet-cancel,
+.provider-picker-sheet .action-sheet-cancel .action-sheet-button-inner {
+  background: #111827 !important;
+  color: #f3f4f6 !important;
+  font-weight: 500;
+}
+
+.provider-picker-sheet .action-sheet-cancel:active,
+.provider-picker-sheet .action-sheet-cancel.ion-activated,
+.provider-picker-sheet .action-sheet-cancel.ion-focused,
+.provider-picker-sheet .action-sheet-cancel:active .action-sheet-button-inner,
+.provider-picker-sheet .action-sheet-cancel.ion-activated .action-sheet-button-inner {
+  background: #1f2937 !important;
+  color: #ffffff !important;
+}

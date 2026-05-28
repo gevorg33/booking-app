@@ -1,5 +1,6 @@
-import { IsString, IsObject, ValidateNested, IsIn } from 'class-validator';
+import { IsString, IsObject, ValidateNested, IsIn, IsOptional, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
 
 class PushKeysDto {
   @IsString()
@@ -24,4 +25,34 @@ export class RegisterNativePushDto {
 
   @IsIn(['ios', 'android'])
   platform: 'ios' | 'android';
+}
+
+export class UpdateProviderBookingDto {
+  @IsOptional()
+  @IsEnum(BookingStatus)
+  status?: BookingStatus;
+
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  paymentStatus?: PaymentStatus;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class CancelProviderBookingDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class SuggestCancelNoteDto {
+  @IsOptional()
+  @IsString()
+  draft?: string;
+
+  @IsOptional()
+  @IsString()
+  prompt?: string;
 }
