@@ -75,24 +75,26 @@ const ACTION_RULES: Record<string, Rule> = {
   reschedule_booking: (cmd) => {
     const hasTarget =
       !!cmd.params.bookingId ||
-      (!!cmd.params.customerName && (!!cmd.params.date || !!cmd.params.timeSlot));
+      !!cmd.params.customerName ||
+      (!!cmd.params.employeeName && (!!cmd.params.date || !!cmd.params.timeSlot));
     const hasNewTime = !!cmd.params.date || !!cmd.params.timeSlot;
+    const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
     return [
       ...(hasTarget
         ? []
         : [{
             field: 'bookingId',
             label: 'Booking',
-            message: 'Specify which appointment to reschedule (customer + date/time, or booking ID)',
-            example: 'Move Maria\'s 14:00 appointment to 16:00',
+            message: 'Specify which appointment to update (customer, or provider + date/time, or booking ID)',
+            example: 'Change Maria\'s 14:00 appointment to hot stone massage',
           }]),
-      ...(hasNewTime
+      ...(hasNewTime || hasServiceChange
         ? []
         : [{
             field: 'timeSlot',
-            label: 'New time',
-            message: 'Specify the new date and/or time',
-            example: 'Reschedule to 16:00 on 30/05/2026',
+            label: 'New time or service',
+            message: 'Specify a new service type and/or a new date/time',
+            example: 'Change service to facemassage or move to 16:00',
           }]),
     ];
   },

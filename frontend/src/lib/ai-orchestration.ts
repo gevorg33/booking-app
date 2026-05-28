@@ -31,6 +31,9 @@ export const AI_BOOKING_EXAMPLES = [
   'Who is the busiest provider today?',
   'Cancel all facemassage appointments tomorrow',
   'Move Maria\'s 14:00 appointment to 16:00',
+  'Change Maria\'s appointment to hot stone massage',
+  'Change service type to facemassage for Gevorg\'s 14:00 today',
+  'Switch to deep tissue massage and move to tomorrow at 18:00',
   'Summarize today for all providers',
 ];
 
@@ -216,6 +219,7 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Show cancelled appointments today',
     'Book facemassage with Gevorg tomorrow at 10:00',
     'Cancel all bookings for tomorrow',
+    'Change service to hot stone massage for Maria\'s 14:00 today',
   ],
   '/dashboard/appointments': [
     'How many appointments today?',

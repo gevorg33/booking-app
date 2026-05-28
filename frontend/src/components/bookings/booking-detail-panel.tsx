@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Clock,
@@ -30,6 +30,11 @@ import {
   type BookingStatus,
   type PaymentStatus,
 } from '@/lib/booking-types';
+import {
+  findServicePeriodAtTime,
+  servicesForSchedulePeriod,
+  type SchedulePeriod,
+} from '@/lib/schedule-period-services';
 
 export interface BookingDetail {
   id: string;
@@ -139,6 +144,66 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     enabled: !!businessId,
   });
 
+  const rescheduleDayISO = rescheduleDate || (booking ? bookingDayISO(booking.startTime) : '');
+
+  const { data: calendarData } = useQuery({
+    queryKey: ['provider-calendar', businessId, rescheduleEmployeeId, rescheduleDayISO],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${businessId}/schedules/provider-calendar`,
+        {
+          params: {
+            employeeId: rescheduleEmployeeId,
+            startDate: rescheduleDayISO,
+            endDate: rescheduleDayISO,
+          },
+        },
+      );
+      return data.data || data;
+    },
+    enabled: !!businessId && !!rescheduleEmployeeId && !!rescheduleDayISO,
+  });
+
+  const selectedEmployee = useMemo(
+    () =>
+      (employees as Array<{ id: string; name: string; serviceIds?: string[] | null }>).find(
+        (e) => e.id === rescheduleEmployeeId,
+      ),
+    [employees, rescheduleEmployeeId],
+  );
+
+  const activePeriod = useMemo(
+    () =>
+      findServicePeriodAtTime(
+        (calendarData?.periods ?? []) as SchedulePeriod[],
+        rescheduleDayISO,
+        rescheduleTime,
+      ),
+    [calendarData?.periods, rescheduleDayISO, rescheduleTime],
+  );
+
+  const availableServices = useMemo(
+    () =>
+      servicesForSchedulePeriod(
+        allServices as Array<{ id: string; name: string; durationMinutes?: number }>,
+        activePeriod,
+        selectedEmployee?.serviceIds,
+      ),
+    [allServices, activePeriod, selectedEmployee?.serviceIds],
+  );
+
+  const servicesFilteredByPeriod =
+    !!activePeriod &&
+    !!activePeriod.serviceIds?.length &&
+    availableServices.length < (allServices as unknown[]).length;
+
+  useEffect(() => {
+    if (!rescheduleServiceId || availableServices.length === 0) return;
+    if (!availableServices.some((s) => s.id === rescheduleServiceId)) {
+      setRescheduleServiceId(availableServices.length === 1 ? availableServices[0].id : '');
+    }
+  }, [availableServices, rescheduleServiceId]);
+
   useEffect(() => {
     if (!booking) return;
     setStatus(booking.status as BookingStatus);
@@ -222,12 +287,15 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const detailsChanged = booking
     ? notes !== (booking.notes ?? '') || description !== (booking.description ?? '')
     : false;
-  const rescheduleChanged = booking
+  const serviceChanged = booking
+    ? rescheduleServiceId !== (booking.service?.id ?? '')
+    : false;
+  const scheduleChanged = booking
     ? rescheduleDate !== bookingDayISO(booking.startTime) ||
       rescheduleTime !== bookingTimeHHmm(booking.startTime) ||
-      rescheduleEmployeeId !== (booking.employee?.id ?? '') ||
-      rescheduleServiceId !== (booking.service?.id ?? '')
+      rescheduleEmployeeId !== (booking.employee?.id ?? '')
     : false;
+  const rescheduleChanged = serviceChanged || scheduleChanged;
   const rescheduleValid =
     !!rescheduleDate &&
     isValidTime24(rescheduleTime) &&
@@ -273,10 +341,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     if (paymentChanged) {
       payload.paymentStatus = paymentStatus;
     }
-    if (rescheduleChanged && rescheduleValid) {
-      payload.startTime = toRescheduleISO(rescheduleDate, rescheduleTime);
-      payload.employeeId = rescheduleEmployeeId;
-      payload.serviceId = rescheduleServiceId;
+    if ((serviceChanged || scheduleChanged) && rescheduleValid) {
+      if (scheduleChanged) {
+        payload.startTime = toRescheduleISO(rescheduleDate, rescheduleTime);
+        payload.employeeId = rescheduleEmployeeId;
+      }
+      if (serviceChanged) {
+        payload.serviceId = rescheduleServiceId;
+      }
     }
     if (customerChanged) {
       payload.customerId = customerId || undefined;
@@ -404,15 +476,33 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     className="input text-sm"
                     value={rescheduleServiceId}
                     onChange={(e) => setRescheduleServiceId(e.target.value)}
+                    disabled={!rescheduleEmployeeId || !isValidTime24(rescheduleTime) || availableServices.length === 0}
                   >
-                    <option value="">Select service...</option>
-                    {allServices.map((svc: { id: string; name: string; durationMinutes?: number }) => (
+                    <option value="">
+                      {availableServices.length === 0
+                        ? 'No services for this time block'
+                        : 'Select service...'}
+                    </option>
+                    {availableServices.map((svc) => (
                       <option key={svc.id} value={svc.id}>
                         {svc.name}
                         {svc.durationMinutes != null ? ` (${svc.durationMinutes} min)` : ''}
                       </option>
                     ))}
                   </select>
+                  {servicesFilteredByPeriod && (
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      Showing services offered in this schedule block only.
+                    </p>
+                  )}
+                  {rescheduleEmployeeId &&
+                    isValidTime24(rescheduleTime) &&
+                    !activePeriod &&
+                    availableServices.length === 0 && (
+                      <p className="text-[10px] text-amber-400/90 mt-1">
+                        No service block covers this time — pick another slot or provider.
+                      </p>
+                    )}
                 </div>
                 {rescheduleChanged && (
                   <p className="text-[10px] text-gray-500">

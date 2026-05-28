@@ -1,4 +1,4 @@
-import { todayDisplay, formatDateDisplay } from '../../common/utils/date-format.util.js';
+import { todayDisplay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { extractSingleDateFromPrompt, resolveDateRange } from './ai-orchestration.helpers.js';
 import { normalizeMultilingualPrompt } from './ai-prompt-i18n.js';
@@ -86,6 +86,85 @@ export function extractTimeSlotFromPrompt(prompt: string): string | null {
     const h = parseInt(am[1], 10);
     return normalizeTime24(`${h === 12 ? 0 : h}:00`);
   }
+
+  const atHourOnly = prompt.match(/\b(?:at|@)\s*(\d{1,2})\b(?!\s*:\d)/i);
+  if (atHourOnly) {
+    const h = parseInt(atHourOnly[1], 10);
+    if (h >= 0 && h <= 23) return normalizeTime24(`${h}:00`);
+  }
+
+  return null;
+}
+
+/** New time from "move ... to 16:00" / "reschedule to 18:00". */
+export function extractRescheduleTimeSlotFromPrompt(prompt: string): string | null {
+  const toAt = prompt.match(/\bto\s+(?:at\s+)?(\d{1,2}):(\d{2})\b/i);
+  if (toAt) return normalizeTime24(`${toAt[1]}:${toAt[2]}`);
+
+  const toAtHour = prompt.match(/\bto\s+(?:at\s+)?(\d{1,2})\b(?!\s*:\d)/i);
+  if (toAtHour) {
+    const h = parseInt(toAtHour[1], 10);
+    if (h >= 0 && h <= 23) return normalizeTime24(`${h}:00`);
+  }
+
+  return null;
+}
+
+/** Existing appointment time from "Maria's 14:00 appointment" before a move. */
+export function extractFromTimeSlotFromReschedulePrompt(prompt: string): string | null {
+  const possessive = prompt.match(/(?:'s|s)\s+(\d{1,2}):(\d{2})\s+(?:appointment|booking)/i);
+  if (possessive) return normalizeTime24(`${possessive[1]}:${possessive[2]}`);
+
+  const beforeAppt = prompt.match(/\b(\d{1,2}):(\d{2})\s+(?:appointment|booking)\s+to\b/i);
+  if (beforeAppt) return normalizeTime24(`${beforeAppt[1]}:${beforeAppt[2]}`);
+
+  return null;
+}
+
+function matchServiceByNameFragment(
+  fragment: string,
+  services: Array<{ id: string; name: string }>,
+): { id: string; name: string } | undefined {
+  const lower = fragment.trim().toLowerCase();
+  if (!lower) return undefined;
+  return (
+    services.find((s) => s.name.toLowerCase() === lower) ??
+    services.find(
+      (s) => lower.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lower),
+    ) ??
+    services.find((s) =>
+      s.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 4)
+        .some((w) => lower.includes(w)),
+    )
+  );
+}
+
+/** Target service from "change service to X" / "switch to X" — not a time like 16:00. */
+export function extractNewServiceNameFromChangePrompt(
+  prompt: string,
+  services?: Array<{ id: string; name: string }>,
+): string | null {
+  const patterns = [
+    /\b(?:change|switch|update|replace|convert)\s+(?:the\s+)?(?:service(?:\s+type)?|appointment(?:\s+service)?)\s+(?:to|into)\s+(.+?)(?:\s+and\b|\s+on\b|\s+at\b|\s+for\b|\s+tomorrow\b|\s+today\b|$)/i,
+    /\b(?:change|switch|update)\s+.+'s\s+(?:appointment|booking)\s+(?:to|into)\s+(.+?)(?:\s+and\b|\s+at\b|\s+on\b|$)/i,
+    /\bswitch\s+to\s+(.+?)(?:\s+and\b|\s+move\b|\s+at\b|\s+on\b|\s+tomorrow\b|\s+today\b|$)/i,
+  ];
+
+  for (const re of patterns) {
+    const match = prompt.match(re);
+    if (!match?.[1]) continue;
+    const raw = match[1].trim().replace(/\s+(only|instead)$/i, '');
+    if (!raw || extractTimeSlotFromPrompt(raw)) continue;
+    if (services?.length) {
+      const svc = matchServiceByNameFragment(raw, services);
+      if (svc) return svc.name;
+    }
+    return raw;
+  }
+
   return null;
 }
 
@@ -120,9 +199,15 @@ export function enrichParamsFromPrompt(
       params.date = formatDateDisplay(range.start);
     }
   } else {
-    const single = extractSingleDateFromPrompt(prompt);
-    if (single && !params.date) params.date = single;
+    applyRelativeDateFromPrompt(params, prompt);
+    if (!params.date) {
+      const single = extractSingleDateFromPrompt(prompt);
+      if (single) params.date = single;
+    }
   }
+
+  // Prompt-relative dates always win over stale LLM/session values.
+  applyRelativeDateFromPrompt(params, prompt);
 
   if (!params.employeeName && employees?.length) {
     const emp = matchEntityInPrompt(prompt, employees);
@@ -146,13 +231,39 @@ export function enrichParamsFromPrompt(
     if (svc) params.serviceName = svc.name;
   }
 
+  if (!params.serviceName && services?.length) {
+    const keywordMatch = lower.match(/\b(?:a|an)\s+([\w\s-]+?)\s+schedule\b/);
+    if (keywordMatch) {
+      const keyword = keywordMatch[1].trim().toLowerCase();
+      const partial = services.find(
+        (s) =>
+          s.name.toLowerCase().includes(keyword) ||
+          keyword.includes(s.name.toLowerCase()) ||
+          s.name.toLowerCase().split(/\s+/).some((t) => t.length >= 4 && keyword.includes(t)),
+      );
+      if (partial) params.serviceName = partial.name;
+    }
+  }
+
   if (!params.templateName && templates?.length) {
     const tpl = matchEntityInPrompt(prompt, templates);
     if (tpl) params.templateName = tpl.name;
   }
 
   const slot = extractTimeSlotFromPrompt(prompt);
-  if (slot && !params.timeSlot) params.timeSlot = slot;
+  const isRescheduleLike =
+    /\b(move|reschedule|shift|push)\b/i.test(lower) ||
+    (/\bchange\b/i.test(lower) && /\b(appointment|booking)\b/i.test(lower));
+  const toSlot = isRescheduleLike ? extractRescheduleTimeSlotFromPrompt(prompt) : null;
+  const fromSlot = isRescheduleLike ? extractFromTimeSlotFromReschedulePrompt(prompt) : null;
+  if (fromSlot && toSlot) {
+    params.fromTimeSlot = fromSlot;
+    params.timeSlot = toSlot;
+  } else if (toSlot) {
+    params.timeSlot = toSlot;
+  } else if (slot && !params.timeSlot) {
+    params.timeSlot = slot;
+  }
 
   const status = extractStatusFilterFromPrompt(prompt);
   if (status && !params.statusFilter) params.statusFilter = status;
@@ -408,6 +519,40 @@ function detectContextShiftIntent(input: HeuristicDetectionInput): HeuristicInte
   };
 }
 
+/** Questions about who is working / scheduled — not booking mutations. */
+function isInformationalScheduleQuery(lower: string): boolean {
+  return (
+    /\bwho (has|is|are|'s|have)\b/i.test(lower) ||
+    /\bwhich (provider|staff|employee|team member|team member)s?\b/i.test(lower) ||
+    /\bwho(?:'s| is) (on duty|working|scheduled)\b/i.test(lower) ||
+    /\bwho has a\b.*\b(schedule|shift|appointment|booking)\b/i.test(lower)
+  );
+}
+
+function detectWhoHasScheduleIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
+  const { prompt, sessionContext } = input;
+  const lower = prompt.toLowerCase();
+
+  const wantsWhoSchedule =
+    isInformationalScheduleQuery(lower) &&
+    (/\b(schedule|shift|on duty|working|appointment|booking)\b/i.test(lower) ||
+      /\bat\s+\d/i.test(lower));
+
+  if (!wantsWhoSchedule) return null;
+  if (/\b(cancel|book|reserve)\b/i.test(lower) && !/\bwho\b/i.test(lower)) return null;
+
+  const params = inheritSessionParams(sessionContext, ['date', 'serviceName', 'timeSlot']);
+  enrichParamsFromPrompt(params, input);
+  params.allProviders = true;
+
+  return {
+    action: 'show_appointments',
+    params,
+    reasoning: 'Who has schedule — list providers with matching appointments or shifts',
+    confidence: 0.94,
+  };
+}
+
 function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt, sessionContext } = input;
   const lastAction = sessionContext?.lastAction;
@@ -430,9 +575,13 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
       lastAction === 'show_appointments' ||
       lastAction === 'summarize_day' ||
       lastAction === 'lookup_service_assignment') &&
+    !isInformationalScheduleQuery(prompt.toLowerCase()) &&
     (/\b(book|schedule|add|create|reserve)\b/i.test(prompt) ||
       (extractTimeSlotFromPrompt(prompt) &&
         (inherited.serviceName || sessionContext?.serviceName))) &&
+    /\b(book|reserve|add an appointment|make an appointment|schedule an appointment)\b/i.test(
+      prompt,
+    ) &&
     (/\bappointment\b|\bbooking\b/i.test(prompt) ||
       inherited.serviceName ||
       sessionContext?.serviceName ||
@@ -485,16 +634,36 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
   }
 
   if (
-    (lastAction === 'show_appointments' || lastAction === 'summarize_day') &&
-    /\b(move|reschedule|shift|change)\b/i.test(prompt)
+    (lastAction === 'show_appointments' ||
+      lastAction === 'summarize_day' ||
+      lastAction === 'lookup_customer') &&
+    (/\b(move|reschedule|shift|change|switch)\b/i.test(prompt) ||
+      extractNewServiceNameFromChangePrompt(prompt, input.services))
   ) {
     const params = { ...inherited };
+    const newServiceName = extractNewServiceNameFromChangePrompt(prompt, input.services);
+    if (newServiceName || /\b(change|switch)\b.*\bservice/i.test(prompt)) {
+      delete params.serviceName;
+    }
+    if (newServiceName) {
+      const svc = input.services?.length
+        ? matchServiceByNameFragment(newServiceName, input.services)
+        : undefined;
+      params.serviceName = svc?.name ?? newServiceName;
+    }
     const slot = extractTimeSlotFromPrompt(prompt);
     if (slot) params.timeSlot = slot;
+    enrichParamsFromPrompt(params, input);
+    if (newServiceName && input.services?.length) {
+      const svc = matchServiceByNameFragment(newServiceName, input.services);
+      if (svc) params.serviceName = svc.name;
+    }
     return {
       action: 'reschedule_booking',
       params,
-      reasoning: 'Follow-up — reschedule after viewing appointments',
+      reasoning: newServiceName
+        ? 'Follow-up — change service after viewing appointments'
+        : 'Follow-up — reschedule after viewing appointments',
       confidence: 0.91,
     };
   }
@@ -982,6 +1151,52 @@ function detectOrchestrationIntent(input: HeuristicDetectionInput): HeuristicInt
   return null;
 }
 
+function detectChangeBookingServiceIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
+  const { prompt, sessionContext } = input;
+  const lower = prompt.toLowerCase();
+
+  const newServiceName = extractNewServiceNameFromChangePrompt(prompt, input.services);
+  const wantsServiceChange =
+    !!newServiceName ||
+    (/\b(change|switch|update|replace|convert)\b/i.test(lower) &&
+      /\bservice(\s+type)?\b/i.test(lower));
+
+  if (!wantsServiceChange) return null;
+  if (/\bassign\b/i.test(lower)) return null;
+  if (/\b(add|create|new)\b/i.test(lower) && /\$|\d+\s*min/i.test(lower)) return null;
+
+  const params = inheritSessionParams(sessionContext, [
+    'employeeName',
+    'date',
+    'timeSlot',
+    'customerName',
+    'bookingId',
+  ]);
+
+  if (newServiceName) {
+    const svc = input.services?.length
+      ? matchServiceByNameFragment(newServiceName, input.services)
+      : undefined;
+    params.serviceName = svc?.name ?? newServiceName;
+  }
+
+  enrichParamsFromPrompt(params, input);
+
+  if (newServiceName && input.services?.length) {
+    const svc = matchServiceByNameFragment(newServiceName, input.services);
+    if (svc) params.serviceName = svc.name;
+  }
+
+  if (!params.serviceName) return null;
+
+  return {
+    action: 'reschedule_booking',
+    params,
+    reasoning: 'Change appointment service type',
+    confidence: 0.91,
+  };
+}
+
 function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt } = input;
   const lower = prompt.toLowerCase();
@@ -995,8 +1210,10 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
   ]);
   enrichParamsFromPrompt(params, input);
 
+  if (isInformationalScheduleQuery(lower)) return null;
+
   if (
-    /\b(book|schedule|reserve|set up an appointment|make an appointment|add an appointment)\b/i.test(
+    /\b(book|reserve|set up an appointment|make an appointment|add an appointment|schedule an appointment|schedule a)\b/i.test(
       lower,
     ) &&
     (params.employeeName || params.serviceName || params.timeSlot) &&
@@ -1018,7 +1235,7 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
       input.sessionContext?.employeeName ||
       (Array.isArray(input.sessionContext?.availableProviders) &&
         input.sessionContext.availableProviders.length === 1));
-  if (timeOnlyBooking && !/\b(cancel|show|list|how many|who can)\b/i.test(lower)) {
+  if (timeOnlyBooking && !/\b(cancel|show|list|how many|who can|who has|who is|which)\b/i.test(lower)) {
     if (!params.serviceName && input.sessionContext?.serviceName) {
       params.serviceName = input.sessionContext.serviceName;
     }
@@ -1056,7 +1273,11 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
   }
 
   if (
-    /\b(move|reschedule|shift|push|change)\b.*\b(appointment|booking|to)\b/i.test(lower) ||
+    (/\b(move|reschedule|shift|push)\b/i.test(lower) &&
+      /\b(appointment|booking|to)\b/i.test(lower)) ||
+    (/\bchange\b/i.test(lower) &&
+      /\b(appointment|booking)\b/i.test(lower) &&
+      (params.timeSlot || params.date || /\bto\b/i.test(lower))) ||
     /\breschedule\b/i.test(lower)
   ) {
     return {
@@ -1364,6 +1585,8 @@ export function runHeuristicIntentDetection(
   const detectors = [
     detectFollowUpIntents,
     detectContextShiftIntent,
+    detectWhoHasScheduleIntent,
+    detectChangeBookingServiceIntent,
     detectDirectMutationIntents,
     detectListScheduleGapsIntent,
     detectLookupCustomerIntent,

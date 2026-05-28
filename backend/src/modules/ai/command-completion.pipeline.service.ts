@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { toIsoDay, formatDateDisplay } from '../../common/utils/date-format.util.js';
+import { toIsoDay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
 import {
   resolveEmployees,
   resolveServices,
@@ -86,7 +86,8 @@ export class CommandCompletionPipelineService {
     return merged;
   }
 
-  normalizeDateParams(params: Record<string, any>): void {
+  normalizeDateParams(params: Record<string, any>, prompt?: string): void {
+    applyRelativeDateFromPrompt(params, prompt);
     for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
       if (params[key]) params[key] = toIsoDay(params[key]);
     }
@@ -157,7 +158,12 @@ export class CommandCompletionPipelineService {
     }
 
     if (dateRange) {
-      if (!enrichedParams.date) enrichedParams.date = dateRange.start;
+      const promptHasRelativeDate = /\b(tomorrow|today|yesterday|tonight)\b/i.test(
+        prompt.toLowerCase(),
+      );
+      if (promptHasRelativeDate || !enrichedParams.date) {
+        enrichedParams.date = dateRange.start;
+      }
       if (!enrichedParams.dateFrom) enrichedParams.dateFrom = dateRange.start;
       if (!enrichedParams.dateTo) enrichedParams.dateTo = dateRange.end;
     }

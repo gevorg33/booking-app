@@ -12,6 +12,7 @@ import {
   parseBookingStatusFilter,
 } from './dto/get-bookings-query.dto.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
+import { Employee } from '../employee/entities/employee.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
@@ -334,6 +335,14 @@ export class BookingService {
       booking.endTime = newEnd;
       booking.employeeId = targetEmployeeId;
       booking.serviceId = targetServiceId;
+      booking.service = service;
+      if (targetEmployeeId !== oldEmployeeId) {
+        const employee = await this.bookingRepo.manager.findOne(Employee, {
+          where: { id: targetEmployeeId, businessId: booking.businessId },
+        });
+        if (!employee) throw new NotFoundException('Employee not found');
+        booking.employee = employee;
+      }
       booking.slotId = newSlots[0]?.id ?? null;
 
       await this.eventStore.publish({
