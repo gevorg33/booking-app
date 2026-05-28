@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { Sparkles, ChevronRight } from 'lucide-react';
-import { setAiPageContext, type AiPageContext } from '@/lib/ai-orchestration';
+import { setAiPageContext, clearAiPageContext, type AiPageContext } from '@/lib/ai-orchestration';
 
 interface AiPagePanelProps {
   title?: string;
@@ -19,8 +19,10 @@ export function AiPagePanel({
   onSelectPrompt,
 }: AiPagePanelProps) {
   useEffect(() => {
-    if (context) setAiPageContext(context);
-    return () => setAiPageContext({});
+    if (!context) return;
+    setAiPageContext(context);
+    const keys = Object.keys(context) as (keyof AiPageContext)[];
+    return () => clearAiPageContext(keys);
   }, [context]);
 
   const firePrompt = (prompt: string) => {

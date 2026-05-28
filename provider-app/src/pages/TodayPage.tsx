@@ -14,17 +14,20 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
-import { formatDateDisplay } from '../lib/date-format';
+import { formatDateDisplay, todayDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
 import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiAssistant from '../components/ProviderAiAssistant';
+import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
 
 export default function TodayPage() {
   const { business, user } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [seedPrompt, setSeedPrompt] = useState<string | null>(null);
 
   const refreshBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', business?.id] });
@@ -75,7 +78,25 @@ export default function TodayPage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        {business?.id && <ProviderAiAssistant businessId={business.id} />}
+        {business?.id && (
+          <>
+            <ProviderAiSuggestions
+              businessId={business.id}
+              onSelectPrompt={(prompt) => setSeedPrompt(prompt)}
+            />
+            <ProviderAiAssistant
+              businessId={business.id}
+              seedPrompt={seedPrompt}
+              onSeedPromptConsumed={() => setSeedPrompt(null)}
+              screenContext={buildProviderAiScreenContext(
+                'today',
+                { date: todayDisplay() },
+                data?.bookings ?? [],
+                selectedId,
+              )}
+            />
+          </>
+        )}
 
         {isTeamView(data?.viewMode) ? (
           <p className="booking-meta">All providers — today</p>
@@ -124,6 +145,7 @@ export default function TodayPage() {
             businessId={business.id}
             bookingId={selectedId}
             onClose={() => setSelectedId(null)}
+            onAiPrompt={(prompt) => setSeedPrompt(prompt)}
           />
         )}
       </IonContent>

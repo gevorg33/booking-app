@@ -1,4 +1,5 @@
 import { ValidationIssue, ValidationResult, ResolvedCommand } from './command-completion.types.js';
+import { getRequestedEmployeeNames } from './ai-orchestration.helpers.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -54,6 +55,20 @@ const ACTION_RULES: Record<string, Rule> = {
           label: 'Filter',
           message: 'Specify which bookings to cancel (date, provider, and/or service)',
           example: 'Cancel all facemassage appointments for Gevorg tomorrow',
+        }];
+  },
+
+  bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
+
+  fill_slot_from_waitlist: (cmd) => {
+    const hasWhen = !!cmd.params.date || !!cmd.params.timeSlot;
+    return hasWhen
+      ? []
+      : [{
+          field: 'timeSlot',
+          label: 'Slot time',
+          message: 'Specify which cancelled slot to fill (date and time)',
+          example: 'Fill cancelled 14:00 slot tomorrow from waitlist',
         }];
   },
 
@@ -128,6 +143,36 @@ const ACTION_RULES: Record<string, Rule> = {
             label: 'Date or range',
             message: 'Specify when to fill gaps',
             example: 'this week or 29/05/2026',
+          }]),
+    ];
+  },
+
+  list_schedule_gaps: (cmd) => {
+    const hasProviders =
+      cmd.params.allProviders ||
+      !!cmd.params.employeeName ||
+      (cmd.params.employeeNames?.length ?? 0) > 0 ||
+      cmd.entities.employees.length > 0;
+    const hasWhen =
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.entities.dateRange;
+    return [
+      ...(hasProviders
+        ? []
+        : [{
+            field: 'employeeName',
+            label: 'Service provider',
+            message: 'Specify who to list gaps for',
+            example: 'Which days does Gevorg have gaps this week?',
+          }]),
+      ...(hasWhen
+        ? []
+        : [{
+            field: 'dateFrom',
+            label: 'Date range',
+            message: 'Specify which week or date range to check',
+            example: 'this week or 28/05/2026 to 03/06/2026',
           }]),
     ];
   },
@@ -228,7 +273,28 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
   const issues: ValidationIssue[] = [];
   const { params, entities } = cmd;
 
-  if (params.employeeName && !params.allProviders && entities.employees.length === 0) {
+  const requestedNames = getRequestedEmployeeNames(params);
+
+  if (requestedNames.length > 1 && entities.employees.length < requestedNames.length) {
+    const unmatched = requestedNames.filter(
+      (name) =>
+        !entities.employees.some(
+          (e) =>
+            e.name.toLowerCase().includes(name.toLowerCase()) ||
+            name.toLowerCase().includes(e.name.toLowerCase()) ||
+            e.name.toLowerCase().split(/\s+/).some((part) => part === name.toLowerCase()),
+        ),
+    );
+    issues.push({
+      field: 'employeeName',
+      label: 'Service providers',
+      message:
+        entities.employees.length === 0
+          ? `Could not find providers: ${requestedNames.join(', ')}`
+          : `Found ${entities.employees.map((e) => e.name).join(', ')} but could not match: ${unmatched.join(', ') || requestedNames.join(', ')}`,
+      example: `Available: ${cmd.enrichedParams._availableEmployees ?? 'check team list'}`,
+    });
+  } else if (params.employeeName && !params.allProviders && entities.employees.length === 0) {
     issues.push({
       field: 'employeeName',
       label: 'Service provider',
@@ -280,6 +346,8 @@ const VALIDATED_ACTIONS = new Set([
   'create_service',
   'create_services',
   'cancel_bookings',
+  'bulk_smart_cancel',
+  'fill_slot_from_waitlist',
   'reschedule_booking',
   'check_availability',
   'show_appointments',
@@ -290,6 +358,7 @@ const VALIDATED_ACTIONS = new Set([
   'block_schedule',
   'create_direct_schedule',
   'assign_employee_services',
+  'list_schedule_gaps',
 ]);
 
 export function shouldValidateAction(action: string): boolean {

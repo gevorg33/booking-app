@@ -32,6 +32,18 @@ export class WorkflowExecutorService {
     this.stepExecutors.set(action, executor);
   }
 
+  async runStep(step: WorkflowStep, context: Record<string, any>): Promise<any> {
+    const executor = this.stepExecutors.get(this.resolveAction(step.action));
+    if (!executor) {
+      throw new Error(`No executor for action: ${step.action}`);
+    }
+    const enrichedStep = {
+      ...step,
+      params: { ...step.params, businessId: step.params.businessId ?? context.businessId },
+    };
+    return executor(enrichedStep, context);
+  }
+
   async executeWorkflow(definition: WorkflowDefinition): Promise<WorkflowExecutionResult> {
     const correlationId = crypto.randomUUID();
 

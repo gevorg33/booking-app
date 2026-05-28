@@ -10,13 +10,27 @@ import {
   Loader2,
   AlertTriangle,
   Play,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
-import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { AI_MUTATION_QUERY_KEYS, AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import {
+  PlanDiffPreview,
+  ConflictResolutionWorkspace,
+  CancellationRecoveryBoard,
+} from '@/components/ai-agent-workspaces';
+import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
+import { AiAuditLog } from '@/components/ai-audit-log';
+
+function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const key of AI_MUTATION_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
 
 const AGENT_TYPES = [
   { value: 'scheduling_optimization', label: 'Schedule Optimization', description: 'Optimize staff schedules and fill gaps' },
@@ -43,6 +57,8 @@ export default function AiOpsPage() {
   const queryClient = useQueryClient();
   const [intent, setIntent] = useState('');
   const [agentType, setAgentType] = useState('scheduling_optimization');
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [applyingFixId, setApplyingFixId] = useState<string | null>(null);
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['agent-tasks', business?.id],
@@ -57,39 +73,73 @@ export default function AiOpsPage() {
 
   const intentMutation = useMutation({
     mutationFn: async (data: { agentType: string; intent: string }) => {
-      const agentType = data.agentType === 'utilization_optimization'
-        ? 'scheduling_optimization'
-        : data.agentType;
       const res = await api.post(`/businesses/${business!.id}/agents/intent`, {
-        agentType,
+        agentType: data.agentType,
         intent: data.intent,
         dateRange: {
           start: new Date().toISOString(),
           end: new Date(Date.now() + 7 * 86400000).toISOString(),
         },
       });
-      return res.data;
+      return res.data?.data ?? res.data;
     },
-    onSuccess: () => {
+    onSuccess: (task) => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
-      queryClient.invalidateQueries({ queryKey: ['block-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending'] });
+      invalidateAiMutations(queryClient);
       setIntent('');
+      if (task?.id) setExpandedTaskId(task.id);
     },
   });
 
   const approveMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      const res = await api.put(`/businesses/${business!.id}/agents/tasks/${taskId}/approve`);
-      return res.data;
+      const res = await api.post(`/businesses/${business!.id}/ai/command/tasks/${taskId}/approve`);
+      return res.data?.data ?? res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending'] });
+      invalidateAiMutations(queryClient);
     },
   });
+
+  const previewMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const res = await api.get(`/businesses/${business!.id}/agents/tasks/${taskId}/preview`);
+      return res.data?.data ?? res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+    },
+  });
+
+  const rebookAllMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const res = await api.post(`/businesses/${business!.id}/agents/tasks/${taskId}/rebook-all`);
+      return res.data?.data ?? res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+      invalidateAiMutations(queryClient);
+    },
+  });
+
+  const applyFix = async (
+    resolutionId: string,
+    fix: { type: string; bookingId: string; startTime: string } | null | undefined,
+  ) => {
+    if (!business?.id || !fix || fix.type !== 'reschedule_booking') return;
+    setApplyingFixId(resolutionId);
+    try {
+      await api.put(`/businesses/${business.id}/bookings/${fix.bookingId}`, {
+        startTime: fix.startTime,
+      });
+      invalidateAiMutations(queryClient);
+    } finally {
+      setApplyingFixId(null);
+    }
+  };
 
   return (
     <div>
@@ -164,47 +214,98 @@ export default function AiOpsPage() {
         ) : (
           tasks.map((task: any) => {
             const { Icon: StatusIcon, color } = getStatusConfig(task.status);
+            const preview = task.result?.preview;
+            const planDiff = preview?.planDiff ?? task.plan?.steps?.map((s: any) => ({
+              id: s.id,
+              action: s.action,
+              description: s.description,
+              impact: s.estimatedImpact ?? s.description,
+              estimatedImpact: s.estimatedImpact,
+            }));
+            const expanded = expandedTaskId === task.id;
+
             return (
               <div key={task.id} className="card">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
                     <StatusIcon
-                      className={`w-5 h-5 ${color} mt-0.5 ${
+                      className={`w-5 h-5 ${color} mt-0.5 shrink-0 ${
                         task.status === 'executing' ? 'animate-spin' : ''
                       }`}
                     />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium">{task.intent}</p>
                       <p className="text-sm text-gray-400 mt-0.5">
-                        {task.agentType?.replace(/_/g, ' ')} &middot;{' '}
-                        {task.status?.replace(/_/g, ' ')}
+                        {task.agentType?.replace(/_/g, ' ')} · {task.status?.replace(/_/g, ' ')}
                       </p>
                       {task.plan && (
-                        <div className="mt-2 text-sm text-gray-400">
-                          <p>{task.plan.reasoning}</p>
-                          <p className="mt-1">
-                            Steps: {task.plan.steps?.length || 0} &middot; Risk:{' '}
-                            {task.plan.riskAssessment?.level || 'unknown'}
-                          </p>
-                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {task.plan.steps?.length ?? 0} steps · risk {task.plan.riskAssessment?.level ?? 'unknown'}
+                        </p>
                       )}
                       {task.error && <p className="text-sm text-red-400 mt-1">{task.error}</p>}
                     </div>
                   </div>
-                  {task.status === 'validated' && (
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {(task.status === 'validated' || task.status === 'requires_approval') && (
+                      <button
+                        onClick={() => approveMutation.mutate(task.id)}
+                        disabled={approveMutation.isPending}
+                        className="btn-primary text-sm flex items-center gap-1"
+                      >
+                        <Play className="w-3 h-3" /> Approve
+                      </button>
+                    )}
                     <button
-                      onClick={() => approveMutation.mutate(task.id)}
-                      disabled={approveMutation.isPending}
-                      className="btn-primary text-sm flex items-center gap-1"
+                      type="button"
+                      onClick={() => {
+                        const next = expanded ? null : task.id;
+                        setExpandedTaskId(next);
+                        if (next && !preview) previewMutation.mutate(task.id);
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1"
                     >
-                      <Play className="w-3 h-3" /> Approve & Execute
+                      <RefreshCw className={`w-3 h-3 ${previewMutation.isPending && expanded ? 'animate-spin' : ''}`} />
+                      {expanded ? 'Hide' : 'Preview'}
                     </button>
-                  )}
+                  </div>
                 </div>
+
+                {expanded && (
+                  <div className="mt-4 space-y-4 border-t border-gray-800 pt-4">
+                    {planDiff && (
+                      <PlanDiffPreview
+                        steps={planDiff}
+                        policyPreview={preview?.policyPreview ?? task.result?.policyPreview}
+                      />
+                    )}
+
+                    {preview?.conflictResolution && (
+                      <ConflictResolutionWorkspace
+                        data={preview.conflictResolution}
+                        onApplyFix={applyFix}
+                        applyingId={applyingFixId}
+                      />
+                    )}
+
+                    {preview?.cancellationRecovery && (
+                      <CancellationRecoveryBoard
+                        data={preview.cancellationRecovery}
+                        onRebookAll={() => rebookAllMutation.mutate(task.id)}
+                        rebooking={rebookAllMutation.isPending}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
         )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <AiAutopilotSettings />
+        <AiAuditLog />
       </div>
     </div>
   );

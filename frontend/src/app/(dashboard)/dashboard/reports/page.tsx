@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 interface StaffRow {
   employeeId: string;
@@ -128,6 +130,15 @@ export default function ReportsPage() {
 
   return (
     <div>
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/reports']}
+        context={{
+          route: '/dashboard/reports',
+          dateFrom: range.from.replace(/-/g, '_'),
+          dateTo: range.to.replace(/-/g, '_'),
+        }}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

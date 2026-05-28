@@ -18,6 +18,8 @@ import { PushService } from './push.service.js';
 import { SubscribePushDto, RegisterNativePushDto, UpdateProviderBookingDto, CancelProviderBookingDto, SuggestCancelNoteDto } from './dto/provider-mobile.dto.js';
 import { ProviderAiCommandDto, ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
+import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
+import { ProviderPushActionService } from './provider-push-action.service.js';
 
 @Controller('businesses/:businessId/provider')
 @UseGuards(JwtAuthGuard)
@@ -26,6 +28,8 @@ export class ProviderMobileController {
     private providerService: ProviderMobileService,
     private pushService: PushService,
     private providerAi: ProviderAiCommandService,
+    private providerAiSuggestions: ProviderAiSuggestionsService,
+    private pushActions: ProviderPushActionService,
   ) {}
 
   @Get('context')
@@ -55,6 +59,14 @@ export class ProviderMobileController {
     @Body() dto: ProviderAiConfirmDto,
   ) {
     return this.providerAi.confirmAction(businessId, user.id, dto);
+  }
+
+  @Get('ai/suggestions')
+  getAiSuggestions(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerAiSuggestions.getSuggestions(businessId, user.id);
   }
 
   @Get('bookings/today')
@@ -166,5 +178,18 @@ export class ProviderMobileController {
     @Query('platform') platform?: 'ios' | 'android',
   ) {
     return this.pushService.getNativePushStatus(user.id, businessId, platform);
+  }
+
+  @Post('push/action')
+  handlePushAction(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: { actionId: 'confirm' | 'mark_paid' | 'suggest_reschedule'; bookingId: string },
+  ) {
+    return this.pushActions.handleAction(businessId, user.id, {
+      actionId: body.actionId,
+      bookingId: body.bookingId,
+      businessId,
+    });
   }
 }

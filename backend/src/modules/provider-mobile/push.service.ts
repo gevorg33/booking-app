@@ -86,7 +86,14 @@ export class PushService {
   async sendToUser(
     userId: string,
     businessId: string,
-    payload: { title: string; body: string; url?: string },
+    payload: {
+      title: string;
+      body: string;
+      url?: string;
+      actions?: Array<{ id: string; label: string }>;
+      bookingId?: string;
+      businessId?: string;
+    },
   ): Promise<number> {
     let sent = 0;
 
@@ -119,7 +126,13 @@ export class PushService {
   private async notifyNativeTokens(
     userId: string,
     businessId: string,
-    payload: { title: string; body: string; url?: string },
+    payload: {
+      title: string;
+      body: string;
+      url?: string;
+      actions?: Array<{ id: string; label: string }>;
+      bookingId?: string;
+    },
   ): Promise<number> {
     const tokens = await this.nativeTokenRepo.find({ where: { userId, businessId } });
     if (tokens.length === 0) return 0;
@@ -137,10 +150,17 @@ export class PushService {
         await this.firebase.messaging().send({
           token: entry.token,
           notification: { title: payload.title, body: payload.body },
-          data: payload.url ? { url: payload.url } : undefined,
+          data: {
+            ...(payload.url ? { url: payload.url } : {}),
+            ...(payload.bookingId ? { bookingId: payload.bookingId } : {}),
+            businessId,
+            ...(payload.actions?.length
+              ? { actions: JSON.stringify(payload.actions) }
+              : {}),
+          },
           android: {
             priority: 'high',
-            notification: { channelId: 'booking_alerts' },
+            notification: { channelId: 'booking_alerts', clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
           },
         });
         sent += 1;

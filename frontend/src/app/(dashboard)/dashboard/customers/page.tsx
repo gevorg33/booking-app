@@ -21,6 +21,9 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { CustomerDetailPanel } from '@/components/customers/customer-detail-panel';
 import { SortableColumnHeader } from '@/components/table/sortable-column-header';
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const defaultParams: CustomerSearchParams = {
   sortBy: 'createdAt',
@@ -87,6 +90,23 @@ export default function CustomersPage() {
 
   return (
     <div>
+      <AiContextualSuggestions
+        context={{
+          route: '/dashboard/customers',
+          search: debouncedSearch.trim() || null,
+          segmentFilter: params.segment ?? null,
+        }}
+        title="Customer insights"
+      />
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/customers']}
+        context={{
+          route: '/dashboard/customers',
+          search: debouncedSearch.trim() || null,
+          segmentFilter: params.segment ?? null,
+        }}
+      />
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <UserCircle className="w-6 h-6 text-blue-400" />

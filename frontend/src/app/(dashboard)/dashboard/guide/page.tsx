@@ -5,11 +5,16 @@ import type { ComponentType, ReactNode } from 'react';
 import {
   ArrowRight,
   BookOpen,
+  Brain,
   Building2,
   Calculator,
   CheckCircle2,
   CircleDollarSign,
+  MessageSquare,
   Package,
+  Shield,
+  Smartphone,
+  Sparkles,
   Users,
   Warehouse,
 } from 'lucide-react';
@@ -19,18 +24,32 @@ function GuideSection({
   id,
   icon: Icon,
   title,
+  accent = 'amber',
   children,
 }: {
   id: string;
   icon: ComponentType<{ className?: string }>;
   title: string;
+  accent?: 'amber' | 'violet';
   children: ReactNode;
 }) {
+  const accentStyles = {
+    amber: {
+      iconBg: 'bg-amber-600/10',
+      iconColor: 'text-amber-400',
+    },
+    violet: {
+      iconBg: 'bg-violet-600/10',
+      iconColor: 'text-violet-400',
+    },
+  };
+  const styles = accentStyles[accent];
+
   return (
     <section id={id} className="scroll-mt-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-amber-600/10 flex items-center justify-center shrink-0">
-          <Icon className="w-5 h-5 text-amber-400" />
+        <div className={`w-10 h-10 rounded-lg ${styles.iconBg} flex items-center justify-center shrink-0`}>
+          <Icon className={`w-5 h-5 ${styles.iconColor}`} />
         </div>
         <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
       </div>
@@ -68,10 +87,32 @@ function Callout({ title, children, variant = 'info' }: { title: string; childre
   );
 }
 
+function ExampleCommands({
+  intro,
+  examples,
+}: {
+  intro: string;
+  examples: Array<{ command: string; desc: string }>;
+}) {
+  return (
+    <div>
+      <p className="text-sm mb-3">{intro}</p>
+      <div className="grid gap-3">
+        {examples.map((ex) => (
+          <div key={ex.command} className="rounded-xl border border-violet-500/20 bg-violet-950/20 p-4">
+            <p className="text-sm font-mono text-violet-200">{ex.command}</p>
+            <p className="text-sm text-gray-400 mt-1">{ex.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function GuidePage() {
   const { t } = useI18n();
 
-  const toc = [
+  const operationsToc = [
     { id: 'overview', label: t('guide.operations.overviewTitle') },
     { id: 'problems', label: t('guide.operations.problemsTitle') },
     { id: 'workflow', label: t('guide.operations.workflowTitle') },
@@ -81,6 +122,27 @@ export default function GuidePage() {
     { id: 'commissions', label: t('guide.operations.commissionsTitle') },
     { id: 'pl', label: t('guide.operations.plTitle') },
     { id: 'tips', label: t('guide.operations.tipsTitle') },
+  ];
+
+  const aiToc = [
+    { id: 'ai-overview', label: t('guide.ai.overviewTitle') },
+    { id: 'ai-getting-started', label: t('guide.ai.gettingStartedTitle') },
+    { id: 'ai-command-bar', label: t('guide.ai.commandBarTitle') },
+    { id: 'ai-dashboard', label: t('guide.ai.dashboardTitle') },
+    { id: 'ai-approval', label: t('guide.ai.approvalTitle') },
+    { id: 'ai-ops', label: t('guide.ai.aiOpsTitle') },
+    { id: 'ai-mobile', label: t('guide.ai.mobileTitle') },
+    { id: 'ai-examples', label: t('guide.ai.examplesTitle') },
+    { id: 'ai-tips', label: t('guide.ai.tipsTitle') },
+  ];
+
+  const aiExamples = [
+    { command: t('guide.ai.example1Command'), desc: t('guide.ai.example1Desc') },
+    { command: t('guide.ai.example2Command'), desc: t('guide.ai.example2Desc') },
+    { command: t('guide.ai.example3Command'), desc: t('guide.ai.example3Desc') },
+    { command: t('guide.ai.example4Command'), desc: t('guide.ai.example4Desc') },
+    { command: t('guide.ai.example5Command'), desc: t('guide.ai.example5Desc') },
+    { command: t('guide.ai.example6Command'), desc: t('guide.ai.example6Desc') },
   ];
 
   return (
@@ -94,12 +156,12 @@ export default function GuidePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8">
-        <nav className="lg:sticky lg:top-6 h-fit">
+        <nav className="lg:sticky lg:top-6 h-fit space-y-4">
           <div className="card space-y-1 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 px-2 py-1">
               {t('guide.operations.navLabel')}
             </p>
-            {toc.map((item) => (
+            {operationsToc.map((item) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
@@ -110,9 +172,31 @@ export default function GuidePage() {
             ))}
             <Link
               href="/dashboard/operations"
-              className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/10 transition-colors"
+              className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-amber-400 hover:bg-amber-600/10 transition-colors"
             >
               {t('guide.operations.openOperations')}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="card space-y-1 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 px-2 py-1">
+              {t('guide.ai.navLabel')}
+            </p>
+            {aiToc.map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className="block rounded-lg px-3 py-2 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800/60 transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+            <Link
+              href="/dashboard/ai-ops"
+              className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-violet-400 hover:bg-violet-600/10 transition-colors"
+            >
+              {t('guide.ai.openAiOps')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -281,6 +365,167 @@ export default function GuidePage() {
             </div>
             <Link href="/dashboard/operations" className="btn-primary inline-flex items-center gap-2 shrink-0">
               {t('guide.operations.openOperations')}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="border-t border-gray-800 pt-10">
+            <div className="card bg-gradient-to-br from-violet-600/10 to-transparent border-violet-500/20">
+              <div className="flex items-start gap-4">
+                <Brain className="w-8 h-8 text-violet-400 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-100">{t('guide.ai.heroTitle')}</h2>
+                  <p className="text-sm text-gray-400 mt-2 leading-relaxed">{t('guide.ai.heroBody')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <GuideSection id="ai-overview" icon={Sparkles} accent="violet" title={t('guide.ai.overviewTitle')}>
+            <p className="text-sm">{t('guide.ai.overviewBody')}</p>
+            <div className="grid sm:grid-cols-2 gap-3 mt-2">
+              {[
+                t('guide.ai.overviewPoint1'),
+                t('guide.ai.overviewPoint2'),
+                t('guide.ai.overviewPoint3'),
+                t('guide.ai.overviewPoint4'),
+              ].map((point) => (
+                <div key={point} className="flex gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+                  <span>{point}</span>
+                </div>
+              ))}
+            </div>
+          </GuideSection>
+
+          <GuideSection id="ai-getting-started" icon={Brain} accent="violet" title={t('guide.ai.gettingStartedTitle')}>
+            <p className="text-sm">{t('guide.ai.gettingStartedBody')}</p>
+            <StepList
+              steps={[
+                t('guide.ai.gettingStartedStep1'),
+                t('guide.ai.gettingStartedStep2'),
+                t('guide.ai.gettingStartedStep3'),
+              ]}
+            />
+            <Callout title={t('guide.ai.gettingStartedNoteTitle')} variant="info">
+              {t('guide.ai.gettingStartedNoteBody')}
+            </Callout>
+            <Link
+              href="/dashboard/settings"
+              className="inline-flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              {t('guide.ai.openSettings')}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </GuideSection>
+
+          <GuideSection id="ai-command-bar" icon={MessageSquare} accent="violet" title={t('guide.ai.commandBarTitle')}>
+            <p className="text-sm">{t('guide.ai.commandBarBody')}</p>
+            <StepList
+              steps={[
+                t('guide.ai.commandBarStep1'),
+                t('guide.ai.commandBarStep2'),
+                t('guide.ai.commandBarStep3'),
+                t('guide.ai.commandBarStep4'),
+              ]}
+            />
+            <Callout title={t('guide.ai.commandBarTipTitle')} variant="tip">
+              {t('guide.ai.commandBarTipBody')}
+            </Callout>
+          </GuideSection>
+
+          <GuideSection id="ai-dashboard" icon={Sparkles} accent="violet" title={t('guide.ai.dashboardTitle')}>
+            <p className="text-sm">{t('guide.ai.dashboardBody')}</p>
+            <ul className="space-y-2 text-sm">
+              {[
+                t('guide.ai.dashboardFeature1'),
+                t('guide.ai.dashboardFeature2'),
+                t('guide.ai.dashboardFeature3'),
+                t('guide.ai.dashboardFeature4'),
+              ].map((feature) => (
+                <li key={feature} className="flex gap-2">
+                  <span className="text-violet-400">•</span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </GuideSection>
+
+          <GuideSection id="ai-approval" icon={Shield} accent="violet" title={t('guide.ai.approvalTitle')}>
+            <p className="text-sm">{t('guide.ai.approvalBody')}</p>
+            <StepList
+              steps={[
+                t('guide.ai.approvalStep1'),
+                t('guide.ai.approvalStep2'),
+                t('guide.ai.approvalStep3'),
+                t('guide.ai.approvalStep4'),
+              ]}
+            />
+            <Callout title={t('guide.ai.approvalWarnTitle')} variant="warn">
+              {t('guide.ai.approvalWarnBody')}
+            </Callout>
+          </GuideSection>
+
+          <GuideSection id="ai-ops" icon={Brain} accent="violet" title={t('guide.ai.aiOpsTitle')}>
+            <p className="text-sm">{t('guide.ai.aiOpsBody')}</p>
+            <StepList
+              steps={[
+                t('guide.ai.aiOpsStep1'),
+                t('guide.ai.aiOpsStep2'),
+                t('guide.ai.aiOpsStep3'),
+                t('guide.ai.aiOpsStep4'),
+              ]}
+            />
+          </GuideSection>
+
+          <GuideSection id="ai-mobile" icon={Smartphone} accent="violet" title={t('guide.ai.mobileTitle')}>
+            <p className="text-sm">{t('guide.ai.mobileBody')}</p>
+            <ul className="space-y-2 text-sm">
+              {[
+                t('guide.ai.mobilePoint1'),
+                t('guide.ai.mobilePoint2'),
+                t('guide.ai.mobilePoint3'),
+                t('guide.ai.mobilePoint4'),
+              ].map((point) => (
+                <li key={point} className="flex gap-2">
+                  <span className="text-violet-400">•</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </GuideSection>
+
+          <GuideSection id="ai-examples" icon={MessageSquare} accent="violet" title={t('guide.ai.examplesTitle')}>
+            <ExampleCommands intro={t('guide.ai.examplesIntro')} examples={aiExamples} />
+          </GuideSection>
+
+          <GuideSection id="ai-tips" icon={CheckCircle2} accent="violet" title={t('guide.ai.tipsTitle')}>
+            <ul className="space-y-2 text-sm">
+              {[
+                t('guide.ai.tip1'),
+                t('guide.ai.tip2'),
+                t('guide.ai.tip3'),
+                t('guide.ai.tip4'),
+                t('guide.ai.tip5'),
+              ].map((tip) => (
+                <li key={tip} className="flex gap-2">
+                  <span className="text-violet-400">•</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+            <Callout title={t('guide.ai.limitationsTitle')} variant="warn">
+              {t('guide.ai.limitationsBody')}
+            </Callout>
+          </GuideSection>
+
+          <div className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-violet-500/20 bg-violet-950/10">
+            <div>
+              <p className="font-medium text-gray-100">{t('guide.ai.readyTitle')}</p>
+              <p className="text-sm text-gray-400 mt-1">{t('guide.ai.readyBody')}</p>
+            </div>
+            <Link href="/dashboard/ai-ops" className="btn-primary inline-flex items-center gap-2 shrink-0">
+              {t('guide.ai.openAiOps')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

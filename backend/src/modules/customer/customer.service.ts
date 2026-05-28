@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
 import {
   GetCustomersQueryDto,
@@ -74,6 +74,39 @@ export interface CustomersSearchResult {
   totalItems: number;
   page: number;
   pageSize: number;
+}
+
+export type CustomerInsightMetric =
+  | 'most_no_shows'
+  | 'most_bookings'
+  | 'most_cancellations'
+  | 'at_risk'
+  | 'high_no_show'
+  | 'vip'
+  | 'top_spenders'
+  | 'new_customers'
+  | 'overview';
+
+export interface CustomerInsightRow {
+  id: string;
+  name: string;
+  segment: string;
+  stats: CustomerBookingStats;
+  paidTotal?: number;
+  paidCount?: number;
+  currency?: string;
+}
+
+export interface CustomerInsightsResult {
+  metric: CustomerInsightMetric;
+  rows: CustomerInsightRow[];
+  summary: {
+    totalCustomers: number;
+    totalNoShows: number;
+    atRiskCount: number;
+    highNoShowCount: number;
+    vipCount: number;
+  };
 }
 
 @Injectable()
@@ -495,5 +528,126 @@ export class CustomerService {
       },
     };
     return this.customerRepo.save(customer);
+  }
+
+  async getCustomerInsights(
+    businessId: string,
+    metric: CustomerInsightMetric,
+    limit = 5,
+  ): Promise<CustomerInsightsResult> {
+    const customers = await this.customerRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
+    const statsMap = await this.loadBookingStatsMap(
+      businessId,
+      customers.map((c) => c.id),
+    );
+
+    const enriched: CustomerInsightRow[] = customers.map((c) => {
+      const stats = statsMap.get(c.id) ?? this.emptyStats();
+      return {
+        id: c.id,
+        name: c.name,
+        segment: this.computeSegment(c, stats),
+        stats,
+      };
+    });
+
+    const summary = {
+      totalCustomers: enriched.length,
+      totalNoShows: enriched.reduce((n, r) => n + r.stats.noShowCount, 0),
+      atRiskCount: enriched.filter((r) => r.segment === 'at_risk').length,
+      highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show').length,
+      vipCount: enriched.filter((r) => r.segment === 'vip').length,
+    };
+
+    const cap = Math.min(Math.max(limit, 1), 20);
+    let rows: CustomerInsightRow[] = [];
+
+    switch (metric) {
+      case 'most_no_shows':
+        rows = [...enriched]
+          .filter((r) => r.stats.noShowCount > 0)
+          .sort((a, b) => b.stats.noShowCount - a.stats.noShowCount);
+        break;
+      case 'most_bookings':
+        rows = [...enriched]
+          .filter((r) => r.stats.total > 0)
+          .sort((a, b) => b.stats.total - a.stats.total);
+        break;
+      case 'most_cancellations':
+        rows = [...enriched]
+          .filter((r) => (r.stats.byStatus[BookingStatus.CANCELLED] ?? 0) > 0)
+          .sort(
+            (a, b) =>
+              (b.stats.byStatus[BookingStatus.CANCELLED] ?? 0) -
+              (a.stats.byStatus[BookingStatus.CANCELLED] ?? 0),
+          );
+        break;
+      case 'at_risk':
+        rows = enriched.filter((r) => r.segment === 'at_risk');
+        break;
+      case 'high_no_show':
+        rows = enriched.filter((r) => r.segment === 'high_no_show');
+        break;
+      case 'vip':
+        rows = enriched.filter((r) => r.segment === 'vip');
+        break;
+      case 'new_customers':
+        rows = enriched.filter((r) => r.segment === 'new');
+        break;
+      case 'top_spenders': {
+        const paidRows = await this.bookingRepo
+          .createQueryBuilder('booking')
+          .innerJoin('booking.service', 'service')
+          .innerJoin('booking.customer', 'customer')
+          .select('booking.customer_id', 'customerId')
+          .addSelect('customer.name', 'customerName')
+          .addSelect('COUNT(*)', 'paidCount')
+          .addSelect('SUM(service.price)', 'paidTotal')
+          .addSelect('MAX(service.currency)', 'currency')
+          .where('booking.business_id = :businessId', { businessId })
+          .andWhere('booking.paymentStatus = :paid', { paid: PaymentStatus.PAID })
+          .andWhere('booking.customer_id IS NOT NULL')
+          .groupBy('booking.customer_id')
+          .addGroupBy('customer.name')
+          .orderBy('SUM(service.price)', 'DESC')
+          .limit(cap)
+          .getRawMany<{
+            customerId: string;
+            customerName: string;
+            paidCount: string;
+            paidTotal: string;
+            currency: string | null;
+          }>();
+
+        rows = paidRows.map((r) => {
+          const match = enriched.find((e) => e.id === r.customerId);
+          return {
+            id: r.customerId,
+            name: r.customerName,
+            segment: match?.segment ?? 'regular',
+            stats: match?.stats ?? this.emptyStats(),
+            paidTotal: Math.round(Number(r.paidTotal) * 100) / 100,
+            paidCount: parseInt(r.paidCount, 10),
+            currency: r.currency || 'USD',
+          };
+        });
+        break;
+      }
+      case 'overview':
+      default:
+        rows = [...enriched]
+          .filter((r) => r.stats.noShowCount > 0)
+          .sort((a, b) => b.stats.noShowCount - a.stats.noShowCount);
+        break;
+    }
+
+    return {
+      metric,
+      rows: rows.slice(0, cap),
+      summary,
+    };
   }
 }

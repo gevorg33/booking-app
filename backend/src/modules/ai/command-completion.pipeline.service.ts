@@ -33,6 +33,23 @@ const SESSION_INHERIT_KEYS = [
   'timeFrom',
   'timeTo',
   'allProviders',
+  'lastAction',
+  'lastMetric',
+  'appointmentMetric',
+  'customerMetric',
+  'bookingMetric',
+  'route',
+  'statusFilter',
+  'todayOnly',
+  'segmentFilter',
+] as const;
+
+const PROVIDER_SESSION_INHERIT_KEYS = [
+  'customerName',
+  'date',
+  'timeSlot',
+  'serviceName',
+  'allAppointments',
 ] as const;
 
 @Injectable()
@@ -48,6 +65,21 @@ export class CommandCompletionPipelineService {
     for (const key of SESSION_INHERIT_KEYS) {
       const value = merged[key];
       if ((value == null || value === '') && session[key]) {
+        merged[key] = session[key];
+      }
+    }
+    return merged;
+  }
+
+  mergeProviderSessionContext(
+    params: Record<string, any>,
+    session?: Record<string, any>,
+  ): Record<string, any> {
+    if (!session) return params;
+    const merged = { ...params };
+    for (const key of PROVIDER_SESSION_INHERIT_KEYS) {
+      const value = merged[key];
+      if ((value == null || value === '') && session[key] != null && session[key] !== '') {
         merged[key] = session[key];
       }
     }
@@ -178,15 +210,87 @@ export class CommandCompletionPipelineService {
       timeFrom: p.timeFrom ?? null,
       timeTo: p.timeTo ?? null,
       allProviders: p.allProviders ?? null,
+      lastAction: resolved.action ?? null,
+      lastMetric:
+        p.lastMetric ??
+        resolved.params.appointmentMetric ??
+        resolved.params.customerMetric ??
+        resolved.params.bookingMetric ??
+        null,
+      appointmentMetric: resolved.params.appointmentMetric ?? null,
+      customerMetric: resolved.params.customerMetric ?? null,
+      bookingMetric: resolved.params.bookingMetric ?? null,
+      route: resolved.params.route ?? null,
+    };
+  }
+
+  buildProviderSessionContext(params: Record<string, any>): Record<string, unknown> {
+    return {
+      customerName: params.customerName ?? null,
+      date: params.date ? formatDateDisplay(String(params.date)) : null,
+      timeSlot: params.timeSlot ?? null,
+      serviceName: params.serviceName ?? null,
+      allAppointments: params.allAppointments ?? null,
+    };
+  }
+
+  toProviderClarifyResult(
+    action: string,
+    params: Record<string, unknown>,
+    reasoning: string,
+    validation: ValidationResult,
+  ): { success: false; action: string; summary: string; details: Record<string, unknown> } {
+    return {
+      success: false,
+      action,
+      summary: buildClarifySummary(validation.issues),
+      details: {
+        needsClarification: true,
+        missing: validation.issues,
+        partialParams: params,
+        reasoning,
+        pipelineStage: 'clarify',
+        sessionContext: this.buildProviderSessionContext(params as Record<string, any>),
+      },
     };
   }
 
   attachSessionToResult(result: CommandResult, resolved: ResolvedCommand): CommandResult {
+    const sessionContext = this.buildSessionContext(resolved);
+    const range = result.details?.range as { start?: string; end?: string } | undefined;
+    if (range?.start && !sessionContext.dateFrom) {
+      sessionContext.dateFrom = formatDateDisplay(range.start);
+    }
+    if (range?.end && !sessionContext.dateTo) {
+      sessionContext.dateTo = formatDateDisplay(range.end);
+    }
+    if (result.details?.metric && !sessionContext.customerMetric) {
+      sessionContext.customerMetric = String(result.details.metric);
+      sessionContext.lastMetric = String(result.details.metric);
+    }
+    if (result.details?.appointmentMetric) {
+      sessionContext.appointmentMetric = String(result.details.appointmentMetric);
+      sessionContext.lastMetric = String(result.details.appointmentMetric);
+    }
+    if (result.details?.bookingMetric) {
+      sessionContext.bookingMetric = String(result.details.bookingMetric);
+      sessionContext.lastMetric = String(result.details.bookingMetric);
+    }
+    if (result.details?.date && !sessionContext.date) {
+      sessionContext.date = String(result.details.date);
+    }
+    if (Array.isArray(result.details?.availableProviders)) {
+      sessionContext.availableProviders = result.details.availableProviders;
+    }
+    if (result.details?.serviceName && !sessionContext.serviceName) {
+      sessionContext.serviceName = String(result.details.serviceName);
+    }
+
     return {
       ...result,
       details: {
         ...result.details,
-        sessionContext: this.buildSessionContext(resolved),
+        sessionContext,
         pipelineTrace: result.details?.pipelineTrace,
       },
     };

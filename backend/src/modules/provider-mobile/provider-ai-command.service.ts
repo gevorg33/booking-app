@@ -14,6 +14,25 @@ import {
   toIsoDay,
 } from '../../common/utils/date-format.util.js';
 import { ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
+import { CommandCompletionPipelineService } from '../ai/command-completion.pipeline.service.js';
+import {
+  shouldValidateProviderAction,
+  validateProviderCommand,
+} from '../ai/provider-command-completion.validator.js';
+import { AiEventsService } from '../ai/ai-events.service.js';
+import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
+import { CommandOrchestrationService } from '../ai/command-orchestration.service.js';
+import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
+import { Employee } from '../employee/entities/employee.entity.js';
+import { Service } from '../service/entities/service.entity.js';
+
+export interface ProviderPreviewItem {
+  id: string;
+  customerName: string;
+  serviceName: string;
+  time: string;
+  initials: string;
+}
 
 export interface ProviderCommandResult {
   success: boolean;
@@ -22,18 +41,22 @@ export interface ProviderCommandResult {
   details: Record<string, unknown>;
 }
 
-const AUTO_EXECUTE_LIMIT = 5;
+const BULK_CONFIRM_THRESHOLD = 2;
 
 const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider mobile app.
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "list_bookings" | "summarize_day" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "list_bookings" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "unknown",
   "params": {
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
     "serviceName": "string or null — service type filter",
     "date": "DD_MM_YYYY or null — resolve relative dates from today",
+    "dateFrom": "DD_MM_YYYY or null",
+    "dateTo": "DD_MM_YYYY or null",
     "timeSlot": "HH:MM 24h or null — appointment start time (e.g. 13:00)",
+    "timeFrom": "HH:MM or null — gap fill window start",
+    "timeTo": "HH:MM or null — gap fill window end",
     "status": "completed | in_progress | no_show | confirmed | pending | null",
     "paymentStatus": "paid | pending | refunded | not_applicable | null",
     "reason": "string or null — cancellation reason or note",
@@ -51,6 +74,8 @@ Rules:
 - cancel_bookings: user wants to cancel one or more appointments. Put sickness/reason in reason.
 - update_bookings: change status and/or payment status without cancelling.
 - list_bookings / summarize_day: view-only; no mutations.
+- reschedule_booking: move an appointment to a new time (own bookings only unless team view).
+- fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
 - Default date to today when the user says "today" or gives no date for today's context.
 - If unclear, use action "unknown".`;
@@ -67,9 +92,16 @@ export class ProviderAiCommandService {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(Service) private serviceRepo: Repository<Service>,
     private bookingService: BookingService,
     private llm: LlmService,
     private providerMobile: ProviderMobileService,
+    private completionPipeline: CommandCompletionPipelineService,
+    private aiEvents: AiEventsService,
+    private scheduleHandlers: AiScheduleHandlersService,
+    private orchestration: CommandOrchestrationService,
+    private planBuilder: OperationalPlanBuilderService,
   ) {}
 
   async executeCommand(
@@ -108,27 +140,109 @@ export class ProviderAiCommandService {
       };
     }
 
+    parsed.params = this.completionPipeline.mergeProviderSessionContext(
+      parsed.params as Record<string, any>,
+      context,
+    ) as Record<string, unknown>;
+    this.completionPipeline.normalizeDateParams(parsed.params as Record<string, any>);
+
+    if (shouldValidateProviderAction(parsed.action)) {
+      const validation = validateProviderCommand(parsed.action, parsed.params);
+      if (!validation.ok) {
+        const clarify = this.completionPipeline.toProviderClarifyResult(
+          parsed.action,
+          parsed.params,
+          parsed.reasoning,
+          validation,
+        );
+        this.aiEvents.emitClarify(businessId, {
+          action: parsed.action,
+          summary: clarify.summary,
+          missing: Array.isArray(clarify.details.missing) ? clarify.details.missing : undefined,
+        });
+        return clarify;
+      }
+    }
+
     this.normalizeParams(parsed.params);
     this.logger.log(`Provider AI action="${parsed.action}" — ${parsed.reasoning}`);
 
+    let result: ProviderCommandResult;
+
     switch (parsed.action) {
       case 'cancel_bookings':
-        return this.handleCancelBookings(businessId, access, parsed.params, userId);
+        result = await this.handleCancelBookings(businessId, access, parsed.params, userId);
+        break;
       case 'update_bookings':
-        return this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        result = await this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        break;
       case 'list_bookings':
-        return this.handleListBookings(businessId, access, parsed.params);
+        result = await this.handleListBookings(businessId, access, parsed.params);
+        break;
       case 'summarize_day':
-        return this.handleSummarizeDay(businessId, access, parsed.params);
+        result = await this.handleSummarizeDay(businessId, access, parsed.params);
+        break;
+      case 'reschedule_booking':
+        result = await this.handleRescheduleBooking(businessId, access, parsed.params, userId);
+        break;
+      case 'fill_unused_slots':
+        result = await this.handleFillUnusedSlots(businessId, access, prompt, parsed.params, userId);
+        break;
       default:
-        return {
+        result = {
           success: false,
           action: 'unknown',
           summary:
-            'I can cancel appointments, mark them done, update payment status, or show your schedule. Try: "Cancel all my appointments today — I\'m sick" or "Mark John\'s 13:00 as done and paid".',
+            'I can cancel appointments, reschedule, fill schedule gaps, mark them done, update payment status, or show your schedule. Try: "Reschedule John to 16:00" or "Fill gaps this afternoon".',
           details: {},
         };
     }
+
+    return this.attachProviderSession(result, parsed.params);
+  }
+
+  private buildConfirmationDetails(
+    bookings: Booking[],
+    pendingAction: { action: string; params: Record<string, unknown> },
+  ) {
+    const preview = bookings.map((b) => this.bookingLabel(b));
+    const previewItems = bookings.map((b) => this.toPreviewItem(b));
+    return {
+      requiresConfirmation: true,
+      bookingIds: bookings.map((b) => b.id),
+      preview,
+      previewItems,
+      pendingAction,
+    };
+  }
+
+  private toPreviewItem(booking: Booking): ProviderPreviewItem {
+    const customerName = booking.customer?.name ?? 'Walk-in';
+    return {
+      id: booking.id,
+      customerName,
+      serviceName: booking.service?.name ?? 'Appointment',
+      time: formatTimeRangeDisplay(booking.startTime, booking.endTime),
+      initials: customerName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || '?',
+    };
+  }
+
+  private attachProviderSession(
+    result: ProviderCommandResult,
+    params: Record<string, unknown>,
+  ): ProviderCommandResult {
+    if (result.details?.needsClarification) return result;
+    return {
+      ...result,
+      details: {
+        ...result.details,
+        sessionContext: this.completionPipeline.buildProviderSessionContext(params as Record<string, any>),
+      },
+    };
   }
 
   async confirmAction(
@@ -147,10 +261,22 @@ export class ProviderAiCommandService {
     }
 
     if (dto.action === 'cancel_bookings') {
-      return this.executeCancel(bookings, String(dto.params?.reason ?? 'Cancelled by provider'), userId);
+      const result = await this.executeCancel(bookings, String(dto.params?.reason ?? 'Cancelled by provider'), userId);
+      this.aiEvents.emitTaskCompleted(businessId, {
+        action: 'cancel_bookings',
+        success: result.success,
+        summary: result.summary,
+      });
+      return result;
     }
     if (dto.action === 'update_bookings') {
-      return this.executeUpdate(bookings, dto.params ?? {}, userId);
+      const result = await this.executeUpdate(bookings, dto.params ?? {}, userId);
+      this.aiEvents.emitTaskCompleted(businessId, {
+        action: 'update_bookings',
+        success: result.success,
+        summary: result.summary,
+      });
+      return result;
     }
     throw new BadRequestException('Unsupported action');
   }
@@ -215,19 +341,16 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     const reason = String(params.reason ?? 'Cancelled by provider');
-    const preview = bookings.map((b) => this.bookingLabel(b));
 
-    if (bookings.length > AUTO_EXECUTE_LIMIT) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
       return {
         success: true,
         action: 'cancel_bookings',
         summary: `Cancel ${bookings.length} appointments${reason ? ` with note: "${reason}"` : ''}?`,
-        details: {
-          requiresConfirmation: true,
-          bookingIds: bookings.map((b) => b.id),
-          preview,
-          pendingAction: { action: 'cancel_bookings', params: { reason } },
-        },
+        details: this.buildConfirmationDetails(bookings, {
+          action: 'cancel_bookings',
+          params: { reason },
+        }),
       };
     }
 
@@ -267,23 +390,20 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       };
     }
 
-    const preview = bookings.map((b) => this.bookingLabel(b));
     const changeParts = [
       status ? `status → ${status}` : null,
       paymentStatus ? `payment → ${paymentStatus}` : null,
     ].filter(Boolean);
 
-    if (bookings.length > AUTO_EXECUTE_LIMIT) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
       return {
         success: true,
         action: 'update_bookings',
         summary: `Update ${bookings.length} appointments (${changeParts.join(', ')})?`,
-        details: {
-          requiresConfirmation: true,
-          bookingIds: bookings.map((b) => b.id),
-          preview,
-          pendingAction: { action: 'update_bookings', params: { status, paymentStatus } },
-        },
+        details: this.buildConfirmationDetails(bookings, {
+          action: 'update_bookings',
+          params: { status, paymentStatus },
+        }),
       };
     }
 
@@ -460,6 +580,113 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     return bookings;
+  }
+
+  private async handleRescheduleBooking(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+    const bookings = await this.findMatchingBookings(businessId, scopedEmployeeId, params, {
+      excludeTerminal: true,
+    });
+
+    const booking = bookings[0];
+    if (!booking) {
+      return {
+        success: false,
+        action: 'reschedule_booking',
+        summary: this.noMatchMessage('reschedule', params),
+        details: { matchedCount: 0 },
+      };
+    }
+
+    if (!params.date && !params.timeSlot) {
+      return {
+        success: false,
+        action: 'reschedule_booking',
+        summary: 'Specify the new date and/or time (e.g. "Reschedule to 16:00").',
+        details: { bookingId: booking.id },
+      };
+    }
+
+    const isoDay = toIsoDay(String(params.date ?? booking.startTime.toISOString().split('T')[0]));
+    const timeSlot = params.timeSlot
+      ? this.normalizeTime(String(params.timeSlot))
+      : formatTimeDisplay(booking.startTime);
+    const startTime = `${isoDay}T${timeSlot}:00.000Z`;
+
+    const plan = this.planBuilder.buildRescheduleBookingPlan({
+      businessId,
+      bookingId: booking.id,
+      startTime,
+      employeeId: scopedEmployeeId ?? booking.employeeId,
+      serviceId: booking.serviceId,
+      userId,
+      label: `Reschedule ${booking.customer?.name ?? 'walk-in'} to ${formatDateDisplay(isoDay)} ${timeSlot}`,
+    });
+
+    const orch = await this.orchestration.executePlan({
+      plan,
+      businessId,
+      userId,
+      autoExecute: true,
+    });
+
+    return {
+      success: orch.success,
+      action: 'reschedule_booking',
+      summary: orch.summary,
+      details: {
+        taskId: orch.taskId,
+        bookingId: booking.id,
+        requiresApproval: orch.requiresApproval,
+      },
+    };
+  }
+
+  private async handleFillUnusedSlots(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const [employees, services] = await Promise.all([
+      this.employeeRepo.find({ where: { businessId, isActive: true } }),
+      this.serviceRepo.find({ where: { businessId } }),
+    ]);
+
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+    const scopedEmployees = scopedEmployeeId
+      ? employees.filter((e) => e.id === scopedEmployeeId)
+      : employees;
+
+    const fillParams = {
+      ...params,
+      employeeName: scopedEmployeeId
+        ? employees.find((e) => e.id === scopedEmployeeId)?.name
+        : params.employeeName,
+      allProviders: !scopedEmployeeId && access.viewMode === 'team',
+    };
+
+    const result = await this.scheduleHandlers.handleFillScheduleGaps(
+      businessId,
+      prompt,
+      fillParams as Record<string, any>,
+      scopedEmployees,
+      services,
+      userId,
+    );
+
+    return {
+      success: result.success,
+      action: 'fill_unused_slots',
+      summary: result.summary,
+      details: result.details as Record<string, unknown>,
+    };
   }
 
   private async loadOwnedBookings(

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
@@ -8,27 +8,74 @@ import {
   IonCardTitle,
   IonIcon,
   IonInput,
+  IonItem,
+  IonItemOption,
+  IonItemOptions,
+  IonItemSliding,
+  IonLabel,
   IonSpinner,
   IonText,
+  IonToast,
 } from '@ionic/react';
 import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
+import { useProviderAiEvents } from '../lib/use-ai-events';
+
+interface PreviewItem {
+  id: string;
+  customerName: string;
+  serviceName: string;
+  time: string;
+  initials: string;
+}
+
+interface ClarifyIssue {
+  field: string;
+  label: string;
+  message: string;
+  example?: string;
+}
+
+interface SessionContext {
+  customerName?: string | null;
+  date?: string | null;
+  timeSlot?: string | null;
+  serviceName?: string | null;
+  allAppointments?: boolean | null;
+}
+
+interface MessageDetails {
+  requiresConfirmation?: boolean;
+  needsClarification?: boolean;
+  missing?: ClarifyIssue[];
+  bookingIds?: string[];
+  preview?: string[];
+  previewItems?: PreviewItem[];
+  pendingAction?: { action: string; params?: Record<string, unknown> };
+  sessionContext?: SessionContext;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   success?: boolean;
-  details?: {
-    requiresConfirmation?: boolean;
-    bookingIds?: string[];
-    preview?: string[];
-    pendingAction?: { action: string; params?: Record<string, unknown> };
-  };
+  details?: MessageDetails;
+}
+
+export interface ProviderAiScreenContext {
+  date?: string | null;
+  customerName?: string | null;
+  serviceName?: string | null;
+  timeSlot?: string | null;
+  route?: string;
 }
 
 interface ProviderAiAssistantProps {
   businessId: string;
+  screenContext?: ProviderAiScreenContext;
+  seedPrompt?: string | null;
+  onSeedPromptConsumed?: () => void;
 }
 
 const EXAMPLES = [
@@ -38,14 +85,33 @@ const EXAMPLES = [
   "What's on my schedule today?",
 ];
 
-export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantProps) {
+function mergeSession(prev: SessionContext, next: SessionContext): SessionContext {
+  return {
+    customerName: next.customerName ?? prev.customerName,
+    date: next.date ?? prev.date,
+    timeSlot: next.timeSlot ?? prev.timeSlot,
+    serviceName: next.serviceName ?? prev.serviceName,
+    allAppointments: next.allAppointments ?? prev.allAppointments,
+  };
+}
+
+export default function ProviderAiAssistant({
+  businessId,
+  screenContext,
+  seedPrompt,
+  onSeedPromptConsumed,
+}: ProviderAiAssistantProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast: aiToast, clearToast } = useProviderAiEvents(businessId, (type) => {
+    if (type === 'ai.clarify' || type === 'ai.task.progress') setOpen(true);
+  });
 
   const invalidateBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', businessId] });
@@ -71,12 +137,17 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
+          context: { ...sessionContext, ...screenContext },
         });
         const result = unwrap<{
           success: boolean;
           summary: string;
-          details?: Message['details'];
+          details?: MessageDetails;
         }>(res);
+
+        if (result.details?.sessionContext) {
+          setSessionContext((prev) => mergeSession(prev, result.details!.sessionContext!));
+        }
 
         setMessages((prev) => [
           ...prev,
@@ -110,7 +181,7 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages],
+    [businessId, invalidateBookings, loading, messages, screenContext, sessionContext],
   );
 
   const confirmAction = useCallback(
@@ -126,7 +197,11 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
           bookingIds,
           params: pending.params,
         });
-        const result = unwrap<{ success: boolean; summary: string }>(res);
+        const result = unwrap<{ success: boolean; summary: string; details?: MessageDetails }>(res);
+
+        if (result.details?.sessionContext) {
+          setSessionContext((prev) => mergeSession(prev, result.details!.sessionContext!));
+        }
 
         setMessages((prev) => [
           ...prev,
@@ -156,8 +231,35 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
     [businessId, confirmingId, invalidateBookings],
   );
 
+  useEffect(() => {
+    if (!seedPrompt?.trim()) return;
+    setOpen(true);
+    void sendPrompt(seedPrompt);
+    onSeedPromptConsumed?.();
+  }, [seedPrompt, onSeedPromptConsumed, sendPrompt]);
+
+  useEffect(() => {
+    const onAiPrompt = (e: Event) => {
+      const prompt = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (!prompt?.trim()) return;
+      setOpen(true);
+      void sendPrompt(prompt);
+    };
+    window.addEventListener('provider:ai-prompt', onAiPrompt);
+    return () => window.removeEventListener('provider:ai-prompt', onAiPrompt);
+  }, [sendPrompt]);
+
   return (
-    <IonCard className="ai-assistant-card ion-margin-bottom">
+    <>
+      <IonToast
+        isOpen={!!aiToast}
+        message={aiToast ?? ''}
+        duration={4000}
+        onDidDismiss={clearToast}
+        position="top"
+        color="tertiary"
+      />
+      <IonCard className="ai-assistant-card ion-margin-bottom">
       <div
         role="button"
         tabIndex={0}
@@ -203,29 +305,97 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`ai-assistant-msg ai-assistant-msg--${msg.role}${msg.success === false ? ' ai-assistant-msg--error' : ''}`}
+                  className={`ai-assistant-msg ai-assistant-msg--${msg.role}${
+                    msg.details?.needsClarification
+                      ? ' ai-assistant-msg--clarify'
+                      : msg.success === false
+                        ? ' ai-assistant-msg--error'
+                        : ''
+                  }`}
                 >
                   <p>{msg.text}</p>
-                  {msg.details?.preview && msg.details.preview.length > 0 && (
-                    <ul className="ai-assistant-preview">
-                      {msg.details.preview.slice(0, 5).map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                      {msg.details.preview.length > 5 && (
-                        <li>…and {msg.details.preview.length - 5} more</li>
+
+                  {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
+                    <div className="ai-assistant-clarify">
+                      {msg.details.missing.map((issue) =>
+                        issue.example ? (
+                          <button
+                            key={`${issue.field}-${issue.label}`}
+                            type="button"
+                            className="ai-assistant-clarify-btn"
+                            onClick={() => {
+                              setInput(issue.example!);
+                            }}
+                          >
+                            {issue.label}: {issue.message}
+                            <span>Try: &ldquo;{issue.example}&rdquo;</span>
+                          </button>
+                        ) : (
+                          <p key={`${issue.field}-${issue.label}`} className="ai-assistant-clarify-line">
+                            {issue.label}: {issue.message}
+                          </p>
+                        ),
                       )}
-                    </ul>
+                    </div>
                   )}
+
+                  {msg.details?.previewItems && msg.details.previewItems.length > 0 ? (
+                    <div className="ai-assistant-preview-list">
+                      {msg.details.previewItems.map((item) => (
+                        <div key={item.id} className="ai-assistant-preview-row">
+                          <span className="ai-assistant-preview-avatar">{item.initials}</span>
+                          <div className="ai-assistant-preview-copy">
+                            <strong>{item.customerName}</strong>
+                            <span>{item.time}</span>
+                            <span className="booking-meta">{item.serviceName}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    msg.details?.preview &&
+                    msg.details.preview.length > 0 && (
+                      <ul className="ai-assistant-preview">
+                        {msg.details.preview.slice(0, 5).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                        {msg.details.preview.length > 5 && (
+                          <li>…and {msg.details.preview.length - 5} more</li>
+                        )}
+                      </ul>
+                    )
+                  )}
+
                   {msg.details?.requiresConfirmation && msg.details.pendingAction && (
-                    <IonButton
-                      size="small"
-                      expand="block"
-                      className="ion-margin-top"
-                      onClick={() => void confirmAction(msg)}
-                      disabled={confirmingId === msg.id}
-                    >
-                      {confirmingId === msg.id ? <IonSpinner name="crescent" /> : 'Confirm'}
-                    </IonButton>
+                    <>
+                      <p className="ai-assistant-swipe-hint booking-meta">Swipe a row left to confirm</p>
+                      <IonItemSliding className="ai-assistant-confirm-slide">
+                        <IonItem lines="none" className="ai-assistant-confirm-item">
+                          <IonLabel>
+                            <h3>Confirm {msg.details.previewItems?.length ?? msg.details.bookingIds?.length ?? ''} change(s)</h3>
+                            <p>Swipe left → Confirm</p>
+                          </IonLabel>
+                        </IonItem>
+                        <IonItemOptions side="end">
+                          <IonItemOption
+                            color="danger"
+                            onClick={() => void confirmAction(msg)}
+                            disabled={confirmingId === msg.id}
+                          >
+                            {confirmingId === msg.id ? 'Working…' : 'Confirm'}
+                          </IonItemOption>
+                        </IonItemOptions>
+                      </IonItemSliding>
+                      <IonButton
+                        size="small"
+                        expand="block"
+                        className="ion-margin-top"
+                        onClick={() => void confirmAction(msg)}
+                        disabled={confirmingId === msg.id}
+                      >
+                        {confirmingId === msg.id ? <IonSpinner name="crescent" /> : 'Confirm all'}
+                      </IonButton>
+                    </>
                   )}
                 </div>
               ))
@@ -257,5 +427,6 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
         </IonCardContent>
       )}
     </IonCard>
+    </>
   );
 }

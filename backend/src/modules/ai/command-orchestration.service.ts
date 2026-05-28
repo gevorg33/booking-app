@@ -3,6 +3,7 @@ import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.
 import { AgentPlan, AgentType, PlanStatus } from '../../engine/agent/interfaces/agent.interfaces.js';
 import { ContextBuilderService } from '../../engine/agent/context-builder.service.js';
 import { parseDateInput } from '../../common/utils/date-format.util.js';
+import { AiEventsService } from './ai-events.service.js';
 
 export interface OrchestrationResult {
   success: boolean;
@@ -20,6 +21,7 @@ export class CommandOrchestrationService {
   constructor(
     private orchestrator: AgentOrchestratorService,
     private contextBuilder: ContextBuilderService,
+    private aiEvents: AiEventsService,
   ) {}
 
   /** Route operational orchestration intents through planner agents. */
@@ -117,6 +119,9 @@ export class CommandOrchestrationService {
       };
     }
 
+    const planDiff =
+      task.plan && requiresApproval ? this.orchestrator.buildPlanDiff(task.plan) : undefined;
+
     return {
       success: true,
       action,
@@ -134,6 +139,8 @@ export class CommandOrchestrationService {
         status: task.status,
         plan: task.plan,
         requiresApproval,
+        planDiff,
+        policyPreview: task.result?.policyPreview,
       },
       taskId: task.id,
       requiresApproval,

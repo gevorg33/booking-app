@@ -18,3 +18,7 @@ export function formatTimeDisplay(input: Date | string): string {
 export function formatTimeRangeDisplay(start: Date | string, end: Date | string): string {
   return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
 }
+
+export function todayDisplay(): string {
+  return formatDateDisplay(new Date());
+}

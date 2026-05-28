@@ -36,6 +36,7 @@ interface BookingDetailModalProps {
   businessId: string;
   bookingId: string | null;
   onClose: () => void;
+  onAiPrompt?: (prompt: string) => void;
 }
 
 function readError(err: unknown): string {
@@ -95,7 +96,12 @@ function PickerField({
   );
 }
 
-export default function BookingDetailModal({ businessId, bookingId, onClose }: BookingDetailModalProps) {
+export default function BookingDetailModal({
+  businessId,
+  bookingId,
+  onClose,
+  onAiPrompt,
+}: BookingDetailModalProps) {
   const queryClient = useQueryClient();
   const [presentActionSheet] = useIonActionSheet();
   const [status, setStatus] = useState<BookingStatus>('confirmed');
@@ -361,6 +367,44 @@ export default function BookingDetailModal({ businessId, bookingId, onClose }: B
                     {booking.customer.email}
                   </a>
                 )}
+              </div>
+            )}
+
+            {editable && onAiPrompt && (
+              <div className="ion-margin-bottom ai-booking-actions">
+                <h3>AI actions</h3>
+                <div className="ai-booking-actions__chips">
+                  <button
+                    type="button"
+                    className="ai-assistant-example"
+                    onClick={() => {
+                      onAiPrompt(`Cancel ${booking.customer?.name ?? 'this'} appointment at ${formatTimeDisplay(booking.startTime)} because I'm sick`);
+                      onClose();
+                    }}
+                  >
+                    Cancel — I&apos;m sick
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-assistant-example"
+                    onClick={() => {
+                      onAiPrompt(`Mark ${booking.customer?.name ?? 'client'}'s appointment at ${formatTimeDisplay(booking.startTime)} as done and paid`);
+                      onClose();
+                    }}
+                  >
+                    Mark done + paid
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-assistant-example"
+                    onClick={() => {
+                      onAiPrompt(`Reschedule ${booking.customer?.name ?? 'client'}'s ${booking.service?.name ?? 'appointment'} to 16:00`);
+                      onClose();
+                    }}
+                  >
+                    Reschedule to 4pm
+                  </button>
+                </div>
               </div>
             )}
 

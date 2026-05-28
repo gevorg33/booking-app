@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,7 +15,9 @@ import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { AiCalendarSelectionBar, type CalendarSelection } from '@/components/ai-calendar-selection-bar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -122,6 +124,7 @@ function SlotBlock({
 
   return (
     <div
+      data-slot-block
       className={`absolute left-0.5 right-0.5 rounded border ${colorClass} cursor-pointer hover:brightness-110 transition-all overflow-hidden`}
       style={{ top: `${topPct}%`, height: `${heightPct}%`, minHeight: '10px' }}
       onClick={() => onClick(slot)}
@@ -140,6 +143,19 @@ function SlotBlock({
   );
 }
 
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function yToMinutes(clientY: number, rectTop: number): number {
+  const y = clientY - rectTop;
+  const raw = HOUR_START * 60 + (y / HOUR_HEIGHT) * 60;
+  const snapped = Math.round(raw / 15) * 15;
+  return Math.max(HOUR_START * 60, Math.min(HOUR_END * 60, snapped));
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
@@ -147,6 +163,9 @@ export default function CalendarPage() {
   const [anchorDate, setAnchorDate] = useState(new Date());
   const [employeeId, setEmployeeId] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
+  const [dragSelection, setDragSelection] = useState<CalendarSelection | null>(null);
+  const dragRef = useRef<{ dayKey: string; startMin: number; endMin: number } | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   const weekDates = useMemo(() => getWeekDates(anchorDate), [anchorDate]);
   const startDate = dateKey(weekDates[0]);
@@ -162,6 +181,48 @@ export default function CalendarPage() {
     },
     enabled: !!business?.id,
   });
+
+  const selectedEmployee = employees.find((e: { id: string; name: string }) => e.id === employeeId);
+
+  const finalizeDragSelection = useCallback(
+    (dayKey: string, startMin: number, endMin: number) => {
+      if (!employeeId || !selectedEmployee) return;
+      const lo = Math.min(startMin, endMin);
+      const hi = Math.max(startMin, endMin);
+      if (hi - lo < 15) return;
+      setDragSelection({
+        date: dayKey,
+        timeFrom: minutesToTime(lo),
+        timeTo: minutesToTime(hi),
+        employeeName: selectedEmployee.name,
+        employeeId,
+      });
+    },
+    [employeeId, selectedEmployee],
+  );
+
+  const handleDayMouseDown = (dayKey: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('[data-slot-block]')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const startMin = yToMinutes(e.clientY, rect.top);
+    dragRef.current = { dayKey, startMin, endMin: startMin };
+  };
+
+  const handleDayMouseMove = (dayKey: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragRef.current || dragRef.current.dayKey !== dayKey) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragRef.current.endMin = yToMinutes(e.clientY, rect.top);
+    const { startMin, endMin } = dragRef.current;
+    finalizeDragSelection(dayKey, startMin, endMin);
+  };
+
+  const handleDayMouseUp = (dayKey: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragRef.current || dragRef.current.dayKey !== dayKey) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const endMin = yToMinutes(e.clientY, rect.top);
+    finalizeDragSelection(dayKey, dragRef.current.startMin, endMin);
+    dragRef.current = null;
+  };
 
   const { data: calendarData, isLoading } = useQuery({
     queryKey: ['provider-calendar', business?.id, employeeId, startDate, endDate],
@@ -227,7 +288,35 @@ export default function CalendarPage() {
         </p>
       </div>
 
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']} context={{ route: '/dashboard/calendar' }} />
+      <AiContextualSuggestions
+        context={{
+          route: '/dashboard/calendar',
+          employeeName: employees.find((e: { id: string; name: string }) => e.id === employeeId)?.name ?? null,
+          viewMode: 'week',
+        }}
+        title="Calendar opportunities"
+      />
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']}
+        context={{
+          route: '/dashboard/calendar',
+          employeeName: selectedEmployee?.name ?? null,
+          dateFrom: formatDateDisplay(weekDates[0]),
+          dateTo: formatDateDisplay(weekDates[6]),
+          viewMode: 'week',
+          ...(dragSelection
+            ? {
+                selectionDate: dragSelection.date,
+                selectionTimeFrom: dragSelection.timeFrom,
+                selectionTimeTo: dragSelection.timeTo,
+                selectionEmployeeId: dragSelection.employeeId,
+                date: dragSelection.date,
+                timeFrom: dragSelection.timeFrom,
+                timeTo: dragSelection.timeTo,
+              }
+            : {}),
+        }}
+      />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
@@ -297,7 +386,7 @@ export default function CalendarPage() {
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="flex min-w-[700px]">
+            <div className="flex min-w-[700px]" ref={gridRef}>
               {/* Time gutter */}
               <div className="w-14 shrink-0 relative" style={{ height: `${totalHours * HOUR_HEIGHT}px` }}>
                 {Array.from({ length: totalHours + 1 }, (_, i) => (
@@ -337,17 +426,34 @@ export default function CalendarPage() {
 
                     {/* Hour grid */}
                     <div
-                      className="relative"
+                      className="relative select-none cursor-crosshair"
                       style={{ height: `${totalHours * HOUR_HEIGHT}px` }}
+                      onMouseDown={(e) => handleDayMouseDown(key, e)}
+                      onMouseMove={(e) => handleDayMouseMove(key, e)}
+                      onMouseUp={(e) => handleDayMouseUp(key, e)}
+                      onMouseLeave={() => {
+                        if (dragRef.current?.dayKey === key) dragRef.current = null;
+                      }}
                     >
                       {/* Hour lines */}
                       {Array.from({ length: totalHours }, (_, i) => (
                         <div
                           key={i}
-                          className="absolute w-full border-t border-gray-800/50"
+                          className="absolute w-full border-t border-gray-800/50 pointer-events-none"
                           style={{ top: `${i * HOUR_HEIGHT}px` }}
                         />
                       ))}
+
+                      {dragSelection?.date === key && (
+                        <div
+                          className="absolute left-0.5 right-0.5 rounded border border-violet-400/60 bg-violet-500/15 pointer-events-none z-10"
+                          style={{
+                            top: `${((parseInt(dragSelection.timeFrom.split(':')[0], 10) * 60 + parseInt(dragSelection.timeFrom.split(':')[1], 10) - HOUR_START * 60) / TOTAL_MINUTES) * 100}%`,
+                            height: `${((parseInt(dragSelection.timeTo.split(':')[0], 10) * 60 + parseInt(dragSelection.timeTo.split(':')[1], 10) - parseInt(dragSelection.timeFrom.split(':')[0], 10) * 60 - parseInt(dragSelection.timeFrom.split(':')[1], 10)) / TOTAL_MINUTES) * 100}%`,
+                            minHeight: '8px',
+                          }}
+                        />
+                      )}
 
                       {/* Slots */}
                       {daySlots.map((slot) => (
@@ -372,6 +478,13 @@ export default function CalendarPage() {
             </div>
           )}
         </div>
+      )}
+
+      {dragSelection && employeeId && (
+        <AiCalendarSelectionBar
+          selection={dragSelection}
+          onClear={() => setDragSelection(null)}
+        />
       )}
 
       {/* Slot detail panel */}

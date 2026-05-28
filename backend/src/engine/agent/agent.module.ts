@@ -8,6 +8,7 @@ import { SchedulingOptimizationAgent } from './agents/scheduling-optimization.ag
 import { CancellationRecoveryAgent } from './agents/cancellation-recovery.agent.js';
 import { ConflictResolutionAgent } from './agents/conflict-resolution.agent.js';
 import { ScheduleApplyAgent } from './agents/schedule-apply.agent.js';
+import { UtilizationOptimizationAgent } from './agents/utilization-optimization.agent.js';
 import { ContextBuilderService } from './context-builder.service.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
@@ -19,10 +20,11 @@ import { Booking } from '../../modules/booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
 import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
+import { Business } from '../../modules/business/entities/business.entity.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod, ScheduleTemplate, BlockSchedule]),
+    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod, ScheduleTemplate, BlockSchedule, Business]),
     PolicyModule,
     forwardRef(() => WorkflowModule),
     EventStoreModule,
@@ -37,8 +39,15 @@ import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.en
     CancellationRecoveryAgent,
     ConflictResolutionAgent,
     ScheduleApplyAgent,
+    UtilizationOptimizationAgent,
   ],
-  exports: [AgentOrchestratorService, AgentRegistryService, ContextBuilderService, LlmService],
+  exports: [
+    AgentOrchestratorService,
+    AgentRegistryService,
+    ContextBuilderService,
+    LlmService,
+    ScheduleApplyAgent,
+  ],
 })
 export class AgentModule implements OnModuleInit {
   constructor(
@@ -46,11 +55,13 @@ export class AgentModule implements OnModuleInit {
     private schedulingAgent: SchedulingOptimizationAgent,
     private cancellationAgent: CancellationRecoveryAgent,
     private conflictAgent: ConflictResolutionAgent,
+    private utilizationAgent: UtilizationOptimizationAgent,
   ) {}
 
   onModuleInit() {
     this.registry.register(this.schedulingAgent);
     this.registry.register(this.cancellationAgent);
     this.registry.register(this.conflictAgent);
+    this.registry.register(this.utilizationAgent);
   }
 }

@@ -180,6 +180,41 @@ ion-tab-bar {
   border: 1px solid #b45309;
 }
 
+.ai-assistant-msg--clarify {
+  border: 1px solid #d97706;
+  background: #422006;
+}
+
+.ai-assistant-clarify {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ai-assistant-clarify-btn {
+  text-align: left;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #92400e;
+  background: #451a03;
+  color: #fde68a;
+}
+
+.ai-assistant-clarify-btn span {
+  display: block;
+  margin-top: 0.15rem;
+  color: #fbbf24;
+  font-size: 0.6875rem;
+}
+
+.ai-assistant-clarify-line {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #fcd34d;
+}
+
 .ai-assistant-preview {
   margin: 0.35rem 0 0;
   padding-left: 1rem;
@@ -199,4 +234,103 @@ ion-tab-bar {
   --padding-start: 0.65rem;
   border: 1px solid #374151;
   border-radius: 8px;
+}
+
+.ai-suggestions-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1rem;
+}
+
+.ai-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ai-suggestion-chip {
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.ai-suggestion-chip--high {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(127, 29, 29, 0.25);
+}
+
+.ai-suggestion-chip--medium {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(120, 53, 15, 0.25);
+}
+
+.ai-suggestion-chip__title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ai-suggestion-chip__hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.ai-assistant-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.ai-assistant-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ai-assistant-preview-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #4c1d95;
+  color: #ede9fe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ai-assistant-preview-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+}
+
+.ai-assistant-swipe-hint {
+  margin-top: 0.5rem;
+}
+
+.ai-assistant-confirm-slide {
+  margin-top: 0.35rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ai-assistant-confirm-item {
+  --background: #1f2937;
+}
+
+.ai-booking-actions__chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }

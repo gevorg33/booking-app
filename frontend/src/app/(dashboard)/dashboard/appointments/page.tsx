@@ -19,6 +19,9 @@ import { SortableColumnHeader } from '@/components/table/sortable-column-header'
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { useOperationalEvents } from '@/lib/use-operational-events';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const defaultParams: AppointmentSearchParams = {
   sortBy: 'startTime',
@@ -34,6 +37,7 @@ export default function AppointmentsPage() {
   const [params, setParams] = useState<AppointmentSearchParams>(defaultParams);
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
+  const [todayOnly, setTodayOnly] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
 
@@ -62,7 +66,7 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     setParams((p) => ({ ...p, page: 1 }));
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter, todayOnly]);
 
   const queryString = useMemo(
     () =>
@@ -70,8 +74,9 @@ export default function AppointmentsPage() {
         ...params,
         search: debouncedSearch.trim() || undefined,
         status: statusFilter || undefined,
+        date: todayOnly ? new Date().toISOString().split('T')[0] : undefined,
       }),
-    [params, debouncedSearch, statusFilter],
+    [params, debouncedSearch, statusFilter, todayOnly],
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -106,6 +111,25 @@ export default function AppointmentsPage() {
 
   return (
     <div>
+      <AiContextualSuggestions
+        context={{
+          route: '/dashboard/appointments',
+          statusFilter: statusFilter || null,
+          search: debouncedSearch.trim() || null,
+          todayOnly,
+        }}
+        title="Appointment insights"
+      />
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/appointments']}
+        context={{
+          route: '/dashboard/appointments',
+          statusFilter: statusFilter || null,
+          search: debouncedSearch.trim() || null,
+          todayOnly,
+        }}
+      />
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <ClipboardList className="w-6 h-6 text-blue-400" />
@@ -155,6 +179,20 @@ export default function AppointmentsPage() {
               ))}
             </select>
           </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-800">
+          <button
+            type="button"
+            onClick={() => setTodayOnly((active) => !active)}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              todayOnly
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-100'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+            {t('appointments.filterToday')}
+          </button>
         </div>
       </div>
 
