@@ -4,9 +4,16 @@ import { Employee } from './entities/employee.entity.js';
 import { EmployeeService } from './employee.service.js';
 import { EmployeeController } from './employee.controller.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { InvitationsModule } from '../invitations/invitations.module.js';
+import { BusinessModule } from '../business/business.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Employee]), EventStoreModule],
+  imports: [
+    TypeOrmModule.forFeature([Employee]),
+    EventStoreModule,
+    InvitationsModule,
+    BusinessModule,
+  ],
   controllers: [EmployeeController],
   providers: [EmployeeService],
   exports: [EmployeeService],

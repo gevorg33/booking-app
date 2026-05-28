@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { extractSubdomain, getRootDomain } from '@/lib/tenant-host';
 
-const SKIP_PREFIXES = ['/dashboard', '/login', '/register', '/api', '/_next', '/favicon.ico'];
+const SKIP_PREFIXES = ['/dashboard', '/login', '/register', '/provider', '/api', '/_next', '/favicon.ico'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

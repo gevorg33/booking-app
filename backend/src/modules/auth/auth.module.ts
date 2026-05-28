@@ -10,11 +10,13 @@ import { User } from '../user/entities/user.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { BusinessMember } from '../business/entities/business-member.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
+import { PasswordResetToken } from './entities/password-reset-token.entity.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Business, BusinessMember, Employee]),
+    TypeOrmModule.forFeature([User, Business, BusinessMember, Employee, PasswordResetToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -24,6 +26,7 @@ import { EventStoreModule } from '../../events/store/event-store.module.js';
       }),
     }),
     EventStoreModule,
+    NotificationsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

@@ -1,0 +1,42 @@
+:root {
+  --ion-font-family: system-ui, -apple-system, sans-serif;
+  --ion-background-color: #030712;
+  --ion-background-color-rgb: 3, 7, 18;
+  --ion-text-color: #f3f4f6;
+  --ion-text-color-rgb: 243, 244, 246;
+  --ion-color-primary: #2563eb;
+  --ion-color-primary-rgb: 37, 99, 235;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade: #2157cf;
+  --ion-color-primary-tint: #3b74ed;
+  --ion-toolbar-background: #111827;
+  --ion-tab-bar-background: #111827;
+  --ion-item-background: #111827;
+  --ion-card-background: #111827;
+}
+
+ion-content {
+  --background: #030712;
+}
+
+ion-tab-bar {
+  border-top: 1px solid #1f2937;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem 1rem;
+}
+
+.booking-meta {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.contact-link {
+  color: #60a5fa;
+  text-decoration: none;
+  display: block;
+  margin-top: 0.25rem;
+}

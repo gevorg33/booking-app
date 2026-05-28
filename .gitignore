@@ -9,6 +9,9 @@ coverage/
 .next/
 .DS_Store
 uploads/
+firebase-service-account.json
+**/google-services.json
+**/GoogleService-Info.plist
 
 # Reference clinic app (local only — large nested deps)
 clinic-app/

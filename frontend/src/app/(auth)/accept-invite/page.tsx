@@ -12,6 +12,7 @@ interface InviteInfo {
   businessName: string;
   role: string;
   employeeName?: string;
+  isAppAccess?: boolean;
 }
 
 function AcceptInviteForm() {
@@ -61,7 +62,7 @@ function AcceptInviteForm() {
     try {
       await api.post(`/invitations/${token}/accept`, form);
       setSuccess(true);
-      setTimeout(() => router.push('/login'), 2000);
+      setTimeout(() => router.push('/provider/login'), 2000);
     } catch (err: any) {
       setSubmitError(err.response?.data?.message || t('common.errorGeneric'));
     } finally {
@@ -76,8 +77,12 @@ function AcceptInviteForm() {
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Zap className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">{t('invite.title')}</h1>
-          <p className="text-gray-400 mt-1">{t('invite.subtitle')}</p>
+          <h1 className="text-2xl font-bold">
+            {invite?.isAppAccess ? t('invite.appAccessTitle') : t('invite.title')}
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {invite?.isAppAccess ? t('invite.appAccessSubtitle') : t('invite.subtitle')}
+          </p>
         </div>
 
         {loading ? (
@@ -92,8 +97,11 @@ function AcceptInviteForm() {
             </Link>
           </div>
         ) : success ? (
-          <div className="card text-center">
+          <div className="card text-center space-y-4">
             <p className="text-green-400">{t('invite.success')}</p>
+            <Link href="/provider/login" className="btn-primary inline-block">
+              {t('provider.loginTitle')}
+            </Link>
           </div>
         ) : invite ? (
           <form onSubmit={handleSubmit} className="card space-y-4">

@@ -6,9 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "mobile:serve": "next start -H 127.0.0.1 -p 3000",
+    "mobile:stable": "next build && next start -H 127.0.0.1 -p 3000",
+    "lint": "eslint",
+    "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@tanstack/react-query": "^5.100.14",
     "axios": "^1.16.1",
     "date-fns": "^4.3.0",
@@ -21,6 +29,9 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "7.6.5",
+    "@capacitor/ios": "^8.3.4",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

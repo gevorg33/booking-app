@@ -1,0 +1,47 @@
+{
+  "name": "optischedule-provider",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "cap:sync": "cap sync",
+    "cap:ios": "cap open ios",
+    "cap:android": "cap open android",
+    "build:apk:lan": "bash scripts/prepare-env.sh && npm run build && npx cap sync android && cd android && ./gradlew assembleDebug && echo \"\\nAPK: android/app/build/outputs/apk/debug/app-debug.apk\"",
+    "build:ios:lan": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios && cd ios/App && pod install && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/provider-app-ios build && echo \"\\nOpen: npm run cap:ios\"",
+    "cap:build:ios": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios && cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/provider-app-ios build"
+  },
+  "dependencies": {
+    "@capacitor-firebase/authentication": "^8.2.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
+    "@ionic/react": "^8.7.17",
+    "@ionic/react-router": "^8.7.17",
+    "@tanstack/react-query": "^5.100.14",
+    "axios": "^1.16.1",
+    "firebase": "^12.13.0",
+    "ionicons": "^8.0.13",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router": "^5.3.4",
+    "react-router-dom": "^5.3.4",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "7.6.5",
+    "@capacitor/ios": "^8.3.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
+}

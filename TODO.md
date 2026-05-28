@@ -36,14 +36,14 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [x] **int-1** — Public REST API docs + API keys for business admins
 - [x] **int-2** — Outbound webhooks (`booking.created`, `cancelled`, `payment.received`, etc.)
 - [x] **polish-1** — Onboarding wizard (services → schedule → booking link)
-<!-- - [ ] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
+- [ ] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
 - [ ] **int-6** — Zendesk — embed Web Widget in dashboard + public booking (help / contact support)
 - [ ] **int-7** — Zendesk — auto-create tickets from in-app support form (attach business, customer, booking context)
 - [ ] **int-8** — Zendesk — sync customer profile to Zendesk user (email, phone, appointment history link) -->
-<!-- - [ ] **dist-2** — Google Reserve / Reserve with Google integration
+- [ ] **dist-2** — Google Reserve / Reserve with Google integration
 - [ ] **dist-3** — Meta / Facebook & Instagram booking integration
 - [ ] **dist-4** — Messenger booking (Telegram deep links or bots; WhatsApp outbound reminders via comms-2b)
- -->
+
 
 ---
 
@@ -68,8 +68,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase 6 — Platform maturity
 
-- [ ] **dist-5** — Branded mobile app (white-label PWA or native wrapper with capacitor)
-- [ ] **comms-4** — Push / app reminders (requires mobile app or PWA)
+- [x] **dist-5** — Branded mobile app for service providers (Ionic React in `provider-app/` — iOS/Android, no dashboard; web PWA at `/provider` in `frontend/`)
+- [~] **comms-4** — Push / app reminders for providers (Web Push + Capacitor native token registration; FCM/APNs delivery TBD)
 - [ ] **int-3** — Zapier / Make connector or marketplace listing
 - [ ] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
 - [ ] **polish-4** — Expand localization (dates, currencies, more languages)

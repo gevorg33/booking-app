@@ -10,7 +10,6 @@ export interface CountrySelectOption {
 
 interface IconComponentProps {
   country?: string;
-  countryName?: string;
   label?: string;
   'aria-hidden'?: boolean;
 }
@@ -123,7 +122,7 @@ export function SearchableCountrySelect({
           }
         }}
       >
-        <Icon country={value} countryName={selected?.label} label={selected?.label} aria-hidden />
+        <Icon country={value} label={selected?.label ?? ''} aria-hidden />
         <span className="searchable-country-select__dial">{dialCode}</span>
         <span className="searchable-country-select__chevron" aria-hidden>
           ▾
@@ -157,12 +156,7 @@ export function SearchableCountrySelect({
                       className={`searchable-country-select__option${active ? ' is-active' : ''}`}
                       onClick={() => pickCountry(option.value)}
                     >
-                      <Icon
-                        country={option.value}
-                        countryName={option.label}
-                        label={option.label}
-                        aria-hidden
-                      />
+                      <Icon country={option.value} label={option.label} aria-hidden />
                       <span className="searchable-country-select__name">{option.label}</span>
                       {code && <span className="searchable-country-select__code">{code}</span>}
                     </button>
