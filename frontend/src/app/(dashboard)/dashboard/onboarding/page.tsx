@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
+import { AiPagePanel } from '@/components/ai-page-panel';
 
 interface BusinessTypeOption {
   id: string;
@@ -178,6 +179,12 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+
+      <AiPagePanel
+        title="Quick setup with AI"
+        suggestions={['Set up this week\'s schedule for my team', 'Apply weekday template to all providers this week']}
+        context={{ route: '/dashboard/onboarding' }}
+      />
 
       {error && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-3 text-sm">

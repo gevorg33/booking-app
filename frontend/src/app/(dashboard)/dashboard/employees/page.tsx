@@ -17,6 +17,8 @@ import {
   type EmployeeRecord,
 } from '@/lib/employee-types';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 export default function EmployeesPage() {
   const { t } = useI18n();
@@ -321,6 +323,8 @@ export default function EmployeesPage() {
           </div>
         )}
       </div>
+
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/employees']} context={{ route: '/dashboard/employees' }} />
 
       <TeamMembersCard />
 

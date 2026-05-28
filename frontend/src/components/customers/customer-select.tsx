@@ -41,7 +41,7 @@ export function CustomerSelect({
     enabled: !!businessId && !!value,
   });
 
-  const searchEnabled = open && !!businessId && !value;
+  const searchEnabled = open && !!businessId;
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers-picker', businessId, debouncedSearch, open],
     queryFn: async () => {
@@ -100,7 +100,7 @@ export function CustomerSelect({
     inputRef.current?.focus();
   };
 
-  const showDropdown = open && !value;
+  const showDropdown = open;
 
   return (
     <div ref={containerRef} className="relative">

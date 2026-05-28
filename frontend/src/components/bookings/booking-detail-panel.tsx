@@ -16,6 +16,7 @@ import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { isValidTime24, normalizeTime24 } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
+import { CustomerSelect } from '@/components/customers/customer-select';
 import {
   BOOKING_STATUS_LABELS,
   buildStatusUpdatePayload,
@@ -108,6 +109,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleEmployeeId, setRescheduleEmployeeId] = useState('');
   const [rescheduleServiceId, setRescheduleServiceId] = useState('');
+  const [customerId, setCustomerId] = useState('');
   const [versionConflict, setVersionConflict] = useState(false);
 
   const { data: booking, isLoading, isError, refetch } = useQuery({
@@ -150,6 +152,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     setRescheduleTime(bookingTimeHHmm(booking.startTime));
     setRescheduleEmployeeId(booking.employee?.id ?? '');
     setRescheduleServiceId(booking.service?.id ?? '');
+    setCustomerId(booking.customer?.id ?? '');
     setVersionConflict(false);
   }, [booking]);
 
@@ -168,6 +171,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       startTime?: string;
       employeeId?: string;
       serviceId?: string;
+      customerId?: string;
       expectedUpdatedAt?: string;
     }) => {
       const { data } = await api.put(`/businesses/${businessId}/bookings/${bookingId}`, payload);
@@ -229,7 +233,10 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     isValidTime24(rescheduleTime) &&
     !!rescheduleEmployeeId &&
     !!rescheduleServiceId;
-  const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged;
+  const customerChanged = booking
+    ? customerId !== (booking.customer?.id ?? '')
+    : false;
+  const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged || customerChanged;
 
   const applyStatusChange = (next: BookingStatus) => {
     if (next === 'cancelled') {
@@ -253,6 +260,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       startTime?: string;
       employeeId?: string;
       serviceId?: string;
+      customerId?: string;
       expectedUpdatedAt?: string;
     } = { expectedUpdatedAt: booking.updatedAt };
     if (statusChanged) {
@@ -269,6 +277,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       payload.startTime = toRescheduleISO(rescheduleDate, rescheduleTime);
       payload.employeeId = rescheduleEmployeeId;
       payload.serviceId = rescheduleServiceId;
+    }
+    if (customerChanged) {
+      payload.customerId = customerId || undefined;
     }
     updateMutation.mutate(payload, {
       onSuccess: () => {
@@ -293,7 +304,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     dirty &&
     !showCancelConfirm &&
     !pendingStatus &&
-    (editable || paymentChanged) &&
+    (editable || paymentChanged || customerChanged) &&
     (!rescheduleChanged || rescheduleValid);
 
   return (
@@ -431,7 +442,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 <User className="w-3.5 h-3.5" />
                 Customer
               </p>
-              {booking.customer ? (
+              {editable ? (
+                <CustomerSelect
+                  businessId={businessId}
+                  value={customerId}
+                  onChange={setCustomerId}
+                  searchPlaceholder="Search customer or assign walk-in..."
+                />
+              ) : booking.customer ? (
                 <div className="space-y-1 text-sm">
                   <p className="font-medium text-gray-100">{booking.customer.name}</p>
                   {booking.customer.email && (

@@ -5,6 +5,14 @@ import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  AI_MUTATION_QUERY_KEYS,
+  AI_SCHEDULE_EXAMPLES,
+  AI_BOOKING_EXAMPLES,
+  getAiPageContext,
+} from '@/lib/ai-orchestration';
+import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
+import { usePathname } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -19,9 +27,22 @@ interface Message {
 interface SessionContext {
   employeeName?: string | null;
   date?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
   serviceName?: string | null;
   timeSlot?: string | null;
   customerName?: string | null;
+  templateName?: string | null;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  allProviders?: boolean | null;
+}
+
+interface ClarifyIssue {
+  field: string;
+  label: string;
+  message: string;
+  example?: string;
 }
 
 function extractSessionContext(result: {
@@ -42,24 +63,39 @@ function mergeSessionContext(prev: SessionContext, next: SessionContext): Sessio
   return {
     employeeName: next.employeeName ?? prev.employeeName,
     date: next.date ?? prev.date,
+    dateFrom: next.dateFrom ?? prev.dateFrom,
+    dateTo: next.dateTo ?? prev.dateTo,
     serviceName: next.serviceName ?? prev.serviceName,
     timeSlot: next.timeSlot ?? prev.timeSlot,
     customerName: next.customerName ?? prev.customerName,
+    templateName: next.templateName ?? prev.templateName,
+    timeFrom: next.timeFrom ?? prev.timeFrom,
+    timeTo: next.timeTo ?? prev.timeTo,
+    allProviders: next.allProviders ?? prev.allProviders,
   };
 }
 
-const EXAMPLES = [
-  'Optimize tomorrow\'s schedule',
-  'Show all service provider appointments for tomorrow',
-  'Add a service deep tissue massage, 90 minutes, price 120',
-  'Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40',
-  'Fill unused appointment slots on Friday',
-  'Book facemassage with Gevorg Gasparyan on 02_06_2026 at 09:00',
-];
+const EXAMPLES = [...AI_SCHEDULE_EXAMPLES.slice(0, 3), ...AI_BOOKING_EXAMPLES.slice(0, 3)];
+
+const SCHEDULE_ACTIONS = new Set([
+  'fill_unused_slots',
+  'apply_schedule',
+  'block_schedule',
+  'create_direct_schedule',
+  'setup_week_schedule',
+  'assign_employee_services',
+]);
+
+function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const key of AI_MUTATION_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
 
 export function AiCommandBar() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -81,6 +117,15 @@ export function AiCommandBar() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useOrchestrixEvents({
+    onOpen: () => setOpen(true),
+    onPrompt: (prompt) => {
+      setOpen(true);
+      setInput(prompt);
+      inputRef.current?.focus();
+    },
+  });
 
   const approveTask = useCallback(
     async (taskId: string) => {
@@ -104,11 +149,7 @@ export function AiCommandBar() {
           },
         ]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
-        if (result.success) {
-          queryClient.invalidateQueries({ queryKey: ['bookings'] });
-          queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
-          queryClient.invalidateQueries({ queryKey: ['services'] });
-        }
+        if (result.success) invalidateAfterMutation(queryClient);
       } catch (err: any) {
         setMessages((prev) => [
           ...prev,
@@ -148,10 +189,11 @@ export function AiCommandBar() {
     }));
 
     try {
+      const pageCtx = getAiPageContext();
       const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
         prompt,
         history,
-        context: sessionContext,
+        context: { ...sessionContext, ...pageCtx, route: pathname },
       });
       const result = data.data || data;
 
@@ -172,13 +214,11 @@ export function AiCommandBar() {
         (result.action === 'cancel_bookings' ||
           result.action === 'create_booking' ||
           result.action === 'create_service' ||
-          result.action === 'create_services')
+          result.action === 'create_services' ||
+          result.action === 'reschedule_booking' ||
+          SCHEDULE_ACTIONS.has(result.action))
       ) {
-        queryClient.invalidateQueries({ queryKey: ['bookings'] });
-        queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
-        if (result.action === 'create_service' || result.action === 'create_services') {
-          queryClient.invalidateQueries({ queryKey: ['services'] });
-        }
+        invalidateAfterMutation(queryClient);
       }
     } catch (err: any) {
       setMessages((prev) => [
@@ -195,7 +235,7 @@ export function AiCommandBar() {
     } finally {
       setLoading(false);
     }
-  }, [input, business?.id, loading, queryClient, messages, sessionContext]);
+  }, [input, business?.id, loading, queryClient, messages, sessionContext, pathname]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -271,12 +311,39 @@ export function AiCommandBar() {
                   className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
                     msg.role === 'user'
                       ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100'
-                      : msg.success === false
-                        ? 'bg-red-900/20 border border-red-700/30 text-red-200'
-                        : 'bg-gray-800 border border-gray-700 text-gray-200'
+                      : msg.details?.needsClarification
+                        ? 'bg-amber-900/20 border border-amber-700/40 text-amber-100'
+                        : msg.success === false
+                          ? 'bg-red-900/20 border border-red-700/30 text-red-200'
+                          : 'bg-gray-800 border border-gray-700 text-gray-200'
                   }`}
                 >
                   <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{msg.text}</pre>
+
+                  {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
+                    <div className="mt-2 space-y-1">
+                      {(msg.details.missing as ClarifyIssue[]).map((issue, i) => (
+                        issue.example ? (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setInput(issue.example!);
+                              inputRef.current?.focus();
+                            }}
+                            className="block w-full text-left text-[11px] text-amber-200/90 hover:text-amber-100 bg-amber-950/30 hover:bg-amber-950/50 rounded px-2 py-1 transition-colors"
+                          >
+                            {issue.label}: {issue.message}
+                            <span className="block text-[10px] text-amber-400/80 mt-0.5">Try: &ldquo;{issue.example}&rdquo;</span>
+                          </button>
+                        ) : (
+                          <p key={i} className="text-[11px] text-amber-200/80">
+                            {issue.label}: {issue.message}
+                          </p>
+                        )
+                      ))}
+                    </div>
+                  )}
 
                   {/* Expandable details */}
                   {msg.details && Object.keys(msg.details).length > 0 && (
@@ -306,8 +373,18 @@ export function AiCommandBar() {
 
                   {msg.action && msg.role === 'assistant' && (
                     <div className="mt-1.5 flex items-center gap-1.5">
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${msg.success ? 'bg-green-500' : msg.success === false ? 'bg-red-500' : 'bg-gray-500'}`} />
-                      <span className="text-[10px] text-gray-500">{msg.action.replace(/_/g, ' ')}</span>
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                        msg.details?.needsClarification
+                          ? 'bg-amber-500'
+                          : msg.success
+                            ? 'bg-green-500'
+                            : msg.success === false
+                              ? 'bg-red-500'
+                              : 'bg-gray-500'
+                      }`} />
+                      <span className="text-[10px] text-gray-500">
+                        {msg.details?.needsClarification ? 'needs info' : msg.action.replace(/_/g, ' ')}
+                      </span>
                     </div>
                   )}
                 </div>

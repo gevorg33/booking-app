@@ -5,6 +5,8 @@ import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Booking, BookingStatus } from '../../modules/booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
+import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
+import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
 import { AgentContext } from './interfaces/agent.interfaces.js';
 
 @Injectable()
@@ -14,6 +16,8 @@ export class ContextBuilderService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
   ) {}
 
   async build(
@@ -41,7 +45,7 @@ export class ContextBuilderService {
     };
     if (options?.employeeId) periodWhere.employeeId = options.employeeId;
 
-    const [employees, services, bookings, schedules] = await Promise.all([
+    const [employees, services, bookings, schedules, templates, blockSchedules] = await Promise.all([
       this.employeeRepo.find({ where: employeeWhere }),
       this.serviceRepo.find({ where: { businessId } }),
       this.bookingRepo.find({
@@ -50,6 +54,8 @@ export class ContextBuilderService {
         order: { startTime: 'ASC' },
       }),
       this.periodRepo.find({ where: periodWhere, order: { startTime: 'ASC' } }),
+      this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
+      this.blockScheduleRepo.find({ where: { businessId, isDeleted: false }, take: 20 }),
     ]);
 
     return {
@@ -59,6 +65,8 @@ export class ContextBuilderService {
       services,
       bookings,
       schedules,
+      templates,
+      blockSchedules,
       constraints: [
         'No double booking',
         '10-minute slot boundaries',

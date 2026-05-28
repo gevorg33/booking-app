@@ -48,6 +48,8 @@ export interface AgentContext {
   services?: any[];
   bookings?: any[];
   schedules?: any[];
+  templates?: any[];
+  blockSchedules?: any[];
   constraints?: string[];
 }
 

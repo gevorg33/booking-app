@@ -6,6 +6,8 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 type ServicesTab = 'categories' | 'types';
 
@@ -712,6 +714,8 @@ export default function ServicesPage() {
         <h1 className="text-2xl font-bold">{t('servicesPage.title')}</h1>
         <p className="text-gray-400 text-sm mt-1">{t('servicesPage.subtitle')}</p>
       </div>
+
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/services']} context={{ route: '/dashboard/services' }} />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {tabs.map((item) => (

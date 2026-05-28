@@ -14,6 +14,8 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -224,6 +226,8 @@ export default function CalendarPage() {
           View a service provider's weekly schedule — slots are color-coded by service
         </p>
       </div>
+
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']} context={{ route: '/dashboard/calendar' }} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-5">

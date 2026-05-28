@@ -16,10 +16,12 @@ import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Booking } from '../../modules/booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
+import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
+import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod]),
+    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod, ScheduleTemplate, BlockSchedule]),
     PolicyModule,
     forwardRef(() => WorkflowModule),
     EventStoreModule,

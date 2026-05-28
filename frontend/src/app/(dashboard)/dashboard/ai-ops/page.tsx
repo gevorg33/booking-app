@@ -15,6 +15,8 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const AGENT_TYPES = [
   { value: 'scheduling_optimization', label: 'Schedule Optimization', description: 'Optimize staff schedules and fill gaps' },
@@ -55,8 +57,11 @@ export default function AiOpsPage() {
 
   const intentMutation = useMutation({
     mutationFn: async (data: { agentType: string; intent: string }) => {
+      const agentType = data.agentType === 'utilization_optimization'
+        ? 'scheduling_optimization'
+        : data.agentType;
       const res = await api.post(`/businesses/${business!.id}/agents/intent`, {
-        agentType: data.agentType,
+        agentType,
         intent: data.intent,
         dateRange: {
           start: new Date().toISOString(),
@@ -67,6 +72,9 @@ export default function AiOpsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['block-schedules'] });
       setIntent('');
     },
   });
@@ -76,7 +84,11 @@ export default function AiOpsPage() {
       const res = await api.put(`/businesses/${business!.id}/agents/tasks/${taskId}/approve`);
       return res.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent-tasks'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+    },
   });
 
   return (
@@ -85,6 +97,8 @@ export default function AiOpsPage() {
         <h1 className="text-2xl font-bold">{t('ai.opsTitle')}</h1>
         <p className="text-gray-400 text-sm">Express intent and let AI plan optimal operations</p>
       </div>
+
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/ai-ops']} context={{ route: '/dashboard/ai-ops' }} />
 
       <div className="card mb-6">
         <div className="flex items-start gap-4 mb-4">

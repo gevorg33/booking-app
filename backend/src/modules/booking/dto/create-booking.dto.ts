@@ -80,6 +80,10 @@ export class UpdateBookingDto {
   metadata?: Record<string, any>;
 
   @IsOptional()
+  @IsString()
+  customerId?: string;
+
+  @IsOptional()
   @IsDateString()
   expectedUpdatedAt?: string;
 }

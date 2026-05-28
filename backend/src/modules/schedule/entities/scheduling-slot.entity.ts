@@ -78,6 +78,10 @@ export class SchedulingSlot {
   @Column({ nullable: true })
   templateId: string;
 
+  /** Set when this micro-slot was blocked by a block schedule. */
+  @Column({ name: 'block_schedule_id', type: 'uuid', nullable: true })
+  blockScheduleId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

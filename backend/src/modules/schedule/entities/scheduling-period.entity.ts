@@ -67,6 +67,9 @@ export class SchedulingPeriod {
   @Column({ type: 'varchar', nullable: true, name: 'template_id' })
   templateId: string | null;
 
+  @Column({ name: 'block_schedule_id', type: 'uuid', nullable: true })
+  blockScheduleId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

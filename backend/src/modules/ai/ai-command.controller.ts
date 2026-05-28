@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { AiCommandService } from './ai-command.service.js';
+import { AiSuggestionsService } from './ai-suggestions.service.js';
 import { AiCommandDto } from './dto/ai-command.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -7,7 +8,15 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 @Controller('businesses/:businessId/ai')
 @UseGuards(JwtAuthGuard)
 export class AiCommandController {
-  constructor(private aiCommandService: AiCommandService) {}
+  constructor(
+    private aiCommandService: AiCommandService,
+    private suggestionsService: AiSuggestionsService,
+  ) {}
+
+  @Get('suggestions')
+  getSuggestions(@Param('businessId') businessId: string) {
+    return this.suggestionsService.getSuggestions(businessId);
+  }
 
   @Post('command')
   execute(
