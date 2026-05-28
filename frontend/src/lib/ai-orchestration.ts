@@ -44,10 +44,26 @@ export const AI_CUSTOMER_EXAMPLES = [
   'Which customers cancel the most?',
 ];
 
-export const AI_SERVICE_EXAMPLES = [
-  'What services do we offer?',
-  'How much is facemassage?',
-  'Add services: facemassage 60min $50, haircut 30min $25',
+export const AI_STAFF_EXAMPLES = [
+  'Who is the busiest provider today?',
+  'Top providers by revenue this week',
+  'Compare staff performance this month',
+  'Who earned the most this week?',
+];
+
+export const AI_SERVICE_ANALYTICS_EXAMPLES = [
+  'Most popular service this month',
+  'Top services by revenue this week',
+  'Which service is booked the most?',
+  'Least booked services last month',
+];
+
+export const AI_LOOKUP_EXAMPLES = [
+  'Tell me about Maria — when was her last visit?',
+  'How many appointments does John have?',
+  'Show new customers',
+  'List our schedule templates',
+  'Who works on our team?',
 ];
 
 export const AI_AVAILABILITY_EXAMPLES = [
@@ -55,6 +71,13 @@ export const AI_AVAILABILITY_EXAMPLES = [
   'What is Gevorg\'s schedule on Friday?',
   'Who is free today between 14:00 and 18:00?',
   'Check availability for all providers tomorrow',
+];
+
+export const AI_SERVICE_EXAMPLES = [
+  'What services do we offer?',
+  'How much is facemassage?',
+  'Most popular service this month',
+  'Add services: facemassage 60min $50, haircut 30min $25',
 ];
 
 /** Follow-up chains users commonly run in one thread */
@@ -116,10 +139,19 @@ export const AI_SCENARIO_CHAINS = [
     ],
   },
   {
-    title: 'Smart cancellation',
+    title: 'Service & staff analytics',
     steps: [
-      'Show Gevorg\'s appointments tomorrow',
-      'Cancel all tomorrow and notify customers from waitlist',
+      'Most popular service this month',
+      'Top providers by revenue this week',
+      'Who is the busiest provider today?',
+    ],
+  },
+  {
+    title: 'Customer deep-dive',
+    steps: [
+      'Tell me about Maria — when was her last visit?',
+      'Show Maria\'s appointments',
+      'Top 10 customers who paid the most',
     ],
   },
 ];
@@ -134,6 +166,7 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
   ],
   '/dashboard/schedule': [
     'Apply weekday template to Gevorg this week',
+    'List our schedule templates',
     'Block 12:00–13:00 lunch Mon–Fri for all providers',
     'Fill schedule gaps between 9–19:00 today',
     'Set up this week\'s schedule for my team',
@@ -174,18 +207,20 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Assign all massage services to Gevorg',
     'Summarize utilization this week',
     'Who is the busiest provider today?',
-    'Which slots are available for Gevorg tomorrow?',
+    'Top providers by revenue this week',
+    'List our team members',
   ],
   '/dashboard/services': [
     'What services do we offer?',
+    'Most popular service this month',
     'How much is facemassage?',
     'Add services: facemassage 60min $50, haircut 30min $25',
-    'Which appointment is the most expensive today?',
   ],
   '/dashboard/reports': [
     'Summarize utilization this week',
     'How many appointments this week?',
-    'Total revenue this week',
+    'Total revenue this month',
+    'Top services by revenue this month',
     'Top 10 customers who paid the most',
   ],
   '/dashboard/operations': [
@@ -317,6 +352,9 @@ export const AI_ALL_EXAMPLE_GROUPS = [
   { label: 'Bookings & today', items: AI_BOOKING_EXAMPLES },
   { label: 'Schedule', items: AI_SCHEDULE_EXAMPLES },
   { label: 'Customers', items: AI_CUSTOMER_EXAMPLES },
+  { label: 'Staff', items: AI_STAFF_EXAMPLES },
+  { label: 'Service analytics', items: AI_SERVICE_ANALYTICS_EXAMPLES },
   { label: 'Availability', items: AI_AVAILABILITY_EXAMPLES },
-  { label: 'Services', items: AI_SERVICE_EXAMPLES },
+  { label: 'Services & catalog', items: AI_SERVICE_EXAMPLES },
+  { label: 'Lookup & reference', items: AI_LOOKUP_EXAMPLES },
 ];

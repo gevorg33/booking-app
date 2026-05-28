@@ -1,7 +1,7 @@
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
-import { parseDateInput, toIsoDay } from '../../common/utils/date-format.util.js';
+import { parseDateInput, toIsoDay, formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 
 export interface DateRange {
@@ -125,7 +125,7 @@ export function getEmployeeServices(employee: Employee, catalog: Service[]): Ser
   return catalog;
 }
 
-/** Parse "this week", dateFrom/dateTo, or single date into ISO day range. */
+/** Parse relative dates and ranges from prompt + params into ISO day range. */
 export function resolveDateRange(
   params: { date?: string | null; dateFrom?: string | null; dateTo?: string | null },
   prompt?: string,
@@ -138,17 +138,67 @@ export function resolveDateRange(
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  if (lower.includes('this week') || lower.includes('next week')) {
+  const addDays = (base: Date, n: number) => {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d;
+  };
+
+  const weekRange = (offsetWeeks = 0) => {
     const start = new Date(today);
     const day = start.getUTCDay();
     const mondayOffset = day === 0 ? -6 : 1 - day;
-    start.setUTCDate(start.getUTCDate() + mondayOffset + (lower.includes('next week') ? 7 : 0));
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
+    start.setUTCDate(start.getUTCDate() + mondayOffset + offsetWeeks * 7);
+    const end = addDays(start, 6);
     return {
       start: start.toISOString().split('T')[0],
       end: end.toISOString().split('T')[0],
     };
+  };
+
+  if (/\blast week\b/i.test(lower)) return weekRange(-1);
+  if (/\bthis week\b/i.test(lower)) return weekRange(0);
+  if (/\bnext week\b/i.test(lower)) return weekRange(1);
+
+  if (/\bthis month\b/i.test(lower) || /\bcurrent month\b/i.test(lower)) {
+    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+  }
+
+  if (/\blast month\b/i.test(lower)) {
+    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+    const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
+    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+  }
+
+  const weekdayMap: Record<string, number> = {
+    sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2,
+    wednesday: 3, wed: 3, thursday: 4, thu: 4, thurs: 4,
+    friday: 5, fri: 5, saturday: 6, sat: 6,
+  };
+  const nextDayMatch = lower.match(/\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/);
+  if (nextDayMatch) {
+    const target = weekdayMap[nextDayMatch[1]];
+    const cur = today.getUTCDay();
+    let delta = (target - cur + 7) % 7;
+    if (delta === 0) delta = 7;
+    const d = addDays(today, delta);
+    const iso = d.toISOString().split('T')[0];
+    return { start: iso, end: iso };
+  }
+
+  if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
+    const iso = today.toISOString().split('T')[0];
+    return { start: iso, end: iso };
+  }
+  if (/\btomorrow\b/i.test(lower)) {
+    const iso = addDays(today, 1).toISOString().split('T')[0];
+    return { start: iso, end: iso };
+  }
+  if (/\byesterday\b/i.test(lower)) {
+    const iso = addDays(today, -1).toISOString().split('T')[0];
+    return { start: iso, end: iso };
   }
 
   if (params.date) {
@@ -157,6 +207,13 @@ export function resolveDateRange(
   }
 
   return null;
+}
+
+/** Extract single date hint from prompt for params.date (display format). */
+export function extractSingleDateFromPrompt(prompt: string): string | null {
+  const range = resolveDateRange({}, prompt);
+  if (!range || range.start !== range.end) return null;
+  return formatDateDisplay(range.start);
 }
 
 export function enumerateDaysInRange(range: DateRange): Date[] {
@@ -253,9 +310,10 @@ export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt
 export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {
   const readOnly = [
     'list_bookings', 'show_appointments', 'check_availability', 'summarize_day',
-    'summarize_bookings', 'list_services', 'optimize_schedule', 'summarize_utilization',
-    'list_schedule_gaps', 'summarize_customers', 'analyze_appointments', 'resolve_conflicts',
-    'reassign_cancelled',
+    'summarize_bookings', 'list_services', 'analyze_services', 'summarize_staff',
+    'lookup_customer', 'list_employees', 'list_templates', 'optimize_schedule',
+    'summarize_utilization', 'list_schedule_gaps', 'summarize_customers',
+    'analyze_appointments', 'resolve_conflicts', 'reassign_cancelled',
   ];
   if (readOnly.includes(action)) return false;
 
