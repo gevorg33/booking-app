@@ -18,6 +18,21 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
+      // Dev: allow Capacitor / Ionic WebView origins (native provider app)
+      if (process.env.NODE_ENV !== 'production' && origin) {
+        if (/^capacitor:\/\/|^ionic:\/\//.test(origin)) {
+          callback(null, true);
+          return;
+        }
+        if (
+          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+            origin,
+          )
+        ) {
+          callback(null, true);
+          return;
+        }
+      }
       // Allow tenant subdomains in dev/production, e.g. gloss.localhost:3000
       const rootDomain = process.env.ROOT_DOMAIN || 'localhost:3000';
       if (origin.endsWith(`.${rootDomain}`) || origin === `http://${rootDomain}` || origin === `https://${rootDomain}`) {

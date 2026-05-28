@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { BusinessInvitation } from './entities/business-invitation.entity.js';
 import { BusinessMember, MemberRole } from '../business/entities/business-member.entity.js';
@@ -29,16 +29,30 @@ export class InvitationsService {
   async create(
     businessId: string,
     createdByUserId: string,
-    dto: { email: string; role?: MemberRole; employeeName?: string },
+    dto: { email: string; role?: MemberRole; employeeName?: string; employeeId?: string },
   ): Promise<BusinessInvitation> {
     const email = dto.email.trim().toLowerCase();
-    const existingMember = await this.userRepo.findOne({ where: { email } });
-    if (existingMember) {
-      const member = await this.memberRepo.findOne({
-        where: { businessId, userId: existingMember.id },
-      });
-      if (member) throw new ConflictException('User is already a member of this business');
+
+    if (dto.employeeId) {
+      return this.sendEmployeeAppAccess(businessId, dto.employeeId, createdByUserId);
     }
+
+    const existingUser = await this.userRepo.findOne({ where: { email } });
+    if (existingUser) {
+      const member = await this.memberRepo.findOne({
+        where: { businessId, userId: existingUser.id },
+      });
+      if (member) {
+        const linkedEmployee = await this.employeeRepo.findOne({
+          where: { businessId, userId: existingUser.id, isActive: true },
+        });
+        if (linkedEmployee) {
+          throw new ConflictException('This person already has provider app access for this business');
+        }
+      }
+    }
+
+    await this.expirePendingInvites(businessId, email);
 
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -51,21 +65,55 @@ export class InvitationsService {
         role: dto.role ?? MemberRole.CONTRIBUTOR,
         token,
         employeeName: dto.employeeName?.trim(),
+        employeeId: null,
         createdByUserId,
         expiresAt,
       }),
     );
 
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    await this.emailService.send({
-      to: email,
-      subject: 'You are invited to join OptiSchedule',
-      html: `<p>You have been invited as a service provider.</p>
-        <p><a href="${appUrl}/accept-invite?token=${token}">Accept invitation</a></p>
-        <p>This link expires in 7 days.</p>`,
-      text: `Accept invitation: ${appUrl}/accept-invite?token=${token}`,
-    });
+    await this.sendInviteEmailOrThrow(email, token, 'invite');
+    return invite;
+  }
 
+  async sendEmployeeAppAccess(
+    businessId: string,
+    employeeId: string,
+    createdByUserId: string,
+  ): Promise<BusinessInvitation> {
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId, isActive: true },
+    });
+    if (!employee) throw new NotFoundException('Employee not found');
+    if (!employee.email?.trim()) {
+      throw new BadRequestException('Add an email to this employee profile first');
+    }
+    if (employee.userId) {
+      throw new ConflictException('This employee already has app access. They can sign in or use Forgot password.');
+    }
+
+    const email = employee.email.trim().toLowerCase();
+
+    // Only block if THIS employee row is already linked — not another profile with the same email.
+    await this.expirePendingInvites(businessId, email, employeeId);
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const invite = await this.inviteRepo.save(
+      this.inviteRepo.create({
+        businessId,
+        email,
+        role: MemberRole.CONTRIBUTOR,
+        token,
+        employeeName: employee.name,
+        employeeId: employee.id,
+        createdByUserId,
+        expiresAt,
+      }),
+    );
+
+    await this.sendInviteEmailOrThrow(email, token, 'app-access');
     return invite;
   }
 
@@ -82,6 +130,7 @@ export class InvitationsService {
       businessName: invite.business.name,
       role: invite.role,
       employeeName: invite.employeeName,
+      isAppAccess: Boolean(invite.employeeId),
     };
   }
 
@@ -108,26 +157,55 @@ export class InvitationsService {
           role: UserRole.EMPLOYEE,
         }),
       );
+    } else {
+      user.passwordHash = await bcrypt.hash(dto.password, 10);
+      if (!user.firstName?.trim()) user.firstName = dto.firstName;
+      if (!user.lastName?.trim()) user.lastName = dto.lastName;
+      await this.userRepo.save(user);
     }
 
-    await this.memberRepo.save(
-      this.memberRepo.create({
-        userId: user.id,
-        businessId: invite.businessId,
-        role: invite.role,
-      }),
-    );
+    const existingMember = await this.memberRepo.findOne({
+      where: { userId: user.id, businessId: invite.businessId },
+    });
+    if (!existingMember) {
+      await this.memberRepo.save(
+        this.memberRepo.create({
+          userId: user.id,
+          businessId: invite.businessId,
+          role: invite.role,
+        }),
+      );
+    }
 
-    const employeeName =
-      invite.employeeName || `${dto.firstName} ${dto.lastName}`.trim();
-    await this.employeeRepo.save(
-      this.employeeRepo.create({
-        businessId: invite.businessId,
-        userId: user.id,
-        name: employeeName,
-        email: invite.email,
-      }),
-    );
+    let employee: Employee | null = null;
+    if (invite.employeeId) {
+      employee = await this.employeeRepo.findOne({
+        where: { id: invite.employeeId, businessId: invite.businessId, isActive: true },
+      });
+    }
+    if (!employee) {
+      employee = await this.employeeRepo.findOne({
+        where: { businessId: invite.businessId, email: invite.email, isActive: true },
+      });
+    }
+
+    if (employee) {
+      if (!employee.userId) {
+        employee.userId = user.id;
+        await this.employeeRepo.save(employee);
+      }
+    } else {
+      const employeeName =
+        invite.employeeName || `${dto.firstName} ${dto.lastName}`.trim();
+      await this.employeeRepo.save(
+        this.employeeRepo.create({
+          businessId: invite.businessId,
+          userId: user.id,
+          name: employeeName,
+          email: invite.email,
+        }),
+      );
+    }
 
     invite.acceptedAt = new Date();
     await this.inviteRepo.save(invite);
@@ -145,5 +223,65 @@ export class InvitationsService {
         slug: invite.business.slug,
       },
     };
+  }
+
+  private async expirePendingInvites(
+    businessId: string,
+    email: string,
+    employeeId?: string,
+  ): Promise<void> {
+    const pending = await this.inviteRepo.find({
+      where: {
+        businessId,
+        email,
+        acceptedAt: IsNull(),
+      },
+    });
+
+    const toExpire = pending.filter(
+      (inv) => !employeeId || inv.employeeId === employeeId || inv.employeeId === null,
+    );
+
+    if (toExpire.length === 0) return;
+
+    const now = new Date();
+    for (const inv of toExpire) {
+      inv.expiresAt = now;
+      await this.inviteRepo.save(inv);
+    }
+  }
+
+  private async sendInviteEmailOrThrow(
+    email: string,
+    token: string,
+    kind: 'invite' | 'app-access',
+  ): Promise<void> {
+    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const link = `${appUrl}/accept-invite?token=${token}`;
+    const subject =
+      kind === 'app-access'
+        ? 'Set up your OptiSchedule provider app'
+        : 'You are invited to join OptiSchedule';
+    const intro =
+      kind === 'app-access'
+        ? '<p>Your business admin invited you to the OptiSchedule provider mobile app.</p><p>Use the link below to set your password and sign in on your phone.</p>'
+        : '<p>You have been invited as a service provider.</p>';
+
+    const result = await this.emailService.send({
+      to: email,
+      subject,
+      html: `${intro}
+        <p><a href="${link}">Set up your account</a></p>
+        <p>This link expires in 7 days.</p>
+        <p>After setup, open the provider app or go to ${appUrl}/provider/login</p>`,
+      text: `Set up your account: ${link}`,
+    });
+
+    if (!result.ok) {
+      throw new BadRequestException(
+        result.error ||
+          'Email could not be sent. Check RESEND_API_KEY and that the recipient is allowed on your Resend plan.',
+      );
+    }
   }
 }

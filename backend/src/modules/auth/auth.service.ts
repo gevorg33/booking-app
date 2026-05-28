@@ -1,17 +1,21 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../user/entities/user.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { BusinessMember, MemberRole } from '../business/entities/business-member.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
+import { PasswordResetToken } from './entities/password-reset-token.entity.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import { EmailService } from '../notifications/email.service.js';
+import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
 
 @Injectable()
 export class AuthService {
@@ -20,8 +24,11 @@ export class AuthService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(PasswordResetToken) private resetTokenRepo: Repository<PasswordResetToken>,
     private jwtService: JwtService,
     private eventStore: EventStoreService,
+    private emailService: EmailService,
+    private firebase: FirebaseAdminService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -84,7 +91,8 @@ export class AuthService {
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
     return {
       user: this.toPublicUser(user),
-      business: { id: business.id, name: business.name, slug: business.slug },
+      business: { id: business.id, name: business.name, slug: business.slug, membershipRole: MemberRole.OWNER },
+      employee: await this.findLinkedEmployee(business.id, user.id),
       token,
     };
   }
@@ -105,6 +113,44 @@ export class AuthService {
       });
     }
 
+    return this.buildAuthResponse(user);
+  }
+
+  async loginWithGoogle(idToken: string) {
+    if (!this.firebase.isReady) {
+      throw new BadRequestException('Google sign-in is not configured on the server');
+    }
+
+    let decoded;
+    try {
+      decoded = await this.firebase.verifyIdToken(idToken);
+    } catch {
+      throw new UnauthorizedException({
+        message: 'Invalid Google sign-in token',
+        code: 'INVALID_GOOGLE_TOKEN',
+      });
+    }
+
+    const email = decoded.email?.trim().toLowerCase();
+    if (!email) {
+      throw new UnauthorizedException({
+        message: 'Google account has no email',
+        code: 'GOOGLE_NO_EMAIL',
+      });
+    }
+
+    const user = await this.userRepo.findOne({ where: { email, isActive: true } });
+    if (!user) {
+      throw new UnauthorizedException({
+        message: 'No provider account for this Google email. Ask your admin to send app access.',
+        code: 'ACCOUNT_NOT_FOUND',
+      });
+    }
+
+    return this.buildAuthResponse(user);
+  }
+
+  private async buildAuthResponse(user: User) {
     const membership = await this.memberRepo.findOne({ where: { userId: user.id }, relations: { business: true } });
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
     return {
@@ -115,9 +161,33 @@ export class AuthService {
             name: membership.business.name,
             slug: membership.business.slug,
             locale: membership.business.settings?.locale || 'en',
+            membershipRole: membership.role,
           }
         : null,
+      employee: membership ? await this.findLinkedEmployee(membership.business.id, user.id) : null,
       token,
+    };
+  }
+
+  async getMe(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId, isActive: true } });
+    if (!user) throw new UnauthorizedException('User not found');
+    const membership = await this.memberRepo.findOne({
+      where: { userId },
+      relations: { business: true },
+    });
+    return {
+      user: this.toPublicUser(user),
+      business: membership
+        ? {
+            id: membership.business.id,
+            name: membership.business.name,
+            slug: membership.business.slug,
+            locale: membership.business.settings?.locale || 'en',
+            membershipRole: membership.role,
+          }
+        : null,
+      employee: membership ? await this.findLinkedEmployee(membership.business.id, user.id) : null,
     };
   }
 
@@ -127,6 +197,77 @@ export class AuthService {
     if (dto.locale) user.locale = dto.locale;
     await this.userRepo.save(user);
     return { user: this.toPublicUser(user) };
+  }
+
+  async forgotPassword(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.userRepo.findOne({ where: { email: normalized, isActive: true } });
+    if (!user) {
+      return { ok: true, message: 'If an account exists, a reset link was sent.' };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.resetTokenRepo.save(
+      this.resetTokenRepo.create({
+        userId: user.id,
+        token,
+        expiresAt,
+        usedAt: null,
+      }),
+    );
+
+    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const link = `${appUrl}/set-password?token=${token}`;
+    await this.emailService.send({
+      to: normalized,
+      subject: 'Reset your OptiSchedule password',
+      html: `<p>We received a request to reset your password for the provider app.</p>
+        <p><a href="${link}">Set a new password</a></p>
+        <p>This link expires in 24 hours. If you did not request this, you can ignore this email.</p>
+        <p>After resetting, sign in at ${appUrl}/provider/login</p>`,
+      text: `Set a new password: ${link}`,
+    });
+
+    return { ok: true, message: 'If an account exists, a reset link was sent.' };
+  }
+
+  async getResetPasswordInfo(token: string) {
+    const reset = await this.resetTokenRepo.findOne({ where: { token } });
+    if (!reset || reset.usedAt) throw new NotFoundException('Reset link not found');
+    if (reset.expiresAt < new Date()) throw new BadRequestException('Reset link expired');
+
+    const user = await this.userRepo.findOne({ where: { id: reset.userId, isActive: true } });
+    if (!user) throw new NotFoundException('User not found');
+
+    return { email: user.email };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const reset = await this.resetTokenRepo.findOne({ where: { token } });
+    if (!reset || reset.usedAt) throw new NotFoundException('Reset link not found');
+    if (reset.expiresAt < new Date()) throw new BadRequestException('Reset link expired');
+
+    const user = await this.userRepo.findOne({ where: { id: reset.userId, isActive: true } });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.passwordHash = await bcrypt.hash(password, 10);
+    await this.userRepo.save(user);
+
+    reset.usedAt = new Date();
+    await this.resetTokenRepo.save(reset);
+
+    return { ok: true };
+  }
+
+  private async findLinkedEmployee(businessId: string, userId: string) {
+    const employee = await this.employeeRepo.findOne({
+      where: { businessId, userId, isActive: true },
+    });
+    if (!employee) return null;
+    return { id: employee.id, name: employee.name };
   }
 
   private toPublicUser(user: User) {

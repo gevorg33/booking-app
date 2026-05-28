@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OptiSchedule Provider</string>
+    <string name="title_activity_main">OptiSchedule Provider</string>
+    <string name="package_name">com.optischedule.provider</string>
+    <string name="custom_url_scheme">com.optischedule.provider</string>
+    <string name="default_notification_channel_id">booking_alerts</string>
+</resources>

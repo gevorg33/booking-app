@@ -3,10 +3,16 @@ import { EmployeeService } from './employee.service.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { InvitationsService } from '../invitations/invitations.service.js';
+import { BusinessService } from '../business/business.service.js';
 
 @Controller('businesses/:businessId/employees')
 export class EmployeeController {
-  constructor(private employeeService: EmployeeService) {}
+  constructor(
+    private employeeService: EmployeeService,
+    private invitationsService: InvitationsService,
+    private businessService: BusinessService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -34,5 +40,16 @@ export class EmployeeController {
   @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.employeeService.remove(id, user?.id);
+  }
+
+  @Post(':id/send-app-access')
+  @UseGuards(JwtAuthGuard)
+  async sendAppAccess(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.invitationsService.sendEmployeeAppAccess(businessId, id, user.id);
   }
 }

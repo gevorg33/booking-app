@@ -33,6 +33,9 @@ export class BusinessInvitation {
   @Column({ nullable: true })
   employeeName: string;
 
+  @Column({ name: 'employee_id', type: 'uuid', nullable: true })
+  employeeId: string | null;
+
   @Column({ name: 'created_by_user_id', nullable: true })
   createdByUserId: string;
 

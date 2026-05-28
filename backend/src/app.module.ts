@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 import { ConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { FirebaseAdminModule } from './common/firebase/firebase-admin.module.js';
 
 // Domain modules
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -30,6 +31,7 @@ import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
+import { ProviderMobileModule } from './modules/provider-mobile/provider-mobile.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -46,6 +48,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     // Configuration
     ConfigModule,
     DatabaseModule,
+    FirebaseAdminModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
 
@@ -78,6 +81,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     ExpensesModule,
     OnboardingModule,
     IntegrationsModule,
+    ProviderMobileModule,
 
     // Engine
     SchedulingEngineModule,

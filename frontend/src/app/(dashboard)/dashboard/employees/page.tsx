@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Pencil, Phone, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import Link from 'next/link';
+import { Mail, Pencil, Phone, Plus, Smartphone, Trash2, UserPlus, Users } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +27,8 @@ export default function EmployeesPage() {
   const [inviteForm, setInviteForm] = useState({ email: '', employeeName: '' });
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [accessSentId, setAccessSentId] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees', business?.id],
@@ -120,6 +123,26 @@ export default function EmployeesPage() {
     },
   });
 
+  const sendAppAccessMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { data } = await api.post(
+        `/businesses/${business!.id}/employees/${employeeId}/send-app-access`,
+      );
+      return data;
+    },
+    onSuccess: (_data, employeeId) => {
+      setAccessError(null);
+      setAccessSentId(employeeId);
+      setTimeout(() => setAccessSentId(null), 4000);
+    },
+    onError: (err: any, employeeId) => {
+      setAccessSentId(null);
+      setAccessError(
+        `${employeeId}:${err?.response?.data?.message || 'Failed to send app access email'}`,
+      );
+    },
+  });
+
   const openCreate = () => {
     setEditingEmployee(null);
     setFormError(null);
@@ -169,6 +192,19 @@ export default function EmployeesPage() {
         </div>
       </div>
 
+      <div className="card bg-blue-600/5 border-blue-500/20 flex items-start gap-3">
+        <Smartphone className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm text-gray-300">
+            Providers need app access before they can sign in on mobile. Add employees here, then use{' '}
+            <span className="text-white">Send app access</span> to email them a password setup link.
+          </p>
+          <Link href="/provider/login" className="text-sm text-blue-400 hover:underline mt-1 inline-block">
+            Open provider app →
+          </Link>
+        </div>
+      </div>
+
       <div className="card">
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
@@ -182,6 +218,8 @@ export default function EmployeesPage() {
             {employees.map((emp) => {
               const avatar = employeeAvatarUrl(emp);
               const title = employeeTitle(emp);
+              const rowAccessError =
+                accessError?.startsWith(`${emp.id}:`) ? accessError.slice(emp.id.length + 1) : null;
               return (
                 <div key={emp.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
@@ -219,8 +257,37 @@ export default function EmployeesPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-600/10 text-green-400 hidden sm:inline">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+                    {emp.userId ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-400 whitespace-nowrap">
+                        {t('employees.appAccessActive')}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-600/10 text-amber-400 whitespace-nowrap">
+                        {t('employees.appAccessMissing')}
+                      </span>
+                    )}
+                    {!emp.userId && emp.email ? (
+                      <button
+                        type="button"
+                        onClick={() => sendAppAccessMutation.mutate(emp.id)}
+                        disabled={sendAppAccessMutation.isPending}
+                        className="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap"
+                        title={t('employees.sendAppAccess')}
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        {accessSentId === emp.id ? t('employees.appAccessSent') : t('employees.sendAppAccess')}
+                      </button>
+                    ) : !emp.userId && !emp.email ? (
+                      <span className="text-xs text-gray-500 max-w-[140px] text-right sm:text-left">
+                        {t('employees.appAccessNeedsEmail')}
+                      </span>
+                    ) : null}
+                    {rowAccessError && (
+                      <p className="text-xs text-red-400 max-w-[200px] text-right sm:text-left">{rowAccessError}</p>
+                    )}
+                    <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-600/10 text-green-400 whitespace-nowrap hidden sm:inline">
                       Active
                     </span>
                     <button
@@ -237,6 +304,7 @@ export default function EmployeesPage() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -286,7 +354,7 @@ export default function EmployeesPage() {
           >
             <h3 className="font-semibold text-lg mb-2">{t('invite.sendInvite')}</h3>
             <p className="text-sm text-gray-400 mb-4">
-              Send an email invitation for a contributor to join your portal.
+              Send an email invitation for a contributor to join your portal, or use Send app access on an existing employee row.
             </p>
             {inviteSuccess ? (
               <p className="text-green-400 text-sm">{t('invite.inviteSent')}</p>

@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { LOCALE_COOKIE } from '@/i18n';
+import { getApiBaseUrl } from '@/lib/api-base';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -35,7 +36,7 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     const requestUrl = error.config?.url ?? '';
-    const isAuthRequest = ['/auth/login', '/auth/register'].some((path) => requestUrl.includes(path));
+    const isAuthRequest = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'].some((path) => requestUrl.includes(path));
 
     if (
       error.response?.status === 401 &&
@@ -43,7 +44,10 @@ api.interceptors.response.use(
       !isAuthRequest
     ) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      const loginPath = window.location.pathname.startsWith('/provider')
+        ? '/provider/login'
+        : '/login';
+      window.location.href = loginPath;
     }
     return Promise.reject(error);
   },

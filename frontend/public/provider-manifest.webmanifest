@@ -1,0 +1,25 @@
+{
+  "name": "OptiSchedule Provider",
+  "short_name": "Provider",
+  "description": "Mobile app for service providers — today's appointments, schedule, and alerts",
+  "start_url": "/provider/today",
+  "scope": "/provider",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030712",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icons/provider-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/provider-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

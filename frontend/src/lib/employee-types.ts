@@ -3,6 +3,7 @@ export interface EmployeeRecord {
   name: string;
   email?: string;
   phone?: string;
+  userId?: string | null;
   serviceIds?: string[];
   metadata?: {
     title?: string;
