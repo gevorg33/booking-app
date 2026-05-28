@@ -14,21 +14,50 @@ import {
 import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
 
+interface ClarifyIssue {
+  field: string;
+  label: string;
+  message: string;
+  example?: string;
+}
+
+interface SessionContext {
+  customerName?: string | null;
+  date?: string | null;
+  timeSlot?: string | null;
+  serviceName?: string | null;
+  allAppointments?: boolean | null;
+}
+
+interface MessageDetails {
+  requiresConfirmation?: boolean;
+  needsClarification?: boolean;
+  missing?: ClarifyIssue[];
+  bookingIds?: string[];
+  preview?: string[];
+  pendingAction?: { action: string; params?: Record<string, unknown> };
+  sessionContext?: SessionContext;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   success?: boolean;
-  details?: {
-    requiresConfirmation?: boolean;
-    bookingIds?: string[];
-    preview?: string[];
-    pendingAction?: { action: string; params?: Record<string, unknown> };
-  };
+  details?: MessageDetails;
+}
+
+export interface ProviderAiScreenContext {
+  date?: string | null;
+  customerName?: string | null;
+  serviceName?: string | null;
+  timeSlot?: string | null;
+  route?: string;
 }
 
 interface ProviderAiAssistantProps {
   businessId: string;
+  screenContext?: ProviderAiScreenContext;
 }
 
 const EXAMPLES = [
@@ -38,13 +67,27 @@ const EXAMPLES = [
   "What's on my schedule today?",
 ];
 
-export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantProps) {
+function mergeSession(prev: SessionContext, next: SessionContext): SessionContext {
+  return {
+    customerName: next.customerName ?? prev.customerName,
+    date: next.date ?? prev.date,
+    timeSlot: next.timeSlot ?? prev.timeSlot,
+    serviceName: next.serviceName ?? prev.serviceName,
+    allAppointments: next.allAppointments ?? prev.allAppointments,
+  };
+}
+
+export default function ProviderAiAssistant({
+  businessId,
+  screenContext,
+}: ProviderAiAssistantProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const invalidateBookings = useCallback(() => {
@@ -71,12 +114,17 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
+          context: { ...sessionContext, ...screenContext },
         });
         const result = unwrap<{
           success: boolean;
           summary: string;
-          details?: Message['details'];
+          details?: MessageDetails;
         }>(res);
+
+        if (result.details?.sessionContext) {
+          setSessionContext((prev) => mergeSession(prev, result.details!.sessionContext!));
+        }
 
         setMessages((prev) => [
           ...prev,
@@ -110,7 +158,7 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages],
+    [businessId, invalidateBookings, loading, messages, screenContext, sessionContext],
   );
 
   const confirmAction = useCallback(
@@ -126,7 +174,11 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
           bookingIds,
           params: pending.params,
         });
-        const result = unwrap<{ success: boolean; summary: string }>(res);
+        const result = unwrap<{ success: boolean; summary: string; details?: MessageDetails }>(res);
+
+        if (result.details?.sessionContext) {
+          setSessionContext((prev) => mergeSession(prev, result.details!.sessionContext!));
+        }
 
         setMessages((prev) => [
           ...prev,
@@ -203,9 +255,40 @@ export default function ProviderAiAssistant({ businessId }: ProviderAiAssistantP
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`ai-assistant-msg ai-assistant-msg--${msg.role}${msg.success === false ? ' ai-assistant-msg--error' : ''}`}
+                  className={`ai-assistant-msg ai-assistant-msg--${msg.role}${
+                    msg.details?.needsClarification
+                      ? ' ai-assistant-msg--clarify'
+                      : msg.success === false
+                        ? ' ai-assistant-msg--error'
+                        : ''
+                  }`}
                 >
                   <p>{msg.text}</p>
+
+                  {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
+                    <div className="ai-assistant-clarify">
+                      {msg.details.missing.map((issue) =>
+                        issue.example ? (
+                          <button
+                            key={`${issue.field}-${issue.label}`}
+                            type="button"
+                            className="ai-assistant-clarify-btn"
+                            onClick={() => {
+                              setInput(issue.example!);
+                            }}
+                          >
+                            {issue.label}: {issue.message}
+                            <span>Try: &ldquo;{issue.example}&rdquo;</span>
+                          </button>
+                        ) : (
+                          <p key={`${issue.field}-${issue.label}`} className="ai-assistant-clarify-line">
+                            {issue.label}: {issue.message}
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  )}
+
                   {msg.details?.preview && msg.details.preview.length > 0 && (
                     <ul className="ai-assistant-preview">
                       {msg.details.preview.slice(0, 5).map((line) => (

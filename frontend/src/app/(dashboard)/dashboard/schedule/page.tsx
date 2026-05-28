@@ -359,7 +359,7 @@ export default function SchedulePage() {
         </p>
       </div>
 
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']} context={{ route: '/dashboard/schedule' }} />
+      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']} context={{ route: '/dashboard/schedule', scheduleTab: tab }} />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 mb-6">

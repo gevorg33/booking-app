@@ -112,9 +112,9 @@ Shared work that unlocks dashboard + mobile extensions.
 
 - [ ] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
 - [ ] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
-- [ ] **ai-0.3** — Port completion pipeline to mobile — resolve, validate, clarify parity with dashboard
-- [ ] **ai-0.4** — Shared session memory — `employeeName`, `date`, `serviceName`, `timeSlot`, `templateName`, `allProviders`; mobile sends `context` on every command; optional server-side session keyed by user
-- [ ] **ai-0.5** — Unify task approval — one task model, one approve endpoint; deprecate duplicate `POST /ai/command/tasks` vs `PUT /agents/tasks`
+- [x] **ai-0.3** — Port completion pipeline to mobile — resolve, validate, clarify parity with dashboard
+- [x] **ai-0.4** — Shared session memory — `employeeName`, `date`, `serviceName`, `timeSlot`, `templateName`, `allProviders`; mobile sends `context` on every command; optional server-side session keyed by user
+- [x] **ai-0.5** — Unify task approval — one task model, one approve endpoint; deprecate duplicate `POST /ai/command/tasks` vs `PUT /agents/tasks`
 - [ ] **ai-0.6** — Wire dead agents — register `ScheduleApplyAgent` in `agent.module.ts`; connect `SchedulingAgentService`
 - [ ] **ai-0.7** — Complete stub executors — `propose_reassignment`, `find_rebooking_candidates`, `propose_resolutions`; add `execute_reassignment`, waitlist lookup
 - [ ] **ai-0.8** — Enrich policy engine — pass real booking counts, business hours, buffer rules into plans; show violations in preview
@@ -125,7 +125,7 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Context-aware command layer
 
-- [ ] **ai-d1** — Rich page context — calendar: selected range, providers, view mode; schedule: active tab, template, employee; bookings: filters, selected row
+- [x] **ai-d1** — Rich page context — calendar: selected range, providers, view mode; schedule: active tab, template, employee; bookings: filters, selected row
 - [ ] **ai-d2** — Selection → AI actions — drag-select on calendar → chip bar: "Block", "Fill gaps", "Apply template to selection"
 - [ ] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
 - [ ] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
@@ -153,10 +153,10 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Dashboard coverage gaps (quick wins)
 
-- [ ] **ai-d20** — Add `AiPagePanel` to `/dashboard/appointments`
+- [x] **ai-d20** — Add `AiPagePanel` to `/dashboard/appointments`
 - [ ] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
 - [ ] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
-- [ ] **ai-d23** — Invalidate cache after `optimize_schedule`, `resolve_conflicts`, `reassign_cancelled`
+- [x] **ai-d23** — Invalidate cache after `optimize_schedule`, `resolve_conflicts`, `reassign_cancelled`
 - [ ] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
 - [ ] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
 
@@ -164,8 +164,8 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Mobile command intelligence
 
-- [ ] **ai-m1** — Completion pipeline parity — same clarify chips, session inheritance, structured `missing[]` as dashboard
-- [ ] **ai-m2** — Context from screen — Today: selected date; booking detail: customer, time, service pre-filled
+- [x] **ai-m1** — Completion pipeline parity — same clarify chips, session inheritance, structured `missing[]` as dashboard
+- [x] **ai-m2** — Context from screen — Today: selected date; booking detail: customer, time, service pre-filled
 - [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
 - [ ] **ai-m4** — Booking-detail AI entry — "Cancel because sick", "Mark done + paid", "Reschedule to 4pm" from modal
 - [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)

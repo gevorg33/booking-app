@@ -46,5 +46,6 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
     AiSuggestionsService,
     CommandCompletionPipelineService,
   ],
+  exports: [CommandCompletionPipelineService],
 })
 export class AiModule {}

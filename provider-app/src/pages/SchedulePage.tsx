@@ -23,6 +23,7 @@ import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiAssistant from '../components/ProviderAiAssistant';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
 
 export default function SchedulePage() {
   const { business } = useAuthStore();
@@ -84,7 +85,17 @@ export default function SchedulePage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        {business?.id && <ProviderAiAssistant businessId={business.id} />}
+        {business?.id && (
+          <ProviderAiAssistant
+            businessId={business.id}
+            screenContext={buildProviderAiScreenContext(
+              'schedule',
+              {},
+              upcoming?.bookings ?? [],
+              selectedId,
+            )}
+          />
+        )}
 
         {isLoading ? (
           <div className="empty-state"><IonSpinner /></div>

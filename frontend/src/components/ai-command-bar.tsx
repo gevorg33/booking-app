@@ -86,6 +86,26 @@ const SCHEDULE_ACTIONS = new Set([
   'assign_employee_services',
 ]);
 
+const ORCHESTRATION_ACTIONS = new Set([
+  'optimize_schedule',
+  'resolve_conflicts',
+  'reassign_cancelled',
+  'summarize_utilization',
+]);
+
+function shouldInvalidateAfterAi(action?: string, success?: boolean): boolean {
+  if (!success || !action) return false;
+  return (
+    action === 'cancel_bookings' ||
+    action === 'create_booking' ||
+    action === 'create_service' ||
+    action === 'create_services' ||
+    action === 'reschedule_booking' ||
+    SCHEDULE_ACTIONS.has(action) ||
+    ORCHESTRATION_ACTIONS.has(action)
+  );
+}
+
 function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>) {
   for (const key of AI_MUTATION_QUERY_KEYS) {
     queryClient.invalidateQueries({ queryKey: [key] });
@@ -209,15 +229,7 @@ export function AiCommandBar() {
       setMessages((prev) => [...prev, assistantMsg]);
       setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
 
-      if (
-        result.success &&
-        (result.action === 'cancel_bookings' ||
-          result.action === 'create_booking' ||
-          result.action === 'create_service' ||
-          result.action === 'create_services' ||
-          result.action === 'reschedule_booking' ||
-          SCHEDULE_ACTIONS.has(result.action))
-      ) {
+      if (shouldInvalidateAfterAi(result.action, result.success)) {
         invalidateAfterMutation(queryClient);
       }
     } catch (err: any) {

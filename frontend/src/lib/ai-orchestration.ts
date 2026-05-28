@@ -62,9 +62,15 @@ export interface AiPageContext {
   route?: string;
   employeeName?: string | null;
   date?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
   timeFrom?: string | null;
   timeTo?: string | null;
   templateName?: string | null;
+  scheduleTab?: string | null;
+  viewMode?: string | null;
+  statusFilter?: string | null;
+  search?: string | null;
 }
 
 let pageContext: AiPageContext = {};

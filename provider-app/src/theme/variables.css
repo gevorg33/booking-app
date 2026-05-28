@@ -180,6 +180,41 @@ ion-tab-bar {
   border: 1px solid #b45309;
 }
 
+.ai-assistant-msg--clarify {
+  border: 1px solid #d97706;
+  background: #422006;
+}
+
+.ai-assistant-clarify {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ai-assistant-clarify-btn {
+  text-align: left;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #92400e;
+  background: #451a03;
+  color: #fde68a;
+}
+
+.ai-assistant-clarify-btn span {
+  display: block;
+  margin-top: 0.15rem;
+  color: #fbbf24;
+  font-size: 0.6875rem;
+}
+
+.ai-assistant-clarify-line {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #fcd34d;
+}
+
 .ai-assistant-preview {
   margin: 0.35rem 0 0;
   padding-left: 1rem;

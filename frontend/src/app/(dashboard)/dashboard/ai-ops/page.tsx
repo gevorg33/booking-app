@@ -16,7 +16,13 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
-import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { AI_MUTATION_QUERY_KEYS, AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+
+function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const key of AI_MUTATION_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
 
 const AGENT_TYPES = [
   { value: 'scheduling_optimization', label: 'Schedule Optimization', description: 'Optimize staff schedules and fill gaps' },
@@ -72,22 +78,19 @@ export default function AiOpsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
-      queryClient.invalidateQueries({ queryKey: ['block-schedules'] });
+      invalidateAiMutations(queryClient);
       setIntent('');
     },
   });
 
   const approveMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      const res = await api.put(`/businesses/${business!.id}/agents/tasks/${taskId}/approve`);
-      return res.data;
+      const res = await api.post(`/businesses/${business!.id}/ai/command/tasks/${taskId}/approve`);
+      return res.data?.data ?? res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
+      invalidateAiMutations(queryClient);
     },
   });
 

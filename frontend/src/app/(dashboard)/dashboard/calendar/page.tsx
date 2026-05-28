@@ -227,7 +227,16 @@ export default function CalendarPage() {
         </p>
       </div>
 
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']} context={{ route: '/dashboard/calendar' }} />
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']}
+        context={{
+          route: '/dashboard/calendar',
+          employeeName: employees.find((e: { id: string; name: string }) => e.id === employeeId)?.name ?? null,
+          dateFrom: formatDateDisplay(weekDates[0]),
+          dateTo: formatDateDisplay(weekDates[6]),
+          viewMode: 'week',
+        }}
+      />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-5">

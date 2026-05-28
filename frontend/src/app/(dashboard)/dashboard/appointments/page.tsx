@@ -19,6 +19,8 @@ import { SortableColumnHeader } from '@/components/table/sortable-column-header'
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { useOperationalEvents } from '@/lib/use-operational-events';
+import { AiPagePanel } from '@/components/ai-page-panel';
+import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const defaultParams: AppointmentSearchParams = {
   sortBy: 'startTime',
@@ -106,6 +108,15 @@ export default function AppointmentsPage() {
 
   return (
     <div>
+      <AiPagePanel
+        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/appointments']}
+        context={{
+          route: '/dashboard/appointments',
+          statusFilter: statusFilter || null,
+          search: debouncedSearch.trim() || null,
+        }}
+      />
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <ClipboardList className="w-6 h-6 text-blue-400" />

@@ -7,6 +7,7 @@ import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { BusinessModule } from '../business/business.module.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
+import { AiModule } from '../ai/ai.module.js';
 import { PushSubscription } from './entities/push-subscription.entity.js';
 import { NativePushToken } from './entities/native-push-token.entity.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
@@ -21,6 +22,7 @@ import { ProviderPushListener } from './listeners/provider-push.listener.js';
     BusinessModule,
     BookingModule,
     AgentModule,
+    AiModule,
   ],
   controllers: [ProviderMobileController],
   providers: [ProviderMobileService, ProviderAiCommandService, PushService, ProviderPushListener],

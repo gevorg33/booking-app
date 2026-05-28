@@ -14,6 +14,11 @@ import {
   toIsoDay,
 } from '../../common/utils/date-format.util.js';
 import { ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
+import { CommandCompletionPipelineService } from '../ai/command-completion.pipeline.service.js';
+import {
+  shouldValidateProviderAction,
+  validateProviderCommand,
+} from '../ai/provider-command-completion.validator.js';
 
 export interface ProviderCommandResult {
   success: boolean;
@@ -70,6 +75,7 @@ export class ProviderAiCommandService {
     private bookingService: BookingService,
     private llm: LlmService,
     private providerMobile: ProviderMobileService,
+    private completionPipeline: CommandCompletionPipelineService,
   ) {}
 
   async executeCommand(
@@ -108,20 +114,44 @@ export class ProviderAiCommandService {
       };
     }
 
+    parsed.params = this.completionPipeline.mergeProviderSessionContext(
+      parsed.params as Record<string, any>,
+      context,
+    ) as Record<string, unknown>;
+    this.completionPipeline.normalizeDateParams(parsed.params as Record<string, any>);
+
+    if (shouldValidateProviderAction(parsed.action)) {
+      const validation = validateProviderCommand(parsed.action, parsed.params);
+      if (!validation.ok) {
+        return this.completionPipeline.toProviderClarifyResult(
+          parsed.action,
+          parsed.params,
+          parsed.reasoning,
+          validation,
+        );
+      }
+    }
+
     this.normalizeParams(parsed.params);
     this.logger.log(`Provider AI action="${parsed.action}" — ${parsed.reasoning}`);
 
+    let result: ProviderCommandResult;
+
     switch (parsed.action) {
       case 'cancel_bookings':
-        return this.handleCancelBookings(businessId, access, parsed.params, userId);
+        result = await this.handleCancelBookings(businessId, access, parsed.params, userId);
+        break;
       case 'update_bookings':
-        return this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        result = await this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        break;
       case 'list_bookings':
-        return this.handleListBookings(businessId, access, parsed.params);
+        result = await this.handleListBookings(businessId, access, parsed.params);
+        break;
       case 'summarize_day':
-        return this.handleSummarizeDay(businessId, access, parsed.params);
+        result = await this.handleSummarizeDay(businessId, access, parsed.params);
+        break;
       default:
-        return {
+        result = {
           success: false,
           action: 'unknown',
           summary:
@@ -129,6 +159,22 @@ export class ProviderAiCommandService {
           details: {},
         };
     }
+
+    return this.attachProviderSession(result, parsed.params);
+  }
+
+  private attachProviderSession(
+    result: ProviderCommandResult,
+    params: Record<string, unknown>,
+  ): ProviderCommandResult {
+    if (result.details?.needsClarification) return result;
+    return {
+      ...result,
+      details: {
+        ...result.details,
+        sessionContext: this.completionPipeline.buildProviderSessionContext(params as Record<string, any>),
+      },
+    };
   }
 
   async confirmAction(

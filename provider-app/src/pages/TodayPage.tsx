@@ -14,12 +14,13 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
-import { formatDateDisplay } from '../lib/date-format';
+import { formatDateDisplay, todayDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
 import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiAssistant from '../components/ProviderAiAssistant';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
 
 export default function TodayPage() {
   const { business, user } = useAuthStore();
@@ -75,7 +76,17 @@ export default function TodayPage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        {business?.id && <ProviderAiAssistant businessId={business.id} />}
+        {business?.id && (
+          <ProviderAiAssistant
+            businessId={business.id}
+            screenContext={buildProviderAiScreenContext(
+              'today',
+              { date: todayDisplay() },
+              data?.bookings ?? [],
+              selectedId,
+            )}
+          />
+        )}
 
         {isTeamView(data?.viewMode) ? (
           <p className="booking-meta">All providers — today</p>
