@@ -271,14 +271,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
     const conflicts = await this.bookingRepo
       .createQueryBuilder('b')
-      .where('b.business_id = :businessId', { businessId: existing.businessId })
-      .andWhere('b.employee_id = :employeeId', { employeeId: targetEmployeeId })
+      .where('b.businessId = :businessId', { businessId: existing.businessId })
+      .andWhere('b.employeeId = :employeeId', { employeeId: targetEmployeeId })
       .andWhere('b.id != :bookingId', { bookingId })
       .andWhere('b.status NOT IN (:...terminal)', {
         terminal: [BookingStatus.CANCELLED, BookingStatus.COMPLETED],
       })
-      .andWhere('b.start_time < :targetEnd', { targetEnd })
-      .andWhere('b.end_time > :targetStart', { targetStart })
+      .andWhere('b.startTime < :targetEnd', { targetEnd })
+      .andWhere('b.endTime > :targetStart', { targetStart })
       .getMany();
 
     if (conflicts.length > 0) {
