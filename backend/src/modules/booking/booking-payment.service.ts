@@ -70,6 +70,7 @@ export class BookingPaymentService {
   async createCheckoutSession(
     slug: string,
     dto: CreatePublicBookingDto,
+    authenticatedCustomerId?: string,
   ): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
     if (!this.stripeService.isConfigured) {
       throw new BadRequestException('Online payments are not configured on the server');
@@ -96,10 +97,20 @@ export class BookingPaymentService {
       throw new BadRequestException('Email or phone number is required');
     }
 
+    const draftPayload: CreatePublicBookingDto = authenticatedCustomerId
+      ? {
+          ...dto,
+          metadata: {
+            ...(dto.metadata || {}),
+            authenticatedCustomerId,
+          },
+        }
+      : dto;
+
     const draft = await this.draftRepo.save(
       this.draftRepo.create({
         businessId: business.id,
-        payload: dto as unknown as Record<string, unknown>,
+        payload: draftPayload as unknown as Record<string, unknown>,
         amount,
         currency: service.currency || 'USD',
         status: 'pending',
@@ -240,14 +251,16 @@ export class BookingPaymentService {
       employeeId = resolved.employeeId;
     }
 
-    const { customer } = await this.customerService.findOrCreateByContact(business.id, {
-      name: dto.customer.name,
-      email: dto.customer.email,
-      phone: dto.customer.phone,
-      emailReminders: dto.customer.emailReminders,
-      smsReminders: dto.customer.smsReminders,
-      whatsappReminders: dto.customer.whatsappReminders,
-    });
+    const authenticatedCustomerId =
+      typeof dto.metadata?.authenticatedCustomerId === 'string'
+        ? dto.metadata.authenticatedCustomerId
+        : undefined;
+
+    const { customer } = await this.publicBookingService.resolvePublicBookingCustomer(
+      business.id,
+      dto.customer,
+      authenticatedCustomerId,
+    );
 
     const booking = await this.bookingService.create(
       business.id,

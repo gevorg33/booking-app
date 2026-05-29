@@ -14,6 +14,7 @@ import {
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { PhoneInput } from '@/components/public-booking/phone-input';
 import {
   SpecialistPickerSheet,
@@ -39,6 +40,7 @@ export function CheckoutForm({
   paymentSessionId,
 }: CheckoutFormProps) {
   const { t, locale } = useI18n();
+  const { customer, loading: authLoading } = usePublicCustomerAuth();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const dueNow = prepaymentDue(service);
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
@@ -68,6 +70,16 @@ export function CheckoutForm({
         }
       : employee;
   const useAutoAssign = autoAssign && specialistChoice.type === 'any';
+
+  useEffect(() => {
+    if (authLoading || !customer) return;
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || customer.name,
+      email: prev.email || customer.email || '',
+      phone: prev.phone || customer.phone || undefined,
+    }));
+  }, [authLoading, customer]);
 
   useEffect(() => {
     if (!paymentSessionId) return;

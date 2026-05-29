@@ -1,5 +1,39 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const publicCustomerTokens = new Map<string, string>();
+
+export function setPublicCustomerToken(slug: string, token: string | null) {
+  if (token) {
+    publicCustomerTokens.set(slug, token);
+  } else {
+    publicCustomerTokens.delete(slug);
+  }
+}
+
+export interface PublicCustomerProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface PublicCustomerAuthResponse {
+  token: string;
+  customer: PublicCustomerProfile;
+}
+
+export interface PublicCustomerBookingItem {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
+  serviceName: string;
+  employeeName: string;
+  employeeId: string;
+  canReview: boolean;
+}
+
 export interface PublicBranding {
   logoUrl?: string;
   primaryColor?: string;
@@ -88,6 +122,17 @@ export function prepaymentDue(service: PublicService): number {
   return Math.round(service.price * 50) / 100;
 }
 
+function formatPublicApiError(body: unknown, status: number): string {
+  if (typeof body === 'object' && body !== null) {
+    const message = (body as { message?: unknown }).message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (typeof message === 'string' && message.trim()) return message;
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === 'string' && error.trim()) return error;
+  }
+  return `Request failed (${status})`;
+}
+
 async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -96,6 +141,13 @@ async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
     if (match?.[1]) headers['Accept-Language'] = match[1];
+  }
+
+  const slugMatch = path.match(/^\/public\/([^/]+)/);
+  const slug = slugMatch?.[1];
+  const token = slug ? publicCustomerTokens.get(slug) : undefined;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -108,7 +160,7 @@ async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.message || body?.error || `Request failed (${res.status})`);
+    throw new Error(formatPublicApiError(body, res.status));
   }
   const json = await res.json();
   return (json.data ?? json) as T;
@@ -297,4 +349,30 @@ export function submitPublicReview(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function submitProviderPortalReview(
+  slug: string,
+  employeeId: string,
+  body: { idToken?: string; rating: number; comment?: string },
+) {
+  return publicFetch<PublicProviderReview>(
+    `/public/${slug}/providers/${employeeId}/reviews`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function loginPublicCustomer(slug: string, idToken: string) {
+  return publicFetch<PublicCustomerAuthResponse>(`/public/${slug}/auth/google`, {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  });
+}
+
+export function getPublicCustomerMe(slug: string) {
+  return publicFetch<PublicCustomerProfile>(`/public/${slug}/auth/me`);
+}
+
+export function getPublicCustomerBookings(slug: string) {
+  return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
 }

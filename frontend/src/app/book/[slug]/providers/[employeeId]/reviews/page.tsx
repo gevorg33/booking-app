@@ -28,7 +28,7 @@ export default async function ProviderReviewsPage({
         slug={slug}
         tenant={tenant}
         employeeId={employeeId}
-        backHref={bookPath(slug, '/professionals')}
+        backHref={bookPath(slug, `/providers/${employeeId}`)}
       />
     </Suspense>
   );

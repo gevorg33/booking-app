@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
@@ -783,7 +784,44 @@ export class PublicBookingService {
     };
   }
 
-  async createBooking(slug: string, dto: CreatePublicBookingDto) {
+  async resolvePublicBookingCustomer(
+    businessId: string,
+    contact: CreatePublicBookingDto['customer'],
+    authenticatedCustomerId?: string,
+  ) {
+    if (!authenticatedCustomerId) {
+      return this.customerService.findOrCreateByContact(businessId, {
+        name: contact.name,
+        email: contact.email,
+        phone: contact.phone,
+        emailReminders: contact.emailReminders,
+        smsReminders: contact.smsReminders,
+        whatsappReminders: contact.whatsappReminders,
+      });
+    }
+
+    const customer = await this.customerService.findOne(authenticatedCustomerId);
+    if (customer.businessId !== businessId || !customer.isActive) {
+      throw new UnauthorizedException('Customer session expired');
+    }
+
+    const saved = await this.customerService.findOrCreateByContact(businessId, {
+      name: contact.name?.trim() || customer.name,
+      email: customer.email ?? contact.email,
+      phone: contact.phone?.trim() || customer.phone,
+      emailReminders: contact.emailReminders,
+      smsReminders: contact.smsReminders,
+      whatsappReminders: contact.whatsappReminders,
+    });
+
+    if (saved.customer.id !== customer.id) {
+      throw new BadRequestException('Contact details do not match your signed-in account');
+    }
+
+    return { customer: saved.customer, created: false };
+  }
+
+  async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
@@ -817,14 +855,11 @@ export class PublicBookingService {
       employeeId = resolved.employeeId;
     }
 
-    const { customer, created } = await this.customerService.findOrCreateByContact(business.id, {
-      name: dto.customer.name,
-      email: dto.customer.email,
-      phone: dto.customer.phone,
-      emailReminders: dto.customer.emailReminders,
-      smsReminders: dto.customer.smsReminders,
-      whatsappReminders: dto.customer.whatsappReminders,
-    });
+    const { customer, created } = await this.resolvePublicBookingCustomer(
+      business.id,
+      dto.customer,
+      authenticatedCustomerId,
+    );
 
     const booking = await this.bookingService.create(
       business.id,

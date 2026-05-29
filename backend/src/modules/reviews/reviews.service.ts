@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -11,7 +12,10 @@ import { Review } from './entities/review.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { SubmitPublicReviewDto } from './dto/submit-public-review.dto.js';
+import { SubmitProviderPortalReviewDto } from './dto/submit-provider-portal-review.dto.js';
+import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
 
 export interface PublicReviewContext {
   businessName: string;
@@ -59,6 +63,8 @@ export class ReviewsService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    private firebase: FirebaseAdminService,
   ) {}
 
   async list(businessId: string, employeeId?: string): Promise<Review[]> {
@@ -323,6 +329,112 @@ export class ReviewsService {
     await this.bookingRepo.save(booking);
 
     return review;
+  }
+
+  async submitProviderPortalReview(
+    slug: string,
+    employeeId: string,
+    dto: SubmitProviderPortalReviewDto,
+    authenticatedCustomerId?: string,
+  ): Promise<PublicProviderReview> {
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId: business.id, isActive: true },
+    });
+    if (!employee) throw new NotFoundException('Provider not found');
+
+    let customer: Customer | null = null;
+    let customerName: string | undefined;
+
+    if (authenticatedCustomerId) {
+      customer = await this.customerRepo.findOne({
+        where: { id: authenticatedCustomerId, businessId: business.id, isActive: true },
+      });
+      if (!customer) throw new UnauthorizedException('Customer session expired');
+      customerName = customer.name;
+    } else {
+      if (!dto.idToken) {
+        throw new BadRequestException('Sign in with Google to submit a review');
+      }
+      if (!this.firebase.isReady) {
+        throw new BadRequestException('Google sign-in is not configured on the server');
+      }
+
+      let decoded;
+      try {
+        decoded = await this.firebase.verifyIdToken(dto.idToken);
+      } catch {
+        throw new UnauthorizedException('Invalid Google sign-in token');
+      }
+
+      const email = decoded.email?.trim().toLowerCase();
+      if (!email) {
+        throw new UnauthorizedException('Google account has no email');
+      }
+
+      customerName =
+        decoded.name?.trim() ||
+        [decoded.given_name, decoded.family_name].filter(Boolean).join(' ').trim() ||
+        email.split('@')[0];
+
+      customer = await this.customerRepo
+        .createQueryBuilder('customer')
+        .where('customer.business_id = :businessId', { businessId: business.id })
+        .andWhere('customer.isActive = :isActive', { isActive: true })
+        .andWhere('LOWER(customer.email) = :email', { email })
+        .getOne();
+
+      if (!customer) {
+        throw new BadRequestException(
+          'No appointment found for this Google account. Book and complete a visit first.',
+        );
+      }
+    }
+
+    const existingReview = await this.reviewRepo.findOne({
+      where: { businessId: business.id, employeeId, customerId: customer.id },
+    });
+    if (existingReview) {
+      throw new ConflictException('You have already reviewed this specialist');
+    }
+
+    const booking = await this.bookingRepo.findOne({
+      where: {
+        businessId: business.id,
+        customerId: customer.id,
+        employeeId,
+        status: BookingStatus.COMPLETED,
+      },
+      order: { startTime: 'DESC' },
+    });
+
+    if (!booking) {
+      throw new BadRequestException(
+        'Reviews are available after you complete an appointment with this specialist',
+      );
+    }
+
+    const review = await this.create(business.id, {
+      employeeId,
+      rating: dto.rating,
+      comment: dto.comment,
+      customerId: customer.id,
+      bookingId: booking.id,
+      customerName: customerName || customer.name,
+    });
+
+    if (!booking.metadata?.reviewSubmittedAt) {
+      booking.metadata = {
+        ...(booking.metadata || {}),
+        reviewSubmittedAt: new Date().toISOString(),
+        reviewSource: authenticatedCustomerId ? 'public_portal_session' : 'public_portal_google',
+      };
+      await this.bookingRepo.save(booking);
+    }
+
+    return this.toPublicProviderReview(review);
   }
 
   private async loadBookingForReview(slug: string, bookingId: string, token: string): Promise<Booking> {

@@ -6,14 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
-import {
-  ProviderReviewList,
-  ProviderReviewSummary,
-} from '@/components/public-booking/provider-reviews';
-import {
-  getPublicProviderReviews,
-  type PublicBusinessProfile,
-} from '@/lib/public-api';
+import { ProviderReviewCard } from '@/components/public-booking/provider-reviews';
+import { getPublicProviderReviews, type PublicBusinessProfile } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -65,52 +59,21 @@ export function ProviderReviewsClient({
         )}
 
         {data && (
-          <div className="space-y-6">
-            <div className="flex items-start gap-3">
-              {data.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={data.avatarUrl}
-                  alt=""
-                  className="w-14 h-14 rounded-full object-cover shrink-0"
-                />
-              ) : (
-                <div
-                  className="w-14 h-14 rounded-full shrink-0 flex items-center justify-center text-white text-lg font-semibold"
-                  style={{ backgroundColor: primary }}
-                >
-                  {data.employeeName.charAt(0)}
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {t('public.reviewsPageTitle', { name: data.employeeName })}
-                </h1>
-                {data.employeeRole && (
-                  <p className="text-sm text-gray-500 mt-0.5">{data.employeeRole}</p>
-                )}
-                {data.averageRating != null && data.reviewCount > 0 && (
-                  <div className="mt-2">
-                    <ProviderReviewSummary
-                      averageRating={data.averageRating}
-                      reviewCount={data.reviewCount}
-                      primaryColor={primary}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold text-gray-900 px-1">
+              {t('public.reviewsPageTitle', { name: data.employeeName })}
+            </h1>
 
-            <div className="rounded-2xl border border-gray-100 bg-white p-4">
-              {data.items.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">{t('public.noProviderReviews')}</p>
-              ) : (
-                <ProviderReviewList reviews={data.items} primaryColor={primary} />
-              )}
-            </div>
+            {data.items.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">{t('public.noProviderReviews')}</p>
+            ) : (
+              data.items.map((review) => (
+                <ProviderReviewCard key={review.id} review={review} primaryColor="#fbbf24" />
+              ))
+            )}
 
             {data.totalPages > 1 && (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 pt-4">
                 {page > 1 ? (
                   <Link
                     href={pageHref(page - 1)}
