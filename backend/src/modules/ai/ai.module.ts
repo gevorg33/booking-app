@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiCommandService } from './ai-command.service.js';
 import { AiCommandController } from './ai-command.controller.js';
@@ -29,6 +29,18 @@ import { AiAutopilotScheduler } from './ai-autopilot.scheduler.js';
 import { OpenAiModule } from '../integrations/openai/openai.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { LangGraphModule } from '../../engine/langgraph/langgraph.module.js';
+import { BookingCommandGraphService } from './booking-command-graph.service.js';
+import { CompoundCommandGraphService } from './compound-command-graph.service.js';
+import { CommandReasoningService } from './command-reasoning.service.js';
+import { ReactResultCompilerService } from './react-result-compiler.service.js';
+import { AiGatewayService } from './ai-gateway.service.js';
+import { AiEntityMemoryService } from './ai-entity-memory.service.js';
+import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
+import { AiIntelligenceService } from './ai-intelligence.service.js';
+import { CommandComplexityRouterService } from './command-complexity-router.service.js';
+import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.js';
 
 @Module({
   imports: [
@@ -50,6 +62,8 @@ import { CustomerModule } from '../customer/customer.module.js';
     WebSocketModule,
     EventStoreModule,
     CustomerModule,
+    LangGraphModule,
+    forwardRef(() => ProviderMobileModule),
   ],
   controllers: [AiCommandController],
   providers: [
@@ -65,6 +79,16 @@ import { CustomerModule } from '../customer/customer.module.js';
     AiBriefingService,
     AiAuditService,
     AiAutopilotScheduler,
+    BookingCommandGraphService,
+    CompoundCommandGraphService,
+    CommandReasoningService,
+    ReactResultCompilerService,
+    AiGatewayService,
+    AiEntityMemoryService,
+    AiConversationSummaryService,
+    AiIntelligenceService,
+    CommandComplexityRouterService,
+    AiIntentRescueService,
   ],
   exports: [
     CommandCompletionPipelineService,
@@ -74,6 +98,10 @@ import { CustomerModule } from '../customer/customer.module.js';
     OperationalPlanBuilderService,
     CommandOrchestrationService,
     AiSettingsService,
+    AiGatewayService,
+    AiIntelligenceService,
+    CommandComplexityRouterService,
+    AiIntentRescueService,
   ],
 })
 export class AiModule {}

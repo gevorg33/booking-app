@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AgentHandler } from '../agent-registry.service.js';
 import {
   AgentType,
@@ -8,14 +8,35 @@ import {
   PlanStatus,
 } from '../interfaces/agent.interfaces.js';
 import { LlmService } from '../llm.service.js';
+import { BookingAgentRouterService } from '../../langgraph/services/booking-agent-router.service.js';
+import { CancellationRecoveryGraphService } from '../../langgraph/services/cancellation-recovery-graph.service.js';
 
 @Injectable()
 export class CancellationRecoveryAgent implements AgentHandler {
+  private readonly logger = new Logger(CancellationRecoveryAgent.name);
   type = AgentType.CANCELLATION_RECOVERY;
 
-  constructor(private llm: LlmService) {}
+  constructor(
+    private llm: LlmService,
+    private router: BookingAgentRouterService,
+    private cancellationGraph: CancellationRecoveryGraphService,
+  ) {}
 
   async handle(context: AgentContext, intent: string): Promise<AgentResult> {
+    if (this.router.useLangGraph(AgentType.CANCELLATION_RECOVERY)) {
+      try {
+        const result = await this.cancellationGraph.run(context, intent);
+        this.logger.log(
+          `LangGraph cancellation recovery plan: ${result.plan.steps.length} steps, mode=${result.executionMode}`,
+        );
+        return result;
+      } catch (err: any) {
+        this.logger.warn(
+          `LangGraph cancellation recovery failed, falling back to LLM: ${err?.message ?? err}`,
+        );
+      }
+    }
+
     const llmResult = await this.llm.buildPlan(AgentType.CANCELLATION_RECOVERY, intent, context);
     if (llmResult) {
       return {

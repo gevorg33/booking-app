@@ -715,3 +715,39 @@ export function resolveCustomerMetric(
 
   return 'overview';
 }
+
+/** Ordered provider names when the user gives a conditional fallback booking chain. */
+export function extractProviderFallbackFromPrompt(
+  prompt: string,
+  employees: Array<{ id: string; name: string }>,
+): { providerFallbackNames: string[]; fallbackAnyProvider: boolean } {
+  const lower = prompt.toLowerCase();
+  const fallbackAnyProvider =
+    /\b(who(?:ever)? is free|whoever(?:'s| is) available|any provider|any specialist|whoever can|first available provider)\b/i.test(
+      prompt,
+    );
+
+  const isFallbackPrompt =
+    /\b(if .+ (not available|unavailable|busy|can'?t)|otherwise|else (book|try)|then (try|book)|if not)\b/i.test(
+      prompt,
+    );
+
+  if (!isFallbackPrompt && !fallbackAnyProvider) {
+    return { providerFallbackNames: [], fallbackAnyProvider: false };
+  }
+
+  const ordered = employees
+    .map((e) => {
+      const fullIdx = lower.indexOf(e.name.toLowerCase());
+      const first = e.name.split(/\s+/)[0] ?? e.name;
+      const firstIdx = fullIdx >= 0 ? fullIdx : lower.indexOf(first.toLowerCase());
+      return { name: e.name, idx: firstIdx };
+    })
+    .filter((x) => x.idx >= 0)
+    .sort((a, b) => a.idx - b.idx);
+
+  return {
+    providerFallbackNames: ordered.map((x) => x.name),
+    fallbackAnyProvider,
+  };
+}

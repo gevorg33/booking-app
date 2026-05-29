@@ -10,6 +10,7 @@ import {
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
+import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import type { CommandResult } from './command-completion.types.js';
 
 export interface AiGatewayExecuteParams {
@@ -35,6 +36,7 @@ export class AiGatewayService {
     private entityMemory: AiEntityMemoryService,
     private conversationSummary: AiConversationSummaryService,
     private intelligence: AiIntelligenceService,
+    private complexityRouter: CommandComplexityRouterService,
   ) {}
 
   getCapabilityHints(surface: AiSurface, role?: string): string {
@@ -75,10 +77,9 @@ export class AiGatewayService {
       );
     }
 
-    const route = await this.intelligence.routeComplexity(
-      params.businessId,
-      params.prompt,
-      'dashboard',
+    const route = this.complexityRouter.mergeRoutes(
+      await this.intelligence.routeComplexity(params.businessId, params.prompt, 'dashboard'),
+      this.complexityRouter.routeDeterministic(params.prompt),
     );
     enrichedContext._complexityRoute = route;
 

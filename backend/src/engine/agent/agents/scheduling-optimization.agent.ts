@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AgentHandler } from '../agent-registry.service.js';
 import {
   AgentType,
@@ -8,15 +8,31 @@ import {
   PlanStatus,
 } from '../interfaces/agent.interfaces.js';
 import { LlmService } from '../llm.service.js';
+import { BookingAgentRouterService } from '../../langgraph/services/booking-agent-router.service.js';
+import { SchedulingOptimizationGraphService } from '../../langgraph/services/scheduling-optimization-graph.service.js';
 
 @Injectable()
 export class SchedulingOptimizationAgent implements AgentHandler {
+  private readonly logger = new Logger(SchedulingOptimizationAgent.name);
   type = AgentType.SCHEDULING_OPTIMIZATION;
 
-  constructor(private llm: LlmService) {}
+  constructor(
+    private llm: LlmService,
+    private router: BookingAgentRouterService,
+    private optimizationGraph: SchedulingOptimizationGraphService,
+  ) {}
 
   async handle(context: AgentContext, intent: string): Promise<AgentResult> {
-    // Try LLM first, fall back to deterministic plan if unavailable
+    if (this.router.useLangGraph(AgentType.SCHEDULING_OPTIMIZATION)) {
+      try {
+        const result = await this.optimizationGraph.run(context, intent);
+        this.logger.log(`LangGraph schedule optimization: mode=${result.executionMode}`);
+        return result;
+      } catch (err: any) {
+        this.logger.warn(`LangGraph schedule optimization failed, falling back: ${err?.message ?? err}`);
+      }
+    }
+
     const llmResult = await this.llm.buildPlan(AgentType.SCHEDULING_OPTIMIZATION, intent, context);
 
     if (llmResult) {
@@ -37,7 +53,6 @@ export class SchedulingOptimizationAgent implements AgentHandler {
       };
     }
 
-    // Fallback: static plan
     return { plan: this.buildFallbackPlan(context, intent), executionMode: 'requires_approval' };
   }
 
@@ -59,7 +74,11 @@ export class SchedulingOptimizationAgent implements AgentHandler {
       id: s2,
       action: 'identify_schedule_gaps',
       description: 'Identify underutilized time slots and scheduling gaps',
-      params: { businessId: context.businessId, dateRange: context.dateRange, minUtilizationThreshold: 0.6 },
+      params: {
+        businessId: context.businessId,
+        dateRange: context.dateRange,
+        minUtilizationThreshold: 0.6,
+      },
       dependsOn: [s1],
       estimatedImpact: 'Read-only analysis',
     });

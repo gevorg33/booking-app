@@ -32,6 +32,8 @@ export enum PaymentStatus {
 @Entity('bookings')
 @Index(['employeeId', 'startTime', 'endTime'])
 @Index(['businessId', 'startTime'])
+@Index(['businessId', 'status', 'paymentStatus'])
+@Index(['businessId', 'paymentStatus', 'startTime'])
 @Index(['slotId'])
 export class Booking {
   @PrimaryGeneratedColumn('uuid')

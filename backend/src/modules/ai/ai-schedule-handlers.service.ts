@@ -30,6 +30,7 @@ import {
 import { formatDateDisplay, toIsoDay, parseDateInput } from '../../common/utils/date-format.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
@@ -953,6 +954,121 @@ export class AiScheduleHandlersService {
         taskId: result.taskId,
         requiresApproval: result.requiresApproval,
       },
+    };
+  }
+
+  async handleCreateScheduleTemplate(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const plan = await this.prepareCreateScheduleTemplatePlan(
+      businessId,
+      prompt,
+      params,
+      employees,
+      services,
+      userId,
+    );
+    if (!plan) {
+      return {
+        success: false,
+        action: 'create_schedule_template',
+        summary:
+          'Cannot create template — specify template name and hours (e.g. "Create template Weekday 9-17 with facemassage Mon-Fri").',
+        details: { params },
+      };
+    }
+    return this.executePlan(plan, businessId, userId, 1);
+  }
+
+  async prepareCreateScheduleTemplatePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<AgentPlan | null> {
+    const name = (params.templateName ?? params.name ?? '').trim();
+    if (!name) return null;
+
+    let rawPeriods: any[] = params.periods?.length
+      ? [...params.periods]
+      : [...inferDirectSchedulePeriods(params, prompt)];
+    if (!rawPeriods.length) {
+      if (params.timeFrom && params.timeTo) {
+        rawPeriods = [
+          {
+            startTime: normalizeTime24(params.timeFrom),
+            endTime: normalizeTime24(params.timeTo),
+            type: TemplatePeriodType.SERVICE_BLOCK,
+          },
+        ];
+      } else if (
+        (prompt ?? '').match(
+          /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
+        )
+      ) {
+        const window = parseTimeWindow(params, prompt);
+        rawPeriods = [
+          {
+            startTime: window.timeFrom,
+            endTime: window.timeTo,
+            type: TemplatePeriodType.SERVICE_BLOCK,
+          },
+        ];
+      }
+    }
+    if (!rawPeriods.length) return null;
+
+    const applyDays = parseWeekdaysFromParams(params, prompt);
+    const weekdayFlags = this.applyDaysToTemplateFlags(
+      applyDays.length ? applyDays : [1, 2, 3, 4, 5],
+    );
+
+    const timePeriods = rawPeriods.map((p: any) => {
+      const isUnavailable = p.type === 'unavailable_block';
+      const periodServiceParams = {
+        serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : params.serviceNames),
+        serviceName: p.serviceName ?? params.serviceName ?? null,
+      };
+      const matched = isUnavailable
+        ? []
+        : resolveServices(services, periodServiceParams);
+
+      return {
+        startTime: normalizeTime24(p.startTime),
+        endTime: normalizeTime24(p.endTime),
+        type: p.type ?? TemplatePeriodType.SERVICE_BLOCK,
+        placeholderLabel: p.placeholderLabel ?? p.label,
+        serviceIds: matched.map((s) => s.id),
+        maxAppointmentCount: p.maxAppointmentCount ?? 1,
+        ...weekdayFlags,
+      };
+    });
+
+    return this.planBuilder.buildCreateScheduleTemplatePlan({
+      businessId,
+      name,
+      timePeriods,
+      userId,
+    });
+  }
+
+  private applyDaysToTemplateFlags(applyDays: number[]) {
+    const set = new Set(applyDays);
+    return {
+      isActiveOnSunday: set.has(0),
+      isActiveOnMonday: set.has(1),
+      isActiveOnTuesday: set.has(2),
+      isActiveOnWednesday: set.has(3),
+      isActiveOnThursday: set.has(4),
+      isActiveOnFriday: set.has(5),
+      isActiveOnSaturday: set.has(6),
     };
   }
 }

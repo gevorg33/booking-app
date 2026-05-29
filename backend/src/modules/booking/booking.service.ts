@@ -451,6 +451,27 @@ export class BookingService {
       });
     }
 
+    if (
+      booking.status === BookingStatus.NO_SHOW &&
+      previousStatus !== BookingStatus.NO_SHOW
+    ) {
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_NO_SHOW,
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        businessId: booking.businessId,
+        payload: {
+          customerId: booking.customerId,
+          serviceId: booking.serviceId,
+          employeeId: booking.employeeId,
+          startTime: booking.startTime.toISOString(),
+          endTime: booking.endTime.toISOString(),
+          previousStatus,
+        },
+        userId,
+      });
+    }
+
     await this.eventStore.publish({
       eventType: EventType.BOOKING_UPDATED,
       aggregateType: 'booking',

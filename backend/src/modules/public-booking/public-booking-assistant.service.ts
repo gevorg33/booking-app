@@ -23,7 +23,9 @@ import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../
 import {
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
+  extractProviderFallbackFromPrompt,
 } from '../ai/ai-intent-heuristics.js';
+import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
 import { parseEarliestBookingTimeFromPrompt } from '../ai/ai-orchestration.helpers.js';
 
 export interface PublicAssistantNavigate {
@@ -53,6 +55,8 @@ Classify the user's message and extract parameters. Return JSON:
     "timeFrom": "HH:MM or null — earliest time when user says after 16:00",
     "bookingFirstAvailable": boolean or null — true for nearest/first/next available/ASAP booking,
     "allProviders": boolean or null — true when user wants any specialist/provider,
+    "providerFallbackNames": ["string"] or null — ordered provider preference for conditional booking,
+    "fallbackAnyProvider": boolean or null — true when last fallback is whoever is free at the fixed time,
     "customerName": "string or null",
     "customerEmail": "string or null",
     "customerPhone": "string or null"
@@ -69,6 +73,7 @@ Rules:
 - Use book_appointment when they want to book/reserve/schedule and mention provider, service, time, or contact details.
 - "Book nearest/first/next available {service} on any specialist" → book_appointment with serviceName, bookingFirstAvailable=true, allProviders=true, employeeName=null, timeSlot=null.
 - "Nearest slot for {service} with {name}" / "after 16:00" → bookingFirstAvailable=true, employeeName if named, timeFrom when after HH:MM is given.
+- Conditional fallback at a fixed time: "Book {service} with Gevorg tomorrow at 9; if not then Mary; if not whoever is free" → book_appointment with serviceName, date, timeSlot, providerFallbackNames, fallbackAnyProvider=true. Do NOT set bookingFirstAvailable.
 - Use booking_help to explain how online booking works.
 - Never invent staff or services — only use names from the provided lists.
 - Multi-turn: inherit employeeName, date, serviceName, timeSlot from session context when omitted (not for bookingFirstAvailable — always resolve fresh nearest slot).
@@ -83,6 +88,7 @@ export class PublicBookingAssistantService {
     private publicBookingService: PublicBookingService,
     private businessService: BusinessService,
     private openAi: OpenAiGatewayService,
+    private slotResolver: BookingSlotResolverService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -133,6 +139,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     this.applyBookingHeuristics(prompt, parsed.params, parsed.action);
+    if (parsed.action === 'book_appointment') {
+      const fallback = extractProviderFallbackFromPrompt(prompt, employees);
+      if (fallback.providerFallbackNames.length) {
+        parsed.params.providerFallbackNames = fallback.providerFallbackNames;
+      }
+      if (fallback.fallbackAnyProvider) {
+        parsed.params.fallbackAnyProvider = true;
+      }
+    }
     parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action);
     this.normalizeDateParams(parsed.params, todayKey);
 
@@ -415,6 +430,57 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       params.employeeId = nearest.employeeId;
     }
 
+    const wantsProviderFallback =
+      !params.bookingFirstAvailable &&
+      !!params.date &&
+      !!params.timeSlot &&
+      (params.fallbackAnyProvider === true ||
+        (Array.isArray(params.providerFallbackNames) && params.providerFallbackNames.length > 0));
+
+    if (wantsProviderFallback && service) {
+      const business = await this.publicBookingService.resolveBusiness(slug);
+      const tz = resolveTimezone(business.timezone);
+      const isoDay = toIsoDay(params.date, tz);
+      const priorityNames: string[] = Array.isArray(params.providerFallbackNames)
+        ? params.providerFallbackNames
+        : employee
+          ? [employee.name]
+          : [];
+
+      const providerPriority = priorityNames
+        .map((name) => this.fuzzyMatchByName(employees, name))
+        .filter((e): e is Employee => !!e)
+        .map((e) => ({ id: e.id, name: e.name }));
+
+      const pick = await this.slotResolver.resolveWithFallback({
+        businessId: business.id,
+        serviceId: service.id,
+        isoDay,
+        timeSlot: params.timeSlot,
+        timeZone: tz,
+        providerPriority,
+        fallbackAnyProvider: params.fallbackAnyProvider === true,
+        allActiveProviders: employees.map((e) => ({ id: e.id, name: e.name })),
+      });
+
+      if (!pick) {
+        const tried = providerPriority.map((p) => p.name).join(', ') || 'requested specialists';
+        return {
+          success: false,
+          action: 'book_appointment',
+          summary: `Sorry — no one is available for ${service.name} at ${this.snapTo10min(params.timeSlot)} on ${formatDateDisplay(isoDay)}. We tried: ${tried}${
+            params.fallbackAnyProvider ? ' and other specialists' : ''
+          }.`,
+        };
+      }
+
+      params.employeeId = pick.employeeId;
+      params.employeeName = pick.employeeName;
+      params.timeSlot = pick.timeSlot;
+      params.date = pick.isoDay;
+      params.startTime = pick.startTime;
+    }
+
     const missing: string[] = [];
     if (!params.employeeName && !params.employeeId) missing.push('specialist');
     if (!params.serviceName && !service) missing.push('service');
@@ -642,7 +708,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       params.employeeName = null;
       delete params.employeeId;
     }
-    if (isFirstAvailableBookingPrompt(prompt)) {
+    if (isFirstAvailableBookingPrompt(prompt) && !params.providerFallbackNames?.length) {
       params.bookingFirstAvailable = true;
       delete params.timeSlot;
     }

@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Param, Query, UseGuards, Put } from '@nestjs/common';
-import { AiCommandService } from './ai-command.service.js';
+import { AiGatewayService } from './ai-gateway.service.js';
 import { AiSuggestionsService, type AiSuggestionsContext } from './ai-suggestions.service.js';
 import { AiBriefingService } from './ai-briefing.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
@@ -13,7 +13,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 @UseGuards(JwtAuthGuard)
 export class AiCommandController {
   constructor(
-    private aiCommandService: AiCommandService,
+    private aiGateway: AiGatewayService,
     private suggestionsService: AiSuggestionsService,
     private briefingService: AiBriefingService,
     private aiSettings: AiSettingsService,
@@ -66,7 +66,13 @@ export class AiCommandController {
     @Body() dto: AiCommandDto,
     @CurrentUser() user: any,
   ) {
-    return this.aiCommandService.executeCommand(businessId, dto.prompt, user?.id, {
+    return this.aiGateway.execute({
+      surface: 'dashboard',
+      businessId,
+      prompt: dto.prompt,
+      userId: user?.id,
+      role: user?.role ?? user?.membership?.role,
+      confirmed: dto.confirmed === true,
       history: dto.history,
       context: dto.context,
     });
@@ -78,6 +84,16 @@ export class AiCommandController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: any,
   ) {
-    return this.aiCommandService.approveTask(taskId, user?.id, businessId);
+    return this.aiGateway.approveTask(businessId, taskId, user?.id, 'dashboard');
+  }
+
+  @Post('command/tasks/:taskId/steps/:stepId/retry')
+  retryStep(
+    @Param('businessId') businessId: string,
+    @Param('taskId') taskId: string,
+    @Param('stepId') stepId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.aiGateway.retryFailedStep(businessId, taskId, stepId, user?.id);
   }
 }
