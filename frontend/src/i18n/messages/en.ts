@@ -799,7 +799,7 @@ const en: MessageTree = {
     continueBooking: 'Continue booking',
     uncategorizedServices: 'Other services',
     exampleAvailable: 'Free slots on Monday and Friday for massage',
-    exampleServices: 'What services do you offer?',
+    exampleServices: 'Best rated specialists for massage this week',
     exampleBook: 'Book a massage tomorrow at 10:00',
     exampleLocation: 'Where are you located?',
   },

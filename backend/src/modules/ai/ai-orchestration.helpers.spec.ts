@@ -5,6 +5,9 @@ import {
   resolvePublicAvailabilityDateKeys,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
+  matchServicesByQuery,
+  extractRecommendServicesFromPrompt,
+  stripServiceRoleNoise,
 } from './ai-orchestration.helpers.js';
 
 describe('inferDirectSchedulePeriods', () => {
@@ -134,5 +137,65 @@ describe('resolveDateRange bare weekday', () => {
     const range = resolveDateRange({}, 'free slots on Monday for Gevorg', 'UTC');
     expect(range).not.toBeNull();
     expect(new Date(`${range!.start}T12:00:00.000Z`).getUTCDay()).toBe(1);
+  });
+});
+
+describe('matchServicesByQuery', () => {
+  const catalog = [
+    { id: '1', name: 'Deep tissue massage' },
+    { id: '2', name: 'facemassage' },
+    { id: '3', name: 'full body massage' },
+    { id: '4', name: 'Hot stone massage' },
+    { id: '5', name: 'Swedish massage' },
+    { id: '6', name: 'hairstyle' },
+  ];
+
+  it('returns all massage services for broad "massage" query', () => {
+    const matched = matchServicesByQuery(catalog, 'massage');
+    expect(matched.map((s) => s.name)).toEqual([
+      'Deep tissue massage',
+      'facemassage',
+      'full body massage',
+      'Hot stone massage',
+      'Swedish massage',
+    ]);
+  });
+
+  it('strips specialist role words before matching', () => {
+    expect(stripServiceRoleNoise('massage specialist')).toBe('massage');
+    const matched = matchServicesByQuery(catalog, 'massage specialist');
+    expect(matched).toHaveLength(5);
+  });
+
+  it('returns a single service for specific names', () => {
+    const matched = matchServicesByQuery(catalog, 'Swedish massage');
+    expect(matched).toHaveLength(1);
+    expect(matched[0].name).toBe('Swedish massage');
+  });
+});
+
+describe('extractRecommendServicesFromPrompt', () => {
+  const catalog = [
+    { id: '1', name: 'Deep tissue massage' },
+    { id: '2', name: 'facemassage' },
+    { id: '3', name: 'full body massage' },
+    { id: '4', name: 'Hot stone massage' },
+    { id: '5', name: 'Swedish massage' },
+  ];
+
+  it('extracts all massage types from highest rated prompt', () => {
+    const matched = extractRecommendServicesFromPrompt(
+      'who is the highest rated Massage',
+      catalog,
+    );
+    expect(matched).toHaveLength(5);
+  });
+
+  it('extracts from massage specialist phrasing', () => {
+    const matched = extractRecommendServicesFromPrompt(
+      'who is the highest rated massage specialist',
+      catalog,
+    );
+    expect(matched).toHaveLength(5);
   });
 });

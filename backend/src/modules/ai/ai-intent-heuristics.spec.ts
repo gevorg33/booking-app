@@ -8,6 +8,7 @@ import {
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
   isBulkAllAppointmentsPrompt,
+  isRecommendSpecialistsPrompt,
 } from './ai-intent-heuristics.js';
 
 describe('ai-intent-heuristics', () => {
@@ -121,6 +122,21 @@ describe('ai-intent-heuristics', () => {
       expect(
         isBulkAllAppointmentsPrompt('cancel hot stone massage for gevorg on 01_06_2026'),
       ).toBe(false);
+    });
+  });
+
+  describe('isRecommendSpecialistsPrompt', () => {
+    it('detects best rated specialists queries', () => {
+      expect(
+        isRecommendSpecialistsPrompt('best rated specialists for massage this week'),
+      ).toBe(true);
+      expect(
+        isRecommendSpecialistsPrompt('suggest top specialists for haircut on Monday'),
+      ).toBe(true);
+    });
+
+    it('does not match plain availability', () => {
+      expect(isRecommendSpecialistsPrompt('free slots on Monday for Gevorg')).toBe(false);
     });
   });
 });

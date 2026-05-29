@@ -303,6 +303,112 @@ export function fuzzyMatchServiceByName<T extends { name: string }>(
   );
 }
 
+const SERVICE_ROLE_WORDS =
+  /\b(?:specialists?|therapists?|providers?|stylists?|masseurs?|doctors?|professionals?)\b/gi;
+const SERVICE_QUALITY_WORDS =
+  /\b(?:best|top|highest(?:\s+-?\s*rated)?|highly\s+rated|recommended?)\b/gi;
+
+/** Remove role/quality words so "massage specialist" → "massage". */
+export function stripServiceRoleNoise(query: string): string {
+  return query
+    .replace(SERVICE_ROLE_WORDS, ' ')
+    .replace(SERVICE_QUALITY_WORDS, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Match one or many catalog services from a customer query.
+ * Broad tokens like "massage" return every service whose name contains that token.
+ */
+export function matchServicesByQuery<T extends { id: string; name: string }>(
+  items: T[],
+  query: string,
+): T[] {
+  const cleaned = stripServiceRoleNoise(query);
+  if (!cleaned) return [];
+
+  const normalizedQuery = normalizeServiceLookup(cleaned);
+  if (normalizedQuery.length < 3) return [];
+
+  const tokenMatches = items.filter((item) =>
+    normalizeServiceLookup(item.name).includes(normalizedQuery),
+  );
+
+  const queryWords = cleaned.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+  const isSingleBroadToken = queryWords.length === 1;
+
+  if (tokenMatches.length > 1 && isSingleBroadToken) {
+    return [...tokenMatches].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  if (queryWords.length > 1 && tokenMatches.length > 1) {
+    const wordMatches = tokenMatches.filter((item) => {
+      const norm = normalizeServiceLookup(item.name);
+      return queryWords.every((word) => norm.includes(normalizeServiceLookup(word)));
+    });
+    if (wordMatches.length > 1) {
+      return [...wordMatches].sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+
+  const exact = fuzzyMatchServiceByName(items, cleaned);
+  if (exact) return [exact];
+
+  if (tokenMatches.length > 0) {
+    return [...tokenMatches].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return [];
+}
+
+/** Extract service(s) from top-rated / recommend specialist prompts. */
+export function extractRecommendServicesFromPrompt<T extends { id: string; name: string }>(
+  prompt: string,
+  services: T[],
+): T[] {
+  const patterns = [
+    /\b(?:who\s+is\s+)?(?:the\s+)?(?:best|top|highest(?:\s+-?\s*rated)?)\s+(.+?)(?:\s+specialists?|\s+therapists?|\?|$)/i,
+    /\b(?:suggest|recommend)\s+(?:\w+\s+){0,4}(?:specialists?|therapists?)\s+(?:for|for\s+a)?\s+(.+?)(?:\?|$)/i,
+    /\b(?:best|top|highest(?:\s+-?\s*rated)?)\s+(.+?)\s*$/i,
+    /\b(?:specialists?|therapists?)\s+(?:for|for\s+a)\s+(.+?)(?:\?|$)/i,
+  ];
+
+  for (const re of patterns) {
+    const match = prompt.match(re);
+    if (match?.[1]) {
+      const found = matchServicesByQuery(services, match[1].trim());
+      if (found.length) return found;
+    }
+  }
+
+  const single = fuzzyMatchServiceByName(services, stripServiceRoleNoise(prompt));
+  if (single) {
+    const broad = matchServicesByQuery(services, single.name);
+    return broad.length ? broad : [single];
+  }
+
+  return matchServicesByQuery(services, prompt);
+}
+
+export function inferServiceGroupLabel(
+  services: Array<{ name: string }>,
+  query?: string,
+): string {
+  if (services.length === 1) return services[0].name;
+
+  const cleaned = query ? stripServiceRoleNoise(query) : '';
+  const normalizedQuery = cleaned ? normalizeServiceLookup(cleaned) : '';
+  if (
+    normalizedQuery.length >= 4 &&
+    services.every((s) => normalizeServiceLookup(s.name).includes(normalizedQuery))
+  ) {
+    return `${cleaned} services`;
+  }
+
+  return `${services.length} services`;
+}
+
 export function resolveEmployees(
   employees: Employee[],
   params: {

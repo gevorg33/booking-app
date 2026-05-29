@@ -424,7 +424,7 @@ const hy: MessageTree = {
     continueBooking: 'Շարունակել ամրագրումը',
     uncategorizedServices: 'Այլ ծառայություններ',
     exampleAvailable: 'Ազատ slot-եր երկուշաբթի և ուրբաթ massage-ի համար',
-    exampleServices: 'Ի՞նչ ծառayություններ ունեք։',
+    exampleServices: 'Լավագույն վարկանիշով մասնագետներ massage-ի համար այս շաբաթ',
     exampleBook: 'Ամրագրիր massage վաղը 10:00-ին',
     exampleLocation: 'Որտե՞ղ եք գտնվում։',
   },

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
@@ -98,6 +98,19 @@ export interface NearestBookableSlot {
   employeeName: string;
   dateKey: string;
   startTime: string;
+}
+
+export interface RecommendedProvider {
+  id: string;
+  name: string;
+  role?: string;
+  averageRating: number | null;
+  reviewCount: number;
+  earliestDateKey: string;
+  earliestStartTime: string;
+  previewTimes: string[];
+  matchedServiceId: string;
+  matchedServiceName: string;
 }
 
 const SCAN_DAYS = 14;
@@ -246,6 +259,159 @@ export class PublicBookingService {
     );
 
     return { providers };
+  }
+
+  async recommendProviders(
+    slug: string,
+    options: {
+      serviceId?: string;
+      serviceIds?: string[];
+      dateKeys: string[];
+      notBeforeTime?: string | null;
+      limit?: number;
+    },
+  ): Promise<{ providers: RecommendedProvider[] }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const tz = resolveTimezone(business.timezone);
+
+    const requestedIds = [
+      ...(options.serviceIds ?? []),
+      ...(options.serviceId ? [options.serviceId] : []),
+    ];
+    const uniqueIds = [...new Set(requestedIds)];
+
+    let employees = await this.employeeRepo.find({
+      where: { businessId: business.id, isActive: true },
+    });
+
+    let matchedServices: Service[] = [];
+    if (uniqueIds.length > 0) {
+      matchedServices = await this.serviceRepo.find({
+        where: { id: In(uniqueIds), businessId: business.id, isActive: true },
+      });
+      if (!matchedServices.length) return { providers: [] };
+
+      employees = employees.filter((employee) =>
+        matchedServices.some(
+          (service) => !employee.serviceIds?.length || employee.serviceIds.includes(service.id),
+        ),
+      );
+    }
+
+    if (!employees.length) return { providers: [] };
+
+    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
+      business.id,
+      employees.map((e) => e.id),
+    );
+
+    const sortedDateKeys = [...options.dateKeys].sort();
+    const candidates: RecommendedProvider[] = [];
+
+    for (const employee of employees) {
+      let earliestDateKey: string | null = null;
+      let earliestStartTime: string | null = null;
+      let previewTimes: string[] = [];
+      let matchedService: Service | null = null;
+
+      for (const dateKey of sortedDateKeys) {
+        for (const service of matchedServices.length ? matchedServices : []) {
+          if (employee.serviceIds?.length && !employee.serviceIds.includes(service.id)) {
+            continue;
+          }
+
+          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+          const upcoming = rawSlots.filter((startTime) =>
+            isWallClockSlotBookable(
+              dateKey,
+              formatTimeDisplay(startTime),
+              tz,
+              options.notBeforeTime ?? null,
+            ),
+          );
+
+          const bookable = await this.filterStartTimesWithService(
+            business.id,
+            employee,
+            upcoming,
+            service,
+          );
+          if (bookable.length === 0) continue;
+
+          if (
+            !earliestDateKey ||
+            dateKey < earliestDateKey ||
+            (dateKey === earliestDateKey &&
+              earliestStartTime &&
+              bookable[0].toISOString() < earliestStartTime)
+          ) {
+            earliestDateKey = dateKey;
+            earliestStartTime = bookable[0].toISOString();
+            previewTimes = bookable.slice(0, 4).map((s) => formatTimeDisplay(s));
+            matchedService = service;
+          }
+        }
+
+        if (matchedServices.length === 0) {
+          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+          const upcoming = rawSlots.filter((startTime) =>
+            isWallClockSlotBookable(
+              dateKey,
+              formatTimeDisplay(startTime),
+              tz,
+              options.notBeforeTime ?? null,
+            ),
+          );
+          const bookable = await this.filterStartTimesWithAnyBookableService(
+            business.id,
+            employee,
+            upcoming,
+          );
+          if (bookable.length === 0) continue;
+
+          if (
+            !earliestDateKey ||
+            dateKey < earliestDateKey ||
+            (dateKey === earliestDateKey &&
+              earliestStartTime &&
+              bookable[0].toISOString() < earliestStartTime)
+          ) {
+            earliestDateKey = dateKey;
+            earliestStartTime = bookable[0].toISOString();
+            previewTimes = bookable.slice(0, 4).map((s) => formatTimeDisplay(s));
+          }
+        }
+      }
+
+      if (!earliestDateKey || !earliestStartTime) continue;
+
+      const reviews = reviewSummaries.get(employee.id);
+      const metadata = employee.metadata || {};
+      candidates.push({
+        id: employee.id,
+        name: employee.name,
+        role: metadata.role || metadata.title,
+        averageRating: reviews?.averageRating ?? null,
+        reviewCount: reviews?.reviewCount ?? 0,
+        earliestDateKey,
+        earliestStartTime,
+        previewTimes,
+        matchedServiceId: matchedService?.id ?? matchedServices[0]?.id ?? '',
+        matchedServiceName: matchedService?.name ?? matchedServices[0]?.name ?? '',
+      });
+    }
+
+    candidates.sort((a, b) => {
+      const aRating = a.averageRating ?? -1;
+      const bRating = b.averageRating ?? -1;
+      if (bRating !== aRating) return bRating - aRating;
+      if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+      return a.name.localeCompare(b.name);
+    });
+
+    const limit = options.limit ?? 5;
+    return { providers: candidates.slice(0, limit) };
   }
 
   async getProviderSlots(

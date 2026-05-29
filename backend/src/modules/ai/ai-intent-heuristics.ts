@@ -519,6 +519,20 @@ export function isFirstAvailableBookingPrompt(prompt: string): boolean {
   );
 }
 
+/** Customer wants top-rated / recommended specialists (often for a service and date range). */
+export function isRecommendSpecialistsPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(best|top|highest|highly)\s+(rated|rating|reviewed|reviews?)\b/i.test(lower) ||
+    /\b(rated|rating|reviews?)\s+(best|top|highest)\b/i.test(lower) ||
+    /\b(suggest|recommend)\b[\s\S]{0,40}\b(specialists?|providers?|therapists?|stylists?|masseurs?|doctors?)\b/i.test(
+      lower,
+    ) ||
+    /\bwho\s+(is|are)\s+(the\s+)?(best|top|highest)\b/i.test(lower) ||
+    /\bbest\s+(specialists?|providers?|therapists?|stylists?)\b/i.test(lower)
+  );
+}
+
 export function extractProviderPossessiveFromReschedulePrompt(
   prompt: string,
   employees: Array<{ id: string; name: string }>,
