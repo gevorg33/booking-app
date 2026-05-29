@@ -431,11 +431,11 @@ export class AiScheduleHandlersService {
       };
     }
 
-    if (!params.date) {
+    if (!params.date && !(params.dateFrom && params.dateTo)) {
       return {
         success: false,
         action: 'create_direct_schedule',
-        summary: 'Specify the date for the direct schedule.',
+        summary: 'Specify the date or date range for the direct schedule.',
         details: { params },
       };
     }
@@ -489,16 +489,36 @@ export class AiScheduleHandlersService {
       };
     }
 
+    const dates: string[] = [];
+    if (params.dateFrom && params.dateTo) {
+      const range = resolveDateRange(params, prompt);
+      if (range) {
+        for (const day of enumerateDaysInRange(range)) {
+          dates.push(day.toISOString().split('T')[0]);
+        }
+      }
+    } else if (params.date) {
+      dates.push(toIsoDay(params.date));
+    }
+    if (!dates.length) {
+      return {
+        success: false,
+        action: 'create_direct_schedule',
+        summary: 'Could not resolve the schedule date range.',
+        details: { params },
+      };
+    }
+
     const plan = this.planBuilder.buildDirectSchedulePlan({
       businessId,
       employeeId: targets[0].id,
       employeeName: targets[0].name,
-      date: toIsoDay(params.date),
+      dates,
       periods: normalizedPeriods,
       userId,
     });
 
-    return this.executePlan(plan, businessId, userId, 1);
+    return this.executePlan(plan, businessId, userId, plan.steps.length);
   }
 
   async handleClearSchedule(

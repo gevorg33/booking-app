@@ -128,7 +128,7 @@ const ACTION_RULES: Record<string, Rule> = {
     const hasTarget =
       !!cmd.params.bookingId ||
       !!cmd.params.customerName ||
-      (!!cmd.params.employeeName && (!!cmd.params.date || !!cmd.params.timeSlot));
+      !!cmd.params.employeeName;
     const hasNewTime = !!cmd.params.date || !!cmd.params.timeSlot;
     const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
     return [
@@ -137,8 +137,8 @@ const ACTION_RULES: Record<string, Rule> = {
         : [{
             field: 'bookingId',
             label: 'Booking',
-            message: 'Specify which appointment to update (customer, or provider + date/time, or booking ID)',
-            example: 'Change Maria\'s 14:00 appointment to hot stone massage',
+            message: 'Specify which appointment to update (customer, provider, or booking ID)',
+            example: 'Move Mary\'s appointment to tomorrow from 13:30',
           }]),
       ...(hasNewTime || hasServiceChange
         ? []
@@ -296,8 +296,18 @@ const ACTION_RULES: Record<string, Rule> = {
 
   create_direct_schedule: (cmd) =>
     [
-      needs('employeeName', 'Service provider', !!cmd.entities.employee, 'Gevorg Gasparyan'),
-      needs('date', 'Date', !!cmd.params.date, 'Friday or 29/05/2026'),
+      needs(
+        'employeeName',
+        'Service provider',
+        !!cmd.entities.employee,
+        'Gevorg Gasparyan',
+      ),
+      needs(
+        'date',
+        'Date',
+        !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange,
+        'Friday, June 2-June 10, or 29/05/2026',
+      ),
       ...(Array.isArray(cmd.params.periods) && cmd.params.periods.length > 0
         ? []
         : [{

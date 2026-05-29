@@ -23,6 +23,126 @@ export interface DateRange {
   end: string;
 }
 
+const MONTH_NAME_MAP: Record<string, number> = {
+  january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3, april: 4, apr: 4,
+  may: 5, june: 6, jun: 6, july: 7, jul: 7, august: 8, aug: 8,
+  september: 9, sep: 9, sept: 9, october: 10, oct: 10, november: 11, nov: 11,
+  december: 12, dec: 12,
+};
+
+function inferYearForMonthDay(day: number, month: number, timeZone: string): number {
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
+  let year = today.year();
+  const candidate = dayjs.tz(
+    `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    tz,
+  );
+  if (candidate.isBefore(today, 'day')) year += 1;
+  return year;
+}
+
+function buildIsoDay(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function parseMonthDayToken(token: string, timeZone: string): string | null {
+  const trimmed = token.trim();
+  const lower = trimmed.toLowerCase();
+
+  const dayMonth = lower.match(/^(\d{1,2})(?:st|nd|rd|th)?(?:\s+of\s+|\s+)([a-z]+)(?:\s+(\d{4}))?$/);
+  if (dayMonth) {
+    const month = MONTH_NAME_MAP[dayMonth[2]];
+    if (!month) return null;
+    const day = parseInt(dayMonth[1], 10);
+    const year = dayMonth[3] ? parseInt(dayMonth[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    return buildIsoDay(year, month, day);
+  }
+
+  const monthDay = lower.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/);
+  if (monthDay) {
+    const month = MONTH_NAME_MAP[monthDay[1]];
+    if (!month) return null;
+    const day = parseInt(monthDay[2], 10);
+    const year = monthDay[3] ? parseInt(monthDay[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    return buildIsoDay(year, month, day);
+  }
+
+  const slash = trimmed.match(/^(\d{1,2})[/_](\d{1,2})(?:[/_](\d{2,4}))?$/);
+  if (slash) {
+    const day = parseInt(slash[1], 10);
+    const month = parseInt(slash[2], 10);
+    let year = slash[3] ? parseInt(slash[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    if (year < 100) year += 2000;
+    return buildIsoDay(year, month, day);
+  }
+
+  return null;
+}
+
+/** Parse explicit date ranges from natural language (e.g. "June 2-June 10", "from 02/06 to 10/06"). */
+export function extractDateRangeFromPrompt(prompt: string, timeZone = 'UTC'): DateRange | null {
+  const lower = prompt.toLowerCase();
+
+  const sameMonth = lower.match(
+    /\b(?:from\s+)?(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|to|through)\s*(?:\1\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/,
+  );
+  if (sameMonth) {
+    const month = MONTH_NAME_MAP[sameMonth[1]];
+    const startDay = parseInt(sameMonth[2], 10);
+    const endDay = parseInt(sameMonth[3], 10);
+    const year = inferYearForMonthDay(startDay, month, timeZone);
+    return {
+      start: buildIsoDay(year, month, startDay),
+      end: buildIsoDay(year, month, endDay),
+    };
+  }
+
+  const crossMonth = lower.match(
+    /\bfrom\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|to|through)\s*(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?\b/,
+  );
+  if (crossMonth) {
+    const startMonth = MONTH_NAME_MAP[crossMonth[1]];
+    const endMonth = MONTH_NAME_MAP[crossMonth[3]];
+    const startDay = parseInt(crossMonth[2], 10);
+    const endDay = parseInt(crossMonth[4], 10);
+    const startYear = inferYearForMonthDay(startDay, startMonth, timeZone);
+    let endYear = startYear;
+    if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
+      endYear += 1;
+    }
+    return {
+      start: buildIsoDay(startYear, startMonth, startDay),
+      end: buildIsoDay(endYear, endMonth, endDay),
+    };
+  }
+
+  const numericRange = prompt.match(
+    /\b(\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)\s*(?:-|–|to|through)\s*(\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)\b/i,
+  );
+  if (numericRange) {
+    const start = parseMonthDayToken(numericRange[1], timeZone);
+    const end = parseMonthDayToken(numericRange[2], timeZone);
+    if (start && end) return { start, end };
+  }
+
+  return null;
+}
+
+/** Fill dateFrom/dateTo from prompt when the LLM only extracted the start date. */
+export function enrichDateRangeFromPrompt(
+  params: Record<string, any>,
+  prompt: string,
+  timeZone = 'UTC',
+): void {
+  if (params.dateFrom && params.dateTo) return;
+  const range = extractDateRangeFromPrompt(prompt, timeZone);
+  if (!range) return;
+  params.dateFrom = formatDateDisplay(range.start);
+  params.dateTo = formatDateDisplay(range.end);
+}
+
 export function normalizeEmployeeNameToken(name: string): string {
   return name
     .trim()
@@ -239,6 +359,9 @@ export function resolveDateRange(
       end: toIsoDay(params.dateTo, tz),
     };
   }
+
+  const promptRange = extractDateRangeFromPrompt(prompt ?? '', timeZone ?? params._timeZone ?? 'UTC');
+  if (promptRange) return promptRange;
 
   const tz = resolveTimezone(timeZone ?? params._timeZone ?? 'UTC');
   const lower = (prompt ?? '').toLowerCase();

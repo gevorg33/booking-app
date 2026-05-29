@@ -84,7 +84,8 @@ export interface ResolvedDirectScheduleParams {
   businessId: string;
   employeeId: string;
   employeeName: string;
-  date: string;
+  date?: string;
+  dates?: string[];
   periods: Array<{
     startTime: string;
     endTime: string;
@@ -227,27 +228,31 @@ export class OperationalPlanBuilderService {
   }
 
   buildDirectSchedulePlan(params: ResolvedDirectScheduleParams): AgentPlan {
-    const stepId = crypto.randomUUID();
-    const steps: AgentPlanStep[] = [
-      {
-        id: stepId,
-        action: 'create_direct_schedule',
-        description: `Set direct schedule for ${params.employeeName} on ${params.date}`,
-        params: {
-          businessId: params.businessId,
-          employeeId: params.employeeId,
-          date: params.date,
-          periods: params.periods,
-          userId: params.userId,
-        },
-        dependsOn: [],
-        estimatedImpact: 'Replaces schedule for the day',
+    const dates = params.dates ?? (params.date ? [params.date] : []);
+    const steps: AgentPlanStep[] = dates.map((date) => ({
+      id: crypto.randomUUID(),
+      action: 'create_direct_schedule',
+      description: `Set direct schedule for ${params.employeeName} on ${date}`,
+      params: {
+        businessId: params.businessId,
+        employeeId: params.employeeId,
+        date,
+        periods: params.periods,
+        userId: params.userId,
       },
-    ];
+      dependsOn: [],
+      estimatedImpact: 'Replaces schedule for the day',
+    }));
+
+    const dayLabel =
+      dates.length === 1 ? dates[0] : `${dates.length} days (${dates[0]} → ${dates[dates.length - 1]})`;
 
     return this.wrapPlan(params.businessId, 'create_direct_schedule', steps, {
-      reasoning: `Direct schedule for ${params.employeeName} on ${params.date} (${params.periods.length} period(s)).`,
-      risk: { level: 'medium', factors: ['Replaces entire day schedule for provider'] },
+      reasoning: `Direct schedule for ${params.employeeName} on ${dayLabel} (${params.periods.length} period(s) per day).`,
+      risk: {
+        level: dates.length > 3 ? 'high' : dates.length > 1 ? 'medium' : 'medium',
+        factors: [`Replaces schedule for ${dates.length} day(s)`, 'Replaces entire day schedule for provider'],
+      },
     });
   }
 

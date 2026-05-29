@@ -19,6 +19,7 @@ import {
   formatTimeRangeDisplay,
   todayDisplay,
   toIsoDay,
+  getTodayDateKey,
   parseDateInput,
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
@@ -112,9 +113,11 @@ and extract structured parameters. Return a JSON object with:
     "bufferMinutes": number or null — buffer after service in minutes (create_service), default 0,
     "price": number or null — service price (create_service), e.g. 50 or 29.99,
     "currency": "string or null — ISO currency code (create_service), default USD",
-    "date": "DD_MM_YYYY or null — the date referenced (resolve relative dates like 'tomorrow' from today's date)",
+    "date": "DD_MM_YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31_05_2026). For other actions: the date referenced.",
     "dateFrom": "DD_MM_YYYY or null — start of range if a range is mentioned",
     "dateTo": "DD_MM_YYYY or null — end of range",
+    "fromDate": "DD_MM_YYYY or null — for reschedule_booking only: current appointment date when identifying which booking to move",
+    "fromTimeSlot": "HH:MM or null — for reschedule_booking only: current appointment start time when identifying which booking to move",
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
     "timeSlot": "HH:MM in 24h format or null — appointment start time (e.g. 09:00, 14:30)",
@@ -183,7 +186,7 @@ Rules:
 - list_templates: READ-ONLY — list schedule template names.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
-- create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods. When the user says "his/her/their services" or does not name specific services, leave serviceNames null on each service_block — the system uses only services assigned to that provider on their profile, never the full catalog.
+- create_direct_schedule: set/replace one provider's schedule for a specific day or date range with explicit periods. When the user says "his/her/their services" or does not name specific services, leave serviceNames null on each service_block — the system uses only services assigned to that provider on their profile, never the full catalog. For ranges like "June 2-June 10", set dateFrom and dateTo.
 - clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Use for "cleanup Mary's schedule on 31 May", "clear Gevorg's schedule tomorrow", "wipe schedule on Friday". Requires employeeName and date (or dateFrom/dateTo). NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
 - assign_employee_services: assign services from catalog to a provider.
@@ -191,7 +194,7 @@ Rules:
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
 - fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).
-- reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, or bookingId, or employeeName + date/time). Set serviceName when changing service (e.g. "change service to hot stone massage"). New date/time optional when only changing service. Can combine: "switch to deep tissue and move to tomorrow at 18:00".
+- reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, bookingId, or employeeName — provider alone is enough to pick their next upcoming appointment). Set date/timeSlot to the NEW destination (tomorrow, Friday, 31_05_2026, 13:30). Set fromDate/fromTimeSlot only when naming the current slot (e.g. Maria's 14:00 appointment). "Move Mary's appointment to tomorrow from 13:30" → employeeName=Mary, date=tomorrow, timeSlot=13:30. Set serviceName when changing service.
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
@@ -338,7 +341,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
 
-    parsed.params = this.completionPipeline.mergeSessionContext(parsed.params, sessionContext);
+    parsed.params = this.completionPipeline.mergeSessionContext(
+      parsed.params,
+      sessionContext,
+      parsed.action,
+    );
     if (parsed.action === 'create_booking') {
       parsed.params.customerName = null;
       delete parsed.params.customerId;
@@ -366,6 +373,18 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     this.logger.log(`AI (LLM) classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
 
     this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
+    if (parsed.action === 'reschedule_booking') {
+      this.completionPipeline.finalizeRescheduleParams(parsed.params, effectivePrompt, timeZone);
+    } else if (
+      parsed.action === 'create_direct_schedule' ||
+      parsed.action === 'clear_schedule' ||
+      parsed.action === 'apply_schedule' ||
+      parsed.action === 'block_schedule' ||
+      parsed.action === 'fill_unused_slots'
+    ) {
+      this.completionPipeline.enrichDateRangeParams(parsed.params, effectivePrompt, timeZone);
+      this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
+    }
 
     const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog, timeZone);
     const pipelineTrace = [
@@ -2495,15 +2514,31 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       const parsed = {
         action: sub.action,
         params: {
-          ...this.completionPipeline.mergeSessionContext(sub.params, {
-            ...session?.context,
-            timeZone,
-          }),
+          ...this.completionPipeline.mergeSessionContext(
+            sub.params,
+            {
+              ...session?.context,
+              timeZone,
+            },
+            sub.action,
+          ),
           _timeZone: timeZone,
         },
         reasoning: sub.reasoning,
       };
       this.completionPipeline.normalizeDateParams(parsed.params, prompt, timeZone);
+      if (parsed.action === 'reschedule_booking') {
+        this.completionPipeline.finalizeRescheduleParams(parsed.params, prompt, timeZone);
+      } else if (
+        parsed.action === 'create_direct_schedule' ||
+        parsed.action === 'clear_schedule' ||
+        parsed.action === 'apply_schedule' ||
+        parsed.action === 'block_schedule' ||
+        parsed.action === 'fill_unused_slots'
+      ) {
+        this.completionPipeline.enrichDateRangeParams(parsed.params, prompt, timeZone);
+        this.completionPipeline.normalizeDateParams(parsed.params, prompt, timeZone);
+      }
       const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog, timeZone);
 
       if (shouldValidateAction(parsed.action)) {
@@ -4101,37 +4136,40 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   private pickBookingForReschedule(bookings: Booking[], params: any): Booking | null {
     if (!bookings.length) return null;
 
-    const isoDay = params.date ? toIsoDay(params.date) : null;
-    const slot = params.fromTimeSlot
-      ? this.snapTo10min(params.fromTimeSlot)
-      : params.timeSlot
-        ? this.snapTo10min(params.timeSlot)
-        : null;
-    const employeeLower = params.employeeName?.toLowerCase();
+    const timeZone = params._timeZone ?? 'UTC';
+    const isoDay = params.fromDate ? toIsoDay(params.fromDate, timeZone) : null;
+    const slot = params.fromTimeSlot ? this.snapTo10min(params.fromTimeSlot) : null;
 
-    const filtered = bookings.filter((b) => {
+    const active = bookings.filter(
+      (b) => b.status !== BookingStatus.CANCELLED && b.status !== BookingStatus.COMPLETED,
+    );
+
+    const filtered = active.filter((b) => {
       if (isoDay && !b.startTime.toISOString().startsWith(isoDay)) return false;
       if (slot && formatTimeDisplay(b.startTime) !== slot) return false;
-      if (employeeLower) {
-        const name = b.employee?.name?.toLowerCase() ?? '';
-        if (!name.includes(employeeLower) && !employeeLower.includes(name.split(/\s+/)[0] ?? '')) {
-          return false;
-        }
-      }
       return true;
     });
 
     if (filtered.length === 1) return filtered[0];
-    if (filtered.length > 1) return filtered[0];
+    if (filtered.length > 1) {
+      const now = new Date();
+      const upcoming = filtered
+        .filter((b) => b.startTime >= now)
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      return upcoming[0] ?? filtered[0];
+    }
 
     const now = new Date();
-    const upcoming = bookings.filter(
-      (b) => b.startTime > now && b.status !== BookingStatus.CANCELLED,
-    );
-    if (upcoming.length === 1) return upcoming[0];
-    if (upcoming.length > 1) return upcoming[0];
+    const todayKey = getTodayDateKey(timeZone);
+    const candidates = active
+      .filter((b) => {
+        const dayKey = b.startTime.toISOString().split('T')[0];
+        return b.startTime >= now || dayKey === todayKey;
+      })
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    if (candidates.length >= 1) return candidates[0];
 
-    return bookings[bookings.length - 1];
+    return active.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ?? null;
   }
 
   private async handleRescheduleBooking(
@@ -4164,11 +4202,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         });
         booking = this.pickBookingForReschedule(bookings, params);
       }
-    } else if (params.employeeName && (params.date || params.timeSlot)) {
+    } else if (params.employeeName) {
       const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
       const employee = this.resolveEmployee(employees, params.employeeName);
       if (employee) {
-        const isoDay = params.date ? toIsoDay(params.date) : null;
         const bookings = await this.bookingRepo.find({
           where: {
             businessId,
@@ -4178,10 +4215,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           relations: { employee: true, service: true, customer: true },
           order: { startTime: 'ASC' },
         });
-        booking = this.pickBookingForReschedule(
-          isoDay ? bookings.filter((b) => b.startTime.toISOString().startsWith(isoDay)) : bookings,
-          params,
-        );
+        booking = this.pickBookingForReschedule(bookings, params);
       }
     }
 

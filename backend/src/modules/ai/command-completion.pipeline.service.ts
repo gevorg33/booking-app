@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { toIsoDay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
+import { resolveRescheduleParams } from './ai-intent-heuristics.js';
 import {
   resolveEmployees,
   resolveServices,
   resolveTemplate,
   resolveDateRange,
+  enrichDateRangeFromPrompt,
   fuzzyMatchByName,
 } from './ai-orchestration.helpers.js';
 import {
@@ -46,6 +48,8 @@ const SESSION_INHERIT_KEYS = [
   'segmentFilter',
 ] as const;
 
+const RESCHEDULE_SESSION_SKIP_KEYS = new Set(['date', 'dateFrom', 'dateTo', 'timeSlot']);
+
 const PROVIDER_SESSION_INHERIT_KEYS = [
   'customerName',
   'date',
@@ -61,10 +65,12 @@ export class CommandCompletionPipelineService {
   mergeSessionContext(
     params: Record<string, any>,
     session?: Record<string, any>,
+    action?: string,
   ): Record<string, any> {
     if (!session) return params;
     const merged = { ...params };
     for (const key of SESSION_INHERIT_KEYS) {
+      if (action === 'reschedule_booking' && RESCHEDULE_SESSION_SKIP_KEYS.has(key)) continue;
       const value = merged[key];
       if ((value == null || value === '') && session[key]) {
         merged[key] = session[key];
@@ -90,9 +96,22 @@ export class CommandCompletionPipelineService {
 
   normalizeDateParams(params: Record<string, any>, prompt?: string, timeZone = 'UTC'): void {
     applyRelativeDateFromPrompt(params, prompt, timeZone);
-    for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
+    for (const key of ['date', 'dateFrom', 'dateTo', 'fromDate'] as const) {
       if (params[key]) params[key] = toIsoDay(params[key], timeZone);
     }
+  }
+
+  finalizeRescheduleParams(params: Record<string, any>, prompt: string, timeZone = 'UTC'): void {
+    resolveRescheduleParams(params, prompt, timeZone);
+    for (const key of ['fromDate', 'date'] as const) {
+      if (params[key]) params[key] = toIsoDay(params[key], timeZone);
+    }
+    delete params.dateFrom;
+    delete params.dateTo;
+  }
+
+  enrichDateRangeParams(params: Record<string, any>, prompt: string, timeZone = 'UTC'): void {
+    enrichDateRangeFromPrompt(params, prompt, timeZone);
   }
 
   /** Stage 2: Resolve entities and enrich params with IDs */
@@ -162,11 +181,14 @@ export class CommandCompletionPipelineService {
       enrichedParams.templateName = template.name;
     }
 
-    if (dateRange) {
+    if (dateRange && classified.action !== 'reschedule_booking') {
       const promptHasRelativeDate = /\b(tomorrow|today|yesterday|tonight)\b/i.test(
         prompt.toLowerCase(),
       );
-      if (promptHasRelativeDate || !enrichedParams.date) {
+      if (promptHasRelativeDate) {
+        const relativeOnly = resolveDateRange({ _timeZone: timeZone }, prompt, timeZone);
+        if (relativeOnly) enrichedParams.date = relativeOnly.start;
+      } else if (!enrichedParams.date) {
         enrichedParams.date = dateRange.start;
       }
       if (!enrichedParams.dateFrom) enrichedParams.dateFrom = dateRange.start;
