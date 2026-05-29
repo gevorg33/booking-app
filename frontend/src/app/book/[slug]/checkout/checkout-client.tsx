@@ -6,10 +6,11 @@ import type { PublicBusinessProfile, PublicService } from '@/lib/public-api';
 
 interface CheckoutClientProps {
   tenant: PublicBusinessProfile;
-  employee: { id: string; name: string; role?: string };
+  employee?: { id: string; name: string; role?: string };
   service: PublicService;
   startTime: string;
   backHref: string;
+  autoAssign?: boolean;
   paymentSessionId?: string;
 }
 
@@ -19,6 +20,7 @@ export function CheckoutClient({
   service,
   startTime,
   backHref,
+  autoAssign,
   paymentSessionId,
 }: CheckoutClientProps) {
   return (
@@ -30,6 +32,7 @@ export function CheckoutClient({
           employee={employee}
           service={service}
           startTime={startTime}
+          autoAssign={autoAssign}
           paymentSessionId={paymentSessionId}
         />
       </main>

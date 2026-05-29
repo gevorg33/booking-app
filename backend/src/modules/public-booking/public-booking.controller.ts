@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto } from './dto/public-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -57,6 +57,24 @@ export class PublicBookingController {
     @Query('startTime') startTime: string,
   ) {
     return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime);
+  }
+
+  @Get('services/:serviceId/slots')
+  getServiceDaySlots(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceSlotsQueryDto,
+  ) {
+    return this.publicBookingService.getServiceDaySlots(slug, serviceId, query.date);
+  }
+
+  @Get('services/:serviceId/providers')
+  getProvidersForServiceSlot(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceSlotProvidersQueryDto,
+  ) {
+    return this.publicBookingService.getProvidersForServiceSlot(slug, serviceId, query.startTime);
   }
 
   @Post('bookings')

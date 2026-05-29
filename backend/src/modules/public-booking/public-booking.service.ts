@@ -113,6 +113,22 @@ export interface RecommendedProvider {
   matchedServiceName: string;
 }
 
+export interface PublicServiceDaySlot {
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  employeeName: string;
+}
+
+export interface PublicServiceSlotProvider {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+  averageRating: number | null;
+  reviewCount: number;
+}
+
 const SCAN_DAYS = 14;
 const SLOT_STEP_MINUTES = 30;
 
@@ -456,6 +472,135 @@ export class PublicBookingService {
     };
   }
 
+  async getServiceDaySlots(
+    slug: string,
+    serviceId: string,
+    date: string,
+    options?: { notBeforeTime?: string | null },
+  ): Promise<{
+    date: string;
+    serviceId: string;
+    serviceName: string;
+    slots: PublicServiceDaySlot[];
+  }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const tz = resolveTimezone(business.timezone);
+    let employees = await this.employeeRepo.find({
+      where: { businessId: business.id, isActive: true },
+      order: { name: 'ASC' },
+    });
+
+    employees = employees.filter((employee) => {
+      if (!employee.serviceIds?.length) return true;
+      return employee.serviceIds.includes(service.id);
+    });
+
+    const slotMap = new Map<string, PublicServiceDaySlot>();
+
+    for (const employee of employees) {
+      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
+      const upcoming = rawSlots.filter((startTime) =>
+        isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, options?.notBeforeTime ?? null),
+      );
+      const bookable = await this.filterStartTimesWithService(business.id, employee, upcoming, service);
+
+      for (const startTime of bookable) {
+        const key = startTime.toISOString();
+        if (slotMap.has(key)) continue;
+        const endTime = new Date(
+          startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+        );
+        slotMap.set(key, {
+          startTime: key,
+          endTime: endTime.toISOString(),
+          employeeId: employee.id,
+          employeeName: employee.name,
+        });
+      }
+    }
+
+    const slots = [...slotMap.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    return {
+      date,
+      serviceId: service.id,
+      serviceName: service.name,
+      slots,
+    };
+  }
+
+  async resolveEmployeeForServiceSlot(
+    slug: string,
+    serviceId: string,
+    startTime: string,
+  ): Promise<{ employeeId: string; employeeName: string } | null> {
+    const { providers } = await this.getProvidersForServiceSlot(slug, serviceId, startTime);
+    if (!providers.length) return null;
+    return { employeeId: providers[0].id, employeeName: providers[0].name };
+  }
+
+  async getProvidersForServiceSlot(
+    slug: string,
+    serviceId: string,
+    startTime: string,
+  ): Promise<{ providers: PublicServiceSlotProvider[] }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const start = new Date(startTime);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('Invalid start time');
+    }
+
+    let employees = await this.employeeRepo.find({
+      where: { businessId: business.id, isActive: true },
+      order: { name: 'ASC' },
+    });
+
+    employees = employees.filter((employee) => {
+      if (!employee.serviceIds?.length) return true;
+      return employee.serviceIds.includes(service.id);
+    });
+
+    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
+      business.id,
+      employees.map((e) => e.id),
+    );
+
+    const providers: PublicServiceSlotProvider[] = [];
+
+    for (const employee of employees) {
+      if (!(await this.canBookServiceAt(business.id, employee.id, start, service))) {
+        continue;
+      }
+
+      const metadata = employee.metadata || {};
+      const reviews = reviewSummaries.get(employee.id);
+      providers.push({
+        id: employee.id,
+        name: employee.name,
+        role: metadata.role || metadata.title,
+        avatarUrl: metadata.avatarUrl,
+        averageRating: reviews?.averageRating ?? null,
+        reviewCount: reviews?.reviewCount ?? 0,
+      });
+    }
+
+    return { providers };
+  }
+
   async getServices(slug: string, employeeId?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -663,6 +808,15 @@ export class PublicBookingService {
       );
     }
 
+    let employeeId = dto.employeeId;
+    if (!employeeId) {
+      const resolved = await this.resolveEmployeeForServiceSlot(slug, dto.serviceId, dto.startTime);
+      if (!resolved) {
+        throw new BadRequestException('That time slot is no longer available');
+      }
+      employeeId = resolved.employeeId;
+    }
+
     const { customer, created } = await this.customerService.findOrCreateByContact(business.id, {
       name: dto.customer.name,
       email: dto.customer.email,
@@ -675,7 +829,7 @@ export class PublicBookingService {
     const booking = await this.bookingService.create(
       business.id,
       {
-        employeeId: dto.employeeId,
+        employeeId,
         serviceId: dto.serviceId,
         customerId: customer.id,
         startTime: dto.startTime,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Pencil, Loader2 } from 'lucide-react';
+import { Calendar, Pencil, Loader2, Users } from 'lucide-react';
 import { formatScheduleTime, formatDateDisplay } from '@/lib/date-format';
 import {
   createPublicBooking,
@@ -15,13 +15,18 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { PhoneInput } from '@/components/public-booking/phone-input';
+import {
+  SpecialistPickerSheet,
+  type SpecialistChoice,
+} from '@/components/public-booking/specialist-picker-sheet';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
-  employee: { id: string; name: string; role?: string };
+  employee?: { id: string; name: string; role?: string };
   service: PublicService;
   startTime: string;
+  autoAssign?: boolean;
   paymentSessionId?: string;
 }
 
@@ -30,6 +35,7 @@ export function CheckoutForm({
   employee,
   service,
   startTime,
+  autoAssign,
   paymentSessionId,
 }: CheckoutFormProps) {
   const { t, locale } = useI18n();
@@ -48,6 +54,20 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [specialistPickerOpen, setSpecialistPickerOpen] = useState(false);
+  const [specialistChoice, setSpecialistChoice] = useState<SpecialistChoice>(() =>
+    autoAssign ? { type: 'any' } : { type: 'provider', provider: { id: employee!.id, name: employee!.name, role: employee?.role, averageRating: null, reviewCount: 0 } },
+  );
+
+  const resolvedEmployee =
+    specialistChoice.type === 'provider'
+      ? {
+          id: specialistChoice.provider.id,
+          name: specialistChoice.provider.name,
+          role: specialistChoice.provider.role,
+        }
+      : employee;
+  const useAutoAssign = autoAssign && specialistChoice.type === 'any';
 
   useEffect(() => {
     if (!paymentSessionId) return;
@@ -77,7 +97,7 @@ export function CheckoutForm({
   const fullPhone = () => formatPhoneForApi(form.phone);
 
   const payload = () => ({
-    employeeId: employee.id,
+    ...(useAutoAssign || !resolvedEmployee ? {} : { employeeId: resolvedEmployee.id }),
     serviceId: service.id,
     startTime,
     notes: form.notes || undefined,
@@ -153,31 +173,74 @@ export function CheckoutForm({
     );
   }
 
-  const servicesHref = `${bookPath(tenant.slug, '/services')}?employeeId=${encodeURIComponent(employee.id)}&startTime=${encodeURIComponent(startTime)}`;
-  const professionalsHref = bookPath(tenant.slug, '/professionals');
+  const servicesHref = resolvedEmployee
+    ? `${bookPath(tenant.slug, '/services')}?employeeId=${encodeURIComponent(resolvedEmployee.id)}&startTime=${encodeURIComponent(startTime)}`
+    : `${bookPath(tenant.slug, '/any/availability')}?serviceId=${encodeURIComponent(service.id)}`;
+  const timeEditHref = autoAssign
+    ? `${bookPath(tenant.slug, '/any/availability')}?serviceId=${encodeURIComponent(service.id)}`
+    : bookPath(tenant.slug, '/professionals');
+
+  const showProviderPicker = autoAssign;
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="pb-36">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('public.checkoutTitle')}</h1>
 
       <section className="border-b border-gray-100 pb-4 mb-4">
+        {showProviderPicker ? (
+          <button
+            type="button"
+            onClick={() => setSpecialistPickerOpen(true)}
+            className="w-full flex items-center justify-between gap-3 text-left rounded-xl -mx-1 px-1 py-1 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              {useAutoAssign ? (
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-gray-500" />
+                </div>
+              ) : (
+                <div
+                  className="w-10 h-10 rounded-full text-white flex items-center justify-center font-semibold shrink-0"
+                  style={{ backgroundColor: primary }}
+                >
+                  {resolvedEmployee!.name.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900">
+                  {useAutoAssign ? t('public.anySpecialist') : resolvedEmployee!.name}
+                </p>
+                {useAutoAssign ? (
+                  <p className="text-sm text-gray-500">{t('public.assignedAutomatically')}</p>
+                ) : (
+                  resolvedEmployee?.role && (
+                    <p className="text-sm text-gray-500">{resolvedEmployee.role}</p>
+                  )
+                )}
+              </div>
+            </div>
+            <Pencil className="w-4 h-4 text-gray-400 shrink-0" />
+          </button>
+        ) : (
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-10 h-10 rounded-full text-white flex items-center justify-center font-semibold shrink-0"
               style={{ backgroundColor: primary }}
             >
-              {employee.name.charAt(0)}
+              {employee!.name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="font-medium text-gray-900">{employee.name}</p>
-              {employee.role && <p className="text-sm text-gray-500">{employee.role}</p>}
+              <p className="font-medium text-gray-900">{employee!.name}</p>
+              {employee?.role && <p className="text-sm text-gray-500">{employee.role}</p>}
             </div>
           </div>
-          <a href={professionalsHref} className="text-gray-400 hover:text-gray-600">
+          <a href={bookPath(tenant.slug, '/professionals')} className="text-gray-400 hover:text-gray-600">
             <Pencil className="w-4 h-4" />
           </a>
         </div>
+        )}
       </section>
 
       <section className="border-b border-gray-100 pb-4 mb-4">
@@ -196,7 +259,7 @@ export function CheckoutForm({
               <p className="text-sm text-gray-500">{formatScheduleTime(start)}</p>
             </div>
           </div>
-          <a href={professionalsHref} className="text-gray-400 hover:text-gray-600">
+          <a href={timeEditHref} className="text-gray-400 hover:text-gray-600">
             <Pencil className="w-4 h-4" />
           </a>
         </div>
@@ -326,5 +389,19 @@ export function CheckoutForm({
         </div>
       </div>
     </form>
+
+    {showProviderPicker && (
+      <SpecialistPickerSheet
+        open={specialistPickerOpen}
+        onClose={() => setSpecialistPickerOpen(false)}
+        slug={tenant.slug}
+        serviceId={service.id}
+        startTime={startTime}
+        primaryColor={primary}
+        value={specialistChoice}
+        onChange={setSpecialistChoice}
+      />
+    )}
+    </>
   );
 }

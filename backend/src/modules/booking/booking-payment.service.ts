@@ -3,6 +3,8 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +19,7 @@ import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto
 import { PaymentStatus } from './entities/booking.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import { PublicBookingService } from '../public-booking/public-booking.service.js';
 
 interface StripeCheckoutSession {
   id?: string;
@@ -39,6 +42,8 @@ export class BookingPaymentService {
     private customerService: CustomerService,
     private bookingService: BookingService,
     private eventStore: EventStoreService,
+    @Inject(forwardRef(() => PublicBookingService))
+    private publicBookingService: PublicBookingService,
   ) {}
 
   calculatePrepaymentAmount(service: Service): number {
@@ -105,6 +110,17 @@ export class BookingPaymentService {
 
     const frontendUrl = this.stripeService.frontendUrl;
     const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
+    const checkoutQuery = new URLSearchParams({
+      paid: '1',
+      session_id: '{CHECKOUT_SESSION_ID}',
+      serviceId: dto.serviceId,
+      startTime: dto.startTime,
+    });
+    if (dto.employeeId) {
+      checkoutQuery.set('employeeId', dto.employeeId);
+    } else {
+      checkoutQuery.set('autoAssign', '1');
+    }
     const session = await this.stripeService.client.checkout.sessions.create(
       {
         mode: 'payment',
@@ -132,8 +148,8 @@ export class BookingPaymentService {
           slug,
           connectAccountId,
         },
-        success_url: `${frontendUrl}/book/${slug}/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}&employeeId=${encodeURIComponent(dto.employeeId)}&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}`,
-        cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1`,
+        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}`,
+        cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
       },
       connectOpts,
     );
@@ -211,6 +227,19 @@ export class BookingPaymentService {
     const business = await this.businessRepo.findOne({ where: { id: draft.businessId } });
     if (!business) throw new NotFoundException('Business not found');
 
+    let employeeId = dto.employeeId;
+    if (!employeeId) {
+      const resolved = await this.publicBookingService.resolveEmployeeForServiceSlot(
+        business.slug,
+        dto.serviceId,
+        dto.startTime,
+      );
+      if (!resolved) {
+        throw new BadRequestException('That time slot is no longer available');
+      }
+      employeeId = resolved.employeeId;
+    }
+
     const { customer } = await this.customerService.findOrCreateByContact(business.id, {
       name: dto.customer.name,
       email: dto.customer.email,
@@ -223,7 +252,7 @@ export class BookingPaymentService {
     const booking = await this.bookingService.create(
       business.id,
       {
-        employeeId: dto.employeeId,
+        employeeId,
         serviceId: dto.serviceId,
         customerId: customer.id,
         startTime: dto.startTime,

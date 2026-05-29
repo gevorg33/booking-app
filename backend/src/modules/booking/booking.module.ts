@@ -25,6 +25,7 @@ import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CustomerModule } from '../customer/customer.module.js';
     EventStoreModule,
     forwardRef(() => BillingModule),
     CustomerModule,
+    forwardRef(() => PublicBookingModule),
     forwardRef(() => AgentModule),
     LoyaltyModule,
     InventoryModule,

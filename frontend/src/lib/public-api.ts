@@ -149,6 +149,42 @@ export function getPublicProviderReviews(slug: string, employeeId: string, page 
   );
 }
 
+export function getPublicServices(slug: string, employeeId?: string) {
+  const q = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+  return publicFetch<{ services: PublicService[] }>(`/public/${slug}/services${q}`);
+}
+
+export interface PublicServiceDaySlot {
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  employeeName: string;
+}
+
+export function getPublicServiceDaySlots(slug: string, serviceId: string, date: string) {
+  return publicFetch<{
+    date: string;
+    serviceId: string;
+    serviceName: string;
+    slots: PublicServiceDaySlot[];
+  }>(`/public/${slug}/services/${serviceId}/slots?date=${encodeURIComponent(date)}`);
+}
+
+export interface PublicServiceSlotProvider {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+  averageRating: number | null;
+  reviewCount: number;
+}
+
+export function getPublicServiceSlotProviders(slug: string, serviceId: string, startTime: string) {
+  return publicFetch<{ providers: PublicServiceSlotProvider[] }>(
+    `/public/${slug}/services/${serviceId}/providers?startTime=${encodeURIComponent(startTime)}`,
+  );
+}
+
 export function getPublicServicesForSlot(slug: string, employeeId: string, startTime: string) {
   return publicFetch<{ services: PublicService[] }>(
     `/public/${slug}/services/for-slot?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`,
@@ -158,7 +194,7 @@ export function getPublicServicesForSlot(slug: string, employeeId: string, start
 export function createPublicBooking(
   slug: string,
   body: {
-    employeeId: string;
+    employeeId?: string;
     serviceId: string;
     startTime: string;
     notes?: string;

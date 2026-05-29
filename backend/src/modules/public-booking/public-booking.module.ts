@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PublicBookingController } from './public-booking.controller.js';
 import { PublicBookingService } from './public-booking.service.js';
@@ -18,7 +18,7 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
   imports: [
     TypeOrmModule.forFeature([Employee, Service, SchedulingSlot]),
     BusinessModule,
-    BookingModule,
+    forwardRef(() => BookingModule),
     CustomerModule,
     SchedulingEngineModule,
     StripeIntegrationModule,
@@ -27,5 +27,6 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
   ],
   controllers: [PublicBookingController],
   providers: [PublicBookingService, PublicBookingAssistantService],
+  exports: [PublicBookingService],
 })
 export class PublicBookingModule {}
