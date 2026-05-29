@@ -489,6 +489,17 @@ export function resolveDateRange(
     return { start: iso, end: iso };
   }
 
+  const bareDayMatch = lower.match(
+    /\b(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/,
+  );
+  if (bareDayMatch) {
+    const target = weekdayMap[bareDayMatch[1]];
+    const cur = today.day();
+    const delta = (target - cur + 7) % 7;
+    const iso = today.add(delta, 'day').format('YYYY-MM-DD');
+    return { start: iso, end: iso };
+  }
+
   if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
     return { start: todayKey, end: todayKey };
   }
@@ -995,6 +1006,92 @@ export function inferDirectSchedulePeriods(
   }
 
   return periods;
+}
+
+export const PUBLIC_AVAILABILITY_SCAN_DAYS = 14;
+
+export function hasExplicitWeekdayInAvailabilityPrompt(
+  params: { weekdays?: string[] | null; applyDays?: number[] | null },
+  prompt?: string,
+): boolean {
+  if (params.weekdays?.length || params.applyDays?.length) return true;
+  return /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|weekdays?|weekend)\b/i.test(
+    prompt ?? '',
+  );
+}
+
+/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
+export function resolvePublicAvailabilityDateKeys(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): string[] {
+  const tz = resolveTimezone(timeZone);
+  const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  const enriched: Record<string, any> = { ...params, _timeZone: tz };
+  enrichDateRangeFromPrompt(enriched, prompt ?? '', tz);
+  applyRelativeDateFromPrompt(enriched, prompt ?? '', tz);
+
+  const weekdays = parseWeekdaysFromParams(enriched, prompt);
+  const hasWeekdayFilter = hasExplicitWeekdayInAvailabilityPrompt(enriched, prompt);
+  const todayKey = getTodayDateKey(tz);
+
+  const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
+
+  // Weekday names in the prompt beat stale session dates (e.g. "Monday" must not reuse Friday from session).
+  if (hasWeekdayFilter) {
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      if (weekdays.includes(dayjs.tz(dateKey, tz).day())) {
+        result.push(dateKey);
+      }
+    }
+    if (result.length > 0) return result;
+  }
+
+  // Prefer dates parsed from the prompt itself, not inherited session params.date.
+  const promptOnlyDates = resolveScheduleDates({ _timeZone: tz }, prompt);
+  if (promptOnlyDates.length > 0) {
+    return dropPast(promptOnlyDates).slice(0, scanDays);
+  }
+
+  if (enriched.dateFrom && enriched.dateTo) {
+    const range = resolveDateRange(
+      { dateFrom: enriched.dateFrom, dateTo: enriched.dateTo, _timeZone: tz },
+      prompt,
+      tz,
+    );
+    if (range) {
+      return dropPast(
+        enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]),
+      ).slice(0, scanDays);
+    }
+  }
+
+  if (enriched.date) {
+    return dropPast([toIsoDay(enriched.date, tz)]);
+  }
+
+  return [];
+}
+
+/** Drop session date when the user names weekdays or relative days in an availability question. */
+export function applyAvailabilityDateFromPrompt(
+  params: Record<string, any>,
+  prompt?: string,
+  timeZone = 'UTC',
+): void {
+  if (!prompt?.trim()) return;
+
+  if (hasExplicitWeekdayInAvailabilityPrompt(params, prompt)) {
+    delete params.date;
+    delete params.dateFrom;
+    delete params.dateTo;
+  }
+
+  applyPromptDateOverride(params, prompt, timeZone);
 }
 
 export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {

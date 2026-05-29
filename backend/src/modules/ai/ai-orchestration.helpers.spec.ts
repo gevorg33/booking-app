@@ -2,6 +2,9 @@ import {
   applyUnavailableBlocksToPeriods,
   extractUnavailableBlocksFromPrompt,
   inferDirectSchedulePeriods,
+  resolvePublicAvailabilityDateKeys,
+  applyAvailabilityDateFromPrompt,
+  resolveDateRange,
 } from './ai-orchestration.helpers.js';
 
 describe('inferDirectSchedulePeriods', () => {
@@ -71,5 +74,65 @@ describe('applyUnavailableBlocksToPeriods', () => {
       endTime: '13:00',
       type: 'unavailable_block',
     });
+  });
+});
+
+describe('resolvePublicAvailabilityDateKeys', () => {
+  const tz = 'UTC';
+
+  it('returns upcoming Monday and Friday keys from weekday names', () => {
+    const dates = resolvePublicAvailabilityDateKeys({}, 'free slots on Monday and Friday for massage', tz);
+    expect(dates.length).toBeGreaterThan(0);
+    for (const dateKey of dates) {
+      const day = new Date(`${dateKey}T12:00:00.000Z`).getUTCDay();
+      expect([1, 5]).toContain(day);
+    }
+  });
+
+  it('ignores stale session date when prompt names a weekday', () => {
+    const dates = resolvePublicAvailabilityDateKeys(
+      { date: '29_05_2026' },
+      'what are free slots on Monday for Gevorg',
+      tz,
+      { defaultScanDays: 14 },
+    );
+    expect(dates.length).toBeGreaterThan(0);
+    for (const dateKey of dates) {
+      expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(1);
+      expect(dateKey).not.toBe('2026-05-29');
+    }
+  });
+
+  it('returns a single day for tomorrow', () => {
+    const dates = resolvePublicAvailabilityDateKeys({}, 'available tomorrow', tz);
+    expect(dates).toHaveLength(1);
+  });
+
+  it('uses explicit date param when no weekday filter', () => {
+    const dates = resolvePublicAvailabilityDateKeys({ date: '15_06_2026' }, 'check slots', tz);
+    expect(dates).toEqual(['2026-06-15']);
+  });
+
+  it('drops past dates from explicit params', () => {
+    const dates = resolvePublicAvailabilityDateKeys({ date: '01_01_2020' }, 'check slots', tz);
+    expect(dates).toEqual([]);
+  });
+});
+
+describe('applyAvailabilityDateFromPrompt', () => {
+  it('clears stale session date when weekdays are mentioned', () => {
+    const params: Record<string, any> = { date: '29_05_2026', dateFrom: '29_05_2026', dateTo: '29_05_2026' };
+    applyAvailabilityDateFromPrompt(params, 'free slots on Monday for Gevorg', 'UTC');
+    expect(params.date).toBeUndefined();
+    expect(params.dateFrom).toBeUndefined();
+    expect(params.dateTo).toBeUndefined();
+  });
+});
+
+describe('resolveDateRange bare weekday', () => {
+  it('resolves upcoming Monday from prompt', () => {
+    const range = resolveDateRange({}, 'free slots on Monday for Gevorg', 'UTC');
+    expect(range).not.toBeNull();
+    expect(new Date(`${range!.start}T12:00:00.000Z`).getUTCDay()).toBe(1);
   });
 });

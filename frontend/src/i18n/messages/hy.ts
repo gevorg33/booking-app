@@ -423,7 +423,7 @@ const hy: MessageTree = {
     assistantPlaceholder: 'Հարցրեք ամրագրման մասին…',
     continueBooking: 'Շարունակել ամրագրումը',
     uncategorizedServices: 'Այլ ծառայություններ',
-    exampleAvailable: 'Ով է ազատ այսօր?',
+    exampleAvailable: 'Ազատ slot-եր երկուշաբթի և ուրբաթ massage-ի համար',
     exampleServices: 'Ի՞նչ ծառayություններ ունեք։',
     exampleBook: 'Ամրագրիր massage վաղը 10:00-ին',
     exampleLocation: 'Որտե՞ղ եք գտնվում։',

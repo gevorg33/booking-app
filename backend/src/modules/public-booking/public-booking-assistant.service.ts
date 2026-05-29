@@ -15,7 +15,6 @@ import {
 } from '../../common/utils/date-format.util.js';
 import {
   getDateKeyInTimezone,
-  isWallClockSlotBookable,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
@@ -23,10 +22,26 @@ import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../
 import {
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
+  isTeamWideProviderAvailabilityQuery,
   extractProviderFallbackFromPrompt,
 } from '../ai/ai-intent-heuristics.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
-import { parseEarliestBookingTimeFromPrompt } from '../ai/ai-orchestration.helpers.js';
+import {
+  applyAvailabilityDateFromPrompt,
+  fuzzyMatchServiceByName,
+  parseEarliestBookingTimeFromPrompt,
+  PUBLIC_AVAILABILITY_SCAN_DAYS,
+  resolveEmployees,
+  resolvePublicAvailabilityDateKeys,
+  hasExplicitWeekdayInAvailabilityPrompt,
+} from '../ai/ai-orchestration.helpers.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export interface PublicAssistantNavigate {
   path: 'professionals' | 'services' | 'checkout';
@@ -51,6 +66,9 @@ Classify the user's message and extract parameters. Return JSON:
     "employeeName": "string or null",
     "serviceName": "string or null",
     "date": "DD_MM_YYYY or null — resolve relative dates from today's date",
+    "dateFrom": "DD_MM_YYYY or null — range start for multi-day availability",
+    "dateTo": "DD_MM_YYYY or null — range end for multi-day availability",
+    "weekdays": ["monday", "friday", etc.] or null — when user names weekdays without exact dates,
     "timeSlot": "HH:MM 24h or null",
     "timeFrom": "HH:MM or null — earliest time when user says after 16:00",
     "bookingFirstAvailable": boolean or null — true for nearest/first/next available/ASAP booking,
@@ -66,7 +84,9 @@ Classify the user's message and extract parameters. Return JSON:
 
 Rules:
 - Customers want to book appointments, see who is available, prices, and business contact info.
-- Use check_availability when asking about open times, slots, or when someone is free.
+- Use check_availability when asking about open times, slots, or when someone is free — including "free slots on Monday and Friday for {service}", "what times are available for {service} this week", "when is {name} free tomorrow".
+- check_availability does NOT require employeeName — set allProviders=true when any specialist is fine or user asks "who has free slots for {service}".
+- For weekday-only questions ("Monday and Friday", "weekdays"), set weekdays in params; combine with serviceName when given.
 - Use list_providers for "who works here", "which specialist", etc.
 - Use list_services for prices, durations, what you offer.
 - Use business_info for address, phone, hours, location, contact.
@@ -139,6 +159,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     this.applyBookingHeuristics(prompt, parsed.params, parsed.action);
+    this.applyAvailabilityHeuristics(prompt, parsed.params, parsed.action);
     if (parsed.action === 'book_appointment') {
       const fallback = extractProviderFallbackFromPrompt(prompt, employees);
       if (fallback.providerFallbackNames.length) {
@@ -148,7 +169,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         parsed.params.fallbackAnyProvider = true;
       }
     }
-    parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action);
+    parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action, prompt, tz);
+    if (parsed.action === 'check_availability') {
+      applyAvailabilityDateFromPrompt(parsed.params, prompt, tz);
+    }
     this.normalizeDateParams(parsed.params, todayKey);
 
     this.logger.log(`Public assistant action="${parsed.action}" — ${parsed.reasoning}`);
@@ -163,7 +187,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = await this.handleListServices(slug, parsed.params, employees);
         break;
       case 'check_availability':
-        result = await this.handleCheckAvailability(slug, parsed.params, employees);
+        result = await this.handleCheckAvailability(slug, parsed.params, employees, services, locale, tz, prompt);
         break;
       case 'business_info':
         result = this.handleBusinessInfo(business);
@@ -253,57 +277,167 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     slug: string,
     params: any,
     employees: Employee[],
+    services: Service[],
+    locale: AppLocale,
+    tz: string,
+    prompt: string,
   ): Promise<PublicAssistantResult> {
-    if (!params.employeeName) {
-      return {
-        success: true,
-        action: 'check_availability',
-        summary: 'Which specialist would you like to check? ' + employees.map((e) => e.name).join(', '),
-      };
-    }
+    const service = params.serviceName
+      ? fuzzyMatchServiceByName(services, params.serviceName)
+      : undefined;
 
-    const employee = this.fuzzyMatchByName(employees, params.employeeName);
-    if (!employee) {
+    if (params.serviceName && !service) {
       return {
         success: false,
         action: 'check_availability',
-        summary: `I couldn't find "${params.employeeName}". Available: ${employees.map((e) => e.name).join(', ')}`,
+        summary: t(locale, 'assistant.availabilityServiceNotFound', {
+          service: params.serviceName,
+          available: services.map((s) => s.name).join(', '),
+        }),
       };
     }
 
-    const dateKey = params.date || getDateKeyInTimezone(new Date(), resolveTimezone('UTC'));
-    const business = await this.businessService.findBySlug(slug);
-    const tz = resolveTimezone(business.timezone);
-    const { slots, employeeName } = await this.publicBookingService.getProviderSlots(
-      slug,
-      employee.id,
-      dateKey,
-    );
+    const targets =
+      params.employeeName || params.employeeNames?.length
+        ? resolveEmployees(employees, params)
+        : employees;
+    if (targets.length === 0) {
+      return {
+        success: false,
+        action: 'check_availability',
+        summary: t(locale, 'assistant.availabilityProviderNotFound', {
+          name: params.employeeName,
+          available: employees.map((e) => e.name).join(', '),
+        }),
+      };
+    }
 
-    const upcomingSlots = slots.filter((s) =>
-      isWallClockSlotBookable(dateKey, formatTimeDisplay(s.startTime), tz, null),
-    );
+    let dateKeys = resolvePublicAvailabilityDateKeys(params, prompt, tz);
+    if (dateKeys.length === 0 && service) {
+      const todayKey = getDateKeyInTimezone(new Date(), tz);
+      dateKeys = Array.from({ length: PUBLIC_AVAILABILITY_SCAN_DAYS }, (_, offset) =>
+        addDaysToDateKey(todayKey, offset, tz),
+      );
+    }
 
-    const displayDay = formatDateDisplay(dateKey);
-    if (upcomingSlots.length === 0) {
+    if (dateKeys.length === 0) {
       return {
         success: true,
         action: 'check_availability',
-        summary: `${employeeName} has no open slots on ${displayDay}. Try another day or pick a time from the booking page.`,
-        navigate: { path: 'professionals', query: { employeeId: employee.id } },
+        summary: service
+          ? t(locale, 'assistant.availabilityNeedsDay', { service: service.name })
+          : t(locale, 'assistant.availabilityNeedsDayOrService'),
       };
     }
 
-    const times = upcomingSlots.map((s) => formatTimeDisplay(s.startTime)).join(', ');
-    const firstSlot = upcomingSlots[0].startTime;
+    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    type DayReport = {
+      dateKey: string;
+      providers: Array<{ employee: Employee; times: string[]; firstSlot: string }>;
+    };
+    const dayReports: DayReport[] = [];
+    let bestNavigate: { employeeId: string; startTime: string } | undefined;
+
+    for (const dateKey of dateKeys) {
+      const providersForDay: DayReport['providers'] = [];
+
+      for (const employee of targets) {
+        if (service && employee.serviceIds?.length && !employee.serviceIds.includes(service.id)) {
+          continue;
+        }
+
+        const { slots } = await this.publicBookingService.getProviderSlots(slug, employee.id, dateKey, {
+          serviceId: service?.id,
+          notBeforeTime: params.timeFrom ?? null,
+        });
+
+        if (slots.length === 0) continue;
+
+        const times = slots.map((s) => formatTimeDisplay(s.startTime));
+        providersForDay.push({
+          employee,
+          times,
+          firstSlot: slots[0].startTime,
+        });
+
+        if (!bestNavigate || slots[0].startTime < bestNavigate.startTime) {
+          bestNavigate = { employeeId: employee.id, startTime: slots[0].startTime };
+        }
+      }
+
+      if (providersForDay.length > 0) {
+        dayReports.push({ dateKey, providers: providersForDay });
+      }
+    }
+
+    const serviceLabel = service ? service.name : t(locale, 'assistant.anyService');
+    const dayCount = dateKeys.length;
+
+    if (dayReports.length === 0) {
+      const providerLabel =
+        targets.length === 1 ? targets[0].name : t(locale, 'assistant.anySpecialist');
+      return {
+        success: true,
+        action: 'check_availability',
+        summary: t(locale, 'assistant.availabilityNoSlots', {
+          service: serviceLabel,
+          provider: providerLabel,
+          days: dayCount === 1 ? formatDateDisplay(dateKeys[0]) : String(dayCount),
+        }),
+        navigate: targets.length === 1
+          ? { path: 'professionals', query: { employeeId: targets[0].id } }
+          : { path: 'professionals', query: {} },
+      };
+    }
+
+    const lines: string[] = [
+      t(locale, 'assistant.availabilityHeader', {
+        service: serviceLabel,
+        days: dayCount === 1 ? formatDateDisplay(dateKeys[0]) : String(dayReports.length),
+      }),
+      '',
+    ];
+
+    for (const day of dayReports) {
+      const dayDate = dayjs.tz(day.dateKey, tz);
+      const weekday = weekdayLabels[dayDate.day()];
+      const displayDay = formatDateDisplay(day.dateKey);
+
+      if (targets.length === 1) {
+        const times = day.providers[0]?.times ?? [];
+        lines.push(
+          t(locale, 'assistant.availabilityDaySingleProvider', {
+            weekday,
+            date: displayDay,
+            times: times.slice(0, 8).join(', ') + (times.length > 8 ? '…' : ''),
+          }),
+        );
+        continue;
+      }
+
+      lines.push(`${weekday} ${displayDay}:`);
+      for (const provider of day.providers) {
+        const times = provider.times.slice(0, 6).join(', ') + (provider.times.length > 6 ? '…' : '');
+        lines.push(`• ${provider.employee.name}: ${times}`);
+      }
+    }
+
+    const navigateQuery: Record<string, string> = {};
+    if (bestNavigate) {
+      navigateQuery.employeeId = bestNavigate.employeeId;
+      navigateQuery.startTime = bestNavigate.startTime;
+    } else if (targets.length === 1) {
+      navigateQuery.employeeId = targets[0].id;
+    }
+    if (service) navigateQuery.serviceId = service.id;
 
     return {
       success: true,
       action: 'check_availability',
-      summary: `Open times for ${employeeName} on ${displayDay}:\n${times}`,
+      summary: lines.join('\n'),
       navigate: {
-        path: 'professionals',
-        query: { employeeId: employee.id, startTime: firstSlot },
+        path: bestNavigate ? 'services' : 'professionals',
+        query: navigateQuery,
       },
     };
   }
@@ -677,10 +811,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: Record<string, any>,
     session?: Record<string, any>,
     action?: string,
+    prompt?: string,
+    timeZone?: string,
   ) {
     if (!session) return params;
     const merged = { ...params };
     const skipForNearest = action === 'book_appointment' && params.bookingFirstAvailable === true;
+    const skipSessionDate =
+      action === 'check_availability' &&
+      this.promptOverridesSessionDate(params, prompt, timeZone);
     for (const key of [
       'employeeName',
       'date',
@@ -693,11 +832,28 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       if (skipForNearest && (key === 'date' || key === 'timeSlot' || key === 'employeeName')) {
         continue;
       }
+      if (key === 'date' && skipSessionDate) {
+        continue;
+      }
       if ((merged[key] == null || merged[key] === '') && session[key]) {
         merged[key] = session[key];
       }
     }
     return merged;
+  }
+
+  private promptOverridesSessionDate(
+    params: Record<string, any>,
+    prompt?: string,
+    timeZone?: string,
+  ): boolean {
+    if (!prompt?.trim()) return false;
+    const tz = resolveTimezone(timeZone ?? 'UTC');
+    if (hasExplicitWeekdayInAvailabilityPrompt(params, prompt)) return true;
+    if (/\b(today|tomorrow|yesterday|next week|this week|next month|this month)\b/i.test(prompt)) {
+      return true;
+    }
+    return false;
   }
 
   private applyBookingHeuristics(prompt: string, params: Record<string, any>, action: string) {
@@ -712,6 +868,25 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       params.bookingFirstAvailable = true;
       delete params.timeSlot;
     }
+    const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
+    if (earliestTime) {
+      params.timeFrom = earliestTime;
+    }
+  }
+
+  private applyAvailabilityHeuristics(prompt: string, params: Record<string, any>, action: string) {
+    if (action !== 'check_availability') return;
+
+    if (
+      isTeamWideProviderAvailabilityQuery(prompt) ||
+      isAnyProviderBookingPrompt(prompt) ||
+      /\b(free|open|available)\s+(slot|time)s?\s+(on|for|this|next|every|during)\b/i.test(prompt)
+    ) {
+      params.allProviders = true;
+      params.employeeName = null;
+      delete params.employeeId;
+    }
+
     const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
     if (earliestTime) {
       params.timeFrom = earliestTime;
@@ -776,6 +951,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   private normalizeDateParams(params: Record<string, any>, fallbackDateKey: string) {
     if (params.date) {
       params.date = toIsoDay(params.date) ?? fallbackDateKey;
+    }
+    if (params.dateFrom) {
+      params.dateFrom = toIsoDay(params.dateFrom) ?? params.dateFrom;
+    }
+    if (params.dateTo) {
+      params.dateTo = toIsoDay(params.dateTo) ?? params.dateTo;
     }
   }
 

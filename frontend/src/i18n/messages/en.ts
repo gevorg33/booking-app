@@ -798,7 +798,7 @@ const en: MessageTree = {
     assistantPlaceholder: 'Ask anything about booking…',
     continueBooking: 'Continue booking',
     uncategorizedServices: 'Other services',
-    exampleAvailable: 'Who is available today?',
+    exampleAvailable: 'Free slots on Monday and Friday for massage',
     exampleServices: 'What services do you offer?',
     exampleBook: 'Book a massage tomorrow at 10:00',
     exampleLocation: 'Where are you located?',

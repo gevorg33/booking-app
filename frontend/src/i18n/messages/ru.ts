@@ -423,7 +423,7 @@ const ru: MessageTree = {
     assistantPlaceholder: 'Спросите о записи…',
     continueBooking: 'Продолжить запись',
     uncategorizedServices: 'Другие услуги',
-    exampleAvailable: 'Кто свободен сегодня?',
+    exampleAvailable: 'Свободные слоты в понедельник и пятницу для массажа',
     exampleServices: 'Какие услуги вы предлагаете?',
     exampleBook: 'Запиши массаж на завтра в 10:00',
     exampleLocation: 'Где вы находитесь?',

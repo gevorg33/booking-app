@@ -248,7 +248,12 @@ export class PublicBookingService {
     return { providers };
   }
 
-  async getProviderSlots(slug: string, employeeId: string, date: string) {
+  async getProviderSlots(
+    slug: string,
+    employeeId: string,
+    date: string,
+    options?: { serviceId?: string; notBeforeTime?: string | null },
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
@@ -260,13 +265,20 @@ export class PublicBookingService {
     const tz = resolveTimezone(business.timezone);
     const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
     const upcoming = rawSlots.filter((startTime) =>
-      isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, null),
+      isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, options?.notBeforeTime ?? null),
     );
-    const slots = await this.filterStartTimesWithAnyBookableService(
-      business.id,
-      employee,
-      upcoming,
-    );
+
+    let slots: Date[];
+    if (options?.serviceId) {
+      const service = await this.serviceRepo.findOne({
+        where: { id: options.serviceId, businessId: business.id, isActive: true },
+      });
+      if (!service) throw new NotFoundException('Service not found');
+      slots = await this.filterStartTimesWithService(business.id, employee, upcoming, service);
+    } else {
+      slots = await this.filterStartTimesWithAnyBookableService(business.id, employee, upcoming);
+    }
+
     return {
       date,
       employeeId,
@@ -536,6 +548,57 @@ export class PublicBookingService {
       }
     }
     return bookable;
+  }
+
+  private async filterStartTimesWithService(
+    businessId: string,
+    employee: Employee,
+    startTimes: Date[],
+    service: Service,
+  ): Promise<Date[]> {
+    if (employee.serviceIds?.length && !employee.serviceIds.includes(service.id)) {
+      return [];
+    }
+
+    const bookable: Date[] = [];
+    for (const startTime of startTimes) {
+      if (await this.canBookServiceAt(businessId, employee.id, startTime, service)) {
+        bookable.push(startTime);
+      }
+    }
+    return bookable;
+  }
+
+  private async canBookServiceAt(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    service: Service,
+  ): Promise<boolean> {
+    const allowedIds = await this.bookingService.getAllowedServiceIdsAtInstant(
+      businessId,
+      employeeId,
+      startTime,
+    );
+    if (allowedIds !== null && !allowedIds.includes(service.id)) {
+      return false;
+    }
+
+    const end = new Date(
+      startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+    );
+    try {
+      await this.bookingService.validateServiceFitsWindow(
+        businessId,
+        employeeId,
+        startTime,
+        end,
+        service.id,
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async canBookAnyServiceAt(
