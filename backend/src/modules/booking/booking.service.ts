@@ -14,8 +14,10 @@ import {
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezone.util.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -46,6 +48,7 @@ export class BookingService {
     @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
@@ -131,7 +134,12 @@ export class BookingService {
     const totalDuration = service.durationMinutes + service.bufferMinutes;
     const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
-    if (startTime <= new Date()) {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+      select: { timezone: true },
+    });
+    const timeZone = pickTimezone(business?.timezone);
+    if (isWallClockStartInPast(startTime, timeZone)) {
       throw new ConflictException('Cannot book in the past');
     }
 

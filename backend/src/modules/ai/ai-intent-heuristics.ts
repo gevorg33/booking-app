@@ -407,8 +407,8 @@ export function extractServiceFromPrompt(
 export function isAnyProviderBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
-    /\bany\s+(?:provider|staff|employee|therapist|stylist)\b/i.test(lower) ||
-    /\bwhichever\s+provider\b/i.test(lower) ||
+    /\bany\s+(?:provider|staff|employee|therapist|stylist|specialist|specialists)\b/i.test(lower) ||
+    /\bwhichever\s+(?:provider|specialist)\b/i.test(lower) ||
     /\bwhoever\s+(?:is\s+)?(?:available|free)\b/i.test(lower)
   );
 }
@@ -420,6 +420,8 @@ export function isFirstAvailableBookingPrompt(prompt: string): boolean {
     /\bfirst\s+available\b/i.test(lower) ||
     /\bearliest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
     /\bnext\s+available\s+(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnearest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnearest\s+time\s+slot\b/i.test(lower) ||
     /\bas soon as possible\b/i.test(lower) ||
     /\basap\b/i.test(lower)
   );

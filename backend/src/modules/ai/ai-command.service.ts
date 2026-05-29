@@ -24,7 +24,7 @@ import {
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
 import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
-import { pickTimezone } from '../../common/utils/timezone.util.js';
+import { pickTimezone, addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
@@ -40,7 +40,9 @@ import {
   parseTimeWindow,
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
+  parseEarliestBookingTimeFromPrompt,
 } from './ai-orchestration.helpers.js';
+import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
@@ -159,6 +161,7 @@ Rules:
 - For new appointments (book, schedule, create appointment), use action "create_booking".
 - create_booking requires serviceName at minimum. Normally also employeeName, date, and timeSlot. Leave customerName null for walk-in unless the user explicitly names a client (e.g. "for customer Maria", "book facemassage for John") — never set customerName to the provider/employee name or to the dashboard user.
 - "Book first available {service} on any provider" → create_booking with serviceName, allProviders=true, bookingFirstAvailable=true, employeeName=null, timeSlot=null, date=today if omitted. The system picks the earliest open slot across providers.
+- "Book the nearest time slot for {service} on any specialist" / "nearest available" / "ASAP" → same as first available (bookingFirstAvailable=true). Leave timeSlot null. For a named specialist only, set employeeName and bookingFirstAvailable=true without allProviders. Optional lower bound: "after 16:00" → set timeFrom="16:00" (earliest slot must be after current time and after that hour).
 - bookingFirstAvailable without allProviders: pick earliest open slot for the named provider only. allProviders without bookingFirstAvailable still requires timeSlot unless the user gives one.
 - For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
 - create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc.
@@ -919,6 +922,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         params.bookingFirstAvailable = true;
         delete params.timeSlot;
       }
+      const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
+      if (earliestTime) {
+        params.timeFrom = earliestTime;
+      }
     }
 
     if (
@@ -1101,9 +1108,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
 
     if (params.bookingFirstAvailable) {
-      const isoDay = params.date
-        ? toIsoDay(params.date, params._timeZone)
-        : toIsoDay(todayDisplay(params._timeZone ?? 'UTC'), params._timeZone);
+      const timeZone = params._timeZone ?? 'UTC';
+      const startIsoDay = params.date
+        ? toIsoDay(params.date, timeZone)
+        : toIsoDay(todayDisplay(timeZone), timeZone);
       const searchTargets = params.allProviders
         ? employees.filter((e) => e.isActive)
         : resolvedEmployee
@@ -1124,24 +1132,27 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       const pick = await this.findFirstAvailableBookingSlot(
         businessId,
         service,
-        isoDay,
+        startIsoDay,
         searchTargets,
+        timeZone,
+        params.timeFrom ?? null,
       );
 
       if (!pick) {
+        const afterLabel = params.timeFrom ? ` after ${params.timeFrom}` : '';
         return {
           success: false,
           action: 'create_booking',
-          summary: `No open ${service.name} slots on ${formatDateDisplay(isoDay)}${
+          summary: `No upcoming open ${service.name} slots found${afterLabel}${
             params.allProviders ? ' for any provider' : ` for ${resolvedEmployee?.name ?? 'that provider'}`
-          }.`,
-          details: { serviceName: service.name, date: formatDateDisplay(isoDay), allProviders: !!params.allProviders },
+          } in the next two weeks.`,
+          details: { serviceName: service.name, allProviders: !!params.allProviders, timeFrom: params.timeFrom ?? null },
         };
       }
 
       resolvedEmployee = pick.employee;
       timeSlot = this.snapTo10min(pick.timeSlot);
-      params.date = isoDay;
+      params.date = pick.isoDay;
       params.employeeName = pick.employee.name;
       params.employeeId = pick.employee.id;
     }
@@ -1182,32 +1193,54 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
   }
 
+  private static readonly FIRST_AVAILABLE_SCAN_DAYS = 14;
+
   private async findFirstAvailableBookingSlot(
     businessId: string,
     service: Service,
-    isoDay: string,
+    startIsoDay: string,
     providers: Employee[],
-  ): Promise<{ employee: Employee; timeSlot: string } | null> {
-    let best: { employee: Employee; timeSlot: string; minutes: number } | null = null;
+    timeZone = 'UTC',
+    notBeforeTime?: string | null,
+  ): Promise<{ employee: Employee; timeSlot: string; isoDay: string } | null> {
+    let best: {
+      employee: Employee;
+      timeSlot: string;
+      isoDay: string;
+      sortKey: number;
+    } | null = null;
 
-    for (const provider of providers) {
-      const row = await this.getProviderAvailabilityForService(
-        businessId,
-        provider.id,
-        service.id,
-        isoDay,
-      );
-      if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
+    for (let offset = 0; offset < AiCommandService.FIRST_AVAILABLE_SCAN_DAYS; offset++) {
+      const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
 
-      for (const slot of row.openSlots) {
-        const minutes = timeToMinutes(slot.start);
-        if (!best || minutes < best.minutes) {
-          best = { employee: provider, timeSlot: slot.start, minutes };
+      for (const provider of providers) {
+        const row = await this.getProviderAvailabilityForService(
+          businessId,
+          provider.id,
+          service.id,
+          isoDay,
+        );
+        if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
+
+        for (const slot of row.openSlots) {
+          if (!isWallClockSlotBookable(isoDay, slot.start, timeZone, notBeforeTime)) continue;
+
+          const sortKey = offset * 24 * 60 + timeToMinutes(slot.start);
+          if (!best || sortKey < best.sortKey) {
+            best = {
+              employee: provider,
+              timeSlot: slot.start,
+              isoDay,
+              sortKey,
+            };
+          }
         }
       }
     }
 
-    return best ? { employee: best.employee, timeSlot: best.timeSlot } : null;
+    return best
+      ? { employee: best.employee, timeSlot: best.timeSlot, isoDay: best.isoDay }
+      : null;
   }
 
   private async handleAssignEmployeeServices(

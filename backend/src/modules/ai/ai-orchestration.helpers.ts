@@ -557,6 +557,17 @@ export function parseTimeWindow(
   return defaults;
 }
 
+/** Earliest bookable time from phrasing like "after 16:00" or "from 16:00 onwards". */
+export function parseEarliestBookingTimeFromPrompt(prompt: string): string | null {
+  const after = prompt.match(/\bafter\s+(\d{1,2})(?::(\d{2}))?\b/i);
+  if (after) return normalizeTime24(`${after[1]}:${after[2] ?? '00'}`);
+
+  const fromOnwards = prompt.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s+onwards\b/i);
+  if (fromOnwards) return normalizeTime24(`${fromOnwards[1]}:${fromOnwards[2] ?? '00'}`);
+
+  return null;
+}
+
 export function bookingOverlapsTimeWindow(
   booking: { startTime: Date; endTime: Date },
   isoDay: string,
