@@ -1,6 +1,6 @@
 /**
  * Normalizes Armenian / Russian (and common transliterations) into English
- * keywords understood by ai-intent-heuristics. Applied before detection.
+ * keywords understood by prompt resolvers. Applied before LLM classification.
  */
 
 const PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -42,6 +42,8 @@ const PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/մասնագետ/gi, 'provider'],
   [/կարգավոր/gi, 'schedule'],
   [/գրաֆիկ/gi, 'schedule'],
+  [/փոխել/gi, 'change'],
+  [/ծառայության\s*տեսակ/gi, 'service type'],
 
   // ── Russian ──
   [/записи/gi, 'appointments'],
@@ -84,6 +86,9 @@ const PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/график/gi, 'schedule'],
   [/кто\s*(может|делает|оказывает)/gi, 'who can do'],
   [/какие\s*услуги/gi, 'what services'],
+  [/сменить/gi, 'change'],
+  [/изменить/gi, 'change'],
+  [/тип\s*услуги/gi, 'service type'],
 
   // ── Common transliteration (hy/ru typed in Latin) ──
   [/\baysor\b/gi, 'today'],

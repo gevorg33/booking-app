@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { toIsoDay, formatDateDisplay } from '../../common/utils/date-format.util.js';
+import { toIsoDay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
 import {
   resolveEmployees,
   resolveServices,
@@ -40,6 +40,8 @@ const SESSION_INHERIT_KEYS = [
   'bookingMetric',
   'route',
   'statusFilter',
+  'statusFilters',
+  'limit',
   'todayOnly',
   'segmentFilter',
 ] as const;
@@ -86,9 +88,10 @@ export class CommandCompletionPipelineService {
     return merged;
   }
 
-  normalizeDateParams(params: Record<string, any>): void {
+  normalizeDateParams(params: Record<string, any>, prompt?: string, timeZone = 'UTC'): void {
+    applyRelativeDateFromPrompt(params, prompt, timeZone);
     for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
-      if (params[key]) params[key] = toIsoDay(params[key]);
+      if (params[key]) params[key] = toIsoDay(params[key], timeZone);
     }
   }
 
@@ -98,11 +101,14 @@ export class CommandCompletionPipelineService {
     prompt: string,
     classified: ClassifiedCommand,
     catalog: BusinessCatalog,
+    timeZone = 'UTC',
   ): ResolvedCommand {
-    const params = { ...classified.params };
+    const params: Record<string, any> = { ...classified.params, _timeZone: timeZone };
     const allProviders =
       params.allProviders === true ||
-      /all providers|everyone|all staff|all employees/i.test(prompt);
+      /all providers|everyone|all staff|all employees|any provider|any staff|whichever provider/i.test(
+        prompt,
+      );
 
     if (allProviders) params.allProviders = true;
 
@@ -112,7 +118,7 @@ export class CommandCompletionPipelineService {
       ? fuzzyMatchByName(catalog.customers, params.customerName)
       : undefined;
     const template = resolveTemplate(catalog.templates, params.templateName);
-    const dateRange = resolveDateRange(params, prompt);
+    const dateRange = resolveDateRange(params, prompt, timeZone);
 
     const employee = employees.length === 1 ? employees[0] : undefined;
 
@@ -157,7 +163,12 @@ export class CommandCompletionPipelineService {
     }
 
     if (dateRange) {
-      if (!enrichedParams.date) enrichedParams.date = dateRange.start;
+      const promptHasRelativeDate = /\b(tomorrow|today|yesterday|tonight)\b/i.test(
+        prompt.toLowerCase(),
+      );
+      if (promptHasRelativeDate || !enrichedParams.date) {
+        enrichedParams.date = dateRange.start;
+      }
       if (!enrichedParams.dateFrom) enrichedParams.dateFrom = dateRange.start;
       if (!enrichedParams.dateTo) enrichedParams.dateTo = dateRange.end;
     }

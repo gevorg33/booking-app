@@ -41,8 +41,14 @@ export class BookingController {
     @Param('businessId') businessId: string,
     @Query('date') date?: string,
     @Query('employeeId') employeeId?: string,
+    @Query('includeHidden') includeHidden?: string,
   ) {
-    return this.bookingService.findAll(businessId, date, employeeId);
+    return this.bookingService.findAll(
+      businessId,
+      date,
+      employeeId,
+      includeHidden === 'true',
+    );
   }
 
   @Get('dashboard')

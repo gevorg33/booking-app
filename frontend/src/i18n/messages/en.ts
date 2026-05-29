@@ -193,6 +193,8 @@ const en: MessageTree = {
     resendAppAccess: 'Resend app access',
     appAccessSent: 'Setup email sent.',
     appAccessNeedsEmail: 'Add an email to send app access.',
+    servicesOfferedHint: 'Select at least one service this provider can perform.',
+    servicesRequired: 'Select at least one service.',
   },
   teamMembers: {
     title: 'Team access roles',

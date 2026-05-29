@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee } from './entities/employee.entity.js';
 import { User } from '../user/entities/user.entity.js';
+import { Service } from '../service/entities/service.entity.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
@@ -16,11 +17,13 @@ export class EmployeeService {
   constructor(
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Service) private serviceRepo: Repository<Service>,
     private eventStore: EventStoreService,
     private tenantContactService: TenantMemberContactService,
   ) {}
 
   async create(businessId: string, dto: CreateEmployeeDto, userId?: string): Promise<Employee> {
+    await this.assertServiceIdsPresent(businessId, dto.serviceIds);
     if (dto.email?.trim()) {
       await this.tenantContactService.assertEmailAvailableInTenant(businessId, dto.email);
     }
@@ -59,6 +62,7 @@ export class EmployeeService {
 
   async update(id: string, dto: UpdateEmployeeDto, userId?: string): Promise<Employee> {
     const employee = await this.findOne(id);
+    await this.assertServiceIdsPresent(employee.businessId, dto.serviceIds);
     const exclude = {
       employeeId: employee.id,
       userId: employee.userId ?? undefined,
@@ -160,6 +164,20 @@ export class EmployeeService {
     }
 
     return metadata;
+  }
+
+  private async assertServiceIdsPresent(
+    businessId: string,
+    serviceIds?: string[],
+  ): Promise<void> {
+    if (serviceIds === undefined || serviceIds.length > 0) return;
+
+    const activeServices = await this.serviceRepo.count({
+      where: { businessId, isActive: true },
+    });
+    if (activeServices > 0) {
+      throw new BadRequestException('At least one service is required');
+    }
   }
 
   private normalizePhoneField(phone?: string): string {

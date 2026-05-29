@@ -5,10 +5,12 @@ import { Loader2, X } from 'lucide-react';
 import { EmployeeAvatarField } from '@/components/employees/employee-avatar-field';
 import { DashboardPhoneInput } from '@/components/dashboard-phone-input';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 import {
   emptyEmployeeForm,
   employeeToForm,
   formToPayload,
+  validateEmployeeServices,
   type EmployeeFormValues,
   type EmployeeRecord,
 } from '@/lib/employee-types';
@@ -36,6 +38,7 @@ export function EmployeeFormModal({
   onClose,
   onSubmit,
 }: EmployeeFormModalProps) {
+  const { t } = useI18n();
   const { business, user } = useAuthStore();
   const defaultPhoneCountry =
     business?.defaultPhoneCountryCode ||
@@ -43,16 +46,19 @@ export function EmployeeFormModal({
 
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm());
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [servicesError, setServicesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setForm(employee ? employeeToForm(employee) : emptyEmployeeForm());
     setPhoneError(null);
+    setServicesError(null);
   }, [open, employee]);
 
   if (!open) return null;
 
   const toggleService = (serviceId: string) => {
+    setServicesError(null);
     setForm((prev) => ({
       ...prev,
       serviceIds: prev.serviceIds.includes(serviceId)
@@ -88,6 +94,11 @@ export function EmployeeFormModal({
           onSubmit={(e) => {
             e.preventDefault();
             setPhoneError(null);
+            setServicesError(null);
+            if (validateEmployeeServices(form.serviceIds, services.length) === 'SERVICES_REQUIRED') {
+              setServicesError(t('employees.servicesRequired'));
+              return;
+            }
             try {
               onSubmit(formToPayload(form));
             } catch (err) {
@@ -154,7 +165,7 @@ export function EmployeeFormModal({
             <div>
               <label className="label">Services offered</label>
               <p className="text-[11px] text-gray-500 mb-2">
-                Leave empty to allow all services for this provider.
+                {t('employees.servicesOfferedHint')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {services.map((service) => {
@@ -175,6 +186,7 @@ export function EmployeeFormModal({
                   );
                 })}
               </div>
+              {servicesError && <p className="text-sm text-red-400 mt-2">{servicesError}</p>}
             </div>
           )}
 

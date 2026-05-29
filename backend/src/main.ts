@@ -56,9 +56,14 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`Server running on http://localhost:${port}`);
+  const port = Number(process.env.PORT) || 3001;
+  const host = process.env.HOST || '0.0.0.0';
+  await app.listen(port, host);
+  const lanHint =
+    host === '0.0.0.0'
+      ? ' (LAN: use your machine IP, e.g. http://192.168.x.x:' + port + ')'
+      : '';
+  console.log(`Server running on http://localhost:${port}${lanHint}`);
 }
 
 bootstrap();

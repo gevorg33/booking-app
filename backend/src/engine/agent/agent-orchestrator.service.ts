@@ -423,6 +423,10 @@ export class AgentOrchestratorService {
         return `Add ${Array.isArray(p.periods) ? p.periods.length : 'new'} availability block(s)`;
       case 'cancel_bookings':
         return `Cancel ${p.bookingIds?.length ?? 'matched'} booking(s)`;
+      case 'hide_appointments_from_calendar':
+        return `Hide ${p.bookingIds?.length ?? 'matched'} appointment(s) from calendar`;
+      case 'unhide_appointments_from_calendar':
+        return `Restore ${p.bookingIds?.length ?? 'matched'} hidden appointment(s) to calendar`;
       case 'reschedule_booking':
         return `Move booking ${p.bookingId ?? ''} to ${p.startTime ?? 'new time'}`;
       case 'create_block_schedule':

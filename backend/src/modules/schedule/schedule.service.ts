@@ -491,6 +491,19 @@ export class ScheduleService implements OnModuleInit {
         templateId: null,
       });
 
+      // Replace bookable micro-slots in this window so overlapping gap fills do not stack conflicting service_ids.
+      await this.slotRepo
+        .createQueryBuilder()
+        .delete()
+        .from(SchedulingSlot)
+        .where('business_id = :businessId', { businessId })
+        .andWhere('employee_id = :employeeId', { employeeId: dto.employeeId })
+        .andWhere('start_time >= :periodStart', { periodStart })
+        .andWhere('start_time < :periodEnd', { periodEnd })
+        .andWhere('status = :status', { status: SlotStatus.AVAILABLE })
+        .andWhere('appointment_count = 0')
+        .execute();
+
       let current = new Date(periodStart);
       while (current.getTime() + SLOT_GRANULARITY * 60000 <= periodEnd.getTime()) {
         const slotEnd = new Date(current.getTime() + SLOT_GRANULARITY * 60000);

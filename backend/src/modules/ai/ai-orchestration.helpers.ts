@@ -1,8 +1,22 @@
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
-import { parseDateInput, toIsoDay, formatDateDisplay } from '../../common/utils/date-format.util.js';
-import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import {
+  parseDateInput,
+  toIsoDay,
+  formatDateDisplay,
+  formatTimeDisplay,
+  getTodayDateKey,
+  buildUtcStartTimeFromDayAndTime,
+} from '../../common/utils/date-format.util.js';
+import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
+import { addDaysToDateKey, resolveTimezone } from '../../common/utils/timezone.util.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export interface DateRange {
   start: string;
@@ -53,6 +67,47 @@ export function fuzzyMatchByName<T extends { name: string }>(items: T[], name: s
         .split(/\s+/)
         .some((part) => part === lower || part.startsWith(lower) || lower.startsWith(part)),
     )
+  );
+}
+
+/** Collapse spaces/punctuation so "face massage" matches catalog "facemassage". */
+export function normalizeServiceLookup(text: string): string {
+  return text.toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+export function fuzzyMatchServiceByName<T extends { name: string }>(
+  items: T[],
+  name: string,
+): T | undefined {
+  const lower = name.trim().toLowerCase();
+  if (!lower) return undefined;
+  const normalized = normalizeServiceLookup(lower);
+
+  const exact = items.find((item) => item.name.toLowerCase() === lower);
+  if (exact) return exact;
+
+  const exactNorm = items.find((item) => normalizeServiceLookup(item.name) === normalized);
+  if (exactNorm) return exactNorm;
+
+  let best: T | undefined;
+  let bestLen = 0;
+  for (const item of items) {
+    const normName = normalizeServiceLookup(item.name);
+    if (
+      normName.length >= 4 &&
+      (normalized.includes(normName) || normName.includes(normalized))
+    ) {
+      if (normName.length > bestLen) {
+        best = item;
+        bestLen = normName.length;
+      }
+    }
+  }
+  if (best) return best;
+
+  return (
+    items.find((item) => item.name.toLowerCase().includes(lower)) ||
+    items.find((item) => lower.includes(item.name.toLowerCase()))
   );
 }
 
@@ -108,7 +163,7 @@ export function resolveServices(
   const resolved: Service[] = [];
   const seen = new Set<string>();
   for (const name of rawNames) {
-    const svc = fuzzyMatchByName(catalog, name);
+    const svc = fuzzyMatchServiceByName(catalog, name);
     if (svc && !seen.has(svc.id)) {
       seen.add(svc.id);
       resolved.push(svc);
@@ -125,34 +180,79 @@ export function getEmployeeServices(employee: Employee, catalog: Service[]): Ser
   return catalog;
 }
 
-/** Parse relative dates and ranges from prompt + params into ISO day range. */
-export function resolveDateRange(
-  params: { date?: string | null; dateFrom?: string | null; dateTo?: string | null },
+/** Services explicitly assigned on the employee profile (empty when none assigned). */
+export function getEmployeeAssignedServices(employee: Employee, catalog: Service[]): Service[] {
+  if (!employee.serviceIds?.length) {
+    return [];
+  }
+  const allowed = new Set(employee.serviceIds);
+  return catalog.filter((s) => allowed.has(s.id));
+}
+
+export function isProviderOwnServicesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(his|her|their)\s+services?\b/i.test(lower) ||
+    /\b(?:with|for)\s+(?:his|her|their)\s+services\b/i.test(lower) ||
+    /\bprovider'?s?\s+services\b/i.test(lower) ||
+    /\bassigned\s+services\b/i.test(lower)
+  );
+}
+
+/** Services to attach to schedule periods — never the full catalog when the employee has assignments. */
+export function resolveScheduleServicesForEmployee(
+  employee: Employee,
+  catalog: Service[],
+  params: { serviceName?: string | null; serviceNames?: string[] | null },
   prompt?: string,
-): DateRange | null {
-  if (params.dateFrom && params.dateTo) {
-    return { start: toIsoDay(params.dateFrom), end: toIsoDay(params.dateTo) };
+): Service[] {
+  const assigned = getEmployeeAssignedServices(employee, catalog);
+  const ownServicesPrompt = prompt ? isProviderOwnServicesPrompt(prompt) : false;
+  const fromParams = resolveServices(catalog, params);
+
+  if (ownServicesPrompt || fromParams.length === 0) {
+    return assigned;
   }
 
-  const lower = (prompt ?? '').toLowerCase();
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  if (assigned.length === 0) {
+    return fromParams;
+  }
 
-  const addDays = (base: Date, n: number) => {
-    const d = new Date(base);
-    d.setUTCDate(d.getUTCDate() + n);
-    return d;
-  };
+  return fromParams.filter((s) => assigned.some((a) => a.id === s.id));
+}
+
+/** Parse relative dates and ranges from prompt + params into ISO day range. */
+export function resolveDateRange(
+  params: {
+    date?: string | null;
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    _timeZone?: string | null;
+  },
+  prompt?: string,
+  timeZone?: string,
+): DateRange | null {
+  if (params.dateFrom && params.dateTo) {
+    const tz = resolveTimezone(timeZone ?? params._timeZone ?? 'UTC');
+    return {
+      start: toIsoDay(params.dateFrom, tz),
+      end: toIsoDay(params.dateTo, tz),
+    };
+  }
+
+  const tz = resolveTimezone(timeZone ?? params._timeZone ?? 'UTC');
+  const lower = (prompt ?? '').toLowerCase();
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
 
   const weekRange = (offsetWeeks = 0) => {
-    const start = new Date(today);
-    const day = start.getUTCDay();
+    const day = today.day();
     const mondayOffset = day === 0 ? -6 : 1 - day;
-    start.setUTCDate(start.getUTCDate() + mondayOffset + offsetWeeks * 7);
-    const end = addDays(start, 6);
+    const start = today.add(mondayOffset + offsetWeeks * 7, 'day');
+    const end = start.add(6, 'day');
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
+      start: start.format('YYYY-MM-DD'),
+      end: end.format('YYYY-MM-DD'),
     };
   };
 
@@ -161,15 +261,18 @@ export function resolveDateRange(
   if (/\bnext week\b/i.test(lower)) return weekRange(1);
 
   if (/\bthis month\b/i.test(lower) || /\bcurrent month\b/i.test(lower)) {
-    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-    const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
-    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    return {
+      start: today.startOf('month').format('YYYY-MM-DD'),
+      end: today.endOf('month').format('YYYY-MM-DD'),
+    };
   }
 
   if (/\blast month\b/i.test(lower)) {
-    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
-    const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
-    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    const prev = today.subtract(1, 'month');
+    return {
+      start: prev.startOf('month').format('YYYY-MM-DD'),
+      end: prev.endOf('month').format('YYYY-MM-DD'),
+    };
   }
 
   const weekdayMap: Record<string, number> = {
@@ -180,29 +283,27 @@ export function resolveDateRange(
   const nextDayMatch = lower.match(/\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/);
   if (nextDayMatch) {
     const target = weekdayMap[nextDayMatch[1]];
-    const cur = today.getUTCDay();
+    const cur = today.day();
     let delta = (target - cur + 7) % 7;
     if (delta === 0) delta = 7;
-    const d = addDays(today, delta);
-    const iso = d.toISOString().split('T')[0];
+    const iso = today.add(delta, 'day').format('YYYY-MM-DD');
     return { start: iso, end: iso };
   }
 
   if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
-    const iso = today.toISOString().split('T')[0];
-    return { start: iso, end: iso };
+    return { start: todayKey, end: todayKey };
   }
   if (/\btomorrow\b/i.test(lower)) {
-    const iso = addDays(today, 1).toISOString().split('T')[0];
+    const iso = addDaysToDateKey(todayKey, 1, tz);
     return { start: iso, end: iso };
   }
   if (/\byesterday\b/i.test(lower)) {
-    const iso = addDays(today, -1).toISOString().split('T')[0];
+    const iso = addDaysToDateKey(todayKey, -1, tz);
     return { start: iso, end: iso };
   }
 
   if (params.date) {
-    const iso = toIsoDay(params.date);
+    const iso = toIsoDay(params.date, tz);
     return { start: iso, end: iso };
   }
 
@@ -210,8 +311,8 @@ export function resolveDateRange(
 }
 
 /** Extract single date hint from prompt for params.date (display format). */
-export function extractSingleDateFromPrompt(prompt: string): string | null {
-  const range = resolveDateRange({}, prompt);
+export function extractSingleDateFromPrompt(prompt: string, timeZone = 'UTC'): string | null {
+  const range = resolveDateRange({ _timeZone: timeZone }, prompt, timeZone);
   if (!range || range.start !== range.end) return null;
   return formatDateDisplay(range.start);
 }
@@ -270,6 +371,17 @@ export function parseWeekdaysFromParams(
   return [0, 1, 2, 3, 4, 5, 6];
 }
 
+const TIME_RANGE_IN_PROMPT =
+  /(?:between\s+)?\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}(?::\d{2})?/i;
+
+export function hasExplicitTimeWindow(
+  params: { timeFrom?: string | null; timeTo?: string | null },
+  prompt?: string,
+): boolean {
+  if (params.timeFrom && params.timeTo) return true;
+  return TIME_RANGE_IN_PROMPT.test(prompt ?? '');
+}
+
 export function parseTimeWindow(
   params: { timeFrom?: string | null; timeTo?: string | null },
   prompt?: string,
@@ -286,13 +398,58 @@ export function parseTimeWindow(
     /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
   );
   if (match) {
-    return {
-      timeFrom: normalizeTime24(`${match[1]}:${match[2] ?? '00'}`),
-      timeTo: normalizeTime24(`${match[3]}:${match[4] ?? '00'}`),
-    };
+    const timeFrom = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
+    const timeTo = normalizeTime24(`${match[3]}:${match[4] ?? '00'}`);
+    if (timeToMinutes(timeTo) > timeToMinutes(timeFrom)) {
+      return { timeFrom, timeTo };
+    }
   }
 
   return defaults;
+}
+
+export function bookingOverlapsTimeWindow(
+  booking: { startTime: Date; endTime: Date },
+  isoDay: string,
+  timeFrom: string,
+  timeTo: string,
+): boolean {
+  const windowStart = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeFrom));
+  const windowEnd = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeTo));
+  const start =
+    booking.startTime instanceof Date ? booking.startTime : new Date(booking.startTime);
+  const end = booking.endTime instanceof Date ? booking.endTime : new Date(booking.endTime);
+  return start < windowEnd && end > windowStart;
+}
+
+/** Narrow bookings to an explicit timeSlot or timeFrom–timeTo window (overlap, not start-only). */
+export function filterBookingsByTimeConstraints<T extends { startTime: Date; endTime: Date }>(
+  bookings: T[],
+  params: {
+    timeSlot?: string | null;
+    timeFrom?: string | null;
+    timeTo?: string | null;
+    date?: string | null;
+    _timeZone?: string;
+  },
+  prompt?: string,
+): T[] {
+  if (hasExplicitTimeWindow(params, prompt)) {
+    const window = parseTimeWindow(params, prompt);
+    return bookings.filter((b) => {
+      const start =
+        b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+      const isoDay = start.toISOString().split('T')[0];
+      return bookingOverlapsTimeWindow(b, isoDay, window.timeFrom, window.timeTo);
+    });
+  }
+
+  if (params.timeSlot) {
+    const slot = normalizeTime24(params.timeSlot);
+    return bookings.filter((b) => formatTimeDisplay(b.startTime) === slot);
+  }
+
+  return bookings;
 }
 
 export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt?: string): boolean {

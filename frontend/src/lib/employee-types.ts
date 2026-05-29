@@ -52,6 +52,17 @@ export function employeeToForm(employee: EmployeeRecord): EmployeeFormValues {
 
 import { formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 
+/** When the business has bookable services, a provider must have at least one assigned. */
+export function validateEmployeeServices(
+  serviceIds: string[],
+  catalogServiceCount: number,
+): string | null {
+  if (catalogServiceCount > 0 && serviceIds.length === 0) {
+    return 'SERVICES_REQUIRED';
+  }
+  return null;
+}
+
 export function formToPayload(form: EmployeeFormValues) {
   const phoneRaw = form.phone.trim();
   let phone: string | undefined;
@@ -68,6 +79,6 @@ export function formToPayload(form: EmployeeFormValues) {
     phone,
     title: form.title.trim() || undefined,
     avatarUrl: form.avatarUrl.trim() || undefined,
-    serviceIds: form.serviceIds.length > 0 ? form.serviceIds : undefined,
+    serviceIds: form.serviceIds,
   };
 }

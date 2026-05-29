@@ -101,6 +101,10 @@ export class Booking {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, any>;
 
+  /** When true, appointment stays in DB but is omitted from schedule calendar views. */
+  @Column({ name: 'hidden_from_calendar', default: false })
+  hiddenFromCalendar: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

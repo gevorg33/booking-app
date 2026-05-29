@@ -139,6 +139,10 @@ export class NotificationsService {
         this.buildCancellationSms(ctx, cancelReason),
       );
     }
+
+    if (businessSettings.whatsappEnabled && prefs.whatsappReminders && customer.phone) {
+      await this.dispatchWhatsApp(ctx, 'cancellation', customer.phone, undefined, cancelReason);
+    }
   }
 
   async sendReviewRequest(bookingId: string): Promise<void> {
@@ -328,6 +332,7 @@ export class NotificationsService {
     kind: NotificationKind,
     phone: string,
     minutesBefore?: number,
+    cancelReason?: string,
   ): Promise<boolean> {
     const existing = await this.logRepo.findOne({
       where: {
@@ -367,6 +372,7 @@ export class NotificationsService {
         dateLabel,
         timeLabel,
         reminderLabel,
+        cancelReason,
       },
       config,
     );

@@ -1,3 +1,16 @@
+import { addDaysToDateKey, getDateKeyInTimezone, resolveTimezone } from './timezone.util.js';
+
+/** DD_MM_YYYY from YYYY-MM-DD calendar key. */
+export function dateKeyToDisplay(dateKey: string): string {
+  const [yyyy, mm, dd] = dateKey.split('-');
+  return `${dd}_${mm}_${yyyy}`;
+}
+
+/** Calendar date key (YYYY-MM-DD) for "now" in the given timezone. */
+export function getTodayDateKey(timeZone = 'UTC'): string {
+  return getDateKeyInTimezone(new Date(), timeZone);
+}
+
 /** User-facing date: DD_MM_YYYY (UTC). */
 export function formatDateDisplay(input: Date | string): string {
   const d = typeof input === 'string' ? parseDateInput(input) : input;
@@ -40,12 +53,62 @@ export function parseDateInput(value: string): Date | null {
 }
 
 /** Normalize user/LLM date to ISO day for storage and queries. */
-export function toIsoDay(value: string): string {
+export function toIsoDay(value: string, timeZone = 'UTC'): string {
+  const relative = resolveRelativeDateKeyword(value, timeZone);
+  if (relative) return relative;
   const d = parseDateInput(value);
   if (!d) return value;
   return d.toISOString().split('T')[0];
 }
 
-export function todayDisplay(): string {
-  return formatDateDisplay(new Date());
+/** Resolve today / tomorrow / yesterday keywords to ISO day in timezone. */
+export function resolveRelativeDateKeyword(value: string, timeZone = 'UTC'): string | null {
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const lower = value.trim().toLowerCase();
+  if (lower === 'today' || lower === 'tonight') return todayKey;
+  if (lower === 'tomorrow') return addDaysToDateKey(todayKey, 1, tz);
+  if (lower === 'yesterday') return addDaysToDateKey(todayKey, -1, tz);
+  return null;
+}
+
+/** When prompt mentions today/tomorrow/yesterday, override params.date. */
+export function applyRelativeDateFromPrompt(
+  params: Record<string, any>,
+  prompt?: string,
+  timeZone = 'UTC',
+): void {
+  const tz = resolveTimezone(timeZone);
+  const lower = (prompt ?? '').toLowerCase();
+
+  if (/\btomorrow\b/i.test(lower)) {
+    params.date = dateKeyToDisplay(addDaysToDateKey(getTodayDateKey(tz), 1, tz));
+    return;
+  }
+  if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
+    params.date = todayDisplay(tz);
+    return;
+  }
+  if (/\byesterday\b/i.test(lower)) {
+    params.date = dateKeyToDisplay(addDaysToDateKey(getTodayDateKey(tz), -1, tz));
+  }
+}
+
+/** Combine ISO/display day + HH:mm into a UTC ISO timestamp. */
+export function buildUtcStartTimeFromDayAndTime(
+  dayValue: string,
+  timeSlot: string,
+): string {
+  const isoDay = toIsoDay(dayValue);
+  const day = parseDateInput(isoDay);
+  if (!day) {
+    throw new Error(`Invalid booking date: ${dayValue}`);
+  }
+  const [hours, minutes] = timeSlot.split(':').map((part) => parseInt(part, 10));
+  day.setUTCHours(hours, minutes ?? 0, 0, 0);
+  return day.toISOString();
+}
+
+export function todayDisplay(timeZone = 'UTC'): string {
+  return dateKeyToDisplay(getTodayDateKey(timeZone));
 }

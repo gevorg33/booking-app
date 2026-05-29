@@ -12,13 +12,21 @@ const needs = (
   present ? null : { field, label, message: `${label} is required`, example };
 
 const ACTION_RULES: Record<string, Rule> = {
-  create_booking: (cmd) =>
-    [
-      needs('employeeName', 'Service provider', !!(cmd.entities.employee || cmd.enrichedParams.employeeId), 'Gevorg Gasparyan'),
+  create_booking: (cmd) => {
+    const anyProvider = cmd.params.allProviders === true;
+    const firstAvailable = cmd.params.bookingFirstAvailable === true;
+    return [
+      needs(
+        'employeeName',
+        'Service provider',
+        !!(cmd.entities.employee || cmd.enrichedParams.employeeId || anyProvider || firstAvailable),
+        'Gevorg Gasparyan or any provider',
+      ),
       needs('serviceName', 'Service', !!(cmd.entities.service || cmd.enrichedParams.serviceId), 'facemassage'),
-      needs('date', 'Date', !!cmd.params.date, '29/05/2026 or tomorrow'),
-      needs('timeSlot', 'Start time', !!cmd.params.timeSlot, '09:00'),
-    ].filter(Boolean) as ValidationIssue[],
+      needs('date', 'Date', !!cmd.params.date || firstAvailable, '29/05/2026 or tomorrow'),
+      needs('timeSlot', 'Start time', !!cmd.params.timeSlot || firstAvailable, '09:00 or first available'),
+    ].filter(Boolean) as ValidationIssue[];
+  },
 
   create_service: (cmd) =>
     [
@@ -60,6 +68,50 @@ const ACTION_RULES: Record<string, Rule> = {
 
   bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
 
+  hide_appointments_from_calendar: (cmd) => {
+    const hasFilter =
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.serviceNames?.length ?? 0) > 0 ||
+      !!cmd.params.serviceName ||
+      !!cmd.params.statusFilter ||
+      (cmd.params.statusFilters?.length ?? 0) > 0 ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.customerName;
+    return hasFilter
+      ? []
+      : [{
+          field: 'date',
+          label: 'Filter',
+          message: 'Specify which appointments to hide (date, provider, status, and/or service)',
+          example: 'Hide all cancelled appointments for Gevorg today from the calendar',
+        }];
+  },
+
+  unhide_appointments_from_calendar: (cmd) => {
+    const hasFilter =
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.serviceNames?.length ?? 0) > 0 ||
+      !!cmd.params.serviceName ||
+      !!cmd.params.statusFilter ||
+      (cmd.params.statusFilters?.length ?? 0) > 0 ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.customerName;
+    return hasFilter
+      ? []
+      : [{
+          field: 'date',
+          label: 'Filter',
+          message: 'Specify which hidden appointments to restore (date, provider, status, and/or service)',
+          example: 'Unhide all hidden cancelled appointments for Gevorg today on the calendar',
+        }];
+  },
+
   fill_slot_from_waitlist: (cmd) => {
     const hasWhen = !!cmd.params.date || !!cmd.params.timeSlot;
     return hasWhen
@@ -75,24 +127,26 @@ const ACTION_RULES: Record<string, Rule> = {
   reschedule_booking: (cmd) => {
     const hasTarget =
       !!cmd.params.bookingId ||
-      (!!cmd.params.customerName && (!!cmd.params.date || !!cmd.params.timeSlot));
+      !!cmd.params.customerName ||
+      (!!cmd.params.employeeName && (!!cmd.params.date || !!cmd.params.timeSlot));
     const hasNewTime = !!cmd.params.date || !!cmd.params.timeSlot;
+    const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
     return [
       ...(hasTarget
         ? []
         : [{
             field: 'bookingId',
             label: 'Booking',
-            message: 'Specify which appointment to reschedule (customer + date/time, or booking ID)',
-            example: 'Move Maria\'s 14:00 appointment to 16:00',
+            message: 'Specify which appointment to update (customer, or provider + date/time, or booking ID)',
+            example: 'Change Maria\'s 14:00 appointment to hot stone massage',
           }]),
-      ...(hasNewTime
+      ...(hasNewTime || hasServiceChange
         ? []
         : [{
             field: 'timeSlot',
-            label: 'New time',
-            message: 'Specify the new date and/or time',
-            example: 'Reschedule to 16:00 on 30/05/2026',
+            label: 'New time or service',
+            message: 'Specify a new service type and/or a new date/time',
+            example: 'Change service to facemassage or move to 16:00',
           }]),
     ];
   },
@@ -347,6 +401,8 @@ const VALIDATED_ACTIONS = new Set([
   'create_services',
   'cancel_bookings',
   'bulk_smart_cancel',
+  'hide_appointments_from_calendar',
+  'unhide_appointments_from_calendar',
   'fill_slot_from_waitlist',
   'reschedule_booking',
   'check_availability',

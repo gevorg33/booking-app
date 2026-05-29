@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '../entities/booking.entity.js';
 
@@ -11,6 +12,12 @@ export class GetBookingsQueryDto {
   @IsOptional()
   @IsString()
   date?: string;
+
+  /** Include appointments hidden from the schedule calendar. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  includeHidden?: boolean;
 
   /** Comma-separated booking statuses. */
   @IsOptional()

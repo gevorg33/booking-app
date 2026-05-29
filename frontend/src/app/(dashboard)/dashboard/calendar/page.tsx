@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, getTodayDateKey, toDateKey, todayDateAnchor } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
@@ -62,7 +62,7 @@ function getWeekDates(anchor: Date): Date[] {
 }
 
 function dateKey(d: Date) {
-  return d.toISOString().split('T')[0];
+  return toDateKey(d);
 }
 
 function toMinutes(date: Date) {
@@ -270,9 +270,9 @@ export default function CalendarPage() {
 
   const prevWeek = () => { const d = new Date(anchorDate); d.setDate(d.getDate() - 7); setAnchorDate(d); };
   const nextWeek = () => { const d = new Date(anchorDate); d.setDate(d.getDate() + 7); setAnchorDate(d); };
-  const goToday = () => setAnchorDate(new Date());
+  const goToday = () => setAnchorDate(todayDateAnchor());
 
-  const today = dateKey(new Date());
+  const today = getTodayDateKey();
   const totalHours = HOUR_END - HOUR_START;
 
   return (

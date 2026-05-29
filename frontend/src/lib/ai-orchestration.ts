@@ -30,7 +30,17 @@ export const AI_BOOKING_EXAMPLES = [
   'What\'s coming up today?',
   'Who is the busiest provider today?',
   'Cancel all facemassage appointments tomorrow',
+  'Cancel all Gevorg\'s appointments on 30th May with a reason that he is sick',
   'Move Maria\'s 14:00 appointment to 16:00',
+  'Change Maria\'s appointment to hot stone massage',
+  'Change service type to facemassage for Gevorg\'s 14:00 today',
+  'Switch to deep tissue massage and move to tomorrow at 18:00',
+  'Hide all cancelled appointments from the calendar today',
+  'Remove done and no-show appointments for Gevorg from the schedule',
+  'Unhide all hidden cancelled appointments for Gevorg today',
+  'Restore hidden done appointments for all providers this week on the calendar',
+  'Hide one cancelled appointment for Maria tomorrow at 14:00',
+  'Clear all completed appointments from everyone\'s calendar this week',
   'Summarize today for all providers',
 ];
 
@@ -119,6 +129,14 @@ export const AI_SCENARIO_CHAINS = [
     steps: [
       'Which slots are available for Gevorg tomorrow?',
       'Book facemassage at 10:00',
+    ],
+  },
+  {
+    title: 'Clean up calendar',
+    steps: [
+      'Show cancelled appointments today',
+      'Hide all cancelled appointments from the calendar today',
+      'Unhide hidden cancelled appointments for Gevorg today',
     ],
   },
   {
@@ -214,8 +232,12 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Which appointment is the most expensive today?',
     'Show all appointments for today',
     'Show cancelled appointments today',
+    'Hide all cancelled appointments from the calendar today',
+    'Unhide hidden cancelled appointments for Gevorg today',
+    'Restore hidden appointments for all providers this week',
     'Book facemassage with Gevorg tomorrow at 10:00',
     'Cancel all bookings for tomorrow',
+    'Change service to hot stone massage for Maria\'s 14:00 today',
   ],
   '/dashboard/appointments': [
     'How many appointments today?',
@@ -331,6 +353,7 @@ export interface AiPageContext {
   viewMode?: string | null;
   statusFilter?: string | null;
   todayOnly?: boolean | null;
+  timeZone?: string | null;
   segmentFilter?: string | null;
   search?: string | null;
   selectionDate?: string | null;
@@ -375,7 +398,16 @@ export function buildAiRequestContext(
     ...page,
     route,
     routeHint: route ? (AI_ROUTE_CONTEXT_HINTS[route] ?? null) : null,
+    timeZone: session.timeZone ?? page.timeZone ?? getBrowserTimeZone(),
   };
+}
+
+export function getBrowserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
 }
 
 export function getSuggestionsForRoute(route: string): string[] {

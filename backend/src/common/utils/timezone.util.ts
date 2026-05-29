@@ -17,6 +17,15 @@ export function resolveTimezone(tz?: string | null): string {
   }
 }
 
+export function pickTimezone(...candidates: (string | null | undefined)[]): string {
+  for (const candidate of candidates) {
+    if (candidate != null && String(candidate).trim() !== '') {
+      return resolveTimezone(String(candidate).trim());
+    }
+  }
+  return DEFAULT_TZ;
+}
+
 /** Calendar date (YYYY-MM-DD) for an instant in a timezone. */
 export function getDateKeyInTimezone(instant: Date, timeZone: string): string {
   return dayjs(instant).tz(resolveTimezone(timeZone)).format('YYYY-MM-DD');

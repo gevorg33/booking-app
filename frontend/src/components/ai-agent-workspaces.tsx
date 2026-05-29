@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, CalendarPlus, CalendarX, ArrowRightLeft, Sparkles } from 'lucide-react';
+import { AlertTriangle, CalendarPlus, CalendarX, ArrowRightLeft, Sparkles, EyeOff, Eye } from 'lucide-react';
 
 export interface PlanDiffStep {
   id: string;
@@ -19,6 +19,8 @@ export interface PolicyPreview {
 
 const ACTION_ICON: Record<string, typeof Sparkles> = {
   cancel_bookings: CalendarX,
+  hide_appointments_from_calendar: EyeOff,
+  unhide_appointments_from_calendar: Eye,
   reschedule_booking: ArrowRightLeft,
   fill_schedule_gaps: CalendarPlus,
   apply_template: CalendarPlus,

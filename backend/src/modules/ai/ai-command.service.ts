@@ -6,6 +6,7 @@ import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booki
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
@@ -19,8 +20,10 @@ import {
   todayDisplay,
   toIsoDay,
   parseDateInput,
+  buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
-import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
+import { pickTimezone } from '../../common/utils/timezone.util.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
@@ -29,8 +32,14 @@ import {
   resolveServices,
   resolveDateRange,
   resolveAutoExecute,
+  fuzzyMatchServiceByName,
   getEmployeeServices,
+  hasExplicitTimeWindow,
+  isProviderOwnServicesPrompt,
+  parseTimeWindow,
+  filterBookingsByTimeConstraints,
 } from './ai-orchestration.helpers.js';
+import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
@@ -44,13 +53,18 @@ import {
   type CustomerInsightMetric,
 } from '../customer/customer.service.js';
 import {
-  runHeuristicIntentDetection,
+  extractServiceFromPrompt,
+  extractCustomerFromBookingPrompt,
+  isTeamWideProviderAvailabilityQuery,
+  matchEntityInPrompt,
+  resolveCustomerMetric,
   resolveAppointmentMetric,
   resolveBookingMetric,
-  resolveCustomerMetric,
   resolveServiceMetric,
   resolveStaffMetric,
   extractLimitFromPrompt,
+  isAnyProviderBookingPrompt,
+  isFirstAvailableBookingPrompt,
   type ServiceInsightMetric,
   type StaffInsightMetric,
 } from './ai-intent-heuristics.js';
@@ -67,16 +81,17 @@ interface ParsedServiceDraft {
   currency: string;
 }
 
-const INTENT_SCHEMA = `You are the Orchestrix operational AI — an orchestration layer for service businesses.
+const INTENT_SCHEMA = `You are the Orchestrix operational AI — the sole intent classifier for this system (no heuristic fallback).
 Given a user's natural-language command and the available business data, classify the intent
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
-    "allProviders": boolean or null — true when user says all providers/everyone/all staff,
+    "allProviders": boolean or null — true when user says all providers/everyone/all staff/any provider,
+    "bookingFirstAvailable": boolean or null — true when user wants the earliest open bookable slot (first available, next available, ASAP),
     "templateName": "string or null — schedule template name for apply_schedule",
     "customerName": "string or null",
     "serviceName": "string or null — single service (for create_booking or create_service name)",
@@ -102,8 +117,8 @@ and extract structured parameters. Return a JSON object with:
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
     "timeSlot": "HH:MM in 24h format or null — appointment start time (e.g. 09:00, 14:30)",
-    "timeFrom": "HH:MM or null — start of daily window for fill/optimize commands (e.g. 09:00)",
-    "timeTo": "HH:MM or null — end of daily window for fill/optimize commands (e.g. 19:00)",
+    "timeFrom": "HH:MM or null — start of a daily time window (fill/optimize, or cancel/list/hide when a range is given, e.g. 16:30)",
+    "timeTo": "HH:MM or null — end of that window (e.g. 17:30 for 'between 16:30-17:30')",
     "blockFullDay": boolean or null — true when blocking entire day(s),
     "weeksCount": number or null — repeat weeks for repetitive blocks,
     "applyDays": [0-6] or null — weekdays (0=Sun) for template apply or repetitive blocks,
@@ -114,6 +129,7 @@ and extract structured parameters. Return a JSON object with:
     "appointmentMetric": "most_expensive | longest | shortest | earliest | latest | null — for analyze_appointments",
     "bookingMetric": "count | revenue | busiest_provider | cancelled | no_shows | unpaid | upcoming | confirmed | pending | completed | overview | null — for summarize_bookings",
     "statusFilter": "cancelled | no_show | confirmed | pending | completed | in_progress | null — filter appointments by status",
+    "statusFilters": ["cancelled", "no_show", "completed"] or null — multiple statuses for hide/list filters,
     "serviceMetric": "most_booked | top_revenue | least_booked | overview | null — for analyze_services",
     "staffMetric": "busiest | most_revenue | most_bookings | overview | null — for summarize_staff",
     "assignmentLookup": "providers_for_service | services_for_provider | null — for lookup_service_assignment",
@@ -129,49 +145,63 @@ Rules:
 - Extract names exactly as mentioned. The system will fuzzy-match them to real entities.
 - For cancel_bookings, filter by service type when mentioned — use serviceNames with each service listed separately (e.g. "hairdrying / hairstyle" → [\"hairdrying\", \"hairstyle\"]).
 - cancel_bookings can combine employeeName + serviceNames + date to cancel only matching appointments.
-- If the user mentions a reason/note for cancellation (e.g. "he is sick"), put it in "reason".
+- cancel_bookings with a time range (e.g. "between 16:30-17:30", "from 9 to 11") must set timeFrom and timeTo (HH:MM 24h). Only appointments that overlap that window on the given date(s) are cancelled. Use timeSlot only for a single start time (e.g. "at 16:00").
+- If the user mentions a reason/note for cancellation (e.g. "he is sick", "with a reason that he is sick"), put it in "reason".
+- cancel_bookings with a reason or when the user asks to notify/message/whatsapp customers should notify customers after cancelling (includes cancellation reason in WhatsApp/SMS/email).
+- hide_appointments_from_calendar: hide matching appointments from the schedule calendar WITHOUT deleting or cancelling them. Use for hide/remove/clear/delete from calendar. Filter by status, employeeName/allProviders, date/dateFrom/dateTo, serviceName, timeSlot, customerName, limit.
+- unhide_appointments_from_calendar: restore previously hidden appointments back onto the schedule calendar. Use for unhide/restore/show back on calendar/bring back to schedule. Same filters as hide. Only affects appointments already marked hidden.
+- Example unhide: "Unhide all hidden cancelled appointments for Gevorg today" → unhide_appointments_from_calendar with statusFilter cancelled, employeeName, date.
+- Example unhide: "Restore hidden done appointments for all providers this week on the calendar" → unhide_appointments_from_calendar with statusFilter completed, allProviders, dateFrom/dateTo.
 - For new appointments (book, schedule, create appointment), use action "create_booking".
-- create_booking requires employeeName, serviceName, date, and timeSlot at minimum.
+- create_booking requires serviceName at minimum. Normally also employeeName, date, and timeSlot. Leave customerName null for walk-in unless the user explicitly names a client (e.g. "for customer Maria", "book facemassage for John") — never set customerName to the provider/employee name or to the dashboard user.
+- "Book first available {service} on any provider" → create_booking with serviceName, allProviders=true, bookingFirstAvailable=true, employeeName=null, timeSlot=null, date=today if omitted. The system picks the earliest open slot across providers.
+- bookingFirstAvailable without allProviders: pick earliest open slot for the named provider only. allProviders without bookingFirstAvailable still requires timeSlot unless the user gives one.
 - For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
 - create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc.
 - create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
 - Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
 - Do not use create_service when booking an appointment — that is create_booking.
+- "Who has a X schedule today at 9" / "which provider is working at 09:00" are READ-ONLY show_appointments — NOT create_booking. Never interpret the noun "schedule" in a question as a booking verb.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
-- Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday". Always set employeeName and date when mentioned.
+- Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday", "does Gevorg do face massage today at 9", "is Gevorg available to give facemassage at 09:00". Always set employeeName, serviceName, date, and timeSlot when mentioned. NEVER use create_booking for these questions.
+- lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), return only providers with an applied SERVICE_BLOCK for that service on that day AND at least one unbooked open window inside those blocks — NOT the general catalog assignment list. Use for "who is doing facemassage today", "who has a free slot for facemassage today", "who can do face massage tomorrow".
 - analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
 - summarize_bookings: READ-ONLY booking analytics — counts, revenue, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "who is the busiest provider today", "how many cancelled today". NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows. For two or more providers use employeeNames array, e.g. ["Gevorg Gasparyan", "Mary Torgomyan"], or employeeName "Gevorg and Mary".
 - list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
 - summarize_utilization: team-level utilization percentages for a date range — NOT per-day gap detail. Do not use for "which days" or "show gaps" questions.
-- summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "top 10 customers who paid the most", "new customers", "most cancellations". Set customerMetric when clear; set limit from "top N" (default 5).
+- summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "which customer pays the most" / "who paid the most", "top 10 customers who paid the most", "new customers", "most cancellations". Set customerMetric when clear (e.g. top_spenders for payment/spend questions); set limit from "top N" (default 5). NEVER use overview when the user asks for a specific ranking like who pays the most.
 - list_services: READ-ONLY service catalog — list offerings or look up price/duration. Use for "what services do we offer", "how much is facemassage", "show our service menu". NOT for adding services (use create_service).
 - analyze_services: READ-ONLY — most booked / top revenue / least popular services for a date range.
 - summarize_staff: READ-ONLY — provider rankings (busiest, most revenue, most bookings) for a date range.
 - lookup_customer: READ-ONLY — single customer profile, last visit, appointment history snippet. Requires customerName.
 - summarize_waitlist: READ-ONLY — count and list CRM customers tagged "waitlist". Use for "how many on waitlist", "show waitlist customers". NOT for filling a slot (use fill_slot_from_waitlist).
-- lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), include availability for that day.
 - Example follow-up: after "who can do facemassage tomorrow", "book Gevorg at 10:00" or "at 10:00" → create_booking with inherited serviceName, date, employeeName, timeSlot.
 - list_employees: READ-ONLY — list active providers/team members.
 - list_templates: READ-ONLY — list schedule template names.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
-- create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods.
+- create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods. When the user says "his/her/their services" or does not name specific services, leave serviceNames null on each service_block — the system uses only services assigned to that provider on their profile, never the full catalog.
+- fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
 - assign_employee_services: assign services from catalog to a provider.
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
 - fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).
+- reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, or bookingId, or employeeName + date/time). Set serviceName when changing service (e.g. "change service to hot stone massage"). New date/time optional when only changing service. Can combine: "switch to deep tissue and move to tomorrow at 18:00".
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
 - If you cannot determine the action, use "unknown".
 - Multi-turn conversation: read prior messages and Active session context. Follow-up commands often omit provider, date, or customer — inherit them unless the user clearly switches topic.
+- CRITICAL: When the user's message mentions a service by name (e.g. "facemassage", "face massage", "permanent lips"), set serviceName to THAT service from the Available services list — never inherit a different serviceName from session context.
+- CRITICAL: For team-wide questions ("who can do X today", "who is doing facemassage", "who has a free slot for X"), leave employeeName null and set serviceName from the message.
 - Example follow-up: after utilization summary for this week, "which exact days does Gevorg have gaps" → action list_schedule_gaps, employeeName="Gevorg Gasparyan", inherit dateFrom/dateTo from session.
 - Example follow-up: after list_schedule_gaps or summarize_utilization, "fill those gaps" / "fill them with his services" → action fill_unused_slots, inherit employeeName, dateFrom/dateTo, timeFrom/timeTo from session.
 - Example follow-up: after "how many appointments today", "who is the busiest" → action summarize_bookings, bookingMetric="busiest_provider", inherit date from session.
 - Example follow-up: after "available slots for Gevorg on 30_06_2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30_06_2026", serviceName="facemassage", timeSlot="16:00".
+- Example follow-up: after show_appointments, "change service to hot stone massage" → action reschedule_booking, inherit customerName/date/timeSlot from session, serviceName="hot stone massage".
 - Dates may appear as DD_MM_YYYY or DD/MM/YYYY — normalize to DD_MM_YYYY in params.`;
 
 export interface CommandSessionOptions {
@@ -188,6 +218,7 @@ export class AiCommandService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
     @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
@@ -232,6 +263,8 @@ export class AiCommandService {
       };
     }
 
+    const timeZone = await this.resolveCommandTimezone(businessId, session);
+
     const [employees, services, customers, templates] = await Promise.all([
       this.employeeRepo.find({ where: { businessId, isActive: true } }),
       this.serviceRepo.find({ where: { businessId } }),
@@ -246,7 +279,7 @@ export class AiCommandService {
     const effectivePrompt = playbook ? playbook.prompt : prompt;
 
     if (this.decomposition.isCompoundPrompt(effectivePrompt)) {
-      const subIntents = await this.decomposition.decompose(businessId, userId, effectivePrompt);
+      const subIntents = await this.decomposition.decompose(businessId, userId, effectivePrompt, timeZone);
       if (subIntents.length > 1) {
         return this.executeCompoundIntents(
           businessId,
@@ -256,55 +289,58 @@ export class AiCommandService {
           subIntents,
           catalog,
           aiConfig.confidence,
+          timeZone,
         );
       }
     }
 
-    const contextBlock = `Current date: ${todayDisplay()} (format DD_MM_YYYY, times in 24h HH:mm)
+    const contextBlock = `Current date: ${todayDisplay(timeZone)} (format DD_MM_YYYY, timezone: ${timeZone}, times in 24h HH:mm)
 Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', ')}
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}
 Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
+    const sessionContext = { ...session?.context, timeZone };
+
     const normalizedPrompt = normalizeMultilingualPrompt(effectivePrompt);
     const i18nHint = multilingualHint(effectivePrompt, normalizedPrompt);
     const contextWithI18n = i18nHint ? `${contextBlock}\n${i18nHint}` : contextBlock;
 
-    const parsed =
-      runHeuristicIntentDetection({
-        prompt: effectivePrompt,
-        sessionContext: session?.context,
-        employees: employees.map((e) => ({
-          id: e.id,
-          name: e.name,
-          serviceIds: e.serviceIds,
-        })),
-        customers,
-        services,
-        templates,
-      }) ??
-      (await this.classifyIntent(
-        businessId,
-        userId,
-        normalizedPrompt,
-        contextWithI18n,
-        session?.history,
-        session?.context,
-      ));
+    const parsed = await this.classifyIntent(
+      businessId,
+      userId,
+      normalizedPrompt,
+      contextWithI18n,
+      session?.history,
+      sessionContext,
+    );
     if (!parsed) {
       return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
     }
 
-    parsed.params = this.completionPipeline.mergeSessionContext(parsed.params, session?.context);
+    parsed.params = this.completionPipeline.mergeSessionContext(parsed.params, sessionContext);
+    if (parsed.action === 'create_booking') {
+      parsed.params.customerName = null;
+      delete parsed.params.customerId;
+    }
+    this.applyPromptEntityOverrides(
+      effectivePrompt,
+      parsed.params,
+      parsed.action,
+      employees,
+      services,
+      customers,
+    );
+    parsed.params._timeZone = timeZone;
     this.enrichMultiEmployeeFromPrompt(effectivePrompt, parsed.params, employees);
 
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
 
-    this.logger.log(`AI classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
+    this.logger.log(`AI (LLM) classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
 
-    this.completionPipeline.normalizeDateParams(parsed.params);
+    this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
 
-    const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog);
+    const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog, timeZone);
     const pipelineTrace = [
       this.completionPipeline.trace('classify', parsed.action, parsed.reasoning),
       this.completionPipeline.trace('resolve', parsed.action),
@@ -334,7 +370,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
     const mutatingActions = new Set([
       'create_booking', 'create_service', 'create_services', 'cancel_bookings',
-      'bulk_smart_cancel', 'fill_slot_from_waitlist', 'reschedule_booking',
+      'bulk_smart_cancel', 'hide_appointments_from_calendar', 'unhide_appointments_from_calendar', 'fill_slot_from_waitlist', 'reschedule_booking',
       'fill_unused_slots', 'apply_schedule', 'block_schedule', 'setup_week_schedule',
     ]);
     if (
@@ -392,19 +428,28 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         result = await this.handleCreateServices(businessId, params, services, userId);
         break;
       case 'cancel_bookings':
-        if (/notify|waitlist|rebook|customer/i.test(prompt)) {
+        if (
+          /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(prompt) ||
+          params.notifyCustomers ||
+          params.reason
+        ) {
           result = await this.handleBulkSmartCancel(
             businessId,
+            effectivePrompt,
             params,
-            services,
+            catalog.services,
+            catalog.employees,
             employeeId,
             userId,
+            { notifyOnly: !/waitlist|rebook/i.test(prompt) },
           );
         } else {
           result = await this.handleCancelBookings(
             businessId,
+            effectivePrompt,
             params,
-            services,
+            catalog.services,
+            catalog.employees,
             employeeId,
             userId,
           );
@@ -413,8 +458,32 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'bulk_smart_cancel':
         result = await this.handleBulkSmartCancel(
           businessId,
+          effectivePrompt,
           params,
-          services,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          userId,
+        );
+        break;
+      case 'hide_appointments_from_calendar':
+        result = await this.handleHideAppointmentsFromCalendar(
+          businessId,
+          params,
+          catalog.services,
+          catalog.employees,
+          catalog.customers,
+          employeeId,
+          userId,
+        );
+        break;
+      case 'unhide_appointments_from_calendar':
+        result = await this.handleUnhideAppointmentsFromCalendar(
+          businessId,
+          params,
+          catalog.services,
+          catalog.employees,
+          catalog.customers,
           employeeId,
           userId,
         );
@@ -435,6 +504,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           params,
           employeeId,
           resolvedEmployee?.name,
+          services,
         );
         break;
       case 'check_availability':
@@ -534,6 +604,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'create_direct_schedule':
         result = await this.scheduleHandlers.handleCreateDirectSchedule(
           businessId,
+          prompt,
           params,
           employees,
           services,
@@ -689,6 +760,123 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
   }
 
+  /** Prompt-mentioned entities override stale session / LLM inheritance. */
+  private applyPromptEntityOverrides(
+    prompt: string,
+    params: Record<string, any>,
+    action: string,
+    employees: Employee[],
+    services: Service[],
+    customers: Customer[],
+  ): void {
+    const promptService = extractServiceFromPrompt(
+      prompt,
+      services.map((s) => ({ id: s.id, name: s.name })),
+    );
+    if (promptService) {
+      params.serviceName = promptService.name;
+    }
+
+    if (action === 'create_booking' || action === 'fill_slot_from_waitlist') {
+      const bookingCustomer = extractCustomerFromBookingPrompt(
+        prompt,
+        customers.map((c) => ({ id: c.id, name: c.name })),
+        employees.map((e) => ({ id: e.id, name: e.name })),
+        params.employeeName as string | undefined,
+      );
+      if (bookingCustomer) {
+        params.customerName = bookingCustomer.name;
+        params.customerId = bookingCustomer.id;
+      } else {
+        params.customerName = null;
+        delete params.customerId;
+      }
+    } else {
+      const promptCustomer = matchEntityInPrompt(
+        prompt,
+        customers.map((c) => ({ name: c.name })),
+      );
+      if (promptCustomer) {
+        params.customerName = promptCustomer.name;
+      }
+    }
+
+    if (isTeamWideProviderAvailabilityQuery(prompt)) {
+      const emp = matchEntityInPrompt(prompt, employees);
+      if (!emp) params.employeeName = null;
+    } else {
+      const emp = matchEntityInPrompt(prompt, employees);
+      if (emp) params.employeeName = emp.name;
+    }
+
+    if (
+      action === 'lookup_service_assignment' &&
+      params.date &&
+      !params.assignmentLookup
+    ) {
+      params.assignmentLookup = 'providers_for_service';
+    }
+
+    if (action === 'summarize_customers') {
+      params.customerMetric = resolveCustomerMetric({}, prompt);
+    }
+
+    if (action === 'summarize_bookings') {
+      const metric = resolveBookingMetric({}, prompt);
+      if (metric) params.bookingMetric = metric;
+    }
+
+    if (action === 'analyze_appointments') {
+      const metric = resolveAppointmentMetric({}, prompt);
+      if (metric) params.appointmentMetric = metric;
+    }
+
+    if (action === 'analyze_services') {
+      params.serviceMetric = resolveServiceMetric({}, prompt);
+    }
+
+    if (action === 'summarize_staff') {
+      params.staffMetric = resolveStaffMetric({}, prompt);
+    }
+
+    if (
+      action === 'cancel_bookings' ||
+      action === 'bulk_smart_cancel' ||
+      action === 'list_bookings' ||
+      action === 'show_appointments' ||
+      action === 'hide_appointments_from_calendar' ||
+      action === 'unhide_appointments_from_calendar'
+    ) {
+      if (hasExplicitTimeWindow(params, prompt)) {
+        const window = parseTimeWindow(params, prompt);
+        params.timeFrom = window.timeFrom;
+        params.timeTo = window.timeTo;
+      }
+    }
+
+    if (action === 'create_booking') {
+      if (isAnyProviderBookingPrompt(prompt)) {
+        params.allProviders = true;
+        params.employeeName = null;
+        delete params.employeeId;
+      }
+      if (isFirstAvailableBookingPrompt(prompt)) {
+        params.bookingFirstAvailable = true;
+        delete params.timeSlot;
+      }
+    }
+
+    if (
+      (action === 'fill_unused_slots' ||
+        action === 'create_direct_schedule' ||
+        action === 'setup_week_schedule') &&
+      isProviderOwnServicesPrompt(prompt)
+    ) {
+      delete params.serviceName;
+      params.serviceNames = null;
+    }
+  }
+
   private async classifyIntent(
     businessId: string,
     userId: string | undefined,
@@ -755,7 +943,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   }
 
   private resolveService(services: Service[], name: string): Service | undefined {
-    return this.fuzzyMatchByName(services, name);
+    return fuzzyMatchServiceByName(services, name);
   }
 
   /** Resolve one or many service names (supports "hairdrying / hairstyle", arrays from LLM). */
@@ -830,11 +1018,6 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     customers: Customer[],
     userId?: string,
   ): Promise<CommandResult> {
-    const resolvedEmployee = params.employeeId
-      ? employees.find((e) => e.id === params.employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(employees, params.employeeName)
-        : undefined;
     const service = params.serviceId
       ? services.find((s) => s.id === params.serviceId)
       : params.serviceName
@@ -846,17 +1029,78 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         ? this.resolveCustomer(customers, params.customerName)
         : undefined;
 
-    if (!resolvedEmployee || !service || !params.date || !params.timeSlot) {
+    if (!service) {
       return {
         success: false,
         action: 'create_booking',
-        summary: 'Cannot book appointment — missing required details.',
+        summary: 'Cannot book appointment — specify which service to book.',
         details: { params },
       };
     }
 
-    const snappedTime = this.snapTo10min(params.timeSlot);
-    const startTime = `${params.date}T${snappedTime}:00.000Z`;
+    let resolvedEmployee = params.employeeId
+      ? employees.find((e) => e.id === params.employeeId)
+      : params.employeeName
+        ? this.resolveEmployee(employees, params.employeeName)
+        : undefined;
+    let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
+
+    if (params.bookingFirstAvailable) {
+      const isoDay = params.date
+        ? toIsoDay(params.date, params._timeZone)
+        : toIsoDay(todayDisplay(params._timeZone ?? 'UTC'), params._timeZone);
+      const searchTargets = params.allProviders
+        ? employees.filter((e) => e.isActive)
+        : resolvedEmployee
+          ? [resolvedEmployee]
+          : [];
+
+      if (searchTargets.length === 0) {
+        return {
+          success: false,
+          action: 'create_booking',
+          summary: params.allProviders
+            ? 'No active providers found to search for availability.'
+            : 'Specify a provider or say "any provider" for first-available booking.',
+          details: { params },
+        };
+      }
+
+      const pick = await this.findFirstAvailableBookingSlot(
+        businessId,
+        service,
+        isoDay,
+        searchTargets,
+      );
+
+      if (!pick) {
+        return {
+          success: false,
+          action: 'create_booking',
+          summary: `No open ${service.name} slots on ${formatDateDisplay(isoDay)}${
+            params.allProviders ? ' for any provider' : ` for ${resolvedEmployee?.name ?? 'that provider'}`
+          }.`,
+          details: { serviceName: service.name, date: formatDateDisplay(isoDay), allProviders: !!params.allProviders },
+        };
+      }
+
+      resolvedEmployee = pick.employee;
+      timeSlot = this.snapTo10min(pick.timeSlot);
+      params.date = isoDay;
+      params.employeeName = pick.employee.name;
+      params.employeeId = pick.employee.id;
+    }
+
+    if (!resolvedEmployee || !params.date || !timeSlot) {
+      return {
+        success: false,
+        action: 'create_booking',
+        summary: 'Cannot book appointment — missing provider, date, or time.',
+        details: { params },
+      };
+    }
+
+    const startTime = buildUtcStartTimeFromDayAndTime(params.date, timeSlot);
 
     const plan = this.planBuilder.buildCreateBookingPlan({
       businessId,
@@ -870,7 +1114,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       serviceName: service.name,
       customerName: customer?.name,
       date: formatDateDisplay(params.date),
-      timeSlot: snappedTime,
+      timeSlot,
     });
 
     return this.toCommandResult(
@@ -881,6 +1125,34 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         autoExecute: true,
       }),
     );
+  }
+
+  private async findFirstAvailableBookingSlot(
+    businessId: string,
+    service: Service,
+    isoDay: string,
+    providers: Employee[],
+  ): Promise<{ employee: Employee; timeSlot: string } | null> {
+    let best: { employee: Employee; timeSlot: string; minutes: number } | null = null;
+
+    for (const provider of providers) {
+      const row = await this.getProviderAvailabilityForService(
+        businessId,
+        provider.id,
+        service.id,
+        isoDay,
+      );
+      if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
+
+      for (const slot of row.openSlots) {
+        const minutes = timeToMinutes(slot.start);
+        if (!best || minutes < best.minutes) {
+          best = { employee: provider, timeSlot: slot.start, minutes };
+        }
+      }
+    }
+
+    return best ? { employee: best.employee, timeSlot: best.timeSlot } : null;
   }
 
   private async handleAssignEmployeeServices(
@@ -1688,26 +1960,13 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
 
     const active = employees.filter((e) => e.isActive);
-    const providers = active.filter((e) => {
-      if (!e.serviceIds?.length) return true;
-      return e.serviceIds.includes(service.id);
-    });
 
-    if (providers.length === 0) {
-      return {
-        success: true,
-        action: 'lookup_service_assignment',
-        summary: `No providers assigned to "${service.name}".`,
-        details: { serviceName: service.name, providers: [] },
-      };
-    }
-
-    if (params.withAvailability && params.date) {
+    if (params.date) {
       const isoDay = parseDateInput(params.date)?.toISOString().split('T')[0] ?? params.date;
       const displayDay = formatDateDisplay(isoDay);
 
       const availabilityRows = await Promise.all(
-        providers.map(async (provider) => {
+        active.map(async (provider) => {
           const row = await this.getProviderAvailabilityForService(
             businessId,
             provider.id,
@@ -1718,16 +1977,19 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         }),
       );
 
-      const availableProviders = availabilityRows.filter((r) => r.openSlots.length > 0);
-      const providerNames = availableProviders.map((r) => r.provider.name);
+      const availableProviders = availabilityRows.filter(
+        (r) => r.hasServiceBlock && r.openSlots.length > 0,
+      );
+      const scheduledButFull = availabilityRows.filter(
+        (r) => r.hasServiceBlock && r.openSlots.length === 0,
+      );
 
       if (availableProviders.length === 0) {
-        const scheduledButFull = availabilityRows.filter((r) => r.hasSchedule);
         const lines = [
-          `No open slots for ${service.name} on ${displayDay}.`,
+          `No providers with open ${service.name} time on ${displayDay}.`,
           scheduledButFull.length > 0
-            ? `${scheduledButFull.length} provider(s) scheduled but fully booked: ${scheduledButFull.map((r) => r.provider.name).join(', ')}`
-            : `${providers.length} provider(s) can perform ${service.name}, but none have schedule on ${displayDay}.`,
+            ? `${scheduledButFull.length} scheduled but fully booked: ${scheduledButFull.map((r) => r.provider.name).join(', ')}`
+            : `No applied ${service.name} service blocks on ${displayDay}.`,
         ];
         return {
           success: true,
@@ -1736,22 +1998,28 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           details: {
             serviceName: service.name,
             date: displayDay,
-            providers: providers.map((p) => ({ id: p.id, name: p.name })),
             availableProviders: [],
-            availability: availabilityRows.map((r) => ({
+            scheduledButFull: scheduledButFull.map((r) => ({
               name: r.provider.name,
-              hasSchedule: r.hasSchedule,
-              openSlots: r.openSlots,
+              blocks: r.scheduledBlocks,
             })),
+            availability: availabilityRows
+              .filter((r) => r.hasServiceBlock)
+              .map((r) => ({
+                name: r.provider.name,
+                scheduledBlocks: r.scheduledBlocks,
+                openSlots: r.openSlots,
+              })),
           },
         };
       }
 
       const lines = [
-        `Providers available for ${service.name} on ${displayDay} (${availableProviders.length}):`,
+        `Providers scheduled for ${service.name} on ${displayDay} with open time (${availableProviders.length}):`,
         ...availableProviders.map((r) => {
-          const slots = r.openSlots.map((s) => `${s.start}–${s.end}`).join(', ');
-          return `• ${r.provider.name} — open: ${slots}`;
+          const blocks = r.scheduledBlocks.map((b) => `${b.start}–${b.end}`).join(', ');
+          const open = r.openSlots.map((s) => `${s.start}–${s.end}`).join(', ');
+          return `• ${r.provider.name} — shift: ${blocks} | open: ${open}`;
         }),
         '',
         'Reply with a provider and time to book, e.g. "Book Gevorg at 10:00".',
@@ -1764,13 +2032,27 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         details: {
           serviceName: service.name,
           date: displayDay,
-          providers: providers.map((p) => ({ id: p.id, name: p.name })),
-          availableProviders: providerNames,
+          availableProviders: availableProviders.map((r) => r.provider.name),
           availability: availableProviders.map((r) => ({
             name: r.provider.name,
+            scheduledBlocks: r.scheduledBlocks,
             openSlots: r.openSlots,
           })),
         },
+      };
+    }
+
+    const providers = active.filter((e) => {
+      if (!e.serviceIds?.length) return true;
+      return e.serviceIds.includes(service.id);
+    });
+
+    if (providers.length === 0) {
+      return {
+        success: true,
+        action: 'lookup_service_assignment',
+        summary: `No providers assigned to "${service.name}".`,
+        details: { serviceName: service.name, providers: [] },
       };
     }
 
@@ -1975,37 +2257,33 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
   private async handleBulkSmartCancel(
     businessId: string,
+    prompt: string,
     params: any,
     services: Service[],
+    employees: Employee[],
     employeeId?: string,
     userId?: string,
+    options?: { notifyOnly?: boolean },
   ): Promise<CommandResult> {
     const matchedServices = this.resolveServices(services, params);
-    const where: any = {
+
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return {
+        success: false,
+        action: 'bulk_smart_cancel',
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+
+    const bookings = await this.findBookingsForCancel(
       businessId,
-      status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
-    };
-
-    if (employeeId) where.employeeId = employeeId;
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-
-    if (params.date) {
-      const d = new Date(params.date);
-      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(params.dateFrom); from.setUTCHours(0, 0, 0, 0);
-      const to = new Date(params.dateTo); to.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(from, to);
-    }
-
-    const bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-    });
+      params,
+      services,
+      employees,
+      employeeId,
+      prompt,
+    );
 
     if (bookings.length === 0) {
       return {
@@ -2024,25 +2302,38 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           ? { start: toIsoDay(params.date), end: toIsoDay(params.date) }
           : undefined;
 
-    const plan = this.planBuilder.buildBulkSmartCancelPlan(
-      businessId,
-      bookings.map((b) => b.id),
-      reason,
-      userId,
-      {
-        employeeName: params.employeeName,
-        date: params.date ? formatDateDisplay(params.date) : undefined,
-        services: matchedServices.map((s) => s.name),
-        dateRange,
-      },
-    );
+    const plan = options?.notifyOnly
+      ? this.planBuilder.buildCancelBookingsPlan(
+          businessId,
+          bookings.map((b) => b.id),
+          reason,
+          userId,
+          {
+            employeeName: params.employeeName,
+            date: params.date ? formatDateDisplay(params.date) : undefined,
+            services: matchedServices.map((s) => s.name),
+            notifyCustomers: true,
+          },
+        )
+      : this.planBuilder.buildBulkSmartCancelPlan(
+          businessId,
+          bookings.map((b) => b.id),
+          reason,
+          userId,
+          {
+            employeeName: params.employeeName,
+            date: params.date ? formatDateDisplay(params.date) : undefined,
+            services: matchedServices.map((s) => s.name),
+            dateRange,
+          },
+        );
 
     return this.toCommandResult(
       await this.orchestration.executePlan({
         plan,
         businessId,
         userId,
-        autoExecute: bookings.length <= 3,
+        autoExecute: bookings.length <= 5,
       }),
     );
   }
@@ -2129,6 +2420,21 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
   }
 
+  private async resolveCommandTimezone(
+    businessId: string,
+    session?: CommandSessionOptions,
+  ): Promise<string> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+      select: { timezone: true },
+    });
+    return pickTimezone(
+      session?.context?.timeZone,
+      session?.context?.timezone,
+      business?.timezone,
+    );
+  }
+
   private async executeCompoundIntents(
     businessId: string,
     prompt: string,
@@ -2142,6 +2448,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       templates: ScheduleTemplate[];
     },
     confidenceThresholds: { low: number; high: number },
+    timeZone: string,
   ): Promise<CommandResult> {
     const plans: AgentPlan[] = [];
     const pipelineTrace = [
@@ -2151,11 +2458,17 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     for (const sub of subIntents) {
       const parsed = {
         action: sub.action,
-        params: this.completionPipeline.mergeSessionContext(sub.params, session?.context),
+        params: {
+          ...this.completionPipeline.mergeSessionContext(sub.params, {
+            ...session?.context,
+            timeZone,
+          }),
+          _timeZone: timeZone,
+        },
         reasoning: sub.reasoning,
       };
-      this.completionPipeline.normalizeDateParams(parsed.params);
-      const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog);
+      this.completionPipeline.normalizeDateParams(parsed.params, prompt, timeZone);
+      const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog, timeZone);
 
       if (shouldValidateAction(parsed.action)) {
         const validation = this.completionPipeline.validate(resolved);
@@ -2250,6 +2563,8 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       case 'bulk_smart_cancel':
       case 'fill_slot_from_waitlist':
       case 'cancel_bookings':
+      case 'hide_appointments_from_calendar':
+      case 'unhide_appointments_from_calendar':
       case 'reschedule_booking': {
         const handlerResult = await this.dispatchMutatingIntent(
           businessId,
@@ -2349,7 +2664,14 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         break;
       case 'bulk_smart_cancel': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForCancel(businessId, params, catalog.services, employeeId);
+          const bookings = await this.findBookingsForCancel(
+            businessId,
+            params,
+            catalog.services,
+            catalog.employees,
+            employeeId,
+            prompt,
+          );
           if (!bookings.length) return { success: false, action, summary: '', details: {} };
           const plan = this.planBuilder.buildBulkSmartCancelPlan(
             businessId,
@@ -2360,7 +2682,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           );
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleBulkSmartCancel(businessId, params, catalog.services, employeeId, userId);
+        result = await this.handleBulkSmartCancel(
+          businessId,
+          prompt,
+          params,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          userId,
+        );
         break;
       }
       case 'fill_slot_from_waitlist':
@@ -2370,6 +2700,81 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         }
         result = await this.handleFillSlotFromWaitlist(businessId, params, employeeId, userId);
         break;
+      case 'hide_appointments_from_calendar': {
+        if (options?.planOnly) {
+          const bookings = await this.findBookingsForHide(
+            businessId,
+            params,
+            catalog.services,
+            catalog.employees,
+            catalog.customers,
+            employeeId,
+          );
+          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+          const plan = this.planBuilder.buildHideAppointmentsPlan(
+            businessId,
+            bookings.map((b) => b.id),
+            userId,
+            {
+              employeeName: params.employeeName,
+              date: params.date ? formatDateDisplay(params.date) : undefined,
+              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              statuses,
+            },
+          );
+          return { success: true, action, summary: '', details: { plan } };
+        }
+        result = await this.handleHideAppointmentsFromCalendar(
+          businessId,
+          params,
+          catalog.services,
+          catalog.employees,
+          catalog.customers,
+          employeeId,
+          userId,
+        );
+        break;
+      }
+      case 'unhide_appointments_from_calendar': {
+        if (options?.planOnly) {
+          const bookings = await this.findBookingsForCalendarVisibility(
+            businessId,
+            params,
+            catalog.services,
+            catalog.employees,
+            catalog.customers,
+            employeeId,
+            'unhide',
+          );
+          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'unhide');
+          const plan = this.planBuilder.buildUnhideAppointmentsPlan(
+            businessId,
+            bookings.map((b) => b.id),
+            userId,
+            {
+              employeeName: params.employeeName,
+              date: params.date ? formatDateDisplay(params.date) : undefined,
+              dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : undefined,
+              dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : undefined,
+              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              statuses: statuses ?? undefined,
+            },
+          );
+          return { success: true, action, summary: '', details: { plan } };
+        }
+        result = await this.handleUnhideAppointmentsFromCalendar(
+          businessId,
+          params,
+          catalog.services,
+          catalog.employees,
+          catalog.customers,
+          employeeId,
+          userId,
+        );
+        break;
+      }
       default:
         result = { success: false, action, summary: 'Unsupported compound step', details: {} };
     }
@@ -2381,24 +2786,321 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     businessId: string,
     params: any,
     services: Service[],
-    employeeId?: string,
-  ) {
+    employees: Employee[],
+    scopedEmployeeId?: string,
+    prompt?: string,
+  ): Promise<Booking[]> {
     const matchedServices = this.resolveServices(services, params);
     const where: any = {
       businessId,
       status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
     };
-    if (employeeId) where.employeeId = employeeId;
+
+    if (params.employeeName) {
+      const employee = this.resolveEmployee(employees, params.employeeName);
+      if (!employee) return [];
+      where.employeeId = employee.id;
+    } else if (scopedEmployeeId) {
+      where.employeeId = scopedEmployeeId;
+    }
+
     if (matchedServices.length > 0) {
       where.serviceId = In(matchedServices.map((s) => s.id));
     }
+
     if (params.date) {
-      const d = new Date(params.date);
-      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+      const isoDay = toIsoDay(params.date, params._timeZone);
+      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
       where.startTime = Between(dayStart, dayEnd);
+    } else if (params.dateFrom && params.dateTo) {
+      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
+      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
+      where.startTime = Between(from, to);
     }
-    return this.bookingRepo.find({ where });
+
+    const bookings = await this.bookingRepo.find({
+      where,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    return filterBookingsByTimeConstraints(bookings, params, prompt);
+  }
+
+  private resolveCalendarVisibilityStatusFilters(
+    params: any,
+    mode: 'hide' | 'unhide',
+  ): BookingStatus[] | null {
+    const raw: string[] = [];
+    if (Array.isArray(params.statusFilters)) raw.push(...params.statusFilters);
+    else if (params.statusFilter) raw.push(params.statusFilter);
+
+    const allowed = new Set(Object.values(BookingStatus));
+    const resolved = raw.filter((s): s is BookingStatus => allowed.has(s as BookingStatus));
+    if (resolved.length > 0) return resolved;
+
+    if (mode === 'hide') {
+      return [BookingStatus.CANCELLED, BookingStatus.NO_SHOW, BookingStatus.COMPLETED];
+    }
+    return null;
+  }
+
+  private async findBookingsForCalendarVisibility(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    customers: Customer[],
+    scopedEmployeeId: string | undefined,
+    mode: 'hide' | 'unhide',
+  ): Promise<Booking[]> {
+    const matchedServices = this.resolveServices(services, params);
+    const statuses = this.resolveCalendarVisibilityStatusFilters(params, mode);
+    const where: any = {
+      businessId,
+      hiddenFromCalendar: mode === 'unhide',
+    };
+    if (statuses) {
+      where.status = In(statuses);
+    }
+
+    if (params.allProviders) {
+      // no employee filter
+    } else if (params.employeeNames?.length) {
+      const resolved = resolveEmployees(employees, params);
+      if (resolved.length === 0) return [];
+      where.employeeId = In(resolved.map((e) => e.id));
+    } else if (params.employeeName) {
+      const employee = this.resolveEmployee(employees, params.employeeName);
+      if (!employee) return [];
+      where.employeeId = employee.id;
+    } else if (scopedEmployeeId) {
+      where.employeeId = scopedEmployeeId;
+    }
+
+    if (matchedServices.length > 0) {
+      where.serviceId = In(matchedServices.map((s) => s.id));
+    }
+
+    if (params.date) {
+      const isoDay = toIsoDay(params.date, params._timeZone);
+      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
+      where.startTime = Between(dayStart, dayEnd);
+    } else if (params.dateFrom && params.dateTo) {
+      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
+      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
+      where.startTime = Between(from, to);
+    }
+
+    let bookings = await this.bookingRepo.find({
+      where,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    if (params.customerName) {
+      const customer = this.resolveCustomer(customers, params.customerName);
+      if (!customer) return [];
+      bookings = bookings.filter((b) => b.customerId === customer.id);
+    }
+
+    bookings = filterBookingsByTimeConstraints(bookings, params);
+
+    if (typeof params.limit === 'number' && params.limit > 0) {
+      bookings = bookings.slice(0, params.limit);
+    }
+
+    return bookings;
+  }
+
+  private async findBookingsForHide(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    customers: Customer[],
+    scopedEmployeeId?: string,
+  ): Promise<Booking[]> {
+    return this.findBookingsForCalendarVisibility(
+      businessId,
+      params,
+      services,
+      employees,
+      customers,
+      scopedEmployeeId,
+      'hide',
+    );
+  }
+
+  private formatCalendarVisibilityPeriod(params: any): string {
+    if (params.dateFrom && params.dateTo) {
+      const from = formatDateDisplay(params.dateFrom);
+      const to = formatDateDisplay(params.dateTo);
+      return from === to ? from : `${from} → ${to}`;
+    }
+    if (params.date) return formatDateDisplay(params.date);
+    return '';
+  }
+
+  private async handleHideAppointmentsFromCalendar(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    customers: Customer[],
+    employeeId?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const matchedServices = this.resolveServices(services, params);
+    const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return {
+        success: false,
+        action: 'hide_appointments_from_calendar',
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+
+    const bookings = await this.findBookingsForHide(
+      businessId,
+      params,
+      services,
+      employees,
+      customers,
+      employeeId,
+    );
+
+    if (bookings.length === 0) {
+      const statusLabel = statuses.join(', ');
+      const empFilter = params.allProviders
+        ? ' for all providers'
+        : params.employeeName
+          ? ` for ${params.employeeName}`
+          : '';
+      const dateFilter = this.formatCalendarVisibilityPeriod(params);
+      const dateLabel = dateFilter ? ` on ${dateFilter}` : '';
+      return {
+        success: true,
+        action: 'hide_appointments_from_calendar',
+        summary: `No matching ${statusLabel} appointments found${empFilter}${dateLabel}. Nothing to hide from calendar.`,
+        details: {
+          matchedCount: 0,
+          filters: {
+            statuses,
+            employee: params.employeeName ?? (params.allProviders ? 'all' : null),
+            services: matchedServices.map((s) => s.name),
+            date: params.date ? formatDateDisplay(params.date) : null,
+          },
+        },
+      };
+    }
+
+    const plan = this.planBuilder.buildHideAppointmentsPlan(
+      businessId,
+      bookings.map((b) => b.id),
+      userId,
+      {
+        employeeName: params.employeeName,
+        date: params.date ? formatDateDisplay(params.date) : undefined,
+        services: matchedServices.map((s) => s.name),
+        statuses,
+      },
+    );
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: bookings.length <= 10,
+      }),
+    );
+  }
+
+  private async handleUnhideAppointmentsFromCalendar(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    customers: Customer[],
+    employeeId?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const matchedServices = this.resolveServices(services, params);
+    const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'unhide');
+
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return {
+        success: false,
+        action: 'unhide_appointments_from_calendar',
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+
+    const bookings = await this.findBookingsForCalendarVisibility(
+      businessId,
+      params,
+      services,
+      employees,
+      customers,
+      employeeId,
+      'unhide',
+    );
+
+    if (bookings.length === 0) {
+      const statusLabel = statuses?.length ? statuses.join(', ') : 'hidden';
+      const empFilter = params.allProviders
+        ? ' for all providers'
+        : params.employeeName
+          ? ` for ${params.employeeName}`
+          : '';
+      const dateLabel = this.formatCalendarVisibilityPeriod(params);
+      const periodFilter = dateLabel ? ` on ${dateLabel}` : '';
+      return {
+        success: true,
+        action: 'unhide_appointments_from_calendar',
+        summary: `No matching ${statusLabel} hidden appointments found${empFilter}${periodFilter}. Nothing to restore on calendar.`,
+        details: {
+          matchedCount: 0,
+          filters: {
+            statuses: statuses ?? null,
+            employee: params.employeeName ?? (params.allProviders ? 'all' : null),
+            services: matchedServices.map((s) => s.name),
+            date: params.date ? formatDateDisplay(params.date) : null,
+            dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : null,
+            dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : null,
+          },
+        },
+      };
+    }
+
+    const plan = this.planBuilder.buildUnhideAppointmentsPlan(
+      businessId,
+      bookings.map((b) => b.id),
+      userId,
+      {
+        employeeName: params.employeeName,
+        date: params.date ? formatDateDisplay(params.date) : undefined,
+        dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : undefined,
+        dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : undefined,
+        services: matchedServices.map((s) => s.name),
+        statuses: statuses ?? undefined,
+      },
+    );
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: bookings.length <= 10,
+      }),
+    );
   }
 
   private async handleCreateService(
@@ -2600,8 +3302,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
   private async handleCancelBookings(
     businessId: string,
+    prompt: string,
     params: any,
     services: Service[],
+    employees: Employee[],
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
@@ -2620,31 +3324,23 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       };
     }
 
-    const where: any = {
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return {
+        success: false,
+        action: 'cancel_bookings',
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+
+    const bookings = await this.findBookingsForCancel(
       businessId,
-      status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
-    };
-
-    if (employeeId) where.employeeId = employeeId;
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-
-    if (params.date) {
-      const d = new Date(params.date);
-      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(params.dateFrom); from.setUTCHours(0, 0, 0, 0);
-      const to = new Date(params.dateTo); to.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(from, to);
-    }
-
-    const bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-    });
+      params,
+      services,
+      employees,
+      employeeId,
+      prompt,
+    );
 
     if (bookings.length === 0) {
       const serviceFilter = matchedServices.length
@@ -2652,16 +3348,24 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         : '';
       const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
       const dateFilter = params.date ? ` on ${formatDateDisplay(params.date)}` : '';
+      const timeFilter = hasExplicitTimeWindow(params, prompt)
+        ? ` between ${params.timeFrom}–${params.timeTo}`
+        : params.timeSlot
+          ? ` at ${this.snapTo10min(params.timeSlot)}`
+          : '';
       return {
         success: true,
         action: 'cancel_bookings',
-        summary: `No active bookings found${empFilter}${serviceFilter}${dateFilter}. Nothing to cancel.`,
+        summary: `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}. Nothing to cancel.`,
         details: {
           matchedCount: 0,
           filters: {
             employee: params.employeeName ?? null,
             services: matchedServices.map((s) => s.name),
             date: params.date ? formatDateDisplay(params.date) : null,
+            timeFrom: params.timeFrom ?? null,
+            timeTo: params.timeTo ?? null,
+            timeSlot: params.timeSlot ?? null,
           },
         },
       };
@@ -2677,6 +3381,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         employeeName: params.employeeName,
         date: params.date ? formatDateDisplay(params.date) : undefined,
         services: matchedServices.map((s) => s.name),
+        notifyCustomers: Boolean(params.notifyCustomers),
       },
     );
 
@@ -2705,12 +3410,90 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     });
   }
 
+  private async describeProvidersOnServiceSchedule(
+    businessId: string,
+    params: Record<string, any>,
+    catalogServices: Service[],
+    range: { start: string; end: string },
+  ): Promise<string | null> {
+    if (!params.serviceName && !params.timeSlot) return null;
+
+    const dayStart = new Date(range.start);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(range.end);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const periods = await this.periodRepo.find({
+      where: {
+        businessId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+      relations: { employee: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const matchedServices = params.serviceName
+      ? this.resolveServices(catalogServices, params)
+      : [];
+    const serviceIds = new Set<string>();
+    if (matchedServices.length > 0) {
+      matchedServices.forEach((s) => serviceIds.add(s.id));
+    } else if (params.serviceName) {
+      const needle = String(params.serviceName).toLowerCase();
+      catalogServices
+        .filter((s) => s.name.toLowerCase().includes(needle))
+        .forEach((s) => serviceIds.add(s.id));
+    }
+
+    const targetTime = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
+    const targetMs = targetTime
+      ? (() => {
+          const [h, m] = targetTime.split(':').map(Number);
+          const t = new Date(range.start);
+          t.setUTCHours(h, m, 0, 0);
+          return t.getTime();
+        })()
+      : null;
+
+    const providers = new Map<string, string[]>();
+    for (const period of periods) {
+      if (period.type !== TemplatePeriodType.SERVICE_BLOCK) continue;
+      if (serviceIds.size > 0) {
+        const ids = period.serviceIds ?? [];
+        if (ids.length > 0 && !ids.some((id) => serviceIds.has(id))) continue;
+      }
+      if (targetMs != null) {
+        if (period.startTime.getTime() > targetMs || period.endTime.getTime() <= targetMs) {
+          continue;
+        }
+      }
+      const name = period.employee?.name ?? 'Unknown provider';
+      const block = `${formatTimeDisplay(period.startTime)}–${formatTimeDisplay(period.endTime)}`;
+      if (!providers.has(name)) providers.set(name, []);
+      providers.get(name)!.push(block);
+    }
+
+    if (providers.size === 0) return null;
+
+    const serviceLabel = params.serviceName ? String(params.serviceName) : 'service';
+    const timeLabel = targetTime ? ` at ${targetTime}` : '';
+    const dateLabel = formatDateDisplay(range.start);
+    const lines = [
+      `Providers on ${serviceLabel} schedule${timeLabel} on ${dateLabel} (shift blocks, not bookings):`,
+      ...[...providers.entries()].map(
+        ([name, blocks]) => `• ${name} — ${[...new Set(blocks)].join(', ')}`,
+      ),
+    ];
+    return lines.join('\n');
+  }
+
   private async handleListBookings(
     businessId: string,
     prompt: string,
     params: any,
     employeeId?: string,
     employeeName?: string,
+    catalogServices?: Service[],
   ): Promise<CommandResult> {
     const where: any = { businessId };
     if (employeeId) where.employeeId = employeeId;
@@ -2736,9 +3519,38 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     });
 
     const statusFilter = params.statusFilter as string | undefined;
-    const scopedBookings = statusFilter
+    let scopedBookings = statusFilter
       ? bookings.filter((b) => b.status === statusFilter)
       : bookings;
+
+    const matchedServices = params.serviceName
+      ? this.resolveServices(catalogServices ?? [], params)
+      : [];
+    if (params.serviceName && matchedServices.length === 0 && catalogServices?.length) {
+      const needle = String(params.serviceName).toLowerCase();
+      const partialIds = new Set(
+        catalogServices
+          .filter((s) => s.name.toLowerCase().includes(needle))
+          .map((s) => s.id),
+      );
+      if (partialIds.size > 0) {
+        scopedBookings = scopedBookings.filter((b) => b.serviceId && partialIds.has(b.serviceId));
+      } else {
+        scopedBookings = scopedBookings.filter((b) =>
+          b.service?.name?.toLowerCase().includes(needle),
+        );
+      }
+    } else if (matchedServices.length > 0) {
+      const ids = new Set(matchedServices.map((s) => s.id));
+      scopedBookings = scopedBookings.filter((b) => b.serviceId && ids.has(b.serviceId));
+    }
+
+    if (params.timeSlot) {
+      const target = this.snapTo10min(params.timeSlot);
+      scopedBookings = scopedBookings.filter(
+        (b) => formatTimeDisplay(b.startTime) === target,
+      );
+    }
 
     const rangeLabel =
       range.start === range.end
@@ -2754,7 +3566,17 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
     let summaryBody: string;
     if (scopedBookings.length === 0) {
-      summaryBody = `No appointments found for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}.`;
+      const scheduleHint = await this.describeProvidersOnServiceSchedule(
+        businessId,
+        params,
+        catalogServices ?? [],
+        range,
+      );
+      const serviceLabel = params.serviceName ? ` for ${params.serviceName}` : '';
+      const timeLabel = params.timeSlot ? ` at ${this.snapTo10min(params.timeSlot)}` : '';
+      summaryBody = scheduleHint
+        ? scheduleHint
+        : `No appointments found for ${scopeLabel}${customerLabel}${serviceLabel}${timeLabel} on ${rangeLabel}${statusLabel}.`;
     } else if (employeeId || params.customerId) {
       const lines = this.formatBookingLines(displayBookings);
       const cancelledNote =
@@ -2886,14 +3708,24 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     employeeId: string,
     serviceId: string,
     isoDay: string,
-  ): Promise<{ hasSchedule: boolean; openSlots: Array<{ start: string; end: string }> }> {
+  ): Promise<{
+    hasSchedule: boolean;
+    hasServiceBlock: boolean;
+    scheduledBlocks: Array<{ start: string; end: string }>;
+    openSlots: Array<{ start: string; end: string }>;
+  }> {
     const d = parseDateInput(isoDay) ?? new Date(isoDay);
     const dayStart = new Date(d);
     dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(d);
     dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [periods, openSlots] = await Promise.all([
+    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    const minGapMinutes = service?.durationMinutes && service.durationMinutes > 0
+      ? service.durationMinutes
+      : 10;
+
+    const [periods, bookings] = await Promise.all([
       this.periodRepo.find({
         where: {
           businessId,
@@ -2902,16 +3734,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         },
         order: { startTime: 'ASC' },
       }),
-      this.slotRepo
-        .createQueryBuilder('slot')
-        .where('slot.business_id = :businessId', { businessId })
-        .andWhere('slot.employee_id = :employeeId', { employeeId })
-        .andWhere('slot.startTime >= :dayStart', { dayStart })
-        .andWhere('slot.startTime <= :dayEnd', { dayEnd })
-        .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
-        .andWhere('slot.appointmentCount < slot.maxAppointmentCount')
-        .orderBy('slot.startTime', 'ASC')
-        .getMany(),
+      this.bookingRepo.find({
+        where: {
+          businessId,
+          employeeId,
+          startTime: Between(dayStart, dayEnd) as any,
+          status: Not(BookingStatus.CANCELLED) as any,
+        },
+        order: { startTime: 'ASC' },
+      }),
     ]);
 
     const serviceBlocks = periods.filter(
@@ -2921,18 +3752,51 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
 
     if (serviceBlocks.length === 0) {
-      return { hasSchedule: periods.length > 0, openSlots: [] };
+      return {
+        hasSchedule: periods.length > 0,
+        hasServiceBlock: false,
+        scheduledBlocks: [],
+        openSlots: [],
+      };
     }
 
-    const relevantOpen = openSlots.filter((slot) =>
-      serviceBlocks.some(
-        (block) => slot.startTime >= block.startTime && slot.startTime < block.endTime,
-      ),
-    );
+    const scheduledBlocks = serviceBlocks.map((block) => ({
+      start: formatTimeDisplay(block.startTime),
+      end: formatTimeDisplay(block.endTime),
+    }));
+
+    const openSlotCandidates: Array<{ startTime: Date; endTime: Date }> = [];
+    for (const block of serviceBlocks) {
+      const occupied = bookings
+        .filter((b) =>
+          this.timesOverlap(block.startTime, block.endTime, b.startTime, b.endTime),
+        )
+        .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
+
+      const gaps = findScheduleGapsInWindow(
+        d,
+        formatTimeDisplay(block.startTime),
+        formatTimeDisplay(block.endTime),
+        occupied,
+        minGapMinutes,
+      );
+
+      for (const gap of gaps) {
+        const [sh, sm] = gap.startTime.split(':').map(Number);
+        const [eh, em] = gap.endTime.split(':').map(Number);
+        const startTime = new Date(d);
+        startTime.setUTCHours(sh, sm, 0, 0);
+        const endTime = new Date(d);
+        endTime.setUTCHours(eh, em, 0, 0);
+        openSlotCandidates.push({ startTime, endTime });
+      }
+    }
 
     return {
       hasSchedule: true,
-      openSlots: this.mergeOpenSlotRanges(relevantOpen),
+      hasServiceBlock: true,
+      scheduledBlocks,
+      openSlots: this.mergeOpenSlotRanges(openSlotCandidates),
     };
   }
 
@@ -2944,6 +3808,50 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   ): Promise<CommandResult> {
     const isoDay = params.date || new Date().toISOString().split('T')[0];
     const displayDay = formatDateDisplay(isoDay);
+
+    if (employeeId && employeeName && params.serviceName && params.timeSlot) {
+      const services = await this.serviceRepo.find({ where: { businessId } });
+      const service = this.resolveService(services, params.serviceName);
+      if (service) {
+        const targetTime = this.snapTo10min(params.timeSlot);
+        const row = await this.getProviderAvailabilityForService(
+          businessId,
+          employeeId,
+          service.id,
+          isoDay,
+        );
+        const slotOpen = row.openSlots.some(
+          (s) => targetTime >= s.start && targetTime < s.end,
+        );
+
+        let summary: string;
+        if (!row.hasSchedule) {
+          summary = `${employeeName} has no schedule on ${displayDay}.`;
+        } else if (row.openSlots.length === 0) {
+          summary = `${employeeName} is scheduled for ${service.name} on ${displayDay}, but has no open bookable slots.`;
+        } else if (slotOpen) {
+          summary = `Yes — ${employeeName} has an open slot for ${service.name} on ${displayDay} at ${targetTime}.`;
+        } else {
+          summary = `No — ${employeeName} is not available for ${service.name} at ${targetTime} on ${displayDay}. Open slots: ${row.openSlots.map((s) => `${s.start}–${s.end}`).join(', ') || 'none'}.`;
+        }
+
+        return {
+          success: true,
+          action: 'check_availability',
+          summary,
+          details: {
+            date: displayDay,
+            employee: employeeName,
+            serviceName: service.name,
+            timeSlot: targetTime,
+            available: slotOpen,
+            openSlots: row.openSlots,
+            hasSchedule: row.hasSchedule,
+          },
+        };
+      }
+    }
+
     const d = new Date(isoDay);
     const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
@@ -3133,12 +4041,49 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     };
   }
 
+  private pickBookingForReschedule(bookings: Booking[], params: any): Booking | null {
+    if (!bookings.length) return null;
+
+    const isoDay = params.date ? toIsoDay(params.date) : null;
+    const slot = params.fromTimeSlot
+      ? this.snapTo10min(params.fromTimeSlot)
+      : params.timeSlot
+        ? this.snapTo10min(params.timeSlot)
+        : null;
+    const employeeLower = params.employeeName?.toLowerCase();
+
+    const filtered = bookings.filter((b) => {
+      if (isoDay && !b.startTime.toISOString().startsWith(isoDay)) return false;
+      if (slot && formatTimeDisplay(b.startTime) !== slot) return false;
+      if (employeeLower) {
+        const name = b.employee?.name?.toLowerCase() ?? '';
+        if (!name.includes(employeeLower) && !employeeLower.includes(name.split(/\s+/)[0] ?? '')) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (filtered.length === 1) return filtered[0];
+    if (filtered.length > 1) return filtered[0];
+
+    const now = new Date();
+    const upcoming = bookings.filter(
+      (b) => b.startTime > now && b.status !== BookingStatus.CANCELLED,
+    );
+    if (upcoming.length === 1) return upcoming[0];
+    if (upcoming.length > 1) return upcoming[0];
+
+    return bookings[bookings.length - 1];
+  }
+
   private async handleRescheduleBooking(
     businessId: string,
     params: any,
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
+    const services = await this.serviceRepo.find({ where: { businessId, isActive: true } });
     let booking: Booking | null = null;
 
     if (params.bookingId) {
@@ -3146,11 +4091,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         where: { id: params.bookingId, businessId },
         relations: { employee: true, service: true, customer: true },
       });
-    } else if (params.customerName && (params.date || params.timeSlot)) {
+    } else if (params.customerName) {
       const customers = await this.customerRepo.find({ where: { businessId, isActive: true } });
       const customer = this.resolveCustomer(customers, params.customerName);
       if (customer) {
-        const isoDay = params.date ? toIsoDay(params.date) : null;
         const bookings = await this.bookingRepo.find({
           where: {
             businessId,
@@ -3161,15 +4105,26 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           relations: { employee: true, service: true, customer: true },
           order: { startTime: 'ASC' },
         });
-        booking =
-          bookings.find((b) => {
-            if (isoDay && !b.startTime.toISOString().startsWith(isoDay)) return false;
-            if (params.timeSlot) {
-              const slot = this.snapTo10min(params.timeSlot);
-              return formatTimeDisplay(b.startTime) === slot;
-            }
-            return true;
-          }) ?? bookings[0] ?? null;
+        booking = this.pickBookingForReschedule(bookings, params);
+      }
+    } else if (params.employeeName && (params.date || params.timeSlot)) {
+      const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+      const employee = this.resolveEmployee(employees, params.employeeName);
+      if (employee) {
+        const isoDay = params.date ? toIsoDay(params.date) : null;
+        const bookings = await this.bookingRepo.find({
+          where: {
+            businessId,
+            employeeId: employee.id,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+          relations: { employee: true, service: true, customer: true },
+          order: { startTime: 'ASC' },
+        });
+        booking = this.pickBookingForReschedule(
+          isoDay ? bookings.filter((b) => b.startTime.toISOString().startsWith(isoDay)) : bookings,
+          params,
+        );
       }
     }
 
@@ -3177,32 +4132,64 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       return {
         success: false,
         action: 'reschedule_booking',
-        summary: 'Could not find the booking to reschedule. Specify bookingId, or customer + date/time.',
+        summary:
+          'Could not find the booking to update. Specify bookingId, customer name, or provider + date/time.',
         details: { params },
       };
     }
 
-    if (!params.date && !params.timeSlot) {
+    let targetService = booking.service;
+    if (params.serviceName) {
+      const resolved = this.resolveService(services, params.serviceName);
+      if (!resolved) {
+        return {
+          success: false,
+          action: 'reschedule_booking',
+          summary: `No service found matching "${params.serviceName}".`,
+          details: { params, bookingId: booking.id },
+        };
+      }
+      targetService = resolved;
+    }
+
+    const hasNewTime = !!(params.date || params.timeSlot);
+    const hasServiceChange = targetService.id !== booking.serviceId;
+
+    if (!hasNewTime && !hasServiceChange) {
       return {
         success: false,
         action: 'reschedule_booking',
-        summary: 'Specify the new date and/or time for the rescheduled booking.',
-        details: { bookingId: booking.id },
+        summary: 'Specify a new service type and/or a new date/time.',
+        details: { bookingId: booking.id, currentService: booking.service?.name },
       };
     }
 
-    const isoDay = toIsoDay(params.date ?? booking.startTime.toISOString().split('T')[0]);
-    const timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : formatTimeDisplay(booking.startTime);
-    const startTime = `${isoDay}T${timeSlot}:00.000Z`;
+    const isoDay = params.date
+      ? toIsoDay(params.date)
+      : booking.startTime.toISOString().split('T')[0];
+    const timeSlot = params.timeSlot
+      ? this.snapTo10min(params.timeSlot)
+      : formatTimeDisplay(booking.startTime);
+    const startTime = buildUtcStartTimeFromDayAndTime(isoDay, timeSlot);
+
+    const customerLabel = booking.customer?.name ?? 'walk-in';
+    let label: string;
+    if (hasServiceChange && hasNewTime) {
+      label = `Change ${customerLabel}'s appointment to ${targetService.name} on ${formatDateDisplay(isoDay)} ${timeSlot}`;
+    } else if (hasServiceChange) {
+      label = `Change ${customerLabel}'s service to ${targetService.name}`;
+    } else {
+      label = `Reschedule ${customerLabel} to ${formatDateDisplay(isoDay)} ${timeSlot}`;
+    }
 
     const plan = this.planBuilder.buildRescheduleBookingPlan({
       businessId,
       bookingId: booking.id,
       startTime,
       employeeId: employeeId ?? booking.employeeId,
-      serviceId: booking.serviceId,
+      serviceId: targetService.id,
       userId,
-      label: `Reschedule ${booking.customer?.name ?? 'walk-in'} — ${booking.service?.name} to ${formatDateDisplay(isoDay)} ${timeSlot}`,
+      label,
     });
 
     return this.toCommandResult(

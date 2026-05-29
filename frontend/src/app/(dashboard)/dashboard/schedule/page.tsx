@@ -18,7 +18,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
-import { formatDateDisplay } from '@/lib/date-format';
+import { formatDateDisplay, getTodayDateKey, addCalendarDays, todayDateAnchor, toDateKey } from '@/lib/date-format';
 import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
@@ -440,7 +440,7 @@ function CreateScheduleTab({
   queryClient: any;
 }) {
   const [employeeId, setEmployeeId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getTodayDateKey());
   const [periods, setPeriods] = useState<(TimePeriod & { serviceIds?: string[] })[]>([
     { ...emptyPeriod(), serviceIds: [] },
   ]);
@@ -481,7 +481,7 @@ function CreateScheduleTab({
     setError(null);
     setPeriods([{ ...emptyPeriod(), serviceIds: [] }]);
     setEmployeeId('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getTodayDateKey());
   };
 
   if (successInfo) {
@@ -537,7 +537,7 @@ function CreateScheduleTab({
             type="date"
             className="input"
             value={date}
-            min={new Date().toISOString().split('T')[0]}
+            min={getTodayDateKey()}
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
@@ -619,8 +619,8 @@ function TemplatesTab({
 
   const [applyForm, setApplyForm] = useState({
     employeeId: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    startDate: getTodayDateKey(),
+    endDate: toDateKey(addCalendarDays(todayDateAnchor(), 30)),
     applyDays: [1, 2, 3, 4, 5] as number[],
     repeatWeeksCount: 1,
   });
