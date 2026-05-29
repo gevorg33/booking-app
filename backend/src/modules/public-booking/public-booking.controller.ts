@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/co
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
@@ -83,6 +83,16 @@ export class PublicBookingController {
     @Query() query: GetServiceSlotProvidersQueryDto,
   ) {
     return this.publicBookingService.getProvidersForServiceSlot(slug, serviceId, query.startTime);
+  }
+
+  @Post('bookings/quote')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  quoteBooking(
+    @Param('slug') slug: string,
+    @Body() dto: PublicBookingQuoteDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.quoteCheckout(slug, dto, user?.customerId);
   }
 
   @Post('bookings')
@@ -167,5 +177,14 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicCustomerAuthService.listBookings(slug, user.customerId);
+  }
+
+  @Get('me/loyalty')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyLoyalty(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerLoyalty(slug, user.customerId);
   }
 }

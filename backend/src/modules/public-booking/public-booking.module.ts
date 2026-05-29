@@ -24,6 +24,8 @@ import { StripeIntegrationModule } from '../billing/stripe-integration.module.js
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { OpenAiModule } from '../integrations/openai/openai.module.js';
 import { FirebaseAdminModule } from '../../common/firebase/firebase-admin.module.js';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
+import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { FirebaseAdminModule } from '../../common/firebase/firebase-admin.module
     StripeIntegrationModule,
     ReviewsModule,
     OpenAiModule,
+    PromoCodesModule,
+    LoyaltyModule,
   ],
   controllers: [PublicBookingController],
   providers: [

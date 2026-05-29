@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
 import { Customer } from '../../customer/entities/customer.entity.js';
+import { loyaltyDecimalTransformer } from '../loyalty-decimal.transformer.js';
 
 @Entity('loyalty_accounts')
 @Index(['businessId', 'customerId'], { unique: true })
@@ -27,10 +28,23 @@ export class LoyaltyAccount {
   @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 
-  @Column({ type: 'int', default: 0 })
+  /** Dollar value of redeemable bonuses (e.g. 0.50 = $0.50 off). */
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: loyaltyDecimalTransformer,
+  })
   pointsBalance: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: loyaltyDecimalTransformer,
+  })
   lifetimeEarned: number;
 
   @CreateDateColumn()
@@ -52,7 +66,12 @@ export class LoyaltyTransaction {
   @JoinColumn({ name: 'account_id' })
   account: LoyaltyAccount;
 
-  @Column({ type: 'int' })
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    transformer: loyaltyDecimalTransformer,
+  })
   points: number;
 
   /** earn | redeem | adjust */

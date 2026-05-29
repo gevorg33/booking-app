@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, DataSource } from 'typeorm';
 import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
@@ -18,6 +18,7 @@ import { Business } from '../business/entities/business.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezone.util.js';
+import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -42,6 +43,8 @@ export interface AppointmentsSearchResult {
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -53,6 +56,7 @@ export class BookingService {
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
+    private loyaltyAwardService: LoyaltyAwardService,
   ) {}
 
   async getAvailability(businessId: string, dto: GetAvailabilityDto) {
@@ -252,6 +256,10 @@ export class BookingService {
       userId,
     });
 
+    if (booking.paymentStatus === PaymentStatus.PAID) {
+      await this.tryAwardLoyalty(booking.id);
+    }
+
     return this.findOne(booking.id);
   }
 
@@ -422,6 +430,7 @@ export class BookingService {
     }
 
     const previousStatus = booking.status;
+    const previousPaymentStatus = booking.paymentStatus;
     if (dto.status) booking.status = dto.status;
     this.applyPaymentStatusOnStatusChange(
       booking,
@@ -435,6 +444,13 @@ export class BookingService {
     if (dto.hiddenFromCalendar !== undefined) booking.hiddenFromCalendar = dto.hiddenFromCalendar;
 
     await this.bookingRepo.save(booking);
+
+    if (
+      booking.paymentStatus === PaymentStatus.PAID &&
+      previousPaymentStatus !== PaymentStatus.PAID
+    ) {
+      await this.tryAwardLoyalty(booking.id);
+    }
 
     if (
       booking.status === BookingStatus.COMPLETED &&
@@ -751,6 +767,14 @@ export class BookingService {
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
+
+  private async tryAwardLoyalty(bookingId: string): Promise<void> {
+    try {
+      await this.loyaltyAwardService.awardForPaidBooking(bookingId);
+    } catch (err) {
+      this.logger.warn(`Loyalty award failed for booking ${bookingId}: ${err}`);
+    }
+  }
 
   /**
    * Cancelled and no-show appointments don't need payment tracking.

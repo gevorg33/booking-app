@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LoyaltyAccount, LoyaltyTransaction } from './entities/loyalty-account.entity.js';
-
-const POINTS_PER_DOLLAR = 1;
+import {
+  calculateEarnPoints,
+  getEarnPercentCashback,
+  maxRedeemablePoints,
+  pointsToCurrency,
+} from './loyalty-settings.util.js';
+import { BONUS_DOLLAR_VALUE, roundBonus } from './loyalty.constants.js';
 
 @Injectable()
 export class LoyaltyService {
@@ -32,9 +37,100 @@ export class LoyaltyService {
     return { account, transactions };
   }
 
-  async earn(businessId: string, customerId: string, amountSpent: number, bookingId?: string) {
-    const points = Math.floor(amountSpent * POINTS_PER_DOLLAR);
+  getPublicSummary(account: LoyaltyAccount, businessSettings?: Record<string, unknown> | null) {
+    const earnPercentCashback = getEarnPercentCashback(businessSettings);
+    return {
+      pointsBalance: account.pointsBalance,
+      lifetimeEarned: account.lifetimeEarned,
+      bonusDollarValue: BONUS_DOLLAR_VALUE,
+      earnPercentCashback,
+      pointsValue: pointsToCurrency(account.pointsBalance),
+    };
+  }
+
+  calculateEarnPoints(amountPaid: number, earnPercentCashback?: number) {
+    return calculateEarnPoints(
+      amountPaid,
+      earnPercentCashback ?? getEarnPercentCashback(null),
+    );
+  }
+
+  pointsToCurrency(points: number): number {
+    return pointsToCurrency(points);
+  }
+
+  maxRedeemablePoints(balance: number, amountDue: number): number {
+    return maxRedeemablePoints(balance, amountDue);
+  }
+
+  clampRedeemPoints(requested: number, balance: number, amountDue: number): number {
+    const points = roundBonus(requested);
+    const max = this.maxRedeemablePoints(balance, amountDue);
+    if (points > max + 0.001) {
+      throw new BadRequestException('Not enough loyalty bonuses for this redemption');
+    }
+    return points;
+  }
+
+  async hasEarnedForBooking(bookingId: string): Promise<boolean> {
+    const existing = await this.txRepo.findOne({
+      where: { bookingId, type: 'earn' },
+    });
+    return !!existing;
+  }
+
+  async earnForBooking(
+    businessId: string,
+    customerId: string,
+    points: number,
+    bookingId: string,
+    note?: string,
+  ): Promise<boolean> {
+    const bonus = roundBonus(points);
+    if (bonus <= 0) return false;
+    if (await this.hasEarnedForBooking(bookingId)) return false;
+
+    const account = await this.getOrCreate(businessId, customerId);
+    account.pointsBalance = roundBonus(account.pointsBalance + bonus);
+    account.lifetimeEarned = roundBonus(account.lifetimeEarned + bonus);
+    await this.accountRepo.save(account);
+
+    try {
+      await this.txRepo.save(
+        this.txRepo.create({
+          accountId: account.id,
+          points: bonus,
+          type: 'earn',
+          bookingId,
+          note: note ?? 'Earned from paid booking',
+        }),
+      );
+      return true;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === '23505') {
+        account.pointsBalance = roundBonus(account.pointsBalance - bonus);
+        account.lifetimeEarned = roundBonus(account.lifetimeEarned - bonus);
+        await this.accountRepo.save(account);
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  async earn(businessId: string, customerId: string, amountSpent: number, bookingId?: string, earnPercentCashback?: number) {
+    const points = this.calculateEarnPoints(amountSpent, earnPercentCashback);
     if (points <= 0) return this.getOrCreate(businessId, customerId);
+    if (bookingId) {
+      await this.earnForBooking(
+        businessId,
+        customerId,
+        points,
+        bookingId,
+        'Earned from booking',
+      );
+      return this.getOrCreate(businessId, customerId);
+    }
     const account = await this.getOrCreate(businessId, customerId);
     account.pointsBalance += points;
     account.lifetimeEarned += points;
@@ -45,26 +141,27 @@ export class LoyaltyService {
         points,
         type: 'earn',
         bookingId,
-        note: `Earned from booking`,
+        note: 'Earned from booking',
       }),
     );
     return account;
   }
 
   async redeem(businessId: string, customerId: string, points: number, bookingId?: string) {
+    const amount = roundBonus(points);
     const account = await this.getOrCreate(businessId, customerId);
-    if (points <= 0 || account.pointsBalance < points) {
-      throw new BadRequestException('Insufficient loyalty points');
+    if (amount <= 0 || roundBonus(account.pointsBalance) < amount) {
+      throw new BadRequestException('Insufficient loyalty bonuses');
     }
-    account.pointsBalance -= points;
+    account.pointsBalance = roundBonus(account.pointsBalance - amount);
     await this.accountRepo.save(account);
     await this.txRepo.save(
       this.txRepo.create({
         accountId: account.id,
-        points: -points,
+        points: -amount,
         type: 'redeem',
         bookingId,
-        note: `Redeemed on booking`,
+        note: 'Redeemed on booking',
       }),
     );
     return account;

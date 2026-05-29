@@ -19,7 +19,10 @@ import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto
 import { PaymentStatus } from './entities/booking.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
+import type { CheckoutPricingResult } from '../promo-codes/checkout-pricing.types.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
+import { getEarnPercentCashback } from '../loyalty/loyalty-settings.util.js';
 
 interface StripeCheckoutSession {
   id?: string;
@@ -44,6 +47,7 @@ export class BookingPaymentService {
     private eventStore: EventStoreService,
     @Inject(forwardRef(() => PublicBookingService))
     private publicBookingService: PublicBookingService,
+    private checkoutPricingService: CheckoutPricingService,
   ) {}
 
   calculatePrepaymentAmount(service: Service): number {
@@ -67,6 +71,47 @@ export class BookingPaymentService {
     );
   }
 
+  pricingMetadata(pricing: CheckoutPricingResult) {
+    return {
+      pricing: {
+        servicePrice: pricing.servicePrice,
+        subtotal: pricing.subtotal,
+        promoDiscount: pricing.promoDiscount,
+        loyaltyDiscount: pricing.loyaltyDiscount,
+        totalDiscount: pricing.totalDiscount,
+        amountDue: pricing.amountDue,
+        loyaltyPointsRedeemed: pricing.loyaltyPointsToRedeem,
+        promoCode: pricing.promoCode ?? null,
+        promoCodeId: pricing.promoCodeId ?? null,
+        pointsToEarn: pricing.pointsToEarn,
+        adjustments: pricing.adjustments,
+      },
+      amountPaid: pricing.amountDue,
+      cashPaidEligible: pricing.amountDue,
+    };
+  }
+
+  async resolveCheckoutPricing(
+    businessId: string,
+    service: Service,
+    dto: CreatePublicBookingDto,
+    customerId?: string,
+  ) {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const prepaymentAmount = this.calculatePrepaymentAmount(service);
+    const chargeBase = prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+    return this.checkoutPricingService.calculate({
+      businessId,
+      servicePrice: Number(service.price),
+      prepaymentAmount: chargeBase,
+      currency: service.currency || 'USD',
+      promoCode: dto.promoCode,
+      loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+      customerId,
+      earnPercentCashback: getEarnPercentCashback(business?.settings),
+    });
+  }
+
   async createCheckoutSession(
     slug: string,
     dto: CreatePublicBookingDto,
@@ -88,8 +133,21 @@ export class BookingPaymentService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
-    const amount = this.calculatePrepaymentAmount(service);
-    if (amount <= 0) {
+    const pricing = await this.resolveCheckoutPricing(
+      business.id,
+      service,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    if (pricing.amountDue <= 0) {
+      throw new BadRequestException(
+        'No payment is due after discounts. Confirm booking without checkout.',
+      );
+    }
+
+    const amount = pricing.amountDue;
+    if (this.calculatePrepaymentAmount(service) <= 0) {
       throw new BadRequestException('This service does not require online payment');
     }
 
@@ -97,15 +155,14 @@ export class BookingPaymentService {
       throw new BadRequestException('Email or phone number is required');
     }
 
-    const draftPayload: CreatePublicBookingDto = authenticatedCustomerId
-      ? {
-          ...dto,
-          metadata: {
-            ...(dto.metadata || {}),
-            authenticatedCustomerId,
-          },
-        }
-      : dto;
+    const draftPayload: CreatePublicBookingDto = {
+      ...dto,
+      metadata: {
+        ...(dto.metadata || {}),
+        ...(authenticatedCustomerId ? { authenticatedCustomerId } : {}),
+        checkoutPricing: pricing,
+      },
+    };
 
     const draft = await this.draftRepo.save(
       this.draftRepo.create({
@@ -262,10 +319,20 @@ export class BookingPaymentService {
       authenticatedCustomerId,
     );
 
+    const storedPricing = dto.metadata?.checkoutPricing as CheckoutPricingResult | undefined;
+    let pricing = storedPricing;
+    if (!pricing) {
+      const service = await this.serviceRepo.findOne({
+        where: { id: dto.serviceId, businessId: business.id },
+      });
+      if (!service) throw new NotFoundException('Service not found');
+      pricing = await this.resolveCheckoutPricing(business.id, service, dto, customer.id);
+    }
+
     const booking = await this.bookingService.create(
       business.id,
       {
-        employeeId,
+        employeeId: employeeId!,
         serviceId: dto.serviceId,
         customerId: customer.id,
         startTime: dto.startTime,
@@ -275,11 +342,19 @@ export class BookingPaymentService {
           stripeSessionId: sessionId,
           stripeConnectAccountId: draft.stripeConnectAccountId,
           prepaymentAmount: Number(draft.amount),
+          ...this.pricingMetadata(pricing),
           ...(dto.metadata || {}),
         },
       },
       undefined,
       { paymentStatus: PaymentStatus.PAID },
+    );
+
+    await this.checkoutPricingService.applyRedemptions(
+      business.id,
+      customer.id,
+      pricing,
+      booking.id,
     );
 
     draft.status = 'completed';

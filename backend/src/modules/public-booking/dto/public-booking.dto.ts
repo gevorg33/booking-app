@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsEmail, ValidateNested, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsEmail, ValidateNested, IsBoolean, IsObject, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PublicCustomerDto {
@@ -54,6 +54,27 @@ export class CreatePublicBookingDto {
   @IsOptional()
   @IsBoolean()
   markPaid?: boolean;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  loyaltyPointsToRedeem?: number;
+}
+
+export class PublicBookingQuoteDto {
+  @IsString()
+  serviceId: string;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  loyaltyPointsToRedeem?: number;
 }
 
 export class ConfirmBookingPaymentDto {

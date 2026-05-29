@@ -5,7 +5,6 @@ import { Repository } from 'typeorm';
 import { EventType } from '../../../events/event-types.js';
 import { OperationalEvent } from '../../../events/store/event-store.entity.js';
 import { Booking } from '../entities/booking.entity.js';
-import { LoyaltyService } from '../../loyalty/loyalty.service.js';
 import { InventoryService } from '../../inventory/inventory.service.js';
 import { ReviewsService } from '../../reviews/reviews.service.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
@@ -16,7 +15,6 @@ export class BookingCompletedListener {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    private loyaltyService: LoyaltyService,
     private inventoryService: InventoryService,
     private reviewsService: ReviewsService,
     private notificationsService: NotificationsService,
@@ -26,19 +24,11 @@ export class BookingCompletedListener {
   async handle(event: OperationalEvent): Promise<void> {
     const booking = await this.bookingRepo.findOne({
       where: { id: event.aggregateId },
-      relations: { service: true, customer: true, business: true },
+      relations: { service: true },
     });
-    if (!booking?.customerId) return;
+    if (!booking) return;
 
     try {
-      if (booking.service) {
-        await this.loyaltyService.earn(
-          booking.businessId,
-          booking.customerId,
-          Number(booking.service.price),
-          booking.id,
-        );
-      }
       await this.inventoryService.deductForService(booking.serviceId);
       await this.reviewsService.ensureReviewToken(booking.id);
       await this.notificationsService.sendReviewRequest(booking.id);

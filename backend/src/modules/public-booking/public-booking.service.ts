@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   UnauthorizedException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
@@ -15,7 +17,10 @@ import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
-import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, PublicBookingQuoteDto } from './dto/public-booking.dto.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
+import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
+import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { Business } from '../business/entities/business.entity.js';
 import {
   addDaysToDateKey,
@@ -142,6 +147,10 @@ export class PublicBookingService {
     private schedulingEngine: SchedulingEngineService,
     private stripeIntegrationService: StripeIntegrationService,
     private reviewsService: ReviewsService,
+    @Inject(forwardRef(() => BookingPaymentService))
+    private bookingPaymentService: BookingPaymentService,
+    private checkoutPricingService: CheckoutPricingService,
+    private loyaltyService: LoyaltyService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -821,6 +830,39 @@ export class PublicBookingService {
     return { customer: saved.customer, created: false };
   }
 
+  async quoteCheckout(
+    slug: string,
+    dto: PublicBookingQuoteDto,
+    authenticatedCustomerId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    const service = await this.serviceRepo.findOne({
+      where: { id: dto.serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    return this.bookingPaymentService.resolveCheckoutPricing(
+      business.id,
+      service,
+      {
+        serviceId: dto.serviceId,
+        startTime: new Date().toISOString(),
+        customer: { name: 'Quote' },
+        promoCode: dto.promoCode,
+        loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+      },
+      authenticatedCustomerId,
+    );
+  }
+
+  async getCustomerLoyalty(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    const account = await this.loyaltyService.getOrCreate(business.id, customerId);
+    return this.loyaltyService.getPublicSummary(account, business.settings);
+  }
+
   async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -835,12 +877,16 @@ export class PublicBookingService {
     if (!service) throw new NotFoundException('Service not found');
 
     const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
-    const onlineRequired =
-      paymentsReady &&
-      service.prepaymentMode !== PrepaymentMode.NONE &&
-      !dto.markPaid;
+    const prepaymentRequired = paymentsReady && service.prepaymentMode !== PrepaymentMode.NONE;
 
-    if (onlineRequired) {
+    const pricing = await this.bookingPaymentService.resolveCheckoutPricing(
+      business.id,
+      service,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    if (prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid) {
       throw new BadRequestException(
         'Online payment is required for this service. Complete payment at checkout.',
       );
@@ -869,10 +915,23 @@ export class PublicBookingService {
         customerId: customer.id,
         startTime: dto.startTime,
         notes: dto.notes,
-        metadata: { source: 'public_booking', ...(dto.metadata || {}) },
+        metadata: {
+          source: 'public_booking',
+          ...this.bookingPaymentService.pricingMetadata(pricing),
+          ...(dto.metadata || {}),
+        },
       },
       undefined,
-      dto.markPaid ? { paymentStatus: PaymentStatus.PAID } : undefined,
+      dto.markPaid || pricing.amountDue <= 0
+        ? { paymentStatus: PaymentStatus.PAID }
+        : undefined,
+    );
+
+    await this.checkoutPricingService.applyRedemptions(
+      business.id,
+      customer.id,
+      pricing,
+      booking.id,
     );
 
     return {

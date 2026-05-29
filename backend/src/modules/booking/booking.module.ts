@@ -25,6 +25,7 @@ import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 
 @Module({
@@ -49,6 +50,7 @@ import { PublicBookingModule } from '../public-booking/public-booking.module.js'
     InventoryModule,
     ReviewsModule,
     NotificationsModule,
+    PromoCodesModule,
   ],
   controllers: [BookingController, AgentController],
   providers: [
