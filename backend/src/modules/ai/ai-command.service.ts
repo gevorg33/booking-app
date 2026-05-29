@@ -80,6 +80,13 @@ import { BookingCommandGraphService } from './booking-command-graph.service.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { AiPromptSecurityService } from './ai-prompt-security.service.js';
+import {
+  clampReadDateRangeDays,
+  MAX_AI_CUSTOMER_ROWS,
+  MAX_AI_LIST_BOOKINGS,
+  MAX_AI_READ_DATE_RANGE_DAYS,
+} from './ai-prompt-security.util.js';
 import { isIntentAllowed, normalizeActorRole } from './ai-capability.matrix.js';
 import {
   buildExecutionConfirmationResult,
@@ -264,6 +271,7 @@ export class AiCommandService {
     private slotResolver: BookingSlotResolverService,
     private complexityRouter: CommandComplexityRouterService,
     private intentRescue: AiIntentRescueService,
+    private promptSecurity: AiPromptSecurityService,
   ) {}
 
   async approveTask(taskId: string, userId: string, businessId?: string): Promise<CommandResult> {
@@ -539,6 +547,20 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorRole}).`,
         details: { role: actorRole, action: parsed.action },
       };
+    }
+
+    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, any>;
+
+    const securityDenied = this.promptSecurity.enforceAction(
+      businessId,
+      'dashboard',
+      actorRole,
+      parsed.action,
+      effectivePrompt,
+      parsed.params,
+    );
+    if (securityDenied) {
+      return securityDenied;
     }
 
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
@@ -1238,10 +1260,10 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${context}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
-      { role: 'user', content: prompt },
+      { role: 'user', content: this.promptSecurity.prepareUserPromptForClassifier(prompt) },
     ];
 
     const response = await this.openAi.chatCompletion(
@@ -1666,8 +1688,8 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const metric = resolveCustomerMetric(params, prompt);
     const limit =
       typeof params.limit === 'number' && params.limit > 0
-        ? Math.min(params.limit, 20)
-        : extractLimitFromPrompt(prompt);
+        ? Math.min(params.limit, MAX_AI_CUSTOMER_ROWS)
+        : Math.min(extractLimitFromPrompt(prompt), MAX_AI_CUSTOMER_ROWS);
 
     const insights = await this.customerService.getCustomerInsights(businessId, metric, limit);
     const { rows, summary } = insights;
@@ -1725,7 +1747,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       success: true,
       action: 'summarize_customers',
       summary: lines.join('\n'),
-      details: { metric, rows, summary },
+      details: {
+        metric,
+        rowCount: rows.length,
+        summary,
+      },
     };
   }
 
@@ -4794,9 +4820,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         return { start: iso, end: iso };
       })();
 
-    const start = new Date(range.start);
+    const clamped = clampReadDateRangeDays(
+      range.start,
+      range.end,
+      MAX_AI_READ_DATE_RANGE_DAYS,
+    );
+
+    const start = new Date(clamped.start);
     start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
+    const end = new Date(clamped.end);
     end.setUTCHours(23, 59, 59, 999);
     where.startTime = Between(start, end);
 
@@ -4841,16 +4873,26 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
 
     const rangeLabel =
-      range.start === range.end
-        ? formatDateDisplay(range.start)
-        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
+      clamped.start === clamped.end
+        ? formatDateDisplay(clamped.start)
+        : `${formatDateDisplay(clamped.start)} → ${formatDateDisplay(clamped.end)}`;
     const scopeLabel = employeeName || 'all service providers';
     const customerLabel = params.customerName ? ` for ${params.customerName}` : '';
     const statusLabel = statusFilter ? ` (${statusFilter})` : '';
 
     const activeBookings = scopedBookings.filter((b) => b.status !== BookingStatus.CANCELLED);
     const cancelledBookings = scopedBookings.filter((b) => b.status === BookingStatus.CANCELLED);
-    const displayBookings = statusFilter ? scopedBookings : activeBookings;
+    let displayBookings = statusFilter ? scopedBookings : activeBookings;
+    const totalMatched = displayBookings.length;
+    if (displayBookings.length > MAX_AI_LIST_BOOKINGS) {
+      displayBookings = displayBookings.slice(0, MAX_AI_LIST_BOOKINGS);
+    }
+    const truncatedNote =
+      totalMatched > MAX_AI_LIST_BOOKINGS
+        ? `\n(Showing first ${MAX_AI_LIST_BOOKINGS} of ${totalMatched} appointments.)`
+        : clamped.truncated
+          ? `\n(Date range limited to ${MAX_AI_READ_DATE_RANGE_DAYS} days for security.)`
+          : '';
 
     let summaryBody: string;
     if (scopedBookings.length === 0) {
@@ -4872,7 +4914,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           ? `\n(${cancelledBookings.length} cancelled — hidden)`
           : '';
       summaryBody = [
-        `${displayBookings.length} appointment(s) for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}`,
+        `${displayBookings.length} appointment(s) for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}${truncatedNote}`,
         ...lines,
       ].join('\n');
     } else {
@@ -4896,7 +4938,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)`
           : '';
       summaryBody = [
-        `${displayBookings.length} appointment(s) for all service providers${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}`,
+        `${displayBookings.length} appointment(s) for all service providers${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}${truncatedNote}`,
         ...groupedLines,
       ].join('\n');
     }
@@ -4906,16 +4948,17 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       action: 'show_appointments',
       summary: summaryBody,
       details: {
-        count: scopedBookings.length,
+        count: totalMatched,
         activeCount: activeBookings.length,
         cancelledCount: cancelledBookings.length,
-        date: range.start === range.end ? formatDateDisplay(range.start) : null,
-        range,
+        date: clamped.start === clamped.end ? formatDateDisplay(clamped.start) : null,
+        range: { start: clamped.start, end: clamped.end },
         statusFilter: statusFilter ?? null,
         customer: params.customerName ?? null,
         scope: employeeId ? 'provider' : params.customerId ? 'customer' : 'all_providers',
         employee: employeeName ?? null,
-        bookings: scopedBookings.map((b) => ({
+        truncated: totalMatched > MAX_AI_LIST_BOOKINGS || clamped.truncated,
+        bookings: displayBookings.map((b) => ({
           id: b.id,
           service: b.service?.name,
           customer: b.customer?.name,

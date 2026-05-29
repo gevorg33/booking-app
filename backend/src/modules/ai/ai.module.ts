@@ -40,6 +40,7 @@ import { AiConversationSummaryService } from './ai-conversation-summary.service.
 import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.js';
 
 @Module({
@@ -89,6 +90,7 @@ import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.
     AiIntelligenceService,
     CommandComplexityRouterService,
     AiIntentRescueService,
+    AiPromptSecurityService,
   ],
   exports: [
     CommandCompletionPipelineService,
@@ -102,6 +104,7 @@ import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.
     AiIntelligenceService,
     CommandComplexityRouterService,
     AiIntentRescueService,
+    AiPromptSecurityService,
   ],
 })
 export class AiModule {}

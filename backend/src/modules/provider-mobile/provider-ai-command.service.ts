@@ -20,7 +20,14 @@ import {
   validateProviderCommand,
 } from '../ai/provider-command-completion.validator.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
+import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
+import {
+  isIntentAllowed,
+  normalizeActorRole,
+  type AiActorRole,
+} from '../ai/ai-capability.matrix.js';
+import { MemberRole } from '../business/entities/business-member.entity.js';
 import { CommandOrchestrationService } from '../ai/command-orchestration.service.js';
 import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -104,6 +111,7 @@ export class ProviderAiCommandService {
     private scheduleHandlers: AiScheduleHandlersService,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
+    private promptSecurity: AiPromptSecurityService,
   ) {}
 
   async executeCommand(
@@ -123,6 +131,18 @@ export class ProviderAiCommandService {
     }
 
     const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+    const actorRole = this.resolveProviderActorRole(access);
+
+    const blocked = this.promptSecurity.preflightBlock(businessId, prompt, 'provider');
+    if (blocked) {
+      return {
+        success: blocked.success,
+        action: blocked.action,
+        summary: blocked.summary,
+        details: blocked.details as Record<string, unknown>,
+      };
+    }
+
     const providerName = access.employee?.name ?? 'Admin';
     const parsed = await this.classifyIntent(
       businessId,
@@ -168,6 +188,35 @@ export class ProviderAiCommandService {
 
     this.normalizeParams(parsed.params);
     parsed.action = this.rescueProviderIntent(prompt, parsed.action);
+
+    if (!isIntentAllowed('provider', actorRole, parsed.action)) {
+      return {
+        success: false,
+        action: parsed.action,
+        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorRole}).`,
+        details: { role: actorRole, action: parsed.action },
+      };
+    }
+
+    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, unknown>;
+
+    const securityDenied = this.promptSecurity.enforceAction(
+      businessId,
+      'provider',
+      actorRole,
+      parsed.action,
+      prompt,
+      parsed.params,
+    );
+    if (securityDenied) {
+      return {
+        success: securityDenied.success,
+        action: securityDenied.action,
+        summary: securityDenied.summary,
+        details: securityDenied.details as Record<string, unknown>,
+      };
+    }
+
     this.logger.log(`Provider AI action="${parsed.action}" — ${parsed.reasoning}`);
 
     let result: ProviderCommandResult;
@@ -425,6 +474,15 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     return this.executeUpdate(bookings, { status, paymentStatus }, userId);
+  }
+
+  private resolveProviderActorRole(access: MobileAccess): AiActorRole {
+    if (access.viewMode === 'team') {
+      if (access.membershipRole === MemberRole.OWNER) return 'owner';
+      if (access.membershipRole === MemberRole.MANAGER) return 'manager';
+      return 'manager';
+    }
+    return normalizeActorRole('provider');
   }
 
   private rescueProviderIntent(prompt: string, action: string): string {

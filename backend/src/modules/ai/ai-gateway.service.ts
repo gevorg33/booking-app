@@ -11,6 +11,7 @@ import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
+import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import type { CommandResult } from './command-completion.types.js';
 
 export interface AiGatewayExecuteParams {
@@ -37,6 +38,7 @@ export class AiGatewayService {
     private conversationSummary: AiConversationSummaryService,
     private intelligence: AiIntelligenceService,
     private complexityRouter: CommandComplexityRouterService,
+    private promptSecurity: AiPromptSecurityService,
   ) {}
 
   getCapabilityHints(surface: AiSurface, role?: string): string {
@@ -45,6 +47,13 @@ export class AiGatewayService {
 
   async execute(params: AiGatewayExecuteParams): Promise<CommandResult | Record<string, unknown>> {
     const role = normalizeActorRole(params.role);
+    const surface = params.surface;
+
+    const blocked = this.promptSecurity.preflightBlock(params.businessId, params.prompt, surface);
+    if (blocked) {
+      return this.attachGatewayMeta(blocked, surface, role);
+    }
+
     const memoryBlock = await this.entityMemory.buildMemoryContextBlock(params.businessId);
 
     const { history, summaryBlock } = await this.conversationSummary.prepareHistoryForClassifier(

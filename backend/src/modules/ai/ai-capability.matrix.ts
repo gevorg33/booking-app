@@ -58,6 +58,7 @@ export const PROVIDER_INTENTS = [
   'block_schedule',
   'summarize_utilization',
   'mark_no_shows',
+  'payment_sweep',
   'unknown',
 ] as const;
 
@@ -146,6 +147,7 @@ export function isMutatingIntent(surface: AiSurface, action: string): boolean {
       'fill_unused_slots',
       'block_schedule',
       'mark_no_shows',
+      'payment_sweep',
     ].includes(action);
   }
   return DASHBOARD_MUTATING.has(action);
