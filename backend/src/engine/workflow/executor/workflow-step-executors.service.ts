@@ -66,6 +66,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       create_block_schedule: (step, ctx) => this.createBlockSchedule(step, ctx),
       remove_block_schedule: (step, ctx) => this.removeBlockSchedule(step, ctx),
       create_direct_schedule: (step, ctx) => this.createDirectSchedule(step, ctx),
+      clear_schedule: (step, ctx) => this.clearSchedule(step, ctx),
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
       assign_employee_services: (step, ctx) => this.assignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
@@ -229,6 +230,29 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     return { slotsCreated: result.slotsCreated, employeeId, date };
   }
 
+  private async clearSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { employeeId, date, userId } = step.params as {
+      employeeId: string;
+      date: string;
+      userId?: string;
+    };
+    if (!employeeId || !date) {
+      throw new BadRequestException('clear_schedule requires employeeId and date');
+    }
+    const result = await this.scheduleService.clearScheduleForDay(
+      businessId,
+      { employeeId, date },
+      userId,
+    );
+    return {
+      employeeId,
+      date,
+      periodsRemoved: result.periodsRemoved,
+      slotsRemoved: result.slotsRemoved,
+    };
+  }
+
   private async rescheduleBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const { bookingId, startTime, employeeId, serviceId, userId } = step.params;
     const existing = await this.bookingRepo.findOne({
@@ -247,14 +271,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
     const conflicts = await this.bookingRepo
       .createQueryBuilder('b')
-      .where('b.business_id = :businessId', { businessId: existing.businessId })
-      .andWhere('b.employee_id = :employeeId', { employeeId: targetEmployeeId })
+      .where('b.businessId = :businessId', { businessId: existing.businessId })
+      .andWhere('b.employeeId = :employeeId', { employeeId: targetEmployeeId })
       .andWhere('b.id != :bookingId', { bookingId })
       .andWhere('b.status NOT IN (:...terminal)', {
         terminal: [BookingStatus.CANCELLED, BookingStatus.COMPLETED],
       })
-      .andWhere('b.start_time < :targetEnd', { targetEnd })
-      .andWhere('b.end_time > :targetStart', { targetStart })
+      .andWhere('b.startTime < :targetEnd', { targetEnd })
+      .andWhere('b.endTime > :targetStart', { targetStart })
       .getMany();
 
     if (conflicts.length > 0) {

@@ -412,6 +412,53 @@ export class ScheduleService implements OnModuleInit {
     return { slotsCreated: slotsToSave.length };
   }
 
+  /** Remove applied schedule periods and micro-slots for a provider on one day (does not cancel bookings). */
+  async clearScheduleForDay(
+    businessId: string,
+    dto: { employeeId: string; date: string },
+    userId?: string,
+  ): Promise<{ periodsRemoved: number; slotsRemoved: number }> {
+    const targetDate = new Date(dto.date);
+    targetDate.setUTCHours(0, 0, 0, 0);
+    const dayStart = new Date(targetDate);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const [slotResult, periodResult] = await Promise.all([
+      this.slotRepo.delete({
+        employeeId: dto.employeeId,
+        businessId,
+        startTime: Between(dayStart, dayEnd) as any,
+      }),
+      this.schedulingPeriodRepo.delete({
+        employeeId: dto.employeeId,
+        businessId,
+        startTime: Between(dayStart, dayEnd) as any,
+      }),
+    ]);
+
+    await this.eventStore.publish({
+      eventType: EventType.SCHEDULE_UPDATED,
+      aggregateType: 'schedule_slot',
+      aggregateId: dto.employeeId,
+      businessId,
+      payload: {
+        employeeId: dto.employeeId,
+        date: dto.date,
+        cleared: true,
+        periodsRemoved: periodResult.affected ?? 0,
+        slotsRemoved: slotResult.affected ?? 0,
+      },
+      userId,
+    });
+
+    return {
+      periodsRemoved: periodResult.affected ?? 0,
+      slotsRemoved: slotResult.affected ?? 0,
+    };
+  }
+
   /**
    * Append service_block periods (and micro-slots) for a day without removing existing schedule.
    */
@@ -493,15 +540,14 @@ export class ScheduleService implements OnModuleInit {
 
       // Replace bookable micro-slots in this window so overlapping gap fills do not stack conflicting service_ids.
       await this.slotRepo
-        .createQueryBuilder()
+        .createQueryBuilder('slot')
         .delete()
-        .from(SchedulingSlot)
-        .where('business_id = :businessId', { businessId })
-        .andWhere('employee_id = :employeeId', { employeeId: dto.employeeId })
-        .andWhere('start_time >= :periodStart', { periodStart })
-        .andWhere('start_time < :periodEnd', { periodEnd })
-        .andWhere('status = :status', { status: SlotStatus.AVAILABLE })
-        .andWhere('appointment_count = 0')
+        .where('slot.businessId = :businessId', { businessId })
+        .andWhere('slot.employeeId = :employeeId', { employeeId: dto.employeeId })
+        .andWhere('slot.startTime >= :periodStart', { periodStart })
+        .andWhere('slot.startTime < :periodEnd', { periodEnd })
+        .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+        .andWhere('slot.appointmentCount = 0')
         .execute();
 
       let current = new Date(periodStart);

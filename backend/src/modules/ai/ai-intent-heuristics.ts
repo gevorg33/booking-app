@@ -2,9 +2,26 @@
  * Post-LLM entity extraction and metric resolvers.
  * Intent classification is LLM-only (see AiCommandService.classifyIntent).
  */
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
-import { fuzzyMatchServiceByName, normalizeServiceLookup } from './ai-orchestration.helpers.js';
+import {
+  formatDateDisplay,
+  getTodayDateKey,
+  resolveRelativeDateKeyword,
+  todayDisplay,
+} from '../../common/utils/date-format.util.js';
+import { resolveTimezone } from '../../common/utils/timezone.util.js';
+import {
+  extractSingleDateFromPrompt,
+  fuzzyMatchServiceByName,
+  normalizeServiceLookup,
+} from './ai-orchestration.helpers.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export type ServiceInsightMetric = 'most_booked' | 'top_revenue' | 'least_booked' | 'overview';
 export type StaffInsightMetric = 'busiest' | 'most_revenue' | 'most_bookings' | 'overview';
@@ -106,7 +123,216 @@ export function extractFromTimeSlotFromReschedulePrompt(prompt: string): string 
   const beforeAppt = prompt.match(/\b(\d{1,2}):(\d{2})\s+(?:appointment|booking)\s+to\b/i);
   if (beforeAppt) return normalizeTime24(`${beforeAppt[1]}:${beforeAppt[2]}`);
 
+  const rescheduleFrom = prompt.match(/\breschedule\s+(?:to\s+)?from\s+(\d{1,2})(?::(\d{2}))?\b/i);
+  if (rescheduleFrom && !/\bto\s+(?:tomorrow|today|\w+\s+\d|\d)/i.test(prompt)) {
+    return normalizeTime24(`${rescheduleFrom[1]}:${rescheduleFrom[2] ?? '00'}`);
+  }
+
   return null;
+}
+
+const WEEKDAY_MAP: Record<string, number> = {
+  sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3, thursday: 4, thu: 4, thurs: 4,
+  friday: 5, fri: 5, saturday: 6, sat: 6,
+};
+
+const MONTH_MAP: Record<string, number> = {
+  january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3, april: 4, apr: 4,
+  may: 5, june: 6, jun: 6, july: 7, jul: 7, august: 8, aug: 8,
+  september: 9, sep: 9, sept: 9, october: 10, oct: 10, november: 11, nov: 11,
+  december: 12, dec: 12,
+};
+
+function resolveWeekdayIso(weekdayName: string, timeZone: string): string | null {
+  const target = WEEKDAY_MAP[weekdayName.toLowerCase().replace(/\s/g, '')];
+  if (target === undefined) return null;
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
+  const cur = today.day();
+  let delta = (target - cur + 7) % 7;
+  if (delta === 0) delta = 7;
+  return today.add(delta, 'day').format('YYYY-MM-DD');
+}
+
+function parseOrdinalMonthFragment(fragment: string, timeZone: string): string | null {
+  const trimmed = fragment.trim();
+  const lower = trimmed.toLowerCase();
+
+  const dayMonth = lower.match(/^(\d{1,2})(?:st|nd|rd|th)?(?:\s+of\s+|\s+)([a-z]+)(?:\s+(\d{4}))?$/);
+  if (dayMonth) {
+    const month = MONTH_MAP[dayMonth[2]];
+    if (!month) return null;
+    const day = parseInt(dayMonth[1], 10);
+    const year = dayMonth[3] ? parseInt(dayMonth[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    return buildIsoDay(year, month, day);
+  }
+
+  const monthDay = lower.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/);
+  if (monthDay) {
+    const month = MONTH_MAP[monthDay[1]];
+    if (!month) return null;
+    const day = parseInt(monthDay[2], 10);
+    const year = monthDay[3] ? parseInt(monthDay[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    return buildIsoDay(year, month, day);
+  }
+
+  const slash = trimmed.match(/^(\d{1,2})[/_](\d{1,2})(?:[/_](\d{2,4}))?$/);
+  if (slash) {
+    const day = parseInt(slash[1], 10);
+    const month = parseInt(slash[2], 10);
+    let year = slash[3] ? parseInt(slash[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    if (year < 100) year += 2000;
+    return buildIsoDay(year, month, day);
+  }
+
+  return null;
+}
+
+function inferYearForMonthDay(day: number, month: number, timeZone: string): number {
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
+  let year = today.year();
+  const candidate = dayjs.tz(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, tz);
+  if (candidate.isBefore(today, 'day')) year += 1;
+  return year;
+}
+
+function buildIsoDay(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Parse the destination day from "move/reschedule … to …" phrasing. */
+export function extractRescheduleTargetDate(prompt: string, timeZone = 'UTC'): string | null {
+  const lower = prompt.toLowerCase();
+  if (!/\b(reschedule|move|shift)\b/.test(lower)) return null;
+
+  const toRel = lower.match(/\bto\s+(?:on\s+)?(tomorrow|today|yesterday|tonight)\b/);
+  if (toRel) {
+    const keyword = toRel[1] === 'tonight' ? 'today' : toRel[1];
+    const iso = resolveRelativeDateKeyword(keyword, timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+
+  const toNextDay = lower.match(
+    /\bto\s+(?:on\s+)?next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (toNextDay) {
+    const iso = resolveWeekdayIso(toNextDay[1], timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+
+  const toWeekday = lower.match(
+    /\bto\s+(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (toWeekday) {
+    const iso = resolveWeekdayIso(toWeekday[1], timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+
+  const toOrdinal = prompt.match(
+    /\bto\s+(?:on\s+)?(\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)\b/i,
+  );
+  if (toOrdinal) {
+    const iso = parseOrdinalMonthFragment(toOrdinal[1], timeZone);
+    if (iso) return formatDateDisplay(iso);
+  }
+
+  const toSegment = prompt.match(/\bto\s+(?:on\s+)?(.+?)(?:\s+(?:from|at)\s+\d|\s*$)/i);
+  if (toSegment?.[1]) {
+    const fromExtract = extractSingleDateFromPrompt(toSegment[1].trim(), timeZone);
+    if (fromExtract) return fromExtract;
+  }
+
+  return null;
+}
+
+/** Parse the new appointment time from reschedule phrasing. */
+export function extractRescheduleTargetTime(prompt: string): string | null {
+  const toDayTime = prompt.match(
+    /\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun))\s+(\d{1,2})(?::(\d{2}))?\b/i,
+  );
+  if (toDayTime) return normalizeTime24(`${toDayTime[1]}:${toDayTime[2] ?? '00'}`);
+
+  const toDayFrom = prompt.match(
+    /\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+(?:from|at)\s+(\d{1,2})(?::(\d{2}))?\b/i,
+  );
+  if (toDayFrom) return normalizeTime24(`${toDayFrom[1]}:${toDayFrom[2] ?? '00'}`);
+
+  const toAt = extractRescheduleTimeSlotFromPrompt(prompt);
+  if (toAt) return toAt;
+
+  if (/\breschedule\s+(?:to\s+)?from\s+(\d{1,2})(?::(\d{2}))?\b/i.test(prompt)) {
+    const m = prompt.match(/\breschedule\s+(?:to\s+)?from\s+(\d{1,2})(?::(\d{2}))?\b/i);
+    if (m) return normalizeTime24(`${m[1]}:${m[2] ?? '00'}`);
+  }
+
+  return null;
+}
+
+function extractAtTimeBeforeTo(prompt: string): string | null {
+  const beforeTo = prompt.match(/^([\s\S]+?)\bto\s+(?:tomorrow|today|(?:next\s+)?(?:mon|tues|wed|thu|fri|sat|sun)[a-z]*(?:day)?|\d)/i);
+  if (!beforeTo?.[1]) return null;
+  const atTime = beforeTo[1].match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/i);
+  if (atTime) return normalizeTime24(`${atTime[1]}:${atTime[2] ?? '00'}`);
+  return null;
+}
+
+/** Parse which existing appointment time to move (not the destination "from 13:30"). */
+export function extractRescheduleSourceTime(prompt: string): string | null {
+  if (/\bto\s+(?:tomorrow|today|(?:next\s+)?(?:mon|tues|wed|thu|fri|sat|sun)[a-z]*(?:day)?|\S+(?:\s+\S+)?)\s+from\s+\d/i.test(prompt)) {
+    return null;
+  }
+  const beforeTo = extractAtTimeBeforeTo(prompt);
+  if (beforeTo) return beforeTo;
+  return extractFromTimeSlotFromReschedulePrompt(prompt);
+}
+
+/** Optional source day when the user names the current appointment date. */
+export function extractRescheduleSourceDate(prompt: string, timeZone = 'UTC'): string | null {
+  const lower = prompt.toLowerCase();
+  if (
+    /\btoday(?:'s|'s)?\s+(?:\w+\s+){0,4}(?:appointment|booking)\b/.test(lower) ||
+    /\b(?:on|for)\s+today\b/.test(lower)
+  ) {
+    return todayDisplay(timeZone);
+  }
+  if (
+    /\btomorrow(?:'s|'s)?\s+(?:\w+\s+){0,4}(?:appointment|booking)\b/.test(lower) ||
+    /\b(?:on|for)\s+tomorrow\b/.test(lower)
+  ) {
+    const iso = resolveRelativeDateKeyword('tomorrow', timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+  return null;
+}
+
+/**
+ * Split reschedule params: date/timeSlot = destination, fromDate/fromTimeSlot = source filters.
+ */
+export function resolveRescheduleParams(
+  params: Record<string, any>,
+  prompt: string,
+  timeZone = 'UTC',
+): void {
+  const lower = prompt.toLowerCase();
+  if (!/\b(reschedule|move|shift)\b/.test(lower)) return;
+
+  const targetDate = extractRescheduleTargetDate(prompt, timeZone);
+  const targetTime = extractRescheduleTargetTime(prompt);
+  const sourceTime = extractRescheduleSourceTime(prompt);
+  const sourceDate = extractRescheduleSourceDate(prompt, timeZone);
+
+  if (targetDate) params.date = targetDate;
+  if (targetTime) params.timeSlot = targetTime;
+  if (sourceTime) params.fromTimeSlot = sourceTime;
+  if (sourceDate) params.fromDate = sourceDate;
+
+  if (targetTime && params.fromTimeSlot === targetTime && !sourceTime) {
+    delete params.fromTimeSlot;
+  }
 }
 
 function matchServiceInPrompt(
@@ -181,8 +407,8 @@ export function extractServiceFromPrompt(
 export function isAnyProviderBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
-    /\bany\s+(?:provider|staff|employee|therapist|stylist)\b/i.test(lower) ||
-    /\bwhichever\s+provider\b/i.test(lower) ||
+    /\bany\s+(?:provider|staff|employee|therapist|stylist|specialist|specialists)\b/i.test(lower) ||
+    /\bwhichever\s+(?:provider|specialist)\b/i.test(lower) ||
     /\bwhoever\s+(?:is\s+)?(?:available|free)\b/i.test(lower)
   );
 }
@@ -194,6 +420,8 @@ export function isFirstAvailableBookingPrompt(prompt: string): boolean {
     /\bfirst\s+available\b/i.test(lower) ||
     /\bearliest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
     /\bnext\s+available\s+(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnearest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnearest\s+time\s+slot\b/i.test(lower) ||
     /\bas soon as possible\b/i.test(lower) ||
     /\basap\b/i.test(lower)
   );

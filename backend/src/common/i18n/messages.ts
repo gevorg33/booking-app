@@ -40,6 +40,8 @@ const en: MessageTree = {
     noUpcomingSlots: 'No upcoming slots',
     open: 'Open',
     nextOn: 'Next on',
+    nearestNeedsService: 'Which service would you like to book? Tell me the service name for the nearest available slot.',
+    noNearestSlot: 'No upcoming open slots for {service}{after} in the next two weeks. Try another service or contact us directly.',
   },
   booking: {
     emailOrPhoneRequired: 'Email or phone number is required',
@@ -58,6 +60,8 @@ const hy: MessageTree = {
     noUpcomingSlots: 'Ազատ slot-եր չկան',
     open: 'Ազատ',
     nextOn: 'Հաջորդը',
+    nearestNeedsService: 'Ո՞ր ծառայությունն եք ցանկանում ամրագրել։ Ասեք ծառայության անունը՝ մոտակա ազատ slot-ի համար։',
+    noNearestSlot: 'Հաջորդ երկու շաբաթվա ընթացքում {service}-ի համար ազատ slot{after} չկա։ Փորձեք այլ ծառայություն կամ կապվեք մեզ հետ։',
   },
   booking: {
     emailOrPhoneRequired: 'Էլ. փոստ կամ հեռախոսահամար պարտադիր է',
@@ -76,6 +80,8 @@ const ru: MessageTree = {
     noUpcomingSlots: 'Нет свободных слотов',
     open: 'Свободно',
     nextOn: 'Ближайшее',
+    nearestNeedsService: 'Какую услугу записать? Назовите услугу для ближайшего свободного времени.',
+    noNearestSlot: 'Нет свободных слотов для {service}{after} в ближайшие две недели. Попробуйте другую услугу или свяжитесь с нами.',
   },
   booking: {
     emailOrPhoneRequired: 'Email или телефон обязателен',

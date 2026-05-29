@@ -83,6 +83,16 @@ export class CommandOrchestrationService {
     return this.taskToResult(task, task.intent);
   }
 
+  async retryFailedStep(
+    businessId: string,
+    taskId: string,
+    stepId: string,
+    userId?: string,
+  ): Promise<OrchestrationResult> {
+    const task = await this.orchestrator.retryFailedStep(taskId, stepId, userId, businessId);
+    return this.taskToResult(task, task.intent);
+  }
+
   private taskToResult(task: any, action: string): OrchestrationResult {
     const requiresApproval =
       task.status === PlanStatus.REQUIRES_APPROVAL || task.status === PlanStatus.VALIDATED;
@@ -200,6 +210,11 @@ export class CommandOrchestrationService {
   ): void {
     if (result.periodsCreated) {
       lines.push(`• Added ${result.periodsCreated} schedule period(s)`);
+    }
+    if (result.periodsRemoved != null) {
+      lines.push(
+        `• Cleared ${result.periodsRemoved} period(s) and ${result.slotsRemoved ?? 0} slot(s)`,
+      );
     }
     if (result.slotsCreated && !result.periodsCreated) {
       lines.push(`• Created ${result.slotsCreated} schedule slot(s)`);

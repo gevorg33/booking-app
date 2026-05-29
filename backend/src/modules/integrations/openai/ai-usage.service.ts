@@ -8,10 +8,14 @@ import {
   AiKeySource,
   AiUsageSummary,
   AiUsageSurface,
+  DEFAULT_OPENAI_MODEL,
 } from './openai.types.js';
 
-/** gpt-4o-mini list pricing (USD per 1M tokens) — used for platform-key billing estimates */
+/** OpenAI list pricing (USD per 1M tokens) — platform-key billing estimates only */
 const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
+  [DEFAULT_OPENAI_MODEL]: { inputPer1M: 0.75, outputPer1M: 4.5 },
+  'gpt-5.4-mini-2026-03-17': { inputPer1M: 0.75, outputPer1M: 4.5 },
+  // Legacy logs / overrides
   'gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.6 },
 };
 
@@ -28,7 +32,7 @@ export class AiUsageService {
     keySource: AiKeySource,
   ): number {
     if (keySource !== 'platform') return 0;
-    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['gpt-4o-mini'];
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_OPENAI_MODEL];
     const inputCost = (promptTokens / 1_000_000) * pricing.inputPer1M;
     const outputCost = (completionTokens / 1_000_000) * pricing.outputPer1M;
     return Number((inputCost + outputCost).toFixed(6));

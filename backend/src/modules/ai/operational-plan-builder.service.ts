@@ -84,7 +84,8 @@ export interface ResolvedDirectScheduleParams {
   businessId: string;
   employeeId: string;
   employeeName: string;
-  date: string;
+  date?: string;
+  dates?: string[];
   periods: Array<{
     startTime: string;
     endTime: string;
@@ -104,6 +105,16 @@ export interface ResolvedRescheduleBookingParams {
   serviceId?: string;
   userId?: string;
   label: string;
+}
+
+export interface ResolvedClearScheduleParams {
+  businessId: string;
+  clears: Array<{
+    employeeId: string;
+    employeeName: string;
+    date: string;
+  }>;
+  userId?: string;
 }
 
 export interface ResolvedAssignServicesParams {
@@ -217,27 +228,58 @@ export class OperationalPlanBuilderService {
   }
 
   buildDirectSchedulePlan(params: ResolvedDirectScheduleParams): AgentPlan {
-    const stepId = crypto.randomUUID();
-    const steps: AgentPlanStep[] = [
-      {
-        id: stepId,
-        action: 'create_direct_schedule',
-        description: `Set direct schedule for ${params.employeeName} on ${params.date}`,
-        params: {
-          businessId: params.businessId,
-          employeeId: params.employeeId,
-          date: params.date,
-          periods: params.periods,
-          userId: params.userId,
-        },
-        dependsOn: [],
-        estimatedImpact: 'Replaces schedule for the day',
+    const dates = params.dates ?? (params.date ? [params.date] : []);
+    const steps: AgentPlanStep[] = dates.map((date) => ({
+      id: crypto.randomUUID(),
+      action: 'create_direct_schedule',
+      description: `Set direct schedule for ${params.employeeName} on ${date}`,
+      params: {
+        businessId: params.businessId,
+        employeeId: params.employeeId,
+        date,
+        periods: params.periods,
+        userId: params.userId,
       },
-    ];
+      dependsOn: [],
+      estimatedImpact: 'Replaces schedule for the day',
+    }));
+
+    const dayLabel =
+      dates.length === 1 ? dates[0] : `${dates.length} days (${dates[0]} → ${dates[dates.length - 1]})`;
 
     return this.wrapPlan(params.businessId, 'create_direct_schedule', steps, {
-      reasoning: `Direct schedule for ${params.employeeName} on ${params.date} (${params.periods.length} period(s)).`,
-      risk: { level: 'medium', factors: ['Replaces entire day schedule for provider'] },
+      reasoning: `Direct schedule for ${params.employeeName} on ${dayLabel} (${params.periods.length} period(s) per day).`,
+      risk: {
+        level: dates.length > 3 ? 'high' : dates.length > 1 ? 'medium' : 'medium',
+        factors: [`Replaces schedule for ${dates.length} day(s)`, 'Replaces entire day schedule for provider'],
+      },
+    });
+  }
+
+  buildClearSchedulePlan(params: ResolvedClearScheduleParams): AgentPlan {
+    const steps: AgentPlanStep[] = params.clears.map((entry) => ({
+      id: crypto.randomUUID(),
+      action: 'clear_schedule',
+      description: `Clear schedule for ${entry.employeeName} on ${entry.date}`,
+      params: {
+        businessId: params.businessId,
+        employeeId: entry.employeeId,
+        date: entry.date,
+        userId: params.userId,
+      },
+      dependsOn: [],
+      estimatedImpact: `Removes schedule periods and slots for ${entry.employeeName}`,
+    }));
+
+    const who = [...new Set(params.clears.map((c) => c.employeeName))].join(', ');
+    const days = [...new Set(params.clears.map((c) => c.date))].length;
+
+    return this.wrapPlan(params.businessId, 'clear_schedule', steps, {
+      reasoning: `Clear applied schedule for ${who} (${days} day(s)) — removes periods and micro-slots; bookings are not cancelled.`,
+      risk: {
+        level: steps.length > 3 ? 'medium' : 'low',
+        factors: [`Clears ${steps.length} schedule day(s)`, 'Does not cancel existing appointments'],
+      },
     });
   }
 

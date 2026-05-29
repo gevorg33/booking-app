@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import OpenAI from 'openai';
 import { Business } from '../../business/entities/business.entity.js';
-import { AiCallContext } from './openai.types.js';
+import { AiCallContext, DEFAULT_OPENAI_MODEL } from './openai.types.js';
 import { OpenAiIntegrationService } from './openai-integration.service.js';
 import { AiUsageService } from './ai-usage.service.js';
 
@@ -22,9 +23,22 @@ export class OpenAiGatewayService {
 
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
+    private readonly config: ConfigService,
     private readonly integrationService: OpenAiIntegrationService,
     private readonly usageService: AiUsageService,
   ) {}
+
+  private resolveDefaultModel(): string {
+    return this.config.get<string>('OPENAI_MODEL')?.trim() || DEFAULT_OPENAI_MODEL;
+  }
+
+  /** GPT-5+ and o-series models use max_completion_tokens instead of max_tokens. */
+  private completionTokenLimit(model: string, maxTokens: number): Record<string, number> {
+    if (/^gpt-5|^o[1-9]/i.test(model)) {
+      return { max_completion_tokens: maxTokens };
+    }
+    return { max_tokens: maxTokens };
+  }
 
   invalidateBusiness(businessId: string): void {
     for (const key of this.clientCache.keys()) {
@@ -62,7 +76,7 @@ export class OpenAiGatewayService {
     const resolved = await this.getClient(context.businessId);
     if (!resolved) return null;
 
-    const model = params.model ?? 'gpt-4o-mini';
+    const model = params.model ?? this.resolveDefaultModel();
 
     try {
       const response = await resolved.client.chat.completions.create({
@@ -72,7 +86,7 @@ export class OpenAiGatewayService {
           ? { response_format: { type: 'json_object' as const } }
           : {}),
         temperature: params.temperature ?? 0.2,
-        max_tokens: params.maxTokens ?? 2000,
+        ...this.completionTokenLimit(model, params.maxTokens ?? 2000),
       });
 
       const usage = response.usage;
