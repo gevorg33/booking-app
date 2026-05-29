@@ -1,4 +1,13 @@
-import { IsString, IsDateString, IsOptional, IsEnum, IsArray, IsObject, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsObject,
+  IsBoolean,
+  ValidateIf,
+} from 'class-validator';
 import { BookingStatus, PaymentStatus } from '../entities/booking.entity.js';
 
 export class CreateBookingDto {
@@ -84,8 +93,9 @@ export class UpdateBookingDto {
   hiddenFromCalendar?: boolean;
 
   @IsOptional()
+  @ValidateIf((_, value) => value != null)
   @IsString()
-  customerId?: string;
+  customerId?: string | null;
 
   @IsOptional()
   @IsDateString()

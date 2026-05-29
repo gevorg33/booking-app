@@ -12,13 +12,21 @@ const needs = (
   present ? null : { field, label, message: `${label} is required`, example };
 
 const ACTION_RULES: Record<string, Rule> = {
-  create_booking: (cmd) =>
-    [
-      needs('employeeName', 'Service provider', !!(cmd.entities.employee || cmd.enrichedParams.employeeId), 'Gevorg Gasparyan'),
+  create_booking: (cmd) => {
+    const anyProvider = cmd.params.allProviders === true;
+    const firstAvailable = cmd.params.bookingFirstAvailable === true;
+    return [
+      needs(
+        'employeeName',
+        'Service provider',
+        !!(cmd.entities.employee || cmd.enrichedParams.employeeId || anyProvider || firstAvailable),
+        'Gevorg Gasparyan or any provider',
+      ),
       needs('serviceName', 'Service', !!(cmd.entities.service || cmd.enrichedParams.serviceId), 'facemassage'),
-      needs('date', 'Date', !!cmd.params.date, '29/05/2026 or tomorrow'),
-      needs('timeSlot', 'Start time', !!cmd.params.timeSlot, '09:00'),
-    ].filter(Boolean) as ValidationIssue[],
+      needs('date', 'Date', !!cmd.params.date || firstAvailable, '29/05/2026 or tomorrow'),
+      needs('timeSlot', 'Start time', !!cmd.params.timeSlot || firstAvailable, '09:00 or first available'),
+    ].filter(Boolean) as ValidationIssue[];
+  },
 
   create_service: (cmd) =>
     [

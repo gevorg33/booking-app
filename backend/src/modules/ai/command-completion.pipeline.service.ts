@@ -106,7 +106,9 @@ export class CommandCompletionPipelineService {
     const params: Record<string, any> = { ...classified.params, _timeZone: timeZone };
     const allProviders =
       params.allProviders === true ||
-      /all providers|everyone|all staff|all employees/i.test(prompt);
+      /all providers|everyone|all staff|all employees|any provider|any staff|whichever provider/i.test(
+        prompt,
+      );
 
     if (allProviders) params.allProviders = true;
 

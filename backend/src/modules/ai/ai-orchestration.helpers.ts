@@ -5,9 +5,11 @@ import {
   parseDateInput,
   toIsoDay,
   formatDateDisplay,
+  formatTimeDisplay,
   getTodayDateKey,
+  buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
-import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
 import { addDaysToDateKey, resolveTimezone } from '../../common/utils/timezone.util.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
@@ -178,6 +180,47 @@ export function getEmployeeServices(employee: Employee, catalog: Service[]): Ser
   return catalog;
 }
 
+/** Services explicitly assigned on the employee profile (empty when none assigned). */
+export function getEmployeeAssignedServices(employee: Employee, catalog: Service[]): Service[] {
+  if (!employee.serviceIds?.length) {
+    return [];
+  }
+  const allowed = new Set(employee.serviceIds);
+  return catalog.filter((s) => allowed.has(s.id));
+}
+
+export function isProviderOwnServicesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(his|her|their)\s+services?\b/i.test(lower) ||
+    /\b(?:with|for)\s+(?:his|her|their)\s+services\b/i.test(lower) ||
+    /\bprovider'?s?\s+services\b/i.test(lower) ||
+    /\bassigned\s+services\b/i.test(lower)
+  );
+}
+
+/** Services to attach to schedule periods — never the full catalog when the employee has assignments. */
+export function resolveScheduleServicesForEmployee(
+  employee: Employee,
+  catalog: Service[],
+  params: { serviceName?: string | null; serviceNames?: string[] | null },
+  prompt?: string,
+): Service[] {
+  const assigned = getEmployeeAssignedServices(employee, catalog);
+  const ownServicesPrompt = prompt ? isProviderOwnServicesPrompt(prompt) : false;
+  const fromParams = resolveServices(catalog, params);
+
+  if (ownServicesPrompt || fromParams.length === 0) {
+    return assigned;
+  }
+
+  if (assigned.length === 0) {
+    return fromParams;
+  }
+
+  return fromParams.filter((s) => assigned.some((a) => a.id === s.id));
+}
+
 /** Parse relative dates and ranges from prompt + params into ISO day range. */
 export function resolveDateRange(
   params: {
@@ -328,6 +371,17 @@ export function parseWeekdaysFromParams(
   return [0, 1, 2, 3, 4, 5, 6];
 }
 
+const TIME_RANGE_IN_PROMPT =
+  /(?:between\s+)?\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}(?::\d{2})?/i;
+
+export function hasExplicitTimeWindow(
+  params: { timeFrom?: string | null; timeTo?: string | null },
+  prompt?: string,
+): boolean {
+  if (params.timeFrom && params.timeTo) return true;
+  return TIME_RANGE_IN_PROMPT.test(prompt ?? '');
+}
+
 export function parseTimeWindow(
   params: { timeFrom?: string | null; timeTo?: string | null },
   prompt?: string,
@@ -344,13 +398,58 @@ export function parseTimeWindow(
     /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
   );
   if (match) {
-    return {
-      timeFrom: normalizeTime24(`${match[1]}:${match[2] ?? '00'}`),
-      timeTo: normalizeTime24(`${match[3]}:${match[4] ?? '00'}`),
-    };
+    const timeFrom = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
+    const timeTo = normalizeTime24(`${match[3]}:${match[4] ?? '00'}`);
+    if (timeToMinutes(timeTo) > timeToMinutes(timeFrom)) {
+      return { timeFrom, timeTo };
+    }
   }
 
   return defaults;
+}
+
+export function bookingOverlapsTimeWindow(
+  booking: { startTime: Date; endTime: Date },
+  isoDay: string,
+  timeFrom: string,
+  timeTo: string,
+): boolean {
+  const windowStart = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeFrom));
+  const windowEnd = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeTo));
+  const start =
+    booking.startTime instanceof Date ? booking.startTime : new Date(booking.startTime);
+  const end = booking.endTime instanceof Date ? booking.endTime : new Date(booking.endTime);
+  return start < windowEnd && end > windowStart;
+}
+
+/** Narrow bookings to an explicit timeSlot or timeFrom–timeTo window (overlap, not start-only). */
+export function filterBookingsByTimeConstraints<T extends { startTime: Date; endTime: Date }>(
+  bookings: T[],
+  params: {
+    timeSlot?: string | null;
+    timeFrom?: string | null;
+    timeTo?: string | null;
+    date?: string | null;
+    _timeZone?: string;
+  },
+  prompt?: string,
+): T[] {
+  if (hasExplicitTimeWindow(params, prompt)) {
+    const window = parseTimeWindow(params, prompt);
+    return bookings.filter((b) => {
+      const start =
+        b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+      const isoDay = start.toISOString().split('T')[0];
+      return bookingOverlapsTimeWindow(b, isoDay, window.timeFrom, window.timeTo);
+    });
+  }
+
+  if (params.timeSlot) {
+    const slot = normalizeTime24(params.timeSlot);
+    return bookings.filter((b) => formatTimeDisplay(b.startTime) === slot);
+  }
+
+  return bookings;
 }
 
 export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt?: string): boolean {

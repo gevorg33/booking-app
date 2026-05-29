@@ -200,7 +200,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   useEffect(() => {
     if (!rescheduleServiceId || availableServices.length === 0) return;
     if (!availableServices.some((s) => s.id === rescheduleServiceId)) {
-      setRescheduleServiceId(availableServices.length === 1 ? availableServices[0].id : '');
+      if (availableServices.length === 1) {
+        setRescheduleServiceId(availableServices[0].id);
+      }
     }
   }, [availableServices, rescheduleServiceId]);
 
@@ -279,6 +281,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   if (!bookingId) return null;
 
   const editable = booking ? isBookingEditable(booking.status) : false;
+  const canEditCustomer = booking ? booking.status !== 'cancelled' : false;
   const statusOptions = booking ? getStatusVariations(booking.status) : [];
   const statusChanged = booking ? status !== booking.status : false;
   const paymentChanged = booking
@@ -304,6 +307,17 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const customerChanged = booking
     ? customerId !== (booking.customer?.id ?? '')
     : false;
+  const scheduleFieldsUnchanged = booking
+    ? rescheduleDate === bookingDayISO(booking.startTime) &&
+      rescheduleTime === bookingTimeHHmm(booking.startTime) &&
+      rescheduleEmployeeId === (booking.employee?.id ?? '')
+    : true;
+  const customerOnlyDirty =
+    customerChanged &&
+    scheduleFieldsUnchanged &&
+    !statusChanged &&
+    !detailsChanged &&
+    !paymentChanged;
   const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged || customerChanged;
 
   const applyStatusChange = (next: BookingStatus) => {
@@ -376,8 +390,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     dirty &&
     !showCancelConfirm &&
     !pendingStatus &&
-    (editable || paymentChanged || customerChanged) &&
-    (!rescheduleChanged || rescheduleValid);
+    (customerOnlyDirty ||
+      ((editable || paymentChanged || (customerChanged && canEditCustomer)) &&
+        (!rescheduleChanged || rescheduleValid)));
 
   return (
     <div
@@ -532,7 +547,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 <User className="w-3.5 h-3.5" />
                 Customer
               </p>
-              {editable ? (
+              {canEditCustomer ? (
                 <CustomerSelect
                   businessId={businessId}
                   value={customerId}

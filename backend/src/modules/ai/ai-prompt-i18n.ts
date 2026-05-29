@@ -1,6 +1,6 @@
 /**
  * Normalizes Armenian / Russian (and common transliterations) into English
- * keywords understood by ai-intent-heuristics. Applied before detection.
+ * keywords understood by prompt resolvers. Applied before LLM classification.
  */
 
 const PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [

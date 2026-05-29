@@ -758,6 +758,56 @@ export class BookingService {
     );
   }
 
+  private slotAllowsService(slot: SchedulingSlot, serviceId: string): boolean {
+    const ids = slot.serviceIds;
+    if (!ids || ids.length === 0) return true;
+    return ids.includes(serviceId);
+  }
+
+  /** Merge duplicate micro-slots at the same start time (e.g. from overlapping gap fills). */
+  private dedupeSlotsByStartTime(slots: SchedulingSlot[]): SchedulingSlot[] {
+    const byStart = new Map<number, SchedulingSlot>();
+
+    for (const slot of slots) {
+      const key = slot.startTime.getTime();
+      const existing = byStart.get(key);
+      if (!existing) {
+        byStart.set(key, slot);
+        continue;
+      }
+
+      const mergedIds = this.mergeSlotServiceIds(existing.serviceIds, slot.serviceIds);
+      byStart.set(key, {
+        ...existing,
+        serviceIds: mergedIds,
+        serviceId: existing.serviceId ?? slot.serviceId,
+        maxAppointmentCount: Math.max(
+          existing.maxAppointmentCount ?? 1,
+          slot.maxAppointmentCount ?? 1,
+        ),
+        appointmentCount: Math.min(existing.appointmentCount, slot.appointmentCount),
+        status:
+          existing.status === SlotStatus.AVAILABLE || slot.status === SlotStatus.AVAILABLE
+            ? SlotStatus.AVAILABLE
+            : existing.status,
+      });
+    }
+
+    return [...byStart.values()].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
+  }
+
+  private mergeSlotServiceIds(
+    a: string[] | null | undefined,
+    b: string[] | null | undefined,
+  ): string[] | null {
+    if (!a?.length && !b?.length) return null;
+    if (!a?.length) return [...b!];
+    if (!b?.length) return [...a];
+    return [...new Set([...a, ...b])];
+  }
+
   /** Public API: checks whether a service fits the selected time slot (used by public booking). */
   async validateServiceFitsWindow(
     businessId: string,
@@ -1037,23 +1087,22 @@ export class BookingService {
       return;
     }
 
-    // Verify service restriction: every slot in the window must permit this service
-    const mismatch = microSlotsInWindow.some((s) => {
-      const ids = s.serviceIds;
-      if (!ids || ids.length === 0) return false; // generic slot = OK
-      return !ids.includes(serviceId);
-    });
+    const slotGranularityMs = 10 * 60 * 1000;
+    const slotsNeeded = Math.ceil((endTime.getTime() - startTime.getTime()) / slotGranularityMs);
 
-    if (mismatch) {
+    // Overlapping schedule fills can create duplicate micro-slots at the same start time
+    // with different service_ids — merge them, then require enough slots that allow this service.
+    const dedupedSlots = this.dedupeSlotsByStartTime(microSlotsInWindow);
+    const supportingSlots = dedupedSlots.filter((s) => this.slotAllowsService(s, serviceId));
+
+    if (supportingSlots.length < slotsNeeded) {
       throw new BadRequestException(
         'The service provider does not offer this service for the entire requested time window. ' +
         'Please choose a time when this service is scheduled.',
       );
     }
 
-    const slotGranularityMs = 10 * 60 * 1000;
-    const slotsNeeded = Math.ceil((endTime.getTime() - startTime.getTime()) / slotGranularityMs);
-    if (microSlotsInWindow.length < slotsNeeded) {
+    if (dedupedSlots.length < slotsNeeded) {
       throw new BadRequestException(
         'The full service duration does not fit within the available schedule. ' +
         'Choose an earlier start time so the appointment ends within the service period.',

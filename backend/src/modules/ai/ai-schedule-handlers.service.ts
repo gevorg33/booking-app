@@ -12,7 +12,8 @@ import {
   resolveEmployees,
   resolveTemplate,
   resolveServices,
-  getEmployeeServices,
+  resolveScheduleServicesForEmployee,
+  getEmployeeAssignedServices,
   resolveDateRange,
   enumerateDaysInRange,
   parseWeekdaysFromParams,
@@ -227,7 +228,6 @@ export class AiScheduleHandlersService {
     }
 
     const window = parseTimeWindow(params, prompt);
-    const selectedServices = resolveServices(services, params);
     const allPeriods: Array<{
       employeeId: string;
       employeeName: string;
@@ -239,9 +239,12 @@ export class AiScheduleHandlersService {
     }> = [];
 
     for (const employee of targets) {
-      const employeeServices = selectedServices.length
-        ? selectedServices.filter((s) => getEmployeeServices(employee, services).some((es) => es.id === s.id))
-        : getEmployeeServices(employee, services);
+      const employeeServices = resolveScheduleServicesForEmployee(
+        employee,
+        services,
+        params,
+        prompt,
+      );
 
       if (employeeServices.length === 0) continue;
 
@@ -412,6 +415,7 @@ export class AiScheduleHandlersService {
 
   async handleCreateDirectSchedule(
     businessId: string,
+    prompt: string,
     params: Record<string, any>,
     employees: Employee[],
     services: Service[],
@@ -446,8 +450,19 @@ export class AiScheduleHandlersService {
       };
     }
 
+    const employee = targets[0];
+    const assigned = getEmployeeAssignedServices(employee, services);
+
     const normalizedPeriods = periods.map((p: any) => {
-      const matched = resolveServices(services, { serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : []) });
+      const isUnavailable = p.type === 'unavailable_block';
+      const periodServiceParams = {
+        serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : null),
+        serviceName: p.serviceName ?? null,
+      };
+      const matched = isUnavailable
+        ? []
+        : resolveScheduleServicesForEmployee(employee, services, periodServiceParams, prompt);
+
       return {
         startTime: normalizeTime24(p.startTime),
         endTime: normalizeTime24(p.endTime),
@@ -457,6 +472,22 @@ export class AiScheduleHandlersService {
         maxAppointmentCount: p.maxAppointmentCount ?? 1,
       };
     });
+
+    const missingServices = normalizedPeriods.some(
+      (p) => p.type !== 'unavailable_block' && p.serviceIds.length === 0,
+    );
+    if (missingServices) {
+      const hint =
+        assigned.length > 0
+          ? `Assigned services for ${employee.name}: ${assigned.map((s) => s.name).join(', ')}`
+          : `No services assigned to ${employee.name} — assign services on the Employees page first.`;
+      return {
+        success: false,
+        action: 'create_direct_schedule',
+        summary: `Could not resolve services for this schedule. ${hint}`,
+        details: { employeeName: employee.name, assignedServices: assigned.map((s) => s.name) },
+      };
+    }
 
     const plan = this.planBuilder.buildDirectSchedulePlan({
       businessId,
@@ -541,6 +572,7 @@ export class AiScheduleHandlersService {
       range,
       window,
       params,
+      prompt,
     );
 
     const fillParams = {
@@ -599,6 +631,7 @@ export class AiScheduleHandlersService {
       range,
       window,
       params,
+      prompt,
     );
     return this.planBuilder.buildTemplateCascadePlan(applyParams, {
       businessId,
@@ -663,6 +696,7 @@ export class AiScheduleHandlersService {
       range,
       window,
       params,
+      prompt,
     );
     if (!allPeriods.length) return null;
     return this.planBuilder.buildFillScheduleGapsPlan({
@@ -759,8 +793,8 @@ export class AiScheduleHandlersService {
     range: { start: string; end: string },
     window: { timeFrom: string; timeTo: string },
     params: Record<string, any>,
+    prompt?: string,
   ) {
-    const selectedServices = resolveServices(services, params);
     const allPeriods: Array<{
       employeeId: string;
       employeeName: string;
@@ -772,11 +806,12 @@ export class AiScheduleHandlersService {
     }> = [];
 
     for (const employee of targets) {
-      const employeeServices = selectedServices.length
-        ? selectedServices.filter((s) =>
-            getEmployeeServices(employee, services).some((es) => es.id === s.id),
-          )
-        : getEmployeeServices(employee, services);
+      const employeeServices = resolveScheduleServicesForEmployee(
+        employee,
+        services,
+        params,
+        prompt,
+      );
 
       if (employeeServices.length === 0) continue;
 

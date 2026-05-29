@@ -16,6 +16,7 @@ import { Business } from '../../../modules/business/entities/business.entity.js'
 import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-period.entity.js';
 import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
+import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -80,6 +81,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     return ctx[`step_${stepId}_result`];
   }
 
+  private async loadBookingSnapshots(ids: string[]): Promise<BookingSnapshot[]> {
+    if (!ids.length) return [];
+    const bookings = await this.bookingRepo.find({
+      where: { id: In(ids) },
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+    return bookings.map((b) => toBookingSnapshot(b));
+  }
+
   private async createBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
     let { employeeId, serviceId, customerId, startTime, notes, userId } = step.params;
@@ -120,7 +131,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       userId,
     );
     ctx.lastBookingId = booking.id;
-    return { bookingId: booking.id, startTime: booking.startTime, endTime: booking.endTime };
+    return {
+      bookingId: booking.id,
+      employeeName: booking.employee?.name,
+      serviceName: booking.service?.name,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    };
   }
 
   private async fillScheduleGaps(step: WorkflowStep, ctx: Record<string, any>) {
@@ -180,7 +197,18 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       } as any,
       userId,
     );
-    return { blockScheduleId: result.id, employeeId };
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId },
+    });
+    return {
+      blockScheduleId: result.id,
+      employeeId,
+      employeeName: employee?.name,
+      label: result.placeholderLabel ?? placeholder ?? 'Blocked',
+      isRepetitive: result.isRepetitive,
+      singleStartTime: result.singleStartTime ?? undefined,
+      singleEndTime: result.singleEndTime ?? undefined,
+    };
   }
 
   private async removeBlockSchedule(step: WorkflowStep, ctx: Record<string, any>) {
@@ -240,10 +268,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       { startTime, employeeId, serviceId },
       userId,
     );
+    const full = await this.bookingService.findOne(booking.id);
     return {
-      bookingId: booking.id,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
+      bookingId: full.id,
+      employeeName: full.employee?.name,
+      serviceName: full.service?.name,
+      customerName: full.customer?.name,
+      startTime: full.startTime,
+      endTime: full.endTime,
     };
   }
 
@@ -323,8 +355,12 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async cancelBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const { bookingId, reason, userId } = step.params;
+    const snapshots = await this.loadBookingSnapshots([bookingId]);
     await this.bookingService.cancel(bookingId, reason, userId);
-    return { cancelledId: bookingId };
+    const snapshot = snapshots[0];
+    return snapshot
+      ? { cancelledId: bookingId, ...snapshot }
+      : { cancelledId: bookingId };
   }
 
   private async cancelBookings(step: WorkflowStep, ctx: Record<string, any>) {
@@ -333,12 +369,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       reason?: string;
       userId?: string;
     };
+    const cancelledBookings = await this.loadBookingSnapshots(bookingIds);
     const cancelled: string[] = [];
     for (const id of bookingIds) {
       await this.bookingService.cancel(id, reason, userId);
       cancelled.push(id);
     }
-    return { cancelledCount: cancelled.length, cancelledIds: cancelled };
+    return { cancelledCount: cancelled.length, cancelledBookings, cancelledIds: cancelled };
   }
 
   private async hideAppointmentsFromCalendar(step: WorkflowStep, _ctx: Record<string, any>) {
@@ -346,10 +383,11 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       bookingIds: string[];
       userId?: string;
     };
+    const hiddenBookings = await this.loadBookingSnapshots(bookingIds);
     const result = await this.bookingService.setHiddenFromCalendar(bookingIds, true, userId);
     return {
       hiddenCount: result.updatedCount,
-      hiddenIds: result.updatedIds,
+      hiddenBookings,
     };
   }
 
@@ -358,10 +396,11 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       bookingIds: string[];
       userId?: string;
     };
+    const unhiddenBookings = await this.loadBookingSnapshots(bookingIds);
     const result = await this.bookingService.setHiddenFromCalendar(bookingIds, false, userId);
     return {
       unhiddenCount: result.updatedCount,
-      unhiddenIds: result.updatedIds,
+      unhiddenBookings,
     };
   }
 
