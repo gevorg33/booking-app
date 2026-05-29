@@ -15,10 +15,16 @@ import {
 } from '../../common/utils/date-format.util.js';
 import {
   getDateKeyInTimezone,
+  isWallClockSlotBookable,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
 import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  isAnyProviderBookingPrompt,
+  isFirstAvailableBookingPrompt,
+} from '../ai/ai-intent-heuristics.js';
+import { parseEarliestBookingTimeFromPrompt } from '../ai/ai-orchestration.helpers.js';
 
 export interface PublicAssistantNavigate {
   path: 'professionals' | 'services' | 'checkout';
@@ -44,6 +50,9 @@ Classify the user's message and extract parameters. Return JSON:
     "serviceName": "string or null",
     "date": "DD_MM_YYYY or null — resolve relative dates from today's date",
     "timeSlot": "HH:MM 24h or null",
+    "timeFrom": "HH:MM or null — earliest time when user says after 16:00",
+    "bookingFirstAvailable": boolean or null — true for nearest/first/next available/ASAP booking,
+    "allProviders": boolean or null — true when user wants any specialist/provider,
     "customerName": "string or null",
     "customerEmail": "string or null",
     "customerPhone": "string or null"
@@ -58,10 +67,12 @@ Rules:
 - Use list_services for prices, durations, what you offer.
 - Use business_info for address, phone, hours, location, contact.
 - Use book_appointment when they want to book/reserve/schedule and mention provider, service, time, or contact details.
+- "Book nearest/first/next available {service} on any specialist" → book_appointment with serviceName, bookingFirstAvailable=true, allProviders=true, employeeName=null, timeSlot=null.
+- "Nearest slot for {service} with {name}" / "after 16:00" → bookingFirstAvailable=true, employeeName if named, timeFrom when after HH:MM is given.
 - Use booking_help to explain how online booking works.
 - Never invent staff or services — only use names from the provided lists.
-- Multi-turn: inherit employeeName, date, serviceName, timeSlot from session context when omitted.
-- book_appointment needs employeeName, serviceName, date, timeSlot, customerName, and (customerEmail OR customerPhone) to complete a booking.
+- Multi-turn: inherit employeeName, date, serviceName, timeSlot from session context when omitted (not for bookingFirstAvailable — always resolve fresh nearest slot).
+- book_appointment with bookingFirstAvailable needs serviceName only (+ customer contact to complete). Otherwise needs employeeName, serviceName, date, timeSlot, customerName, and (customerEmail OR customerPhone).
 - Normalize dates to DD_MM_YYYY in params.`;
 
 @Injectable()
@@ -121,7 +132,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    parsed.params = this.mergeSessionContext(parsed.params, session?.context);
+    this.applyBookingHeuristics(prompt, parsed.params, parsed.action);
+    parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action);
     this.normalizeDateParams(parsed.params, todayKey);
 
     this.logger.log(`Public assistant action="${parsed.action}" — ${parsed.reasoning}`);
@@ -142,7 +154,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = this.handleBusinessInfo(business);
         break;
       case 'book_appointment':
-        result = await this.handleBookAppointment(slug, parsed.params, employees, services);
+        result = await this.handleBookAppointment(slug, parsed.params, employees, services, locale);
         break;
       case 'booking_help':
         result = this.handleBookingHelp(locale);
@@ -244,15 +256,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const dateKey = params.date || getDateKeyInTimezone(new Date(), 'UTC');
+    const dateKey = params.date || getDateKeyInTimezone(new Date(), resolveTimezone('UTC'));
+    const business = await this.businessService.findBySlug(slug);
+    const tz = resolveTimezone(business.timezone);
     const { slots, employeeName } = await this.publicBookingService.getProviderSlots(
       slug,
       employee.id,
       dateKey,
     );
 
+    const upcomingSlots = slots.filter((s) =>
+      isWallClockSlotBookable(dateKey, formatTimeDisplay(s.startTime), tz, null),
+    );
+
     const displayDay = formatDateDisplay(dateKey);
-    if (slots.length === 0) {
+    if (upcomingSlots.length === 0) {
       return {
         success: true,
         action: 'check_availability',
@@ -261,8 +279,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const times = slots.map((s) => formatTimeDisplay(s.startTime)).join(', ');
-    const firstSlot = slots[0].startTime;
+    const times = upcomingSlots.map((s) => formatTimeDisplay(s.startTime)).join(', ');
+    const firstSlot = upcomingSlots[0].startTime;
 
     return {
       success: true,
@@ -321,7 +339,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
               '2. Pick a service',
               '3. Enter your name and contact details',
               '',
-              'Or tell me what you need — e.g. "Book facemassage with Gevorg tomorrow at 10:00" — and I\'ll guide you.',
+              'Or tell me what you need — e.g. "Book facemassage with Gevorg tomorrow at 10:00" or "Book the nearest hairstyle slot on any specialist after 16:00" — and I\'ll guide you.',
             ];
 
     return {
@@ -337,13 +355,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: any,
     employees: Employee[],
     services: Service[],
+    locale: AppLocale,
   ): Promise<PublicAssistantResult> {
-    const missing: string[] = [];
-    if (!params.employeeName) missing.push('specialist');
-    if (!params.serviceName) missing.push('service');
-    if (!params.date) missing.push('date');
-    if (!params.timeSlot) missing.push('time');
-
     const employee = params.employeeName
       ? this.fuzzyMatchByName(employees, params.employeeName)
       : undefined;
@@ -367,13 +380,73 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    if (missing.length > 0 || !employee || !service || !params.date || !params.timeSlot) {
+    if (params.bookingFirstAvailable) {
+      if (!service) {
+        return {
+          success: false,
+          action: 'book_appointment',
+          summary: t(locale, 'assistant.nearestNeedsService'),
+        };
+      }
+
+      const nearest = await this.publicBookingService.findNearestBookableSlot(slug, {
+        serviceId: service.id,
+        employeeId: params.allProviders ? null : employee?.id ?? null,
+        notBeforeTime: params.timeFrom ?? null,
+        startDateKey: params.date ?? null,
+      });
+
+      if (!nearest) {
+        const afterLabel = params.timeFrom ? ` after ${params.timeFrom}` : '';
+        return {
+          success: false,
+          action: 'book_appointment',
+          summary: t(locale, 'assistant.noNearestSlot', {
+            service: service.name,
+            after: afterLabel,
+          }),
+        };
+      }
+
+      params.employeeName = nearest.employeeName;
+      params.date = nearest.dateKey;
+      params.timeSlot = formatTimeDisplay(nearest.startTime);
+      params.startTime = nearest.startTime;
+      params.employeeId = nearest.employeeId;
+    }
+
+    const missing: string[] = [];
+    if (!params.employeeName && !params.employeeId) missing.push('specialist');
+    if (!params.serviceName && !service) missing.push('service');
+    if (!params.bookingFirstAvailable && !params.date) missing.push('date');
+    if (!params.bookingFirstAvailable && !params.timeSlot) missing.push('time');
+
+    const resolvedEmployee =
+      employee ??
+      (params.employeeId
+        ? employees.find((e) => e.id === params.employeeId)
+        : params.employeeName
+          ? this.fuzzyMatchByName(employees, params.employeeName)
+          : undefined);
+    const resolvedService = service;
+
+    if (
+      missing.length > 0 ||
+      !resolvedEmployee ||
+      !resolvedService ||
+      !params.date ||
+      !params.timeSlot
+    ) {
       const navigateQuery: Record<string, string> = {};
-      if (employee) navigateQuery.employeeId = employee.id;
+      if (resolvedEmployee) navigateQuery.employeeId = resolvedEmployee.id;
       if (params.date && params.timeSlot) {
         navigateQuery.startTime = `${params.date}T${this.snapTo10min(params.timeSlot)}:00.000Z`;
-      } else if (employee && params.date) {
-        const { slots } = await this.publicBookingService.getProviderSlots(slug, employee.id, params.date);
+      } else if (resolvedEmployee && params.date) {
+        const { slots } = await this.publicBookingService.getProviderSlots(
+          slug,
+          resolvedEmployee.id,
+          params.date,
+        );
         if (slots[0]) navigateQuery.startTime = slots[0].startTime;
       }
 
@@ -382,31 +455,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         action: 'book_appointment',
         summary: `To finish booking I still need: ${missing.join(', ') || 'a valid time slot'}. You can also continue in the booking flow — I've pre-filled what I could.`,
         navigate: {
-          path: employee && navigateQuery.startTime ? 'services' : 'professionals',
+          path: resolvedEmployee && navigateQuery.startTime ? 'services' : 'professionals',
           query: navigateQuery,
         },
       };
     }
 
     const snappedTime = this.snapTo10min(params.timeSlot);
-    const startTime = `${params.date}T${snappedTime}:00.000Z`;
+    const startTime = params.startTime ?? `${params.date}T${snappedTime}:00.000Z`;
 
     const { services: slotServices } = await this.publicBookingService.getServicesForSlot(
       slug,
-      employee.id,
+      resolvedEmployee.id,
       startTime,
     );
-    const fits = slotServices.some((s) => s.id === service.id);
+    const fits = slotServices.some((s) => s.id === resolvedService.id);
     if (!fits) {
       const fit = await this.publicBookingService.explainServiceSlotFit(
         slug,
-        employee.id,
+        resolvedEmployee.id,
         startTime,
-        service.id,
+        resolvedService.id,
       );
       const summary = this.buildServiceUnfitSummary(
-        service,
-        employee,
+        resolvedService,
+        resolvedEmployee,
         params.date,
         snappedTime,
         slotServices,
@@ -418,7 +491,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         summary,
         navigate: {
           path: 'services',
-          query: { employeeId: employee.id, startTime },
+          query: { employeeId: resolvedEmployee.id, startTime },
         },
       };
     }
@@ -428,17 +501,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: false,
         action: 'book_appointment',
-        summary: `Great — ${service.name} with ${employee.name} on ${formatDateDisplay(params.date)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
+        summary: `Great — ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
         navigate: {
           path: 'checkout',
-          query: { employeeId: employee.id, startTime, serviceId: service.id },
+          query: {
+            employeeId: resolvedEmployee.id,
+            startTime,
+            serviceId: resolvedService.id,
+          },
         },
       };
     }
 
     const dto: CreatePublicBookingDto = {
-      employeeId: employee.id,
-      serviceId: service.id,
+      employeeId: resolvedEmployee.id,
+      serviceId: resolvedService.id,
       startTime,
       customer: {
         name: params.customerName,
@@ -453,13 +530,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       const bookingId = (booking as any)?.id;
       const range = formatTimeRangeDisplay(
         startTime,
-        new Date(new Date(startTime).getTime() + (service.durationMinutes + service.bufferMinutes) * 60000),
+        new Date(
+          new Date(startTime).getTime() +
+            (resolvedService.durationMinutes + resolvedService.bufferMinutes) * 60000,
+        ),
       );
 
       return {
         success: true,
         action: 'book_appointment',
-        summary: `You're booked! ${service.name} with ${employee.name} on ${formatDateDisplay(params.date)} (${range}).`,
+        summary: `You're booked! ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date)} (${range}).`,
         bookingId,
       };
     } catch (err: any) {
@@ -469,7 +549,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         summary: err?.message || 'That slot is no longer available. Please pick another time.',
         navigate: {
           path: 'professionals',
-          query: { employeeId: employee.id, startTime },
+          query: { employeeId: resolvedEmployee.id, startTime },
         },
       };
     }
@@ -527,9 +607,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
   }
 
-  private mergeSessionContext(params: Record<string, any>, session?: Record<string, any>) {
+  private mergeSessionContext(
+    params: Record<string, any>,
+    session?: Record<string, any>,
+    action?: string,
+  ) {
     if (!session) return params;
     const merged = { ...params };
+    const skipForNearest = action === 'book_appointment' && params.bookingFirstAvailable === true;
     for (const key of [
       'employeeName',
       'date',
@@ -539,11 +624,32 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       'customerEmail',
       'customerPhone',
     ]) {
+      if (skipForNearest && (key === 'date' || key === 'timeSlot' || key === 'employeeName')) {
+        continue;
+      }
       if ((merged[key] == null || merged[key] === '') && session[key]) {
         merged[key] = session[key];
       }
     }
     return merged;
+  }
+
+  private applyBookingHeuristics(prompt: string, params: Record<string, any>, action: string) {
+    if (action !== 'book_appointment') return;
+
+    if (isAnyProviderBookingPrompt(prompt)) {
+      params.allProviders = true;
+      params.employeeName = null;
+      delete params.employeeId;
+    }
+    if (isFirstAvailableBookingPrompt(prompt)) {
+      params.bookingFirstAvailable = true;
+      delete params.timeSlot;
+    }
+    const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
+    if (earliestTime) {
+      params.timeFrom = earliestTime;
+    }
   }
 
   private buildServiceUnfitSummary(
