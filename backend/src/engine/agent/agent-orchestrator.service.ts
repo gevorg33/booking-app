@@ -327,6 +327,83 @@ export class AgentOrchestratorService {
     return this.executeTask(task);
   }
 
+  async retryFailedStep(
+    taskId: string,
+    stepId: string,
+    userId?: string,
+    businessId?: string,
+  ): Promise<AgentTask> {
+    const task = await this.taskRepo.findOneOrFail({ where: { id: taskId } });
+    if (businessId && task.businessId !== businessId) {
+      throw new BadRequestException('Task not found for this business');
+    }
+    if (!task.plan) {
+      throw new BadRequestException('Task has no plan to retry');
+    }
+
+    const planStep = task.plan.steps.find((s) => s.id === stepId);
+    if (!planStep) {
+      throw new BadRequestException(`Step ${stepId} not found in plan`);
+    }
+
+    const workflowDef = this.workflowCompiler.compilePlanToWorkflow(task.plan);
+    const workflowStep = workflowDef.steps.find((s) => s.id === stepId);
+    if (!workflowStep) {
+      throw new BadRequestException(`Workflow step ${stepId} not found`);
+    }
+
+    const ctx: Record<string, any> = {
+      businessId: task.businessId,
+      userId: userId ?? task.userId,
+      ...(task.context as Record<string, unknown>),
+    };
+
+    const priorResults = ((task.result as any)?.steps ?? []) as Array<{
+      stepId: string;
+      status: string;
+      result?: unknown;
+    }>;
+
+    for (const prior of priorResults) {
+      if (prior.status === 'completed' && prior.result != null) {
+        ctx[`step_${prior.stepId}_result`] = prior.result;
+      }
+    }
+
+    try {
+      const result = await this.workflowExecutor.runStep(workflowStep, ctx);
+      const steps = [...priorResults];
+      const idx = steps.findIndex((s) => s.stepId === stepId);
+      const updated = { stepId, status: 'completed', result, error: undefined };
+      if (idx >= 0) steps[idx] = updated;
+      else steps.push(updated);
+
+      const allCompleted = task.plan.steps.every((s) =>
+        steps.some((r) => r.stepId === s.id && r.status === 'completed'),
+      );
+
+      task.result = { ...(task.result as any), steps } as any;
+      task.status = allCompleted ? PlanStatus.COMPLETED : PlanStatus.FAILED;
+      if (allCompleted) {
+        (task as { error?: string }).error = undefined;
+      }
+      await this.taskRepo.save(task);
+      return task;
+    } catch (error: any) {
+      const steps = [...priorResults];
+      const idx = steps.findIndex((s) => s.stepId === stepId);
+      const failed = { stepId, status: 'failed', error: error.message };
+      if (idx >= 0) steps[idx] = failed;
+      else steps.push(failed);
+
+      task.result = { ...(task.result as any), steps } as any;
+      task.status = PlanStatus.FAILED;
+      task.error = error.message;
+      await this.taskRepo.save(task);
+      return task;
+    }
+  }
+
   async getTask(id: string): Promise<AgentTask> {
     return this.taskRepo.findOneOrFail({ where: { id } });
   }
@@ -431,6 +508,8 @@ export class AgentOrchestratorService {
         return `Move booking ${p.bookingId ?? ''} to ${p.startTime ?? 'new time'}`;
       case 'create_block_schedule':
         return `Create schedule block for ${p.placeholder ?? 'break'}`;
+      case 'clear_schedule':
+        return `Clear schedule periods and slots for ${p.date ?? 'the day'}`;
       case 'execute_reassignment':
         return `Rebook customer into freed slot`;
       case 'detect_conflicts':

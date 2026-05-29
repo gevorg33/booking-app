@@ -7,6 +7,8 @@ import {
   AutopilotRule,
   BusinessPlaybook,
   DEFAULT_AI_SETTINGS,
+  EntityMemory,
+  EntityMemoryEntry,
 } from './ai-settings.types.js';
 
 @Injectable()
@@ -29,6 +31,9 @@ export class AiSettingsService {
         low: ai.confidence?.low ?? DEFAULT_AI_SETTINGS.confidence.low,
         high: ai.confidence?.high ?? DEFAULT_AI_SETTINGS.confidence.high,
       },
+      entityMemory: {
+        aliases: ai.entityMemory?.aliases ?? DEFAULT_AI_SETTINGS.entityMemory?.aliases ?? {},
+      },
     };
   }
 
@@ -47,6 +52,7 @@ export class AiSettingsService {
       autopilot: { ...current.autopilot, ...patch.autopilot },
       playbooks: patch.playbooks ?? current.playbooks,
       confidence: { ...current.confidence, ...patch.confidence },
+      entityMemory: patch.entityMemory ?? current.entityMemory,
     };
 
     business.settings = { ...business.settings, ai: next };
@@ -90,5 +96,33 @@ export class AiSettingsService {
         settings: this.mergeSettings(b.settings),
       }))
       .filter((b) => b.settings.autopilot.enabled);
+  }
+
+  async getEntityMemory(businessId: string): Promise<EntityMemory> {
+    const settings = await this.getSettings(businessId);
+    return settings.entityMemory ?? { aliases: {} };
+  }
+
+  async mergeEntityMemory(
+    businessId: string,
+    aliases: Record<string, EntityMemoryEntry>,
+  ): Promise<void> {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const current = this.mergeSettings(business.settings);
+    const merged = { ...(current.entityMemory?.aliases ?? {}) };
+
+    for (const [alias, entry] of Object.entries(aliases)) {
+      const key = alias.toLowerCase().trim();
+      if (!key) continue;
+      merged[key] = { ...(merged[key] ?? {}), ...entry };
+    }
+
+    business.settings = {
+      ...business.settings,
+      ai: { ...current, entityMemory: { aliases: merged } },
+    };
+    await this.businessRepo.save(business);
   }
 }

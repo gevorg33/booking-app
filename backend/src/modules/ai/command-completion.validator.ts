@@ -308,6 +308,32 @@ const ACTION_RULES: Record<string, Rule> = {
           }]),
     ].filter(Boolean) as ValidationIssue[],
 
+  clear_schedule: (cmd) => {
+    const hasProviders =
+      cmd.params.allProviders ||
+      !!cmd.params.employeeName ||
+      cmd.entities.employees.length > 0;
+    const hasWhen = !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    return [
+      ...(hasProviders
+        ? []
+        : [{
+            field: 'employeeName',
+            label: 'Service provider',
+            message: 'Specify whose schedule to clear',
+            example: 'Cleanup Mary\'s schedule on 31/05/2026',
+          }]),
+      ...(hasWhen
+        ? []
+        : [{
+            field: 'date',
+            label: 'Date',
+            message: 'Specify which day to clear',
+            example: '31/05/2026 or tomorrow',
+          }]),
+    ];
+  },
+
   assign_employee_services: (cmd) =>
     [
       needs('employeeName', 'Service provider', !!cmd.entities.employee, 'Gevorg Gasparyan'),
@@ -412,6 +438,7 @@ const VALIDATED_ACTIONS = new Set([
   'fill_unused_slots',
   'apply_schedule',
   'block_schedule',
+  'clear_schedule',
   'create_direct_schedule',
   'assign_employee_services',
   'list_schedule_gaps',

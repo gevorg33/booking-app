@@ -66,6 +66,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       create_block_schedule: (step, ctx) => this.createBlockSchedule(step, ctx),
       remove_block_schedule: (step, ctx) => this.removeBlockSchedule(step, ctx),
       create_direct_schedule: (step, ctx) => this.createDirectSchedule(step, ctx),
+      clear_schedule: (step, ctx) => this.clearSchedule(step, ctx),
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
       assign_employee_services: (step, ctx) => this.assignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
@@ -227,6 +228,29 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       userId,
     );
     return { slotsCreated: result.slotsCreated, employeeId, date };
+  }
+
+  private async clearSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { employeeId, date, userId } = step.params as {
+      employeeId: string;
+      date: string;
+      userId?: string;
+    };
+    if (!employeeId || !date) {
+      throw new BadRequestException('clear_schedule requires employeeId and date');
+    }
+    const result = await this.scheduleService.clearScheduleForDay(
+      businessId,
+      { employeeId, date },
+      userId,
+    );
+    return {
+      employeeId,
+      date,
+      periodsRemoved: result.periodsRemoved,
+      slotsRemoved: result.slotsRemoved,
+    };
   }
 
   private async rescheduleBooking(step: WorkflowStep, ctx: Record<string, any>) {

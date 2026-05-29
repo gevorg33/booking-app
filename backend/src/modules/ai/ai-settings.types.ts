@@ -27,6 +27,17 @@ export interface AiConfidenceThresholds {
   high: number;
 }
 
+export interface EntityMemoryEntry {
+  employeeName?: string | null;
+  serviceName?: string | null;
+  customerName?: string | null;
+  templateName?: string | null;
+}
+
+export interface EntityMemory {
+  aliases: Record<string, EntityMemoryEntry>;
+}
+
 export interface AiSettings {
   autopilot: {
     enabled: boolean;
@@ -34,6 +45,7 @@ export interface AiSettings {
   };
   playbooks: BusinessPlaybook[];
   confidence: AiConfidenceThresholds;
+  entityMemory?: EntityMemory;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
@@ -75,4 +87,5 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
     },
   ],
   confidence: { low: 0.55, high: 0.85 },
+  entityMemory: { aliases: {} },
 };

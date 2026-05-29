@@ -38,6 +38,7 @@ import {
   isProviderOwnServicesPrompt,
   parseTimeWindow,
   filterBookingsByTimeConstraints,
+  isClearSchedulePrompt,
 } from './ai-orchestration.helpers.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
@@ -86,7 +87,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -183,6 +184,7 @@ Rules:
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
 - create_direct_schedule: set/replace one provider's schedule for a specific day with explicit periods. When the user says "his/her/their services" or does not name specific services, leave serviceNames null on each service_block — the system uses only services assigned to that provider on their profile, never the full catalog.
+- clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Use for "cleanup Mary's schedule on 31 May", "clear Gevorg's schedule tomorrow", "wipe schedule on Friday". Requires employeeName and date (or dateFrom/dateTo). NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
 - assign_employee_services: assign services from catalog to a provider.
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
@@ -207,6 +209,7 @@ Rules:
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   context?: Record<string, any>;
+  confirmed?: boolean;
 }
 
 @Injectable()
@@ -245,6 +248,23 @@ export class AiCommandService {
         summary: result.summary,
       });
     }
+    return result;
+  }
+
+  async retryWorkflowStep(
+    businessId: string,
+    taskId: string,
+    stepId: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const orch = await this.orchestration.retryFailedStep(businessId, taskId, stepId, userId);
+    const result = this.toCommandResult(orch);
+    this.aiEvents.emitTaskCompleted(businessId, {
+      taskId,
+      action: result.action,
+      success: result.success,
+      summary: result.summary,
+    });
     return result;
   }
 
@@ -334,6 +354,13 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     parsed.params._timeZone = timeZone;
     this.enrichMultiEmployeeFromPrompt(effectivePrompt, parsed.params, employees);
 
+    if (parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
+      parsed.action = 'clear_schedule';
+      parsed.reasoning =
+        'Clear applied schedule periods and micro-slots for the provider on the specified date(s).';
+      parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.88);
+    }
+
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
 
     this.logger.log(`AI (LLM) classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
@@ -371,7 +398,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const mutatingActions = new Set([
       'create_booking', 'create_service', 'create_services', 'cancel_bookings',
       'bulk_smart_cancel', 'hide_appointments_from_calendar', 'unhide_appointments_from_calendar', 'fill_slot_from_waitlist', 'reschedule_booking',
-      'fill_unused_slots', 'apply_schedule', 'block_schedule', 'setup_week_schedule',
+      'fill_unused_slots', 'apply_schedule', 'clear_schedule', 'block_schedule', 'setup_week_schedule',
     ]);
     if (
       mutatingActions.has(parsed.action) &&
@@ -594,6 +621,15 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         break;
       case 'block_schedule':
         result = await this.scheduleHandlers.handleBlockSchedule(
+          businessId,
+          prompt,
+          params,
+          employees,
+          userId,
+        );
+        break;
+      case 'clear_schedule':
+        result = await this.scheduleHandlers.handleClearSchedule(
           businessId,
           prompt,
           params,
@@ -2556,6 +2592,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         return cascadeResult;
       }
       case 'apply_schedule':
+      case 'clear_schedule':
       case 'fill_unused_slots':
       case 'block_schedule':
       case 'create_direct_schedule':
@@ -2643,6 +2680,26 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           userId,
         );
         break;
+      case 'clear_schedule': {
+        if (options?.planOnly) {
+          const plan = await this.scheduleHandlers.prepareClearSchedulePlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            userId,
+          );
+          return { success: !!plan, action, summary: '', details: { plan } };
+        }
+        result = await this.scheduleHandlers.handleClearSchedule(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          userId,
+        );
+        break;
+      }
       case 'block_schedule':
         if (options?.planOnly) {
           const plan = await this.scheduleHandlers.prepareBlockSchedulePlan(

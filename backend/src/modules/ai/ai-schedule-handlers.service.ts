@@ -501,6 +501,72 @@ export class AiScheduleHandlersService {
     return this.executePlan(plan, businessId, userId, 1);
   }
 
+  async handleClearSchedule(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const plan = await this.prepareClearSchedulePlan(
+      businessId,
+      prompt,
+      params,
+      employees,
+      userId,
+    );
+    if (!plan) {
+      return {
+        success: false,
+        action: 'clear_schedule',
+        summary:
+          'Specify who and when to clear. Example: "Cleanup Mary\'s schedule on 31/05/2026".',
+        details: { params },
+      };
+    }
+    return this.executePlan(plan, businessId, userId, plan.steps.length);
+  }
+
+  async prepareClearSchedulePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ) {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|all staff|all employees/i.test(prompt);
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (!targets.length) return null;
+
+    const dates: string[] = [];
+    if (params.date) {
+      dates.push(toIsoDay(params.date));
+    } else {
+      const range = resolveDateRange(params, prompt);
+      if (!range) return null;
+      for (const day of enumerateDaysInRange(range)) {
+        dates.push(day.toISOString().split('T')[0]);
+      }
+    }
+    if (!dates.length) return null;
+
+    const clears = targets.flatMap((employee) =>
+      dates.map((date) => ({
+        employeeId: employee.id,
+        employeeName: employee.name,
+        date,
+      })),
+    );
+
+    return this.planBuilder.buildClearSchedulePlan({
+      businessId,
+      clears,
+      userId,
+    });
+  }
+
   /** ai-s1: Single merged plan — apply template to team then fill gaps in one workflow. */
   async handleTemplateCascade(
     businessId: string,

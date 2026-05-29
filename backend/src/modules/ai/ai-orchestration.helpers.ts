@@ -452,6 +452,23 @@ export function filterBookingsByTimeConstraints<T extends { startTime: Date; end
   return bookings;
 }
 
+export function isScheduleTemplateCreationPrompt(prompt?: string): boolean {
+  return /\bcreate\b[\s\S]{0,80}\b(?:schedule\s+)?template\b/i.test(prompt ?? '');
+}
+
+/** cleanup / clear / wipe / reset provider schedule (not appointments). */
+export function isClearSchedulePrompt(prompt?: string): boolean {
+  const lower = (prompt ?? '').toLowerCase();
+  if (!/\bschedule\b/.test(lower)) return false;
+  if (/\b(from calendar|appointment|booking)s?\b/.test(lower) && !/\bschedule\b/.test(lower)) {
+    return false;
+  }
+  return (
+    /\b(clean\s*up|clear|reset|wipe)\b/.test(lower) ||
+    (/\bremove\b/.test(lower) && !/\b(from calendar|appointment|booking)/.test(lower))
+  );
+}
+
 export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt?: string): boolean {
   if (params.blockFullDay) return true;
   const lower = (prompt ?? '').toLowerCase();
