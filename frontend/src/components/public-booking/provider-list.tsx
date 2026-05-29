@@ -1,10 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Users, Info } from 'lucide-react';
+import { ChevronDown, Users } from 'lucide-react';
 import { formatScheduleTime } from '@/lib/date-format';
 import type { PublicProvider } from '@/lib/public-api';
+import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import {
+  ProviderReviewList,
+  ProviderReviewSummary,
+} from '@/components/public-booking/provider-reviews';
 
 interface ProviderListProps {
   slug: string;
@@ -25,6 +30,7 @@ export function ProviderList({
 }: ProviderListProps) {
   const { t } = useI18n();
   const [anyProfessional, setAnyProfessional] = useState(false);
+  const [expandedReviewIds, setExpandedReviewIds] = useState<Set<string>>(() => new Set());
 
   const anySlots = useMemo(() => {
     for (const p of providers) {
@@ -62,6 +68,24 @@ export function ProviderList({
 
       {providers.map((provider) => {
         const isSelected = !anyProfessional && selectedEmployeeId === provider.id;
+        const reviewCount = Number(provider.reviewCount ?? 0);
+        const averageRating =
+          provider.averageRating != null ? Number(provider.averageRating) : null;
+        const recentReviews = provider.recentReviews ?? [];
+        const hasReviews = reviewCount > 0 && averageRating != null && !Number.isNaN(averageRating);
+        const reviewsExpanded = hasReviews && expandedReviewIds.has(provider.id);
+
+        const toggleReviews = () => {
+          if (!hasReviews) return;
+          setExpandedReviewIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(provider.id)) next.delete(provider.id);
+            else next.add(provider.id);
+            return next;
+          });
+        };
+
+        const reviewsPageHref = bookPath(slug, `/providers/${provider.id}/reviews`);
         return (
           <div
             key={provider.id}
@@ -84,10 +108,30 @@ export function ProviderList({
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900">{provider.name}</p>
                 {provider.role && <p className="text-sm text-gray-500">{provider.role}</p>}
+                {hasReviews && (
+                  <button
+                    type="button"
+                    onClick={toggleReviews}
+                    className="mt-2 w-full text-left rounded-xl -mx-1 px-1 py-1 hover:bg-gray-50 transition-colors"
+                    aria-expanded={reviewsExpanded}
+                  >
+                    <ProviderReviewSummary
+                      averageRating={averageRating!}
+                      reviewCount={reviewCount}
+                      primaryColor={primaryColor}
+                    />
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium mt-1"
+                      style={{ color: primaryColor }}
+                    >
+                      {reviewsExpanded ? t('public.hideProviderReviews') : t('public.showProviderReviews')}
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${reviewsExpanded ? 'rotate-180' : ''}`}
+                      />
+                    </span>
+                  </button>
+                )}
               </div>
-              <button type="button" className="p-1 text-gray-400" title={t('public.selectProviderInfo')}>
-                <Info className="w-4 h-4" />
-              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -102,6 +146,20 @@ export function ProviderList({
                 aria-label={`Select ${provider.name}`}
               />
             </div>
+
+            {reviewsExpanded && (
+              <div className="px-4 pb-4 border-t border-gray-100 pt-3 bg-gray-50/60">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                  {t('public.providerReviewsTitle')}
+                </p>
+                <ProviderReviewList
+                  reviews={recentReviews}
+                  primaryColor={primaryColor}
+                  seeMoreHref={reviewsPageHref}
+                  showSeeMore={reviewCount > 3}
+                />
+              </div>
+            )}
 
             {provider.nearestDateLabel && provider.slots.length > 0 && (
               <div className="px-4 pb-4">

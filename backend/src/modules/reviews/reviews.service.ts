@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Review } from './entities/review.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -21,6 +21,36 @@ export interface PublicReviewContext {
   appointmentDate: string;
   alreadySubmitted: boolean;
 }
+
+export interface PublicProviderReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: string;
+}
+
+export interface PublicProviderReviewSummary {
+  averageRating: number | null;
+  reviewCount: number;
+  recentReviews: PublicProviderReview[];
+}
+
+export interface PublicProviderReviewsPage {
+  employeeId: string;
+  employeeName: string;
+  employeeRole: string | null;
+  avatarUrl: string | null;
+  averageRating: number | null;
+  reviewCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: PublicProviderReview[];
+}
+
+export const PUBLIC_PROVIDER_REVIEWS_PREVIEW_LIMIT = 3;
+export const PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE = 15;
 
 @Injectable()
 export class ReviewsService {
@@ -40,6 +70,127 @@ export class ReviewsService {
       order: { createdAt: 'DESC' },
       take: 200,
     });
+  }
+
+  async getPublicReviewsByEmployees(
+    businessId: string,
+    employeeIds: string[],
+    recentLimit = PUBLIC_PROVIDER_REVIEWS_PREVIEW_LIMIT,
+  ): Promise<Map<string, PublicProviderReviewSummary>> {
+    const result = new Map<string, PublicProviderReviewSummary>();
+    if (employeeIds.length === 0) return result;
+
+    for (const employeeId of employeeIds) {
+      result.set(employeeId, {
+        averageRating: null,
+        reviewCount: 0,
+        recentReviews: [],
+      });
+    }
+
+    const aggregates = await this.reviewRepo
+      .createQueryBuilder('r')
+      .select('r.employee_id', 'employeeId')
+      .addSelect('AVG(r.rating)', 'avgRating')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.business_id = :businessId', { businessId })
+      .andWhere('r.employee_id IN (:...employeeIds)', { employeeIds })
+      .groupBy('r.employee_id')
+      .getRawMany<{ employeeId: string; avgRating: string; count: string }>();
+
+    for (const row of aggregates) {
+      result.set(row.employeeId, {
+        averageRating: Math.round(parseFloat(row.avgRating) * 10) / 10,
+        reviewCount: parseInt(row.count, 10),
+        recentReviews: [],
+      });
+    }
+
+    const recentAll = await this.reviewRepo.find({
+      where: { businessId, employeeId: In(employeeIds) },
+      order: { createdAt: 'DESC' },
+      take: employeeIds.length * recentLimit,
+    });
+
+    const recentByEmployee = new Map<string, Review[]>();
+    for (const review of recentAll) {
+      const list = recentByEmployee.get(review.employeeId) ?? [];
+      if (list.length < recentLimit) {
+        list.push(review);
+        recentByEmployee.set(review.employeeId, list);
+      }
+    }
+
+    for (const employeeId of employeeIds) {
+      const summary = result.get(employeeId);
+      if (!summary || summary.reviewCount === 0) continue;
+      summary.recentReviews = (recentByEmployee.get(employeeId) ?? []).map((r) =>
+        this.toPublicProviderReview(r),
+      );
+    }
+
+    return result;
+  }
+
+  async listPublicProviderReviews(
+    slug: string,
+    employeeId: string,
+    page = 1,
+    limit = PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE,
+  ): Promise<PublicProviderReviewsPage> {
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId: business.id, isActive: true },
+    });
+    if (!employee) throw new NotFoundException('Provider not found');
+
+    const safeLimit = Math.min(Math.max(1, limit), PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE);
+    const safePage = Math.max(1, page);
+    const skip = (safePage - 1) * safeLimit;
+
+    const [reviews, reviewCount] = await this.reviewRepo.findAndCount({
+      where: { businessId: business.id, employeeId },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: safeLimit,
+    });
+
+    const avgRow = await this.reviewRepo
+      .createQueryBuilder('r')
+      .select('AVG(r.rating)', 'avgRating')
+      .where('r.business_id = :businessId', { businessId: business.id })
+      .andWhere('r.employee_id = :employeeId', { employeeId })
+      .getRawOne<{ avgRating: string | null }>();
+
+    const metadata = employee.metadata || {};
+    const averageRating = avgRow?.avgRating
+      ? Math.round(parseFloat(avgRow.avgRating) * 10) / 10
+      : null;
+
+    return {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      employeeRole: metadata.role || metadata.title || null,
+      avatarUrl: metadata.avatarUrl || null,
+      averageRating,
+      reviewCount,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: reviewCount === 0 ? 0 : Math.ceil(reviewCount / safeLimit),
+      items: reviews.map((r) => this.toPublicProviderReview(r)),
+    };
+  }
+
+  private toPublicProviderReview(review: Review): PublicProviderReview {
+    return {
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment?.trim() || null,
+      customerName: review.customerName?.trim() || null,
+      createdAt: review.createdAt.toISOString(),
+    };
   }
 
   async summary(businessId: string) {

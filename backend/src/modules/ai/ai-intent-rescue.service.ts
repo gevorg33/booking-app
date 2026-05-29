@@ -10,7 +10,11 @@ import {
   isFirstAvailableBookingPrompt,
   isTeamWideProviderAvailabilityQuery,
   extractStatusFiltersFromPrompt,
+  isBulkAllAppointmentsPrompt,
+  extractBookingStatusFromPrompt,
+  extractPaymentStatusFromPrompt,
 } from './ai-intent-heuristics.js';
+import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 export interface IntentRescueInput {
   prompt: string;
@@ -201,12 +205,51 @@ export class AiIntentRescueService {
     }
 
     if (/\b(cancel|remove).+(appointment|booking)/i.test(prompt)) {
+      const rescuedParams = { ...params };
+      if (isBulkAllAppointmentsPrompt(prompt)) {
+        rescuedParams.allAppointments = true;
+        delete rescuedParams.serviceName;
+        rescuedParams.serviceNames = null;
+      }
       return {
         action: 'cancel_bookings',
-        params,
+        params: rescuedParams,
         reasoning: 'Cancelling appointments.',
         rescued: true,
         rescueReason: 'cancel_bookings_pattern',
+      };
+    }
+
+    if (
+      /\b(mark|set|update)\b.+\b(done|completed|no[\s-]?show|paid|payment|n\/a|not applicable)\b/i.test(
+        prompt,
+      )
+    ) {
+      const rescuedParams = { ...params };
+      if (isBulkAllAppointmentsPrompt(prompt)) {
+        rescuedParams.allAppointments = true;
+        delete rescuedParams.serviceName;
+        rescuedParams.serviceNames = null;
+      }
+      const status = extractBookingStatusFromPrompt(prompt);
+      const paymentStatus = extractPaymentStatusFromPrompt(prompt);
+      if (status && status !== BookingStatus.CANCELLED) rescuedParams.status = status;
+      if (paymentStatus) rescuedParams.paymentStatus = paymentStatus;
+      if (status === BookingStatus.CANCELLED) {
+        return {
+          action: 'cancel_bookings',
+          params: rescuedParams,
+          reasoning: 'Cancelling appointments.',
+          rescued: true,
+          rescueReason: 'cancel_from_update_pattern',
+        };
+      }
+      return {
+        action: 'update_bookings',
+        params: rescuedParams,
+        reasoning: 'Updating appointment status and/or payment.',
+        rescued: true,
+        rescueReason: 'update_bookings_pattern',
       };
     }
 

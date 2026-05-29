@@ -54,6 +54,7 @@ export const DASHBOARD_INTENTS = [
   'reassign_cancelled',
   'mark_no_shows',
   'payment_sweep',
+  'update_bookings',
   'day_replan',
   'unknown',
 ] as const;
@@ -97,6 +98,7 @@ const DASHBOARD_MUTATING = new Set([
   'reassign_cancelled',
   'mark_no_shows',
   'payment_sweep',
+  'update_bookings',
   'day_replan',
 ]);
 

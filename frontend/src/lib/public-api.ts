@@ -38,6 +38,14 @@ export interface PublicBusinessProfile {
   onlinePaymentsEnabled?: boolean;
 }
 
+export interface PublicProviderReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: string;
+}
+
 export interface PublicProvider {
   id: string;
   name: string;
@@ -46,6 +54,9 @@ export interface PublicProvider {
   nearestDate: string | null;
   nearestDateLabel: string | null;
   slots: Array<{ startTime: string; endTime: string }>;
+  averageRating: number | null;
+  reviewCount: number;
+  recentReviews: PublicProviderReview[];
 }
 
 export interface PublicServiceCategory {
@@ -115,6 +126,26 @@ export function getPublicProviders(slug: string, date?: string) {
 export function getPublicProviderSlots(slug: string, employeeId: string, date: string) {
   return publicFetch<{ date: string; employeeId: string; employeeName: string; slots: Array<{ startTime: string; endTime: string }> }>(
     `/public/${slug}/providers/${employeeId}/slots?date=${encodeURIComponent(date)}`,
+  );
+}
+
+export interface PublicProviderReviewsPage {
+  employeeId: string;
+  employeeName: string;
+  employeeRole: string | null;
+  avatarUrl: string | null;
+  averageRating: number | null;
+  reviewCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: PublicProviderReview[];
+}
+
+export function getPublicProviderReviews(slug: string, employeeId: string, page = 1) {
+  const q = new URLSearchParams({ page: String(page) });
+  return publicFetch<PublicProviderReviewsPage>(
+    `/public/${slug}/providers/${employeeId}/reviews?${q.toString()}`,
   );
 }
 

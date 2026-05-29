@@ -74,6 +74,11 @@ import {
   extractProviderFallbackFromPrompt,
   extractCustomerFromReschedulePrompt,
   extractProviderPossessiveFromReschedulePrompt,
+  isBulkAllAppointmentsPrompt,
+  normalizeBookingStatusValue,
+  normalizePaymentStatusValue,
+  extractBookingStatusFromPrompt,
+  extractPaymentStatusFromPrompt,
   type ServiceInsightMetric,
   type StaffInsightMetric,
 } from './ai-intent-heuristics.js';
@@ -111,7 +116,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "mark_no_shows" | "payment_sweep" | "day_replan" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "update_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "mark_no_shows" | "payment_sweep" | "day_replan" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -162,7 +167,10 @@ and extract structured parameters. Return a JSON object with:
     "serviceMetric": "most_booked | top_revenue | least_booked | overview | null — for analyze_services",
     "staffMetric": "busiest | most_revenue | most_bookings | overview | null — for summarize_staff",
     "assignmentLookup": "providers_for_service | services_for_provider | null — for lookup_service_assignment",
-    "limit": number or null — max rows to list (default 5)
+    "limit": number or null — max rows to list (default 5),
+    "status": "completed | in_progress | no_show | confirmed | pending | cancelled | null — for update_bookings",
+    "paymentStatus": "paid | pending | refunded | not_applicable | null — for update_bookings",
+    "allAppointments": boolean or null — true when user says all/every/any appointment(s) for the day (do NOT set serviceName/serviceNames)
   },
   "reasoning": "one sentence explaining your interpretation",
   "confidence": number from 0.0 to 1.0 — how certain you are about action and extracted params
@@ -170,9 +178,9 @@ and extract structured parameters. Return a JSON object with:
 
 Rules:
 - Always resolve relative dates (today, tomorrow, next Monday, etc.) from the provided current date.
-- If the user says "all appointments" or "all bookings", that means every booking matching the filters.
+- If the user says "all appointments" or "all bookings", set allAppointments=true and leave serviceName/serviceNames null — match every service for that provider/day.
 - Extract names exactly as mentioned. The system will fuzzy-match them to real entities.
-- For cancel_bookings, filter by service type when mentioned — use serviceNames with each service listed separately (e.g. "hairdrying / hairstyle" → [\"hairdrying\", \"hairstyle\"]).
+- For cancel_bookings, filter by service type ONLY when the user explicitly names a service in this message — use serviceNames. Do NOT inherit service from prior conversation when allAppointments=true.
 - cancel_bookings can combine employeeName + serviceNames + date to cancel only matching appointments.
 - cancel_bookings with a time range (e.g. "between 16:30-17:30", "from 9 to 11") must set timeFrom and timeTo (HH:MM 24h). Only appointments that overlap that window on the given date(s) are cancelled. Use timeSlot only for a single start time (e.g. "at 16:00").
 - If the user mentions a reason/note for cancellation (e.g. "he is sick", "with a reason that he is sick"), put it in "reason".
@@ -214,6 +222,7 @@ Rules:
 - create_schedule_template: create a reusable schedule template (name + hours + weekday flags + optional services). Example: "Create template Weekday 9-17 with facemassage Mon-Fri" → templateName, periods or timeFrom/timeTo, applyDays.
 - mark_no_shows: mark past missed appointments as no-show. Requires date or date range; optional employeeName, customerName, timeSlot filters. Only appointments that already started and are not cancelled.
 - payment_sweep: mark unpaid completed/in-progress appointments as paid. Use for "payment sweep", "collect outstanding payments", "mark unpaid as paid". Optional date range and employeeName filters.
+- update_bookings: change appointment status and/or payment without cancelling. Use for "mark as done", "set payment to paid/N/A", "mark appointments 16:00-17:15 as done and paid". Supports employeeName/employeeNames/allProviders, date, timeFrom/timeTo, allAppointments. Use cancel_bookings when user wants cancelled status.
 - day_replan: analyze and replan a day — detect conflicts, find gaps, recommend fixes. Use for "replan my day", "fix tomorrow's schedule", "redo the calendar for Friday". Sets date or dateFrom/dateTo.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
@@ -540,6 +549,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       parsed.reasoning = rescued.reasoning ?? parsed.reasoning;
       parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.85);
     }
+    this.applyBulkAppointmentScope(effectivePrompt, parsed.params, parsed.action, services);
 
     const actorTier = normalizeActorRole(
       (session?.context?._accessTier as string | undefined) ??
@@ -627,7 +637,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
 
     const mutatingActions = new Set([
-      'create_booking', 'create_service', 'create_services', 'cancel_bookings',
+      'create_booking', 'create_service', 'create_services', 'cancel_bookings', 'update_bookings',
       'bulk_smart_cancel', 'hide_appointments_from_calendar', 'unhide_appointments_from_calendar', 'fill_slot_from_waitlist', 'reschedule_booking',
       'fill_unused_slots', 'apply_schedule', 'clear_schedule', 'block_schedule', 'setup_week_schedule',
       'create_schedule_template', 'mark_no_shows', 'payment_sweep', 'day_replan',
@@ -660,6 +670,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const confirmed = isExecutionConfirmed(session);
     const bulkConfirmActions = new Set([
       'cancel_bookings',
+      'update_bookings',
       'bulk_smart_cancel',
       'clear_schedule',
       'hide_appointments_from_calendar',
@@ -884,6 +895,17 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         break;
       case 'payment_sweep':
         result = await this.handlePaymentSweep(
+          businessId,
+          effectivePrompt,
+          params,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          userId,
+        );
+        break;
+      case 'update_bookings':
+        result = await this.handleUpdateBookings(
           businessId,
           effectivePrompt,
           params,
@@ -1127,6 +1149,45 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     sanitizeProviderScopeFromPrompt(prompt, params, employees);
   }
 
+  private applyBulkAppointmentScope(
+    prompt: string,
+    params: Record<string, any>,
+    action: string,
+    services: Service[],
+  ): void {
+    const bulkActions = new Set([
+      'cancel_bookings',
+      'bulk_smart_cancel',
+      'update_bookings',
+      'mark_no_shows',
+      'payment_sweep',
+      'hide_appointments_from_calendar',
+      'unhide_appointments_from_calendar',
+    ]);
+    if (!bulkActions.has(action)) return;
+
+    const promptService = extractServiceFromPrompt(
+      prompt,
+      services.map((s) => ({ id: s.id, name: s.name })),
+    );
+    if ((isBulkAllAppointmentsPrompt(prompt) || params.allAppointments === true) && !promptService) {
+      params.allAppointments = true;
+      delete params.serviceName;
+      params.serviceNames = null;
+    }
+
+    if (action === 'update_bookings') {
+      params.status =
+        normalizeBookingStatusValue(params.status) ??
+        extractBookingStatusFromPrompt(prompt) ??
+        params.status;
+      params.paymentStatus =
+        normalizePaymentStatusValue(params.paymentStatus) ??
+        extractPaymentStatusFromPrompt(prompt) ??
+        params.paymentStatus;
+    }
+  }
+
   /** Prompt-mentioned entities override stale session / LLM inheritance. */
   private applyPromptEntityOverrides(
     prompt: string,
@@ -1140,7 +1201,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       prompt,
       services.map((s) => ({ id: s.id, name: s.name })),
     );
-    if (promptService) {
+    if (isBulkAllAppointmentsPrompt(prompt) && !promptService) {
+      params.allAppointments = true;
+      delete params.serviceName;
+      params.serviceNames = null;
+    } else if (promptService) {
       params.serviceName = promptService.name;
       delete params.serviceId;
     }
@@ -1210,6 +1275,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     if (
       action === 'cancel_bookings' ||
       action === 'bulk_smart_cancel' ||
+      action === 'update_bookings' ||
       action === 'list_bookings' ||
       action === 'show_appointments' ||
       action === 'hide_appointments_from_calendar' ||
@@ -3221,6 +3287,33 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           label: `Mark ${bookings.length} appointment(s) as no-show`,
         });
       }
+      case 'update_bookings': {
+        const bookings = await this.findBookingsForBulkUpdate(
+          businessId,
+          params,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          prompt,
+        );
+        if (!bookings.length) return null;
+        const status = normalizeBookingStatusValue(params.status);
+        const paymentStatus = normalizePaymentStatusValue(params.paymentStatus);
+        if (!status && !paymentStatus) return null;
+        const changeParts = [
+          status ? `status → ${status}` : null,
+          paymentStatus ? `payment → ${paymentStatus}` : null,
+        ].filter(Boolean);
+        return this.planBuilder.buildUpdateBookingsPlan({
+          businessId,
+          bookingIds: bookings.map((b) => b.id),
+          status,
+          paymentStatus,
+          userId,
+          planAction: 'update_bookings',
+          label: `Update ${bookings.length} appointment(s) (${changeParts.join(', ')})`,
+        });
+      }
       case 'payment_sweep': {
         const bookings = await this.findUnpaidBookingsForSweep(
           businessId,
@@ -3871,6 +3964,46 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         );
         break;
       }
+      case 'update_bookings': {
+        if (options?.planOnly) {
+          const bookings = await this.findBookingsForBulkUpdate(
+            businessId,
+            params,
+            catalog.services,
+            catalog.employees,
+            employeeId,
+            prompt,
+          );
+          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          const status = normalizeBookingStatusValue(params.status);
+          const paymentStatus = normalizePaymentStatusValue(params.paymentStatus);
+          if (!status && !paymentStatus) return { success: false, action, summary: '', details: {} };
+          const changeParts = [
+            status ? `status → ${status}` : null,
+            paymentStatus ? `payment → ${paymentStatus}` : null,
+          ].filter(Boolean);
+          const plan = this.planBuilder.buildUpdateBookingsPlan({
+            businessId,
+            bookingIds: bookings.map((b) => b.id),
+            status,
+            paymentStatus,
+            userId,
+            planAction: 'update_bookings',
+            label: `Update ${bookings.length} appointment(s) (${changeParts.join(', ')})`,
+          });
+          return { success: true, action, summary: '', details: { plan } };
+        }
+        result = await this.handleUpdateBookings(
+          businessId,
+          prompt,
+          params,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          userId,
+        );
+        break;
+      }
       case 'day_replan': {
         if (options?.planOnly) {
           const range = resolveDateRange(params, prompt, params._timeZone ?? 'UTC');
@@ -4076,6 +4209,200 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
   }
 
+  private applyEmployeeScopeToWhere(
+    where: Record<string, unknown>,
+    params: Record<string, any>,
+    employees: Employee[],
+    scopedEmployeeId?: string,
+  ): boolean {
+    if (params.allProviders === true) return true;
+
+    if (params.employeeNames?.length) {
+      const resolved = resolveEmployees(employees, params);
+      if (resolved.length === 0) return false;
+      where.employeeId = In(resolved.map((e) => e.id));
+      return true;
+    }
+
+    if (params.employeeName) {
+      const employee = this.resolveEmployee(employees, params.employeeName);
+      if (!employee) return false;
+      where.employeeId = employee.id;
+      return true;
+    }
+
+    if (scopedEmployeeId) {
+      where.employeeId = scopedEmployeeId;
+    }
+    return true;
+  }
+
+  private applyServiceScopeToWhere(
+    where: Record<string, unknown>,
+    params: Record<string, any>,
+    matchedServices: Service[],
+  ): void {
+    if (params.allAppointments === true) return;
+    if (matchedServices.length > 0) {
+      where.serviceId = In(matchedServices.map((s) => s.id));
+    }
+  }
+
+  private applyDateScopeToWhere(where: Record<string, unknown>, params: Record<string, any>): void {
+    if (params.date) {
+      const isoDay = toIsoDay(params.date, params._timeZone);
+      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
+      where.startTime = Between(dayStart, dayEnd);
+    } else if (params.dateFrom && params.dateTo) {
+      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
+      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
+      where.startTime = Between(from, to);
+    }
+  }
+
+  private async findBookingsForBulkUpdate(
+    businessId: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    scopedEmployeeId?: string,
+    prompt?: string,
+  ): Promise<Booking[]> {
+    const matchedServices = this.resolveServices(services, params);
+    const where: Record<string, unknown> = {
+      businessId,
+      status: Not(BookingStatus.CANCELLED) as any,
+    };
+
+    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+      return [];
+    }
+    this.applyServiceScopeToWhere(where, params, matchedServices);
+    this.applyDateScopeToWhere(where, params);
+
+    const bookings = await this.bookingRepo.find({
+      where: where as any,
+      relations: { employee: true, service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    return filterBookingsByTimeConstraints(bookings, params, prompt);
+  }
+
+  private async handleUpdateBookings(
+    businessId: string,
+    prompt: string,
+    params: any,
+    services: Service[],
+    employees: Employee[],
+    scopedEmployeeId?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const status = normalizeBookingStatusValue(params.status);
+    const paymentStatus = normalizePaymentStatusValue(params.paymentStatus);
+
+    if (status === BookingStatus.CANCELLED) {
+      return this.handleCancelBookings(
+        businessId,
+        prompt,
+        params,
+        services,
+        employees,
+        scopedEmployeeId,
+        userId,
+      );
+    }
+
+    if (!status && !paymentStatus) {
+      return {
+        success: false,
+        action: 'update_bookings',
+        summary: 'Tell me what to change — e.g. mark as done, set payment to paid or N/A.',
+        details: { params },
+      };
+    }
+
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return {
+        success: false,
+        action: 'update_bookings',
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+
+    const bookings = await this.findBookingsForBulkUpdate(
+      businessId,
+      params,
+      services,
+      employees,
+      scopedEmployeeId,
+      prompt,
+    );
+
+    if (!bookings.length) {
+      return {
+        success: false,
+        action: 'update_bookings',
+        summary: this.buildBulkBookingNoMatchMessage('update', params, services, prompt),
+        details: { matchedCount: 0, params },
+      };
+    }
+
+    const changeParts = [
+      status ? `status → ${status}` : null,
+      paymentStatus ? `payment → ${paymentStatus}` : null,
+    ].filter(Boolean);
+
+    const plan = this.planBuilder.buildUpdateBookingsPlan({
+      businessId,
+      bookingIds: bookings.map((b) => b.id),
+      status,
+      paymentStatus,
+      userId,
+      planAction: 'update_bookings',
+      label: `Update ${bookings.length} appointment(s) (${changeParts.join(', ')})`,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: resolveAutoExecute({
+          action: 'update_bookings',
+          stepCount: 1,
+          providerCount: 1,
+          confidence: 0.9,
+        }),
+      }),
+    );
+  }
+
+  private buildBulkBookingNoMatchMessage(
+    verb: string,
+    params: any,
+    services: Service[],
+    prompt?: string,
+  ): string {
+    const matchedServices = params.allAppointments
+      ? []
+      : this.resolveServices(services, params);
+    const serviceFilter =
+      !params.allAppointments && matchedServices.length
+        ? ` for ${matchedServices.map((s) => s.name).join(', ')}`
+        : '';
+    const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
+    const dateFilter = params.date ? ` on ${formatDateDisplay(params.date)}` : '';
+    const timeFilter = hasExplicitTimeWindow(params, prompt)
+      ? ` between ${params.timeFrom}–${params.timeTo}`
+      : params.timeSlot
+        ? ` at ${this.snapTo10min(params.timeSlot)}`
+        : '';
+    return `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}, so there was nothing to ${verb}.`;
+  }
+
   private async findBookingsForMarkNoShows(
     businessId: string,
     params: any,
@@ -4094,28 +4421,12 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       ]) as any,
     };
 
-    if (params.employeeName) {
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (!employee) return [];
-      where.employeeId = employee.id;
-    } else if (scopedEmployeeId) {
-      where.employeeId = scopedEmployeeId;
+    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+      return [];
     }
-
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-
-    if (params.date) {
-      const isoDay = toIsoDay(params.date, params._timeZone);
-      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
-      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
-      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
-      where.startTime = Between(from, to);
-    } else {
+    this.applyServiceScopeToWhere(where, params, matchedServices);
+    this.applyDateScopeToWhere(where, params);
+    if (!params.date && !params.dateFrom) {
       where.startTime = Between(new Date(0), new Date()) as any;
     }
 
@@ -4151,28 +4462,14 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       ]) as any,
     };
 
-    if (params.employeeName) {
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (!employee) return [];
-      where.employeeId = employee.id;
-    } else if (scopedEmployeeId) {
-      where.employeeId = scopedEmployeeId;
+    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+      return [];
     }
-
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
+    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+      return [];
     }
-
-    if (params.date) {
-      const isoDay = toIsoDay(params.date, params._timeZone);
-      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
-      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
-      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
-      where.startTime = Between(from, to);
-    }
+    this.applyServiceScopeToWhere(where, params, matchedServices);
+    this.applyDateScopeToWhere(where, params);
 
     return this.bookingRepo.find({
       where,
@@ -4196,28 +4493,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
     };
 
-    if (params.employeeName) {
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (!employee) return [];
-      where.employeeId = employee.id;
-    } else if (scopedEmployeeId) {
-      where.employeeId = scopedEmployeeId;
+    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+      return [];
     }
-
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-
-    if (params.date) {
-      const isoDay = toIsoDay(params.date, params._timeZone);
-      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
-      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
-      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
-      where.startTime = Between(from, to);
-    }
+    this.applyServiceScopeToWhere(where, params, matchedServices);
+    this.applyDateScopeToWhere(where, params);
 
     const bookings = await this.bookingRepo.find({
       where,
@@ -4715,7 +4995,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       ...(params.serviceName && !params.serviceNames?.length ? [params.serviceName] : []),
     ].filter(Boolean);
 
-    if (requestedServiceLabels.length > 0 && matchedServices.length === 0) {
+    if (requestedServiceLabels.length > 0 && matchedServices.length === 0 && !params.allAppointments) {
       return {
         success: false,
         action: 'cancel_bookings',
@@ -4743,29 +5023,20 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
 
     if (bookings.length === 0) {
-      const serviceFilter = matchedServices.length
-        ? ` for service(s): ${matchedServices.map((s) => s.name).join(', ')}`
-        : '';
-      const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
-      const dateFilter = params.date ? ` on ${formatDateDisplay(params.date)}` : '';
-      const timeFilter = hasExplicitTimeWindow(params, prompt)
-        ? ` between ${params.timeFrom}–${params.timeTo}`
-        : params.timeSlot
-          ? ` at ${this.snapTo10min(params.timeSlot)}`
-          : '';
       return {
         success: true,
         action: 'cancel_bookings',
-        summary: `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}. Nothing to cancel.`,
+        summary: this.buildBulkBookingNoMatchMessage('cancel', params, services, prompt),
         details: {
           matchedCount: 0,
           filters: {
             employee: params.employeeName ?? null,
-            services: matchedServices.map((s) => s.name),
+            services: params.allAppointments ? [] : matchedServices.map((s) => s.name),
             date: params.date ? formatDateDisplay(params.date) : null,
             timeFrom: params.timeFrom ?? null,
             timeTo: params.timeTo ?? null,
             timeSlot: params.timeSlot ?? null,
+            allAppointments: params.allAppointments ?? false,
           },
         },
       };

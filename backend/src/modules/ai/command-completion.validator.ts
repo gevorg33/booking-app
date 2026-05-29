@@ -79,6 +79,38 @@ const ACTION_RULES: Record<string, Rule> = {
 
   bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
 
+  update_bookings: (cmd) => {
+    const hasTarget =
+      cmd.params.allAppointments === true ||
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.employeeNames?.length ?? 0) > 0 ||
+      !!cmd.params.customerName ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.timeFrom;
+    const hasChange = !!cmd.params.status || !!cmd.params.paymentStatus;
+    return [
+      ...(hasTarget
+        ? []
+        : [{
+            field: 'date',
+            label: 'Appointments',
+            message: 'Specify which appointment(s) to update (date, provider, time, or all)',
+            example: 'Mark all Gevorg appointments on 01_06_2026 as done and paid',
+          }]),
+      ...(hasChange
+        ? []
+        : [{
+            field: 'status',
+            label: 'Update',
+            message: 'Specify status and/or payment to apply',
+            example: 'Mark appointments from 16:00–17:15 as done with payment N/A',
+          }]),
+    ];
+  },
+
   hide_appointments_from_calendar: (cmd) => {
     const hasFilter =
       !!cmd.params.date ||
@@ -521,6 +553,8 @@ const VALIDATED_ACTIONS = new Set([
   'list_schedule_gaps',
   'create_schedule_template',
   'mark_no_shows',
+  'payment_sweep',
+  'update_bookings',
   'day_replan',
 ]);
 

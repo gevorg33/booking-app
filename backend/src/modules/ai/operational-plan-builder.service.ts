@@ -154,6 +154,7 @@ export interface ResolvedUpdateBookingsParams {
   paymentStatus?: string;
   userId?: string;
   label: string;
+  planAction?: string;
 }
 
 export interface ResolvedDayReplanParams {
@@ -416,7 +417,14 @@ export class OperationalPlanBuilderService {
     ];
 
     const riskLevel = params.bookingIds.length > 5 ? 'medium' : 'low';
-    return this.wrapPlan(params.businessId, params.status ? 'mark_no_shows' : 'payment_sweep', steps, {
+    const planAction =
+      params.planAction ??
+      (params.status && params.paymentStatus
+        ? 'update_bookings'
+        : params.status
+          ? 'mark_no_shows'
+          : 'payment_sweep');
+    return this.wrapPlan(params.businessId, planAction, steps, {
       reasoning: params.label,
       risk: {
         level: riskLevel,

@@ -7,6 +7,7 @@ import {
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
+  isBulkAllAppointmentsPrompt,
 } from './ai-intent-heuristics.js';
 
 describe('ai-intent-heuristics', () => {
@@ -106,6 +107,20 @@ describe('ai-intent-heuristics', () => {
       );
       expect(result.providerFallbackNames).toEqual([]);
       expect(result.fallbackAnyProvider).toBe(false);
+    });
+  });
+
+  describe('isBulkAllAppointmentsPrompt', () => {
+    it('detects cancel all appointments for provider', () => {
+      expect(
+        isBulkAllAppointmentsPrompt('cancel any/all appointments for gevorg on 01_06_2026'),
+      ).toBe(true);
+    });
+
+    it('does not treat service-specific cancel as bulk all', () => {
+      expect(
+        isBulkAllAppointmentsPrompt('cancel hot stone massage for gevorg on 01_06_2026'),
+      ).toBe(false);
     });
   });
 });

@@ -18,6 +18,7 @@ import {
   fuzzyMatchServiceByName,
   normalizeServiceLookup,
 } from './ai-orchestration.helpers.js';
+import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
 
 dayjs.extend(utc);
@@ -884,4 +885,77 @@ export function extractProviderFallbackFromPrompt(
     providerFallbackNames: ordered.map((x) => x.name),
     fallbackAnyProvider,
   };
+}
+
+/** User wants every appointment on the day — not filtered by a single service from session context. */
+export function isBulkAllAppointmentsPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(all|any|every)\b.*\b(appointment|booking)s?\b/i.test(lower) ||
+    /\b(cancel|mark|update|set)\b.*\b(all|any|every)\b/i.test(lower) ||
+    /\bentire\s+(day|schedule)\b/i.test(lower) ||
+    /\bwhole\s+day\b/i.test(lower)
+  );
+}
+
+export function normalizeBookingStatusValue(value: unknown): BookingStatus | undefined {
+  if (!value) return undefined;
+  const map: Record<string, BookingStatus> = {
+    done: BookingStatus.COMPLETED,
+    completed: BookingStatus.COMPLETED,
+    complete: BookingStatus.COMPLETED,
+    in_progress: BookingStatus.IN_PROGRESS,
+    'in progress': BookingStatus.IN_PROGRESS,
+    no_show: BookingStatus.NO_SHOW,
+    'no show': BookingStatus.NO_SHOW,
+    confirmed: BookingStatus.CONFIRMED,
+    pending: BookingStatus.PENDING,
+    booked: BookingStatus.PENDING,
+    cancelled: BookingStatus.CANCELLED,
+    canceled: BookingStatus.CANCELLED,
+    cancel: BookingStatus.CANCELLED,
+  };
+  const key = String(value).toLowerCase();
+  return (
+    map[key] ??
+    (Object.values(BookingStatus).includes(value as BookingStatus) ? (value as BookingStatus) : undefined)
+  );
+}
+
+export function normalizePaymentStatusValue(value: unknown): PaymentStatus | undefined {
+  if (!value) return undefined;
+  const map: Record<string, PaymentStatus> = {
+    done: PaymentStatus.PAID,
+    paid: PaymentStatus.PAID,
+    pending: PaymentStatus.PENDING,
+    refunded: PaymentStatus.REFUNDED,
+    not_applicable: PaymentStatus.NOT_APPLICABLE,
+    na: PaymentStatus.NOT_APPLICABLE,
+    n_a: PaymentStatus.NOT_APPLICABLE,
+    'n/a': PaymentStatus.NOT_APPLICABLE,
+  };
+  const key = String(value).toLowerCase();
+  return (
+    map[key] ??
+    (Object.values(PaymentStatus).includes(value as PaymentStatus) ? (value as PaymentStatus) : undefined)
+  );
+}
+
+export function extractBookingStatusFromPrompt(prompt: string): BookingStatus | undefined {
+  const lower = prompt.toLowerCase();
+  if (/\bno[\s-]?show(s)?\b/i.test(lower)) return BookingStatus.NO_SHOW;
+  if (/\b(mark(ed)?\s+as\s+)?done\b|\bcompleted?\b/i.test(lower) && !/\bcancel/i.test(lower)) {
+    return BookingStatus.COMPLETED;
+  }
+  if (/\bin[\s-]?progress\b/i.test(lower)) return BookingStatus.IN_PROGRESS;
+  if (/\bcancel(l)?ed\b/i.test(lower)) return BookingStatus.CANCELLED;
+  return undefined;
+}
+
+export function extractPaymentStatusFromPrompt(prompt: string): PaymentStatus | undefined {
+  const lower = prompt.toLowerCase();
+  if (/\b(n\/a|not applicable)\b/i.test(lower)) return PaymentStatus.NOT_APPLICABLE;
+  if (/\b(paid|payment done|mark.*paid)\b/i.test(lower)) return PaymentStatus.PAID;
+  if (/\brefunded\b/i.test(lower)) return PaymentStatus.REFUNDED;
+  return undefined;
 }

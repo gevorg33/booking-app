@@ -35,6 +35,16 @@ export class PublicBookingController {
     return this.publicBookingService.getProviderSlots(slug, employeeId, query.date);
   }
 
+  @Get('providers/:employeeId/reviews')
+  listProviderReviews(
+    @Param('slug') slug: string,
+    @Param('employeeId') employeeId: string,
+    @Query('page') page?: string,
+  ) {
+    const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
+    return this.reviewsService.listPublicProviderReviews(slug, employeeId, pageNum);
+  }
+
   @Get('services')
   getServices(@Param('slug') slug: string, @Query('employeeId') employeeId?: string) {
     return this.publicBookingService.getServices(slug, employeeId);

@@ -136,6 +136,7 @@ export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> =
     'reassign_cancelled',
     'mark_no_shows',
     'payment_sweep',
+    'update_bookings',
     'day_replan',
   ]),
   staff: new Set([
@@ -155,6 +156,7 @@ export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> =
     'day_replan',
     'payment_sweep',
     'mark_no_shows',
+    'update_bookings',
     'list_templates',
     'create_schedule_template',
     'bulk_smart_cancel',

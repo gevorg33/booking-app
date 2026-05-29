@@ -27,6 +27,7 @@ import {
 import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
 import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -71,6 +72,14 @@ export interface ProviderSlotPreview {
   endTime: string;
 }
 
+export interface PublicProviderReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: string;
+}
+
 export interface PublicProvider {
   id: string;
   name: string;
@@ -79,6 +88,9 @@ export interface PublicProvider {
   nearestDate: string | null;
   nearestDateLabel: string | null;
   slots: ProviderSlotPreview[];
+  averageRating: number | null;
+  reviewCount: number;
+  recentReviews: PublicProviderReview[];
 }
 
 export interface NearestBookableSlot {
@@ -99,6 +111,7 @@ export class PublicBookingService {
     private customerService: CustomerService,
     private schedulingEngine: SchedulingEngineService,
     private stripeIntegrationService: StripeIntegrationService,
+    private reviewsService: ReviewsService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -208,10 +221,28 @@ export class PublicBookingService {
     // Scan from business-local today, but date keys align with UTC schedule days
     const startDateKey = date?.match(/^\d{4}-\d{2}-\d{2}$/) ? date : todayKey;
 
+    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
+      business.id,
+      employees.map((e) => e.id),
+    );
+
     const providers = await Promise.all(
-      employees.map(async (employee) =>
-        this.buildProviderPreview(business.id, employee, startDateKey, todayKey, tz),
-      ),
+      employees.map(async (employee) => {
+        const preview = await this.buildProviderPreview(
+          business.id,
+          employee,
+          startDateKey,
+          todayKey,
+          tz,
+        );
+        const reviews = reviewSummaries.get(employee.id);
+        return {
+          ...preview,
+          averageRating: reviews?.averageRating ?? null,
+          reviewCount: reviews?.reviewCount ?? 0,
+          recentReviews: reviews?.recentReviews ?? [],
+        };
+      }),
     );
 
     return { providers };
@@ -550,7 +581,7 @@ export class PublicBookingService {
     fromDateKey: string,
     todayDateKey: string,
     timeZone: string,
-  ): Promise<PublicProvider> {
+  ): Promise<Omit<PublicProvider, 'averageRating' | 'reviewCount' | 'recentReviews'>> {
     const metadata = employee.metadata || {};
     let nearestDateKey: string | null = null;
     let slots: Date[] = [];
