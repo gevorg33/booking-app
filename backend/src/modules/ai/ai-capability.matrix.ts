@@ -1,5 +1,17 @@
+import {
+  type AccessTier,
+  isDashboardIntentAllowed,
+  isProviderIntentAllowed,
+  resolveAccessTier,
+  tierAccessSummary,
+} from './access-control.matrix.js';
+
+export type { AccessTier } from './access-control.matrix.js';
+
 export type AiSurface = 'dashboard' | 'provider';
-export type AiActorRole = 'owner' | 'manager' | 'receptionist' | 'provider' | 'contributor';
+
+/** @deprecated Use AccessTier — kept for backward-compatible exports */
+export type AiActorRole = AccessTier;
 
 /** Dashboard intents (full Orchestrix). */
 export const DASHBOARD_INTENTS = [
@@ -42,6 +54,7 @@ export const DASHBOARD_INTENTS = [
   'reassign_cancelled',
   'mark_no_shows',
   'payment_sweep',
+  'update_bookings',
   'day_replan',
   'unknown',
 ] as const;
@@ -58,6 +71,7 @@ export const PROVIDER_INTENTS = [
   'block_schedule',
   'summarize_utilization',
   'mark_no_shows',
+  'payment_sweep',
   'unknown',
 ] as const;
 
@@ -84,57 +98,29 @@ const DASHBOARD_MUTATING = new Set([
   'reassign_cancelled',
   'mark_no_shows',
   'payment_sweep',
+  'update_bookings',
   'day_replan',
 ]);
 
-const ROLE_DENIED_DASHBOARD: Record<AiActorRole, Set<string>> = {
-  owner: new Set(),
-  manager: new Set(),
-  receptionist: new Set(['optimize_schedule', 'assign_employee_services', 'create_services']),
-  provider: new Set([
-    'optimize_schedule',
-    'assign_employee_services',
-    'create_services',
-    'create_service',
-    'setup_week_schedule',
-    'resolve_conflicts',
-    'reassign_cancelled',
-    'day_replan',
-    'payment_sweep',
-  ]),
-  contributor: new Set(['optimize_schedule', 'day_replan', 'payment_sweep']),
-};
-
-const ROLE_DENIED_PROVIDER: Record<AiActorRole, Set<string>> = {
-  owner: new Set(),
-  manager: new Set(),
-  receptionist: new Set(),
-  provider: new Set(['day_replan', 'payment_sweep']),
-  contributor: new Set(['day_replan', 'payment_sweep', 'summarize_utilization']),
-};
-
-export function normalizeActorRole(role?: string | null): AiActorRole {
-  const r = (role ?? 'owner').toLowerCase();
-  if (r === 'manager' || r === 'receptionist' || r === 'provider' || r === 'contributor') {
-    return r;
-  }
-  return 'owner';
+/** Map JWT membershipRole (or legacy role string) to access tier. */
+export function normalizeActorRole(role?: string | null): AccessTier {
+  return resolveAccessTier(role);
 }
 
-export function getAllowedIntents(surface: AiSurface, role: AiActorRole): readonly string[] {
+export function getAllowedIntents(surface: AiSurface, tier: AccessTier): readonly string[] {
   const base = surface === 'dashboard' ? DASHBOARD_INTENTS : PROVIDER_INTENTS;
-  const denied =
-    surface === 'dashboard' ? ROLE_DENIED_DASHBOARD[role] : ROLE_DENIED_PROVIDER[role];
-  return base.filter((a) => !denied.has(a));
+  const allowed = (action: string) =>
+    surface === 'dashboard'
+      ? isDashboardIntentAllowed(tier, action)
+      : isProviderIntentAllowed(tier, action);
+  return base.filter((a) => allowed(a));
 }
 
-export function isIntentAllowed(
-  surface: AiSurface,
-  role: AiActorRole,
-  action: string,
-): boolean {
-  if (action === 'unknown' || action === 'error') return true;
-  return getAllowedIntents(surface, role).includes(action);
+export function isIntentAllowed(surface: AiSurface, tier: AccessTier, action: string): boolean {
+  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+  return surface === 'dashboard'
+    ? isDashboardIntentAllowed(tier, action)
+    : isProviderIntentAllowed(tier, action);
 }
 
 export function isMutatingIntent(surface: AiSurface, action: string): boolean {
@@ -146,12 +132,13 @@ export function isMutatingIntent(surface: AiSurface, action: string): boolean {
       'fill_unused_slots',
       'block_schedule',
       'mark_no_shows',
+      'payment_sweep',
     ].includes(action);
   }
   return DASHBOARD_MUTATING.has(action);
 }
 
-export function capabilityMatrixForPrompt(surface: AiSurface, role: AiActorRole): string {
-  const allowed = getAllowedIntents(surface, role);
-  return `Allowed actions for this user (${surface}, role=${role}): ${allowed.join(', ')}`;
+export function capabilityMatrixForPrompt(surface: AiSurface, tier: AccessTier): string {
+  const allowed = getAllowedIntents(surface, tier);
+  return `${tierAccessSummary(tier)}. Allowed AI actions (${surface}): ${allowed.join(', ')}`;
 }

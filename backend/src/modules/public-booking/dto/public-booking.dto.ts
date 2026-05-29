@@ -27,8 +27,10 @@ export class PublicCustomerDto {
 }
 
 export class CreatePublicBookingDto {
+  /** Omitted when the customer chose “any available specialist” — resolved at booking time. */
+  @IsOptional()
   @IsString()
-  employeeId: string;
+  employeeId?: string;
 
   @IsString()
   serviceId: string;
@@ -62,4 +64,14 @@ export class ConfirmBookingPaymentDto {
 export class GetProviderSlotsQueryDto {
   @IsDateString()
   date: string;
+}
+
+export class GetServiceSlotsQueryDto {
+  @IsDateString()
+  date: string;
+}
+
+export class GetServiceSlotProvidersQueryDto {
+  @IsDateString()
+  startTime: string;
 }

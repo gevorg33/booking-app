@@ -320,20 +320,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     !paymentChanged;
   const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged || customerChanged;
 
-  const applyStatusChange = (next: BookingStatus) => {
-    if (next === 'cancelled') {
-      setShowCancelConfirm(true);
-      return;
-    }
-    if (statusRequiresConfirmation(next)) {
-      setPendingStatus(next);
-      return;
-    }
-    setStatus(next);
-  };
+  const buildUpdatePayload = (statusOverride?: BookingStatus) => {
+    if (!booking) return null;
 
-  const save = () => {
-    if (!booking || !dirty) return;
+    const nextStatus = statusOverride ?? status;
+    const nextStatusChanged = statusOverride
+      ? statusOverride !== booking.status
+      : statusChanged;
+
     const payload: {
       status?: BookingStatus;
       notes?: string;
@@ -345,8 +339,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       customerId?: string;
       expectedUpdatedAt?: string;
     } = { expectedUpdatedAt: booking.updatedAt };
-    if (statusChanged) {
-      Object.assign(payload, buildStatusUpdatePayload(status));
+
+    if (nextStatusChanged) {
+      Object.assign(
+        payload,
+        buildStatusUpdatePayload(nextStatus, {
+          paymentStatus: paymentChanged ? paymentStatus : undefined,
+        }),
+      );
     }
     if (detailsChanged) {
       payload.notes = notes;
@@ -367,9 +367,35 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     if (customerChanged) {
       payload.customerId = customerId || undefined;
     }
+
+    return payload;
+  };
+
+  const applyStatusChange = (next: BookingStatus) => {
+    if (next === 'cancelled') {
+      setShowCancelConfirm(true);
+      return;
+    }
+    if (statusRequiresConfirmation(next)) {
+      setPendingStatus(next);
+      return;
+    }
+    setStatus(next);
+  };
+
+  const save = () => {
+    if (!booking || !dirty) return;
+    const statusToApply = pendingStatus ?? undefined;
+    const payload = buildUpdatePayload(statusToApply);
+    if (!payload) return;
+    const closingStatus = statusToApply ?? status;
+    if (statusToApply) {
+      setStatus(statusToApply);
+      setPendingStatus(null);
+    }
     updateMutation.mutate(payload, {
       onSuccess: () => {
-        if (statusChanged && (status === 'completed' || status === 'no_show')) {
+        if (closingStatus === 'completed' || closingStatus === 'no_show') {
           onClose();
         }
       },
@@ -378,18 +404,16 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
 
   const confirmPendingStatus = () => {
     if (!pendingStatus || !bookingId || !booking) return;
+    const payload = buildUpdatePayload(pendingStatus);
+    if (!payload) return;
     setStatus(pendingStatus);
     setPendingStatus(null);
-    updateMutation.mutate(
-      { ...buildStatusUpdatePayload(pendingStatus), expectedUpdatedAt: booking.updatedAt },
-      { onSuccess: () => onClose() },
-    );
+    updateMutation.mutate(payload, { onSuccess: () => onClose() });
   };
 
   const canSave =
     dirty &&
     !showCancelConfirm &&
-    !pendingStatus &&
     (customerOnlyDirty ||
       ((editable || paymentChanged || (customerChanged && canEditCustomer)) &&
         (!rescheduleChanged || rescheduleValid)));

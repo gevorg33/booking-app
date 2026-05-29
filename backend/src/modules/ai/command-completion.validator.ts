@@ -15,11 +15,22 @@ const ACTION_RULES: Record<string, Rule> = {
   create_booking: (cmd) => {
     const anyProvider = cmd.params.allProviders === true;
     const firstAvailable = cmd.params.bookingFirstAvailable === true;
+    const fallbackNames = cmd.params.providerFallbackNames;
+    const hasFallbackChain =
+      cmd.params.fallbackAnyProvider === true ||
+      (Array.isArray(fallbackNames) && fallbackNames.length > 0) ||
+      (Array.isArray(cmd.params.employeeNames) && cmd.params.employeeNames.length >= 2);
     return [
       needs(
         'employeeName',
         'Service provider',
-        !!(cmd.entities.employee || cmd.enrichedParams.employeeId || anyProvider || firstAvailable),
+        !!(
+          cmd.entities.employee ||
+          cmd.enrichedParams.employeeId ||
+          anyProvider ||
+          firstAvailable ||
+          hasFallbackChain
+        ),
         'Gevorg Gasparyan or any provider',
       ),
       needs('serviceName', 'Service', !!(cmd.entities.service || cmd.enrichedParams.serviceId), 'facemassage'),
@@ -67,6 +78,38 @@ const ACTION_RULES: Record<string, Rule> = {
   },
 
   bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
+
+  update_bookings: (cmd) => {
+    const hasTarget =
+      cmd.params.allAppointments === true ||
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.employeeNames?.length ?? 0) > 0 ||
+      !!cmd.params.customerName ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.timeFrom;
+    const hasChange = !!cmd.params.status || !!cmd.params.paymentStatus;
+    return [
+      ...(hasTarget
+        ? []
+        : [{
+            field: 'date',
+            label: 'Appointments',
+            message: 'Specify which appointment(s) to update (date, provider, time, or all)',
+            example: 'Mark all Gevorg appointments on 01_06_2026 as done and paid',
+          }]),
+      ...(hasChange
+        ? []
+        : [{
+            field: 'status',
+            label: 'Update',
+            message: 'Specify status and/or payment to apply',
+            example: 'Mark appointments from 16:00–17:15 as done with payment N/A',
+          }]),
+    ];
+  },
 
   hide_appointments_from_calendar: (cmd) => {
     const hasFilter =
@@ -129,7 +172,10 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.bookingId ||
       !!cmd.params.customerName ||
       !!cmd.params.employeeName;
-    const hasNewTime = !!cmd.params.date || !!cmd.params.timeSlot;
+    const hasNewTime =
+      !!cmd.params.date ||
+      !!cmd.params.timeSlot ||
+      cmd.params.bookingFirstAvailable === true;
     const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
     return [
       ...(hasTarget
@@ -371,6 +417,44 @@ const ACTION_RULES: Record<string, Rule> = {
             example: 'Assign facemassage and haircut to Gevorg',
           }]),
     ].filter(Boolean) as ValidationIssue[],
+
+  create_schedule_template: (cmd) =>
+    [
+      needs('templateName', 'Template name', !!(cmd.params.templateName || cmd.params.name), 'Weekday hours'),
+      needs(
+        'periods',
+        'Schedule hours',
+        !!(
+          cmd.params.periods?.length ||
+          cmd.params.timeFrom ||
+          cmd.params.timeTo ||
+          cmd.params.timeSlot
+        ),
+        '9:00-17:00 with lunch break or explicit periods',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  mark_no_shows: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today or yesterday',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  payment_sweep: (_cmd) => [] as ValidationIssue[],
+
+  day_replan: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today or tomorrow',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
 };
 
 /** Entity resolution failures become clarify prompts */
@@ -399,7 +483,7 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
           : `Found ${entities.employees.map((e) => e.name).join(', ')} but could not match: ${unmatched.join(', ') || requestedNames.join(', ')}`,
       example: `Available: ${cmd.enrichedParams._availableEmployees ?? 'check team list'}`,
     });
-  } else if (params.employeeName && !params.allProviders && entities.employees.length === 0) {
+  } else if (params.employeeName && !params.allProviders && (entities.employees?.length ?? 0) === 0) {
     issues.push({
       field: 'employeeName',
       label: 'Service provider',
@@ -467,6 +551,11 @@ const VALIDATED_ACTIONS = new Set([
   'create_direct_schedule',
   'assign_employee_services',
   'list_schedule_gaps',
+  'create_schedule_template',
+  'mark_no_shows',
+  'payment_sweep',
+  'update_bookings',
+  'day_replan',
 ]);
 
 export function shouldValidateAction(action: string): boolean {

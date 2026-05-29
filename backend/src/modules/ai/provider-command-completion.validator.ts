@@ -4,6 +4,8 @@ import { buildClarifySummary } from './command-completion.validator.js';
 const PROVIDER_VALIDATED_ACTIONS = new Set([
   'cancel_bookings',
   'update_bookings',
+  'mark_no_shows',
+  'payment_sweep',
   'list_bookings',
   'summarize_day',
   'reschedule_booking',
@@ -60,6 +62,26 @@ const PROVIDER_ACTION_RULES: Record<string, (params: Record<string, unknown>) =>
           }]),
     ];
   },
+
+  mark_no_shows: (params) =>
+    params.date || params.dateFrom || params.allAppointments === true
+      ? []
+      : [{
+          field: 'date',
+          label: 'When',
+          message: 'Specify which day to mark no-shows for',
+          example: 'Mark no-shows for today',
+        }],
+
+  payment_sweep: (params) =>
+    params.date || params.dateFrom || params.allAppointments === true
+      ? []
+      : [{
+          field: 'date',
+          label: 'When',
+          message: 'Specify which day to run payment sweep for',
+          example: 'Payment sweep for today',
+        }],
 
   list_bookings: () => [],
   summarize_day: () => [],

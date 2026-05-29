@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AgentHandler } from '../agent-registry.service.js';
 import {
   AgentType,
@@ -8,14 +8,31 @@ import {
   PlanStatus,
 } from '../interfaces/agent.interfaces.js';
 import { LlmService } from '../llm.service.js';
+import { BookingAgentRouterService } from '../../langgraph/services/booking-agent-router.service.js';
+import { ConflictResolutionGraphService } from '../../langgraph/services/conflict-resolution-graph.service.js';
 
 @Injectable()
 export class ConflictResolutionAgent implements AgentHandler {
+  private readonly logger = new Logger(ConflictResolutionAgent.name);
   type = AgentType.CONFLICT_RESOLUTION;
 
-  constructor(private llm: LlmService) {}
+  constructor(
+    private llm: LlmService,
+    private router: BookingAgentRouterService,
+    private conflictGraph: ConflictResolutionGraphService,
+  ) {}
 
   async handle(context: AgentContext, intent: string): Promise<AgentResult> {
+    if (this.router.useLangGraph(AgentType.CONFLICT_RESOLUTION)) {
+      try {
+        const result = await this.conflictGraph.run(context, intent);
+        this.logger.log(`LangGraph conflict resolution: mode=${result.executionMode}`);
+        return result;
+      } catch (err: any) {
+        this.logger.warn(`LangGraph conflict resolution failed, falling back: ${err?.message ?? err}`);
+      }
+    }
+
     const llmResult = await this.llm.buildPlan(AgentType.CONFLICT_RESOLUTION, intent, context);
     if (llmResult) {
       return {

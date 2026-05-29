@@ -20,7 +20,13 @@ import {
   validateProviderCommand,
 } from '../ai/provider-command-completion.validator.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
+import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
+import {
+  isIntentAllowed,
+  normalizeActorRole,
+} from '../ai/ai-capability.matrix.js';
+import { resolveAccessTier, type AccessTier } from '../ai/access-control.matrix.js';
 import { CommandOrchestrationService } from '../ai/command-orchestration.service.js';
 import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -47,7 +53,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "list_bookings" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "unknown",
   "params": {
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
     "serviceName": "string or null — service type filter",
@@ -72,7 +78,9 @@ Rules:
 - "mark as done" / "done" → status=completed. "no show" → no_show. "in progress" → in_progress.
 - "payment done" / "paid" / "mark payment as paid" → paymentStatus=paid. "N/A" → not_applicable.
 - cancel_bookings: user wants to cancel one or more appointments. Put sickness/reason in reason.
-- update_bookings: change status and/or payment status without cancelling.
+- update_bookings: change status and/or payment status without cancelling (single appointment or explicit customer/time).
+- mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
+- payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
 - list_bookings / summarize_day: view-only; no mutations.
 - reschedule_booking: move an appointment to a new time (own bookings only unless team view).
 - fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
@@ -102,6 +110,7 @@ export class ProviderAiCommandService {
     private scheduleHandlers: AiScheduleHandlersService,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
+    private promptSecurity: AiPromptSecurityService,
   ) {}
 
   async executeCommand(
@@ -121,6 +130,18 @@ export class ProviderAiCommandService {
     }
 
     const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+    const actorTier = this.resolveProviderAccessTier(access);
+
+    const blocked = this.promptSecurity.preflightBlock(businessId, prompt, 'provider');
+    if (blocked) {
+      return {
+        success: blocked.success,
+        action: blocked.action,
+        summary: blocked.summary,
+        details: blocked.details as Record<string, unknown>,
+      };
+    }
+
     const providerName = access.employee?.name ?? 'Admin';
     const parsed = await this.classifyIntent(
       businessId,
@@ -165,6 +186,42 @@ export class ProviderAiCommandService {
     }
 
     this.normalizeParams(parsed.params);
+    parsed.action = this.rescueProviderIntent(prompt, parsed.action);
+
+    if (!isIntentAllowed('provider', actorTier, parsed.action)) {
+      return {
+        success: false,
+        action: parsed.action,
+        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorTier}).`,
+        details: { tier: actorTier, action: parsed.action },
+      };
+    }
+
+    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, unknown>;
+    parsed.params = this.promptSecurity.applyStaffScope(
+      actorTier,
+      parsed.action,
+      parsed.params,
+      this.providerMobile.getScopedEmployeeId(access),
+    ) as Record<string, unknown>;
+
+    const securityDenied = this.promptSecurity.enforceAction(
+      businessId,
+      'provider',
+      actorTier,
+      parsed.action,
+      prompt,
+      parsed.params,
+    );
+    if (securityDenied) {
+      return {
+        success: securityDenied.success,
+        action: securityDenied.action,
+        summary: securityDenied.summary,
+        details: securityDenied.details as Record<string, unknown>,
+      };
+    }
+
     this.logger.log(`Provider AI action="${parsed.action}" — ${parsed.reasoning}`);
 
     let result: ProviderCommandResult;
@@ -175,6 +232,12 @@ export class ProviderAiCommandService {
         break;
       case 'update_bookings':
         result = await this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        break;
+      case 'mark_no_shows':
+        result = await this.handleMarkNoShows(businessId, access, parsed.params, userId);
+        break;
+      case 'payment_sweep':
+        result = await this.handlePaymentSweep(businessId, access, parsed.params, userId);
         break;
       case 'list_bookings':
         result = await this.handleListBookings(businessId, access, parsed.params);
@@ -193,7 +256,7 @@ export class ProviderAiCommandService {
           success: false,
           action: 'unknown',
           summary:
-            'I can cancel appointments, reschedule, fill schedule gaps, mark them done, update payment status, or show your schedule. Try: "Reschedule John to 16:00" or "Fill gaps this afternoon".',
+            'I can cancel appointments, reschedule, fill schedule gaps, mark no-shows, run payment sweeps, mark them done, update payment status, or show your schedule. Try: "Mark no-shows for today" or "Payment sweep for today".',
           details: {},
         };
     }
@@ -269,14 +332,22 @@ export class ProviderAiCommandService {
       });
       return result;
     }
-    if (dto.action === 'update_bookings') {
-      const result = await this.executeUpdate(bookings, dto.params ?? {}, userId);
+    if (dto.action === 'update_bookings' || dto.action === 'mark_no_shows' || dto.action === 'payment_sweep') {
+      const result = await this.executeUpdate(
+        bookings,
+        dto.action === 'mark_no_shows'
+          ? { status: BookingStatus.NO_SHOW }
+          : dto.action === 'payment_sweep'
+            ? { paymentStatus: PaymentStatus.PAID }
+            : (dto.params ?? {}),
+        userId,
+      );
       this.aiEvents.emitTaskCompleted(businessId, {
-        action: 'update_bookings',
+        action: dto.action,
         success: result.success,
         summary: result.summary,
       });
-      return result;
+      return { ...result, action: dto.action };
     }
     throw new BadRequestException('Unsupported action');
   }
@@ -408,6 +479,128 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     return this.executeUpdate(bookings, { status, paymentStatus }, userId);
+  }
+
+  private resolveProviderAccessTier(access: MobileAccess): AccessTier {
+    if (access.viewMode === 'team') {
+      return resolveAccessTier(access.membershipRole);
+    }
+    return 'staff';
+  }
+
+  private rescueProviderIntent(prompt: string, action: string): string {
+    const lower = prompt.toLowerCase();
+    if (/payment\s+sweep|mark\s+unpaid|collect\s+outstanding|outstanding\s+payments?/.test(lower)) {
+      return 'payment_sweep';
+    }
+    if (/mark\s+no[\s-]?shows?|no[\s-]?shows?\s+for/.test(lower) && !/cancel/.test(lower)) {
+      return 'mark_no_shows';
+    }
+    return action;
+  }
+
+  private async handleMarkNoShows(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    if (!params.date && !params.dateFrom) params.date = toIsoDay(todayDisplay());
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const bookings = await this.findNoShowCandidates(businessId, employeeId, params);
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action: 'mark_no_shows',
+        summary: 'No eligible past appointments found to mark as no-show.',
+        details: { matchedCount: 0 },
+      };
+    }
+
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+      return {
+        success: true,
+        action: 'mark_no_shows',
+        summary: `Mark ${bookings.length} appointment(s) as no-show?`,
+        details: this.buildConfirmationDetails(bookings, {
+          action: 'mark_no_shows',
+          params: { status: BookingStatus.NO_SHOW },
+        }),
+      };
+    }
+
+    const result = await this.executeUpdate(bookings, { status: BookingStatus.NO_SHOW }, userId);
+    return { ...result, action: 'mark_no_shows' };
+  }
+
+  private async handlePaymentSweep(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    if (!params.date && !params.dateFrom) params.date = toIsoDay(todayDisplay());
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const bookings = await this.findUnpaidBookings(businessId, employeeId, params);
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action: 'payment_sweep',
+        summary: 'No unpaid appointments found for the given filters.',
+        details: { matchedCount: 0 },
+      };
+    }
+
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+      return {
+        success: true,
+        action: 'payment_sweep',
+        summary: `Mark ${bookings.length} unpaid appointment(s) as paid?`,
+        details: this.buildConfirmationDetails(bookings, {
+          action: 'payment_sweep',
+          params: { paymentStatus: PaymentStatus.PAID },
+        }),
+      };
+    }
+
+    const result = await this.executeUpdate(bookings, { paymentStatus: PaymentStatus.PAID }, userId);
+    return { ...result, action: 'payment_sweep' };
+  }
+
+  private async findNoShowCandidates(
+    businessId: string,
+    employeeId: string | undefined,
+    params: Record<string, unknown>,
+  ): Promise<Booking[]> {
+    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
+      excludeCancelled: true,
+    });
+    const now = Date.now();
+    return bookings.filter(
+      (b) =>
+        b.startTime.getTime() <= now &&
+        b.status !== BookingStatus.NO_SHOW &&
+        b.status !== BookingStatus.COMPLETED,
+    );
+  }
+
+  private async findUnpaidBookings(
+    businessId: string,
+    employeeId: string | undefined,
+    params: Record<string, unknown>,
+  ): Promise<Booking[]> {
+    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
+      excludeCancelled: true,
+    });
+    return bookings.filter(
+      (b) =>
+        b.paymentStatus === PaymentStatus.PENDING &&
+        [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.COMPLETED].includes(
+          b.status,
+        ),
+    );
   }
 
   private async executeCancel(

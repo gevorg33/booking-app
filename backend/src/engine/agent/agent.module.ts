@@ -14,6 +14,7 @@ import { PolicyModule } from '../policy/policy.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { OpenAiModule } from '../../modules/integrations/openai/openai.module.js';
+import { LangGraphModule } from '../langgraph/langgraph.module.js';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Booking } from '../../modules/booking/entities/booking.entity.js';
@@ -29,6 +30,7 @@ import { Business } from '../../modules/business/entities/business.entity.js';
     forwardRef(() => WorkflowModule),
     EventStoreModule,
     OpenAiModule,
+    LangGraphModule,
   ],
   providers: [
     AgentRegistryService,

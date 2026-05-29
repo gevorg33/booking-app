@@ -26,7 +26,7 @@ export class ProviderAiCommandDto {
 
 export class ProviderAiConfirmDto {
   @IsString()
-  action: 'cancel_bookings' | 'update_bookings';
+  action: 'cancel_bookings' | 'update_bookings' | 'mark_no_shows' | 'payment_sweep';
 
   @IsArray()
   @IsString({ each: true })

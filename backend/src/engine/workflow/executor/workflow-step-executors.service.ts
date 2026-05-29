@@ -3,13 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, ILike } from 'typeorm';
 import { WorkflowExecutorService, StepExecutor } from './workflow-executor.service.js';
 import { BookingService } from '../../../modules/booking/booking.service.js';
+import { BookingSlotResolverService } from '../../../modules/booking/booking-slot-resolver.service.js';
 import { ServiceService } from '../../../modules/service/service.service.js';
 import { ScheduleService } from '../../../modules/schedule/schedule.service.js';
 import { TemplateApplyService } from '../../../modules/schedule/services/template-apply.service.js';
 import { BlockScheduleService } from '../../../modules/schedule/services/block-schedule.service.js';
 import { EmployeeService } from '../../../modules/employee/employee.service.js';
 import { SchedulingEngineService } from '../../scheduling/scheduling-engine.service.js';
-import { Booking, BookingStatus } from '../../../modules/booking/entities/booking.entity.js';
+import { Booking, BookingStatus, PaymentStatus } from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
 import { Customer } from '../../../modules/customer/entities/customer.entity.js';
 import { Business } from '../../../modules/business/entities/business.entity.js';
@@ -17,6 +18,7 @@ import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-
 import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
 import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
+import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -25,6 +27,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   constructor(
     private executor: WorkflowExecutorService,
     private bookingService: BookingService,
+    private slotResolver: BookingSlotResolverService,
     private serviceService: ServiceService,
     private scheduleService: ScheduleService,
     private templateApplyService: TemplateApplyService,
@@ -59,6 +62,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       detect_conflicts: (step) => this.detectConflicts(step),
       analyze_resolution_options: (step, ctx) => this.analyzeResolutionOptions(step, ctx),
       propose_resolutions: (step, ctx) => this.proposeResolutions(step, ctx),
+      apply_conflict_resolutions: (step, ctx) => this.applyConflictResolutions(step, ctx),
       execute_reassignment: (step, ctx) => this.executeReassignment(step, ctx),
       notify_cancelled_customers: (step, ctx) => this.notifyCancelledCustomers(step, ctx),
       fill_schedule_gaps: (step, ctx) => this.fillScheduleGaps(step, ctx),
@@ -70,6 +74,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
       assign_employee_services: (step, ctx) => this.assignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
+      create_schedule_template: (step, ctx) => this.createScheduleTemplate(step, ctx),
+      update_bookings: (step, ctx) => this.updateBookings(step, ctx),
+      mark_no_shows: (step, ctx) => this.updateBookings(step, { ...ctx, _forceStatus: BookingStatus.NO_SHOW }),
+      payment_sweep: (step, ctx) => this.updateBookings(step, { ...ctx, _forcePaymentStatus: PaymentStatus.PAID }),
     };
 
     for (const [action, handler] of Object.entries(executors)) {
@@ -125,6 +133,27 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         'create_booking requires employeeId and serviceId (or resolvable employeeName and serviceName)',
       );
     }
+
+    const employee = await this.employeeRepo.findOne({ where: { id: employeeId, businessId } });
+    if (!employee) {
+      throw new BadRequestException('Service provider not found');
+    }
+    const service = await this.serviceService.findOne(serviceId).catch(() => null);
+    if (!service || service.businessId !== businessId) {
+      throw new BadRequestException('Service not found');
+    }
+
+    const isoDay = String(startTime).slice(0, 10);
+    const timeSlot = formatTimeDisplay(new Date(startTime));
+    await this.slotResolver.assertBookable({
+      businessId,
+      employeeId,
+      employeeName: employee.name,
+      serviceId,
+      serviceName: service.name,
+      isoDay,
+      timeSlot,
+    });
 
     const booking = await this.bookingService.create(
       businessId,
@@ -923,6 +952,131 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
             }
           : null,
       })),
+    };
+  }
+
+  private async applyConflictResolutions(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const userId = step.params.userId as string | undefined;
+    const proposals = this.priorResult(ctx, step.dependsOn[0]);
+    const resolutions = (proposals?.resolutions ?? []) as Array<{
+      fix?: { type?: string; bookingId?: string; startTime?: string } | null;
+    }>;
+
+    const reschedules = resolutions
+      .map((r) => r.fix)
+      .filter(
+        (fix): fix is { type: string; bookingId: string; startTime: string } =>
+          fix?.type === 'reschedule_booking' && !!fix.bookingId && !!fix.startTime,
+      );
+
+    if (!reschedules.length) {
+      return {
+        appliedCount: 0,
+        skippedCount: resolutions.length,
+        message: 'No auto-resolvable conflicts found',
+      };
+    }
+
+    const applied: string[] = [];
+    const failed: Array<{ bookingId: string; error: string }> = [];
+
+    for (const fix of reschedules) {
+      try {
+        await this.rescheduleBooking(
+          {
+            ...step,
+            params: {
+              businessId,
+              bookingId: fix.bookingId,
+              startTime: fix.startTime,
+              userId,
+            },
+          },
+          ctx,
+        );
+        applied.push(fix.bookingId);
+      } catch (err: any) {
+        failed.push({
+          bookingId: fix.bookingId,
+          error: err?.message ?? String(err),
+        });
+      }
+    }
+
+    return {
+      appliedCount: applied.length,
+      appliedBookingIds: applied,
+      failed,
+      skippedCount: resolutions.length - reschedules.length,
+    };
+  }
+
+  private async createScheduleTemplate(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const { name, timePeriods, userId } = step.params as {
+      name: string;
+      timePeriods: Array<Record<string, unknown>>;
+      userId?: string;
+    };
+
+    if (!name?.trim()) {
+      throw new BadRequestException('create_schedule_template requires template name');
+    }
+    if (!timePeriods?.length) {
+      throw new BadRequestException('create_schedule_template requires at least one time period');
+    }
+
+    const template = await this.scheduleService.createTemplate(
+      businessId,
+      { name: name.trim(), timePeriods: timePeriods as any },
+      userId,
+    );
+
+    return {
+      templateId: template.id,
+      templateName: template.name,
+      periodCount: timePeriods.length,
+    };
+  }
+
+  private async updateBookings(step: WorkflowStep, ctx: Record<string, any>) {
+    const businessId = step.params.businessId ?? ctx.businessId;
+    const bookingIds = (step.params.bookingIds as string[] | undefined) ?? [];
+    const userId = step.params.userId as string | undefined;
+    const status =
+      (ctx._forceStatus as BookingStatus | undefined) ??
+      (step.params.status as BookingStatus | undefined);
+    const paymentStatus =
+      (ctx._forcePaymentStatus as PaymentStatus | undefined) ??
+      (step.params.paymentStatus as PaymentStatus | undefined);
+
+    if (!bookingIds.length) {
+      return { updatedCount: 0, bookingIds: [], message: 'No bookings to update' };
+    }
+
+    let updated = 0;
+    const updatedIds: string[] = [];
+
+    for (const id of bookingIds) {
+      const booking = await this.bookingRepo.findOne({ where: { id, businessId } });
+      if (!booking || booking.status === BookingStatus.CANCELLED) continue;
+
+      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } = {};
+      if (status) payload.status = status;
+      if (paymentStatus) payload.paymentStatus = paymentStatus;
+      if (!Object.keys(payload).length) continue;
+
+      await this.bookingService.update(id, payload, userId);
+      updated += 1;
+      updatedIds.push(id);
+    }
+
+    return {
+      updatedCount: updated,
+      bookingIds: updatedIds,
+      status: status ?? null,
+      paymentStatus: paymentStatus ?? null,
     };
   }
 }

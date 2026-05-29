@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Users, Info } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronDown, Users } from 'lucide-react';
 import { formatScheduleTime } from '@/lib/date-format';
 import type { PublicProvider } from '@/lib/public-api';
+import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { ProviderReviewSummary } from '@/components/public-booking/provider-reviews';
 
 interface ProviderListProps {
   slug: string;
@@ -13,6 +15,7 @@ interface ProviderListProps {
   selectedEmployeeId: string | null;
   selectedStartTime: string | null;
   onSelect: (employeeId: string, startTime: string) => void;
+  showAnySpecialistOption?: boolean;
 }
 
 export function ProviderList({
@@ -22,46 +25,38 @@ export function ProviderList({
   selectedEmployeeId,
   selectedStartTime,
   onSelect,
+  showAnySpecialistOption = true,
 }: ProviderListProps) {
+  const router = useRouter();
   const { t } = useI18n();
-  const [anyProfessional, setAnyProfessional] = useState(false);
-
-  const anySlots = useMemo(() => {
-    for (const p of providers) {
-      if (p.slots.length > 0) return { provider: p, slot: p.slots[0] };
-    }
-    return null;
-  }, [providers]);
 
   return (
     <div className="space-y-3 pb-8">
-      <button
-        type="button"
-        onClick={() => {
-          setAnyProfessional(true);
-          if (anySlots) onSelect(anySlots.provider.id, anySlots.slot.startTime);
-        }}
-        className={`w-full flex items-center gap-3 p-4 rounded-2xl border bg-white text-left transition-colors ${
-          anyProfessional ? 'border-violet-400 ring-2 ring-violet-100' : 'border-gray-100 hover:border-gray-200'
-        }`}
-      >
-        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-          <Users className="w-5 h-5 text-gray-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-900">{t('public.anySpecialist')}</p>
-        </div>
-        <span
-          className="w-5 h-5 rounded-full border-2 shrink-0"
-          style={{
-            borderColor: anyProfessional ? primaryColor : '#d1d5db',
-            backgroundColor: anyProfessional ? primaryColor : 'transparent',
-          }}
-        />
-      </button>
+      {showAnySpecialistOption && (
+        <button
+          type="button"
+          onClick={() => router.push(bookPath(slug, '/any'))}
+          className="w-full flex items-center gap-3 p-4 rounded-2xl border bg-white text-left transition-colors border-gray-100 hover:border-gray-200"
+        >
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5 text-gray-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900">{t('public.anySpecialist')}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{t('public.anySpecialistHint')}</p>
+          </div>
+          <ChevronDown className="w-5 h-5 text-gray-400 -rotate-90 shrink-0" />
+        </button>
+      )}
 
       {providers.map((provider) => {
-        const isSelected = !anyProfessional && selectedEmployeeId === provider.id;
+        const isSelected = selectedEmployeeId === provider.id;
+        const reviewCount = Number(provider.reviewCount ?? 0);
+        const averageRating =
+          provider.averageRating != null ? Number(provider.averageRating) : null;
+        const hasReviews = reviewCount > 0 && averageRating != null && !Number.isNaN(averageRating);
+        const profileHref = bookPath(slug, `/providers/${provider.id}`);
+
         return (
           <div
             key={provider.id}
@@ -70,28 +65,39 @@ export function ProviderList({
             }`}
           >
             <div className="flex items-start gap-3 p-4">
-              {provider.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={provider.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-semibold"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {provider.name.charAt(0)}
+              <button
+                type="button"
+                onClick={() => router.push(profileHref)}
+                className="flex items-start gap-3 flex-1 min-w-0 text-left rounded-xl -m-1 p-1 hover:bg-gray-50 transition-colors"
+              >
+                {provider.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={provider.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-semibold"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {provider.name.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900">{provider.name}</p>
+                  {provider.role && <p className="text-sm text-gray-500">{provider.role}</p>}
+                  {hasReviews && (
+                    <div className="mt-2">
+                      <ProviderReviewSummary
+                        averageRating={averageRating!}
+                        reviewCount={reviewCount}
+                        primaryColor={primaryColor}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900">{provider.name}</p>
-                {provider.role && <p className="text-sm text-gray-500">{provider.role}</p>}
-              </div>
-              <button type="button" className="p-1 text-gray-400" title={t('public.selectProviderInfo')}>
-                <Info className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setAnyProfessional(false);
                   if (provider.slots[0]) onSelect(provider.id, provider.slots[0].startTime);
                 }}
                 className="w-5 h-5 rounded-full border-2 shrink-0 mt-1"
@@ -110,16 +116,12 @@ export function ProviderList({
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {provider.slots.map((slot) => {
-                    const active =
-                      isSelected && selectedStartTime === slot.startTime;
+                    const active = isSelected && selectedStartTime === slot.startTime;
                     return (
                       <button
                         key={slot.startTime}
                         type="button"
-                        onClick={() => {
-                          setAnyProfessional(false);
-                          onSelect(provider.id, slot.startTime);
-                        }}
+                        onClick={() => onSelect(provider.id, slot.startTime)}
                         className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                           active
                             ? 'text-white border-transparent'

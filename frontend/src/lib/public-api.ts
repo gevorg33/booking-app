@@ -1,5 +1,39 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const publicCustomerTokens = new Map<string, string>();
+
+export function setPublicCustomerToken(slug: string, token: string | null) {
+  if (token) {
+    publicCustomerTokens.set(slug, token);
+  } else {
+    publicCustomerTokens.delete(slug);
+  }
+}
+
+export interface PublicCustomerProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface PublicCustomerAuthResponse {
+  token: string;
+  customer: PublicCustomerProfile;
+}
+
+export interface PublicCustomerBookingItem {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
+  serviceName: string;
+  employeeName: string;
+  employeeId: string;
+  canReview: boolean;
+}
+
 export interface PublicBranding {
   logoUrl?: string;
   primaryColor?: string;
@@ -38,6 +72,14 @@ export interface PublicBusinessProfile {
   onlinePaymentsEnabled?: boolean;
 }
 
+export interface PublicProviderReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: string;
+}
+
 export interface PublicProvider {
   id: string;
   name: string;
@@ -46,6 +88,9 @@ export interface PublicProvider {
   nearestDate: string | null;
   nearestDateLabel: string | null;
   slots: Array<{ startTime: string; endTime: string }>;
+  averageRating: number | null;
+  reviewCount: number;
+  recentReviews: PublicProviderReview[];
 }
 
 export interface PublicServiceCategory {
@@ -77,6 +122,17 @@ export function prepaymentDue(service: PublicService): number {
   return Math.round(service.price * 50) / 100;
 }
 
+function formatPublicApiError(body: unknown, status: number): string {
+  if (typeof body === 'object' && body !== null) {
+    const message = (body as { message?: unknown }).message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (typeof message === 'string' && message.trim()) return message;
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === 'string' && error.trim()) return error;
+  }
+  return `Request failed (${status})`;
+}
+
 async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -85,6 +141,13 @@ async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
     if (match?.[1]) headers['Accept-Language'] = match[1];
+  }
+
+  const slugMatch = path.match(/^\/public\/([^/]+)/);
+  const slug = slugMatch?.[1];
+  const token = slug ? publicCustomerTokens.get(slug) : undefined;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -97,7 +160,7 @@ async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.message || body?.error || `Request failed (${res.status})`);
+    throw new Error(formatPublicApiError(body, res.status));
   }
   const json = await res.json();
   return (json.data ?? json) as T;
@@ -118,6 +181,62 @@ export function getPublicProviderSlots(slug: string, employeeId: string, date: s
   );
 }
 
+export interface PublicProviderReviewsPage {
+  employeeId: string;
+  employeeName: string;
+  employeeRole: string | null;
+  avatarUrl: string | null;
+  averageRating: number | null;
+  reviewCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: PublicProviderReview[];
+}
+
+export function getPublicProviderReviews(slug: string, employeeId: string, page = 1) {
+  const q = new URLSearchParams({ page: String(page) });
+  return publicFetch<PublicProviderReviewsPage>(
+    `/public/${slug}/providers/${employeeId}/reviews?${q.toString()}`,
+  );
+}
+
+export function getPublicServices(slug: string, employeeId?: string) {
+  const q = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+  return publicFetch<{ services: PublicService[] }>(`/public/${slug}/services${q}`);
+}
+
+export interface PublicServiceDaySlot {
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  employeeName: string;
+}
+
+export function getPublicServiceDaySlots(slug: string, serviceId: string, date: string) {
+  return publicFetch<{
+    date: string;
+    serviceId: string;
+    serviceName: string;
+    slots: PublicServiceDaySlot[];
+  }>(`/public/${slug}/services/${serviceId}/slots?date=${encodeURIComponent(date)}`);
+}
+
+export interface PublicServiceSlotProvider {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+  averageRating: number | null;
+  reviewCount: number;
+}
+
+export function getPublicServiceSlotProviders(slug: string, serviceId: string, startTime: string) {
+  return publicFetch<{ providers: PublicServiceSlotProvider[] }>(
+    `/public/${slug}/services/${serviceId}/providers?startTime=${encodeURIComponent(startTime)}`,
+  );
+}
+
 export function getPublicServicesForSlot(slug: string, employeeId: string, startTime: string) {
   return publicFetch<{ services: PublicService[] }>(
     `/public/${slug}/services/for-slot?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`,
@@ -127,7 +246,7 @@ export function getPublicServicesForSlot(slug: string, employeeId: string, start
 export function createPublicBooking(
   slug: string,
   body: {
-    employeeId: string;
+    employeeId?: string;
     serviceId: string;
     startTime: string;
     notes?: string;
@@ -230,4 +349,30 @@ export function submitPublicReview(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function submitProviderPortalReview(
+  slug: string,
+  employeeId: string,
+  body: { idToken?: string; rating: number; comment?: string },
+) {
+  return publicFetch<PublicProviderReview>(
+    `/public/${slug}/providers/${employeeId}/reviews`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function loginPublicCustomer(slug: string, idToken: string) {
+  return publicFetch<PublicCustomerAuthResponse>(`/public/${slug}/auth/google`, {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  });
+}
+
+export function getPublicCustomerMe(slug: string) {
+  return publicFetch<PublicCustomerProfile>(`/public/${slug}/auth/me`);
+}
+
+export function getPublicCustomerBookings(slug: string) {
+  return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
 }

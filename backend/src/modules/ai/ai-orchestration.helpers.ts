@@ -303,6 +303,112 @@ export function fuzzyMatchServiceByName<T extends { name: string }>(
   );
 }
 
+const SERVICE_ROLE_WORDS =
+  /\b(?:specialists?|therapists?|providers?|stylists?|masseurs?|doctors?|professionals?)\b/gi;
+const SERVICE_QUALITY_WORDS =
+  /\b(?:best|top|highest(?:\s+-?\s*rated)?|highly\s+rated|recommended?)\b/gi;
+
+/** Remove role/quality words so "massage specialist" → "massage". */
+export function stripServiceRoleNoise(query: string): string {
+  return query
+    .replace(SERVICE_ROLE_WORDS, ' ')
+    .replace(SERVICE_QUALITY_WORDS, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Match one or many catalog services from a customer query.
+ * Broad tokens like "massage" return every service whose name contains that token.
+ */
+export function matchServicesByQuery<T extends { id: string; name: string }>(
+  items: T[],
+  query: string,
+): T[] {
+  const cleaned = stripServiceRoleNoise(query);
+  if (!cleaned) return [];
+
+  const normalizedQuery = normalizeServiceLookup(cleaned);
+  if (normalizedQuery.length < 3) return [];
+
+  const tokenMatches = items.filter((item) =>
+    normalizeServiceLookup(item.name).includes(normalizedQuery),
+  );
+
+  const queryWords = cleaned.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+  const isSingleBroadToken = queryWords.length === 1;
+
+  if (tokenMatches.length > 1 && isSingleBroadToken) {
+    return [...tokenMatches].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  if (queryWords.length > 1 && tokenMatches.length > 1) {
+    const wordMatches = tokenMatches.filter((item) => {
+      const norm = normalizeServiceLookup(item.name);
+      return queryWords.every((word) => norm.includes(normalizeServiceLookup(word)));
+    });
+    if (wordMatches.length > 1) {
+      return [...wordMatches].sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+
+  const exact = fuzzyMatchServiceByName(items, cleaned);
+  if (exact) return [exact];
+
+  if (tokenMatches.length > 0) {
+    return [...tokenMatches].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return [];
+}
+
+/** Extract service(s) from top-rated / recommend specialist prompts. */
+export function extractRecommendServicesFromPrompt<T extends { id: string; name: string }>(
+  prompt: string,
+  services: T[],
+): T[] {
+  const patterns = [
+    /\b(?:who\s+is\s+)?(?:the\s+)?(?:best|top|highest(?:\s+-?\s*rated)?)\s+(.+?)(?:\s+specialists?|\s+therapists?|\?|$)/i,
+    /\b(?:suggest|recommend)\s+(?:\w+\s+){0,4}(?:specialists?|therapists?)\s+(?:for|for\s+a)?\s+(.+?)(?:\?|$)/i,
+    /\b(?:best|top|highest(?:\s+-?\s*rated)?)\s+(.+?)\s*$/i,
+    /\b(?:specialists?|therapists?)\s+(?:for|for\s+a)\s+(.+?)(?:\?|$)/i,
+  ];
+
+  for (const re of patterns) {
+    const match = prompt.match(re);
+    if (match?.[1]) {
+      const found = matchServicesByQuery(services, match[1].trim());
+      if (found.length) return found;
+    }
+  }
+
+  const single = fuzzyMatchServiceByName(services, stripServiceRoleNoise(prompt));
+  if (single) {
+    const broad = matchServicesByQuery(services, single.name);
+    return broad.length ? broad : [single];
+  }
+
+  return matchServicesByQuery(services, prompt);
+}
+
+export function inferServiceGroupLabel(
+  services: Array<{ name: string }>,
+  query?: string,
+): string {
+  if (services.length === 1) return services[0].name;
+
+  const cleaned = query ? stripServiceRoleNoise(query) : '';
+  const normalizedQuery = cleaned ? normalizeServiceLookup(cleaned) : '';
+  if (
+    normalizedQuery.length >= 4 &&
+    services.every((s) => normalizeServiceLookup(s.name).includes(normalizedQuery))
+  ) {
+    return `${cleaned} services`;
+  }
+
+  return `${services.length} services`;
+}
+
 export function resolveEmployees(
   employees: Employee[],
   params: {
@@ -485,6 +591,17 @@ export function resolveDateRange(
     const cur = today.day();
     let delta = (target - cur + 7) % 7;
     if (delta === 0) delta = 7;
+    const iso = today.add(delta, 'day').format('YYYY-MM-DD');
+    return { start: iso, end: iso };
+  }
+
+  const bareDayMatch = lower.match(
+    /\b(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/,
+  );
+  if (bareDayMatch) {
+    const target = weekdayMap[bareDayMatch[1]];
+    const cur = today.day();
+    const delta = (target - cur + 7) % 7;
     const iso = today.add(delta, 'day').format('YYYY-MM-DD');
     return { start: iso, end: iso };
   }
@@ -803,22 +920,30 @@ export function sanitizeProviderScopeFromPrompt(
   }
 }
 
-/** Build service/unavailable periods from phrases like "9-19, 12-13 unavailable". */
-export function inferDirectSchedulePeriods(
-  params: Record<string, any>,
-  prompt?: string,
-): Array<Record<string, any>> {
-  if (Array.isArray(params.periods) && params.periods.length > 0) {
-    return params.periods;
+function resolveUnavailableLabel(
+  text: string,
+  from: string,
+  to: string,
+  matchText: string,
+): string {
+  if (/lunch/i.test(matchText)) return 'Lunch';
+  const lower = text.toLowerCase();
+  if (/\blunch\b/.test(lower) && lower.includes(`${from.split(':')[0]}-${to.split(':')[0]}`)) {
+    return 'Lunch';
   }
+  return 'Unavailable';
+}
 
-  const text = prompt ?? '';
-  const window = parseTimeWindow(params, text, { timeFrom: '09:00', timeTo: '19:00' });
+/** Parse lunch/break/unavailable windows from natural language (e.g. "12-13 unavailable"). */
+export function extractUnavailableBlocksFromPrompt(
+  text: string,
+): Array<{ from: string; to: string; label: string }> {
   const unavailableBlocks: Array<{ from: string; to: string; label: string }> = [];
 
   const patterns = [
     /\b(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(?:unavailable|off|blocked|break)\b/gi,
     /\b(?:unavailable|off|blocked|lunch|break)\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\b/gi,
+    /\b(?:make|mark)\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s+(?:unavailable|off|blocked|break)\b/gi,
   ];
 
   for (const re of patterns) {
@@ -828,8 +953,11 @@ export function inferDirectSchedulePeriods(
       const from = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
       const to = normalizeTime24(`${match[3]}:${match[4] ?? '00'}`);
       if (timeToMinutes(to) > timeToMinutes(from)) {
-        const label = /lunch/i.test(match[0]) ? 'Lunch' : 'Unavailable';
-        unavailableBlocks.push({ from, to, label });
+        const label = resolveUnavailableLabel(text, from, to, match[0]);
+        const duplicate = unavailableBlocks.some(
+          (b) => b.from === from && b.to === to,
+        );
+        if (!duplicate) unavailableBlocks.push({ from, to, label });
       }
     }
   }
@@ -842,11 +970,127 @@ export function inferDirectSchedulePeriods(
     unavailableBlocks.push({ from: '12:00', to: '13:00', label: 'Lunch' });
   }
 
+  return unavailableBlocks.sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
+}
+
+function normalizeSchedulePeriod(period: Record<string, any>): Record<string, any> {
+  return {
+    ...period,
+    startTime: normalizeTime24(String(period.startTime)),
+    endTime: normalizeTime24(String(period.endTime)),
+    type: period.type ?? 'service_block',
+    placeholderLabel: period.placeholderLabel ?? period.label,
+  };
+}
+
+function hasUnavailableCoverage(
+  periods: Array<Record<string, any>>,
+  block: { from: string; to: string },
+): boolean {
+  const bStart = timeToMinutes(block.from);
+  const bEnd = timeToMinutes(block.to);
+  return periods.some((p) => {
+    if (p.type !== 'unavailable_block') return false;
+    const pStart = timeToMinutes(String(p.startTime));
+    const pEnd = timeToMinutes(String(p.endTime));
+    return pStart <= bStart && pEnd >= bEnd;
+  });
+}
+
+/** Split overlapping service blocks and insert explicit unavailable periods. */
+export function applyUnavailableBlocksToPeriods(
+  periods: Array<Record<string, any>>,
+  unavailableBlocks: Array<{ from: string; to: string; label: string }>,
+): Array<Record<string, any>> {
+  if (!unavailableBlocks.length) {
+    return periods.map(normalizeSchedulePeriod);
+  }
+
+  let result = periods.map(normalizeSchedulePeriod);
+
+  for (const block of unavailableBlocks) {
+    const bStart = timeToMinutes(block.from);
+    const bEnd = timeToMinutes(block.to);
+    const next: Array<Record<string, any>> = [];
+
+    for (const period of result) {
+      if (period.type === 'unavailable_block') {
+        next.push(period);
+        continue;
+      }
+
+      const pStart = timeToMinutes(String(period.startTime));
+      const pEnd = timeToMinutes(String(period.endTime));
+
+      if (pEnd <= bStart || pStart >= bEnd) {
+        next.push(period);
+        continue;
+      }
+
+      if (pStart < bStart) {
+        next.push({ ...period, endTime: block.from });
+      }
+      next.push({
+        startTime: block.from,
+        endTime: block.to,
+        type: 'unavailable_block',
+        placeholderLabel: block.label,
+      });
+      if (pEnd > bEnd) {
+        next.push({ ...period, startTime: block.to });
+      }
+    }
+
+    result = next.filter(
+      (p) => timeToMinutes(String(p.endTime)) > timeToMinutes(String(p.startTime)),
+    );
+  }
+
+  for (const block of unavailableBlocks) {
+    if (hasUnavailableCoverage(result, block)) continue;
+
+    const bStart = timeToMinutes(block.from);
+    const bEnd = timeToMinutes(block.to);
+    const endsAtGapStart = result.some(
+      (p) => timeToMinutes(String(p.endTime)) === bStart,
+    );
+    const startsAtGapEnd = result.some(
+      (p) => timeToMinutes(String(p.startTime)) === bEnd,
+    );
+
+    if (endsAtGapStart && startsAtGapEnd) {
+      result.push({
+        startTime: block.from,
+        endTime: block.to,
+        type: 'unavailable_block',
+        placeholderLabel: block.label,
+      });
+    }
+  }
+
+  return result.sort(
+    (a, b) => timeToMinutes(String(a.startTime)) - timeToMinutes(String(b.startTime)),
+  );
+}
+
+/** Build service/unavailable periods from phrases like "9-19, 12-13 unavailable". */
+export function inferDirectSchedulePeriods(
+  params: Record<string, any>,
+  prompt?: string,
+): Array<Record<string, any>> {
+  const text = prompt ?? '';
+  const unavailableBlocks = extractUnavailableBlocksFromPrompt(text);
+
+  if (Array.isArray(params.periods) && params.periods.length > 0) {
+    return applyUnavailableBlocksToPeriods(params.periods, unavailableBlocks);
+  }
+
+  const window = parseTimeWindow(params, text, { timeFrom: '09:00', timeTo: '19:00' });
+
   if (unavailableBlocks.length === 0) {
     return [{ startTime: window.timeFrom, endTime: window.timeTo, type: 'service_block' }];
   }
 
-  unavailableBlocks.sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
   const periods: Array<Record<string, any>> = [];
   let cursor = window.timeFrom;
 
@@ -868,6 +1112,92 @@ export function inferDirectSchedulePeriods(
   }
 
   return periods;
+}
+
+export const PUBLIC_AVAILABILITY_SCAN_DAYS = 14;
+
+export function hasExplicitWeekdayInAvailabilityPrompt(
+  params: { weekdays?: string[] | null; applyDays?: number[] | null },
+  prompt?: string,
+): boolean {
+  if (params.weekdays?.length || params.applyDays?.length) return true;
+  return /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|weekdays?|weekend)\b/i.test(
+    prompt ?? '',
+  );
+}
+
+/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
+export function resolvePublicAvailabilityDateKeys(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): string[] {
+  const tz = resolveTimezone(timeZone);
+  const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  const enriched: Record<string, any> = { ...params, _timeZone: tz };
+  enrichDateRangeFromPrompt(enriched, prompt ?? '', tz);
+  applyRelativeDateFromPrompt(enriched, prompt ?? '', tz);
+
+  const weekdays = parseWeekdaysFromParams(enriched, prompt);
+  const hasWeekdayFilter = hasExplicitWeekdayInAvailabilityPrompt(enriched, prompt);
+  const todayKey = getTodayDateKey(tz);
+
+  const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
+
+  // Weekday names in the prompt beat stale session dates (e.g. "Monday" must not reuse Friday from session).
+  if (hasWeekdayFilter) {
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      if (weekdays.includes(dayjs.tz(dateKey, tz).day())) {
+        result.push(dateKey);
+      }
+    }
+    if (result.length > 0) return result;
+  }
+
+  // Prefer dates parsed from the prompt itself, not inherited session params.date.
+  const promptOnlyDates = resolveScheduleDates({ _timeZone: tz }, prompt);
+  if (promptOnlyDates.length > 0) {
+    return dropPast(promptOnlyDates).slice(0, scanDays);
+  }
+
+  if (enriched.dateFrom && enriched.dateTo) {
+    const range = resolveDateRange(
+      { dateFrom: enriched.dateFrom, dateTo: enriched.dateTo, _timeZone: tz },
+      prompt,
+      tz,
+    );
+    if (range) {
+      return dropPast(
+        enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]),
+      ).slice(0, scanDays);
+    }
+  }
+
+  if (enriched.date) {
+    return dropPast([toIsoDay(enriched.date, tz)]);
+  }
+
+  return [];
+}
+
+/** Drop session date when the user names weekdays or relative days in an availability question. */
+export function applyAvailabilityDateFromPrompt(
+  params: Record<string, any>,
+  prompt?: string,
+  timeZone = 'UTC',
+): void {
+  if (!prompt?.trim()) return;
+
+  if (hasExplicitWeekdayInAvailabilityPrompt(params, prompt)) {
+    delete params.date;
+    delete params.dateFrom;
+    delete params.dateTo;
+  }
+
+  applyPromptDateOverride(params, prompt, timeZone);
 }
 
 export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {

@@ -9,7 +9,7 @@ export interface DecomposedIntent {
 }
 
 const COMPOUND_MARKERS =
-  /\band then\b|\bthen\b|\balso\b|\bafter that\b|\bfollowed by\b|;\s*|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove))/i;
+  /\band then\b|\bthen\b|\balso\b|\bafter that\b|\bfollowed by\b|;\s*|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify))\b/i;
 
 const DECOMPOSE_SCHEMA = `Split a compound operational command into ordered sub-intents.
 Return JSON:
@@ -19,7 +19,7 @@ Return JSON:
   ]
 }
 
-Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, hide_appointments_from_calendar, unhide_appointments_from_calendar, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, create_direct_schedule, clear_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, analyze_services, summarize_staff, lookup_customer, summarize_waitlist, lookup_service_assignment, list_services, list_employees, list_templates, assign_employee_services.
+Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, hide_appointments_from_calendar, unhide_appointments_from_calendar, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, create_direct_schedule, clear_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, analyze_services, summarize_staff, lookup_customer, summarize_waitlist, lookup_service_assignment, list_services, list_employees, list_templates, assign_employee_services, create_schedule_template, mark_no_shows, payment_sweep, day_replan.
 
 Rules:
 - Preserve order of operations.

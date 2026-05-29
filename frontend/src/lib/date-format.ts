@@ -1,3 +1,15 @@
+/** Review date for public profile cards: "29 May 2026". */
+export function formatPublicReviewDate(input: Date | string, timeZone = 'UTC'): string {
+  const d = typeof input === 'string' ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return String(input);
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  }).format(d);
+}
+
 /** User-facing date: DD_MM_YYYY (UTC). */
 export function formatDateDisplay(input: Date | string): string {
   const d = typeof input === 'string' ? parseDateInput(input) : input;

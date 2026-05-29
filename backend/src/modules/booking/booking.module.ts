@@ -4,6 +4,7 @@ import { Booking } from './entities/booking.entity.js';
 import { BookingCheckoutDraft } from './entities/booking-checkout-draft.entity.js';
 import { BookingService } from './booking.service.js';
 import { BookingPaymentService } from './booking-payment.service.js';
+import { BookingSlotResolverService } from './booking-slot-resolver.service.js';
 import { BookingController } from './booking.controller.js';
 import { BookingCreatedListener } from './listeners/booking-created.listener.js';
 import { BookingCompletedListener } from './listeners/booking-completed.listener.js';
@@ -14,6 +15,7 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AgentController } from './agent.controller.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
+import { Employee } from '../employee/entities/employee.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -23,6 +25,7 @@ import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 
 @Module({
   imports: [
@@ -34,11 +37,13 @@ import { CustomerModule } from '../customer/customer.module.js';
       Service,
       Customer,
       Business,
+      Employee,
     ]),
     SchedulingEngineModule,
     EventStoreModule,
     forwardRef(() => BillingModule),
     CustomerModule,
+    forwardRef(() => PublicBookingModule),
     forwardRef(() => AgentModule),
     LoyaltyModule,
     InventoryModule,
@@ -46,7 +51,14 @@ import { CustomerModule } from '../customer/customer.module.js';
     NotificationsModule,
   ],
   controllers: [BookingController, AgentController],
-  providers: [BookingService, BookingPaymentService, BookingCreatedListener, BookingCompletedListener, BookingLifecycleListener],
-  exports: [BookingService, BookingPaymentService],
+  providers: [
+    BookingService,
+    BookingPaymentService,
+    BookingSlotResolverService,
+    BookingCreatedListener,
+    BookingCompletedListener,
+    BookingLifecycleListener,
+  ],
+  exports: [BookingService, BookingPaymentService, BookingSlotResolverService],
 })
 export class BookingModule {}

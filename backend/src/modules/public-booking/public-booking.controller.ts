@@ -1,11 +1,18 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto } from './dto/public-booking.dto.js';
+import { PublicCustomerAuthService } from './public-customer-auth.service.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto } from './dto/public-booking.dto.js';
+import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { SubmitPublicReviewDto } from '../reviews/dto/submit-public-review.dto.js';
+import { SubmitProviderPortalReviewDto } from '../reviews/dto/submit-provider-portal-review.dto.js';
+import { PublicCustomerAuthGuard } from './public-customer-auth.guard.js';
+import { OptionalPublicCustomerAuthGuard } from './optional-public-customer-auth.guard.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { PublicCustomerRequestUser } from './public-customer-auth.decorator.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -14,6 +21,7 @@ export class PublicBookingController {
     private publicAssistantService: PublicBookingAssistantService,
     private bookingPaymentService: BookingPaymentService,
     private reviewsService: ReviewsService,
+    private publicCustomerAuthService: PublicCustomerAuthService,
   ) {}
 
   @Get()
@@ -35,6 +43,16 @@ export class PublicBookingController {
     return this.publicBookingService.getProviderSlots(slug, employeeId, query.date);
   }
 
+  @Get('providers/:employeeId/reviews')
+  listProviderReviews(
+    @Param('slug') slug: string,
+    @Param('employeeId') employeeId: string,
+    @Query('page') page?: string,
+  ) {
+    const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
+    return this.reviewsService.listPublicProviderReviews(slug, employeeId, pageNum);
+  }
+
   @Get('services')
   getServices(@Param('slug') slug: string, @Query('employeeId') employeeId?: string) {
     return this.publicBookingService.getServices(slug, employeeId);
@@ -49,14 +67,42 @@ export class PublicBookingController {
     return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime);
   }
 
+  @Get('services/:serviceId/slots')
+  getServiceDaySlots(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceSlotsQueryDto,
+  ) {
+    return this.publicBookingService.getServiceDaySlots(slug, serviceId, query.date);
+  }
+
+  @Get('services/:serviceId/providers')
+  getProvidersForServiceSlot(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceSlotProvidersQueryDto,
+  ) {
+    return this.publicBookingService.getProvidersForServiceSlot(slug, serviceId, query.startTime);
+  }
+
   @Post('bookings')
-  createBooking(@Param('slug') slug: string, @Body() dto: CreatePublicBookingDto) {
-    return this.publicBookingService.createBooking(slug, dto);
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  createBooking(
+    @Param('slug') slug: string,
+    @Body() dto: CreatePublicBookingDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.createBooking(slug, dto, user?.customerId);
   }
 
   @Post('bookings/checkout')
-  createBookingCheckout(@Param('slug') slug: string, @Body() dto: CreatePublicBookingDto) {
-    return this.bookingPaymentService.createCheckoutSession(slug, dto);
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  createBookingCheckout(
+    @Param('slug') slug: string,
+    @Body() dto: CreatePublicBookingDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.bookingPaymentService.createCheckoutSession(slug, dto, user?.customerId);
   }
 
   @Post('bookings/confirm-payment')
@@ -85,5 +131,41 @@ export class PublicBookingController {
   @Post('reviews')
   submitReview(@Param('slug') slug: string, @Body() dto: SubmitPublicReviewDto) {
     return this.reviewsService.submitPublic(slug, dto);
+  }
+
+  @Post('providers/:employeeId/reviews')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  submitProviderPortalReview(
+    @Param('slug') slug: string,
+    @Param('employeeId') employeeId: string,
+    @Body() dto: SubmitProviderPortalReviewDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.reviewsService.submitProviderPortalReview(
+      slug,
+      employeeId,
+      dto,
+      user?.customerId,
+    );
+  }
+
+  @Post('auth/google')
+  loginWithGoogle(@Param('slug') slug: string, @Body() dto: PublicCustomerGoogleLoginDto) {
+    return this.publicCustomerAuthService.loginWithGoogle(slug, dto.idToken);
+  }
+
+  @Get('auth/me')
+  @UseGuards(PublicCustomerAuthGuard)
+  getAuthMe(@CurrentUser() user: PublicCustomerRequestUser) {
+    return this.publicCustomerAuthService.getProfile(user.customer);
+  }
+
+  @Get('me/bookings')
+  @UseGuards(PublicCustomerAuthGuard)
+  listMyBookings(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerAuthService.listBookings(slug, user.customerId);
   }
 }

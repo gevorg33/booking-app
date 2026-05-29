@@ -126,6 +126,46 @@ export interface ResolvedAssignServicesParams {
   userId?: string;
 }
 
+export interface ResolvedCreateScheduleTemplateParams {
+  businessId: string;
+  name: string;
+  timePeriods: Array<{
+    startTime: string;
+    endTime: string;
+    type: string;
+    placeholderLabel?: string;
+    serviceIds?: string[];
+    maxAppointmentCount?: number;
+    isActiveOnMonday?: boolean;
+    isActiveOnTuesday?: boolean;
+    isActiveOnWednesday?: boolean;
+    isActiveOnThursday?: boolean;
+    isActiveOnFriday?: boolean;
+    isActiveOnSaturday?: boolean;
+    isActiveOnSunday?: boolean;
+  }>;
+  userId?: string;
+}
+
+export interface ResolvedUpdateBookingsParams {
+  businessId: string;
+  bookingIds: string[];
+  status?: string;
+  paymentStatus?: string;
+  userId?: string;
+  label: string;
+  planAction?: string;
+}
+
+export interface ResolvedDayReplanParams {
+  businessId: string;
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  employeeIds?: string[];
+  userId?: string;
+}
+
 @Injectable()
 export class OperationalPlanBuilderService {
   buildFillScheduleGapsPlan(params: ResolvedFillScheduleGapsParams): AgentPlan {
@@ -330,6 +370,162 @@ export class OperationalPlanBuilderService {
     return this.wrapPlan(params.businessId, 'assign_employee_services', steps, {
       reasoning: `Assign ${params.serviceNames.join(', ')} to ${params.employeeName}.`,
       risk: { level: 'low', factors: ['Employee service assignment update'] },
+    });
+  }
+
+  buildCreateScheduleTemplatePlan(params: ResolvedCreateScheduleTemplateParams): AgentPlan {
+    const stepId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: stepId,
+        action: 'create_schedule_template',
+        description: `Create schedule template "${params.name}"`,
+        params: {
+          businessId: params.businessId,
+          name: params.name,
+          timePeriods: params.timePeriods,
+          userId: params.userId,
+        },
+        dependsOn: [],
+        estimatedImpact: `Creates reusable template "${params.name}"`,
+      },
+    ];
+
+    return this.wrapPlan(params.businessId, 'create_schedule_template', steps, {
+      reasoning: `Create schedule template "${params.name}" with ${params.timePeriods.length} period(s).`,
+      risk: { level: 'low', factors: ['Template catalog mutation'] },
+    });
+  }
+
+  buildUpdateBookingsPlan(params: ResolvedUpdateBookingsParams): AgentPlan {
+    const stepId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: stepId,
+        action: 'update_bookings',
+        description: params.label,
+        params: {
+          businessId: params.businessId,
+          bookingIds: params.bookingIds,
+          status: params.status,
+          paymentStatus: params.paymentStatus,
+          userId: params.userId,
+        },
+        dependsOn: [],
+        estimatedImpact: `Updates ${params.bookingIds.length} booking(s)`,
+      },
+    ];
+
+    const riskLevel = params.bookingIds.length > 5 ? 'medium' : 'low';
+    const planAction =
+      params.planAction ??
+      (params.status && params.paymentStatus
+        ? 'update_bookings'
+        : params.status
+          ? 'mark_no_shows'
+          : 'payment_sweep');
+    return this.wrapPlan(params.businessId, planAction, steps, {
+      reasoning: params.label,
+      risk: {
+        level: riskLevel,
+        factors: [`Bulk update ${params.bookingIds.length} appointment(s)`],
+      },
+    });
+  }
+
+  buildDayReplanPlan(params: ResolvedDayReplanParams): AgentPlan {
+    const fetchId = crypto.randomUUID();
+    const detectId = crypto.randomUUID();
+    const analyzeId = crypto.randomUUID();
+    const resolveId = crypto.randomUUID();
+    const applyId = crypto.randomUUID();
+    const gapsId = crypto.randomUUID();
+    const recId = crypto.randomUUID();
+
+    const rangeParams = {
+      businessId: params.businessId,
+      date: params.date,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      employeeIds: params.employeeIds,
+      userId: params.userId,
+    };
+
+    const steps: AgentPlanStep[] = [
+      {
+        id: fetchId,
+        action: 'fetch_current_schedule',
+        description: 'Fetch current schedule for replan day',
+        params: rangeParams,
+        dependsOn: [],
+        estimatedImpact: 'Read-only schedule snapshot',
+      },
+      {
+        id: detectId,
+        action: 'detect_conflicts',
+        description: 'Detect booking conflicts',
+        params: rangeParams,
+        dependsOn: [fetchId],
+        estimatedImpact: 'Read-only conflict analysis',
+      },
+      {
+        id: analyzeId,
+        action: 'analyze_resolution_options',
+        description: 'Evaluate conflict resolution strategies',
+        params: {
+          businessId: params.businessId,
+          strategies: ['reschedule', 'reassign_employee', 'cancel_lower_priority'],
+        },
+        dependsOn: [detectId],
+        estimatedImpact: 'Read-only resolution analysis',
+      },
+      {
+        id: resolveId,
+        action: 'propose_resolutions',
+        description: 'Propose conflict fixes',
+        params: {
+          businessId: params.businessId,
+          preferMinimalDisruption: true,
+        },
+        dependsOn: [analyzeId],
+        estimatedImpact: 'Generates conflict fix proposals',
+      },
+      {
+        id: applyId,
+        action: 'apply_conflict_resolutions',
+        description: 'Apply approved conflict reschedules',
+        params: {
+          businessId: params.businessId,
+          userId: params.userId,
+        },
+        dependsOn: [resolveId],
+        estimatedImpact: 'Reschedules conflicting bookings',
+      },
+      {
+        id: gapsId,
+        action: 'identify_schedule_gaps',
+        description: 'Identify underutilized schedule gaps',
+        params: { ...rangeParams, minUtilizationThreshold: 0.6 },
+        dependsOn: [fetchId],
+        estimatedImpact: 'Read-only gap analysis',
+      },
+      {
+        id: recId,
+        action: 'generate_optimization_recommendations',
+        description: 'Generate replan recommendations',
+        params: { businessId: params.businessId, optimizationGoal: 'replan day' },
+        dependsOn: [gapsId, detectId],
+        estimatedImpact: 'Read-only recommendations',
+      },
+    ];
+
+    return this.wrapPlan(params.businessId, 'day_replan', steps, {
+      reasoning:
+        'Analyze schedule conflicts and gaps, auto-reschedule overlaps where possible, then recommend further fixes.',
+      risk: {
+        level: 'medium',
+        factors: ['May reschedule conflicting bookings', 'Multi-step day replan'],
+      },
     });
   }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { BusinessMember } from '../business/entities/business-member.entity.js';
@@ -26,10 +26,10 @@ import { ProviderPushListener } from './listeners/provider-push.listener.js';
     BusinessModule,
     BookingModule,
     AgentModule,
-    AiModule,
+    forwardRef(() => AiModule),
   ],
   controllers: [ProviderMobileController],
   providers: [ProviderMobileService, ProviderAiCommandService, ProviderAiSuggestionsService, PushService, ProviderPushListener, ProviderPushActionService],
-  exports: [ProviderMobileService, PushService, ProviderPushActionService],
+  exports: [ProviderMobileService, PushService, ProviderPushActionService, ProviderAiCommandService],
 })
 export class ProviderMobileModule {}

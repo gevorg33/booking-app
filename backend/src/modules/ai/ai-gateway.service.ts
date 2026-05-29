@@ -7,9 +7,12 @@ import {
   isIntentAllowed,
   normalizeActorRole,
 } from './ai-capability.matrix.js';
+import { resolveAccessTier } from './access-control.matrix.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
+import { CommandComplexityRouterService } from './command-complexity-router.service.js';
+import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import type { CommandResult } from './command-completion.types.js';
 
 export interface AiGatewayExecuteParams {
@@ -17,7 +20,11 @@ export interface AiGatewayExecuteParams {
   businessId: string;
   prompt: string;
   userId?: string;
+  /** Business membership role from JWT (owner | admin | manager | staff | contributor). */
+  membershipRole?: string;
+  /** @deprecated Use membershipRole */
   role?: string;
+  employeeId?: string | null;
   confirmed?: boolean;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   context?: Record<string, unknown>;
@@ -35,14 +42,29 @@ export class AiGatewayService {
     private entityMemory: AiEntityMemoryService,
     private conversationSummary: AiConversationSummaryService,
     private intelligence: AiIntelligenceService,
+    private complexityRouter: CommandComplexityRouterService,
+    private promptSecurity: AiPromptSecurityService,
   ) {}
 
-  getCapabilityHints(surface: AiSurface, role?: string): string {
-    return capabilityMatrixForPrompt(surface, normalizeActorRole(role));
+  getCapabilityHints(surface: AiSurface, tier?: string): string {
+    return capabilityMatrixForPrompt(surface, normalizeActorRole(tier));
   }
 
   async execute(params: AiGatewayExecuteParams): Promise<CommandResult | Record<string, unknown>> {
-    const role = normalizeActorRole(params.role);
+    const tier = resolveAccessTier(params.membershipRole ?? params.role);
+    const surface = params.surface;
+
+    if (surface === 'dashboard' && tier === 'client') {
+      throw new ForbiddenException(
+        'Dashboard AI requires a business staff, manager, or owner account.',
+      );
+    }
+
+    const blocked = this.promptSecurity.preflightBlock(params.businessId, params.prompt, surface);
+    if (blocked) {
+      return this.attachGatewayMeta(blocked, surface, tier);
+    }
+
     const memoryBlock = await this.entityMemory.buildMemoryContextBlock(params.businessId);
 
     const { history, summaryBlock } = await this.conversationSummary.prepareHistoryForClassifier(
@@ -53,10 +75,12 @@ export class AiGatewayService {
 
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
-      _capabilityHints: this.getCapabilityHints(params.surface, role),
+      _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,
       _conversationSummary: summaryBlock || undefined,
-      _actorRole: role,
+      _accessTier: tier,
+      _actorRole: tier,
+      _scopedEmployeeId: params.employeeId ?? null,
     };
 
     if (params.surface === 'provider') {
@@ -75,10 +99,9 @@ export class AiGatewayService {
       );
     }
 
-    const route = await this.intelligence.routeComplexity(
-      params.businessId,
-      params.prompt,
-      'dashboard',
+    const route = this.complexityRouter.mergeRoutes(
+      await this.intelligence.routeComplexity(params.businessId, params.prompt, 'dashboard'),
+      this.complexityRouter.routeDeterministic(params.prompt),
     );
     enrichedContext._complexityRoute = route;
 
@@ -106,7 +129,7 @@ export class AiGatewayService {
       );
     }
 
-    return this.attachGatewayMeta(result, params.surface, role);
+    return this.attachGatewayMeta(result, params.surface, tier);
   }
 
   async approveTask(
@@ -135,8 +158,8 @@ export class AiGatewayService {
     );
   }
 
-  assertIntentAllowed(surface: AiSurface, role: string | undefined, action: string): void {
-    if (!isIntentAllowed(surface, normalizeActorRole(role), action)) {
+  assertIntentAllowed(surface: AiSurface, tier: string | undefined, action: string): void {
+    if (!isIntentAllowed(surface, normalizeActorRole(tier), action)) {
       throw new ForbiddenException(
         `Action "${action}" is not allowed for your role on ${surface}.`,
       );
@@ -146,13 +169,13 @@ export class AiGatewayService {
   private attachGatewayMeta(
     result: CommandResult,
     surface: AiSurface,
-    role: ReturnType<typeof normalizeActorRole>,
+    tier: ReturnType<typeof resolveAccessTier>,
   ): CommandResult {
     return {
       ...result,
       details: {
         ...result.details,
-        gateway: { surface, role },
+        gateway: { surface, tier },
         executionTimeline: result.details?.executionTimeline ?? result.details?.workflowSteps,
       },
     };

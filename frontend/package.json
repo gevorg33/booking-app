@@ -9,6 +9,7 @@
     "mobile:serve": "next start -H 127.0.0.1 -p 3000",
     "mobile:stable": "next build && next start -H 127.0.0.1 -p 3000",
     "lint": "eslint",
+    "sync:firebase": "bash scripts/sync-firebase-from-provider.sh",
     "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@tanstack/react-query": "^5.100.14",
     "axios": "^1.16.1",
     "date-fns": "^4.3.0",
+    "firebase": "^12.14.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "react": "19.2.4",

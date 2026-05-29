@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsObject, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsArray, ValidateNested, IsObject, IsIn, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class HistoryMessageDto {
@@ -23,4 +23,8 @@ export class AiCommandDto {
   @IsOptional()
   @IsObject()
   context?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  confirmed?: boolean;
 }

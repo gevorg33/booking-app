@@ -276,6 +276,9 @@ export class WorkflowExecutorService {
       fetch_schedule: 'fetch_current_schedule',
       analyze_schedule: 'analyze_utilization',
       optimize_schedule: 'generate_optimization_recommendations',
+      mark_no_shows: 'update_bookings',
+      payment_sweep: 'update_bookings',
+      day_replan: 'generate_optimization_recommendations',
     };
     return aliases[action] ?? action;
   }
