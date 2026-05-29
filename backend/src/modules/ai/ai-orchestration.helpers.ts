@@ -458,6 +458,32 @@ export function enumerateDaysInRange(range: DateRange): Date[] {
   return days;
 }
 
+/** Expand params + prompt into ISO day keys; prompt ranges beat a lone params.date from the LLM. */
+export function resolveScheduleDates(
+  params: Record<string, any>,
+  prompt?: string,
+): string[] {
+  const timeZone = params._timeZone ?? 'UTC';
+  const promptRange = extractDateRangeFromPrompt(prompt ?? '', timeZone);
+  if (promptRange) {
+    return enumerateDaysInRange(promptRange).map((d) => d.toISOString().split('T')[0]);
+  }
+  if (params.dateFrom && params.dateTo) {
+    const range = resolveDateRange(params, prompt, timeZone);
+    if (range) {
+      return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+    }
+  }
+  const range = resolveDateRange(params, prompt, timeZone);
+  if (range) {
+    return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+  }
+  if (params.date) {
+    return [toIsoDay(params.date, timeZone)];
+  }
+  return [];
+}
+
 export function parseWeekdaysFromParams(
   params: { applyDays?: number[] | null; weekdays?: string[] | null },
   prompt?: string,

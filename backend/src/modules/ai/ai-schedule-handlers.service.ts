@@ -16,6 +16,7 @@ import {
   getEmployeeAssignedServices,
   resolveDateRange,
   enumerateDaysInRange,
+  resolveScheduleDates,
   parseWeekdaysFromParams,
   parseTimeWindow,
   isFullDayBlock,
@@ -489,17 +490,7 @@ export class AiScheduleHandlersService {
       };
     }
 
-    const dates: string[] = [];
-    if (params.dateFrom && params.dateTo) {
-      const range = resolveDateRange(params, prompt);
-      if (range) {
-        for (const day of enumerateDaysInRange(range)) {
-          dates.push(day.toISOString().split('T')[0]);
-        }
-      }
-    } else if (params.date) {
-      dates.push(toIsoDay(params.date));
-    }
+    const dates = resolveScheduleDates(params, prompt);
     if (!dates.length) {
       return {
         success: false,
@@ -560,16 +551,7 @@ export class AiScheduleHandlersService {
     const targets = allProviders ? employees : resolveEmployees(employees, params);
     if (!targets.length) return null;
 
-    const dates: string[] = [];
-    if (params.date) {
-      dates.push(toIsoDay(params.date));
-    } else {
-      const range = resolveDateRange(params, prompt);
-      if (!range) return null;
-      for (const day of enumerateDaysInRange(range)) {
-        dates.push(day.toISOString().split('T')[0]);
-      }
-    }
+    const dates = resolveScheduleDates(params, prompt);
     if (!dates.length) return null;
 
     const clears = targets.flatMap((employee) =>
