@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
@@ -35,6 +36,7 @@ export class NotificationsService {
     private smsService: SmsService,
     private whatsappService: WhatsAppService,
     private whatsappIntegrationService: WhatsAppIntegrationService,
+    private configService: ConfigService,
   ) {}
 
   async getBusinessSettings(businessId: string): Promise<BusinessNotificationSettings> {
@@ -158,11 +160,12 @@ export class NotificationsService {
     const token = booking.metadata?.reviewToken;
     if (!token || typeof token !== 'string') return;
 
-    const reviewUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/book/${ctx.business.slug}/review?bookingId=${booking.id}&token=${token}`;
+    const reviewUrl = this.buildReviewUrl(ctx.business.slug, booking.id, token);
+    const emailRecipient = this.resolveReviewEmailRecipient(customer.email);
     const prefs = getCustomerNotificationPreferences(customer.metadata);
 
-    if (businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
-      await this.dispatch(ctx, 'review_request', 'email', customer.email, () =>
+    if (businessSettings.emailEnabled && emailRecipient) {
+      await this.dispatch(ctx, 'review_request', 'email', emailRecipient, () =>
         this.buildReviewRequestEmail(ctx, reviewUrl),
       );
     }
@@ -467,14 +470,53 @@ export class NotificationsService {
     };
   }
 
+  private resolveReviewEmailRecipient(customerEmail?: string | null): string | null {
+    const override = this.configService.get<string>('REVIEW_REQUEST_EMAIL_OVERRIDE')?.trim();
+    if (override) return override;
+    const email = customerEmail?.trim();
+    return email || null;
+  }
+
+  private buildReviewUrl(businessSlug: string, bookingId: string, token: string): string {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    return `${frontendUrl}/book/${businessSlug}/review?bookingId=${bookingId}&token=${token}`;
+  }
+
+  private reviewUrlWithRating(reviewUrl: string, rating: number): string {
+    const url = new URL(reviewUrl);
+    url.searchParams.set('rating', String(rating));
+    return url.toString();
+  }
+
+  private buildStarRatingLinks(reviewUrl: string): string {
+    return [1, 2, 3, 4, 5]
+      .map((rating) => {
+        const href = this.reviewUrlWithRating(reviewUrl, rating);
+        const label = rating === 1 ? '1 star' : `${rating} stars`;
+        return `<a href="${href}" style="text-decoration:none;font-size:36px;color:#fbbf24;margin:0 6px;line-height:1;" title="${label}">&#9733;</a>`;
+      })
+      .join('');
+  }
+
   private buildReviewRequestEmail(ctx: BookingNotificationContext, reviewUrl: string) {
     const { booking, business } = ctx;
+    const customerName = booking.customer?.name ?? 'there';
     const providerName = booking.employee?.name ?? 'your provider';
-    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nThank you for visiting ${business.name}! How was your appointment with ${providerName}?\n\nLeave a review: ${reviewUrl}`;
+    const starLinks = this.buildStarRatingLinks(reviewUrl);
+    const starTextLinks = [1, 2, 3, 4, 5]
+      .map((rating) => `${rating}: ${this.reviewUrlWithRating(reviewUrl, rating)}`)
+      .join('\n');
+    const text = `Hi ${customerName},\n\nThank you for visiting ${business.name}! How was your appointment with ${providerName}?\n\nTap a star to rate (1–5):\n${starTextLinks}\n\nOr leave a review: ${reviewUrl}`;
 
     return {
       subject: `How was your visit at ${business.name}?`,
-      html: `<p>Hi ${booking.customer?.name ?? 'there'},</p><p>Thank you for visiting <strong>${business.name}</strong>! How was your appointment with ${providerName}?</p><p><a href="${reviewUrl}">Leave a review</a></p>`,
+      html: `<div style="font-family:sans-serif;color:#111827;max-width:480px;">
+<p>Hi ${customerName},</p>
+<p>Thank you for visiting <strong>${business.name}</strong>! How was your appointment with ${providerName}?</p>
+<p style="text-align:center;font-size:15px;color:#374151;margin:8px 0 4px;">Tap a star to rate your visit</p>
+<div style="text-align:center;margin:16px 0 24px;">${starLinks}</div>
+<p style="text-align:center;font-size:14px;"><a href="${reviewUrl}" style="color:#7c3aed;">Leave a written review</a></p>
+</div>`,
       text,
     };
   }

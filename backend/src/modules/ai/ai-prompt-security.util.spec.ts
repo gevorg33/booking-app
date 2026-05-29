@@ -49,11 +49,11 @@ describe('ai-prompt-security.util', () => {
     expect(cleaned).toEqual({ employeeName: 'Gevorg' });
   });
 
-  it('denies bulk customer export for receptionist on dashboard', () => {
+  it('denies bulk customer export for staff on dashboard', () => {
     expect(
       canPerformBulkCustomerRead(
         'dashboard',
-        'receptionist',
+        'staff',
         'export all customer emails',
         'summarize_customers',
       ),

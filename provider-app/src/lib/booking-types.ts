@@ -74,6 +74,30 @@ export function statusRequiresConfirmation(next: BookingStatus): boolean {
   return next === 'no_show' || next === 'completed';
 }
 
+const PAYMENT_NOT_APPLICABLE_STATUSES: BookingStatus[] = ['cancelled', 'no_show'];
+
+export function resolvePaymentStatusOnStatusChange(
+  nextStatus: BookingStatus,
+  explicitPaymentStatus?: PaymentStatus,
+): PaymentStatus | undefined {
+  if (explicitPaymentStatus) return explicitPaymentStatus;
+  if (PAYMENT_NOT_APPLICABLE_STATUSES.includes(nextStatus)) {
+    return 'not_applicable';
+  }
+  return undefined;
+}
+
+export function buildStatusUpdatePayload(
+  nextStatus: BookingStatus,
+  extra?: { paymentStatus?: PaymentStatus },
+): { status: BookingStatus; paymentStatus?: PaymentStatus } {
+  const resolvedPayment = resolvePaymentStatusOnStatusChange(nextStatus, extra?.paymentStatus);
+  return {
+    status: nextStatus,
+    ...(resolvedPayment ? { paymentStatus: resolvedPayment } : {}),
+  };
+}
+
 export interface BookingDetail {
   id: string;
   startTime: string;

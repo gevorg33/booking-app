@@ -208,7 +208,7 @@ export class CompoundCommandGraphService {
       this.completionPipeline.normalizeDateParams(parsedParams, state.prompt, state.timeZone);
     }
 
-    if (parsed.action === 'create_direct_schedule' && !parsedParams.periods?.length) {
+    if (parsed.action === 'create_direct_schedule') {
       parsedParams.periods = inferDirectSchedulePeriods(parsedParams, state.prompt);
     }
 

@@ -140,7 +140,10 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.bookingId ||
       !!cmd.params.customerName ||
       !!cmd.params.employeeName;
-    const hasNewTime = !!cmd.params.date || !!cmd.params.timeSlot;
+    const hasNewTime =
+      !!cmd.params.date ||
+      !!cmd.params.timeSlot ||
+      cmd.params.bookingFirstAvailable === true;
     const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
     return [
       ...(hasTarget

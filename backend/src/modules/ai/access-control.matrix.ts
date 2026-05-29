@@ -1,0 +1,233 @@
+import { MemberRole } from '../business/entities/business-member.entity.js';
+
+/**
+ * Product access tiers (maps to typical roles in the booking platform).
+ *
+ * | Tier    | Typical user              |
+ * |---------|---------------------------|
+ * | client  | Customer / public booking |
+ * | staff   | Service provider, front desk contributor |
+ * | manager | Manager, admin (team ops) |
+ * | owner   | Business owner            |
+ */
+export type AccessTier = 'client' | 'staff' | 'manager' | 'owner';
+
+export type DataCategory =
+  | 'own_bookings'
+  | 'public_services'
+  | 'assigned_bookings'
+  | 'limited_customer_info'
+  | 'all_bookings'
+  | 'staff_schedules'
+  | 'staff_directory'
+  | 'revenue_analytics'
+  | 'crm_insights'
+  | 'owner_operations';
+
+/** What each tier may access (data categories). */
+export const TIER_DATA_ACCESS: Record<AccessTier, ReadonlySet<DataCategory>> = {
+  client: new Set(['own_bookings', 'public_services']),
+  staff: new Set([
+    'own_bookings',
+    'public_services',
+    'assigned_bookings',
+    'limited_customer_info',
+  ]),
+  manager: new Set([
+    'own_bookings',
+    'public_services',
+    'assigned_bookings',
+    'limited_customer_info',
+    'all_bookings',
+    'staff_schedules',
+    'staff_directory',
+    'revenue_analytics',
+    'crm_insights',
+    'owner_operations',
+  ]),
+  owner: new Set([
+    'own_bookings',
+    'public_services',
+    'assigned_bookings',
+    'limited_customer_info',
+    'all_bookings',
+    'staff_schedules',
+    'staff_directory',
+    'revenue_analytics',
+    'crm_insights',
+    'owner_operations',
+  ]),
+};
+
+export function resolveAccessTier(membershipRole?: string | null): AccessTier {
+  switch ((membershipRole ?? '').toLowerCase()) {
+    case MemberRole.OWNER:
+    case 'owner':
+      return 'owner';
+    case MemberRole.ADMIN:
+    case 'admin':
+      return 'owner';
+    case MemberRole.MANAGER:
+    case 'manager':
+      return 'manager';
+    case MemberRole.STAFF:
+    case 'staff':
+    case MemberRole.CONTRIBUTOR:
+    case 'contributor':
+      return 'staff';
+    default:
+      return 'client';
+  }
+}
+
+export function canAccessDataCategory(tier: AccessTier, category: DataCategory): boolean {
+  return TIER_DATA_ACCESS[tier].has(category);
+}
+
+export function tierAccessSummary(tier: AccessTier): string {
+  const labels: Record<AccessTier, string> = {
+    client: 'Client — own bookings and public services only',
+    staff: 'Staff — assigned bookings and limited customer info; no revenue or owner data',
+    manager: 'Manager — revenue, staff schedules, analytics, CRM insights',
+    owner: 'Owner — full business access including financials and owner operations',
+  };
+  return labels[tier];
+}
+
+/** Dashboard AI intents blocked per tier (deny-list). */
+export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> = {
+  client: new Set([
+    'create_booking',
+    'create_service',
+    'create_services',
+    'cancel_bookings',
+    'bulk_smart_cancel',
+    'hide_appointments_from_calendar',
+    'unhide_appointments_from_calendar',
+    'fill_slot_from_waitlist',
+    'list_bookings',
+    'show_appointments',
+    'check_availability',
+    'reschedule_booking',
+    'summarize_day',
+    'summarize_bookings',
+    'analyze_appointments',
+    'analyze_services',
+    'summarize_staff',
+    'lookup_customer',
+    'summarize_waitlist',
+    'lookup_service_assignment',
+    'list_services',
+    'list_employees',
+    'list_templates',
+    'create_schedule_template',
+    'optimize_schedule',
+    'fill_unused_slots',
+    'list_schedule_gaps',
+    'apply_schedule',
+    'block_schedule',
+    'clear_schedule',
+    'create_direct_schedule',
+    'assign_employee_services',
+    'summarize_utilization',
+    'summarize_customers',
+    'setup_week_schedule',
+    'resolve_conflicts',
+    'reassign_cancelled',
+    'mark_no_shows',
+    'payment_sweep',
+    'day_replan',
+  ]),
+  staff: new Set([
+    'list_employees',
+    'summarize_staff',
+    'analyze_services',
+    'summarize_customers',
+    'summarize_utilization',
+    'summarize_waitlist',
+    'optimize_schedule',
+    'setup_week_schedule',
+    'assign_employee_services',
+    'create_services',
+    'create_service',
+    'resolve_conflicts',
+    'reassign_cancelled',
+    'day_replan',
+    'payment_sweep',
+    'mark_no_shows',
+    'list_templates',
+    'create_schedule_template',
+    'bulk_smart_cancel',
+    'hide_appointments_from_calendar',
+    'unhide_appointments_from_calendar',
+  ]),
+  manager: new Set(['optimize_schedule']),
+  owner: new Set(),
+};
+
+/** Provider mobile intents blocked per tier. */
+export const PROVIDER_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> = {
+  client: new Set([
+    'cancel_bookings',
+    'update_bookings',
+    'list_bookings',
+    'summarize_day',
+    'reschedule_booking',
+    'fill_unused_slots',
+    'check_availability',
+    'block_schedule',
+    'summarize_utilization',
+    'mark_no_shows',
+    'payment_sweep',
+  ]),
+  staff: new Set(['payment_sweep', 'summarize_utilization']),
+  manager: new Set(),
+  owner: new Set(),
+};
+
+export function isDashboardIntentAllowed(tier: AccessTier, action: string): boolean {
+  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+  return !DASHBOARD_DENIED_BY_TIER[tier].has(action);
+}
+
+export function isProviderIntentAllowed(tier: AccessTier, action: string): boolean {
+  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+  return !PROVIDER_DENIED_BY_TIER[tier].has(action);
+}
+
+/** Revenue / financial intents or metrics — manager+ only. */
+export function isRevenueRelatedRequest(
+  action: string,
+  params: Record<string, unknown>,
+  prompt: string,
+): boolean {
+  if (['payment_sweep', 'summarize_utilization'].includes(action)) return true;
+  if (action === 'summarize_bookings') {
+    const metric = String(params.bookingMetric ?? '').toLowerCase();
+    if (metric === 'revenue' || metric === 'unpaid') return true;
+    if (/revenue|unpaid|how much.*(made|earned)|total.*(\$|usd)/i.test(prompt)) return true;
+  }
+  if (action === 'analyze_services') {
+    if (params.serviceMetric === 'top_revenue' || /revenue|sales|earned/i.test(prompt)) return true;
+  }
+  if (action === 'summarize_staff') return true;
+  if (action === 'summarize_customers') return true;
+  return false;
+}
+
+/** Staff directory / cross-provider analytics — manager+ only. */
+export function isStaffDirectoryRequest(action: string): boolean {
+  return action === 'list_employees';
+}
+
+/** Intents that staff must scope to their own employeeId when linked. */
+export const STAFF_SCOPED_INTENTS = new Set([
+  'list_bookings',
+  'show_appointments',
+  'summarize_day',
+  'cancel_bookings',
+  'reschedule_booking',
+  'block_schedule',
+  'fill_unused_slots',
+  'check_availability',
+]);

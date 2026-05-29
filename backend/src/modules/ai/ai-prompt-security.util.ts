@@ -1,4 +1,5 @@
-import type { AiActorRole, AiSurface } from './ai-capability.matrix.js';
+import type { AiSurface } from './ai-capability.matrix.js';
+import type { AccessTier } from './access-control.matrix.js';
 
 export type PromptSecurityLevel = 'ok' | 'warn' | 'block';
 
@@ -135,16 +136,16 @@ export function isAvailabilityBypassAttempt(prompt: string, params?: Record<stri
 
 export function canPerformBulkCustomerRead(
   surface: AiSurface,
-  role: AiActorRole,
+  tier: AccessTier,
   prompt: string,
   action: string,
 ): boolean {
   if (!BULK_CUSTOMER_READ_ACTIONS.has(action)) return true;
   if (isBulkCustomerExportAttempt(prompt)) {
-    return role === 'owner' || role === 'manager';
+    return tier === 'owner' || tier === 'manager';
   }
-  if (action === 'summarize_customers' && (role === 'provider' || role === 'contributor')) {
-    return surface !== 'dashboard';
+  if (action === 'summarize_customers' && tier === 'staff') {
+    return false;
   }
   return true;
 }

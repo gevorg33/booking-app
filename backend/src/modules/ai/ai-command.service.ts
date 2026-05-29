@@ -72,6 +72,8 @@ import {
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
   extractProviderFallbackFromPrompt,
+  extractCustomerFromReschedulePrompt,
+  extractProviderPossessiveFromReschedulePrompt,
   type ServiceInsightMetric,
   type StaffInsightMetric,
 } from './ai-intent-heuristics.js';
@@ -224,6 +226,8 @@ Rules:
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
 - fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).
 - reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, bookingId, or employeeName — provider alone is enough to pick their next upcoming appointment). Set date/timeSlot to the NEW destination (tomorrow, Friday, 31_05_2026, 13:30). Set fromDate/fromTimeSlot only when naming the current slot (e.g. Maria's 14:00 appointment). "Move Mary's appointment to tomorrow from 13:30" → employeeName=Mary, date=tomorrow, timeSlot=13:30. Set serviceName when changing service.
+- CRITICAL: "{Provider}'s appointment on {date}" (e.g. "Move Gevorg's appointment on June 1") refers to a slot on that provider's calendar — set employeeName=Gevorg, fromDate=June 1, customerName=null. NEVER treat the provider name as customerName.
+- "Move to June 11 nearest free time" / "earliest available slot on Friday" → reschedule_booking with fromDate for the current slot, date=destination day, employeeName when provider possessive is used, bookingFirstAvailable=true, timeSlot=null. The system picks the first open slot on that day for the same provider and service.
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
 - reassign_cancelled: recover from cancellations, rebook freed slots, reassign cancelled appointments.
 - Mutating actions compile into workflow plans — they do not execute directly.
@@ -537,24 +541,32 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.85);
     }
 
-    const actorRole = normalizeActorRole(
-      (session?.context?._actorRole as string | undefined) ?? 'owner',
+    const actorTier = normalizeActorRole(
+      (session?.context?._accessTier as string | undefined) ??
+        (session?.context?._actorRole as string | undefined) ??
+        'owner',
     );
-    if (!isIntentAllowed('dashboard', actorRole, parsed.action)) {
+    if (!isIntentAllowed('dashboard', actorTier, parsed.action)) {
       return {
         success: false,
         action: parsed.action,
-        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorRole}).`,
-        details: { role: actorRole, action: parsed.action },
+        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorTier}).`,
+        details: { tier: actorTier, action: parsed.action },
       };
     }
 
     parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, any>;
+    parsed.params = this.promptSecurity.applyStaffScope(
+      actorTier,
+      parsed.action,
+      parsed.params,
+      session?.context?._scopedEmployeeId as string | undefined,
+    ) as Record<string, any>;
 
     const securityDenied = this.promptSecurity.enforceAction(
       businessId,
       'dashboard',
-      actorRole,
+      actorTier,
       parsed.action,
       effectivePrompt,
       parsed.params,
@@ -583,9 +595,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
     }
     if (parsed.action === 'create_direct_schedule') {
-      if (!parsed.params.periods?.length) {
-        parsed.params.periods = inferDirectSchedulePeriods(parsed.params, effectivePrompt);
-      }
+      parsed.params.periods = inferDirectSchedulePeriods(parsed.params, effectivePrompt);
     }
 
     const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog, timeZone);
@@ -826,7 +836,13 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         result = await this.handleSummarizeStaff(businessId, effectivePrompt, params, employees);
         break;
       case 'lookup_customer':
-        result = await this.handleLookupCustomer(businessId, params, customers);
+        result = await this.handleLookupCustomer(
+          businessId,
+          params,
+          customers,
+          (session?.context?._accessTier as string | undefined) ??
+            (session?.context?._actorRole as string | undefined),
+        );
         break;
       case 'summarize_waitlist':
         result = await this.handleSummarizeWaitlist(businessId, params);
@@ -1126,6 +1142,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
     if (promptService) {
       params.serviceName = promptService.name;
+      delete params.serviceId;
     }
 
     if (action === 'create_booking' || action === 'fill_slot_from_waitlist') {
@@ -1142,7 +1159,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         params.customerName = null;
         delete params.customerId;
       }
-    } else {
+    } else if (action !== 'reschedule_booking') {
       const promptCustomer = matchEntityInPrompt(
         prompt,
         customers.map((c) => ({ name: c.name })),
@@ -1218,6 +1235,36 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
       if (earliestTime) {
         params.timeFrom = earliestTime;
+      }
+    }
+
+    if (action === 'reschedule_booking') {
+      if (isFirstAvailableBookingPrompt(prompt)) {
+        params.bookingFirstAvailable = true;
+        delete params.timeSlot;
+      }
+      const providerPossessive = extractProviderPossessiveFromReschedulePrompt(
+        prompt,
+        employees.map((e) => ({ id: e.id, name: e.name })),
+      );
+      if (providerPossessive) {
+        params.employeeName = providerPossessive.name;
+        params.employeeId = providerPossessive.id;
+        params.customerName = null;
+        delete params.customerId;
+      } else {
+        const rescheduleCustomer = extractCustomerFromReschedulePrompt(
+          prompt,
+          customers.map((c) => ({ id: c.id, name: c.name })),
+          employees.map((e) => ({ id: e.id, name: e.name })),
+        );
+        if (rescheduleCustomer) {
+          params.customerName = rescheduleCustomer.name;
+          params.customerId = rescheduleCustomer.id;
+        } else {
+          params.customerName = null;
+          delete params.customerId;
+        }
       }
     }
 
@@ -1373,11 +1420,9 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     customers: Customer[],
     userId?: string,
   ): Promise<CommandResult> {
-    const service = params.serviceId
-      ? services.find((s) => s.id === params.serviceId)
-      : params.serviceName
-        ? this.resolveService(services, params.serviceName)
-        : undefined;
+    const service =
+      (params.serviceName ? this.resolveService(services, params.serviceName) : undefined) ??
+      (params.serviceId ? services.find((s) => s.id === params.serviceId) : undefined);
     const customer = params.customerId
       ? customers.find((c) => c.id === params.customerId)
       : params.customerName
@@ -1515,6 +1560,36 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         action: 'create_booking',
         summary: 'Cannot book appointment — missing provider, date, or time.',
         details: { params },
+      };
+    }
+
+    const timeZone = params._timeZone ?? 'UTC';
+    const isoDay = toIsoDay(params.date, timeZone);
+    const availability = await this.slotResolver.checkSlotAvailability(
+      businessId,
+      resolvedEmployee.id,
+      resolvedEmployee.name,
+      service.id,
+      isoDay,
+      timeSlot,
+      timeZone,
+    );
+    if (!availability.available) {
+      return {
+        success: false,
+        action: 'create_booking',
+        summary: this.slotResolver.describeUnavailable(
+          availability,
+          service.name,
+          timeSlot,
+          formatDateDisplay(isoDay),
+        ),
+        details: {
+          params,
+          availability,
+          isoDay,
+          timeSlot,
+        },
       };
     }
 
@@ -2199,6 +2274,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
+    accessTier?: string,
   ): Promise<CommandResult> {
     const name = params.customerName as string | undefined;
     if (!name) {
@@ -2227,27 +2303,39 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       (a) => new Date(a.startTime) > new Date() && a.status !== 'cancelled',
     ).length;
 
+    const tier = normalizeActorRole(accessTier);
+    const limitedView = tier === 'staff';
+
     const lines = [
       `Customer: ${detail.customer.name}`,
-      `• Segment: ${detail.customer.segment}${detail.customer.isVip ? ' (VIP)' : ''}`,
-      `• Total appointments: ${stats.total} · No-shows: ${stats.noShowCount} · Upcoming: ${upcoming}`,
+      ...(limitedView
+        ? [
+            `• Upcoming appointments: ${upcoming}`,
+            lastAppt
+              ? `• Most recent: ${formatDateDisplay(lastAppt.startTime)} ${formatTimeDisplay(lastAppt.startTime)} — ${lastAppt.service?.name ?? 'Service'}`
+              : null,
+          ].filter(Boolean)
+        : [
+            `• Segment: ${detail.customer.segment}${detail.customer.isVip ? ' (VIP)' : ''}`,
+            `• Total appointments: ${stats.total} · No-shows: ${stats.noShowCount} · Upcoming: ${upcoming}`,
+            stats.lastBookingAt
+              ? `• Last visit: ${formatDateDisplay(stats.lastBookingAt)}`
+              : null,
+            lastAppt
+              ? `• Most recent: ${formatDateDisplay(lastAppt.startTime)} ${formatTimeDisplay(lastAppt.startTime)} — ${lastAppt.service?.name ?? 'Service'} (${lastAppt.status})`
+              : null,
+            detail.customer.email ? `• Email: ${detail.customer.email}` : null,
+            detail.customer.phone ? `• Phone: ${detail.customer.phone}` : null,
+          ].filter(Boolean)),
     ];
-    if (stats.lastBookingAt) {
-      lines.push(`• Last visit: ${formatDateDisplay(stats.lastBookingAt)}`);
-    }
-    if (lastAppt) {
-      lines.push(
-        `• Most recent: ${formatDateDisplay(lastAppt.startTime)} ${formatTimeDisplay(lastAppt.startTime)} — ${lastAppt.service?.name ?? 'Service'} (${lastAppt.status})`,
-      );
-    }
-    if (detail.customer.email) lines.push(`• Email: ${detail.customer.email}`);
-    if (detail.customer.phone) lines.push(`• Phone: ${detail.customer.phone}`);
 
     return {
       success: true,
       action: 'lookup_customer',
       summary: lines.join('\n'),
-      details: { customer: detail.customer, stats, recentAppointments: appointments.slice(0, 5) },
+      details: limitedView
+        ? { customerId: detail.customer.id, name: detail.customer.name, upcoming }
+        : { customer: detail.customer, stats, recentAppointments: appointments.slice(0, 5) },
     };
   }
 
@@ -2934,7 +3022,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         this.completionPipeline.enrichDateRangeParams(parsedParams, prompt, timeZone);
         this.completionPipeline.normalizeDateParams(parsedParams, prompt, timeZone);
       }
-      if (parsed.action === 'create_direct_schedule' && !parsedParams.periods?.length) {
+      if (parsed.action === 'create_direct_schedule') {
         parsedParams.periods = inferDirectSchedulePeriods(parsedParams, prompt);
       }
       if (parsed.action === 'hide_appointments_from_calendar' && pendingCancelBookingIds?.length) {
@@ -3324,11 +3412,9 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     customers: Customer[],
     userId?: string,
   ): Promise<AgentPlan | null> {
-    const service = params.serviceId
-      ? services.find((s) => s.id === params.serviceId)
-      : params.serviceName
-        ? this.resolveService(services, params.serviceName)
-        : undefined;
+    const service =
+      (params.serviceName ? this.resolveService(services, params.serviceName) : undefined) ??
+      (params.serviceId ? services.find((s) => s.id === params.serviceId) : undefined);
     if (!service) return null;
 
     const customer = params.customerId
@@ -5425,6 +5511,21 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         where: { id: params.bookingId, businessId },
         relations: { employee: true, service: true, customer: true },
       });
+    } else if (params.employeeName) {
+      const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+      const employee = this.resolveEmployee(employees, params.employeeName);
+      if (employee) {
+        const bookings = await this.bookingRepo.find({
+          where: {
+            businessId,
+            employeeId: employee.id,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+          relations: { employee: true, service: true, customer: true },
+          order: { startTime: 'ASC' },
+        });
+        booking = this.pickBookingForReschedule(bookings, params);
+      }
     } else if (params.customerName) {
       const customers = await this.customerRepo.find({ where: { businessId, isActive: true } });
       const customer = this.resolveCustomer(customers, params.customerName);
@@ -5434,21 +5535,6 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
             businessId,
             customerId: customer.id,
             ...(employeeId ? { employeeId } : {}),
-            status: Not(BookingStatus.CANCELLED) as any,
-          },
-          relations: { employee: true, service: true, customer: true },
-          order: { startTime: 'ASC' },
-        });
-        booking = this.pickBookingForReschedule(bookings, params);
-      }
-    } else if (params.employeeName) {
-      const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (employee) {
-        const bookings = await this.bookingRepo.find({
-          where: {
-            businessId,
-            employeeId: employee.id,
             status: Not(BookingStatus.CANCELLED) as any,
           },
           relations: { employee: true, service: true, customer: true },
@@ -5482,7 +5568,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       targetService = resolved;
     }
 
-    const hasNewTime = !!(params.date || params.timeSlot);
+    const hasNewTime = !!(params.date || params.timeSlot || params.bookingFirstAvailable);
     const hasServiceChange = targetService.id !== booking.serviceId;
 
     if (!hasNewTime && !hasServiceChange) {
@@ -5494,12 +5580,56 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       };
     }
 
-    const isoDay = params.date
-      ? toIsoDay(params.date)
+    const timeZone = params._timeZone ?? 'UTC';
+    let isoDay = params.date
+      ? toIsoDay(params.date, timeZone)
       : booking.startTime.toISOString().split('T')[0];
-    const timeSlot = params.timeSlot
+    let timeSlot = params.timeSlot
       ? this.snapTo10min(params.timeSlot)
       : formatTimeDisplay(booking.startTime);
+
+    if (params.bookingFirstAvailable && params.date) {
+      const provider =
+        booking.employee ??
+        (await this.employeeRepo.findOne({
+          where: { id: booking.employeeId, businessId, isActive: true },
+        }));
+      if (!provider) {
+        return {
+          success: false,
+          action: 'reschedule_booking',
+          summary: 'Could not resolve the provider for this appointment.',
+          details: { bookingId: booking.id },
+        };
+      }
+
+      const pick = await this.findFirstAvailableBookingSlot(
+        businessId,
+        targetService,
+        toIsoDay(params.date, timeZone),
+        [provider],
+        timeZone,
+        params.timeFrom ?? null,
+      );
+
+      if (!pick) {
+        return {
+          success: false,
+          action: 'reschedule_booking',
+          summary: `No open ${targetService.name} slots found for ${provider.name} on ${formatDateDisplay(toIsoDay(params.date, timeZone))}.`,
+          details: {
+            bookingId: booking.id,
+            serviceName: targetService.name,
+            employeeName: provider.name,
+            date: formatDateDisplay(toIsoDay(params.date, timeZone)),
+          },
+        };
+      }
+
+      isoDay = pick.isoDay;
+      timeSlot = this.snapTo10min(pick.timeSlot);
+    }
+
     const startTime = buildUtcStartTimeFromDayAndTime(isoDay, timeSlot);
 
     const customerLabel = booking.customer?.name ?? 'walk-in';

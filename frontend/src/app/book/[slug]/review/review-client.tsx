@@ -54,9 +54,12 @@ export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId') ?? '';
   const token = searchParams.get('token') ?? '';
+  const ratingParam = parseInt(searchParams.get('rating') ?? '', 10);
+  const initialRating =
+    Number.isFinite(ratingParam) && ratingParam >= 1 && ratingParam <= 5 ? ratingParam : 0;
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(initialRating);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);

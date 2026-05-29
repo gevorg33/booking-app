@@ -196,6 +196,65 @@ export class BookingToolRegistryService {
           }),
         },
       ),
+      tool(
+        async (input) => {
+          const dateParams = buildDateParams(input);
+          const isoDay = (dateParams.date ?? dateParams.dateFrom) as string | undefined;
+          if (!isoDay) {
+            return JSON.stringify({ error: 'date is required' });
+          }
+
+          const employee =
+            ctx.employees.find((e) => e.id === input.employeeId) ??
+            ctx.employees.find((e) =>
+              input.employeeName
+                ? e.name.toLowerCase().includes(input.employeeName.toLowerCase())
+                : false,
+            );
+          const service =
+            ctx.services.find((s) => s.id === input.serviceId) ??
+            ctx.services.find((s) =>
+              s.name.toLowerCase().includes(input.serviceName.toLowerCase()),
+            );
+
+          if (!employee || !service) {
+            return JSON.stringify({ error: 'Unknown employee or service' });
+          }
+
+          const pick = await this.slotResolver.findFirstAvailableSlot(
+            ctx.businessId,
+            employee.id,
+            employee.name,
+            service.id,
+            toIsoDay(isoDay, ctx.timeZone),
+            ctx.timeZone,
+            input.notBeforeTime ?? null,
+            input.maxDays ?? 1,
+          );
+
+          return JSON.stringify(
+            pick ?? {
+              available: false,
+              employeeName: employee.name,
+              serviceName: service.name,
+              isoDay: toIsoDay(isoDay, ctx.timeZone),
+            },
+          );
+        },
+        {
+          name: 'find_first_available_slot',
+          description:
+            'Find the earliest open bookable slot for a provider/service on a day (or small day range). Use for reschedule to nearest free time — NOT check_slot_availability.',
+          schema: dateRangeSchema.extend({
+            employeeId: z.string().optional(),
+            employeeName: z.string().optional(),
+            serviceId: z.string().optional(),
+            serviceName: z.string(),
+            notBeforeTime: z.string().optional(),
+            maxDays: z.number().min(1).max(14).optional(),
+          }),
+        },
+      ),
     ];
   }
 

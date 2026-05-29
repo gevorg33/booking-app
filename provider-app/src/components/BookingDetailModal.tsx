@@ -24,6 +24,7 @@ import {
   type PaymentStatus,
   formatPaymentLabel,
   formatStatusLabel,
+  buildStatusUpdatePayload,
   getStatusVariations,
   isBookingEditable,
   PAYMENT_STATUS_OPTIONS,
@@ -257,7 +258,7 @@ export default function BookingDetailModal({
   const applyPaymentChange = (next: PaymentStatus) => {
     setPaymentStatus(next);
     const current = (booking?.paymentStatus as PaymentStatus) ?? 'pending';
-    if (next !== current) {
+    if (next !== current && !pendingStatus && !showCancel) {
       updateMutation.mutate({ paymentStatus: next, expectedUpdatedAt: booking?.updatedAt });
     }
   };
@@ -314,17 +315,39 @@ export default function BookingDetailModal({
     });
   };
 
+  const paymentChanged = booking
+    ? paymentStatus !== ((booking.paymentStatus as PaymentStatus) ?? 'pending')
+    : false;
+
+  const buildStatusAndPaymentPayload = (nextStatus: BookingStatus) => {
+    const payload: {
+      status?: BookingStatus;
+      paymentStatus?: PaymentStatus;
+      expectedUpdatedAt?: string;
+    } = { expectedUpdatedAt: booking?.updatedAt };
+    if (nextStatus !== savedStatus) {
+      Object.assign(
+        payload,
+        buildStatusUpdatePayload(nextStatus, {
+          paymentStatus: paymentChanged ? paymentStatus : undefined,
+        }),
+      );
+    }
+    if (paymentChanged) {
+      payload.paymentStatus = paymentStatus;
+    }
+    return payload;
+  };
+
   const confirmPendingStatus = () => {
     if (!pendingStatus || !booking) return;
-    updateMutation.mutate(
-      { status: pendingStatus, expectedUpdatedAt: booking.updatedAt },
-      {
-        onSuccess: () => {
-          setPendingStatus(null);
-          onClose();
-        },
+    const payload = buildStatusAndPaymentPayload(pendingStatus);
+    updateMutation.mutate(payload, {
+      onSuccess: () => {
+        setPendingStatus(null);
+        onClose();
       },
-    );
+    });
   };
 
   return (

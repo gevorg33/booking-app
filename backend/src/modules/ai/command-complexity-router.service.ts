@@ -77,7 +77,8 @@ export class CommandComplexityRouterService {
       ORCHESTRATION_PATTERN.test(trimmed) ||
       AMBIGUOUS_PATTERN.test(trimmed) ||
       FALLBACK_BOOKING_PATTERN.test(trimmed) ||
-      isFirstAvailableBookingPrompt(trimmed)
+      (isFirstAvailableBookingPrompt(trimmed) &&
+        !/\b(reschedule|move|shift)\b/i.test(trimmed))
     ) {
       return {
         tier: 'orchestration',

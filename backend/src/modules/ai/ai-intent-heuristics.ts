@@ -117,6 +117,19 @@ export function extractRescheduleTimeSlotFromPrompt(prompt: string): string | nu
 }
 
 export function extractFromTimeSlotFromReschedulePrompt(prompt: string): string | null {
+  const fromRange = prompt.match(
+    /\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\b/i,
+  );
+  if (fromRange) {
+    return normalizeTime24(`${fromRange[1]}:${fromRange[2] ?? '00'}`);
+  }
+
+  const beforeToRange = prompt.split(/\bto\b/i)[0] ?? '';
+  const hourRange = beforeToRange.match(/\b(\d{1,2})\s*[-–]\s*(\d{1,2})\b/);
+  if (hourRange) {
+    return normalizeTime24(`${hourRange[1]}:00`);
+  }
+
   const possessive = prompt.match(/(?:'s|s)\s+(\d{1,2}):(\d{2})\s+(?:appointment|booking)/i);
   if (possessive) return normalizeTime24(`${possessive[1]}:${possessive[2]}`);
 
@@ -240,9 +253,15 @@ export function extractRescheduleTargetDate(prompt: string, timeZone = 'UTC'): s
     if (iso) return formatDateDisplay(iso);
   }
 
-  const toSegment = prompt.match(/\bto\s+(?:on\s+)?(.+?)(?:\s+(?:from|at)\s+\d|\s*$)/i);
+  const toSegment = prompt.match(
+    /\bto\s+(?:on\s+)?(.+?)(?:\s+(?:from|at)\s+\d|\s+(?:nearest|first|next|earliest)\b|\s*$)/i,
+  );
   if (toSegment?.[1]) {
-    const fromExtract = extractSingleDateFromPrompt(toSegment[1].trim(), timeZone);
+    const cleaned = toSegment[1]
+      .trim()
+      .replace(/\s+(?:nearest|first|next|earliest)\s+(?:free\s+)?(?:time|slot|appointment)s?\b.*$/i, '')
+      .trim();
+    const fromExtract = extractSingleDateFromPrompt(cleaned, timeZone);
     if (fromExtract) return fromExtract;
   }
 
@@ -306,6 +325,21 @@ export function extractRescheduleSourceDate(prompt: string, timeZone = 'UTC'): s
     const iso = resolveRelativeDateKeyword('tomorrow', timeZone);
     return iso ? formatDateDisplay(iso) : null;
   }
+
+  const onAppt = prompt.match(
+    /\b(?:appointment|booking)\s+on\s+([a-z]+\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)/i,
+  );
+  if (onAppt?.[1]) {
+    const iso = parseOrdinalMonthFragment(onAppt[1].trim(), timeZone);
+    if (iso) return formatDateDisplay(iso);
+  }
+
+  const beforeTo = prompt.split(/\bto\b/i)[0];
+  if (beforeTo) {
+    const extracted = extractSingleDateFromPrompt(beforeTo, timeZone);
+    if (extracted) return extracted;
+  }
+
   return null;
 }
 
@@ -342,6 +376,18 @@ function matchServiceInPrompt(
   const lower = prompt.toLowerCase();
   const normalizedPrompt = normalizeServiceLookup(lower);
 
+  const bookingNoise = new Set([
+    'appointment',
+    'appintment',
+    'appt',
+    'booking',
+    'schedule',
+    'the',
+    'a',
+    'an',
+    'new',
+  ]);
+
   let best: { id: string; name: string } | undefined;
   let bestLen = 0;
   for (const service of services) {
@@ -361,6 +407,35 @@ function matchServiceInPrompt(
     }
   }
   if (best) return best;
+
+  // Partial tail match: "body massage" in prompt → catalog "full body massage"
+  for (const service of services) {
+    const normalizedName = normalizeServiceLookup(service.name);
+    if (normalizedName.length < 8) continue;
+    for (let tailLen = 8; tailLen <= normalizedName.length; tailLen++) {
+      const suffix = normalizedName.slice(-tailLen);
+      if (normalizedPrompt.endsWith(suffix) && tailLen > bestLen) {
+        best = service;
+        bestLen = tailLen;
+      }
+    }
+  }
+  if (best) return best;
+
+  const afterTimePatterns = [
+    /\b(?:from|at)\s+\d{1,2}[:.]\d{2}\s+(.+?)$/i,
+    /\b\d{1,2}[:.]\d{2}\s+(.+?)$/i,
+  ];
+  for (const re of afterTimePatterns) {
+    const match = lower.match(re);
+    if (match?.[1]) {
+      const phrase = match[1].trim().replace(/[?.!]+$/, '');
+      if (phrase.length >= 3 && !bookingNoise.has(phrase)) {
+        const svc = fuzzyMatchServiceByName(services, phrase);
+        if (svc) return svc;
+      }
+    }
+  }
 
   const whoCanPatterns = [
     /\bwho\s+can\s+(?:do|give|perform|provide|offer)?\s*(?:a\s+|an\s+)?([a-z][a-z\s-]+?)(?:\s+today|\s+tomorrow|\s+this|\s+on\b|\s+at\b|\?|$)/i,
@@ -387,9 +462,24 @@ function matchServiceInPrompt(
   );
   if (bookMatch?.[1]) {
     const candidate = bookMatch[1].trim();
-    if (!/^(?:first|next)\s+available$/i.test(candidate)) {
-      return fuzzyMatchServiceByName(services, candidate);
+    const candidateNorm = candidate.replace(/\s+/g, ' ');
+    if (
+      !/^(?:first|next)\s+available$/i.test(candidateNorm) &&
+      !bookingNoise.has(candidateNorm) &&
+      !bookingNoise.has(candidateNorm.split(/\s+/)[0])
+    ) {
+      const svc = fuzzyMatchServiceByName(services, candidate);
+      if (svc) return svc;
     }
+  }
+
+  // Trailing words: "... june 8th facemassage" or "... 14:00 body massage"
+  const words = lower.replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(Boolean);
+  for (let len = Math.min(4, words.length); len >= 1; len--) {
+    const tail = words.slice(-len).join(' ');
+    if (tail.length < 4 || bookingNoise.has(tail)) continue;
+    const svc = fuzzyMatchServiceByName(services, tail);
+    if (svc) return svc;
   }
 
   return undefined;
@@ -413,7 +503,7 @@ export function isAnyProviderBookingPrompt(prompt: string): boolean {
   );
 }
 
-/** Book the earliest open slot (provider chosen separately or via allProviders). */
+/** Book or reschedule to the earliest open slot. */
 export function isFirstAvailableBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
@@ -421,10 +511,54 @@ export function isFirstAvailableBookingPrompt(prompt: string): boolean {
     /\bearliest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
     /\bnext\s+available\s+(?:slot|time|appointment)\b/i.test(lower) ||
     /\bnearest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnearest\s+(?:free\s+)?(?:time|slot)\b/i.test(lower) ||
     /\bnearest\s+time\s+slot\b/i.test(lower) ||
     /\bas soon as possible\b/i.test(lower) ||
     /\basap\b/i.test(lower)
   );
+}
+
+export function extractProviderPossessiveFromReschedulePrompt(
+  prompt: string,
+  employees: Array<{ id: string; name: string }>,
+): { id: string; name: string } | undefined {
+  if (!/\b(reschedule|move|shift)\b/i.test(prompt)) return undefined;
+
+  const possessive = prompt.match(/\b([a-z][\w.'-]+?)'?s?\s+(?:appointment|booking)\b/i);
+  if (!possessive?.[1]) return undefined;
+
+  const raw = possessive[1].trim();
+  if (/^(move|shift|reschedule|the|his|her|their)$/i.test(raw)) return undefined;
+
+  const byName = fuzzyMatchServiceByName(employees, raw);
+  if (byName) return { id: byName.id, name: byName.name };
+
+  const matched = matchEntityInPrompt(prompt, employees);
+  return matched ? { id: matched.id, name: matched.name } : undefined;
+}
+
+export function extractCustomerFromReschedulePrompt(
+  prompt: string,
+  customers: Array<{ id: string; name: string }>,
+  employees: Array<{ id: string; name: string }> = [],
+): { id: string; name: string } | undefined {
+  if (extractProviderPossessiveFromReschedulePrompt(prompt, employees)) {
+    return undefined;
+  }
+
+  const possessive = prompt.match(
+    /\b([a-z][\w.'-]+?)'?s?\s+(?:appointment|booking)\b/i,
+  );
+  if (possessive?.[1]) {
+    const raw = possessive[1].trim();
+    if (!/^(move|shift|reschedule|the|his|her|their)$/i.test(raw)) {
+      const customer = fuzzyMatchServiceByName(customers, raw);
+      if (customer && !fuzzyMatchServiceByName(employees, raw)) {
+        return customer;
+      }
+    }
+  }
+  return matchEntityInPrompt(prompt, customers);
 }
 
 /** Team-wide provider availability — do not inherit a single provider from session. */

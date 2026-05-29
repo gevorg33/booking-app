@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, ILike } from 'typeorm';
 import { WorkflowExecutorService, StepExecutor } from './workflow-executor.service.js';
 import { BookingService } from '../../../modules/booking/booking.service.js';
+import { BookingSlotResolverService } from '../../../modules/booking/booking-slot-resolver.service.js';
 import { ServiceService } from '../../../modules/service/service.service.js';
 import { ScheduleService } from '../../../modules/schedule/schedule.service.js';
 import { TemplateApplyService } from '../../../modules/schedule/services/template-apply.service.js';
@@ -17,6 +18,7 @@ import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-
 import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
 import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
+import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -25,6 +27,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   constructor(
     private executor: WorkflowExecutorService,
     private bookingService: BookingService,
+    private slotResolver: BookingSlotResolverService,
     private serviceService: ServiceService,
     private scheduleService: ScheduleService,
     private templateApplyService: TemplateApplyService,
@@ -130,6 +133,27 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         'create_booking requires employeeId and serviceId (or resolvable employeeName and serviceName)',
       );
     }
+
+    const employee = await this.employeeRepo.findOne({ where: { id: employeeId, businessId } });
+    if (!employee) {
+      throw new BadRequestException('Service provider not found');
+    }
+    const service = await this.serviceService.findOne(serviceId).catch(() => null);
+    if (!service || service.businessId !== businessId) {
+      throw new BadRequestException('Service not found');
+    }
+
+    const isoDay = String(startTime).slice(0, 10);
+    const timeSlot = formatTimeDisplay(new Date(startTime));
+    await this.slotResolver.assertBookable({
+      businessId,
+      employeeId,
+      employeeName: employee.name,
+      serviceId,
+      serviceName: service.name,
+      isoDay,
+      timeSlot,
+    });
 
     const booking = await this.bookingService.create(
       businessId,

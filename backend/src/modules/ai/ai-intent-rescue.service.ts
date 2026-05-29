@@ -157,6 +157,21 @@ export class AiIntentRescueService {
       };
     }
 
+    if (/\b(reschedule|move|change time|shift)\b/i.test(prompt)) {
+      const rescuedParams = { ...params };
+      if (isFirstAvailableBookingPrompt(prompt)) {
+        rescuedParams.bookingFirstAvailable = true;
+        delete rescuedParams.timeSlot;
+      }
+      return {
+        action: 'reschedule_booking',
+        params: rescuedParams,
+        reasoning: 'Rescheduling appointment.',
+        rescued: true,
+        rescueReason: 'reschedule_pattern',
+      };
+    }
+
     if (
       /\b(book|schedule|reserve|appointment)\b/i.test(prompt) &&
       !/\b(cancel|hide|clear)\b/i.test(prompt)
@@ -192,16 +207,6 @@ export class AiIntentRescueService {
         reasoning: 'Cancelling appointments.',
         rescued: true,
         rescueReason: 'cancel_bookings_pattern',
-      };
-    }
-
-    if (/\b(reschedule|move|change time)\b/i.test(prompt)) {
-      return {
-        action: 'reschedule_booking',
-        params,
-        reasoning: 'Rescheduling appointment.',
-        rescued: true,
-        rescueReason: 'reschedule_pattern',
       };
     }
 
@@ -245,6 +250,27 @@ export class AiIntentRescueService {
     employees: Array<{ id: string; name: string }>,
   ): IntentRescueResult | null {
     const lower = prompt.toLowerCase();
+
+    if (
+      action === 'create_booking' &&
+      /\b(reschedule|move|shift)\b/i.test(lower) &&
+      /\bappointment\b/i.test(lower)
+    ) {
+      const rescuedParams = { ...params };
+      if (isFirstAvailableBookingPrompt(prompt)) {
+        rescuedParams.bookingFirstAvailable = true;
+        delete rescuedParams.timeSlot;
+      }
+      rescuedParams.customerName = null;
+      delete rescuedParams.customerId;
+      return {
+        action: 'reschedule_booking',
+        params: rescuedParams,
+        reasoning: 'Move/reschedule existing appointment — not a new booking.',
+        rescued: true,
+        rescueReason: 'create_booking_to_reschedule',
+      };
+    }
 
     if (
       action === 'create_booking' &&

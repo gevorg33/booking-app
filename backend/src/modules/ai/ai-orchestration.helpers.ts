@@ -803,22 +803,30 @@ export function sanitizeProviderScopeFromPrompt(
   }
 }
 
-/** Build service/unavailable periods from phrases like "9-19, 12-13 unavailable". */
-export function inferDirectSchedulePeriods(
-  params: Record<string, any>,
-  prompt?: string,
-): Array<Record<string, any>> {
-  if (Array.isArray(params.periods) && params.periods.length > 0) {
-    return params.periods;
+function resolveUnavailableLabel(
+  text: string,
+  from: string,
+  to: string,
+  matchText: string,
+): string {
+  if (/lunch/i.test(matchText)) return 'Lunch';
+  const lower = text.toLowerCase();
+  if (/\blunch\b/.test(lower) && lower.includes(`${from.split(':')[0]}-${to.split(':')[0]}`)) {
+    return 'Lunch';
   }
+  return 'Unavailable';
+}
 
-  const text = prompt ?? '';
-  const window = parseTimeWindow(params, text, { timeFrom: '09:00', timeTo: '19:00' });
+/** Parse lunch/break/unavailable windows from natural language (e.g. "12-13 unavailable"). */
+export function extractUnavailableBlocksFromPrompt(
+  text: string,
+): Array<{ from: string; to: string; label: string }> {
   const unavailableBlocks: Array<{ from: string; to: string; label: string }> = [];
 
   const patterns = [
     /\b(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(?:unavailable|off|blocked|break)\b/gi,
     /\b(?:unavailable|off|blocked|lunch|break)\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\b/gi,
+    /\b(?:make|mark)\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s+(?:unavailable|off|blocked|break)\b/gi,
   ];
 
   for (const re of patterns) {
@@ -828,8 +836,11 @@ export function inferDirectSchedulePeriods(
       const from = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
       const to = normalizeTime24(`${match[3]}:${match[4] ?? '00'}`);
       if (timeToMinutes(to) > timeToMinutes(from)) {
-        const label = /lunch/i.test(match[0]) ? 'Lunch' : 'Unavailable';
-        unavailableBlocks.push({ from, to, label });
+        const label = resolveUnavailableLabel(text, from, to, match[0]);
+        const duplicate = unavailableBlocks.some(
+          (b) => b.from === from && b.to === to,
+        );
+        if (!duplicate) unavailableBlocks.push({ from, to, label });
       }
     }
   }
@@ -842,11 +853,127 @@ export function inferDirectSchedulePeriods(
     unavailableBlocks.push({ from: '12:00', to: '13:00', label: 'Lunch' });
   }
 
+  return unavailableBlocks.sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
+}
+
+function normalizeSchedulePeriod(period: Record<string, any>): Record<string, any> {
+  return {
+    ...period,
+    startTime: normalizeTime24(String(period.startTime)),
+    endTime: normalizeTime24(String(period.endTime)),
+    type: period.type ?? 'service_block',
+    placeholderLabel: period.placeholderLabel ?? period.label,
+  };
+}
+
+function hasUnavailableCoverage(
+  periods: Array<Record<string, any>>,
+  block: { from: string; to: string },
+): boolean {
+  const bStart = timeToMinutes(block.from);
+  const bEnd = timeToMinutes(block.to);
+  return periods.some((p) => {
+    if (p.type !== 'unavailable_block') return false;
+    const pStart = timeToMinutes(String(p.startTime));
+    const pEnd = timeToMinutes(String(p.endTime));
+    return pStart <= bStart && pEnd >= bEnd;
+  });
+}
+
+/** Split overlapping service blocks and insert explicit unavailable periods. */
+export function applyUnavailableBlocksToPeriods(
+  periods: Array<Record<string, any>>,
+  unavailableBlocks: Array<{ from: string; to: string; label: string }>,
+): Array<Record<string, any>> {
+  if (!unavailableBlocks.length) {
+    return periods.map(normalizeSchedulePeriod);
+  }
+
+  let result = periods.map(normalizeSchedulePeriod);
+
+  for (const block of unavailableBlocks) {
+    const bStart = timeToMinutes(block.from);
+    const bEnd = timeToMinutes(block.to);
+    const next: Array<Record<string, any>> = [];
+
+    for (const period of result) {
+      if (period.type === 'unavailable_block') {
+        next.push(period);
+        continue;
+      }
+
+      const pStart = timeToMinutes(String(period.startTime));
+      const pEnd = timeToMinutes(String(period.endTime));
+
+      if (pEnd <= bStart || pStart >= bEnd) {
+        next.push(period);
+        continue;
+      }
+
+      if (pStart < bStart) {
+        next.push({ ...period, endTime: block.from });
+      }
+      next.push({
+        startTime: block.from,
+        endTime: block.to,
+        type: 'unavailable_block',
+        placeholderLabel: block.label,
+      });
+      if (pEnd > bEnd) {
+        next.push({ ...period, startTime: block.to });
+      }
+    }
+
+    result = next.filter(
+      (p) => timeToMinutes(String(p.endTime)) > timeToMinutes(String(p.startTime)),
+    );
+  }
+
+  for (const block of unavailableBlocks) {
+    if (hasUnavailableCoverage(result, block)) continue;
+
+    const bStart = timeToMinutes(block.from);
+    const bEnd = timeToMinutes(block.to);
+    const endsAtGapStart = result.some(
+      (p) => timeToMinutes(String(p.endTime)) === bStart,
+    );
+    const startsAtGapEnd = result.some(
+      (p) => timeToMinutes(String(p.startTime)) === bEnd,
+    );
+
+    if (endsAtGapStart && startsAtGapEnd) {
+      result.push({
+        startTime: block.from,
+        endTime: block.to,
+        type: 'unavailable_block',
+        placeholderLabel: block.label,
+      });
+    }
+  }
+
+  return result.sort(
+    (a, b) => timeToMinutes(String(a.startTime)) - timeToMinutes(String(b.startTime)),
+  );
+}
+
+/** Build service/unavailable periods from phrases like "9-19, 12-13 unavailable". */
+export function inferDirectSchedulePeriods(
+  params: Record<string, any>,
+  prompt?: string,
+): Array<Record<string, any>> {
+  const text = prompt ?? '';
+  const unavailableBlocks = extractUnavailableBlocksFromPrompt(text);
+
+  if (Array.isArray(params.periods) && params.periods.length > 0) {
+    return applyUnavailableBlocksToPeriods(params.periods, unavailableBlocks);
+  }
+
+  const window = parseTimeWindow(params, text, { timeFrom: '09:00', timeTo: '19:00' });
+
   if (unavailableBlocks.length === 0) {
     return [{ startTime: window.timeFrom, endTime: window.timeTo, type: 'service_block' }];
   }
 
-  unavailableBlocks.sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
   const periods: Array<Record<string, any>> = [];
   let cursor = window.timeFrom;
 

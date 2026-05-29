@@ -49,6 +49,7 @@ export class BookingService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
+    @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
@@ -151,6 +152,8 @@ export class BookingService {
         throw new NotFoundException('Customer not found');
       }
     }
+
+    await this.validateEmployeeCanPerformService(businessId, dto.employeeId, dto.serviceId);
 
     if (dto.customerId) {
       const existingBooking = await this.bookingRepo.findOne({
@@ -1102,6 +1105,25 @@ export class BookingService {
     return ids.size > 0 ? [...ids] : null;
   }
 
+  private async validateEmployeeCanPerformService(
+    businessId: string,
+    employeeId: string,
+    serviceId: string,
+  ): Promise<void> {
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId, isActive: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Service provider not found');
+    }
+    if (employee.serviceIds?.length && !employee.serviceIds.includes(serviceId)) {
+      const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+      throw new BadRequestException(
+        `${employee.name} is not assigned to provide ${service?.name ?? 'this service'}.`,
+      );
+    }
+  }
+
   private async validateBookingWindow(
     businessId: string,
     employeeId: string,
@@ -1169,8 +1191,9 @@ export class BookingService {
         await this.reconcileStuckSlotsInWindow(businessId, employeeId, startTime, endTime);
         return;
       }
-      // No slots at all → engine path, allow
-      return;
+      throw new BadRequestException(
+        'No bookable schedule window exists for this provider at the requested time.',
+      );
     }
 
     const slotGranularityMs = 10 * 60 * 1000;
@@ -1221,7 +1244,9 @@ export class BookingService {
     });
 
     if (dayPeriods.length === 0) {
-      return;
+      throw new BadRequestException(
+        'This provider has no schedule on the selected day. Booking is not allowed.',
+      );
     }
 
     const containing = dayPeriods.filter(

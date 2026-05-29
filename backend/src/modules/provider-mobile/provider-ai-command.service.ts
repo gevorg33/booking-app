@@ -25,9 +25,8 @@ import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js
 import {
   isIntentAllowed,
   normalizeActorRole,
-  type AiActorRole,
 } from '../ai/ai-capability.matrix.js';
-import { MemberRole } from '../business/entities/business-member.entity.js';
+import { resolveAccessTier, type AccessTier } from '../ai/access-control.matrix.js';
 import { CommandOrchestrationService } from '../ai/command-orchestration.service.js';
 import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -131,7 +130,7 @@ export class ProviderAiCommandService {
     }
 
     const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
-    const actorRole = this.resolveProviderActorRole(access);
+    const actorTier = this.resolveProviderAccessTier(access);
 
     const blocked = this.promptSecurity.preflightBlock(businessId, prompt, 'provider');
     if (blocked) {
@@ -189,21 +188,27 @@ export class ProviderAiCommandService {
     this.normalizeParams(parsed.params);
     parsed.action = this.rescueProviderIntent(prompt, parsed.action);
 
-    if (!isIntentAllowed('provider', actorRole, parsed.action)) {
+    if (!isIntentAllowed('provider', actorTier, parsed.action)) {
       return {
         success: false,
         action: parsed.action,
-        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorRole}).`,
-        details: { role: actorRole, action: parsed.action },
+        summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorTier}).`,
+        details: { tier: actorTier, action: parsed.action },
       };
     }
 
     parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, unknown>;
+    parsed.params = this.promptSecurity.applyStaffScope(
+      actorTier,
+      parsed.action,
+      parsed.params,
+      this.providerMobile.getScopedEmployeeId(access),
+    ) as Record<string, unknown>;
 
     const securityDenied = this.promptSecurity.enforceAction(
       businessId,
       'provider',
-      actorRole,
+      actorTier,
       parsed.action,
       prompt,
       parsed.params,
@@ -476,13 +481,11 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     return this.executeUpdate(bookings, { status, paymentStatus }, userId);
   }
 
-  private resolveProviderActorRole(access: MobileAccess): AiActorRole {
+  private resolveProviderAccessTier(access: MobileAccess): AccessTier {
     if (access.viewMode === 'team') {
-      if (access.membershipRole === MemberRole.OWNER) return 'owner';
-      if (access.membershipRole === MemberRole.MANAGER) return 'manager';
-      return 'manager';
+      return resolveAccessTier(access.membershipRole);
     }
-    return normalizeActorRole('provider');
+    return 'staff';
   }
 
   private rescueProviderIntent(prompt: string, action: string): string {

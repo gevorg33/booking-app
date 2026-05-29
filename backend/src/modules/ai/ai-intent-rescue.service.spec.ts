@@ -69,6 +69,34 @@ describe('AiIntentRescueService', () => {
     expect(result?.rescued).toBe(true);
   });
 
+  it('disambiguates create_booking to reschedule for move provider appointment', () => {
+    const result = rescue.rescue({
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      action: 'create_booking',
+      params: {
+        employeeName: 'Gevorg Gasparyan',
+        customerName: 'Gevorg G',
+        date: '02_06_2026',
+        bookingFirstAvailable: true,
+      },
+      employees,
+    });
+    expect(result?.action).toBe('reschedule_booking');
+    expect(result?.params.customerName).toBeNull();
+    expect(result?.params.bookingFirstAvailable).toBe(true);
+  });
+
+  it('rescues move appointment as reschedule before create_booking', () => {
+    const result = rescue.rescue({
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      action: 'unknown',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('reschedule_booking');
+    expect(result?.params.bookingFirstAvailable).toBe(true);
+  });
+
   it('rescues conditional booking from unknown', () => {
     const result = rescue.rescue({
       prompt:

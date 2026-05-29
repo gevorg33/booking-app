@@ -102,6 +102,19 @@ Events: `BOOKING_NO_SHOW` emitted when status transitions to `no_show`.
 
 Provider mobile: `mark_no_shows` and `payment_sweep` are first-class intents (not only `update_bookings`).
 
+## Role-based access
+
+See [ROLES_AND_ACCESS.md](./ROLES_AND_ACCESS.md) for the full matrix.
+
+| Tier | Dashboard AI | Revenue / analytics | Staff schedules (all) | CRM notes |
+|------|-------------|---------------------|-------------------------|-----------|
+| Client | Blocked | No | No | No |
+| Staff | Own bookings only | No | Own only | Limited |
+| Manager | Yes | Yes | Yes | Yes |
+| Owner | Yes | Yes | Yes | Yes |
+
+JWT fields: `membershipRole` (owner/admin/manager/staff/contributor), `employeeId` (staff scope).
+
 ## Prompt injection & abuse defense
 
 Assume users are adversarial. Defense layers:

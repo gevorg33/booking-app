@@ -15,6 +15,7 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AgentController } from './agent.controller.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
+import { Employee } from '../employee/entities/employee.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -35,6 +36,7 @@ import { CustomerModule } from '../customer/customer.module.js';
       Service,
       Customer,
       Business,
+      Employee,
     ]),
     SchedulingEngineModule,
     EventStoreModule,

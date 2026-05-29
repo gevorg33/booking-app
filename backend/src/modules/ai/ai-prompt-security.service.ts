@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { CommandResult } from './command-completion.types.js';
-import type { AiActorRole, AiSurface } from './ai-capability.matrix.js';
+import type { AiSurface } from './ai-capability.matrix.js';
+import {
+  resolveAccessTier,
+  isRevenueRelatedRequest,
+  isStaffDirectoryRequest,
+  STAFF_SCOPED_INTENTS,
+  type AccessTier,
+} from './access-control.matrix.js';
 import {
   AI_SECURITY_SYSTEM_RULES,
   assessPromptSecurity,
@@ -63,7 +70,7 @@ export class AiPromptSecurityService {
   enforceAction(
     businessId: string,
     surface: AiSurface,
-    role: AiActorRole,
+    tier: AccessTier,
     action: string,
     prompt: string,
     params: Record<string, unknown>,
@@ -80,18 +87,54 @@ export class AiPromptSecurityService {
       };
     }
 
-    if (!canPerformBulkCustomerRead(surface, role, prompt, action)) {
+    if (tier === 'staff' || tier === 'client') {
+      if (isRevenueRelatedRequest(action, cleaned, prompt)) {
+        this.logger.warn(`AI revenue access denied business=${businessId} tier=${tier} action=${action}`);
+        return {
+          success: false,
+          action,
+          summary: 'Revenue and financial analytics are available to managers and owners only.',
+          details: { securityBlocked: true, reason: 'revenue_access', tier },
+        };
+      }
+      if (isStaffDirectoryRequest(action)) {
+        return {
+          success: false,
+          action,
+          summary: 'Staff directory access is limited to managers and owners.',
+          details: { securityBlocked: true, reason: 'staff_directory', tier },
+        };
+      }
+    }
+
+    if (!canPerformBulkCustomerRead(surface, tier, prompt, action)) {
       this.logger.warn(
-        `AI bulk customer read denied business=${businessId} role=${role} action=${action}`,
+        `AI bulk customer read denied business=${businessId} tier=${tier} action=${action}`,
       );
       return {
         success: false,
         action,
         summary: securityDenialMessage('data_export'),
-        details: { securityBlocked: true, reason: 'data_export', role },
+        details: { securityBlocked: true, reason: 'data_export', tier },
       };
     }
 
     return null;
+  }
+
+  applyStaffScope(
+    tier: AccessTier,
+    action: string,
+    params: Record<string, unknown>,
+    scopedEmployeeId?: string | null,
+  ): Record<string, unknown> {
+    if (tier !== 'staff' || !scopedEmployeeId || !STAFF_SCOPED_INTENTS.has(action)) {
+      return params;
+    }
+    return {
+      ...params,
+      employeeId: scopedEmployeeId,
+      allProviders: false,
+    };
   }
 }

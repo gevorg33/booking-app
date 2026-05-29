@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not } from 'typeorm';
 import { Booking, BookingStatus } from './entities/booking.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Employee } from '../employee/entities/employee.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import {
@@ -11,7 +12,7 @@ import {
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
 import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
-import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
+import { isWallClockSlotBookable, addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import type {
   BookingFallbackResolveInput,
@@ -24,8 +25,57 @@ export class BookingSlotResolverService {
   constructor(
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
     @InjectRepository(Service) private readonly serviceRepo: Repository<Service>,
+    @InjectRepository(Employee) private readonly employeeRepo: Repository<Employee>,
     @InjectRepository(SchedulingPeriod) private readonly periodRepo: Repository<SchedulingPeriod>,
   ) {}
+
+  describeUnavailable(
+    check: SlotAvailabilityCheck,
+    serviceName: string,
+    timeSlot: string,
+    isoDay: string,
+  ): string {
+    switch (check.reason) {
+      case 'provider_not_assigned':
+        return `${check.employeeName} does not provide ${serviceName}. Choose another provider or service.`;
+      case 'no_schedule':
+        return `${check.employeeName} has no schedule on ${isoDay}. Pick another day or provider.`;
+      case 'service_not_scheduled':
+        return `${serviceName} is not scheduled for ${check.employeeName} on ${isoDay}. The provider may not offer this service that day.`;
+      case 'slot_unavailable':
+        return `${check.employeeName} is not free at ${timeSlot} on ${isoDay} for ${serviceName}.`;
+      case 'past_time':
+        return `Cannot book ${serviceName} in the past. Choose a future time slot.`;
+      default:
+        return `${check.employeeName} is not available for ${serviceName} at ${timeSlot} on ${isoDay}.`;
+    }
+  }
+
+  async assertBookable(params: {
+    businessId: string;
+    employeeId: string;
+    employeeName: string;
+    serviceId: string;
+    serviceName: string;
+    isoDay: string;
+    timeSlot: string;
+    timeZone?: string;
+  }): Promise<void> {
+    const check = await this.checkSlotAvailability(
+      params.businessId,
+      params.employeeId,
+      params.employeeName,
+      params.serviceId,
+      params.isoDay,
+      params.timeSlot,
+      params.timeZone,
+    );
+    if (!check.available) {
+      throw new BadRequestException(
+        this.describeUnavailable(check, params.serviceName, params.timeSlot, params.isoDay),
+      );
+    }
+  }
 
   snapTo10min(hhmm: string): string {
     const normalized = normalizeTime24(hhmm);
@@ -45,20 +95,77 @@ export class BookingSlotResolverService {
     timeSlot: string,
     timeZone = 'UTC',
   ): Promise<SlotAvailabilityCheck> {
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId, isActive: true },
+    });
+    if (
+      employee?.serviceIds?.length &&
+      !employee.serviceIds.includes(serviceId)
+    ) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: false,
+        openSlots: [],
+        reason: 'provider_not_assigned',
+      };
+    }
+
     const row = await this.getProviderAvailabilityForService(businessId, employeeId, serviceId, isoDay);
     const snapped = this.snapTo10min(timeSlot);
     const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
     const duration = (service?.durationMinutes ?? 30) + (service?.bufferMinutes ?? 0);
 
-    const available =
-      row.hasServiceBlock &&
-      this.isTimeSlotBookable(row.openSlots, snapped, duration) &&
-      isWallClockSlotBookable(isoDay, snapped, timeZone);
+    if (!isWallClockSlotBookable(isoDay, snapped, timeZone)) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: row.hasSchedule,
+        openSlots: row.openSlots,
+        reason: 'past_time',
+      };
+    }
+
+    if (!row.hasSchedule) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: false,
+        openSlots: [],
+        reason: 'no_schedule',
+      };
+    }
+
+    if (!row.hasServiceBlock) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: true,
+        openSlots: [],
+        reason: 'service_not_scheduled',
+      };
+    }
+
+    const slotFits = this.isTimeSlotBookable(row.openSlots, snapped, duration);
+    if (!slotFits) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: true,
+        openSlots: row.openSlots,
+        reason: 'slot_unavailable',
+      };
+    }
 
     return {
       employeeId,
       employeeName,
-      available,
+      available: true,
       hasSchedule: row.hasSchedule,
       openSlots: row.openSlots,
     };
@@ -167,6 +274,38 @@ export class BookingSlotResolverService {
       start: formatTimeDisplay(r.start),
       end: formatTimeDisplay(r.end),
     }));
+  }
+
+  async findFirstAvailableSlot(
+    businessId: string,
+    employeeId: string,
+    employeeName: string,
+    serviceId: string,
+    startIsoDay: string,
+    timeZone = 'UTC',
+    notBeforeTime?: string | null,
+    maxDays = 1,
+  ): Promise<{ isoDay: string; timeSlot: string; openSlots: Array<{ start: string; end: string }> } | null> {
+    let best: { isoDay: string; timeSlot: string; sortKey: number; openSlots: Array<{ start: string; end: string }> } | null =
+      null;
+
+    for (let offset = 0; offset < maxDays; offset++) {
+      const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
+      const row = await this.getProviderAvailabilityForService(businessId, employeeId, serviceId, isoDay);
+      if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
+
+      for (const slot of row.openSlots) {
+        if (!isWallClockSlotBookable(isoDay, slot.start, timeZone, notBeforeTime)) continue;
+        const sortKey = offset * 24 * 60 + timeToMinutes(slot.start);
+        if (!best || sortKey < best.sortKey) {
+          best = { isoDay, timeSlot: slot.start, sortKey, openSlots: row.openSlots };
+        }
+      }
+    }
+
+    return best
+      ? { isoDay: best.isoDay, timeSlot: best.timeSlot, openSlots: best.openSlots }
+      : null;
   }
 
   private async getProviderAvailabilityForService(
