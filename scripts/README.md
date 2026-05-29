@@ -34,6 +34,7 @@ cd ../frontend && npm install
 | `./scripts/dev-frontend.sh` | **Frontend only** on port 3000 |
 | `./scripts/dev-backend.sh` | **Backend only** on port 3001 |
 | `./scripts/dev-stop.sh` | Stop processes on ports **3000** and **3001** |
+| `CONFIRM=1 ./scripts/cleanup-schedule-data.sh` | Wipe schedules, slots, templates, bookings; **keep** customers, services, employees |
 
 Add `-k` or `--kill` to `dev-local.sh` / `dev-lan.sh` to free ports before starting:
 

@@ -8,6 +8,7 @@ import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandResult } from './ai-command.service.js';
+import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
 import {
   resolveEmployees,
   resolveTemplate,
@@ -21,6 +22,10 @@ import {
   parseTimeWindow,
   isFullDayBlock,
   shouldAutoExecute,
+  resolveAllProvidersScope,
+  sanitizeProviderScopeFromPrompt,
+  inferDirectSchedulePeriods,
+  isTeamWideProviderScopePrompt,
 } from './ai-orchestration.helpers.js';
 import { formatDateDisplay, toIsoDay, parseDateInput } from '../../common/utils/date-format.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
@@ -422,94 +427,93 @@ export class AiScheduleHandlersService {
     services: Service[],
     userId?: string,
   ): Promise<CommandResult> {
-    const targets = resolveEmployees(employees, params);
-    if (targets.length !== 1) {
-      return {
-        success: false,
-        action: 'create_direct_schedule',
-        summary: 'Direct schedule applies to one provider at a time. Specify employeeName.',
-        details: { params },
-      };
-    }
-
-    if (!params.date && !(params.dateFrom && params.dateTo)) {
-      return {
-        success: false,
-        action: 'create_direct_schedule',
-        summary: 'Specify the date or date range for the direct schedule.',
-        details: { params },
-      };
-    }
-
-    const periods = Array.isArray(params.periods) ? params.periods : [];
-    if (periods.length === 0) {
-      return {
-        success: false,
-        action: 'create_direct_schedule',
-        summary: 'Specify schedule periods (time ranges and types). Example: "Set Gevorg on Friday 9-17 with facemassage 9-12, lunch 12-13".',
-        details: { params },
-      };
-    }
-
-    const employee = targets[0];
-    const assigned = getEmployeeAssignedServices(employee, services);
-
-    const normalizedPeriods = periods.map((p: any) => {
-      const isUnavailable = p.type === 'unavailable_block';
-      const periodServiceParams = {
-        serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : null),
-        serviceName: p.serviceName ?? null,
-      };
-      const matched = isUnavailable
-        ? []
-        : resolveScheduleServicesForEmployee(employee, services, periodServiceParams, prompt);
-
-      return {
-        startTime: normalizeTime24(p.startTime),
-        endTime: normalizeTime24(p.endTime),
-        type: p.type ?? 'service_block',
-        placeholderLabel: p.placeholderLabel ?? p.label,
-        serviceIds: matched.map((s) => s.id),
-        maxAppointmentCount: p.maxAppointmentCount ?? 1,
-      };
-    });
-
-    const missingServices = normalizedPeriods.some(
-      (p) => p.type !== 'unavailable_block' && p.serviceIds.length === 0,
+    const plan = await this.prepareDirectSchedulePlan(
+      businessId,
+      prompt,
+      params,
+      employees,
+      services,
+      userId,
     );
-    if (missingServices) {
-      const hint =
-        assigned.length > 0
-          ? `Assigned services for ${employee.name}: ${assigned.map((s) => s.name).join(', ')}`
-          : `No services assigned to ${employee.name} — assign services on the Employees page first.`;
+    if (!plan) {
       return {
         success: false,
         action: 'create_direct_schedule',
-        summary: `Could not resolve services for this schedule. ${hint}`,
-        details: { employeeName: employee.name, assignedServices: assigned.map((s) => s.name) },
+        summary:
+          'Could not build a direct schedule. Specify provider(s), date range, and hours (e.g. "all employees this week 9-19, 12-13 unavailable, their services").',
+        details: { params },
       };
     }
+    const providerCount = new Set(plan.steps.map((s) => s.params.employeeId)).size;
+    return this.executePlan(plan, businessId, userId, providerCount);
+  }
+
+  async prepareDirectSchedulePlan(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<AgentPlan | null> {
+    sanitizeProviderScopeFromPrompt(prompt, params, employees);
+
+    const allProviders =
+      params.allProviders === true || isTeamWideProviderScopePrompt(prompt);
+    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    if (!targets.length) return null;
+
+    if (!params.date && !(params.dateFrom && params.dateTo)) return null;
+
+    const rawPeriods = inferDirectSchedulePeriods(params, prompt);
+    if (!rawPeriods.length) return null;
 
     const dates = resolveScheduleDates(params, prompt);
-    if (!dates.length) {
-      return {
-        success: false,
-        action: 'create_direct_schedule',
-        summary: 'Could not resolve the schedule date range.',
-        details: { params },
-      };
+    if (!dates.length) return null;
+
+    const plans: AgentPlan[] = [];
+
+    for (const employee of targets) {
+      const normalizedPeriods = rawPeriods.map((p: any) => {
+        const isUnavailable = p.type === 'unavailable_block';
+        const periodServiceParams = {
+          serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : null),
+          serviceName: p.serviceName ?? null,
+        };
+        const matched = isUnavailable
+          ? []
+          : resolveScheduleServicesForEmployee(employee, services, periodServiceParams, prompt);
+
+        return {
+          startTime: normalizeTime24(p.startTime),
+          endTime: normalizeTime24(p.endTime),
+          type: p.type ?? 'service_block',
+          placeholderLabel: p.placeholderLabel ?? p.label,
+          serviceIds: matched.map((s) => s.id),
+          maxAppointmentCount: p.maxAppointmentCount ?? 1,
+        };
+      });
+
+      const missingServices = normalizedPeriods.some(
+        (p) => p.type !== 'unavailable_block' && p.serviceIds.length === 0,
+      );
+      if (missingServices) continue;
+
+      plans.push(
+        this.planBuilder.buildDirectSchedulePlan({
+          businessId,
+          employeeId: employee.id,
+          employeeName: employee.name,
+          dates,
+          periods: normalizedPeriods,
+          userId,
+        }),
+      );
     }
 
-    const plan = this.planBuilder.buildDirectSchedulePlan({
-      businessId,
-      employeeId: targets[0].id,
-      employeeName: targets[0].name,
-      dates,
-      periods: normalizedPeriods,
-      userId,
-    });
-
-    return this.executePlan(plan, businessId, userId, plan.steps.length);
+    if (!plans.length) return null;
+    if (plans.length === 1) return plans[0];
+    return this.planBuilder.mergePlans(businessId, 'create_direct_schedule', plans);
   }
 
   async handleClearSchedule(
@@ -545,9 +549,10 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ) {
+    sanitizeProviderScopeFromPrompt(prompt, params, employees);
+
     const allProviders =
-      params.allProviders === true ||
-      /all providers|everyone|all staff|all employees/i.test(prompt);
+      params.allProviders === true || isTeamWideProviderScopePrompt(prompt);
     const targets = allProviders ? employees : resolveEmployees(employees, params);
     if (!targets.length) return null;
 

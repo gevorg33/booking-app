@@ -5,7 +5,12 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
-import type { AiActorType, AiKeySource, AiUsageSurface } from '../openai/openai.types.js';
+import {
+  DEFAULT_OPENAI_MODEL,
+  type AiActorType,
+  type AiKeySource,
+  type AiUsageSurface,
+} from '../openai/openai.types.js';
 
 @Entity('ai_usage_logs')
 @Index(['businessId', 'createdAt'])
@@ -28,7 +33,7 @@ export class AiUsageLog {
   @Column({ type: 'varchar', length: 64 })
   operation: string;
 
-  @Column({ type: 'varchar', length: 64, default: 'gpt-4o-mini' })
+  @Column({ type: 'varchar', length: 64, default: DEFAULT_OPENAI_MODEL })
   model: string;
 
   @Column({ name: 'prompt_tokens', type: 'int', default: 0 })

@@ -1,5 +1,8 @@
 export type AiKeySource = 'platform' | 'business';
 
+/** Default chat model for all OpenAI gateway calls unless overridden per request or via OPENAI_MODEL. */
+export const DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini';
+
 export type AiUsageSurface =
   | 'dashboard'
   | 'provider_mobile'

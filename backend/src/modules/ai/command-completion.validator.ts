@@ -294,29 +294,44 @@ const ACTION_RULES: Record<string, Rule> = {
     ];
   },
 
-  create_direct_schedule: (cmd) =>
-    [
-      needs(
-        'employeeName',
-        'Service provider',
-        !!cmd.entities.employee,
-        'Gevorg Gasparyan',
-      ),
-      needs(
-        'date',
-        'Date',
-        !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange,
-        'Friday, June 2-June 10, or 29/05/2026',
-      ),
-      ...(Array.isArray(cmd.params.periods) && cmd.params.periods.length > 0
+  create_direct_schedule: (cmd) => {
+    const hasProviders =
+      cmd.params.allProviders ||
+      !!cmd.params.employeeName ||
+      !!cmd.entities.employee ||
+      cmd.entities.employees.length > 0;
+    const hasWhen =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    const hasPeriods =
+      (Array.isArray(cmd.params.periods) && cmd.params.periods.length > 0) ||
+      /\d{1,2}\s*[-–]\s*\d{1,2}/.test(cmd.prompt ?? '');
+    return [
+      ...(hasProviders
+        ? []
+        : [{
+            field: 'employeeName',
+            label: 'Service provider',
+            message: 'Specify who to schedule (one provider or all employees)',
+            example: 'All employees this week, or Gevorg Gasparyan tomorrow',
+          }]),
+      ...(hasWhen
+        ? []
+        : [{
+            field: 'date',
+            label: 'Date',
+            message: 'Specify when to apply the schedule',
+            example: 'Friday, this week, tomorrow, or June 2-June 10',
+          }]),
+      ...(hasPeriods
         ? []
         : [{
             field: 'periods',
             label: 'Schedule periods',
-            message: 'Describe the periods for the day',
-            example: '9-12 facemassage, 12-13 lunch, 13-17 haircut',
+            message: 'Describe working hours and breaks',
+            example: '9-19 with lunch 12-13 unavailable',
           }]),
-    ].filter(Boolean) as ValidationIssue[],
+    ];
+  },
 
   clear_schedule: (cmd) => {
     const hasProviders =

@@ -41,6 +41,8 @@ import {
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
   parseEarliestBookingTimeFromPrompt,
+  sanitizeProviderScopeFromPrompt,
+  inferDirectSchedulePeriods,
 } from './ai-orchestration.helpers.js';
 import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
@@ -189,8 +191,8 @@ Rules:
 - list_templates: READ-ONLY — list schedule template names.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules.
-- create_direct_schedule: set/replace one provider's schedule for a specific day or date range with explicit periods. When the user says "his/her/their services" or does not name specific services, leave serviceNames null on each service_block — the system uses only services assigned to that provider on their profile, never the full catalog. For ranges like "June 2-June 10", set dateFrom and dateTo.
-- clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Use for "cleanup Mary's schedule on 31 May", "clear Gevorg's schedule tomorrow", "wipe schedule on Friday". Requires employeeName and date (or dateFrom/dateTo). NOT hide_appointments_from_calendar.
+- create_direct_schedule: set/replace applied schedule for one or more providers (allProviders=true for "all employees") for a day or date range. Hours like "9-19, 12-13 unavailable" can omit explicit periods — the system splits service blocks around lunch. When the user says "his/her/their services" or does not name specific services, leave serviceNames null — uses only services assigned to each provider. For ranges like "this week", set dateFrom and dateTo.
+- clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Requires employeeName (or allProviders for whole team) and date (or dateFrom/dateTo). "Clear all schedules for Karo" means Karo only — set employeeName=Karo, allProviders=false. NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
 - assign_employee_services: assign services from catalog to a provider.
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
@@ -363,6 +365,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     );
     parsed.params._timeZone = timeZone;
     this.enrichMultiEmployeeFromPrompt(effectivePrompt, parsed.params, employees);
+    this.applyScheduleScopeFromPrompt(effectivePrompt, parsed.params, parsed.action, employees);
 
     if (parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
       parsed.action = 'clear_schedule';
@@ -383,10 +386,17 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       parsed.action === 'clear_schedule' ||
       parsed.action === 'apply_schedule' ||
       parsed.action === 'block_schedule' ||
-      parsed.action === 'fill_unused_slots'
+      parsed.action === 'fill_unused_slots' ||
+      parsed.action === 'cancel_bookings' ||
+      parsed.action === 'hide_appointments_from_calendar'
     ) {
       this.completionPipeline.enrichDateRangeParams(parsed.params, effectivePrompt, timeZone);
       this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
+    }
+    if (parsed.action === 'create_direct_schedule') {
+      if (!parsed.params.periods?.length) {
+        parsed.params.periods = inferDirectSchedulePeriods(parsed.params, effectivePrompt);
+      }
     }
 
     const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog, timeZone);
@@ -816,6 +826,25 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       params.employeeNames = matched.map((e) => e.name);
       params.employeeName = null;
     }
+  }
+
+  private applyScheduleScopeFromPrompt(
+    prompt: string,
+    params: Record<string, any>,
+    action: string,
+    employees: Employee[],
+  ): void {
+    const scheduleActions = new Set([
+      'clear_schedule',
+      'create_direct_schedule',
+      'block_schedule',
+      'fill_unused_slots',
+      'apply_schedule',
+      'cancel_bookings',
+      'hide_appointments_from_calendar',
+    ]);
+    if (!scheduleActions.has(action)) return;
+    sanitizeProviderScopeFromPrompt(prompt, params, employees);
   }
 
   /** Prompt-mentioned entities override stale session / LLM inheritance. */
@@ -2543,34 +2572,46 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
       this.completionPipeline.trace('classify', 'compound_intent', `${subIntents.length} sub-intent(s)`),
     ];
 
+    let pendingCancelBookingIds: string[] | undefined;
+
     for (const sub of subIntents) {
+      const parsedParams: Record<string, any> = {
+        ...this.completionPipeline.mergeSessionContext(
+          sub.params,
+          {
+            ...session?.context,
+            timeZone,
+          },
+          sub.action,
+        ),
+        _timeZone: timeZone,
+      };
       const parsed = {
         action: sub.action,
-        params: {
-          ...this.completionPipeline.mergeSessionContext(
-            sub.params,
-            {
-              ...session?.context,
-              timeZone,
-            },
-            sub.action,
-          ),
-          _timeZone: timeZone,
-        },
+        params: parsedParams,
         reasoning: sub.reasoning,
       };
-      this.completionPipeline.normalizeDateParams(parsed.params, prompt, timeZone);
+      this.applyScheduleScopeFromPrompt(prompt, parsedParams, parsed.action, catalog.employees);
+      this.completionPipeline.normalizeDateParams(parsedParams, prompt, timeZone);
       if (parsed.action === 'reschedule_booking') {
-        this.completionPipeline.finalizeRescheduleParams(parsed.params, prompt, timeZone);
+        this.completionPipeline.finalizeRescheduleParams(parsedParams, prompt, timeZone);
       } else if (
         parsed.action === 'create_direct_schedule' ||
         parsed.action === 'clear_schedule' ||
         parsed.action === 'apply_schedule' ||
         parsed.action === 'block_schedule' ||
-        parsed.action === 'fill_unused_slots'
+        parsed.action === 'fill_unused_slots' ||
+        parsed.action === 'cancel_bookings' ||
+        parsed.action === 'hide_appointments_from_calendar'
       ) {
-        this.completionPipeline.enrichDateRangeParams(parsed.params, prompt, timeZone);
-        this.completionPipeline.normalizeDateParams(parsed.params, prompt, timeZone);
+        this.completionPipeline.enrichDateRangeParams(parsedParams, prompt, timeZone);
+        this.completionPipeline.normalizeDateParams(parsedParams, prompt, timeZone);
+      }
+      if (parsed.action === 'create_direct_schedule' && !parsedParams.periods?.length) {
+        parsedParams.periods = inferDirectSchedulePeriods(parsedParams, prompt);
+      }
+      if (parsed.action === 'hide_appointments_from_calendar' && pendingCancelBookingIds?.length) {
+        parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
       }
       const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog, timeZone);
 
@@ -2584,17 +2625,43 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
         }
       }
 
-      const plan = await this.buildPlanForResolvedIntent(
-        businessId,
-        prompt,
-        parsed.action,
-        resolved.enrichedParams,
-        resolved.entities.employeeId,
-        catalog,
-        userId,
-      );
+      let plan: AgentPlan | null = null;
 
-      if (plan) plans.push(plan);
+      if (
+        parsed.action === 'hide_appointments_from_calendar' &&
+        pendingCancelBookingIds?.length
+      ) {
+        plan = this.planBuilder.buildHideAppointmentsPlan(
+          businessId,
+          pendingCancelBookingIds,
+          userId,
+          {
+            employeeName: resolved.enrichedParams.employeeName,
+            date: resolved.enrichedParams.date
+              ? formatDateDisplay(resolved.enrichedParams.date)
+              : undefined,
+            statuses: ['cancelled'],
+          },
+        );
+      } else {
+        plan = await this.buildPlanForResolvedIntent(
+          businessId,
+          prompt,
+          parsed.action,
+          resolved.enrichedParams,
+          resolved.entities.employeeId,
+          catalog,
+          userId,
+        );
+      }
+
+      if (plan) {
+        plans.push(plan);
+        if (parsed.action === 'cancel_bookings') {
+          const cancelStep = plan.steps.find((s) => s.action === 'cancel_bookings');
+          pendingCancelBookingIds = cancelStep?.params?.bookingIds as string[] | undefined;
+        }
+      }
     }
 
     if (plans.length === 0) {
@@ -2607,7 +2674,11 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     }
 
     const merged = this.planBuilder.mergePlans(businessId, 'compound_intent', plans);
-    const providerCount = catalog.employees.length;
+    const providerCount = new Set(
+      merged.steps
+        .map((s) => s.params?.employeeId as string | undefined)
+        .filter(Boolean),
+    ).size || 1;
 
     const result = this.toCommandResult(
       await this.orchestration.executePlan({
@@ -2787,6 +2858,64 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
           userId,
         );
         break;
+      case 'create_direct_schedule': {
+        if (options?.planOnly) {
+          const plan = await this.scheduleHandlers.prepareDirectSchedulePlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            catalog.services,
+            userId,
+          );
+          return { success: !!plan, action, summary: '', details: { plan } };
+        }
+        result = await this.scheduleHandlers.handleCreateDirectSchedule(
+          businessId,
+          prompt,
+          params,
+          catalog.employees,
+          catalog.services,
+          userId,
+        );
+        break;
+      }
+      case 'cancel_bookings': {
+        if (options?.planOnly) {
+          const bookings = await this.findBookingsForCancel(
+            businessId,
+            params,
+            catalog.services,
+            catalog.employees,
+            employeeId,
+            prompt,
+          );
+          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          const plan = this.planBuilder.buildCancelBookingsPlan(
+            businessId,
+            bookings.map((b) => b.id),
+            params.reason || 'Cancelled via AI',
+            userId,
+            {
+              employeeName: params.employeeName,
+              date: params.date ? formatDateDisplay(params.date) : undefined,
+              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              notifyCustomers: Boolean(params.notifyCustomers),
+            },
+          );
+          return { success: true, action, summary: '', details: { plan } };
+        }
+        result = await this.handleCancelBookings(
+          businessId,
+          prompt,
+          params,
+          catalog.services,
+          catalog.employees,
+          employeeId,
+          userId,
+        );
+        break;
+      }
       case 'bulk_smart_cancel': {
         if (options?.planOnly) {
           const bookings = await this.findBookingsForCancel(

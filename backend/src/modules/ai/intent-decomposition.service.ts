@@ -9,7 +9,7 @@ export interface DecomposedIntent {
 }
 
 const COMPOUND_MARKERS =
-  /\band then\b|\bthen\b|\balso\b|\bafter that\b|\bfollowed by\b|;\s*|\band\b.*\b(block|fill|apply|cancel|reschedule|optimize|setup)\b/i;
+  /\band then\b|\bthen\b|\balso\b|\bafter that\b|\bfollowed by\b|;\s*|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove))/i;
 
 const DECOMPOSE_SCHEMA = `Split a compound operational command into ordered sub-intents.
 Return JSON:
@@ -19,13 +19,16 @@ Return JSON:
   ]
 }
 
-Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, hide_appointments_from_calendar, unhide_appointments_from_calendar, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, analyze_services, summarize_staff, lookup_customer, summarize_waitlist, lookup_service_assignment, list_services, list_employees, list_templates, assign_employee_services.
+Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, hide_appointments_from_calendar, unhide_appointments_from_calendar, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, create_direct_schedule, clear_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, analyze_services, summarize_staff, lookup_customer, summarize_waitlist, lookup_service_assignment, list_services, list_employees, list_templates, assign_employee_services.
 
 Rules:
 - Preserve order of operations.
 - Inherit shared params (date, employeeName, templateName, timeFrom, timeTo) across sub-intents when implied.
 - Use bulk_smart_cancel when cancel + notify/waitlist/rebook customers.
 - Use setup_week_schedule for apply template + fill gaps combo.
+- create_direct_schedule: team-wide "all employees" → allProviders=true; hours like 9-19 with 12-13 unavailable → periods or timeFrom/timeTo; "their services" → leave serviceNames null.
+- clear_schedule: cleanup/wipe a provider's applied schedule (not appointments). Named provider only — do NOT set allProviders when user says "clear all schedules for Karo".
+- cancel_bookings + clear_schedule + hide_appointments_from_calendar: typical day reset — cancel appointments, clear schedule, hide cancelled from calendar (statusFilter cancelled on hide step).
 - Max 4 sub-intents.`;
 
 @Injectable()

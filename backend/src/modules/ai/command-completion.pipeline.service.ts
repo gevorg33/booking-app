@@ -8,6 +8,8 @@ import {
   resolveDateRange,
   enrichDateRangeFromPrompt,
   fuzzyMatchByName,
+  sanitizeProviderScopeFromPrompt,
+  applyPromptDateOverride,
 } from './ai-orchestration.helpers.js';
 import {
   ClassifiedCommand,
@@ -95,7 +97,7 @@ export class CommandCompletionPipelineService {
   }
 
   normalizeDateParams(params: Record<string, any>, prompt?: string, timeZone = 'UTC'): void {
-    applyRelativeDateFromPrompt(params, prompt, timeZone);
+    applyPromptDateOverride(params, prompt, timeZone);
     for (const key of ['date', 'dateFrom', 'dateTo', 'fromDate'] as const) {
       if (params[key]) params[key] = toIsoDay(params[key], timeZone);
     }
@@ -123,13 +125,8 @@ export class CommandCompletionPipelineService {
     timeZone = 'UTC',
   ): ResolvedCommand {
     const params: Record<string, any> = { ...classified.params, _timeZone: timeZone };
-    const allProviders =
-      params.allProviders === true ||
-      /all providers|everyone|all staff|all employees|any provider|any staff|whichever provider/i.test(
-        prompt,
-      );
-
-    if (allProviders) params.allProviders = true;
+    sanitizeProviderScopeFromPrompt(prompt, params, catalog.employees);
+    const allProviders = params.allProviders === true;
 
     const employees = resolveEmployees(catalog.employees, { ...params, allProviders });
     const services = resolveServices(catalog.services, params);
