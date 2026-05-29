@@ -253,6 +253,38 @@ export class BookingService {
 
     this.assertExpectedUpdatedAt(booking, dto.expectedUpdatedAt);
 
+    const visibilityOnly =
+      dto.hiddenFromCalendar !== undefined &&
+      dto.startTime === undefined &&
+      dto.employeeId === undefined &&
+      dto.serviceId === undefined &&
+      dto.status === undefined &&
+      dto.paymentStatus === undefined &&
+      dto.description === undefined &&
+      dto.notes === undefined &&
+      dto.customerId === undefined &&
+      dto.linkedEmployeeIds === undefined &&
+      dto.virtualMeetingUrl === undefined &&
+      !dto.metadata;
+
+    if (visibilityOnly) {
+      booking.hiddenFromCalendar = dto.hiddenFromCalendar!;
+      await this.bookingRepo.save(booking);
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_UPDATED,
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        businessId: booking.businessId,
+        payload: {
+          bookingId: booking.id,
+          hiddenFromCalendar: booking.hiddenFromCalendar,
+          status: booking.status,
+        },
+        userId,
+      });
+      return this.findOne(booking.id);
+    }
+
     if (booking.status === BookingStatus.CANCELLED) {
       throw new BadRequestException('Cancelled appointments cannot be updated');
     }
@@ -389,6 +421,7 @@ export class BookingService {
     if (dto.linkedEmployeeIds) booking.linkedEmployeeIds = dto.linkedEmployeeIds;
     if (dto.virtualMeetingUrl !== undefined) booking.virtualMeetingUrl = dto.virtualMeetingUrl;
     if (dto.metadata) booking.metadata = { ...booking.metadata, ...dto.metadata };
+    if (dto.hiddenFromCalendar !== undefined) booking.hiddenFromCalendar = dto.hiddenFromCalendar;
 
     await this.bookingRepo.save(booking);
 
@@ -432,8 +465,16 @@ export class BookingService {
     return this.findOne(booking.id);
   }
 
-  async findAll(businessId: string, date?: string, employeeId?: string): Promise<Booking[]> {
+  async findAll(
+    businessId: string,
+    date?: string,
+    employeeId?: string,
+    includeHidden = false,
+  ): Promise<Booking[]> {
     const where: any = { businessId };
+    if (!includeHidden) {
+      where.hiddenFromCalendar = false;
+    }
     if (date) {
       const dayStart = new Date(date);
       dayStart.setUTCHours(0, 0, 0, 0);
@@ -449,6 +490,39 @@ export class BookingService {
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
+  }
+
+  /** Hide or restore appointments on the schedule calendar without deleting records. */
+  async setHiddenFromCalendar(
+    bookingIds: string[],
+    hidden: boolean,
+    userId?: string,
+  ): Promise<{ updatedCount: number; updatedIds: string[] }> {
+    const updatedIds: string[] = [];
+
+    for (const bookingId of bookingIds) {
+      const booking = await this.bookingRepo.findOne({ where: { id: bookingId } });
+      if (!booking || booking.hiddenFromCalendar === hidden) continue;
+
+      booking.hiddenFromCalendar = hidden;
+      await this.bookingRepo.save(booking);
+      updatedIds.push(booking.id);
+
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_UPDATED,
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        businessId: booking.businessId,
+        payload: {
+          bookingId: booking.id,
+          hiddenFromCalendar: hidden,
+          status: booking.status,
+        },
+        userId,
+      });
+    }
+
+    return { updatedCount: updatedIds.length, updatedIds };
   }
 
   async searchDashboard(
@@ -469,6 +543,10 @@ export class BookingService {
       .leftJoinAndSelect('booking.employee', 'employee')
       .leftJoinAndSelect('booking.service', 'service')
       .where('booking.business_id = :businessId', { businessId });
+
+    if (!query.includeHidden) {
+      qb.andWhere('booking.hidden_from_calendar = false');
+    }
 
     if (query.search?.trim()) {
       const term = `%${query.search.trim()}%`;
@@ -526,6 +604,7 @@ export class BookingService {
         endTime: b.endTime.toISOString(),
         status: b.status,
         paymentStatus: b.paymentStatus,
+        hiddenFromCalendar: b.hiddenFromCalendar,
         notes: b.notes ?? null,
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),

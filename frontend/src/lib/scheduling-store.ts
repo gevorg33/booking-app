@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { getTodayDateKey, addCalendarDays, todayDateAnchor, toDateKey } from '@/lib/date-format';
 
 export interface TimePeriod {
   startTime: string;
@@ -114,7 +114,7 @@ export const useSchedulingStore = create<SchedulingState>()((set) => ({
   isTemplateLoading: false,
 
   availableSlots: [],
-  selectedDate: new Date().toISOString().split('T')[0],
+  selectedDate: getTodayDateKey(),
   isSlotsLoading: false,
 
   bookings: [],
@@ -126,8 +126,8 @@ export const useSchedulingStore = create<SchedulingState>()((set) => ({
 
   selectedDays: [1, 2, 3, 4, 5],
   dateRange: {
-    start: new Date().toISOString().split('T')[0],
-    end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    start: getTodayDateKey(),
+    end: toDateKey(addCalendarDays(todayDateAnchor(), 30)),
   },
 
   setTemplates: (templates, total) => set({ templates, totalTemplates: total }),

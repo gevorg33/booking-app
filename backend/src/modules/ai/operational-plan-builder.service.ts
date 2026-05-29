@@ -383,12 +383,12 @@ export class OperationalPlanBuilderService {
     bookingIds: string[],
     reason: string,
     userId?: string,
-    meta?: { employeeName?: string; date?: string; services?: string[] },
+    meta?: { employeeName?: string; date?: string; services?: string[]; notifyCustomers?: boolean },
   ): AgentPlan {
-    const stepId = crypto.randomUUID();
+    const cancelId = crypto.randomUUID();
     const steps: AgentPlanStep[] = [
       {
-        id: stepId,
+        id: cancelId,
         action: 'cancel_bookings',
         description: `Cancel ${bookingIds.length} booking(s)`,
         params: { bookingIds, reason, userId, businessId },
@@ -396,6 +396,17 @@ export class OperationalPlanBuilderService {
         estimatedImpact: `Cancels ${bookingIds.length} booking(s)`,
       },
     ];
+
+    if (meta?.notifyCustomers) {
+      steps.push({
+        id: crypto.randomUUID(),
+        action: 'notify_cancelled_customers',
+        description: `Notify ${bookingIds.length} customer(s) about cancellation`,
+        params: { bookingIds, reason, businessId },
+        dependsOn: [cancelId],
+        estimatedImpact: 'Sends cancellation notifications (email, SMS, WhatsApp)',
+      });
+    }
 
     const filterDesc = [
       meta?.employeeName,
@@ -410,6 +421,94 @@ export class OperationalPlanBuilderService {
       risk: {
         level: bookingIds.length > 5 ? 'high' : bookingIds.length > 1 ? 'medium' : 'low',
         factors: [`Affects ${bookingIds.length} booking(s)`],
+      },
+    });
+  }
+
+  buildHideAppointmentsPlan(
+    businessId: string,
+    bookingIds: string[],
+    userId?: string,
+    meta?: {
+      employeeName?: string;
+      date?: string;
+      services?: string[];
+      statuses?: string[];
+    },
+  ): AgentPlan {
+    const hideId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: hideId,
+        action: 'hide_appointments_from_calendar',
+        description: `Hide ${bookingIds.length} appointment(s) from calendar`,
+        params: { bookingIds, userId, businessId },
+        dependsOn: [],
+        estimatedImpact: `Hides ${bookingIds.length} appointment(s) from schedule calendar (records kept)`,
+      },
+    ];
+
+    const filterDesc = [
+      meta?.statuses?.join(', '),
+      meta?.employeeName,
+      meta?.services?.join(', '),
+      meta?.date,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    return this.wrapPlan(businessId, 'hide_appointments_from_calendar', steps, {
+      reasoning: `Hide ${bookingIds.length} appointment(s) from calendar${filterDesc ? `: ${filterDesc}` : ''}. Records remain in the database.`,
+      risk: {
+        level: bookingIds.length > 10 ? 'medium' : 'low',
+        factors: [`Hides ${bookingIds.length} appointment(s) from calendar view only`],
+      },
+    });
+  }
+
+  buildUnhideAppointmentsPlan(
+    businessId: string,
+    bookingIds: string[],
+    userId?: string,
+    meta?: {
+      employeeName?: string;
+      date?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      services?: string[];
+      statuses?: string[];
+    },
+  ): AgentPlan {
+    const unhideId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: unhideId,
+        action: 'unhide_appointments_from_calendar',
+        description: `Restore ${bookingIds.length} appointment(s) to calendar`,
+        params: { bookingIds, userId, businessId },
+        dependsOn: [],
+        estimatedImpact: `Restores ${bookingIds.length} hidden appointment(s) on schedule calendar`,
+      },
+    ];
+
+    const periodDesc =
+      meta?.dateFrom && meta?.dateTo && meta.dateFrom !== meta.dateTo
+        ? `${meta.dateFrom} → ${meta.dateTo}`
+        : meta?.date;
+    const filterDesc = [
+      meta?.statuses?.join(', '),
+      meta?.employeeName,
+      meta?.services?.join(', '),
+      periodDesc,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    return this.wrapPlan(businessId, 'unhide_appointments_from_calendar', steps, {
+      reasoning: `Restore ${bookingIds.length} hidden appointment(s) to calendar${filterDesc ? `: ${filterDesc}` : ''}.`,
+      risk: {
+        level: 'low',
+        factors: [`Restores ${bookingIds.length} appointment(s) to calendar view only`],
       },
     });
   }

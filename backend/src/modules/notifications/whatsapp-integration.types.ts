@@ -20,9 +20,11 @@ export interface WhatsAppRuntimeConfig {
   apiVersion: string;
   templateConfirmation: string;
   templateReminder: string;
+  templateCancellation?: string;
   templateLanguage: string;
   templateBodyParamCount: number;
   reminderBodyParamCount: number;
+  cancellationBodyParamCount?: number;
   fallbackTemplate: string;
   fallbackLanguage: string;
   fallbackBodyParamCount: number;

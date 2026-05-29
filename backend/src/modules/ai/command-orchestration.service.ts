@@ -197,6 +197,9 @@ export class CommandOrchestrationService {
       if (step.result?.cancelledCount) {
         lines.push(`• Cancelled ${step.result.cancelledCount} booking(s)`);
       }
+      if (step.result?.notifiedCount != null) {
+        lines.push(`• Notified ${step.result.notifiedCount} customer(s) (email/SMS/WhatsApp)`);
+      }
       if (step.result?.recommendations?.length) {
         lines.push('• Recommendations:');
         step.result.recommendations.slice(0, 5).forEach((r: string) => lines.push(`  - ${r}`));

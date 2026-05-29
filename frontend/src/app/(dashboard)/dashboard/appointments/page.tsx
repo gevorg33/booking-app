@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
-import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeRangeDisplay, getTodayDateKey } from '@/lib/date-format';
 import {
   BOOKING_STATUS_FILTER_OPTIONS,
   buildAppointmentSearchQuery,
@@ -74,7 +74,7 @@ export default function AppointmentsPage() {
         ...params,
         search: debouncedSearch.trim() || undefined,
         status: statusFilter || undefined,
-        date: todayOnly ? new Date().toISOString().split('T')[0] : undefined,
+        date: todayOnly ? getTodayDateKey() : undefined,
       }),
     [params, debouncedSearch, statusFilter, todayOnly],
   );

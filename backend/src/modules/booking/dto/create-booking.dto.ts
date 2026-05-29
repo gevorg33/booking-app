@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsEnum, IsArray, IsObject } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsEnum, IsArray, IsObject, IsBoolean } from 'class-validator';
 import { BookingStatus, PaymentStatus } from '../entities/booking.entity.js';
 
 export class CreateBookingDto {
@@ -78,6 +78,10 @@ export class UpdateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  hiddenFromCalendar?: boolean;
 
   @IsOptional()
   @IsString()

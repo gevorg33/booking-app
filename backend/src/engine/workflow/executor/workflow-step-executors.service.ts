@@ -44,6 +44,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       create_service: (step, ctx) => this.createService(step, ctx),
       cancel_booking: (step, ctx) => this.cancelBooking(step, ctx),
       cancel_bookings: (step, ctx) => this.cancelBookings(step, ctx),
+      hide_appointments_from_calendar: (step, ctx) => this.hideAppointmentsFromCalendar(step, ctx),
+      unhide_appointments_from_calendar: (step, ctx) => this.unhideAppointmentsFromCalendar(step, ctx),
       list_appointments: (step) => this.listAppointments(step),
       fetch_current_schedule: (step) => this.fetchCurrentSchedule(step),
       analyze_utilization: (step) => this.analyzeUtilization(step),
@@ -337,6 +339,30 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       cancelled.push(id);
     }
     return { cancelledCount: cancelled.length, cancelledIds: cancelled };
+  }
+
+  private async hideAppointmentsFromCalendar(step: WorkflowStep, _ctx: Record<string, any>) {
+    const { bookingIds, userId } = step.params as {
+      bookingIds: string[];
+      userId?: string;
+    };
+    const result = await this.bookingService.setHiddenFromCalendar(bookingIds, true, userId);
+    return {
+      hiddenCount: result.updatedCount,
+      hiddenIds: result.updatedIds,
+    };
+  }
+
+  private async unhideAppointmentsFromCalendar(step: WorkflowStep, _ctx: Record<string, any>) {
+    const { bookingIds, userId } = step.params as {
+      bookingIds: string[];
+      userId?: string;
+    };
+    const result = await this.bookingService.setHiddenFromCalendar(bookingIds, false, userId);
+    return {
+      unhiddenCount: result.updatedCount,
+      unhiddenIds: result.updatedIds,
+    };
   }
 
   private resolveDateRange(params: {

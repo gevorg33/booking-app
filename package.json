@@ -1,0 +1,14 @@
+{
+  "name": "booking-platform",
+  "private": true,
+  "description": "Orchestrix booking monorepo — use scripts/ for local dev",
+  "scripts": {
+    "dev": "bash scripts/dev-local.sh",
+    "dev:local": "bash scripts/dev-local.sh",
+    "dev:lan": "bash scripts/dev-lan.sh",
+    "dev:lan:be": "bash scripts/dev-lan-backend.sh",
+    "dev:frontend": "bash scripts/dev-frontend.sh",
+    "dev:backend": "bash scripts/dev-backend.sh",
+    "dev:stop": "bash scripts/dev-stop.sh"
+  }
+}

@@ -60,6 +60,50 @@ const ACTION_RULES: Record<string, Rule> = {
 
   bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
 
+  hide_appointments_from_calendar: (cmd) => {
+    const hasFilter =
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.serviceNames?.length ?? 0) > 0 ||
+      !!cmd.params.serviceName ||
+      !!cmd.params.statusFilter ||
+      (cmd.params.statusFilters?.length ?? 0) > 0 ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.customerName;
+    return hasFilter
+      ? []
+      : [{
+          field: 'date',
+          label: 'Filter',
+          message: 'Specify which appointments to hide (date, provider, status, and/or service)',
+          example: 'Hide all cancelled appointments for Gevorg today from the calendar',
+        }];
+  },
+
+  unhide_appointments_from_calendar: (cmd) => {
+    const hasFilter =
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.params.employeeName ||
+      cmd.params.allProviders ||
+      (cmd.params.serviceNames?.length ?? 0) > 0 ||
+      !!cmd.params.serviceName ||
+      !!cmd.params.statusFilter ||
+      (cmd.params.statusFilters?.length ?? 0) > 0 ||
+      !!cmd.params.timeSlot ||
+      !!cmd.params.customerName;
+    return hasFilter
+      ? []
+      : [{
+          field: 'date',
+          label: 'Filter',
+          message: 'Specify which hidden appointments to restore (date, provider, status, and/or service)',
+          example: 'Unhide all hidden cancelled appointments for Gevorg today on the calendar',
+        }];
+  },
+
   fill_slot_from_waitlist: (cmd) => {
     const hasWhen = !!cmd.params.date || !!cmd.params.timeSlot;
     return hasWhen
@@ -349,6 +393,8 @@ const VALIDATED_ACTIONS = new Set([
   'create_services',
   'cancel_bookings',
   'bulk_smart_cancel',
+  'hide_appointments_from_calendar',
+  'unhide_appointments_from_calendar',
   'fill_slot_from_waitlist',
   'reschedule_booking',
   'check_availability',

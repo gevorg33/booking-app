@@ -1,6 +1,11 @@
-import { todayDisplay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
+import { todayDisplay, formatDateDisplay, applyRelativeDateFromPrompt, getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
-import { extractSingleDateFromPrompt, resolveDateRange } from './ai-orchestration.helpers.js';
+import {
+  extractSingleDateFromPrompt,
+  fuzzyMatchServiceByName,
+  normalizeServiceLookup,
+  resolveDateRange,
+} from './ai-orchestration.helpers.js';
 import { normalizeMultilingualPrompt } from './ai-prompt-i18n.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
 
@@ -18,6 +23,7 @@ export interface HeuristicIntent {
 export interface HeuristicDetectionInput {
   prompt: string;
   sessionContext?: Record<string, any>;
+  timeZone?: string;
   employees: Array<{ id: string; name: string; serviceIds?: string[] | null }>;
   customers?: Array<{ id: string; name: string }>;
   services?: Array<{ id: string; name: string }>;
@@ -30,6 +36,8 @@ const BOOKING_STATUS_ALIASES: Record<string, string> = {
   'no-show': 'no_show',
   no_show: 'no_show',
   noshow: 'no_show',
+  done: 'completed',
+  finished: 'completed',
   confirmed: 'confirmed',
   pending: 'pending',
   completed: 'completed',
@@ -60,12 +68,28 @@ export function extractLimitFromPrompt(prompt: string, defaultLimit = 5): number
 }
 
 export function extractStatusFilterFromPrompt(prompt: string): string | null {
+  const filters = extractStatusFiltersFromPrompt(prompt);
+  return filters.length === 1 ? filters[0] : filters[0] ?? null;
+}
+
+export function extractStatusFiltersFromPrompt(prompt: string): string[] {
   const lower = prompt.toLowerCase();
+  const found = new Set<string>();
   for (const [alias, status] of Object.entries(BOOKING_STATUS_ALIASES)) {
     if (new RegExp(`\\b${alias.replace(/[-_]/g, '[\\s-_]?')}\\b`, 'i').test(lower)) {
-      return status;
+      found.add(status);
     }
   }
+  return [...found];
+}
+
+export function extractHideLimitFromPrompt(prompt: string): number | null {
+  const lower = prompt.toLowerCase();
+  if (/\b(one|single|a)\s+(appointment|booking)\b/i.test(lower)) return 1;
+  const countMatch = lower.match(
+    /\b(?:hide|remove|clear|delete)\s+(\d{1,2})\s+(?:appointment|booking)/i,
+  );
+  if (countMatch) return Math.min(parseInt(countMatch[1], 10), 50);
   return null;
 }
 
@@ -125,20 +149,167 @@ function matchServiceByNameFragment(
   fragment: string,
   services: Array<{ id: string; name: string }>,
 ): { id: string; name: string } | undefined {
-  const lower = fragment.trim().toLowerCase();
-  if (!lower) return undefined;
+  return fuzzyMatchServiceByName(services, fragment);
+}
+
+function matchServiceInPrompt(
+  prompt: string,
+  services: Array<{ id: string; name: string }>,
+): { id: string; name: string } | undefined {
+  const lower = prompt.toLowerCase();
+  const normalizedPrompt = normalizeServiceLookup(lower);
+
+  let best: { id: string; name: string } | undefined;
+  let bestLen = 0;
+  for (const service of services) {
+    if (lower.includes(service.name.toLowerCase()) && service.name.length > bestLen) {
+      best = service;
+      bestLen = service.name.length;
+      continue;
+    }
+    const normalizedName = normalizeServiceLookup(service.name);
+    if (
+      normalizedName.length >= 4 &&
+      normalizedPrompt.includes(normalizedName) &&
+      normalizedName.length > bestLen
+    ) {
+      best = service;
+      bestLen = normalizedName.length;
+    }
+  }
+  if (best) return best;
+
+  const whoCanPatterns = [
+    /\bwho\s+can\s+(?:do|give|perform|provide|offer)?\s*(?:a\s+|an\s+)?([a-z][a-z\s-]+?)(?:\s+today|\s+tomorrow|\s+this|\s+on\b|\s+at\b|\?|$)/i,
+    /\bwho(?:'s|\s+is|\s+are)\s+(?:doing|performing|giving|offering|providing)\s+(?:a\s+|an\s+)?([a-z][a-z\s-]+?)(?:\s+today|\s+tomorrow|\s+this|\s+on\b|\s+at\b|\?|$)/i,
+    /\b(?:free|available|open)\s+(?:slot|time)s?\s+for\s+(?:a\s+|an\s+)?([a-z][a-z\s-]+?)(?:\s+today|\s+tomorrow|\s+this|\s+on\b|\?|$)/i,
+  ];
+  for (const re of whoCanPatterns) {
+    const match = lower.match(re);
+    if (match?.[1]) {
+      const svc = fuzzyMatchServiceByName(services, match[1].trim());
+      if (svc) return svc;
+    }
+  }
+
+  const phraseMatch = lower.match(
+    /\b(?:give|do|perform|provide|offer|for)\s+(?:a\s+|an\s+)?([a-z][a-z\s-]+?)(?:\s+today|\s+tomorrow|\s+at\b|\s+on\b|\?|$)/i,
+  );
+  if (phraseMatch?.[1]) {
+    return fuzzyMatchServiceByName(services, phraseMatch[1].trim());
+  }
+
+  return undefined;
+}
+
+/** Exported for post-LLM prompt entity override (prompt beats session). */
+export function extractServiceFromPrompt(
+  prompt: string,
+  services: Array<{ id: string; name: string }>,
+): { id: string; name: string } | undefined {
+  return matchServiceInPrompt(prompt, services);
+}
+
+/** Team-wide provider availability — do not inherit a single provider from session. */
+export function isTeamWideProviderAvailabilityQuery(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
   return (
-    services.find((s) => s.name.toLowerCase() === lower) ??
-    services.find(
-      (s) => lower.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lower),
-    ) ??
-    services.find((s) =>
-      s.name
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((w) => w.length >= 4)
-        .some((w) => lower.includes(w)),
-    )
+    isWhoHasFreeSlotForServiceQuery(lower) ||
+    isWhoIsDoingServiceQuery(lower) ||
+    /\bwho\s+can\s+(?:do|give|perform|provide|offer)\b/i.test(lower) ||
+    /\bwho\s+(?:is|are)\s+(?:available|free|open)\b/i.test(lower)
+  );
+}
+
+function isProviderAvailabilityQuery(lower: string): boolean {
+  return (
+    /\b(is|are)\s+.+\s+available\b/i.test(lower) ||
+    /\bavailable\s+to\s+(give|do|perform|provide|offer)\b/i.test(lower) ||
+    /\bcan\s+.+\s+(give|do|perform|provide|offer)\b/i.test(lower) ||
+    /\b(does|do|will|would)\s+.+\s+(do|give|perform|provide|offer)\b/i.test(lower)
+  );
+}
+
+const MUTATING_ACTIONS = new Set([
+  'create_booking',
+  'create_service',
+  'create_services',
+  'cancel_bookings',
+  'bulk_smart_cancel',
+  'hide_appointments_from_calendar',
+  'unhide_appointments_from_calendar',
+  'fill_slot_from_waitlist',
+  'reschedule_booking',
+  'fill_unused_slots',
+  'apply_schedule',
+  'block_schedule',
+  'setup_week_schedule',
+]);
+
+/** Explicit booking/cancel verbs — required before heuristic mutating actions run. */
+export function isExplicitMutationRequest(lower: string): boolean {
+  return (
+    /\b(book|reserve|set up an appointment|make an appointment|add an appointment|schedule an appointment|schedule a)\b/i.test(
+      lower,
+    ) ||
+    /\b(cancel|hide|unhide|restore|block|fill those|fill them|apply template)\b/i.test(lower)
+  );
+}
+
+function isLikelyReadOnlyQuestion(prompt: string): boolean {
+  const lower = prompt.toLowerCase().trim();
+  if (lower.endsWith('?')) return true;
+  return /^(does|do|is|are|can|could|will|would|who|what|when|where|which|how)\b/i.test(lower);
+}
+
+/** When heuristics guess a mutation on a question without explicit verbs, prefer LLM classification. */
+export function shouldPreferLlmOverHeuristic(
+  result: HeuristicIntent | null,
+  prompt: string,
+): boolean {
+  if (!result) return false;
+
+  const lower = prompt.toLowerCase();
+
+  // Natural-language availability / provider lookup — LLM handles wording variations better.
+  if (
+    result.action === 'lookup_service_assignment' ||
+    result.action === 'check_availability' ||
+    result.action === 'summarize_customers' ||
+    result.action === 'summarize_bookings' ||
+    result.action === 'analyze_appointments' ||
+    result.action === 'analyze_services' ||
+    result.action === 'summarize_staff'
+  ) {
+    return true;
+  }
+
+  if (!MUTATING_ACTIONS.has(result.action)) return false;
+
+  if (isProviderAvailabilityQuery(lower) || isLikelyReadOnlyQuestion(prompt)) {
+    return !isExplicitMutationRequest(lower);
+  }
+
+  if (!isExplicitMutationRequest(lower)) return true;
+  return false;
+}
+
+function isWhoHasFreeSlotForServiceQuery(lower: string): boolean {
+  return (
+    (/\bwho\s+(is|has|are)\s+(?:a\s+)?(?:free|available|open)\b/i.test(lower) ||
+      /\bwho\s+has\s+(?:a\s+)?(?:free|open|available)\s+(?:slot|time)/i.test(lower) ||
+      /\b(free|available|open)\s+(?:slot|time)s?\s+for\b/i.test(lower)) &&
+    !/\b(which|what)\s+(exact\s+)?days?\b/i.test(lower)
+  );
+}
+
+/** "Who is doing facemassage today" — scheduled service blocks with open time, not catalog assignment. */
+function isWhoIsDoingServiceQuery(lower: string): boolean {
+  return (
+    /\bwho(?:'s|\s+is|\s+are)\s+(?:doing|performing|giving|offering|providing)\b/i.test(
+      lower,
+    ) ||
+    /\bwho\s+is\s+(?:on|scheduled\s+(?:for|to\s+do))\b/i.test(lower)
   );
 }
 
@@ -190,8 +361,9 @@ export function enrichParamsFromPrompt(
 ): void {
   const { prompt, sessionContext, employees, customers, services, templates } = input;
   const lower = prompt.toLowerCase();
+  const timeZone = input.timeZone ?? sessionContext?.timeZone ?? 'UTC';
 
-  const range = resolveDateRange(params, prompt);
+  const range = resolveDateRange(params, prompt, timeZone);
   if (range) {
     if (!params.dateFrom) params.dateFrom = formatDateDisplay(range.start);
     if (!params.dateTo) params.dateTo = formatDateDisplay(range.end);
@@ -199,15 +371,19 @@ export function enrichParamsFromPrompt(
       params.date = formatDateDisplay(range.start);
     }
   } else {
-    applyRelativeDateFromPrompt(params, prompt);
+    applyRelativeDateFromPrompt(params, prompt, timeZone);
     if (!params.date) {
-      const single = extractSingleDateFromPrompt(prompt);
+      const single = extractSingleDateFromPrompt(prompt, timeZone);
       if (single) params.date = single;
+      else {
+        const ordinal = extractOrdinalDateFromPrompt(prompt, timeZone);
+        if (ordinal) params.date = ordinal;
+      }
     }
   }
 
   // Prompt-relative dates always win over stale LLM/session values.
-  applyRelativeDateFromPrompt(params, prompt);
+  applyRelativeDateFromPrompt(params, prompt, timeZone);
 
   if (!params.employeeName && employees?.length) {
     const emp = matchEntityInPrompt(prompt, employees);
@@ -227,7 +403,7 @@ export function enrichParamsFromPrompt(
   }
 
   if (!params.serviceName && services?.length) {
-    const svc = matchEntityInPrompt(prompt, services);
+    const svc = matchServiceInPrompt(prompt, services);
     if (svc) params.serviceName = svc.name;
   }
 
@@ -267,6 +443,11 @@ export function enrichParamsFromPrompt(
 
   const status = extractStatusFilterFromPrompt(prompt);
   if (status && !params.statusFilter) params.statusFilter = status;
+  const statusFilters = extractStatusFiltersFromPrompt(prompt);
+  if (statusFilters.length > 0) params.statusFilters = statusFilters;
+
+  const hideLimit = extractHideLimitFromPrompt(prompt);
+  if (hideLimit && !params.limit) params.limit = hideLimit;
 
   if (/all providers|everyone|all staff|whole team|entire team|each provider/i.test(lower)) {
     params.allProviders = true;
@@ -276,9 +457,22 @@ export function enrichParamsFromPrompt(
     params.blockFullDay = true;
   }
 
-  const reasonMatch = prompt.match(/\bbecause\b[:\s]+(.+)/i) || prompt.match(/\breason[:\s]+(.+)/i);
+  const reasonMatch =
+    prompt.match(/\bwith a reason(?:\s+that)?\s+(.+?)(?:\.|$)/i) ||
+    prompt.match(/\bbecause\b[:\s]+(.+)/i) ||
+    prompt.match(/\breason[:\s]+(.+)/i);
   if (reasonMatch && !params.reason) {
     params.reason = reasonMatch[1].trim().slice(0, 200);
+  }
+
+  if (
+    /\bcancel\b/i.test(lower) &&
+    (/\bwhatsapp\b|\bnotify\b|\bmessage\b|\btext\b|\bcustomer\b|\breason\b|\bsick\b|\bbecause\b/i.test(
+      lower,
+    ) ||
+      params.reason)
+  ) {
+    params.notifyCustomers = true;
   }
 }
 
@@ -420,7 +614,6 @@ export function resolveCustomerMetric(
   params: Record<string, any>,
   prompt: string,
 ): CustomerInsightMetric {
-  const raw = params.customerMetric as string | undefined;
   const allowed: CustomerInsightMetric[] = [
     'most_no_shows',
     'most_bookings',
@@ -432,13 +625,10 @@ export function resolveCustomerMetric(
     'new_customers',
     'overview',
   ];
-  if (raw && allowed.includes(raw as CustomerInsightMetric)) {
-    return raw as CustomerInsightMetric;
-  }
 
   const lower = prompt.toLowerCase();
   if (
-    /paid the most|spent the most|top spenders?|highest spend|most paid|who paid|best payers?|customers? who paid/i.test(
+    /pay(?:s|ing)?\s+(?:the\s+)?most|paid the most|spent the most|top spenders?|highest spend|most paid|who paid|best payers?|customers? who paid|biggest spender|most revenue from customers?/i.test(
       lower,
     )
   ) {
@@ -450,12 +640,18 @@ export function resolveCustomerMetric(
   if (/at[\s-]?risk|churn|inactive|not been back|haven't been|lapsed/i.test(lower)) return 'at_risk';
   if (/cancel/i.test(lower)) return 'most_cancellations';
   if (/vip|loyal/i.test(lower)) return 'vip';
-  if (/best customer|top customer/i.test(lower) && !/paid|spend|spent|\$|revenue/i.test(lower)) {
+  if (/best customer|top customer/i.test(lower) && !/paid|spend|spent|\$|revenue|pay/i.test(lower)) {
     return 'vip';
   }
   if (/most booking|most appointment|books the most|frequent|top booker/i.test(lower)) {
     return 'most_bookings';
   }
+
+  const raw = params.customerMetric as string | undefined;
+  if (raw && allowed.includes(raw as CustomerInsightMetric)) {
+    return raw as CustomerInsightMetric;
+  }
+
   return 'overview';
 }
 
@@ -553,6 +749,31 @@ function detectWhoHasScheduleIntent(input: HeuristicDetectionInput): HeuristicIn
   };
 }
 
+function tzFrom(input: HeuristicDetectionInput): string {
+  return input.timeZone ?? input.sessionContext?.timeZone ?? 'UTC';
+}
+
+/** "30th may", "30 may", "May 30" → DD_MM_YYYY */
+function extractOrdinalDateFromPrompt(prompt: string, timeZone = 'UTC'): string | null {
+  const match = prompt.match(
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i,
+  );
+  if (!match) return null;
+
+  const day = parseInt(match[1], 10);
+  const monthKey = match[2].slice(0, 3).toLowerCase();
+  const monthMap: Record<string, number> = {
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  };
+  const month = monthMap[monthKey];
+  if (!month || day < 1 || day > 31) return null;
+
+  const year = parseInt(getTodayDateKey(timeZone).split('-')[0], 10);
+  const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return formatDateDisplay(iso);
+}
+
 function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt, sessionContext } = input;
   const lastAction = sessionContext?.lastAction;
@@ -576,6 +797,7 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
       lastAction === 'summarize_day' ||
       lastAction === 'lookup_service_assignment') &&
     !isInformationalScheduleQuery(prompt.toLowerCase()) &&
+    !isProviderAvailabilityQuery(prompt.toLowerCase()) &&
     (/\b(book|schedule|add|create|reserve)\b/i.test(prompt) ||
       (extractTimeSlotFromPrompt(prompt) &&
         (inherited.serviceName || sessionContext?.serviceName))) &&
@@ -605,7 +827,9 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
     }
     const slot = extractTimeSlotFromPrompt(prompt);
     if (slot) params.timeSlot = slot;
-    if (!params.date && !params.dateFrom) params.date = sessionContext?.date ?? todayDisplay();
+    if (!params.date && !params.dateFrom) {
+      params.date = sessionContext?.date ?? todayDisplay(tzFrom(input));
+    }
     enrichParamsFromPrompt(params, input);
     return {
       action: 'create_booking',
@@ -720,6 +944,10 @@ function detectFollowUpIntents(input: HeuristicDetectionInput): HeuristicIntent 
 function detectListScheduleGapsIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt, sessionContext, employees } = input;
   const lower = prompt.toLowerCase();
+
+  // "Who has a free slot for facemassage" is provider+availability lookup, not schedule-gap drill-down.
+  if (isWhoHasFreeSlotForServiceQuery(lower)) return null;
+
   const asksAboutDaysWithGaps =
     /\b(which|what)\s+(exact\s+)?days?\b/i.test(prompt) ||
     /\bdays?\s+(with|have|has|contain)\s+(gaps?|open|empty|free|unused)/i.test(prompt) ||
@@ -727,8 +955,8 @@ function detectListScheduleGapsIntent(input: HeuristicDetectionInput): Heuristic
     (/\bgaps?\b/i.test(prompt) && /\b(which|what|when)\b/i.test(prompt));
 
   const asksWhoIsFree =
-    /\bwho\s+(is|has|are)\s+(free|available|open)\b/i.test(prompt) ||
-    /\b(free|available|open)\s+(slots?|times?)\b/i.test(prompt) ||
+    /\bwho\s+(is|has|are)\s+(?:a\s+)?(?:free|available|open)\b/i.test(prompt) ||
+    /\bwho\s+has\s+(?:a\s+)?(?:free|open|available)\s+(?:slot|time)/i.test(prompt) ||
     /\bwho\s+has\s+(gaps?|open|availability)\b/i.test(prompt);
 
   const followUpAfterUtilization =
@@ -748,9 +976,14 @@ function detectListScheduleGapsIntent(input: HeuristicDetectionInput): Heuristic
     'allProviders',
   ]);
   const employee = matchEntityInPrompt(prompt, employees);
-  if (employee) params.employeeName = employee.name;
-  if (asksWhoIsFree && !employee && /all providers|everyone|all staff/i.test(prompt)) {
-    params.allProviders = true;
+  if (employee) {
+    params.employeeName = employee.name;
+  } else if (asksWhoIsFree) {
+    // Do not pin to a prior provider when asking who is free across the team.
+    params.employeeName = null;
+    if (/all providers|everyone|all staff/i.test(prompt)) {
+      params.allProviders = true;
+    }
   }
 
   return {
@@ -826,7 +1059,7 @@ function detectSummarizeBookingsIntent(input: HeuristicDetectionInput): Heuristi
   const status = extractStatusFilterFromPrompt(prompt);
   if (status) params.statusFilter = status;
   if (sessionContext?.todayOnly && !params.date && !params.dateFrom) {
-    params.date = todayDisplay();
+    params.date = todayDisplay(tzFrom(input));
   }
 
   return {
@@ -845,7 +1078,7 @@ function detectCustomerInsightsIntent(input: HeuristicDetectionInput): Heuristic
     /\bcustomers?\b/i.test(prompt) || /\bwho\b/i.test(prompt) || /\bwhich\b/i.test(prompt);
 
   const customerAnalytics =
-    /no[\s-]?show|at[\s-]?risk|vip|cancellation|cancelled|book(s|ed)? the most|most appointment|frequent|churn|inactive|haven't been|not been back|top customer|best customer|crm|segment|paid the most|spent the most|top spenders?|highest spend|most paid|new customers?|lapsed/i.test(
+    /no[\s-]?show|at[\s-]?risk|vip|cancellation|cancelled|book(s|ed)? the most|most appointment|frequent|churn|inactive|haven't been|not been back|top customer|best customer|crm|segment|pay(?:s|ing)?\s+(?:the\s+)?most|paid the most|spent the most|top spenders?|highest spend|most paid|new customers?|lapsed|biggest spender/i.test(
       lower,
     );
 
@@ -934,9 +1167,9 @@ function detectShowAppointmentsIntent(input: HeuristicDetectionInput): Heuristic
 
   const status = extractStatusFilterFromPrompt(prompt);
   if (status) params.statusFilter = status;
-  if (sessionContext?.todayOnly && !params.date) params.date = todayDisplay();
+  if (sessionContext?.todayOnly && !params.date) params.date = todayDisplay(tzFrom(input));
   if (whatsComingUp && !params.date) {
-    params.date = /\btomorrow\b/i.test(prompt) ? undefined : todayDisplay();
+    params.date = /\btomorrow\b/i.test(prompt) ? undefined : todayDisplay(tzFrom(input));
   }
 
   return {
@@ -951,11 +1184,40 @@ function detectShowAppointmentsIntent(input: HeuristicDetectionInput): Heuristic
   };
 }
 
+function detectProviderAvailabilityIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
+  const { prompt, sessionContext, employees } = input;
+  const lower = prompt.toLowerCase();
+
+  if (isWhoHasFreeSlotForServiceQuery(lower)) return null;
+  if (!isProviderAvailabilityQuery(lower)) return null;
+  if (/\b(book|reserve|schedule an appointment|make an appointment)\b/i.test(lower)) return null;
+
+  const params = inheritSessionParams(sessionContext, [
+    'date',
+    'employeeName',
+    'serviceName',
+    'timeSlot',
+  ]);
+
+  // Named-provider questions only — team-wide "who is free" uses lookup_service_assignment.
+  const employee = employees?.length ? matchEntityInPrompt(prompt, employees) : undefined;
+  if (!employee && /\bwho\b/i.test(lower)) return null;
+  if (employee) params.employeeName = employee.name;
+
+  return {
+    action: 'check_availability',
+    params,
+    reasoning: 'Check if provider is available for requested service/time',
+    confidence: 0.94,
+  };
+}
+
 function detectCheckAvailabilityIntent(input: HeuristicDetectionInput): HeuristicIntent | null {
   const { prompt, sessionContext, employees } = input;
   const lower = prompt.toLowerCase();
 
   const wantsAvailability =
+    isProviderAvailabilityQuery(lower) ||
     /\b(available|availability|free slots?|open slots?|open times?|can (i|we) book)\b/i.test(
       lower,
     ) ||
@@ -967,7 +1229,12 @@ function detectCheckAvailabilityIntent(input: HeuristicDetectionInput): Heuristi
   if (!wantsAvailability) return null;
   if (/\b(show|list|cancel|how many)\b/i.test(lower) && !/\bavailable\b/i.test(lower)) return null;
 
-  const params = inheritSessionParams(sessionContext, ['date', 'employeeName']);
+  const params = inheritSessionParams(sessionContext, [
+    'date',
+    'employeeName',
+    'serviceName',
+    'timeSlot',
+  ]);
   const employee = matchEntityInPrompt(prompt, employees);
   if (employee) params.employeeName = employee.name;
 
@@ -1211,6 +1478,7 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
   enrichParamsFromPrompt(params, input);
 
   if (isInformationalScheduleQuery(lower)) return null;
+  if (isProviderAvailabilityQuery(lower)) return null;
 
   if (
     /\b(book|reserve|set up an appointment|make an appointment|add an appointment|schedule an appointment|schedule a)\b/i.test(
@@ -1235,7 +1503,13 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
       input.sessionContext?.employeeName ||
       (Array.isArray(input.sessionContext?.availableProviders) &&
         input.sessionContext.availableProviders.length === 1));
-  if (timeOnlyBooking && !/\b(cancel|show|list|how many|who can|who has|who is|which)\b/i.test(lower)) {
+  if (
+    timeOnlyBooking &&
+    !/\b(cancel|show|list|how many|who can|who has|who is|which|available)\b/i.test(lower) &&
+    !isLikelyReadOnlyQuestion(prompt) &&
+    !isProviderAvailabilityQuery(lower) &&
+    isExplicitMutationRequest(lower)
+  ) {
     if (!params.serviceName && input.sessionContext?.serviceName) {
       params.serviceName = input.sessionContext.serviceName;
     }
@@ -1254,6 +1528,40 @@ function detectDirectMutationIntents(input: HeuristicDetectionInput): HeuristicI
       params,
       reasoning: 'Time-only booking follow-up from prior provider/service context',
       confidence: 0.9,
+    };
+  }
+
+  const wantsUnhideFromCalendar =
+    /\b(unhide|restore)\b/i.test(lower) ||
+    (/\b(show|bring|put)\b/i.test(lower) &&
+      /\b(back|again|on)\b/i.test(lower) &&
+      /\b(calendar|schedule)\b/i.test(lower) &&
+      /\b(appointment|booking|hidden)s?\b/i.test(lower));
+
+  if (wantsUnhideFromCalendar) {
+    return {
+      action: 'unhide_appointments_from_calendar',
+      params,
+      reasoning: 'Restore hidden appointments to calendar view',
+      confidence: 0.89,
+    };
+  }
+
+  const wantsHideFromCalendar =
+    (/\b(hide|remove|clear)\b/i.test(lower) &&
+      /\b(calendar|schedule)\b/i.test(lower) &&
+      /\b(appointment|booking)s?\b/i.test(lower)) ||
+    (/\bdelete\b/i.test(lower) &&
+      /\b(appointment|booking)s?\b/i.test(lower) &&
+      /\b(calendar|schedule)\b/i.test(lower) &&
+      !/\b(permanently|forever|database)\b/i.test(lower));
+
+  if (wantsHideFromCalendar) {
+    return {
+      action: 'hide_appointments_from_calendar',
+      params,
+      reasoning: 'Hide appointments from calendar without deleting records',
+      confidence: 0.89,
     };
   }
 
@@ -1492,7 +1800,7 @@ function detectLookupServiceAssignmentIntent(input: HeuristicDetectionInput): He
   const lower = prompt.toLowerCase();
 
   const employee = employees ? matchEntityInPrompt(prompt, employees) : undefined;
-  const service = services ? matchEntityInPrompt(prompt, services) : undefined;
+  const service = services ? matchServiceInPrompt(prompt, services) : undefined;
 
   const servicesForProvider =
     employee &&
@@ -1506,17 +1814,30 @@ function detectLookupServiceAssignmentIntent(input: HeuristicDetectionInput): He
     (/\bwho (can|does|offers|performs|provides)\b/i.test(lower) ||
       /\bwhich providers?\b/i.test(lower) ||
       /\bwhich (staff|employees|providers)\b/i.test(lower) ||
-      /\bwho does\b/i.test(lower));
+      /\bwho does\b/i.test(lower) ||
+      isWhoHasFreeSlotForServiceQuery(lower) ||
+      isWhoIsDoingServiceQuery(lower));
 
   if (!servicesForProvider && !providersForService) {
     if (
-      (/\bwho can do\b/i.test(lower) || /\bwho (offers|performs)\b/i.test(lower)) &&
+      (/\bwho can do\b/i.test(lower) ||
+        /\bwho (offers|performs)\b/i.test(lower) ||
+        isWhoHasFreeSlotForServiceQuery(lower) ||
+        isWhoIsDoingServiceQuery(lower)) &&
       service
     ) {
       const p: Record<string, any> = { serviceName: service.name };
       enrichParamsFromPrompt(p, input);
       applyServiceAssignmentDateMode(p, prompt);
       return buildServiceAssignmentIntent('providers_for_service', p);
+    }
+    if (isWhoHasFreeSlotForServiceQuery(lower)) {
+      const p: Record<string, any> = {};
+      enrichParamsFromPrompt(p, input);
+      if (p.serviceName) {
+        applyServiceAssignmentDateMode(p, prompt);
+        return buildServiceAssignmentIntent('providers_for_service', p);
+      }
     }
     return null;
   }
@@ -1529,11 +1850,12 @@ function detectLookupServiceAssignmentIntent(input: HeuristicDetectionInput): He
   }
 
   if (providersForService && service) {
-    const p: Record<string, any> = {
-      ...inheritSessionParams(input.sessionContext, ['serviceName']),
-      serviceName: service.name,
-    };
+    const p: Record<string, any> = {};
     enrichParamsFromPrompt(p, input);
+    p.serviceName = matchServiceInPrompt(prompt, services!)?.name ?? service.name;
+    if (isTeamWideProviderAvailabilityQuery(prompt)) {
+      p.employeeName = null;
+    }
     applyServiceAssignmentDateMode(p, prompt);
     return buildServiceAssignmentIntent('providers_for_service', p);
   }
@@ -1586,12 +1908,13 @@ export function runHeuristicIntentDetection(
     detectFollowUpIntents,
     detectContextShiftIntent,
     detectWhoHasScheduleIntent,
+    detectProviderAvailabilityIntent,
+    detectLookupServiceAssignmentIntent,
     detectChangeBookingServiceIntent,
     detectDirectMutationIntents,
     detectListScheduleGapsIntent,
     detectLookupCustomerIntent,
     detectSummarizeWaitlistIntent,
-    detectLookupServiceAssignmentIntent,
     detectAppointmentAnalysisIntent,
     detectAnalyzeServicesIntent,
     detectSummarizeStaffIntent,

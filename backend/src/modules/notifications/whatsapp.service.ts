@@ -14,6 +14,7 @@ export interface WhatsAppBookingPayload {
   dateLabel: string;
   timeLabel: string;
   reminderLabel?: string;
+  cancelReason?: string;
 }
 
 interface TemplateSendOptions {
@@ -230,8 +231,15 @@ export class WhatsAppService implements OnModuleInit {
     }
 
     const isConfirmation = payload.kind === 'confirmation';
-    const templateName = isConfirmation ? config.templateConfirmation : config.templateReminder;
+    const isCancellation = payload.kind === 'cancellation';
+    const templateName = isConfirmation
+      ? config.templateConfirmation
+      : isCancellation
+        ? (config.templateCancellation ?? config.templateReminder)
+        : config.templateReminder;
     const templateLang = config.templateLanguage;
+
+    const cancellationDetail = `${payload.serviceName} on ${payload.dateLabel} ${payload.timeLabel}. Reason: ${payload.cancelReason || 'Cancelled'}`;
 
     const allBodyParams = isConfirmation
       ? [
@@ -240,14 +248,22 @@ export class WhatsAppService implements OnModuleInit {
           payload.businessName,
           `${payload.dateLabel} ${payload.timeLabel}`,
         ]
-      : [
-          payload.customerName,
-          payload.businessName,
-          payload.reminderLabel || 'soon',
-        ];
+      : isCancellation
+        ? [
+            payload.customerName,
+            payload.businessName,
+            cancellationDetail,
+          ]
+        : [
+            payload.customerName,
+            payload.businessName,
+            payload.reminderLabel || 'soon',
+          ];
     const paramCount = isConfirmation
       ? config.templateBodyParamCount
-      : config.reminderBodyParamCount;
+      : isCancellation
+        ? (config.cancellationBodyParamCount ?? config.reminderBodyParamCount)
+        : config.reminderBodyParamCount;
     const bodyParams =
       paramCount > 0
         ? allBodyParams.slice(0, paramCount).map((v) => this.formatTemplateValue(v))
@@ -255,7 +271,9 @@ export class WhatsAppService implements OnModuleInit {
 
     const preview = isConfirmation
       ? `[confirmation] ${payload.businessName}: ${payload.serviceName} on ${payload.dateLabel} ${payload.timeLabel}`
-      : `[reminder] ${payload.businessName}: ${payload.serviceName} in ${payload.reminderLabel}`;
+      : isCancellation
+        ? `[cancellation] ${payload.businessName}: ${cancellationDetail}`
+        : `[reminder] ${payload.businessName}: ${payload.serviceName} in ${payload.reminderLabel}`;
 
     try {
       const resolved = await this.resolveTemplateSend(config, templateName, templateLang, bodyParams);

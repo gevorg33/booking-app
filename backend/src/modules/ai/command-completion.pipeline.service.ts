@@ -40,6 +40,8 @@ const SESSION_INHERIT_KEYS = [
   'bookingMetric',
   'route',
   'statusFilter',
+  'statusFilters',
+  'limit',
   'todayOnly',
   'segmentFilter',
 ] as const;
@@ -86,10 +88,10 @@ export class CommandCompletionPipelineService {
     return merged;
   }
 
-  normalizeDateParams(params: Record<string, any>, prompt?: string): void {
-    applyRelativeDateFromPrompt(params, prompt);
+  normalizeDateParams(params: Record<string, any>, prompt?: string, timeZone = 'UTC'): void {
+    applyRelativeDateFromPrompt(params, prompt, timeZone);
     for (const key of ['date', 'dateFrom', 'dateTo'] as const) {
-      if (params[key]) params[key] = toIsoDay(params[key]);
+      if (params[key]) params[key] = toIsoDay(params[key], timeZone);
     }
   }
 
@@ -99,8 +101,9 @@ export class CommandCompletionPipelineService {
     prompt: string,
     classified: ClassifiedCommand,
     catalog: BusinessCatalog,
+    timeZone = 'UTC',
   ): ResolvedCommand {
-    const params = { ...classified.params };
+    const params: Record<string, any> = { ...classified.params, _timeZone: timeZone };
     const allProviders =
       params.allProviders === true ||
       /all providers|everyone|all staff|all employees/i.test(prompt);
@@ -113,7 +116,7 @@ export class CommandCompletionPipelineService {
       ? fuzzyMatchByName(catalog.customers, params.customerName)
       : undefined;
     const template = resolveTemplate(catalog.templates, params.templateName);
-    const dateRange = resolveDateRange(params, prompt);
+    const dateRange = resolveDateRange(params, prompt, timeZone);
 
     const employee = employees.length === 1 ? employees[0] : undefined;
 

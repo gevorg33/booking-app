@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AlertCircle, Ban, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, getTodayDateKey } from '@/lib/date-format';
 import { normalizeTime24 } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 
@@ -59,8 +59,8 @@ export function BlockScheduleTab({
   const [employeeId, setEmployeeId] = useState('');
   const [placeholder, setPlaceholder] = useState('Blocked');
   const [isRepetitive, setIsRepetitive] = useState(true);
-  const [startDay, setStartDay] = useState(new Date().toISOString().split('T')[0]);
-  const [endDay, setEndDay] = useState(new Date().toISOString().split('T')[0]);
+  const [startDay, setStartDay] = useState(getTodayDateKey());
+  const [endDay, setEndDay] = useState(getTodayDateKey());
   const [blockStartTime, setBlockStartTime] = useState('15:00');
   const [blockEndTime, setBlockEndTime] = useState('16:00');
   const [weeksCount, setWeeksCount] = useState(1);
@@ -73,7 +73,7 @@ export function BlockScheduleTab({
     isActiveOnSaturday: false,
     isActiveOnSunday: false,
   });
-  const [singleDay, setSingleDay] = useState(new Date().toISOString().split('T')[0]);
+  const [singleDay, setSingleDay] = useState(getTodayDateKey());
   const [singleStartTime, setSingleStartTime] = useState('15:00');
   const [singleEndTime, setSingleEndTime] = useState('16:00');
   const [error, setError] = useState<string | null>(null);

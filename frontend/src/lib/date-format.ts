@@ -65,6 +65,50 @@ export function toIsoDay(value: string): string {
   return d.toISOString().split('T')[0];
 }
 
-export function todayDisplay(): string {
-  return formatDateDisplay(new Date());
+export function getTodayDateKey(timeZone?: string): string {
+  const tz = timeZone ?? getBrowserTimeZone();
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+}
+
+export function getBrowserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** YYYY-MM-DD for HTML date inputs and API day filters (browser timezone). */
+export function toDateKey(d: Date, timeZone?: string): string {
+  const tz = timeZone ?? getBrowserTimeZone();
+  if (Number.isNaN(d.getTime())) return getTodayDateKey(tz);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
+}
+
+/** Stable Date anchor for a calendar day key (UTC noon on that day). */
+export function parseDateKey(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T12:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Today as a stable Date anchor in the user's timezone. */
+export function todayDateAnchor(timeZone?: string): Date {
+  return parseDateKey(getTodayDateKey(timeZone)) ?? new Date();
+}
+
+/** Add calendar days without UTC day-boundary drift. */
+export function addCalendarDays(d: Date, days: number, timeZone?: string): Date {
+  const key = toDateKey(d, timeZone);
+  const [y, m, day] = key.split('-').map((n) => parseInt(n, 10));
+  const shifted = new Date(Date.UTC(y, m - 1, day));
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  const iso = `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`;
+  return parseDateKey(iso) ?? shifted;
+}
+
+export function todayDisplay(timeZone?: string): string {
+  const key = getTodayDateKey(timeZone);
+  const [yyyy, mm, dd] = key.split('-');
+  return `${dd}_${mm}_${yyyy}`;
 }

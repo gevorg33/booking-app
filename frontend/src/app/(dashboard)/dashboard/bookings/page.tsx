@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay, getTodayDateKey, toDateKey, parseDateKey, todayDateAnchor, addCalendarDays } from '@/lib/date-format';
 import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -59,25 +59,6 @@ function fmtUTC(date: Date) {
 }
 function fmtDate(d: Date) {
   return formatDateDisplay(d);
-}
-function parsePickerDate(value: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const d = new Date(`${value}T12:00:00.000Z`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function dateKey(d: Date) {
-  if (Number.isNaN(d.getTime())) {
-    return new Date().toISOString().split('T')[0];
-  }
-  return d.toISOString().split('T')[0];
-}
-
-function addDays(d: Date, n: number) {
-  const base = Number.isNaN(d.getTime()) ? new Date() : d;
-  const r = new Date(base);
-  r.setUTCDate(r.getUTCDate() + n);
-  return r;
 }
 
 /** Convert a UTC time (HH:mm) on a given date ISO string into an ISO timestamp. */
@@ -387,7 +368,7 @@ export default function BookingsPage() {
 
   useOperationalEvents(business?.id, onOperationalEvent);
 
-  const [day, setDay]                       = useState(new Date());
+  const [day, setDay]                       = useState(() => todayDateAnchor());
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -402,12 +383,12 @@ export default function BookingsPage() {
     description: '',
   });
 
-  const dayStr  = dateKey(day);
-  const isToday = dayStr === dateKey(new Date());
+  const dayStr  = toDateKey(day);
+  const isToday = dayStr === getTodayDateKey();
 
-  const prevDay = useCallback(() => setDay((d) => addDays(d, -1)), []);
-  const nextDay = useCallback(() => setDay((d) => addDays(d, 1)),  []);
-  const goToday = useCallback(() => setDay(new Date()),            []);
+  const prevDay = useCallback(() => setDay((d) => addCalendarDays(d, -1)), []);
+  const nextDay = useCallback(() => setDay((d) => addCalendarDays(d, 1)),  []);
+  const goToday = useCallback(() => setDay(todayDateAnchor()),            []);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -589,7 +570,7 @@ export default function BookingsPage() {
         context={{
           route: '/dashboard/bookings',
           employeeName: employees.find((e: any) => e.id === employeeId)?.name,
-          date: day.toISOString().split('T')[0],
+          date: dayStr,
         }}
         title="Booking opportunities"
       />
@@ -598,7 +579,7 @@ export default function BookingsPage() {
         context={{
           route: '/dashboard/bookings',
           employeeName: employees.find((e: any) => e.id === employeeId)?.name,
-          date: day.toISOString().split('T')[0],
+          date: dayStr,
         }}
       />
 
@@ -637,7 +618,7 @@ export default function BookingsPage() {
               className="input text-sm ml-1"
               value={dayStr}
               onChange={(e) => {
-                const parsed = parsePickerDate(e.target.value);
+                const parsed = parseDateKey(e.target.value);
                 if (parsed) setDay(parsed);
               }}
             />
