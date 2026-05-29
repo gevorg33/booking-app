@@ -227,7 +227,15 @@ export class PublicBookingService {
     if (!employee) throw new NotFoundException('Provider not found');
 
     const tz = resolveTimezone(business.timezone);
-    const slots = await this.getEmployeeStartTimes(business.id, employee, date);
+    const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
+    const upcoming = rawSlots.filter((startTime) =>
+      isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, null),
+    );
+    const slots = await this.filterStartTimesWithAnyBookableService(
+      business.id,
+      employee,
+      upcoming,
+    );
     return {
       date,
       employeeId,
@@ -281,6 +289,9 @@ export class PublicBookingService {
       start,
     );
     if (allowedIds !== null) {
+      if (allowedIds.length === 0) {
+        return { services: [] };
+      }
       services = services.filter((s) => allowedIds.includes(s.id));
     }
 
@@ -479,6 +490,60 @@ export class PublicBookingService {
     }
   }
 
+  private async filterStartTimesWithAnyBookableService(
+    businessId: string,
+    employee: Employee,
+    startTimes: Date[],
+  ): Promise<Date[]> {
+    const services = await this.getEmployeeServices(businessId, employee);
+    if (services.length === 0) return [];
+
+    const bookable: Date[] = [];
+    for (const startTime of startTimes) {
+      if (await this.canBookAnyServiceAt(businessId, employee.id, startTime, services)) {
+        bookable.push(startTime);
+      }
+    }
+    return bookable;
+  }
+
+  private async canBookAnyServiceAt(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    services: Service[],
+  ): Promise<boolean> {
+    const allowedIds = await this.bookingService.getAllowedServiceIdsAtInstant(
+      businessId,
+      employeeId,
+      startTime,
+    );
+    if (allowedIds !== null && allowedIds.length === 0) {
+      return false;
+    }
+    const candidates =
+      allowedIds === null ? services : services.filter((s) => allowedIds.includes(s.id));
+
+    for (const service of candidates) {
+      const end = new Date(
+        startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+      );
+      try {
+        await this.bookingService.validateServiceFitsWindow(
+          businessId,
+          employeeId,
+          startTime,
+          end,
+          service.id,
+        );
+        return true;
+      } catch {
+        /* try next service */
+      }
+    }
+    return false;
+  }
+
   private async buildProviderPreview(
     businessId: string,
     employee: Employee,
@@ -496,9 +561,14 @@ export class PublicBookingService {
       const upcoming = daySlots.filter((startTime) =>
         isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), timeZone, null),
       );
-      if (upcoming.length > 0) {
+      const bookable = await this.filterStartTimesWithAnyBookableService(
+        businessId,
+        employee,
+        upcoming,
+      );
+      if (bookable.length > 0) {
         nearestDateKey = dateKey;
-        slots = upcoming;
+        slots = bookable;
         break;
       }
     }

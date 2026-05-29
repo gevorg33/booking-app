@@ -986,8 +986,10 @@ export class BookingService {
   }
 
   /**
-   * Service IDs allowed at an instant based on applied service_block periods.
-   * Returns null when any active service is permitted.
+   * Service IDs allowed at an instant based on applied schedule (service_block periods + micro-slots).
+   * - null: no service_block on this day, or schedule allows any service at this instant
+   * - []: schedule exists but no service window covers this instant
+   * - string[]: explicit allow-list from period and/or micro-slots at this instant
    */
   async getAllowedServiceIdsAtInstant(
     businessId: string,
@@ -1007,21 +1009,76 @@ export class BookingService {
       },
     });
 
-    const active = dayPeriods.filter(
-      (p) =>
-        p.type === TemplatePeriodType.SERVICE_BLOCK &&
-        p.startTime <= instant &&
-        p.endTime > instant,
+    const serviceBlocks = dayPeriods.filter(
+      (p) => p.type === TemplatePeriodType.SERVICE_BLOCK,
     );
 
-    if (active.length === 0) return null;
-
-    const allowed = new Set<string>();
-    for (const period of active) {
-      if (!period.serviceIds || period.serviceIds.length === 0) return null;
-      period.serviceIds.forEach((id) => allowed.add(id));
+    if (serviceBlocks.length === 0) {
+      return null;
     }
-    return [...allowed];
+
+    const active = serviceBlocks.filter(
+      (p) => p.startTime <= instant && p.endTime > instant,
+    );
+
+    if (active.length === 0) {
+      return [];
+    }
+
+    const fromPeriods = new Set<string>();
+    let periodAllowsAny = false;
+
+    for (const period of active) {
+      if (!period.serviceIds?.length) {
+        periodAllowsAny = true;
+      } else {
+        period.serviceIds.forEach((id) => fromPeriods.add(id));
+      }
+    }
+
+    if (fromPeriods.size > 0 && !periodAllowsAny) {
+      return [...fromPeriods];
+    }
+
+    const fromSlots = await this.getServiceIdsFromMicroSlotsAtInstant(
+      businessId,
+      employeeId,
+      instant,
+    );
+
+    if (fromPeriods.size > 0) {
+      if (fromSlots?.length) {
+        fromSlots.forEach((id) => fromPeriods.add(id));
+      }
+      return [...fromPeriods];
+    }
+
+    if (fromSlots?.length) {
+      return fromSlots;
+    }
+
+    return null;
+  }
+
+  /** Collect service IDs from available micro-slots starting at this instant. */
+  private async getServiceIdsFromMicroSlotsAtInstant(
+    businessId: string,
+    employeeId: string,
+    instant: Date,
+  ): Promise<string[] | null> {
+    const windowEnd = new Date(instant.getTime() + 10 * 60000);
+    const slots = await this.findSlotsInWindow(businessId, employeeId, instant, windowEnd);
+
+    const ids = new Set<string>();
+    for (const slot of this.dedupeSlotsByStartTime(slots)) {
+      if (slot.serviceIds?.length) {
+        slot.serviceIds.forEach((id) => ids.add(id));
+      } else if (slot.serviceId) {
+        ids.add(slot.serviceId);
+      }
+    }
+
+    return ids.size > 0 ? [...ids] : null;
   }
 
   private async validateBookingWindow(
