@@ -9,7 +9,12 @@ export type BookingStatus =
   | 'cancelled'
   | 'no_show';
 
-export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'not_applicable';
+export type PaymentStatus =
+  | 'pending'
+  | 'partially_paid'
+  | 'paid'
+  | 'refunded'
+  | 'not_applicable';
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   pending: 'Booked',
@@ -22,6 +27,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   pending: 'Pending',
+  partially_paid: 'Partially paid',
   paid: 'Paid',
   refunded: 'Refunded',
   not_applicable: 'N/A',
@@ -29,6 +35,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
   'pending',
+  'partially_paid',
   'paid',
   'refunded',
   'not_applicable',

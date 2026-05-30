@@ -9,6 +9,8 @@ import { BOOKING_STATUS_LABELS, type BookingStatus } from '@/lib/booking-types';
 import {
   CUSTOMER_TAGS,
   customerTagLabelKey,
+  isAutoVipFromSegment,
+  resolveCustomerTagForEdit,
   type CustomerTag,
 } from '@/lib/customer-types';
 import { useI18n } from '@/i18n';
@@ -50,13 +52,6 @@ interface CustomerDetailPanelProps {
   onClose: () => void;
 }
 
-function primaryTag(tags?: string[]): CustomerTag | '' {
-  const match = (tags ?? []).find((tag): tag is CustomerTag =>
-    (CUSTOMER_TAGS as readonly string[]).includes(tag),
-  );
-  return match ?? '';
-}
-
 export function CustomerDetailPanel({ businessId, customerId, onClose }: CustomerDetailPanelProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -75,7 +70,7 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
 
   useEffect(() => {
     if (data) {
-      setSelectedTag(primaryTag(data.customer.tags));
+      setSelectedTag(resolveCustomerTagForEdit(data.customer));
     }
   }, [data]);
 
@@ -145,6 +140,9 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                     </option>
                   ))}
                 </select>
+                {data && isAutoVipFromSegment(data.customer) && (
+                  <p className="text-xs text-gray-500 mt-2">{t('customers.tagAutoVipHint')}</p>
+                )}
               </div>
               <button
                 type="button"

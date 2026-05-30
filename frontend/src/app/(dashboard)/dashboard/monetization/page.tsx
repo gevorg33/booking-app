@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, Plus, Wallet } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { CustomerSelect } from '@/components/customers/customer-select';
 
-type Tab = 'gift-cards' | 'memberships' | 'loyalty';
+type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -23,6 +23,7 @@ export default function MonetizationPage() {
     { id: 'gift-cards', label: t('monetization.giftCards') },
     { id: 'memberships', label: t('monetization.memberships') },
     { id: 'loyalty', label: t('monetization.loyalty') },
+    { id: 'promo-codes', label: t('monetization.promoCodes') },
   ];
 
   return (
@@ -55,6 +56,7 @@ export default function MonetizationPage() {
       {tab === 'gift-cards' && business?.id && <GiftCardsTab businessId={business.id} />}
       {tab === 'memberships' && business?.id && <MembershipsTab businessId={business.id} />}
       {tab === 'loyalty' && business?.id && <LoyaltyTab businessId={business.id} />}
+      {tab === 'promo-codes' && business?.id && <PromoCodesTab businessId={business.id} />}
     </div>
   );
 }
@@ -343,10 +345,39 @@ function MembershipsTab({ businessId }: { businessId: string }) {
 }
 
 function LoyaltyTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [customerId, setCustomerId] = useState('');
-  const [adjustPoints, setAdjustPoints] = useState('100');
+  const [adjustPoints, setAdjustPoints] = useState('1');
   const [note, setNote] = useState('');
+  const [earnPercent, setEarnPercent] = useState('5');
+
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['loyalty-settings', businessId],
+    queryFn: async () => {
+      const { data: res } = await api.get(`/businesses/${businessId}/loyalty/settings`);
+      return unwrap<{ earnPercentCashback: number; bonusDollarValue: number }>(res);
+    },
+  });
+
+  const settingsMutation = useMutation({
+    mutationFn: async () => {
+      const { data: res } = await api.patch(`/businesses/${businessId}/loyalty/settings`, {
+        earnPercentCashback: parseFloat(earnPercent),
+      });
+      return unwrap<{ earnPercentCashback: number }>(res);
+    },
+    onSuccess: (data) => {
+      setEarnPercent(String(data.earnPercentCashback));
+      queryClient.invalidateQueries({ queryKey: ['loyalty-settings', businessId] });
+    },
+  });
+
+  useEffect(() => {
+    if (settings?.earnPercentCashback != null) {
+      setEarnPercent(String(settings.earnPercentCashback));
+    }
+  }, [settings?.earnPercentCashback]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['loyalty', businessId, customerId],
@@ -363,7 +394,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
     mutationFn: async () => {
       const { data: res } = await api.post(
         `/businesses/${businessId}/loyalty/customer/${customerId}/adjust`,
-        { points: parseInt(adjustPoints, 10), note: note || undefined },
+        { points: parseFloat(adjustPoints), note: note || undefined },
       );
       return res;
     },
@@ -375,6 +406,48 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
 
   return (
     <div className="space-y-6">
+      <form
+        className="card space-y-4 max-w-lg"
+        onSubmit={(e) => {
+          e.preventDefault();
+          settingsMutation.mutate();
+        }}
+      >
+        <div>
+          <h3 className="font-semibold text-gray-100">{t('monetization.loyaltyEarnRate')}</h3>
+          <p className="text-sm text-gray-500 mt-1">{t('monetization.loyaltyEarnRateHint')}</p>
+        </div>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="label">{t('monetization.loyaltyEarnPercent')}</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              className="input max-w-[120px]"
+              value={settings ? earnPercent : ''}
+              onChange={(e) => setEarnPercent(e.target.value)}
+              disabled={settingsLoading || !settings}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={settingsMutation.isPending || settingsLoading || !settings}
+            className="btn-primary"
+          >
+            {settingsMutation.isPending ? t('monetization.saving') : t('monetization.saveSettings')}
+          </button>
+        </div>
+        {settings && (
+          <p className="text-xs text-gray-500">
+            Example: $10.00 paid at {settings.earnPercentCashback}% → $
+            {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
+          </p>
+        )}
+      </form>
+
       <div className="card space-y-4">
         <label className="label">Customer</label>
         <CustomerSelect businessId={businessId} value={customerId} onChange={setCustomerId} />
@@ -390,12 +463,12 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
         <>
           <div className="grid grid-cols-2 gap-4 max-w-md">
             <div className="card text-center">
-              <p className="text-2xl font-bold text-emerald-400">{data.account.pointsBalance}</p>
-              <p className="text-xs text-gray-500">Points balance</p>
+              <p className="text-2xl font-bold text-emerald-400">${data.account.pointsBalance.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">{t('monetization.bonusBalance')}</p>
             </div>
             <div className="card text-center">
-              <p className="text-2xl font-bold">{data.account.lifetimeEarned}</p>
-              <p className="text-xs text-gray-500">Lifetime earned</p>
+              <p className="text-2xl font-bold">${data.account.lifetimeEarned.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">{t('monetization.lifetimeEarned')}</p>
             </div>
           </div>
 
@@ -407,9 +480,10 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
             }}
           >
             <div>
-              <label className="label">Adjust points (+/-)</label>
+              <label className="label">{t('monetization.adjustBonus')}</label>
               <input
                 type="number"
+                step="0.01"
                 className="input max-w-[140px]"
                 value={adjustPoints}
                 onChange={(e) => setAdjustPoints(e.target.value)}
@@ -449,6 +523,176 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
           )}
         </>
       ) : null}
+    </div>
+  );
+}
+
+function PromoCodesTab({ businessId }: { businessId: string }) {
+  const queryClient = useQueryClient();
+  const [code, setCode] = useState('');
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState('10');
+  const [minOrderAmount, setMinOrderAmount] = useState('');
+  const [maxUses, setMaxUses] = useState('');
+  const [description, setDescription] = useState('');
+
+  const { data: promos = [], isLoading } = useQuery({
+    queryKey: ['promo-codes', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/promo-codes`);
+      return unwrap<any[]>(data);
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${businessId}/promo-codes`, {
+        code,
+        discountType,
+        discountValue: parseFloat(discountValue),
+        minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : undefined,
+        maxUses: maxUses ? parseInt(maxUses, 10) : undefined,
+        description: description || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['promo-codes', businessId] });
+      setCode('');
+      setDescription('');
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.patch(`/businesses/${businessId}/promo-codes/${id}/deactivate`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['promo-codes', businessId] });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <form
+        className="card flex flex-wrap gap-4 items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          createMutation.mutate();
+        }}
+      >
+        <div>
+          <label className="label">Code</label>
+          <input
+            className="input max-w-[160px] uppercase"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Type</label>
+          <select
+            className="input max-w-[120px]"
+            value={discountType}
+            onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
+          >
+            <option value="percent">Percent</option>
+            <option value="fixed">Fixed amount</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Value</label>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            className="input max-w-[100px]"
+            value={discountValue}
+            onChange={(e) => setDiscountValue(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Min order</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            className="input max-w-[100px]"
+            value={minOrderAmount}
+            onChange={(e) => setMinOrderAmount(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Max uses</label>
+          <input
+            type="number"
+            min="1"
+            className="input max-w-[100px]"
+            value={maxUses}
+            onChange={(e) => setMaxUses(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="label">Description</label>
+          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
+          {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Create promo
+        </button>
+      </form>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      ) : promos.length === 0 ? (
+        <p className="text-gray-400 text-sm">No promo codes yet.</p>
+      ) : (
+        <div className="card overflow-hidden p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-left">
+                <th className="px-4 py-3 font-medium text-gray-400">Code</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Discount</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Uses</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-400" />
+              </tr>
+            </thead>
+            <tbody>
+              {promos.map((promo) => (
+                <tr key={promo.id} className="border-b border-gray-800/80">
+                  <td className="px-4 py-3 font-mono">{promo.code}</td>
+                  <td className="px-4 py-3">
+                    {promo.discountType === 'percent'
+                      ? `${promo.discountValue}%`
+                      : `$${promo.discountValue}`}
+                  </td>
+                  <td className="px-4 py-3">
+                    {promo.usedCount}
+                    {promo.maxUses != null ? ` / ${promo.maxUses}` : ''}
+                  </td>
+                  <td className="px-4 py-3">{promo.isActive ? 'Active' : 'Inactive'}</td>
+                  <td className="px-4 py-3 text-right">
+                    {promo.isActive && (
+                      <button
+                        type="button"
+                        className="text-red-400 hover:text-red-300 text-xs"
+                        onClick={() => deactivateMutation.mutate(promo.id)}
+                      >
+                        Deactivate
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

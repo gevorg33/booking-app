@@ -48,6 +48,37 @@ export function customerTagLabelKey(tag: CustomerTag): `customers.tag.${Customer
   return `customers.tag.${tag}`;
 }
 
+export function primaryCustomerTag(tags?: string[]): CustomerTag | '' {
+  const match = (tags ?? []).find((tag): tag is CustomerTag =>
+    (CUSTOMER_TAGS as readonly string[]).includes(tag as CustomerTag),
+  );
+  return match ?? '';
+}
+
+/** Match table VIP display: stored tag, isVip flag, or computed vip segment. */
+export function resolveCustomerTagForEdit(input: {
+  tags?: string[];
+  isVip?: boolean;
+  segment?: string;
+}): CustomerTag | '' {
+  const fromTags = primaryCustomerTag(input.tags);
+  if (fromTags) return fromTags;
+  if (input.isVip || input.segment === 'vip') return 'vip';
+  return '';
+}
+
+export function isAutoVipFromSegment(input: {
+  tags?: string[];
+  isVip?: boolean;
+  segment?: string;
+}): boolean {
+  return (
+    input.segment === 'vip' &&
+    !primaryCustomerTag(input.tags) &&
+    !input.isVip
+  );
+}
+
 export interface CustomerSearchParams {
   search?: string;
   tags?: CustomerTag;
