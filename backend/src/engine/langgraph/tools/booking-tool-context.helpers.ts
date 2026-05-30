@@ -1,8 +1,47 @@
 import type { AgentPlanStep } from '../../agent/interfaces/agent.interfaces.js';
 import type { BookingToolRunContext } from './booking-tool.types.js';
 import type { AgentToolBridgeService } from '../services/agent-tool-bridge.service.js';
+import {
+  inferDirectSchedulePeriods,
+  resolveDirectScheduleDateKeys,
+  resolveDirectSchedulePeriodServiceIds,
+} from '../../../modules/ai/ai-orchestration.helpers.js';
+import { normalizeTime24 } from '../../../common/utils/time-format.util.js';
+import { buildDateParams } from './booking-tool-schemas.js';
 
 const MAX_TOOL_RESULT_CHARS = 8000;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value.trim());
+}
+
+/** Human-readable provider label — never returns raw UUIDs when catalog is available. */
+export function resolveEmployeeLabel(
+  ctx: BookingToolRunContext,
+  employeeId?: string | null,
+  employeeName?: string | null,
+): string {
+  const rawName = employeeName?.trim();
+  if (rawName && !isUuid(rawName)) return rawName;
+
+  const id = employeeId?.trim() || (rawName && isUuid(rawName) ? rawName : undefined);
+  if (id) {
+    const match = ctx.employees.find((e) => e.id === id);
+    if (match?.name?.trim()) return match.name.trim();
+  }
+
+  return 'provider';
+}
+
+export function withResolvedEmployeeParams(
+  ctx: BookingToolRunContext,
+  params: { employeeId?: string; employeeName?: string } & Record<string, unknown>,
+): Record<string, unknown> {
+  const label = resolveEmployeeLabel(ctx, params.employeeId, params.employeeName);
+  return { ...params, employeeName: label };
+}
 
 export function truncateResult(result: unknown): string {
   return JSON.stringify(result, null, 0).slice(0, MAX_TOOL_RESULT_CHARS);
@@ -96,4 +135,97 @@ export function proposeManySteps(
 export function priorStepId(ctx: BookingToolRunContext, action: string): string[] {
   const id = ctx.lastStepByAction[action];
   return id ? [id] : [];
+}
+
+type DirectSchedulePeriodInput = {
+  startTime: string;
+  endTime: string;
+  type: 'service_block' | 'unavailable_block';
+  serviceIds?: string[];
+  label?: string;
+};
+
+function normalizeDirectSchedulePeriods(
+  raw: DirectSchedulePeriodInput[] | undefined,
+  input: Record<string, unknown>,
+  employeeServiceIds?: string[],
+): Array<Record<string, unknown>> {
+  const inferred = inferDirectSchedulePeriods(
+    {
+      periods: raw,
+      timeFrom: input.timeFrom,
+      timeTo: input.timeTo,
+    },
+    typeof input.scheduleHint === 'string' ? input.scheduleHint : '',
+  );
+  const base =
+    inferred.length > 0
+      ? inferred
+      : [
+          {
+            startTime: '09:00',
+            endTime: '19:00',
+            type: 'service_block',
+            serviceIds: [],
+          },
+        ];
+
+  return base.map((p) => ({
+    startTime: normalizeTime24(String(p.startTime)),
+    endTime: normalizeTime24(String(p.endTime)),
+    type: p.type ?? 'service_block',
+    placeholderLabel: p.placeholderLabel ?? p.label,
+    serviceIds: resolveDirectSchedulePeriodServiceIds(
+      {
+        type: p.type ?? 'service_block',
+        serviceIds: Array.isArray(p.serviceIds) ? p.serviceIds : [],
+      },
+      employeeServiceIds,
+    ),
+  }));
+}
+
+export function buildDirectScheduleProposalSteps(
+  ctx: BookingToolRunContext,
+  input: Record<string, unknown>,
+  provider: {
+    employeeId?: string;
+    employeeName?: string;
+    periods?: DirectSchedulePeriodInput[];
+  },
+  options?: { chainSteps?: boolean },
+): Array<{
+  action: string;
+  description: string;
+  params: Record<string, unknown>;
+  chainPrevious?: boolean;
+}> {
+  const dates = resolveDirectScheduleDateKeys({
+    ...input,
+    ...buildDateParams(input as { date?: string; dateFrom?: string; dateTo?: string }),
+  });
+  if (!dates.length) {
+    throw new Error('Direct schedule requires date, dates, or dateFrom/dateTo (YYYY-MM-DD).');
+  }
+
+  const employee = ctx.employees.find((e) => e.id === provider.employeeId);
+  const periods = normalizeDirectSchedulePeriods(
+    provider.periods ?? (input.periods as DirectSchedulePeriodInput[] | undefined),
+    input,
+    employee?.serviceIds,
+  );
+  const label = resolveEmployeeLabel(ctx, provider.employeeId, provider.employeeName);
+
+  return dates.map((date, index) => ({
+    action: 'create_direct_schedule',
+    description: `Set schedule for ${label} on ${date}`,
+    params: withResolvedEmployeeParams(ctx, {
+      employeeId: provider.employeeId,
+      employeeName: label,
+      date,
+      periods,
+      userId: ctx.userId,
+    }),
+    chainPrevious: index > 0 && (options?.chainSteps ?? false),
+  }));
 }

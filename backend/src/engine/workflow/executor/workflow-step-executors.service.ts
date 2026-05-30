@@ -19,6 +19,7 @@ import { NotificationsService } from '../../../modules/notifications/notificatio
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
 import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
 import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
+import { resolveDirectScheduleDateKeys, resolveDirectSchedulePeriodServiceIds } from '../../../modules/ai/ai-orchestration.helpers.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -250,13 +251,55 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async createDirectSchedule(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    const { employeeId, date, periods, userId } = step.params;
-    const result = await this.scheduleService.createDirectSchedule(
-      businessId,
-      { employeeId, date, periods },
-      userId,
-    );
-    return { slotsCreated: result.slotsCreated, employeeId, date };
+    const { employeeId, periods, userId } = step.params as {
+      employeeId: string;
+      periods: Array<Record<string, unknown>>;
+      userId?: string;
+    };
+
+    if (!employeeId) {
+      throw new BadRequestException('create_direct_schedule requires employeeId');
+    }
+    if (!Array.isArray(periods) || periods.length === 0) {
+      throw new BadRequestException('create_direct_schedule requires periods');
+    }
+
+    const dates = resolveDirectScheduleDateKeys(step.params as Record<string, unknown>);
+    if (!dates.length) {
+      throw new BadRequestException(
+        'create_direct_schedule requires date, dates, or dateFrom/dateTo in YYYY-MM-DD format',
+      );
+    }
+
+    const employee = await this.employeeService.findOne(employeeId);
+    const enrichedPeriods = periods.map((period) => ({
+      ...period,
+      serviceIds: resolveDirectSchedulePeriodServiceIds(
+        {
+          type: String(period.type ?? 'service_block'),
+          serviceIds: Array.isArray(period.serviceIds)
+            ? (period.serviceIds as string[])
+            : [],
+        },
+        employee.serviceIds,
+      ),
+    }));
+
+    let totalSlots = 0;
+    for (const date of dates) {
+      const result = await this.scheduleService.createDirectSchedule(
+        businessId,
+        { employeeId, date, periods: enrichedPeriods as any },
+        userId,
+      );
+      totalSlots += result.slotsCreated;
+    }
+
+    return {
+      slotsCreated: totalSlots,
+      employeeId,
+      dates,
+    };
   }
 
   private async clearSchedule(step: WorkflowStep, ctx: Record<string, any>) {

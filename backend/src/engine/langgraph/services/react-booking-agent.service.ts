@@ -84,7 +84,11 @@ export class ReactBookingAgentService {
       stepCounter: 0,
       proposals: [],
       lastStepByAction: {},
-      employees: input.employees.map((e) => ({ id: e.id, name: e.name })),
+      employees: input.employees.map((e) => ({
+        id: e.id,
+        name: e.name,
+        serviceIds: e.serviceIds ?? [],
+      })),
       services: input.services.map((s) => ({ id: s.id, name: s.name })),
     };
 

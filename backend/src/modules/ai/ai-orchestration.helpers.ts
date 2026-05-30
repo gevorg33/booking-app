@@ -487,6 +487,24 @@ export function getEmployeeAssignedServices(employee: Employee, catalog: Service
   return catalog.filter((s) => allowed.has(s.id));
 }
 
+/** Attach only services assigned to the provider on service_block periods. */
+export function resolveDirectSchedulePeriodServiceIds(
+  period: { type?: string; serviceIds?: string[] | null },
+  employeeServiceIds: string[] | null | undefined,
+): string[] {
+  if (period.type === 'unavailable_block') return [];
+
+  const periodIds = [...new Set((period.serviceIds ?? []).filter(Boolean))];
+  const assigned = [...new Set((employeeServiceIds ?? []).filter(Boolean))];
+
+  if (assigned.length === 0) return periodIds;
+  if (periodIds.length === 0) return assigned;
+
+  const allowed = new Set(assigned);
+  const filtered = periodIds.filter((id) => allowed.has(id));
+  return filtered.length > 0 ? filtered : assigned;
+}
+
 export function isProviderOwnServicesPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
@@ -678,6 +696,33 @@ export function resolveScheduleDates(
   if (params.date) {
     return [toIsoDay(params.date, timeZone)];
   }
+  return [];
+}
+
+/** ISO day keys for direct schedule workflow steps (single day, list, or range). */
+export function resolveDirectScheduleDateKeys(params: Record<string, unknown>): string[] {
+  const listed = params.dates;
+  if (Array.isArray(listed) && listed.length > 0) {
+    return listed.map((d) => String(d).trim()).filter(Boolean);
+  }
+
+  const range = params.dateRange as DateRange | undefined;
+  if (range?.start && range?.end) {
+    return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+  }
+
+  if (params.dateFrom && params.dateTo) {
+    return enumerateDaysInRange({
+      start: String(params.dateFrom),
+      end: String(params.dateTo),
+    }).map((d) => d.toISOString().split('T')[0]);
+  }
+
+  if (params.date) {
+    const iso = toIsoDay(String(params.date));
+    return iso ? [iso] : [];
+  }
+
   return [];
 }
 

@@ -11,7 +11,7 @@ export interface BookingToolRunContext {
   proposals: AgentPlanStep[];
   /** Last react step id per workflow action (for chaining read tools). */
   lastStepByAction: Record<string, string>;
-  employees: Array<{ id: string; name: string }>;
+  employees: Array<{ id: string; name: string; serviceIds?: string[] }>;
   services: Array<{ id: string; name: string }>;
 }
 

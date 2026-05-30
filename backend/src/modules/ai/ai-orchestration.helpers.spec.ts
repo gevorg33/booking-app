@@ -2,6 +2,8 @@ import {
   applyUnavailableBlocksToPeriods,
   extractUnavailableBlocksFromPrompt,
   inferDirectSchedulePeriods,
+  resolveDirectScheduleDateKeys,
+  resolveDirectSchedulePeriodServiceIds,
   resolvePublicAvailabilityDateKeys,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
@@ -197,5 +199,67 @@ describe('extractRecommendServicesFromPrompt', () => {
       catalog,
     );
     expect(matched).toHaveLength(5);
+  });
+});
+
+describe('resolveDirectSchedulePeriodServiceIds', () => {
+  const assigned = ['svc-a', 'svc-b'];
+
+  it('uses employee assigned services when period has none', () => {
+    expect(
+      resolveDirectSchedulePeriodServiceIds({ type: 'service_block', serviceIds: [] }, assigned),
+    ).toEqual(assigned);
+  });
+
+  it('filters catalog-wide ids down to assigned services', () => {
+    expect(
+      resolveDirectSchedulePeriodServiceIds(
+        { type: 'service_block', serviceIds: ['svc-a', 'svc-b', 'svc-c', 'svc-d'] },
+        assigned,
+      ),
+    ).toEqual(assigned);
+  });
+
+  it('keeps explicit subset when all ids are assigned to employee', () => {
+    expect(
+      resolveDirectSchedulePeriodServiceIds(
+        { type: 'service_block', serviceIds: ['svc-a'] },
+        assigned,
+      ),
+    ).toEqual(['svc-a']);
+  });
+
+  it('returns empty for unavailable blocks', () => {
+    expect(
+      resolveDirectSchedulePeriodServiceIds(
+        { type: 'unavailable_block', serviceIds: assigned },
+        assigned,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe('resolveDirectScheduleDateKeys', () => {
+  it('expands dateFrom/dateTo range into ISO days', () => {
+    expect(
+      resolveDirectScheduleDateKeys({
+        dateFrom: '2026-07-01',
+        dateTo: '2026-07-05',
+      }),
+    ).toEqual([
+      '2026-07-01',
+      '2026-07-02',
+      '2026-07-03',
+      '2026-07-04',
+      '2026-07-05',
+    ]);
+  });
+
+  it('uses dateRange from buildDateParams shape', () => {
+    expect(
+      resolveDirectScheduleDateKeys({
+        dateRange: { start: '2026-07-01', end: '2026-07-03' },
+      }),
+    ).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
   });
 });
