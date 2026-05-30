@@ -864,6 +864,8 @@ export class PublicBookingService {
         emailReminders: contact.emailReminders,
         smsReminders: contact.smsReminders,
         whatsappReminders: contact.whatsappReminders,
+        privacyConsentAccepted: contact.privacyConsentAccepted,
+        marketingOptIn: contact.marketingOptIn,
       });
     }
 

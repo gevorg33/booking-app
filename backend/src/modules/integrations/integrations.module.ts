@@ -23,6 +23,11 @@ import { ZendeskApiClient } from './zendesk/zendesk-api.client.js';
 import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
 import { ZendeskCustomerSyncListener } from './zendesk/zendesk-customer-sync.listener.js';
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
+import { ZapierIntegrationService } from './zapier/zapier-integration.service.js';
+import { AccountingIntegrationService } from './accounting/accounting-integration.service.js';
+import { AccountingExportService } from './accounting/accounting-export.service.js';
+import { Expense } from '../expenses/entities/expense.entity.js';
+import { CommissionRule } from '../commissions/entities/commission-rule.entity.js';
 
 @Module({
   imports: [
@@ -35,6 +40,8 @@ import { DistributionIntegrationService } from './distribution/distribution-inte
       Customer,
       Booking,
       Service,
+      Expense,
+      CommissionRule,
     ]),
     BusinessModule,
     BookingModule,
@@ -52,7 +59,10 @@ import { DistributionIntegrationService } from './distribution/distribution-inte
     ZendeskIntegrationService,
     ZendeskCustomerSyncListener,
     DistributionIntegrationService,
+    ZapierIntegrationService,
+    AccountingExportService,
+    AccountingIntegrationService,
   ],
-  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskIntegrationService, DistributionIntegrationService],
+  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskIntegrationService, DistributionIntegrationService, ZapierIntegrationService, AccountingIntegrationService],
 })
 export class IntegrationsModule {}

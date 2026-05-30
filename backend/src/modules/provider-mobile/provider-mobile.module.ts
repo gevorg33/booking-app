@@ -19,6 +19,7 @@ import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import { PushService } from './push.service.js';
 import { ProviderMobileController } from './provider-mobile.controller.js';
 import { ProviderPushListener } from './listeners/provider-push.listener.js';
+import { ProviderEndOfDayPushScheduler } from './provider-end-of-day-push.scheduler.js';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { ProviderPushListener } from './listeners/provider-push.listener.js';
     forwardRef(() => AiModule),
   ],
   controllers: [ProviderMobileController],
-  providers: [ProviderMobileService, ProviderAiCommandService, ProviderAiSuggestionsService, PushService, ProviderPushListener, ProviderPushActionService],
+  providers: [ProviderMobileService, ProviderAiCommandService, ProviderAiSuggestionsService, PushService, ProviderPushListener, ProviderPushActionService, ProviderEndOfDayPushScheduler],
   exports: [ProviderMobileService, PushService, ProviderPushActionService, ProviderAiCommandService],
 })
 export class ProviderMobileModule {}

@@ -14,24 +14,13 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Phase 2 — Growth & distribution
-- [x] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
-- [x] **int-6** — Zendesk — embed Web Widget in dashboard + public booking (help / contact support)
-- [x] **int-7** — Zendesk — auto-create tickets from in-app support form (attach business, customer, booking context)
-- [x] **int-8** — Zendesk — sync customer profile to Zendesk user (email, phone, appointment history link)
-- [x] **dist-2** — Google Reserve / Reserve with Google integration
-- [x] **dist-3** — Meta / Facebook & Instagram booking integration
-- [x] **dist-4** — Messenger booking (Telegram deep links or bots; WhatsApp outbound reminders via comms-2b)
-
----
-
 ## Phase 3 — Platform maturity
 
-- [~] **comms-4** — Push / app reminders for providers (Web Push + Capacitor native token registration; FCM/APNs delivery TBD)
-- [ ] **int-3** — Zapier / Make connector or marketplace listing
-- [ ] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
-- [ ] **polish-4** — Expand localization (dates, currencies, more languages)
-<!-- - [ ] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP -->
+- [x] **comms-4** — Push / app reminders for providers (Web Push + Capacitor native token registration; FCM/APNs delivery TBD)
+- [x] **int-3** — Zapier / Make connector or marketplace listing
+- [x] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
+- [x] **polish-4** — Expand localization (dates, currencies, more languages)
+- [x] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP
 <!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
 
 ---
@@ -42,9 +31,6 @@ Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
 
 ### 8.1 Trust & distribution
 
-- [ ] **gap-1.1** — Google Reserve / Book with Google integration (see **dist-2**)
-- [ ] **gap-1.2** — Meta / Facebook & Instagram booking integration (see **dist-3**)
-- [ ] **gap-1.3** — Zapier / Make connector or marketplace listing (see **int-3**)
 - [ ] **gap-1.4** — Public marketing site: pricing page, testimonials, security/trust page
 - [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
 - [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning

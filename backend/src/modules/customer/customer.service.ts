@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
 import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
+import { buildGdprMetadata } from './customer-privacy.types.js';
 import {
   GetCustomersQueryDto,
   parseBookingStatusFilter,
@@ -571,7 +572,7 @@ export class CustomerService {
           await this.customerRepo.save(byEmail);
         }
         const saved = await this.applyNotificationPreferences(byEmail, dto);
-        return { customer: saved, created: false };
+        return { customer: await this.applyGdprConsent(saved, dto), created: false };
       }
     }
 
@@ -592,7 +593,7 @@ export class CustomerService {
           await this.customerRepo.save(byPhone);
         }
         const saved = await this.applyNotificationPreferences(byPhone, dto);
-        return { customer: saved, created: false };
+        return { customer: await this.applyGdprConsent(saved, dto), created: false };
       }
     }
 
@@ -603,7 +604,19 @@ export class CustomerService {
     });
 
     const saved = await this.applyNotificationPreferences(customer, dto);
-    return { customer: saved, created: true };
+    return { customer: await this.applyGdprConsent(saved, dto), created: true };
+  }
+
+  private async applyGdprConsent(customer: Customer, dto: CreateCustomerDto): Promise<Customer> {
+    if (dto.privacyConsentAccepted === undefined && dto.marketingOptIn === undefined) {
+      return customer;
+    }
+    customer.metadata = buildGdprMetadata(customer.metadata, {
+      privacyAccepted: dto.privacyConsentAccepted,
+      marketingOptIn: dto.marketingOptIn,
+      source: 'checkout',
+    });
+    return this.customerRepo.save(customer);
   }
 
   private async applyNotificationPreferences(

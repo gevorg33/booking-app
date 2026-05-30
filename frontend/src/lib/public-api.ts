@@ -388,9 +388,11 @@ export function formatDuration(minutes: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-export function formatPrice(price: number, currency: string): string {
+export function formatPrice(price: number, currency: string, locale?: string): string {
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(price);
+    const intlLocale =
+      locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
+    return new Intl.NumberFormat(intlLocale, { style: 'currency', currency }).format(price);
   } catch {
     return `${price} ${currency}`;
   }
@@ -444,4 +446,12 @@ export function getPublicCustomerMe(slug: string) {
 
 export function getPublicCustomerBookings(slug: string) {
   return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
+}
+
+export function exportPublicCustomerData(slug: string) {
+  return publicFetch<Record<string, unknown>>(`/public/${slug}/me/data`);
+}
+
+export function deletePublicCustomerData(slug: string) {
+  return publicFetch<{ deleted: true }>(`/public/${slug}/me/data`, { method: 'DELETE' });
 }

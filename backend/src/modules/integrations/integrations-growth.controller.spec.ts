@@ -6,6 +6,8 @@ import { OpenAiIntegrationService } from './openai/openai-integration.service.js
 import { OpenAiGatewayService } from './openai/openai-gateway.service.js';
 import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
+import { ZapierIntegrationService } from './zapier/zapier-integration.service.js';
+import { AccountingIntegrationService } from './accounting/accounting-integration.service.js';
 
 describe('IntegrationsController growth endpoints', () => {
   const businessService = {
@@ -39,6 +41,8 @@ describe('IntegrationsController growth endpoints', () => {
     openAiGateway as unknown as OpenAiGatewayService,
     zendeskIntegrationService as unknown as ZendeskIntegrationService,
     distributionIntegrationService as unknown as DistributionIntegrationService,
+    {} as ZapierIntegrationService,
+    {} as AccountingIntegrationService,
   );
 
   const user = { id: 'user-1', email: 'owner@test.com', firstName: 'Owner', lastName: 'One' };

@@ -21,8 +21,12 @@ import { OpenAiGatewayService } from './openai/openai-gateway.service.js';
 import { UpdateZendeskIntegrationDto } from './dto/update-zendesk-integration.dto.js';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto.js';
 import { UpdateDistributionIntegrationDto } from './dto/update-distribution-integration.dto.js';
+import { UpdateZapierIntegrationDto, CreateZapierWebhookDto } from './dto/update-zapier-integration.dto.js';
+import { UpdateAccountingIntegrationDto } from './dto/update-accounting-integration.dto.js';
 import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
+import { ZapierIntegrationService } from './zapier/zapier-integration.service.js';
+import { AccountingIntegrationService } from './accounting/accounting-integration.service.js';
 
 @Controller('businesses/:businessId/integrations')
 @UseGuards(JwtAuthGuard)
@@ -35,6 +39,8 @@ export class IntegrationsController {
     private openAiGateway: OpenAiGatewayService,
     private zendeskIntegrationService: ZendeskIntegrationService,
     private distributionIntegrationService: DistributionIntegrationService,
+    private zapierIntegrationService: ZapierIntegrationService,
+    private accountingIntegrationService: AccountingIntegrationService,
   ) {}
 
   @Get('docs')
@@ -277,5 +283,75 @@ export class IntegrationsController {
     const membership = await this.businessService.ensureMember(businessId, user.id);
     this.apiKeyService.assertAdminRole(membership);
     return this.distributionIntegrationService.getGoogleReserveFeed(businessId);
+  }
+
+  @Get('zapier')
+  async getZapierIntegration(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.zapierIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('zapier')
+  async updateZapierIntegration(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateZapierIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.zapierIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Post('zapier/webhook')
+  async createZapierWebhook(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateZapierWebhookDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.zapierIntegrationService.createZapierWebhook(
+      businessId,
+      dto.url,
+      dto.events,
+      dto.description,
+    );
+  }
+
+  @Get('accounting')
+  async getAccountingIntegration(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.accountingIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('accounting')
+  async updateAccountingIntegration(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateAccountingIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.accountingIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Get('accounting/export')
+  async exportAccounting(
+    @Param('businessId') businessId: string,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.accountingIntegrationService.generateExport(businessId, from, to);
   }
 }

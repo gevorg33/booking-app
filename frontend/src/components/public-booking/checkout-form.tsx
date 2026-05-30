@@ -54,6 +54,7 @@ export function CheckoutForm({
     phone: undefined as string | undefined,
     notes: '',
     consent: false,
+    marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
   });
@@ -189,6 +190,8 @@ export function CheckoutForm({
       phone: fullPhone() || undefined,
       emailReminders: form.emailReminders,
       whatsappReminders: form.whatsappReminders,
+      privacyConsentAccepted: form.consent,
+      marketingOptIn: form.marketingOptIn,
     },
   });
 
@@ -599,9 +602,16 @@ export function CheckoutForm({
             onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
             className="mt-1 rounded border-gray-300"
           />
-          <span>
-            {t('public.privacyConsent')}
-          </span>
+          <span>{t('public.privacyConsent')}</span>
+        </label>
+        <label className="flex items-start gap-3 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={form.marketingOptIn}
+            onChange={(e) => setForm((f) => ({ ...f, marketingOptIn: e.target.checked }))}
+            className="mt-1 rounded border-gray-300"
+          />
+          <span>{t('public.marketingOptIn')}</span>
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

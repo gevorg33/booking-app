@@ -10,10 +10,20 @@ export function formatPublicReviewDate(input: Date | string, timeZone = 'UTC'): 
   }).format(d);
 }
 
-/** User-facing date: DD_MM_YYYY (UTC). */
-export function formatDateDisplay(input: Date | string): string {
+/** User-facing date: locale-aware short format. */
+export function formatDateDisplay(input: Date | string, locale?: string): string {
   const d = typeof input === 'string' ? parseDateInput(input) : input;
   if (!d || Number.isNaN(d.getTime())) return String(input);
+  const intlLocale =
+    locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
+  if (intlLocale) {
+    return new Intl.DateTimeFormat(intlLocale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(d);
+  }
   const dd = String(d.getUTCDate()).padStart(2, '0');
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = String(d.getUTCFullYear());
