@@ -1,4 +1,14 @@
-import { IsString, IsDateString, IsOptional, IsEmail, ValidateNested, IsBoolean, IsObject, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsEmail,
+  ValidateNested,
+  IsBoolean,
+  IsObject,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PublicCustomerDto {
@@ -60,6 +70,9 @@ export class CreatePublicBookingDto {
   promoCode?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   loyaltyPointsToRedeem?: number;
 }
 
@@ -72,7 +85,8 @@ export class PublicBookingQuoteDto {
   promoCode?: string;
 
   @IsOptional()
-  @IsInt()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   loyaltyPointsToRedeem?: number;
 }

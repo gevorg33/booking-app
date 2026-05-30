@@ -1,7 +1,7 @@
 import { roundBonus } from '../loyalty/loyalty.constants.js';
 
 export interface BookingPaymentAdjustment {
-  type: 'promo' | 'loyalty';
+  type: 'promo' | 'gift_card' | 'loyalty';
   label: string;
   code?: string;
   amount: number;
@@ -13,9 +13,11 @@ export interface BookingPaymentSummary {
   servicePrice: number | null;
   subtotal: number | null;
   promoDiscount: number;
+  giftCardDiscount: number;
   loyaltyDiscount: number;
   loyaltyPointsRedeemed: number;
   promoCode: string | null;
+  giftCardCode: string | null;
   cashPaid: number;
   totalDiscount: number;
   hasDiscounts: boolean;
@@ -46,12 +48,21 @@ function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjust
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const row = item as Record<string, unknown>;
-    const type = row.type === 'promo' || row.type === 'loyalty' ? row.type : null;
+    const type =
+      row.type === 'promo' || row.type === 'gift_card' || row.type === 'loyalty'
+        ? row.type
+        : null;
     const amount = readNumber(row.amount);
     if (!type || amount == null || amount <= 0) continue;
+    const defaultLabel =
+      type === 'promo'
+        ? 'Promo discount'
+        : type === 'gift_card'
+          ? 'Gift card'
+          : 'Loyalty bonuses';
     adjustments.push({
       type,
-      label: typeof row.label === 'string' ? row.label : type === 'promo' ? 'Promo discount' : 'Loyalty bonuses',
+      label: typeof row.label === 'string' ? row.label : defaultLabel,
       code: typeof row.code === 'string' ? row.code : undefined,
       amount: roundBonus(amount),
       points: readNumber(row.points) ?? undefined,
@@ -62,8 +73,10 @@ function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjust
 
 function fallbackAdjustments(
   promoDiscount: number,
+  giftCardDiscount: number,
   loyaltyDiscount: number,
   promoCode: string | null,
+  giftCardCode: string | null,
   loyaltyPointsRedeemed: number,
 ): BookingPaymentAdjustment[] {
   const adjustments: BookingPaymentAdjustment[] = [];
@@ -73,6 +86,14 @@ function fallbackAdjustments(
       label: promoCode ? `Promo ${promoCode}` : 'Promo discount',
       code: promoCode ?? undefined,
       amount: promoDiscount,
+    });
+  }
+  if (giftCardDiscount > 0) {
+    adjustments.push({
+      type: 'gift_card',
+      label: giftCardCode ? `Gift card ${giftCardCode}` : 'Gift card',
+      code: giftCardCode ?? undefined,
+      amount: giftCardDiscount,
     });
   }
   if (loyaltyDiscount > 0) {
@@ -102,11 +123,13 @@ export function resolveBookingPaymentSummary(
     readNumber(pricing?.servicePrice) ?? readNumber(source.service?.price);
   const subtotal = readNumber(pricing?.subtotal);
   const promoDiscount = roundBonus(readNumber(pricing?.promoDiscount) ?? 0);
+  const giftCardDiscount = roundBonus(readNumber(pricing?.giftCardDiscount) ?? 0);
   const loyaltyDiscount = roundBonus(readNumber(pricing?.loyaltyDiscount) ?? 0);
   const loyaltyPointsRedeemed = roundBonus(
     readNumber(pricing?.loyaltyPointsRedeemed ?? pricing?.loyaltyPointsToRedeem) ?? 0,
   );
   const promoCode = typeof pricing?.promoCode === 'string' ? pricing.promoCode : null;
+  const giftCardCode = typeof pricing?.giftCardCode === 'string' ? pricing.giftCardCode : null;
 
   let cashPaid =
     readNumber(pricing?.amountDue) ??
@@ -115,12 +138,12 @@ export function resolveBookingPaymentSummary(
     readNumber(metadata.prepaymentAmount);
 
   if (cashPaid == null && subtotal != null) {
-    cashPaid = Math.max(0, subtotal - promoDiscount - loyaltyDiscount);
+    cashPaid = Math.max(0, subtotal - promoDiscount - giftCardDiscount - loyaltyDiscount);
   }
   cashPaid = roundBonus(cashPaid ?? 0);
 
   const totalDiscount = roundBonus(
-    readNumber(pricing?.totalDiscount) ?? promoDiscount + loyaltyDiscount,
+    readNumber(pricing?.totalDiscount) ?? promoDiscount + giftCardDiscount + loyaltyDiscount,
   );
 
   const parsedAdjustments = pricing ? readAdjustments(pricing) : [];
@@ -129,8 +152,10 @@ export function resolveBookingPaymentSummary(
       ? parsedAdjustments
       : fallbackAdjustments(
           promoDiscount,
+          giftCardDiscount,
           loyaltyDiscount,
           promoCode,
+          giftCardCode,
           loyaltyPointsRedeemed,
         );
 
@@ -139,12 +164,14 @@ export function resolveBookingPaymentSummary(
     servicePrice,
     subtotal,
     promoDiscount,
+    giftCardDiscount,
     loyaltyDiscount,
     loyaltyPointsRedeemed,
     promoCode,
+    giftCardCode,
     cashPaid,
     totalDiscount,
-    hasDiscounts: promoDiscount > 0 || loyaltyDiscount > 0,
+    hasDiscounts: promoDiscount > 0 || giftCardDiscount > 0 || loyaltyDiscount > 0,
     adjustments,
   };
 }

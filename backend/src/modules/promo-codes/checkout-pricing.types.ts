@@ -1,10 +1,11 @@
 export interface CheckoutAdjustment {
-  type: 'promo' | 'loyalty';
+  type: 'promo' | 'gift_card' | 'loyalty';
   code?: string;
   label: string;
   amount: number;
   points?: number;
   promoCodeId?: string;
+  giftCardId?: string;
 }
 
 export interface CheckoutPricingInput {
@@ -22,7 +23,9 @@ export interface CheckoutPricingResult {
   servicePrice: number;
   subtotal: number;
   afterPromo: number;
+  afterGiftCard: number;
   promoDiscount: number;
+  giftCardDiscount: number;
   loyaltyDiscount: number;
   totalDiscount: number;
   amountDue: number;
@@ -32,5 +35,7 @@ export interface CheckoutPricingResult {
   pointsToEarn: number;
   promoCodeId?: string;
   promoCode?: string;
+  giftCardId?: string;
+  giftCardCode?: string;
   adjustments: CheckoutAdjustment[];
 }

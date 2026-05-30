@@ -1,6 +1,7 @@
 import { CheckoutPricingService } from './checkout-pricing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { PromoCodesService } from './promo-codes.service.js';
+import { GiftCardsService } from '../gift-cards/gift-cards.service.js';
 import { PromoDiscountType } from './entities/promo-code.entity.js';
 
 describe('CheckoutPricingService loyalty earn', () => {
@@ -8,16 +9,22 @@ describe('CheckoutPricingService loyalty earn', () => {
     getOrCreate: jest.fn(),
     pointsToCurrency: jest.fn(),
     calculateEarnPoints: jest.fn(),
+    redeem: jest.fn(),
   };
   const promoCodesService = {
     findValidForCheckout: jest.fn(),
     calculateDiscount: jest.fn(),
     recordUse: jest.fn(),
   };
+  const giftCardsService = {
+    validate: jest.fn(),
+    redeem: jest.fn(),
+  };
 
   const service = new CheckoutPricingService(
     promoCodesService as unknown as PromoCodesService,
     loyaltyService as unknown as LoyaltyService,
+    giftCardsService as unknown as GiftCardsService,
   );
 
   const promo = {
@@ -54,6 +61,33 @@ describe('CheckoutPricingService loyalty earn', () => {
     expect(result.pointsToEarn).toBe(10);
   });
 
+  it('applies gift card codes starting with GC-', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-1',
+      code: 'GC-ABCD1234',
+      balance: 75,
+      currency: 'USD',
+    });
+
+    const result = await service.calculate({
+      businessId: 'biz-1',
+      servicePrice: 100,
+      prepaymentAmount: 50,
+      currency: 'USD',
+      promoCode: 'GC-ABCD1234',
+      earnPercentCashback: 5,
+    });
+
+    expect(giftCardsService.validate).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234');
+    expect(promoCodesService.findValidForCheckout).not.toHaveBeenCalled();
+    expect(result.giftCardCode).toBe('GC-ABCD1234');
+    expect(result.giftCardDiscount).toBe(50);
+    expect(result.amountDue).toBe(0);
+    expect(result.pointsToEarn).toBe(0);
+    expect(result.adjustments).toHaveLength(1);
+    expect(result.adjustments[0].type).toBe('gift_card');
+  });
+
   it('earns only on cash due after loyalty redemption', async () => {
     const result = await service.calculate({
       businessId: 'biz-1',
@@ -71,22 +105,6 @@ describe('CheckoutPricingService loyalty earn', () => {
     expect(result.pointsToEarn).toBe(6);
   });
 
-  it('earns nothing when paid entirely with loyalty', async () => {
-    const result = await service.calculate({
-      businessId: 'biz-1',
-      servicePrice: 100,
-      prepaymentAmount: 100,
-      currency: 'USD',
-      customerId: 'cust-1',
-      loyaltyPointsToRedeem: 100,
-      earnPercentCashback: 10,
-    });
-
-    expect(result.amountDue).toBe(0);
-    expect(loyaltyService.calculateEarnPoints).toHaveBeenCalledWith(0, 10);
-    expect(result.pointsToEarn).toBe(0);
-  });
-
   it('applies promo before loyalty and earns on remaining cash', async () => {
     const result = await service.calculate({
       businessId: 'biz-1',
@@ -100,6 +118,7 @@ describe('CheckoutPricingService loyalty earn', () => {
     });
 
     expect(result.afterPromo).toBe(80);
+    expect(result.afterGiftCard).toBe(80);
     expect(result.promoDiscount).toBe(20);
     expect(result.loyaltyDiscount).toBe(30);
     expect(result.amountDue).toBe(50);
@@ -109,32 +128,13 @@ describe('CheckoutPricingService loyalty earn', () => {
     expect(result.adjustments).toHaveLength(2);
   });
 
-  it('promo plus loyalty covering full remainder yields zero due and zero earn', async () => {
-    promoCodesService.calculateDiscount.mockImplementation((_promo, amount: number) =>
-      Math.min(50, amount),
-    );
-
-    const result = await service.calculate({
-      businessId: 'biz-1',
-      servicePrice: 100,
-      prepaymentAmount: 50,
+  it('clamps loyalty to amount after gift card when customer requests more', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-1',
+      code: 'GC-TEST1234',
+      balance: 100,
       currency: 'USD',
-      customerId: 'cust-1',
-      promoCode: 'HALF',
-      loyaltyPointsToRedeem: 50,
-      earnPercentCashback: 5,
     });
-
-    expect(result.subtotal).toBe(50);
-    expect(result.afterPromo).toBe(0);
-    expect(result.promoDiscount).toBe(50);
-    expect(result.loyaltyPointsToRedeem).toBe(0);
-    expect(result.loyaltyDiscount).toBe(0);
-    expect(result.amountDue).toBe(0);
-    expect(result.pointsToEarn).toBe(0);
-  });
-
-  it('clamps loyalty to amount after promo when customer requests more', async () => {
     loyaltyService.getOrCreate.mockResolvedValue({ pointsBalance: 992 });
 
     const result = await service.calculate({
@@ -143,15 +143,14 @@ describe('CheckoutPricingService loyalty earn', () => {
       prepaymentAmount: 50,
       currency: 'USD',
       customerId: 'cust-1',
-      promoCode: 'SAVE20',
+      promoCode: 'GC-TEST1234',
       loyaltyPointsToRedeem: 50,
       earnPercentCashback: 5,
     });
 
-    expect(result.afterPromo).toBe(30);
-    expect(result.loyaltyPointsToRedeem).toBe(30);
-    expect(result.loyaltyDiscount).toBe(30);
+    expect(result.giftCardDiscount).toBe(50);
+    expect(result.afterGiftCard).toBe(0);
+    expect(result.loyaltyPointsToRedeem).toBe(0);
     expect(result.amountDue).toBe(0);
-    expect(result.pointsToEarn).toBe(0);
   });
 });

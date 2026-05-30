@@ -9,33 +9,54 @@ export function roundMoney(value: number): number {
   return roundBonus(value);
 }
 
-/** Promo first, then loyalty — loyalty cannot exceed amount remaining after promo. */
+export function isGiftCardCode(code: string): boolean {
+  return code.trim().toUpperCase().startsWith('GC-');
+}
+
+/** Promo first, then gift card, then loyalty. */
 export function computeAfterPromo(subtotal: number, promoDiscount: number): number {
   return roundMoney(Math.max(0, subtotal - promoDiscount));
+}
+
+export function computeAfterGiftCard(afterPromo: number, giftCardDiscount: number): number {
+  return roundMoney(Math.max(0, afterPromo - giftCardDiscount));
+}
+
+export function resolveGiftCardRedemption(balance: number, amountDue: number): number {
+  const due = roundMoney(Math.max(0, amountDue));
+  if (due <= 0 || balance <= 0) return 0;
+  return roundMoney(Math.min(balance, due));
 }
 
 export function resolveLoyaltyRedemption(
   requested: number | undefined | null,
   balance: number,
-  afterPromo: number,
+  amountDue: number,
 ): number {
   const points = roundBonus(Number(requested) || 0);
-  if (points <= 0 || afterPromo <= 0 || balance <= 0) return 0;
-  return Math.min(points, maxRedeemablePoints(balance, afterPromo));
+  if (points <= 0 || amountDue <= 0 || balance <= 0) return 0;
+  return Math.min(points, maxRedeemablePoints(balance, amountDue));
 }
 
 export function computeCheckoutTotals(input: {
   subtotal: number;
   promoDiscount: number;
+  giftCardDiscount: number;
   loyaltyPointsToRedeem: number;
 }) {
   const afterPromo = computeAfterPromo(input.subtotal, input.promoDiscount);
+  const giftCardDiscount = roundMoney(input.giftCardDiscount);
+  const afterGiftCard = computeAfterGiftCard(afterPromo, giftCardDiscount);
   const loyaltyDiscount = pointsToCurrency(input.loyaltyPointsToRedeem);
-  const amountDue = roundMoney(Math.max(0, afterPromo - loyaltyDiscount));
-  const totalDiscount = roundMoney(input.promoDiscount + loyaltyDiscount);
+  const amountDue = roundMoney(Math.max(0, afterGiftCard - loyaltyDiscount));
+  const totalDiscount = roundMoney(
+    input.promoDiscount + giftCardDiscount + loyaltyDiscount,
+  );
 
   return {
     afterPromo,
+    afterGiftCard,
+    giftCardDiscount,
     loyaltyDiscount,
     amountDue,
     totalDiscount,
