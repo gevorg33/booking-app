@@ -19,7 +19,11 @@ import {
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { useAiEvents } from '@/lib/use-ai-events';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
+import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname } from 'next/navigation';
+import { useI18n } from '@/i18n';
+import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
+import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
 interface Message {
   id: string;
@@ -136,6 +140,7 @@ function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>)
 }
 
 export function AiCommandBar() {
+  const { t, locale } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -147,6 +152,7 @@ export function AiCommandBar() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -333,6 +339,21 @@ export function AiCommandBar() {
       }
     },
     [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext],
+  );
+
+  const handleVoiceError = useCallback(
+    (code: SpeechRecognitionErrorCode) => {
+      const message =
+        code === 'unsupported'
+          ? t('ai.voiceUnsupported')
+          : code === 'not-allowed'
+            ? t('ai.voiceDenied')
+            : code === 'no-speech'
+              ? t('ai.voiceNoSpeech')
+              : t('ai.voiceError');
+      setVoiceError(message);
+    },
+    [t],
   );
 
   const submit = useCallback(async () => {
@@ -537,6 +558,15 @@ export function AiCommandBar() {
                 >
                   <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{msg.text}</pre>
 
+                  {msg.role === 'assistant' && isSpeechSynthesisSupported() && (
+                    <AiSpeakReplyButton
+                      text={msg.text}
+                      locale={locale}
+                      label={t('ai.speakReply')}
+                      variant="dark"
+                    />
+                  )}
+
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <div className="mt-2 space-y-1">
                       {(msg.details.missing as ClarifyIssue[]).map((issue, i) => (
@@ -636,7 +666,22 @@ export function AiCommandBar() {
 
           {/* Input */}
           <div className="p-3 border-t border-gray-800">
+            {voiceError && (
+              <p className="text-[10px] text-amber-400/90 mb-2 px-1">{voiceError}</p>
+            )}
             <div className="flex items-center gap-2">
+              <AiVoiceInputButton
+                disabled={loading}
+                inputValue={input}
+                locale={locale}
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setInput(text);
+                }}
+                onError={handleVoiceError}
+                variant="dark"
+                labels={{ start: t('ai.voiceStart'), stop: t('ai.voiceStop') }}
+              />
               <input
                 ref={inputRef}
                 type="text"
@@ -656,7 +701,7 @@ export function AiCommandBar() {
               </button>
             </div>
             <p className="text-[10px] text-gray-600 mt-1.5 px-1">
-              Press Enter to send, Esc to close
+              {t('ai.voiceHint')}, Esc to close
             </p>
           </div>
         </div>
