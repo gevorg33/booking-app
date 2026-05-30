@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Mail, Pencil, Phone, Plus, Smartphone, Trash2, UserPlus, Users } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EmployeeFormModal } from '@/components/employees/employee-form-modal';
-import TeamMembersCard from '@/components/employees/team-members-card';
-import type { TeamMemberRole } from '@/components/employees/team-members-card';
-import { roleLabel } from '@/components/employees/team-members-card';
+import TeamMembersCard, {
+  ASSIGNABLE_ROLES,
+  roleLabel,
+  type TeamMember,
+  type TeamMemberRole,
+} from '@/components/employees/team-members-card';
 import {
   employeeAvatarUrl,
   employeeTitle,
@@ -22,7 +25,7 @@ import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 export default function EmployeesPage() {
   const { t } = useI18n();
-  const { business } = useAuthStore();
+  const { business, user } = useAuthStore();
   const isOwner = business?.membershipRole === 'owner';
   const queryClient = useQueryClient();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
@@ -39,6 +42,8 @@ export default function EmployeesPage() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [accessSentId, setAccessSentId] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [appAccessRoles, setAppAccessRoles] = useState<Record<string, TeamMemberRole>>({});
+  const [roleUpdateError, setRoleUpdateError] = useState<string | null>(null);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees', business?.id],
@@ -49,6 +54,23 @@ export default function EmployeesPage() {
     },
     enabled: !!business?.id,
   });
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/team-members`);
+      return (data.data || data || []) as TeamMember[];
+    },
+    enabled: !!business?.id,
+  });
+
+  const teamMemberByEmployeeId = useMemo(() => {
+    const map = new Map<string, TeamMember>();
+    for (const member of teamMembers) {
+      if (member.employeeId) map.set(member.employeeId, member);
+    }
+    return map;
+  }, [teamMembers]);
 
   const { data: services = [] } = useQuery({
     queryKey: ['services', business?.id],
@@ -135,21 +157,53 @@ export default function EmployeesPage() {
   });
 
   const sendAppAccessMutation = useMutation({
-    mutationFn: async (employeeId: string) => {
+    mutationFn: async ({
+      employeeId,
+      role,
+    }: {
+      employeeId: string;
+      role: TeamMemberRole;
+    }) => {
       const { data } = await api.post(
         `/businesses/${business!.id}/employees/${employeeId}/send-app-access`,
+        isOwner ? { role } : {},
       );
       return data;
     },
-    onSuccess: (_data, employeeId) => {
+    onSuccess: (_data, { employeeId }) => {
       setAccessError(null);
       setAccessSentId(employeeId);
       setTimeout(() => setAccessSentId(null), 4000);
     },
-    onError: (err: any, employeeId) => {
+    onError: (err: any, { employeeId }) => {
       setAccessSentId(null);
       setAccessError(
         `${employeeId}:${err?.response?.data?.message || 'Failed to send app access email'}`,
+      );
+    },
+  });
+
+  const updateAccessRoleMutation = useMutation({
+    mutationFn: async ({
+      employeeId,
+      role,
+    }: {
+      employeeId: string;
+      role: TeamMemberRole;
+    }) => {
+      const { data } = await api.patch(
+        `/businesses/${business!.id}/employees/${employeeId}/access-role`,
+        { role },
+      );
+      return (data.data || data) as TeamMember;
+    },
+    onSuccess: () => {
+      setRoleUpdateError(null);
+      void queryClient.invalidateQueries({ queryKey: ['team-members', business?.id] });
+    },
+    onError: (err: any) => {
+      setRoleUpdateError(
+        err?.response?.data?.message || t('teamMembers.updateFailed'),
       );
     },
   });
@@ -184,7 +238,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t('employees.title')}</h1>
-          <p className="text-gray-400 text-sm">Manage team profiles, titles, and photos</p>
+          <p className="text-gray-400 text-sm">{t('teamMembers.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -229,8 +283,22 @@ export default function EmployeesPage() {
             {employees.map((emp) => {
               const avatar = employeeAvatarUrl(emp);
               const title = employeeTitle(emp);
+              const linkedMember = teamMemberByEmployeeId.get(emp.id);
+              const isSelf = linkedMember?.userId === user?.id;
+              const canEditRole =
+                isOwner &&
+                emp.userId &&
+                linkedMember &&
+                linkedMember.role !== 'owner' &&
+                !isSelf;
+              const pendingAppAccessRole = appAccessRoles[emp.id] ?? 'contributor';
               const rowAccessError =
                 accessError?.startsWith(`${emp.id}:`) ? accessError.slice(emp.id.length + 1) : null;
+              const rowRoleError =
+                roleUpdateError &&
+                updateAccessRoleMutation.variables?.employeeId === emp.id
+                  ? roleUpdateError
+                  : null;
               return (
                 <div key={emp.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
@@ -269,6 +337,30 @@ export default function EmployeesPage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+                    {canEditRole ? (
+                      <select
+                        className="input text-xs py-1.5 min-w-[140px]"
+                        value={linkedMember.role}
+                        disabled={updateAccessRoleMutation.isPending}
+                        onChange={(e) =>
+                          updateAccessRoleMutation.mutate({
+                            employeeId: emp.id,
+                            role: e.target.value as TeamMemberRole,
+                          })
+                        }
+                        title={t('employees.accessRole')}
+                      >
+                        {ASSIGNABLE_ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            {roleLabel(role, t)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : linkedMember ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-violet-600/10 text-violet-300 whitespace-nowrap">
+                        {roleLabel(linkedMember.role, t)}
+                      </span>
+                    ) : null}
                     {emp.userId ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-400 whitespace-nowrap">
                         {t('employees.appAccessActive')}
@@ -279,16 +371,42 @@ export default function EmployeesPage() {
                       </span>
                     )}
                     {!emp.userId && emp.email ? (
-                      <button
-                        type="button"
-                        onClick={() => sendAppAccessMutation.mutate(emp.id)}
-                        disabled={sendAppAccessMutation.isPending}
-                        className="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap"
-                        title={t('employees.sendAppAccess')}
-                      >
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                        {isOwner ? (
+                          <select
+                            className="input text-xs py-1.5 min-w-[140px]"
+                            value={pendingAppAccessRole}
+                            onChange={(e) =>
+                              setAppAccessRoles((prev) => ({
+                                ...prev,
+                                [emp.id]: e.target.value as TeamMemberRole,
+                              }))
+                            }
+                            title={t('employees.accessRole')}
+                          >
+                            {ASSIGNABLE_ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {roleLabel(role, t)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            sendAppAccessMutation.mutate({
+                              employeeId: emp.id,
+                              role: pendingAppAccessRole,
+                            })
+                          }
+                          disabled={sendAppAccessMutation.isPending}
+                          className="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap"
+                          title={t('employees.sendAppAccess')}
+                        >
                         <Smartphone className="w-3.5 h-3.5" />
                         {accessSentId === emp.id ? t('employees.appAccessSent') : t('employees.sendAppAccess')}
                       </button>
+                      </div>
                     ) : !emp.userId && !emp.email ? (
                       <span className="text-xs text-gray-500 max-w-[140px] text-right sm:text-left">
                         {t('employees.appAccessNeedsEmail')}
@@ -296,6 +414,9 @@ export default function EmployeesPage() {
                     ) : null}
                     {rowAccessError && (
                       <p className="text-xs text-red-400 max-w-[200px] text-right sm:text-left">{rowAccessError}</p>
+                    )}
+                    {rowRoleError && (
+                      <p className="text-xs text-red-400 max-w-[200px] text-right sm:text-left">{rowRoleError}</p>
                     )}
                     <div className="flex items-center gap-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-green-600/10 text-green-400 whitespace-nowrap hidden sm:inline">

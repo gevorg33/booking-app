@@ -14,6 +14,9 @@ import {
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
+import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
+import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
 interface Message {
   id: string;
@@ -52,6 +55,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -142,6 +146,21 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       setLoading(false);
     }
   }, [input, loading, messages, sessionContext, slug, locale, t]);
+
+  const handleVoiceError = useCallback(
+    (code: SpeechRecognitionErrorCode) => {
+      const message =
+        code === 'unsupported'
+          ? t('ai.voiceUnsupported')
+          : code === 'not-allowed'
+            ? t('ai.voiceDenied')
+            : code === 'no-speech'
+              ? t('ai.voiceNoSpeech')
+              : t('ai.voiceError');
+      setVoiceError(message);
+    },
+    [t],
+  );
 
   const closeAssistant = useCallback(() => {
     setOpen(false);
@@ -268,6 +287,15 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                   }
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  {isAssistant && isSpeechSynthesisSupported() && (
+                    <AiSpeakReplyButton
+                      text={msg.text}
+                      locale={locale}
+                      label={t('ai.speakReply')}
+                      variant="light"
+                      primaryColor={primary}
+                    />
+                  )}
                   {msg.navigate && msg.role === 'assistant' && (
                     <button
                       type="button"
@@ -294,7 +322,23 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           </div>
 
           <div className="p-3 border-t border-gray-100">
+            {voiceError && (
+              <p className="text-[10px] text-amber-700 mb-2 px-1">{voiceError}</p>
+            )}
             <div className="flex items-center gap-2">
+              <AiVoiceInputButton
+                disabled={loading}
+                inputValue={input}
+                locale={locale}
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setInput(text);
+                }}
+                onError={handleVoiceError}
+                variant="light"
+                primaryColor={primary}
+                labels={{ start: t('ai.voiceStart'), stop: t('ai.voiceStop') }}
+              />
               <input
                 ref={inputRef}
                 type="text"

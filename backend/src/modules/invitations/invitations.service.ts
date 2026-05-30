@@ -84,6 +84,7 @@ export class InvitationsService {
     businessId: string,
     employeeId: string,
     createdByUserId: string,
+    role?: MemberRole,
   ): Promise<BusinessInvitation> {
     const employee = await this.employeeRepo.findOne({
       where: { id: employeeId, businessId, isActive: true },
@@ -112,7 +113,7 @@ export class InvitationsService {
       this.inviteRepo.create({
         businessId,
         email,
-        role: MemberRole.CONTRIBUTOR,
+        role: role ?? MemberRole.CONTRIBUTOR,
         token,
         employeeName: employee.name,
         employeeId: employee.id,

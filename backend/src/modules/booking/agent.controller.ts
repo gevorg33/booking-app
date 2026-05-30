@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Param, Body, UseGuards, Put } from '@nestjs/common';
 import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.service.js';
+import { AgentTaskUndoService } from '../../engine/agent/agent-task-undo.service.js';
 import { AgentIntentDto } from './dto/agent-intent.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -7,7 +8,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 @Controller('businesses/:businessId/agents')
 @UseGuards(JwtAuthGuard)
 export class AgentController {
-  constructor(private agentOrchestrator: AgentOrchestratorService) {}
+  constructor(
+    private agentOrchestrator: AgentOrchestratorService,
+    private agentTaskUndo: AgentTaskUndoService,
+  ) {}
 
   @Post('intent')
   processIntent(
@@ -33,6 +37,16 @@ export class AgentController {
   @Get('tasks')
   getTasks(@Param('businessId') businessId: string) {
     return this.agentOrchestrator.getTasks(businessId);
+  }
+
+  @Get('tasks/undo-latest/preview')
+  previewUndoLatest(@Param('businessId') businessId: string) {
+    return this.agentTaskUndo.getLatestUndoPreview(businessId);
+  }
+
+  @Post('tasks/undo-latest')
+  undoLatest(@Param('businessId') businessId: string, @CurrentUser() user: any) {
+    return this.agentTaskUndo.undoLatest(businessId, user.id);
   }
 
   @Get('tasks/pending')

@@ -22,6 +22,10 @@ import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-per
 import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
 import { Business } from '../../modules/business/entities/business.entity.js';
+import { BookingModule } from '../../modules/booking/booking.module.js';
+import { ScheduleModule } from '../../modules/schedule/schedule.module.js';
+import { EmployeeModule } from '../../modules/employee/employee.module.js';
+import { AgentTaskUndoService } from './agent-task-undo.service.js';
 
 @Module({
   imports: [
@@ -31,10 +35,14 @@ import { Business } from '../../modules/business/entities/business.entity.js';
     EventStoreModule,
     OpenAiModule,
     LangGraphModule,
+    forwardRef(() => BookingModule),
+    ScheduleModule,
+    EmployeeModule,
   ],
   providers: [
     AgentRegistryService,
     AgentOrchestratorService,
+    AgentTaskUndoService,
     ContextBuilderService,
     LlmService,
     SchedulingOptimizationAgent,
@@ -49,6 +57,7 @@ import { Business } from '../../modules/business/entities/business.entity.js';
     ContextBuilderService,
     LlmService,
     ScheduleApplyAgent,
+    AgentTaskUndoService,
   ],
 })
 export class AgentModule implements OnModuleInit {

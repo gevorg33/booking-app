@@ -20,6 +20,8 @@ export interface TeamMember {
 
 const ASSIGNABLE_ROLES: TeamMemberRole[] = ['admin', 'manager', 'staff', 'contributor'];
 
+export { ASSIGNABLE_ROLES };
+
 export function roleLabel(role: TeamMemberRole, t: (key: string) => string): string {
   const key = `teamMembers.roles.${role}`;
   const translated = t(key);

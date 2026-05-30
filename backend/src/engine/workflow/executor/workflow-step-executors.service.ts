@@ -392,6 +392,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       customerName: full.customer?.name,
       startTime: full.startTime,
       endTime: full.endTime,
+      previousStartTime: existing.startTime,
+      previousEndTime: existing.endTime,
+      previousEmployeeId: existing.employeeId,
+      previousServiceId: existing.serviceId,
     };
   }
 
@@ -424,8 +428,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async assignEmployeeServices(step: WorkflowStep, ctx: Record<string, any>) {
     const { employeeId, serviceIds, userId } = step.params;
+    const before = await this.employeeService.findOne(employeeId);
     const employee = await this.employeeService.update(employeeId, { serviceIds }, userId);
-    return { employeeId: employee.id, serviceIds: employee.serviceIds };
+    return {
+      employeeId: employee.id,
+      serviceIds: employee.serviceIds,
+      previousServiceIds: before.serviceIds ?? [],
+    };
   }
 
   private async summarizeUtilization(step: WorkflowStep) {

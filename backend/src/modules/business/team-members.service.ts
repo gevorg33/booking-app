@@ -109,4 +109,30 @@ export class TeamMembersService {
       employeeName: linked?.name ?? null,
     };
   }
+
+  async updateRoleByEmployeeId(
+    businessId: string,
+    employeeId: string,
+    role: AssignableMemberRole,
+    requesterId: string,
+  ): Promise<TeamMemberView> {
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId, isActive: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+    if (!employee.userId) {
+      throw new BadRequestException('This employee does not have dashboard access yet');
+    }
+
+    const member = await this.memberRepo.findOne({
+      where: { businessId, userId: employee.userId },
+    });
+    if (!member) {
+      throw new NotFoundException('Team member not found for this employee');
+    }
+
+    return this.updateRole(businessId, member.id, role, requesterId);
+  }
 }

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   useDraggableFloatingPosition,
   useViewportSize,
@@ -19,7 +19,11 @@ import {
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { useAiEvents } from '@/lib/use-ai-events';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
+import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname } from 'next/navigation';
+import { useI18n } from '@/i18n';
+import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
+import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
 interface Message {
   id: string;
@@ -136,6 +140,7 @@ function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>)
 }
 
 export function AiCommandBar() {
+  const { t, locale } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -147,6 +152,7 @@ export function AiCommandBar() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -173,6 +179,7 @@ export function AiCommandBar() {
     onTaskCompleted: () => {
       invalidateAfterMutation(queryClient);
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
     },
   });
 
@@ -184,6 +191,56 @@ export function AiCommandBar() {
     },
     enabled: !!business?.id,
     refetchInterval: 15_000,
+  });
+
+  const { data: undoPreview, isLoading: undoPreviewLoading } = useQuery({
+    queryKey: ['agent-tasks-undo-preview', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/agents/tasks/undo-latest/preview`);
+      return data.data ?? data;
+    },
+    enabled: !!business?.id && open,
+    refetchInterval: open ? 10_000 : false,
+  });
+
+  const undoLatestMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/agents/tasks/undo-latest`);
+      return data.data ?? data;
+    },
+    onSuccess: (result) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: `${t('ai.undoSuccess')}: ${result?.intent ?? undoPreview?.intent ?? ''}`.trim(),
+          success: true,
+          action: 'undo',
+          timestamp: new Date(),
+        },
+      ]);
+      invalidateAfterMutation(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
+    },
+    onError: (error: any) => {
+      const text =
+        error?.response?.data?.message ??
+        error?.response?.data?.error ??
+        t('ai.undoFailed');
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `e-${Date.now()}`,
+          role: 'assistant',
+          text: Array.isArray(text) ? text.join(', ') : String(text),
+          success: false,
+          action: 'undo',
+          timestamp: new Date(),
+        },
+      ]);
+    },
   });
 
   const { data: employees = [] } = useQuery({
@@ -259,7 +316,10 @@ export function AiCommandBar() {
           },
         ]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
-        if (result.success) invalidateAfterMutation(queryClient);
+        if (result.success) {
+          invalidateAfterMutation(queryClient);
+          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+        }
       } catch (err: any) {
         setMessages((prev) => [
           ...prev,
@@ -315,6 +375,7 @@ export function AiCommandBar() {
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
         if (shouldInvalidateAfterAi(result.action, result.success)) {
           invalidateAfterMutation(queryClient);
+          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
         }
       } catch (err: any) {
         setMessages((prev) => [
@@ -333,6 +394,21 @@ export function AiCommandBar() {
       }
     },
     [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext],
+  );
+
+  const handleVoiceError = useCallback(
+    (code: SpeechRecognitionErrorCode) => {
+      const message =
+        code === 'unsupported'
+          ? t('ai.voiceUnsupported')
+          : code === 'not-allowed'
+            ? t('ai.voiceDenied')
+            : code === 'no-speech'
+              ? t('ai.voiceNoSpeech')
+              : t('ai.voiceError');
+      setVoiceError(message);
+    },
+    [t],
   );
 
   const submit = useCallback(async () => {
@@ -377,6 +453,7 @@ export function AiCommandBar() {
 
       if (shouldInvalidateAfterAi(result.action, result.success)) {
         invalidateAfterMutation(queryClient);
+        queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
       }
     } catch (err: any) {
       setMessages((prev) => [
@@ -407,6 +484,13 @@ export function AiCommandBar() {
     setMessages([]);
     setSessionContext({});
   }, []);
+
+  const handleUndoLatest = useCallback(() => {
+    if (!undoPreview?.undoable || undoLatestMutation.isPending) return;
+    const label = t('ai.undoLatestConfirm').replace('{intent}', undoPreview.intent);
+    if (!window.confirm(label)) return;
+    undoLatestMutation.mutate();
+  }, [t, undoLatestMutation, undoPreview]);
 
   useEffect(() => {
     if (!open) return;
@@ -492,8 +576,28 @@ export function AiCommandBar() {
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleUndoLatest}
+              disabled={!undoPreview?.undoable || undoLatestMutation.isPending || undoPreviewLoading}
+              className="shrink-0 ml-2 p-1 text-gray-500 hover:text-violet-300 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors cursor-pointer"
+              title={
+                undoPreview?.undoable
+                  ? `${t('ai.undoLatest')}: ${undoPreview.intent}`
+                  : undoPreview?.reason ?? t('ai.undoLatestNone')
+              }
+              aria-label={t('ai.undoLatest')}
+            >
+              {undoLatestMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Undo2 className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={closeAssistant}
-              className="shrink-0 ml-2 p-1 text-gray-500 hover:text-white transition-colors cursor-pointer"
+              className="shrink-0 ml-1 p-1 text-gray-500 hover:text-white transition-colors cursor-pointer"
               aria-label="Close AI assistant"
             >
               <X className="w-4 h-4" />
@@ -536,6 +640,15 @@ export function AiCommandBar() {
                   }`}
                 >
                   <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{msg.text}</pre>
+
+                  {msg.role === 'assistant' && isSpeechSynthesisSupported() && (
+                    <AiSpeakReplyButton
+                      text={msg.text}
+                      locale={locale}
+                      label={t('ai.speakReply')}
+                      variant="dark"
+                    />
+                  )}
 
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <div className="mt-2 space-y-1">
@@ -636,7 +749,22 @@ export function AiCommandBar() {
 
           {/* Input */}
           <div className="p-3 border-t border-gray-800">
+            {voiceError && (
+              <p className="text-[10px] text-amber-400/90 mb-2 px-1">{voiceError}</p>
+            )}
             <div className="flex items-center gap-2">
+              <AiVoiceInputButton
+                disabled={loading}
+                inputValue={input}
+                locale={locale}
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setInput(text);
+                }}
+                onError={handleVoiceError}
+                variant="dark"
+                labels={{ start: t('ai.voiceStart'), stop: t('ai.voiceStop') }}
+              />
               <input
                 ref={inputRef}
                 type="text"
@@ -656,7 +784,10 @@ export function AiCommandBar() {
               </button>
             </div>
             <p className="text-[10px] text-gray-600 mt-1.5 px-1">
-              Press Enter to send, Esc to close
+              {undoPreview?.undoable
+                ? `${t('ai.undoLatestHint')}: ${undoPreview.intent}`
+                : t('ai.voiceHint')}
+              , Esc to close
             </p>
           </div>
         </div>

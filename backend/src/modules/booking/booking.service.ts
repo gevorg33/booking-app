@@ -753,6 +753,82 @@ export class BookingService {
     return booking;
   }
 
+  /** Re-activate a cancelled booking and re-lock schedule slots when possible. */
+  async restoreCancelled(id: string, userId?: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+    if (booking.status !== BookingStatus.CANCELLED) {
+      throw new BadRequestException('Only cancelled bookings can be restored');
+    }
+
+    await this.reconcileStuckSlotsInWindow(
+      booking.businessId,
+      booking.employeeId,
+      booking.startTime,
+      booking.endTime,
+    );
+
+    await this.validateBookingWindow(
+      booking.businessId,
+      booking.employeeId,
+      booking.startTime,
+      booking.endTime,
+      booking.serviceId,
+      booking.id,
+    );
+
+    const slotsToLock = await this.findSlotsInWindow(
+      booking.businessId,
+      booking.employeeId,
+      booking.startTime,
+      booking.endTime,
+      booking.serviceId,
+    );
+
+    if (slotsToLock.length === 0) {
+      const conflicts = await this.findOverlappingBookings(
+        booking.businessId,
+        booking.employeeId,
+        booking.startTime,
+        booking.endTime,
+        booking.id,
+      );
+      if (conflicts.length > 0) {
+        throw new ConflictException('Cannot restore: time slot is already booked');
+      }
+    } else {
+      for (const slot of slotsToLock) {
+        slot.appointmentCount += 1;
+        if (slot.appointmentCount >= slot.maxAppointmentCount) {
+          slot.status = SlotStatus.BOOKED;
+        }
+        await this.slotRepo.save(slot);
+      }
+    }
+
+    booking.status = BookingStatus.CONFIRMED;
+    booking.cancellationReason = null as any;
+    booking.slotId = slotsToLock[0]?.id ?? null;
+    await this.bookingRepo.save(booking);
+
+    await this.eventStore.publish({
+      eventType: EventType.BOOKING_UPDATED,
+      aggregateType: 'booking',
+      aggregateId: booking.id,
+      businessId: booking.businessId,
+      payload: {
+        bookingId: booking.id,
+        status: BookingStatus.CONFIRMED,
+        restored: true,
+        employeeId: booking.employeeId,
+        startTime: booking.startTime.toISOString(),
+        endTime: booking.endTime.toISOString(),
+      },
+      userId,
+    });
+
+    return this.findOne(booking.id);
+  }
+
   async getUpcoming(businessId: string, limit = 10): Promise<Booking[]> {
     return this.bookingRepo.find({
       where: {
