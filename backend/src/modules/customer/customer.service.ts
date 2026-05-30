@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
 import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
@@ -114,10 +115,13 @@ export class CustomerService {
   constructor(
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async create(businessId: string, dto: CreateCustomerDto): Promise<Customer> {
-    return this.customerRepo.save(this.customerRepo.create({ ...dto, businessId }));
+    const customer = await this.customerRepo.save(this.customerRepo.create({ ...dto, businessId }));
+    this.eventEmitter.emit('customer.upserted', { businessId, customerId: customer.id });
+    return customer;
   }
 
   async findAll(businessId: string): Promise<Customer[]> {
@@ -518,7 +522,12 @@ export class CustomerService {
     if (dto.name !== undefined) customer.name = dto.name;
     if (dto.email !== undefined) customer.email = dto.email;
     if (dto.phone !== undefined) customer.phone = dto.phone;
-    return this.customerRepo.save(customer);
+    const saved = await this.customerRepo.save(customer);
+    this.eventEmitter.emit('customer.upserted', {
+      businessId: saved.businessId,
+      customerId: saved.id,
+    });
+    return saved;
   }
 
   async remove(id: string): Promise<void> {

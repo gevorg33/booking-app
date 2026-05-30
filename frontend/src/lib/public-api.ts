@@ -54,6 +54,25 @@ export interface PublicLocation {
   mapEmbedHtml?: string;
 }
 
+export interface PublicSupportWidgets {
+  zendeskWidgetKey?: string;
+}
+
+export interface PublicMetaBooking {
+  bookingUrl: string;
+  buttonLabel: string;
+  facebookPageUrl?: string;
+  instagramUsername?: string;
+}
+
+export interface PublicMessagingLinks {
+  publicBookingUrl: string;
+  telegramUrl?: string | null;
+  whatsappUrl?: string | null;
+  facebookBookingUrl?: string | null;
+  instagramBookingUrl?: string | null;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -70,6 +89,9 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode?: string;
   onlinePaymentsEnabled?: boolean;
+  support?: PublicSupportWidgets;
+  metaBooking?: PublicMetaBooking;
+  messaging?: PublicMessagingLinks;
 }
 
 export interface PublicProviderReview {

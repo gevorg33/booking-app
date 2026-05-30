@@ -15,10 +15,27 @@ import { CustomerModule } from '../customer/customer.module.js';
 import { ServiceModule } from '../service/service.module.js';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard.js';
 import { OpenAiModule } from './openai/openai.module.js';
+import { Business } from '../business/entities/business.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { Booking } from '../booking/entities/booking.entity.js';
+import { Service } from '../service/entities/service.entity.js';
+import { ZendeskApiClient } from './zendesk/zendesk-api.client.js';
+import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
+import { ZendeskCustomerSyncListener } from './zendesk/zendesk-customer-sync.listener.js';
+import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BusinessApiKey, WebhookSubscription, WebhookDelivery, AiUsageLog]),
+    TypeOrmModule.forFeature([
+      BusinessApiKey,
+      WebhookSubscription,
+      WebhookDelivery,
+      AiUsageLog,
+      Business,
+      Customer,
+      Booking,
+      Service,
+    ]),
     BusinessModule,
     BookingModule,
     CustomerModule,
@@ -26,7 +43,16 @@ import { OpenAiModule } from './openai/openai.module.js';
     OpenAiModule,
   ],
   controllers: [IntegrationsController, BusinessApiController],
-  providers: [ApiKeyService, WebhooksService, WebhookDispatcherListener, ApiKeyGuard],
-  exports: [ApiKeyService, WebhooksService, OpenAiModule],
+  providers: [
+    ApiKeyService,
+    WebhooksService,
+    WebhookDispatcherListener,
+    ApiKeyGuard,
+    ZendeskApiClient,
+    ZendeskIntegrationService,
+    ZendeskCustomerSyncListener,
+    DistributionIntegrationService,
+  ],
+  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskIntegrationService, DistributionIntegrationService],
 })
 export class IntegrationsModule {}

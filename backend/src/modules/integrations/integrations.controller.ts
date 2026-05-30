@@ -18,6 +18,11 @@ import { CreateApiKeyDto, CreateWebhookDto, UpdateWebhookDto } from './dto/integ
 import { UpdateOpenAiIntegrationDto } from './dto/update-openai-integration.dto.js';
 import { OpenAiIntegrationService } from './openai/openai-integration.service.js';
 import { OpenAiGatewayService } from './openai/openai-gateway.service.js';
+import { UpdateZendeskIntegrationDto } from './dto/update-zendesk-integration.dto.js';
+import { CreateSupportTicketDto } from './dto/create-support-ticket.dto.js';
+import { UpdateDistributionIntegrationDto } from './dto/update-distribution-integration.dto.js';
+import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
+import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
 
 @Controller('businesses/:businessId/integrations')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +33,8 @@ export class IntegrationsController {
     private webhooksService: WebhooksService,
     private openAiIntegrationService: OpenAiIntegrationService,
     private openAiGateway: OpenAiGatewayService,
+    private zendeskIntegrationService: ZendeskIntegrationService,
+    private distributionIntegrationService: DistributionIntegrationService,
   ) {}
 
   @Get('docs')
@@ -164,6 +171,18 @@ export class IntegrationsController {
     return this.openAiIntegrationService.getPublicSettings(businessId);
   }
 
+  @Get('zendesk/widget')
+  async getZendeskWidgetKey(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const business = await this.businessService.findOne(businessId);
+    return {
+      widgetKey: this.zendeskIntegrationService.getDashboardWidgetKey(business.settings),
+    };
+  }
+
   @Put('openai')
   async updateOpenAiIntegration(
     @Param('businessId') businessId: string,
@@ -175,5 +194,88 @@ export class IntegrationsController {
     const result = await this.openAiIntegrationService.updateSettings(businessId, dto);
     this.openAiGateway.invalidateBusiness(businessId);
     return result;
+  }
+
+  @Get('zendesk')
+  async getZendeskIntegration(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.zendeskIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('zendesk')
+  async updateZendeskIntegration(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateZendeskIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.zendeskIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Post('zendesk/support-ticket')
+  async createSupportTicket(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateSupportTicketDto,
+    @CurrentUser() user: { id: string; email?: string; firstName?: string; lastName?: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined;
+    return this.zendeskIntegrationService.createSupportTicket(
+      businessId,
+      dto,
+      user.email,
+      actorName,
+    );
+  }
+
+  @Post('zendesk/sync-customer/:customerId')
+  async syncCustomerToZendesk(
+    @Param('businessId') businessId: string,
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    const result = await this.zendeskIntegrationService.syncCustomerIfEnabled(businessId, customerId);
+    if (!result) {
+      return { synced: false, message: 'Zendesk sync disabled or customer has no email' };
+    }
+    return { synced: true, ...result };
+  }
+
+  @Get('distribution')
+  async getDistributionIntegration(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.distributionIntegrationService.getPublicSettings(businessId);
+  }
+
+  @Put('distribution')
+  async updateDistributionIntegration(
+    @Param('businessId') businessId: string,
+    @Body() dto: UpdateDistributionIntegrationDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.distributionIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Get('google-reserve/feed')
+  async getGoogleReserveFeed(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(businessId, user.id);
+    this.apiKeyService.assertAdminRole(membership);
+    return this.distributionIntegrationService.getGoogleReserveFeed(businessId);
   }
 }

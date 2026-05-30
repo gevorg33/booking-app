@@ -35,6 +35,12 @@ import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util
 import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
+import { ConfigService } from '@nestjs/config';
+import { getBusinessZendeskIntegration } from '../integrations/zendesk/zendesk-integration.types.js';
+import {
+  buildMessagingLinksForBusiness,
+  getDistributionIntegrations,
+} from '../integrations/distribution/distribution-integration.types.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -56,6 +62,25 @@ export interface PublicLocation {
   mapEmbedHtml?: string;
 }
 
+export interface PublicSupportWidgets {
+  zendeskWidgetKey?: string;
+}
+
+export interface PublicMetaBooking {
+  bookingUrl: string;
+  buttonLabel: string;
+  facebookPageUrl?: string;
+  instagramUsername?: string;
+}
+
+export interface PublicMessagingLinks {
+  publicBookingUrl: string;
+  telegramUrl?: string | null;
+  whatsappUrl?: string | null;
+  facebookBookingUrl?: string | null;
+  instagramBookingUrl?: string | null;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -72,6 +97,9 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode: string;
   onlinePaymentsEnabled: boolean;
+  support?: PublicSupportWidgets;
+  metaBooking?: PublicMetaBooking;
+  messaging?: PublicMessagingLinks;
 }
 
 export interface ProviderSlotPreview {
@@ -152,6 +180,7 @@ export class PublicBookingService {
     private bookingPaymentService: BookingPaymentService,
     private checkoutPricingService: CheckoutPricingService,
     private loyaltyService: LoyaltyService,
+    private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
@@ -171,6 +200,22 @@ export class PublicBookingService {
     const publicBooking = settings.publicBooking || {};
     const social = settings.social || {};
     const location = settings.location || {};
+    const zendesk = getBusinessZendeskIntegration(settings);
+    const dist = getDistributionIntegrations(settings);
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const bookingUrl = `${frontendUrl.replace(/\/$/, '')}/book/${business.slug}`;
+
+    const zendeskWidgetKey =
+      zendesk.enabled && zendesk.widgetEnabledOnPublicBooking && zendesk.widgetKey?.trim()
+        ? zendesk.widgetKey.trim()
+        : undefined;
+
+    const messagingLinks = buildMessagingLinksForBusiness(business, frontendUrl);
+    const hasMessaging =
+      messagingLinks.telegramUrl ||
+      messagingLinks.whatsappUrl ||
+      messagingLinks.facebookBookingUrl ||
+      messagingLinks.instagramBookingUrl;
 
     return {
       id: business.id,
@@ -202,6 +247,18 @@ export class PublicBookingService {
       publicBookingEnabled: publicBooking.enabled !== false,
       defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
       onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
+      ...(zendeskWidgetKey ? { support: { zendeskWidgetKey } } : {}),
+      ...(dist.metaBooking?.enabled
+        ? {
+            metaBooking: {
+              bookingUrl,
+              buttonLabel: dist.metaBooking.bookingButtonLabel || 'Book online',
+              facebookPageUrl: dist.metaBooking.facebookPageUrl,
+              instagramUsername: dist.metaBooking.instagramUsername,
+            },
+          }
+        : {}),
+      ...(hasMessaging ? { messaging: messagingLinks } : {}),
     };
   }
 

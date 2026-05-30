@@ -30,6 +30,8 @@ import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { BusinessSwitcher } from '@/components/business-switcher';
+import { DashboardZendeskWidget } from '@/components/integrations/dashboard-zendesk-widget';
+import { SupportTicketButton } from '@/components/integrations/support-ticket-button';
 import { useI18n } from '@/i18n';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -139,6 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-3">
+          <SupportTicketButton />
           <LanguageSwitcher />
           <button
             onClick={() => {
@@ -158,6 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       <AiCommandBar />
+      <DashboardZendeskWidget />
     </div>
   );
 }
