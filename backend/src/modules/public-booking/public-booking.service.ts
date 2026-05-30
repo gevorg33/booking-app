@@ -13,6 +13,7 @@ import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
+import { resolveCheckoutPaymentStatus } from '../booking/booking-payment-status.util.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
@@ -907,6 +908,10 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
 
+    const paymentStatus = dto.markPaid
+      ? PaymentStatus.PAID
+      : resolveCheckoutPaymentStatus(pricing);
+
     const booking = await this.bookingService.create(
       business.id,
       {
@@ -922,9 +927,7 @@ export class PublicBookingService {
         },
       },
       undefined,
-      dto.markPaid || pricing.amountDue <= 0
-        ? { paymentStatus: PaymentStatus.PAID }
-        : undefined,
+      { paymentStatus },
     );
 
     await this.checkoutPricingService.applyRedemptions(
