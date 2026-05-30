@@ -78,6 +78,92 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
+## Phase 8 — Competitive gaps (vs Fresha, Vagaro, Square, Acuity, Mindbody)
+
+Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
+
+### 8.1 Trust & distribution
+
+- [ ] **gap-1.1** — Google Reserve / Book with Google integration (see **dist-2**)
+- [ ] **gap-1.2** — Meta / Facebook & Instagram booking integration (see **dist-3**)
+- [ ] **gap-1.3** — Zapier / Make connector or marketplace listing (see **int-3**)
+- [ ] **gap-1.4** — Public marketing site: pricing page, testimonials, security/trust page
+- [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
+- [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
+
+### 8.2 Mobile & notifications
+
+- [ ] **gap-2.1** — Finish FCM/APNs push delivery for provider app (see **comms-4**)
+- [ ] **gap-2.2** — Push deep links into booking detail + AI prefill (see **ai-m16**)
+- [ ] **gap-2.3** — Offline-safe mutations on mobile — queue + replay (see **ai-m20**)
+- [ ] **gap-2.4** — Voice input on provider mobile (see **ai-m5**)
+- [ ] **gap-2.5** — Branded consumer booking app (PWA minimum; native optional) for App Store client discovery
+- [ ] **gap-2.6** — End-of-day / new-booking push summaries for providers (see **ai-m19**, **ai-m17**)
+
+### 8.3 AI reliability & trust
+
+- [ ] **gap-3.1** — AI eval harness — golden NL prompts + expected plans; CI regression (see **ai-i9**)
+- [ ] **gap-3.2** — Fix top failure modes — reschedule time parsing (AM/PM), clearer conflict errors, partial undo gaps (e.g. create schedule)
+- [ ] **gap-3.3** — Enforce plan-based AI limits + usage meters (see `PLANS.md`, **ai-i10**)
+- [ ] **gap-3.4** — Clarify-as-form UI instead of text-only follow-ups (see **ai-d4**)
+- [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
+- [ ] **gap-3.6** — Unified AI gateway + capability matrix enforced server-side (see **ai-0.1**, **ai-0.2**)
+- [ ] **gap-3.7** — Complete undo coverage for schedule mutations (snapshot period/slot IDs on create)
+
+### 8.4 Integrations & back-office
+
+- [ ] **gap-4.1** — Accounting export — QuickBooks / Xero (see **int-4**)
+- [ ] **gap-4.2** — Zendesk — widget, support form → ticket, customer sync (see **int-5**–**int-8**)
+- [ ] **gap-4.3** — Commission / payout CSV export aligned with accounting workflows
+- [ ] **gap-4.4** — Pre-built integration docs + “Connect in 5 min” templates (webhooks, API keys)
+- [ ] **gap-4.5** — Zapier triggers: `booking.created`, `booking.cancelled`, `payment.received`
+
+### 8.5 Compliance & enterprise readiness
+
+- [ ] **gap-5.1** — GDPR — marketing consent, customer data export, customer delete (see **polish-3**)
+- [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
+- [ ] **gap-5.3** — Multi-location AI scoping by branch (see **ai-e1**)
+- [ ] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
+- [ ] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
+- [ ] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
+
+### 8.6 Product polish & UX simplicity
+
+- [ ] **gap-6.1** — Simplified “first 30 minutes” onboarding — book link live in ≤3 steps
+- [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
+- [ ] **gap-6.3** — Complete AI i18n — all strings in EN / HY / RU (see **ai-d22**)
+- [ ] **gap-6.4** — Inventory → service linking UI (replace “coming soon” copy)
+- [ ] **gap-6.5** — In-app help center + contextual “?” on Schedule, Calendar, Employees
+- [ ] **gap-6.6** — Enable AI assistant during onboarding with guided prompts (see **ai-d21**)
+
+### 8.7 Pricing & packaging maturity
+
+- [ ] **gap-7.1** — Implement Solo / Starter / Growth / Business tiers in `plans.ts` + Stripe
+- [ ] **gap-7.2** — Per-seat billing (provider + admin seats) with enforcement on employee create / invite
+- [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
+- [ ] **gap-7.4** — Public pricing page with seat calculator + feature comparison matrix
+- [ ] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
+- [ ] **gap-7.6** — Annual billing option (~20% discount)
+
+### 8.8 Vertical depth (salon / clinic)
+
+- [ ] **gap-8.1** — Marketing automation — re-engage inactive customers, post-visit follow-ups
+- [ ] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
+- [ ] **gap-8.3** — Service packages / series (e.g. 10-session bundle with visit tracking)
+- [ ] **gap-8.4** — Retail POS at chair — sell products during checkout (deeper than inventory module)
+- [ ] **gap-8.5** — Vertical playbooks — pre-built services + schedule templates for “salon” vs “clinic”
+- [ ] **gap-8.6** — AI customer panels — no-show re-engagement, inactive lookup (see **ai-d24**)
+
+### Suggested competitive-gap build order (pre-sales)
+
+1. **gap-2.1**, **gap-2.2** — reliable mobile push  
+2. **gap-3.2**, **gap-3.1** — AI reliability + regression tests  
+3. **gap-6.1**, **gap-7.4** — simple onboarding + pricing page  
+4. **gap-5.2**, **gap-7.1** — plan limits + tiers  
+5. **gap-1.3**, **gap-1.1** — Zapier + Google booking (distribution)
+
+---
+
 ## Already shipped (baseline)
 
 - [x] Schedule templates + direct schedules + template edit
