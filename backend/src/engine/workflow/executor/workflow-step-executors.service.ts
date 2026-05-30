@@ -19,7 +19,7 @@ import { NotificationsService } from '../../../modules/notifications/notificatio
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
 import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
 import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
-import { resolveDirectScheduleDateKeys, resolveDirectSchedulePeriodServiceIds } from '../../../modules/ai/ai-orchestration.helpers.js';
+import { resolveDirectScheduleDateKeys, resolveDirectSchedulePeriodServiceIds, resolveScheduleDates } from '../../../modules/ai/ai-orchestration.helpers.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -304,24 +304,44 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async clearSchedule(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    const { employeeId, date, userId } = step.params as {
+    const { employeeId, userId } = step.params as {
       employeeId: string;
-      date: string;
+      date?: string;
       userId?: string;
     };
-    if (!employeeId || !date) {
-      throw new BadRequestException('clear_schedule requires employeeId and date');
+    if (!employeeId) {
+      throw new BadRequestException('clear_schedule requires employeeId');
     }
-    const result = await this.scheduleService.clearScheduleForDay(
-      businessId,
-      { employeeId, date },
-      userId,
-    );
+
+    const dates = resolveDirectScheduleDateKeys(step.params as Record<string, unknown>);
+    if (!dates.length && step.params.date) {
+      dates.push(String(step.params.date));
+    }
+    if (!dates.length) {
+      const fromScheduleDates = resolveScheduleDates(step.params as Record<string, unknown>);
+      dates.push(...fromScheduleDates);
+    }
+    if (!dates.length) {
+      throw new BadRequestException('clear_schedule requires date, dates, or dateFrom/dateTo');
+    }
+
+    let totalPeriodsRemoved = 0;
+    let totalSlotsRemoved = 0;
+    for (const date of dates) {
+      const result = await this.scheduleService.clearScheduleForDay(
+        businessId,
+        { employeeId, date },
+        userId,
+      );
+      totalPeriodsRemoved += result.periodsRemoved;
+      totalSlotsRemoved += result.slotsRemoved;
+    }
+
     return {
       employeeId,
-      date,
-      periodsRemoved: result.periodsRemoved,
-      slotsRemoved: result.slotsRemoved,
+      dates,
+      periodsRemoved: totalPeriodsRemoved,
+      slotsRemoved: totalSlotsRemoved,
     };
   }
 

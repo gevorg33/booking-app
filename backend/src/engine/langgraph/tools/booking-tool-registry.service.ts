@@ -24,6 +24,7 @@ import {
   runReadTool,
   withResolvedEmployeeParams,
   buildDirectScheduleProposalSteps,
+  buildClearScheduleProposalSteps,
 } from './booking-tool-context.helpers.js';
 
 @Injectable()
@@ -639,50 +640,49 @@ export class BookingToolRegistryService {
 
       // ── Schedule ──
       tool(
-        async (input) =>
-          propose(
-            'clear_schedule',
-            `Clear schedule for ${resolveEmployeeLabel(ctx, input.employeeId, input.employeeName)}`,
-            withResolvedEmployeeParams(ctx, {
-              employeeId: input.employeeId,
-              employeeName: input.employeeName,
-              ...buildDateParams(input),
-              userId: ctx.userId,
-            }),
-            { chainPrevious: input.chainPrevious ?? false },
-          ),
+        async (input) => {
+          try {
+            const steps = buildClearScheduleProposalSteps(ctx, input, {
+              chainSteps: input.chainPrevious ?? false,
+            });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose clear schedule',
+            });
+          }
+        },
         {
           name: 'propose_clear_schedule',
-          description: 'PROPOSE clear applied schedule periods (not bookings).',
+          description:
+            'PROPOSE clear applied schedule periods (not bookings). Supports multiple providers via employeeNames or "Mary and Jujo" in the prompt.',
           schema: dateRangeSchema.merge(employeeSchema).extend({
+            employeeNames: z.array(z.string()).optional(),
+            dates: z.array(z.string()).optional(),
             chainPrevious: z.boolean().optional(),
           }),
         },
       ),
       tool(
-        async (input) =>
-          proposeManySteps(
-            ctx,
-            input.providers.map((p, i) => {
-              const label = resolveEmployeeLabel(ctx, p.employeeId, p.employeeName);
-              return {
-              action: 'clear_schedule',
-              description: `Clear schedule for ${label}`,
-              params: withResolvedEmployeeParams(ctx, {
-                employeeId: p.employeeId,
-                employeeName: p.employeeName,
-                ...buildDateParams(input),
-                userId: ctx.userId,
-              }),
-              chainPrevious: i > 0 && (input.chainSteps ?? false),
-            };
-            }),
-          ),
+        async (input) => {
+          try {
+            const steps = buildClearScheduleProposalSteps(ctx, input, {
+              chainSteps: input.chainSteps ?? false,
+            });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose clear schedules',
+            });
+          }
+        },
         {
           name: 'propose_clear_schedules_bulk',
-          description: 'PROPOSE clear schedules for multiple providers.',
+          description: 'PROPOSE clear schedules for multiple providers (same dates/range for all).',
           schema: dateRangeSchema.extend({
-            providers: z.array(employeeSchema).min(1).max(15),
+            employeeNames: z.array(z.string()).optional(),
+            dates: z.array(z.string()).optional(),
+            providers: z.array(employeeSchema).min(1).max(15).optional(),
             chainSteps: z.boolean().optional(),
           }),
         },

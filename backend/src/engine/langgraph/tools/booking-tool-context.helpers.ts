@@ -2,9 +2,13 @@ import type { AgentPlanStep } from '../../agent/interfaces/agent.interfaces.js';
 import type { BookingToolRunContext } from './booking-tool.types.js';
 import type { AgentToolBridgeService } from '../services/agent-tool-bridge.service.js';
 import {
+  fuzzyMatchByName,
+  getRequestedEmployeeNames,
   inferDirectSchedulePeriods,
+  matchEmployeesInPrompt,
   resolveDirectScheduleDateKeys,
   resolveDirectSchedulePeriodServiceIds,
+  resolveScheduleDates,
 } from '../../../modules/ai/ai-orchestration.helpers.js';
 import { normalizeTime24 } from '../../../common/utils/time-format.util.js';
 import { buildDateParams } from './booking-tool-schemas.js';
@@ -228,4 +232,116 @@ export function buildDirectScheduleProposalSteps(
     }),
     chainPrevious: index > 0 && (options?.chainSteps ?? false),
   }));
+}
+
+function resolveClearScheduleProviders(
+  ctx: BookingToolRunContext,
+  input: {
+    employeeId?: string;
+    employeeName?: string;
+    employeeNames?: string[];
+    providers?: Array<{ employeeId?: string; employeeName?: string }>;
+  },
+): Array<{ employeeId?: string; employeeName: string }> {
+  if (input.providers?.length) {
+    return input.providers.map((provider) => ({
+      employeeId: provider.employeeId,
+      employeeName: resolveEmployeeLabel(ctx, provider.employeeId, provider.employeeName),
+    }));
+  }
+
+  const requested = getRequestedEmployeeNames({
+    employeeName: input.employeeName,
+    employeeNames: input.employeeNames,
+  });
+
+  const resolved: Array<{ employeeId?: string; employeeName: string }> = [];
+  const seen = new Set<string>();
+
+  const addEmployee = (employeeId: string | undefined, employeeName: string) => {
+    const key = employeeId ?? employeeName.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    resolved.push({ employeeId, employeeName });
+  };
+
+  for (const name of requested) {
+    const match = fuzzyMatchByName(ctx.employees, name);
+    if (match) addEmployee(match.id, match.name);
+    else addEmployee(undefined, name);
+  }
+
+  if (input.employeeId) {
+    addEmployee(
+      input.employeeId,
+      resolveEmployeeLabel(ctx, input.employeeId, input.employeeName),
+    );
+  }
+
+  if (resolved.length === 0 && ctx.prompt) {
+    for (const employee of matchEmployeesInPrompt(ctx.prompt, ctx.employees)) {
+      addEmployee(employee.id, employee.name);
+    }
+  }
+
+  return resolved;
+}
+
+export function buildClearScheduleProposalSteps(
+  ctx: BookingToolRunContext,
+  input: Record<string, unknown>,
+  options?: { chainSteps?: boolean },
+): Array<{
+  action: string;
+  description: string;
+  params: Record<string, unknown>;
+  chainPrevious?: boolean;
+}> {
+  const providers = resolveClearScheduleProviders(ctx, input as {
+    employeeId?: string;
+    employeeName?: string;
+    employeeNames?: string[];
+    providers?: Array<{ employeeId?: string; employeeName?: string }>;
+  });
+  if (!providers.length) {
+    throw new Error('Clear schedule requires at least one provider.');
+  }
+
+  const dates = resolveScheduleDates(
+    {
+      ...input,
+      ...buildDateParams(input as { date?: string; dateFrom?: string; dateTo?: string }),
+      _timeZone: ctx.timeZone,
+    },
+    ctx.prompt,
+  );
+  if (!dates.length) {
+    throw new Error('Clear schedule requires date, dates, dateFrom/dateTo, or a month in the prompt.');
+  }
+
+  const steps: Array<{
+    action: string;
+    description: string;
+    params: Record<string, unknown>;
+    chainPrevious?: boolean;
+  }> = [];
+
+  for (const provider of providers) {
+    for (const date of dates) {
+      const label = provider.employeeName;
+      steps.push({
+        action: 'clear_schedule',
+        description: `Clear schedule for ${label} on ${date}`,
+        params: withResolvedEmployeeParams(ctx, {
+          employeeId: provider.employeeId,
+          employeeName: label,
+          date,
+          userId: ctx.userId,
+        }),
+        chainPrevious: steps.length > 0 && (options?.chainSteps ?? false),
+      });
+    }
+  }
+
+  return steps;
 }

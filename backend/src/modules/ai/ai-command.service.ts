@@ -40,6 +40,7 @@ import {
   parseTimeWindow,
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
+  matchEmployeesInPrompt,
   parseEarliestBookingTimeFromPrompt,
   sanitizeProviderScopeFromPrompt,
   inferDirectSchedulePeriods,
@@ -683,7 +684,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     if (
       bulkConfirmActions.has(parsed.action) &&
       !confirmed &&
-      !autoExecuteFlag &&
+      autoExecuteFlag &&
       confidence >= aiConfig.confidence.low
     ) {
       const confirmResult = buildExecutionConfirmationResult(
@@ -1097,7 +1098,6 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
   ): void {
     if (params.allProviders || (params.employeeNames?.length ?? 0) > 1) return;
 
-    const lower = prompt.toLowerCase();
     const mentionsMultiple =
       /\bboth\b/i.test(prompt) ||
       /\band\b/i.test(prompt) ||
@@ -1105,25 +1105,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
     if (!mentionsMultiple) return;
 
-    const matched: Employee[] = [];
-    const seen = new Set<string>();
-    for (const employee of employees) {
-      if (lower.includes(employee.name.toLowerCase())) {
-        if (!seen.has(employee.id)) {
-          seen.add(employee.id);
-          matched.push(employee);
-        }
-        continue;
-      }
-      const first = employee.name.split(/\s+/)[0];
-      if (first.length >= 3 && new RegExp(`\\b${first.toLowerCase()}\\b`).test(lower)) {
-        if (!seen.has(employee.id)) {
-          seen.add(employee.id);
-          matched.push(employee);
-        }
-      }
-    }
-
+    const matched = matchEmployeesInPrompt(prompt, employees);
     if (matched.length > 1) {
       params.employeeNames = matched.map((e) => e.name);
       params.employeeName = null;

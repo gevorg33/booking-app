@@ -11,6 +11,48 @@ export const AI_MUTATION_QUERY_KEYS = [
   'customers-dashboard',
 ] as const;
 
+export const AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE =
+  'Apply schedule for all employees for their services this week between 9–19:00; make 12:00–13:00 unavailable';
+
+export interface AiExampleTenantContext {
+  employees: Array<{ id: string; name: string; serviceIds?: string[]; isActive?: boolean }>;
+  services: Array<{ id: string; name: string; isActive?: boolean }>;
+}
+
+function pickExampleEmployee(ctx: AiExampleTenantContext) {
+  return ctx.employees.find((e) => e.isActive !== false && e.name?.trim()) ?? null;
+}
+
+function pickExampleService(ctx: AiExampleTenantContext, employee: { serviceIds?: string[] } | null) {
+  const services = ctx.services.filter((s) => s.isActive !== false && s.name?.trim());
+  if (employee?.serviceIds?.length) {
+    const assigned = services.find((s) => employee.serviceIds!.includes(s.id));
+    if (assigned) return assigned;
+  }
+  return services[0] ?? null;
+}
+
+/** Command-bar suggestions using the tenant's real providers and services. */
+export function buildAiCommandBarExamples(ctx?: AiExampleTenantContext | null): string[] {
+  const employee = ctx ? pickExampleEmployee(ctx) : null;
+  const service = ctx ? pickExampleService(ctx, employee) : null;
+  const provider = employee?.name?.trim() || 'your provider';
+  const serviceName = service?.name?.trim() || 'a service';
+
+  return [
+    'Apply weekday template to all providers this week',
+    'Block lunch 12:00–13:00 for everyone Mon–Fri this week',
+    `Fill gaps between 9–19:00 for ${provider} this week`,
+    'How many appointments today?',
+    AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE,
+    `Cancel booking today for ${provider} from 13:00–14:00`,
+    `Book ${serviceName} today for ${provider} at the nearest available time`,
+  ];
+}
+
+/** Static fallback when tenant catalog is not loaded yet. */
+export const AI_COMMAND_BAR_EXAMPLES = buildAiCommandBarExamples();
+
 export const AI_SCHEDULE_EXAMPLES = [
   'Apply weekday template to all providers this week',
   'Block lunch 12:00–13:00 for everyone Mon–Fri this week',

@@ -6,6 +6,8 @@ export interface BookingToolRunContext {
   businessId: string;
   userId?: string;
   timeZone: string;
+  /** Original user prompt — used to resolve multi-provider and date phrases in tools. */
+  prompt?: string;
   toolContext: Record<string, unknown>;
   stepCounter: number;
   proposals: AgentPlanStep[];

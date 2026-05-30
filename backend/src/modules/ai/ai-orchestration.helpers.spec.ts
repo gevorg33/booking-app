@@ -4,6 +4,8 @@ import {
   inferDirectSchedulePeriods,
   resolveDirectScheduleDateKeys,
   resolveDirectSchedulePeriodServiceIds,
+  resolveScheduleDates,
+  matchEmployeesInPrompt,
   resolvePublicAvailabilityDateKeys,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
@@ -199,6 +201,32 @@ describe('extractRecommendServicesFromPrompt', () => {
       catalog,
     );
     expect(matched).toHaveLength(5);
+  });
+});
+
+describe('matchEmployeesInPrompt', () => {
+  const employees = [
+    { id: '1', name: 'Mary Torgomyan', businessId: 'b', isActive: true } as any,
+    { id: '2', name: 'Jujo Karapetyan', businessId: 'b', isActive: true } as any,
+    { id: '3', name: 'Gevorg Gasparyan', businessId: 'b', isActive: true } as any,
+  ];
+
+  it('returns both providers when prompt names them with and', () => {
+    const matched = matchEmployeesInPrompt(
+      'clear all schedules for Mary and Jujo on july',
+      employees,
+    );
+    expect(matched.map((e) => e.name).sort()).toEqual(
+      ['Jujo Karapetyan', 'Mary Torgomyan'].sort(),
+    );
+  });
+});
+
+describe('resolveDateRange', () => {
+  it('expands bare month names like "on july"', () => {
+    const range = resolveDateRange({}, 'clear schedules on july', 'UTC');
+    expect(range?.start.endsWith('-07-01')).toBe(true);
+    expect(range?.end.endsWith('-07-31')).toBe(true);
   });
 });
 
