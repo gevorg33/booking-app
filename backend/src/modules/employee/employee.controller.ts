@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { EmployeeService } from './employee.service.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
+import { SendAppAccessDto } from './dto/send-app-access.dto.js';
+import { UpdateMemberRoleDto } from '../business/dto/update-member-role.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { InvitationsService } from '../invitations/invitations.service.js';
 import { BusinessService } from '../business/business.service.js';
+import { TeamMembersService } from '../business/team-members.service.js';
 
 @Controller('businesses/:businessId/employees')
 export class EmployeeController {
@@ -12,6 +15,7 @@ export class EmployeeController {
     private employeeService: EmployeeService,
     private invitationsService: InvitationsService,
     private businessService: BusinessService,
+    private teamMembersService: TeamMembersService,
   ) {}
 
   @Post()
@@ -42,14 +46,36 @@ export class EmployeeController {
     return this.employeeService.remove(id, user?.id);
   }
 
+  @Patch(':id/access-role')
+  @UseGuards(JwtAuthGuard)
+  updateAccessRole(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamMembersService.updateRoleByEmployeeId(
+      businessId,
+      id,
+      dto.role,
+      user.id,
+    );
+  }
+
   @Post(':id/send-app-access')
   @UseGuards(JwtAuthGuard)
   async sendAppAccess(
     @Param('businessId') businessId: string,
     @Param('id') id: string,
+    @Body() dto: SendAppAccessDto,
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.invitationsService.sendEmployeeAppAccess(businessId, id, user.id);
+    return this.invitationsService.sendEmployeeAppAccess(
+      businessId,
+      id,
+      user.id,
+      dto.role,
+    );
   }
 }

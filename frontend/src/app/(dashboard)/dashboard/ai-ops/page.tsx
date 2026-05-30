@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Play,
   RefreshCw,
+  Undo2,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
@@ -59,6 +60,20 @@ export default function AiOpsPage() {
   const [agentType, setAgentType] = useState('scheduling_optimization');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [applyingFixId, setApplyingFixId] = useState<string | null>(null);
+  const [undoMessage, setUndoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null,
+  );
+
+  const { data: undoPreview, isLoading: undoPreviewLoading } = useQuery({
+    queryKey: ['agent-tasks-undo-preview', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return null;
+      const { data } = await api.get(`/businesses/${business.id}/agents/tasks/undo-latest/preview`);
+      return data.data ?? data;
+    },
+    enabled: !!business?.id,
+    refetchInterval: 5000,
+  });
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['agent-tasks', business?.id],
@@ -122,6 +137,26 @@ export default function AiOpsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
       invalidateAiMutations(queryClient);
+    },
+  });
+
+  const undoLatestMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/businesses/${business!.id}/agents/tasks/undo-latest`);
+      return res.data?.data ?? res.data;
+    },
+    onSuccess: () => {
+      setUndoMessage({ type: 'success', text: t('ai.undoSuccess') });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview'] });
+      invalidateAiMutations(queryClient);
+    },
+    onError: (error: any) => {
+      const text =
+        error?.response?.data?.message ??
+        error?.response?.data?.error ??
+        t('ai.undoFailed');
+      setUndoMessage({ type: 'error', text: Array.isArray(text) ? text.join(', ') : String(text) });
     },
   });
 
@@ -201,7 +236,49 @@ export default function AiOpsPage() {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Agent Tasks</h2>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <h2 className="text-lg font-semibold">Agent Tasks</h2>
+        <div className="flex flex-col items-stretch sm:items-end gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (!undoPreview?.undoable) return;
+              const label = t('ai.undoLatestConfirm').replace('{intent}', undoPreview.intent);
+              if (!window.confirm(label)) return;
+              setUndoMessage(null);
+              undoLatestMutation.mutate();
+            }}
+            disabled={
+              !undoPreview?.undoable || undoLatestMutation.isPending || undoPreviewLoading
+            }
+            className="btn-secondary text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+            title={undoPreview?.undoable ? undoPreview.intent : undoPreview?.reason ?? t('ai.undoLatestNone')}
+          >
+            {undoLatestMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Undo2 className="w-4 h-4" />
+            )}
+            {undoLatestMutation.isPending ? t('ai.undoing') : t('ai.undoLatest')}
+          </button>
+          <p className="text-xs text-gray-500 text-right max-w-sm">
+            {undoPreview?.undoable
+              ? undoPreview.intent
+              : undoPreview?.reason ?? t('ai.undoLatestNone')}
+          </p>
+        </div>
+      </div>
+      {undoMessage && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            undoMessage.type === 'success'
+              ? 'border-green-800 bg-green-950/40 text-green-300'
+              : 'border-red-800 bg-red-950/40 text-red-300'
+          }`}
+        >
+          {undoMessage.text}
+        </div>
+      )}
       <div className="space-y-3">
         {isLoading ? (
           <div className="card text-center py-8 text-gray-500">Loading tasks...</div>
