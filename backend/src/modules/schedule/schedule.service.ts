@@ -307,9 +307,13 @@ export class ScheduleService implements OnModuleInit {
   }
 
   async createDirectSchedule(businessId: string, dto: CreateDirectScheduleDto, userId?: string): Promise<{ slotsCreated: number }> {
+    const targetDate = new Date(dto.date);
+    if (Number.isNaN(targetDate.getTime())) {
+      throw new BadRequestException(`Invalid schedule date: "${dto.date}"`);
+    }
+
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const targetDate = new Date(dto.date);
     targetDate.setUTCHours(0, 0, 0, 0);
 
     if (targetDate < today) {

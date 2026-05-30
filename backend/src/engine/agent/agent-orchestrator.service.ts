@@ -485,10 +485,50 @@ export class AgentOrchestratorService {
     return plan.steps.map((step) => ({
       id: step.id,
       action: step.action,
-      description: step.description,
+      description: this.formatPlanStepDescription(step),
       impact: this.describeStepImpact(step),
       estimatedImpact: step.estimatedImpact,
     }));
+  }
+
+  private formatPlanStepDescription(step: AgentPlan['steps'][number]): string {
+    const p = step.params ?? {};
+    const employeeName =
+      typeof p.employeeName === 'string' && p.employeeName.trim() && !this.looksLikeUuid(p.employeeName)
+        ? p.employeeName.trim()
+        : null;
+
+    if (employeeName) {
+      switch (step.action) {
+        case 'create_direct_schedule':
+          return `Set schedule for ${employeeName}`;
+        case 'clear_schedule':
+          return `Clear schedule for ${employeeName}`;
+        case 'create_block_schedule':
+          return `Block time for ${employeeName}`;
+        case 'assign_employee_services':
+          return `Assign services to ${employeeName}`;
+        case 'fill_schedule_gaps':
+          return `Fill schedule gaps for ${employeeName}`;
+        default:
+          break;
+      }
+    }
+
+    return this.stripUuidsFromText(step.description);
+  }
+
+  private looksLikeUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value.trim(),
+    );
+  }
+
+  private stripUuidsFromText(text: string): string {
+    return text.replace(
+      /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi,
+      'provider',
+    );
   }
 
   private describeStepImpact(step: AgentPlan['steps'][number]): string {

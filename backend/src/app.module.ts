@@ -26,6 +26,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { GiftCardsModule } from './modules/gift-cards/gift-cards.module.js';
 import { MembershipsModule } from './modules/memberships/memberships.module.js';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
+import { PromoCodesModule } from './modules/promo-codes/promo-codes.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
@@ -76,6 +77,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     GiftCardsModule,
     MembershipsModule,
     LoyaltyModule,
+    PromoCodesModule,
     InventoryModule,
     CommissionsModule,
     ExpensesModule,

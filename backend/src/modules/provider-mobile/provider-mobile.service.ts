@@ -4,6 +4,7 @@ import { Repository, Between, Not, In } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { BusinessMember } from '../business/entities/business-member.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { resolveBookingPaymentSummary } from '../booking/booking-payment-summary.util.js';
 import { BusinessService } from '../business/business.service.js';
 import { BookingService } from '../booking/booking.service.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
@@ -326,6 +327,7 @@ Write a cancellation note the provider can save.`,
       paymentStatus: booking.paymentStatus,
       description: booking.description,
       cancellationReason: booking.cancellationReason,
+      paymentSummary: resolveBookingPaymentSummary(booking),
     };
   }
 

@@ -4,6 +4,7 @@ import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto, CancelBookingDt
 import { GetBookingsQueryDto } from './dto/get-bookings-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { withBookingPaymentSummary } from './booking-payment-summary.util.js';
 
 @Controller('businesses/:businessId/bookings')
 export class BookingController {
@@ -66,8 +67,9 @@ export class BookingController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.bookingService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const booking = await this.bookingService.findOne(id);
+    return withBookingPaymentSummary(booking);
   }
 
   @Put(':id/cancel')

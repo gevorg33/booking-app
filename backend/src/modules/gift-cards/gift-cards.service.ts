@@ -51,6 +51,8 @@ export class GiftCardsService {
       throw new BadRequestException('Insufficient gift card balance');
     }
     card.balance = Number(card.balance) - amount;
+    // Single-use: once redeemed on a booking, the card cannot be used again.
+    card.isActive = false;
     return this.giftCardRepo.save(card);
   }
 }

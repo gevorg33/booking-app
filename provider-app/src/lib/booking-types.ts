@@ -1,4 +1,5 @@
 import { formatTimeRangeDisplay } from './date-format';
+import type { BookingPaymentSummary } from './booking-payment-summary';
 
 export type BookingStatus =
   | 'pending'
@@ -8,7 +9,12 @@ export type BookingStatus =
   | 'cancelled'
   | 'no_show';
 
-export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'not_applicable';
+export type PaymentStatus =
+  | 'pending'
+  | 'partially_paid'
+  | 'paid'
+  | 'refunded'
+  | 'not_applicable';
 
 export const STATUS_LABELS: Record<string, string> = {
   pending: 'Booked',
@@ -21,6 +27,7 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   pending: 'Pending',
+  partially_paid: 'Partially paid',
   paid: 'Paid',
   refunded: 'Refunded',
   not_applicable: 'N/A',
@@ -28,6 +35,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
   'pending',
+  'partially_paid',
   'paid',
   'refunded',
   'not_applicable',
@@ -111,6 +119,7 @@ export interface BookingDetail {
   service: { id: string; name: string; price?: number; currency?: string } | null;
   customer: { id: string; name: string; phone: string | null; email: string | null } | null;
   employee?: { id: string; name: string } | null;
+  paymentSummary?: BookingPaymentSummary | null;
 }
 
 export interface BookingSummary {

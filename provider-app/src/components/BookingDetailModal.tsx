@@ -32,6 +32,7 @@ import {
   STATUS_COLOR,
   STATUS_LABELS,
 } from '../lib/booking-types';
+import BookingPaymentBreakdown from './BookingPaymentBreakdown';
 
 interface BookingDetailModalProps {
   businessId: string;
@@ -471,6 +472,10 @@ export default function BookingDetailModal({
               disabled={booking.status === 'cancelled' || updateMutation.isPending}
               onPress={openPaymentPicker}
             />
+
+            {booking.paymentSummary && (
+              <BookingPaymentBreakdown summary={booking.paymentSummary} />
+            )}
 
             {editable && (
               <PickerField

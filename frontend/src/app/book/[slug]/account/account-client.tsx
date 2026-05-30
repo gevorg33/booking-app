@@ -6,8 +6,11 @@ import { Loader2, LogOut, Star } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import {
   getPublicCustomerBookings,
+  getPublicCustomerLoyalty,
+  formatPrice,
   type PublicBusinessProfile,
   type PublicCustomerBookingItem,
+  type PublicCustomerLoyalty,
 } from '@/lib/public-api';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
@@ -79,10 +82,12 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
 
   useEffect(() => {
     if (!customer) {
       setBookings([]);
+      setLoyalty(null);
       return;
     }
 
@@ -90,9 +95,15 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
     setBookingsLoading(true);
     setBookingsError(null);
 
-    void getPublicCustomerBookings(tenant.slug)
-      .then((res) => {
-        if (!cancelled) setBookings(res.bookings);
+    void Promise.all([
+      getPublicCustomerBookings(tenant.slug),
+      getPublicCustomerLoyalty(tenant.slug).catch(() => null),
+    ])
+      .then(([bookingsRes, loyaltyRes]) => {
+        if (!cancelled) {
+          setBookings(bookingsRes.bookings);
+          setLoyalty(loyaltyRes);
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -169,6 +180,17 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                 {t('public.signOut')}
               </button>
             </div>
+
+            {loyalty && loyalty.pointsBalance > 0 && (
+              <div className="mt-4 bg-white rounded-2xl border border-gray-100 px-5 py-4">
+                <p className="text-sm font-medium text-gray-900">{t('public.loyaltyPoints')}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {t('public.loyaltyBalance')
+                    .replace('{points}', String(loyalty.pointsBalance))
+                    .replace('{value}', formatPrice(loyalty.pointsValue, 'USD'))}
+                </p>
+              </div>
+            )}
 
             <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.myBookings')}</h2>
 

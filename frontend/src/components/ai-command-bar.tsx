@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  useDraggableFloatingPosition,
+  useViewportSize,
+} from '@/lib/use-draggable-floating-position';
+import {
   AI_MUTATION_QUERY_KEYS,
-  AI_SCHEDULE_EXAMPLES,
-  AI_BOOKING_EXAMPLES,
+  buildAiCommandBarExamples,
   buildAiRequestContext,
   getAiPageContext,
   type AiPageContext,
@@ -16,7 +19,7 @@ import {
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { useAiEvents } from '@/lib/use-ai-events';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -96,13 +99,12 @@ function mergeSessionContext(prev: SessionContext, next: SessionContext): Sessio
   };
 }
 
-const EXAMPLES = [...AI_SCHEDULE_EXAMPLES.slice(0, 3), ...AI_BOOKING_EXAMPLES.slice(0, 3)];
-
 const SCHEDULE_ACTIONS = new Set([
   'fill_unused_slots',
   'apply_schedule',
   'block_schedule',
   'create_direct_schedule',
+  'clear_schedule',
   'setup_week_schedule',
   'assign_employee_services',
 ]);
@@ -137,7 +139,6 @@ export function AiCommandBar() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -145,8 +146,26 @@ export function AiCommandBar() {
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const viewport = useViewportSize();
+  const estimatedSize = useMemo(() => {
+    const fab = { width: 48, height: 48 };
+    if (!viewport.width) return fab;
+    if (open) {
+      return {
+        width: Math.min(440, viewport.width - 32),
+        height: Math.min(600, viewport.height - 32),
+      };
+    }
+    return fab;
+  }, [open, viewport.height, viewport.width]);
+  const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
+    useDraggableFloatingPosition({
+      storageKey: 'orchestrix-ai-position-dashboard',
+      estimatedSize,
+    });
 
   const { toasts, dismissToast } = useAiEvents(business?.id, {
     onClarify: () => setOpen(true),
@@ -166,6 +185,36 @@ export function AiCommandBar() {
     enabled: !!business?.id,
     refetchInterval: 15_000,
   });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/employees`);
+      return (data.data || data || []) as Array<{
+        id: string;
+        name: string;
+        serviceIds?: string[];
+        isActive?: boolean;
+      }>;
+    },
+    enabled: !!business?.id,
+    staleTime: 60_000,
+  });
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/services`);
+      return (data.data || data || []) as Array<{ id: string; name: string; isActive?: boolean }>;
+    },
+    enabled: !!business?.id,
+    staleTime: 60_000,
+  });
+
+  const examples = useMemo(
+    () => buildAiCommandBarExamples({ employees, services }),
+    [employees, services],
+  );
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -228,6 +277,62 @@ export function AiCommandBar() {
       }
     },
     [approvingId, business?.id, queryClient],
+  );
+
+  const confirmExecution = useCallback(
+    async (msg: Message) => {
+      const prompt = String(msg.details?.confirmationPrompt ?? '').trim();
+      if (!prompt || !business?.id || loading || confirmingId) return;
+
+      setConfirmingId(msg.id);
+      try {
+        const msgIndex = messages.findIndex((m) => m.id === msg.id);
+        const history = messages
+          .slice(0, msgIndex >= 0 ? msgIndex : messages.length)
+          .map((m) => ({ role: m.role, content: m.text }));
+
+        const pageCtx = getAiPageContext();
+        const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
+          prompt,
+          history,
+          confirmed: true,
+          context: buildAiRequestContext(pathname, sessionContext, pageCtx),
+        });
+        const result = data.data || data;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            text: result.summary,
+            details: result.details,
+            action: result.action,
+            success: result.success,
+            timestamp: new Date(),
+          },
+        ]);
+        setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+        if (shouldInvalidateAfterAi(result.action, result.success)) {
+          invalidateAfterMutation(queryClient);
+        }
+      } catch (err: any) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text: err?.response?.data?.message || 'Failed to confirm action',
+            success: false,
+            action: 'error',
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setConfirmingId(null);
+      }
+    },
+    [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext],
   );
 
   const submit = useCallback(async () => {
@@ -295,10 +400,22 @@ export function AiCommandBar() {
       e.preventDefault();
       submit();
     }
-    if (e.key === 'Escape') {
-      setOpen(false);
-    }
   };
+
+  const closeAssistant = useCallback(() => {
+    setOpen(false);
+    setMessages([]);
+    setSessionContext({});
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAssistant();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, closeAssistant]);
 
   if (!business) return null;
 
@@ -335,9 +452,14 @@ export function AiCommandBar() {
       {/* Floating button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 w-12 h-12 bg-gradient-to-br from-violet-600 to-blue-600 rounded-full shadow-lg shadow-violet-600/30 flex items-center justify-center text-white hover:scale-105 transition-transform z-50"
-          title="AI Command (natural language)"
+          ref={floatingRef}
+          type="button"
+          {...bindDragHandle({ onPress: () => setOpen(true) })}
+          style={floatingStyle}
+          className={`w-12 h-12 bg-gradient-to-br from-violet-600 to-blue-600 rounded-full shadow-lg shadow-violet-600/30 flex items-center justify-center text-white transition-transform ${
+            isDragging ? 'scale-100 cursor-grabbing' : 'hover:scale-105 cursor-grab'
+          }`}
+          title="AI Command (drag to move)"
         >
           <Sparkles className="w-5 h-5" />
           {pendingTasks.length > 0 && (
@@ -350,20 +472,29 @@ export function AiCommandBar() {
 
       {/* Command panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 w-[440px] max-h-[600px] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl shadow-black/50 flex flex-col z-50 overflow-hidden">
+        <div
+          ref={floatingRef}
+          style={floatingStyle}
+          className="w-[440px] max-w-[calc(100vw-2rem)] max-h-[600px] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              <span className="text-sm font-semibold text-gray-200">Orchestrix AI</span>
+            <div
+              {...bindDragHandle()}
+              className="flex flex-1 items-center gap-2 min-w-0 select-none"
+            >
+              <Sparkles className="w-4 h-4 text-violet-400 shrink-0 pointer-events-none" />
+              <span className="text-sm font-semibold text-gray-200 truncate pointer-events-none">
+                Orchestrix AI
+              </span>
             </div>
             <button
-              onClick={() => {
-                setOpen(false);
-                setMessages([]);
-                setSessionContext({});
-              }}
-              className="text-gray-500 hover:text-white transition-colors"
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={closeAssistant}
+              className="shrink-0 ml-2 p-1 text-gray-500 hover:text-white transition-colors cursor-pointer"
+              aria-label="Close AI assistant"
             >
               <X className="w-4 h-4" />
             </button>
@@ -371,36 +502,6 @@ export function AiCommandBar() {
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px] max-h-[420px]">
-            {pendingTasks.length > 0 && (
-              <div className="rounded-lg border border-violet-500/30 bg-violet-950/20 p-3 mb-2">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-xs font-semibold text-violet-200 flex items-center gap-1">
-                    <Inbox className="w-3.5 h-3.5" />
-                    {pendingTasks.length} task{pendingTasks.length === 1 ? '' : 's'} awaiting approval
-                  </p>
-                  <button
-                    type="button"
-                    className="text-[10px] text-violet-300 hover:text-white"
-                    onClick={() => router.push('/dashboard/ai-ops')}
-                  >
-                    Open AI Ops
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  {pendingTasks.slice(0, 3).map((task: any) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => router.push('/dashboard/ai-ops')}
-                      className="block w-full text-left text-xs rounded-md px-2 py-1.5 bg-gray-900/60 hover:bg-gray-800 text-gray-300"
-                    >
-                      {task.intent}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {messages.length === 0 && (
               <div className="text-center py-6">
                 <Sparkles className="w-8 h-8 text-violet-500/50 mx-auto mb-3" />
@@ -408,9 +509,9 @@ export function AiCommandBar() {
                   Express operational intent — AI plans, policy validates, workflows execute
                 </p>
                 <div className="space-y-2">
-                  {EXAMPLES.map((ex, i) => (
+                  {examples.map((ex) => (
                     <button
-                      key={i}
+                      key={ex}
                       onClick={() => { setInput(ex); inputRef.current?.focus(); }}
                       className="block w-full text-left text-xs text-gray-500 hover:text-violet-300 bg-gray-800/50 hover:bg-gray-800 rounded-lg px-3 py-2 transition-colors"
                     >
@@ -475,6 +576,17 @@ export function AiCommandBar() {
                     <pre className="mt-2 text-[10px] text-gray-500 bg-gray-900 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto">
                       {JSON.stringify(msg.details, null, 2)}
                     </pre>
+                  )}
+
+                  {msg.details?.requiresExecutionConfirmation && (
+                    <button
+                      type="button"
+                      onClick={() => confirmExecution(msg)}
+                      disabled={confirmingId === msg.id}
+                      className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                    >
+                      {confirmingId === msg.id ? 'Executing…' : 'Confirm & execute'}
+                    </button>
                   )}
 
                   {msg.details?.requiresApproval && msg.details?.taskId && (

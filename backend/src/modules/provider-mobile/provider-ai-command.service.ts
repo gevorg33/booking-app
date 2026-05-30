@@ -947,6 +947,8 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       done: PaymentStatus.PAID,
       paid: PaymentStatus.PAID,
       pending: PaymentStatus.PENDING,
+      partially_paid: PaymentStatus.PARTIALLY_PAID,
+      partial: PaymentStatus.PARTIALLY_PAID,
       refunded: PaymentStatus.REFUNDED,
       not_applicable: PaymentStatus.NOT_APPLICABLE,
       na: PaymentStatus.NOT_APPLICABLE,

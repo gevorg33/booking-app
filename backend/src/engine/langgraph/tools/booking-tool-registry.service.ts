@@ -20,7 +20,11 @@ import {
   priorStepId,
   proposeManySteps,
   proposeStep,
+  resolveEmployeeLabel,
   runReadTool,
+  withResolvedEmployeeParams,
+  buildDirectScheduleProposalSteps,
+  buildClearScheduleProposalSteps,
 } from './booking-tool-context.helpers.js';
 
 @Injectable()
@@ -636,47 +640,49 @@ export class BookingToolRegistryService {
 
       // ── Schedule ──
       tool(
-        async (input) =>
-          propose(
-            'clear_schedule',
-            `Clear schedule for ${input.employeeName ?? input.employeeId ?? 'provider'}`,
-            {
-              employeeId: input.employeeId,
-              employeeName: input.employeeName,
-              ...buildDateParams(input),
-              userId: ctx.userId,
-            },
-            { chainPrevious: input.chainPrevious ?? false },
-          ),
+        async (input) => {
+          try {
+            const steps = buildClearScheduleProposalSteps(ctx, input, {
+              chainSteps: input.chainPrevious ?? false,
+            });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose clear schedule',
+            });
+          }
+        },
         {
           name: 'propose_clear_schedule',
-          description: 'PROPOSE clear applied schedule periods (not bookings).',
+          description:
+            'PROPOSE clear applied schedule periods (not bookings). Supports multiple providers via employeeNames or "Mary and Jujo" in the prompt.',
           schema: dateRangeSchema.merge(employeeSchema).extend({
+            employeeNames: z.array(z.string()).optional(),
+            dates: z.array(z.string()).optional(),
             chainPrevious: z.boolean().optional(),
           }),
         },
       ),
       tool(
-        async (input) =>
-          proposeManySteps(
-            ctx,
-            input.providers.map((p, i) => ({
-              action: 'clear_schedule',
-              description: `Clear schedule for ${p.employeeName ?? p.employeeId}`,
-              params: {
-                employeeId: p.employeeId,
-                employeeName: p.employeeName,
-                ...buildDateParams(input),
-                userId: ctx.userId,
-              },
-              chainPrevious: i > 0 && (input.chainSteps ?? false),
-            })),
-          ),
+        async (input) => {
+          try {
+            const steps = buildClearScheduleProposalSteps(ctx, input, {
+              chainSteps: input.chainSteps ?? false,
+            });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose clear schedules',
+            });
+          }
+        },
         {
           name: 'propose_clear_schedules_bulk',
-          description: 'PROPOSE clear schedules for multiple providers.',
+          description: 'PROPOSE clear schedules for multiple providers (same dates/range for all).',
           schema: dateRangeSchema.extend({
-            providers: z.array(employeeSchema).min(1).max(15),
+            employeeNames: z.array(z.string()).optional(),
+            dates: z.array(z.string()).optional(),
+            providers: z.array(employeeSchema).min(1).max(15).optional(),
             chainSteps: z.boolean().optional(),
           }),
         },
@@ -711,56 +717,63 @@ export class BookingToolRegistryService {
         },
       ),
       tool(
-        async (input) =>
-          propose(
-            'create_direct_schedule',
-            `Set direct schedule for ${input.employeeName ?? input.employeeId}`,
-            {
+        async (input) => {
+          try {
+            const steps = buildDirectScheduleProposalSteps(ctx, input, {
               employeeId: input.employeeId,
               employeeName: input.employeeName,
-              dates: input.dates,
-              date: input.date,
               periods: input.periods,
-              userId: ctx.userId,
-            },
-            { chainPrevious: input.chainPrevious ?? false },
-          ),
+            }, { chainSteps: input.chainPrevious ?? false });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose direct schedule',
+            });
+          }
+        },
         {
           name: 'propose_create_direct_schedule',
           description: 'PROPOSE set/replace provider schedule blocks for day(s).',
-          schema: employeeSchema.extend({
-            date: z.string().optional(),
+          schema: dateRangeSchema.merge(employeeSchema).extend({
             dates: z.array(z.string()).optional(),
-            periods: z.array(directSchedulePeriodSchema).min(1),
+            periods: z.array(directSchedulePeriodSchema).optional(),
+            timeFrom: z.string().optional(),
+            timeTo: z.string().optional(),
+            scheduleHint: z.string().optional().describe('Optional NL hint for hours/lunch, e.g. 9-19 with 12-13 unavailable'),
             chainPrevious: z.boolean().optional(),
           }),
         },
       ),
       tool(
-        async (input) =>
-          proposeManySteps(
-            ctx,
-            input.providers.map((p, i) => ({
-              action: 'create_direct_schedule',
-              description: `Set schedule for ${p.employeeName ?? p.employeeId}`,
-              params: {
+        async (input) => {
+          try {
+            const steps = input.providers.flatMap((p) =>
+              buildDirectScheduleProposalSteps(ctx, input, {
                 employeeId: p.employeeId,
                 employeeName: p.employeeName,
-                dates: input.dates,
-                date: input.date,
                 periods: p.periods ?? input.periods,
-                userId: ctx.userId,
-              },
-              chainPrevious: i > 0 && (input.chainSteps ?? false),
-            })),
-          ),
+              }),
+            );
+            const chained = steps.map((step, index) => ({
+              ...step,
+              chainPrevious: index > 0 && (input.chainSteps ?? false),
+            }));
+            return proposeManySteps(ctx, chained);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose direct schedules',
+            });
+          }
+        },
         {
           name: 'propose_create_direct_schedules_bulk',
           description: 'PROPOSE direct schedules for multiple providers (e.g. whole team 9-19).',
-          schema: z.object({
-            date: z.string().optional(),
+          schema: dateRangeSchema.extend({
             dates: z.array(z.string()).optional(),
             periods: z.array(directSchedulePeriodSchema).optional(),
+            timeFrom: z.string().optional(),
+            timeTo: z.string().optional(),
+            scheduleHint: z.string().optional(),
             providers: z
               .array(
                 employeeSchema.extend({
@@ -777,8 +790,8 @@ export class BookingToolRegistryService {
         async (input) =>
           propose(
             'create_block_schedule',
-            `Block time for ${input.employeeName ?? input.employeeId ?? 'provider'}`,
-            {
+            `Block time for ${resolveEmployeeLabel(ctx, input.employeeId, input.employeeName)}`,
+            withResolvedEmployeeParams(ctx, {
               employeeId: input.employeeId,
               employeeName: input.employeeName,
               startTime: input.startTime,
@@ -786,7 +799,7 @@ export class BookingToolRegistryService {
               blockFullDay: input.blockFullDay,
               userId: ctx.userId,
               ...buildDateParams(input),
-            },
+            }),
             { chainPrevious: input.chainPrevious ?? false },
           ),
         {
@@ -804,12 +817,13 @@ export class BookingToolRegistryService {
         async (input) =>
           propose(
             'fill_schedule_gaps',
-            `Fill schedule gaps for ${input.employeeName ?? 'providers'}`,
-            {
+            `Fill schedule gaps for ${resolveEmployeeLabel(ctx, input.employeeId, input.employeeName)}`,
+            withResolvedEmployeeParams(ctx, {
               employeeId: input.employeeId,
+              employeeName: input.employeeName,
               periods: input.periods,
               userId: ctx.userId,
-            },
+            }),
             { chainPrevious: input.chainPrevious ?? false },
           ),
         {
@@ -981,13 +995,13 @@ export class BookingToolRegistryService {
         async (input) =>
           propose(
             'assign_employee_services',
-            `Assign services to ${input.employeeName ?? input.employeeId}`,
-            {
+            `Assign services to ${resolveEmployeeLabel(ctx, input.employeeId, input.employeeName)}`,
+            withResolvedEmployeeParams(ctx, {
               employeeId: input.employeeId,
               employeeName: input.employeeName,
               serviceIds: input.serviceIds,
               userId: ctx.userId,
-            },
+            }),
             { chainPrevious: input.chainPrevious ?? false },
           ),
         {

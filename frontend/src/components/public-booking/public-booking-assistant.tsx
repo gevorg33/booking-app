@@ -1,8 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Send, Sparkles, X } from 'lucide-react';
+import {
+  useDraggableFloatingPosition,
+  useViewportSize,
+} from '@/lib/use-draggable-floating-position';
 import {
   sendPublicAssistantMessage,
   type PublicAssistantResponse,
@@ -50,6 +54,23 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const viewport = useViewportSize();
+  const estimatedSize = useMemo(() => {
+    const fab = { width: 56, height: 56 };
+    if (!viewport.width) return fab;
+    if (open) {
+      return {
+        width: Math.min(400, viewport.width - 32),
+        height: Math.min(560, Math.round(viewport.height * 0.8)),
+      };
+    }
+    return fab;
+  }, [open, viewport.height, viewport.width]);
+  const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
+    useDraggableFloatingPosition({
+      storageKey: `public-ai-position-${slug}`,
+      estimatedSize,
+    });
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -122,22 +143,39 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     }
   }, [input, loading, messages, sessionContext, slug, locale, t]);
 
+  const closeAssistant = useCallback(() => {
+    setOpen(false);
+    setMessages([]);
+    setSessionContext({});
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAssistant();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, closeAssistant]);
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void submit();
     }
-    if (e.key === 'Escape') setOpen(false);
   };
 
   return (
     <>
       {!open && (
         <button
+          ref={floatingRef}
           type="button"
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-105 transition-transform"
-          style={{ backgroundColor: primary }}
+          {...bindDragHandle({ onPress: () => setOpen(true) })}
+          style={{ ...floatingStyle, backgroundColor: primary }}
+          className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform ${
+            isDragging ? 'scale-100 cursor-grabbing' : 'hover:scale-105 cursor-grab'
+          }`}
           title={t('public.assistantTitle')}
         >
           <Sparkles className="w-6 h-6" />
@@ -145,20 +183,28 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[min(100vw-2rem,400px)] max-h-[min(80vh,560px)] bg-white border border-gray-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div
+          ref={floatingRef}
+          style={floatingStyle}
+          className="w-[min(100vw-2rem,400px)] max-h-[min(80vh,560px)] bg-white border border-gray-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" style={{ color: primary }} />
-              <span className="text-sm font-semibold text-gray-900">{t('public.assistantTitle')}</span>
+            <div
+              {...bindDragHandle()}
+              className="flex flex-1 items-center gap-2 min-w-0 select-none"
+            >
+              <Sparkles className="w-4 h-4 shrink-0 pointer-events-none" style={{ color: primary }} />
+              <span className="text-sm font-semibold text-gray-900 truncate pointer-events-none">
+                {t('public.assistantTitle')}
+              </span>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setOpen(false);
-                setMessages([]);
-                setSessionContext({});
-              }}
-              className="text-gray-400 hover:text-gray-700"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={closeAssistant}
+              className="shrink-0 ml-2 p-1 text-gray-400 hover:text-gray-700 cursor-pointer"
+              aria-label={t('common.close')}
             >
               <X className="w-4 h-4" />
             </button>

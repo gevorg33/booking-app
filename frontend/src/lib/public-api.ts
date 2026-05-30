@@ -243,33 +243,80 @@ export function getPublicServicesForSlot(slug: string, employeeId: string, start
   );
 }
 
-export function createPublicBooking(
+export interface PublicCheckoutAdjustment {
+  type: 'promo' | 'gift_card' | 'loyalty';
+  code?: string;
+  label: string;
+  amount: number;
+  points?: number;
+}
+
+export interface PublicCheckoutQuote {
+  servicePrice: number;
+  subtotal: number;
+  afterPromo: number;
+  afterGiftCard: number;
+  promoDiscount: number;
+  giftCardDiscount: number;
+  loyaltyDiscount: number;
+  totalDiscount: number;
+  amountDue: number;
+  currency: string;
+  loyaltyPointsToRedeem: number;
+  loyaltyPointsBalance: number | null;
+  pointsToEarn: number;
+  promoCode?: string;
+  giftCardCode?: string;
+  adjustments: PublicCheckoutAdjustment[];
+}
+
+export interface PublicCustomerLoyalty {
+  pointsBalance: number;
+  lifetimeEarned: number;
+  bonusDollarValue: number;
+  earnPercentCashback: number;
+  pointsValue: number;
+}
+
+export type CreatePublicBookingBody = {
+  employeeId?: string;
+  serviceId: string;
+  startTime: string;
+  notes?: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+    emailReminders?: boolean;
+    smsReminders?: boolean;
+    whatsappReminders?: boolean;
+  };
+};
+
+export function quotePublicBooking(
   slug: string,
-  body: {
-    employeeId?: string;
-    serviceId: string;
-    startTime: string;
-    notes?: string;
-    customer: {
-      name: string;
-      email?: string;
-      phone?: string;
-      emailReminders?: boolean;
-      smsReminders?: boolean;
-      whatsappReminders?: boolean;
-    };
-  },
+  body: { serviceId: string; promoCode?: string; loyaltyPointsToRedeem?: number },
 ) {
+  return publicFetch<PublicCheckoutQuote>(`/public/${slug}/bookings/quote`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function getPublicCustomerLoyalty(slug: string) {
+  return publicFetch<PublicCustomerLoyalty>(`/public/${slug}/me/loyalty`);
+}
+
+export function createPublicBooking(slug: string, body: CreatePublicBookingBody) {
   return publicFetch<{ booking: unknown; customer: { id: string; name: string; created: boolean } }>(
     `/public/${slug}/bookings`,
     { method: 'POST', body: JSON.stringify(body) },
   );
 }
 
-export function createPublicBookingCheckout(
-  slug: string,
-  body: Parameters<typeof createPublicBooking>[1],
-) {
+export function createPublicBookingCheckout(slug: string, body: CreatePublicBookingBody) {
   return publicFetch<{ url: string; sessionId: string; amount: number; currency: string }>(
     `/public/${slug}/bookings/checkout`,
     { method: 'POST', body: JSON.stringify(body) },

@@ -6,12 +6,14 @@ export interface BookingToolRunContext {
   businessId: string;
   userId?: string;
   timeZone: string;
+  /** Original user prompt — used to resolve multi-provider and date phrases in tools. */
+  prompt?: string;
   toolContext: Record<string, unknown>;
   stepCounter: number;
   proposals: AgentPlanStep[];
   /** Last react step id per workflow action (for chaining read tools). */
   lastStepByAction: Record<string, string>;
-  employees: Array<{ id: string; name: string }>;
+  employees: Array<{ id: string; name: string; serviceIds?: string[] }>;
   services: Array<{ id: string; name: string }>;
 }
 

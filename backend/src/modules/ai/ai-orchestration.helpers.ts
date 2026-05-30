@@ -487,6 +487,24 @@ export function getEmployeeAssignedServices(employee: Employee, catalog: Service
   return catalog.filter((s) => allowed.has(s.id));
 }
 
+/** Attach only services assigned to the provider on service_block periods. */
+export function resolveDirectSchedulePeriodServiceIds(
+  period: { type?: string; serviceIds?: string[] | null },
+  employeeServiceIds: string[] | null | undefined,
+): string[] {
+  if (period.type === 'unavailable_block') return [];
+
+  const periodIds = [...new Set((period.serviceIds ?? []).filter(Boolean))];
+  const assigned = [...new Set((employeeServiceIds ?? []).filter(Boolean))];
+
+  if (assigned.length === 0) return periodIds;
+  if (periodIds.length === 0) return assigned;
+
+  const allowed = new Set(assigned);
+  const filtered = periodIds.filter((id) => allowed.has(id));
+  return filtered.length > 0 ? filtered : assigned;
+}
+
 export function isProviderOwnServicesPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
@@ -577,6 +595,19 @@ export function resolveDateRange(
     return {
       start: prev.startOf('month').format('YYYY-MM-DD'),
       end: prev.endOf('month').format('YYYY-MM-DD'),
+    };
+  }
+
+  const namedMonth = lower.match(
+    /\b(?:on|in|for|during)\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\b/,
+  );
+  if (namedMonth) {
+    const month = MONTH_NAME_MAP[namedMonth[1]];
+    const year = inferYearForMonthDay(1, month, tz);
+    const monthStart = dayjs.tz(`${year}-${String(month).padStart(2, '0')}-01`, tz);
+    return {
+      start: monthStart.startOf('month').format('YYYY-MM-DD'),
+      end: monthStart.endOf('month').format('YYYY-MM-DD'),
     };
   }
 
@@ -678,6 +709,33 @@ export function resolveScheduleDates(
   if (params.date) {
     return [toIsoDay(params.date, timeZone)];
   }
+  return [];
+}
+
+/** ISO day keys for direct schedule workflow steps (single day, list, or range). */
+export function resolveDirectScheduleDateKeys(params: Record<string, unknown>): string[] {
+  const listed = params.dates;
+  if (Array.isArray(listed) && listed.length > 0) {
+    return listed.map((d) => String(d).trim()).filter(Boolean);
+  }
+
+  const range = params.dateRange as DateRange | undefined;
+  if (range?.start && range?.end) {
+    return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+  }
+
+  if (params.dateFrom && params.dateTo) {
+    return enumerateDaysInRange({
+      start: String(params.dateFrom),
+      end: String(params.dateTo),
+    }).map((d) => d.toISOString().split('T')[0]);
+  }
+
+  if (params.date) {
+    const iso = toIsoDay(String(params.date));
+    return iso ? [iso] : [];
+  }
+
   return [];
 }
 
@@ -838,35 +896,55 @@ export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt
   );
 }
 
-/** Longest-name-first match so "Karo Mazmanyan" wins over partial overlaps. */
-export function promptMentionsSpecificEmployee(
-  prompt: string,
-  employees: Employee[],
-): Employee | undefined {
-  const lower = prompt.toLowerCase();
-  const sorted = [...employees].sort((a, b) => b.name.length - a.name.length);
+export type EmployeeNameRef = Pick<Employee, 'id' | 'name'>;
 
-  for (const emp of sorted) {
-    if (lower.includes(emp.name.toLowerCase())) return emp;
-    const parts = emp.name.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      const first = parts[0].toLowerCase();
-      const last = parts[parts.length - 1].toLowerCase();
-      if (
-        first.length >= 3 &&
-        last.length >= 4 &&
-        new RegExp(`\\b${first}\\b`).test(lower) &&
-        new RegExp(`\\b${last}\\b`).test(lower)
-      ) {
-        return emp;
-      }
-    }
-    const first = parts[0]?.toLowerCase();
-    if (first && first.length >= 3 && new RegExp(`\\b${first}\\b`).test(lower)) {
-      return emp;
+function employeeMentionedInPrompt(prompt: string, employee: EmployeeNameRef): boolean {
+  const lower = prompt.toLowerCase();
+  if (lower.includes(employee.name.toLowerCase())) return true;
+
+  const parts = employee.name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = parts[0].toLowerCase();
+    const last = parts[parts.length - 1].toLowerCase();
+    if (
+      first.length >= 3 &&
+      last.length >= 4 &&
+      new RegExp(`\\b${first}\\b`).test(lower) &&
+      new RegExp(`\\b${last}\\b`).test(lower)
+    ) {
+      return true;
     }
   }
-  return undefined;
+
+  const first = parts[0]?.toLowerCase();
+  return !!(first && first.length >= 3 && new RegExp(`\\b${first}\\b`).test(lower));
+}
+
+/** All providers named in the prompt (e.g. "Mary and Jujo"). Longest names matched first. */
+export function matchEmployeesInPrompt<T extends EmployeeNameRef>(
+  prompt: string,
+  employees: T[],
+): T[] {
+  const sorted = [...employees].sort((a, b) => b.name.length - a.name.length);
+  const matched: T[] = [];
+  const seen = new Set<string>();
+
+  for (const employee of sorted) {
+    if (!employeeMentionedInPrompt(prompt, employee)) continue;
+    if (seen.has(employee.id)) continue;
+    seen.add(employee.id);
+    matched.push(employee);
+  }
+
+  return matched;
+}
+
+/** Longest-name-first match so "Karo Mazmanyan" wins over partial overlaps. */
+export function promptMentionsSpecificEmployee<T extends EmployeeNameRef>(
+  prompt: string,
+  employees: T[],
+): T | undefined {
+  return matchEmployeesInPrompt(prompt, employees)[0];
 }
 
 /** True only when the user explicitly targets the whole team — not "clear all schedules for Karo". */
@@ -898,15 +976,22 @@ export function resolveAllProvidersScope(
   return params.allProviders === true;
 }
 
-/** Pin scope to a named provider; clears stale session allProviders. */
+/** Pin scope to named provider(s); clears stale session allProviders. */
 export function sanitizeProviderScopeFromPrompt(
   prompt: string,
   params: Record<string, any>,
   employees: Employee[],
 ): void {
-  const mentioned = promptMentionsSpecificEmployee(prompt, employees);
-  if (mentioned) {
-    params.employeeName = mentioned.name;
+  const mentioned = matchEmployeesInPrompt(prompt, employees);
+  if (mentioned.length > 1) {
+    params.employeeNames = mentioned.map((e) => e.name);
+    params.employeeName = null;
+    params.allProviders = false;
+    delete params.employeeIds;
+    return;
+  }
+  if (mentioned.length === 1) {
+    params.employeeName = mentioned[0].name;
     params.allProviders = false;
     delete params.employeeNames;
     delete params.employeeIds;

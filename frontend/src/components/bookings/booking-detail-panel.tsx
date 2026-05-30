@@ -35,6 +35,9 @@ import {
   servicesForSchedulePeriod,
   type SchedulePeriod,
 } from '@/lib/schedule-period-services';
+import { type BookingPaymentSummary } from '@/lib/booking-payment-summary';
+import { BookingPaymentBreakdown } from '@/components/bookings/booking-payment-breakdown';
+import { useI18n } from '@/i18n';
 
 export interface BookingDetail {
   id: string;
@@ -49,6 +52,7 @@ export interface BookingDetail {
   service?: { id: string; name: string; durationMinutes?: number };
   employee?: { id: string; name: string };
   customer?: { id: string; name: string; email?: string; phone?: string };
+  paymentSummary?: BookingPaymentSummary | null;
 }
 
 function bookingDayISO(iso: string): string {
@@ -102,6 +106,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 }
 
 export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDetailPanelProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<BookingStatus>('confirmed');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -565,6 +570,24 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 ))}
               </select>
             </div>
+
+            {booking.paymentSummary && (
+              <div className="mb-5">
+                <BookingPaymentBreakdown
+                  summary={booking.paymentSummary}
+                  labels={{
+                    title: t('appointments.paymentBreakdown'),
+                    servicePrice: t('appointments.paymentServicePrice'),
+                    chargedAmount: t('appointments.paymentChargedAmount'),
+                    promoDiscount: t('appointments.paymentPromoDiscount'),
+                    loyaltyDiscount: t('appointments.paymentLoyaltyDiscount'),
+                    cashPaid: t('appointments.paymentCashPaid'),
+                    fullyCovered: t('appointments.paymentFullyCovered'),
+                    loyaltyPoints: t('appointments.paymentLoyaltyPoints'),
+                  }}
+                />
+              </div>
+            )}
 
             <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80">
               <p className="text-xs font-medium text-gray-400 mb-2 flex items-center gap-1.5">

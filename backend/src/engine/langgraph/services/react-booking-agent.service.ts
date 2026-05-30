@@ -80,11 +80,16 @@ export class ReactBookingAgentService {
       businessId: input.businessId,
       userId: input.userId,
       timeZone: input.timeZone,
+      prompt: input.prompt,
       toolContext: { businessId: input.businessId },
       stepCounter: 0,
       proposals: [],
       lastStepByAction: {},
-      employees: input.employees.map((e) => ({ id: e.id, name: e.name })),
+      employees: input.employees.map((e) => ({
+        id: e.id,
+        name: e.name,
+        serviceIds: e.serviceIds ?? [],
+      })),
       services: input.services.map((s) => ({ id: s.id, name: s.name })),
     };
 
@@ -216,7 +221,7 @@ You have READ tools (safe, immediate) and PROPOSE tools (build approval plans �
 
 ## Strategy
 1. READ first: list_appointments, fetch_current_schedule, detect_conflicts before any propose_*.
-2. Use bulk tools when the user wants multiple items: propose_create_bookings_bulk, propose_clear_schedules_bulk, propose_create_services_bulk, propose_reschedule_bookings_bulk.
+2. Use bulk tools when the user wants multiple items: propose_create_bookings_bulk, propose_clear_schedules_bulk, propose_create_services_bulk, propose_reschedule_bookings_bulk. For "clear schedule for Mary and Jujo", use propose_clear_schedules_bulk OR propose_clear_schedule with employeeNames — never only the last named provider.
 3. Use propose_compound_workflow for multi-command requests ("cancel X then clear schedule then hide") — one tool, chained steps.
 4. Use propose_bulk_smart_cancel when user wants cancel + notify + waitlist recovery together.
 5. Set chainPrevious=true on propose steps that must run AFTER a prior step in the same plan (e.g. hide after cancel).

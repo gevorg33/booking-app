@@ -146,7 +146,13 @@ export class CustomerService {
       .where('customer.business_id = :businessId', { businessId })
       .andWhere('customer.isActive = :isActive', { isActive: true });
 
-    this.applyCustomerFilters(qb, query);
+    const tagFilter = query.tags?.trim().toLowerCase();
+    const needsComputedSegmentFilter =
+      query.isVip === true || !!query.segment || tagFilter === 'vip';
+
+    this.applyCustomerFilters(qb, query, {
+      skipInMemoryFilters: needsComputedSegmentFilter,
+    });
 
     if (statuses.length > 0) {
       qb.andWhere(
@@ -164,6 +170,16 @@ export class CustomerService {
       qb.orderBy('LOWER(customer.name)', sortOrder);
     } else {
       qb.orderBy(`customer.${sortBy}`, sortOrder);
+    }
+
+    if (needsComputedSegmentFilter) {
+      return this.searchDashboardWithSegmentFilter(
+        businessId,
+        qb,
+        query,
+        page,
+        pageSize,
+      );
     }
 
     const totalItems = await qb.getCount();
@@ -195,7 +211,66 @@ export class CustomerService {
       };
     });
 
+    const totalCustomers = await this.customerRepo.count({
+      where: { businessId, isActive: true },
+    });
+
+    return {
+      stats: {
+        totalCustomers,
+        filteredCustomers: totalItems,
+        totalAppointments,
+        appointmentsByStatus,
+      },
+      customers: list,
+      totalItems,
+      page,
+      pageSize,
+    };
+  }
+
+  /** Segment/VIP filters depend on booking stats — load all matches, filter, then paginate. */
+  private async searchDashboardWithSegmentFilter(
+    businessId: string,
+    qb: ReturnType<Repository<Customer>['createQueryBuilder']>,
+    query: GetCustomersQueryDto,
+    page: number,
+    pageSize: number,
+  ): Promise<CustomersSearchResult> {
+    const skip = (page - 1) * pageSize;
+    const allCustomers = await qb.getMany();
+    const statsMap = await this.loadBookingStatsMap(
+      businessId,
+      allCustomers.map((c) => c.id),
+    );
+
+    const list: CustomerListItem[] = allCustomers.map((c) => {
+      const stats = statsMap.get(c.id) ?? this.emptyStats();
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email ?? null,
+        phone: c.phone ?? null,
+        tags: c.tags ?? [],
+        isVip: c.isVip ?? false,
+        segment: this.computeSegment(c, stats),
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        stats,
+      };
+    });
+
     const filtered = this.applySegmentFilter(list, query);
+    const paginated = filtered.slice(skip, skip + pageSize);
+
+    const appointmentsByStatus: Record<string, number> = {};
+    let totalAppointments = 0;
+    for (const c of paginated) {
+      totalAppointments += c.stats.total;
+      for (const [status, count] of Object.entries(c.stats.byStatus)) {
+        appointmentsByStatus[status] = (appointmentsByStatus[status] ?? 0) + count;
+      }
+    }
 
     const totalCustomers = await this.customerRepo.count({
       where: { businessId, isActive: true },
@@ -208,8 +283,8 @@ export class CustomerService {
         totalAppointments,
         appointmentsByStatus,
       },
-      customers: filtered,
-      totalItems: query.segment || query.isVip !== undefined ? filtered.length : totalItems,
+      customers: paginated,
+      totalItems: filtered.length,
       page,
       pageSize,
     };
@@ -233,6 +308,14 @@ export class CustomerService {
     return 'regular';
   }
 
+  private customerMatchesVip(c: CustomerListItem): boolean {
+    return (
+      c.isVip ||
+      c.segment === 'vip' ||
+      c.tags.some((t) => t.toLowerCase() === 'vip')
+    );
+  }
+
   private applySegmentFilter(
     list: CustomerListItem[],
     query: GetCustomersQueryDto,
@@ -241,10 +324,16 @@ export class CustomerService {
     if (query.tags?.trim()) {
       const tag = query.tags.trim().toLowerCase();
       if (isCustomerTag(tag)) {
-        result = result.filter((c) => c.tags.map((x) => x.toLowerCase()).includes(tag));
+        if (tag === 'vip') {
+          result = result.filter((c) => this.customerMatchesVip(c));
+        } else {
+          result = result.filter((c) => c.tags.map((x) => x.toLowerCase()).includes(tag));
+        }
       }
     }
-    if (query.isVip === true) result = result.filter((c) => c.isVip || c.segment === 'vip');
+    if (query.isVip === true) {
+      result = result.filter((c) => this.customerMatchesVip(c));
+    }
     if (query.segment) result = result.filter((c) => c.segment === query.segment);
     return result;
   }
@@ -252,6 +341,7 @@ export class CustomerService {
   private applyCustomerFilters(
     qb: ReturnType<Repository<Customer>['createQueryBuilder']>,
     query: GetCustomersQueryDto,
+    options?: { skipInMemoryFilters?: boolean },
   ) {
     if (query.search?.trim()) {
       const term = `%${query.search.trim()}%`;
@@ -274,12 +364,12 @@ export class CustomerService {
         );
       }
     }
-    if (query.isVip === true) {
+    if (query.isVip === true && !options?.skipInMemoryFilters) {
       qb.andWhere('(customer.isVip = true OR customer.tags LIKE :vipTag)', { vipTag: '%vip%' });
     }
     if (query.tags?.trim()) {
       const tag = query.tags.trim().toLowerCase();
-      if (isCustomerTag(tag)) {
+      if (isCustomerTag(tag) && !(tag === 'vip' && options?.skipInMemoryFilters)) {
         qb.andWhere(
           '(customer.tags = :tag OR customer.tags LIKE :tagPrefix OR customer.tags LIKE :tagSuffix OR customer.tags LIKE :tagMiddle)',
           {
