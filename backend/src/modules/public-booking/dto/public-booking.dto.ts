@@ -34,6 +34,14 @@ export class PublicCustomerDto {
   @IsOptional()
   @IsBoolean()
   whatsappReminders?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  privacyConsentAccepted?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  marketingOptIn?: boolean;
 }
 
 export class CreatePublicBookingDto {

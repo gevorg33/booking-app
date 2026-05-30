@@ -7,6 +7,8 @@ import { PublicHeader } from '@/components/public-booking/public-header';
 import {
   getPublicCustomerBookings,
   getPublicCustomerLoyalty,
+  exportPublicCustomerData,
+  deletePublicCustomerData,
   formatPrice,
   type PublicBusinessProfile,
   type PublicCustomerBookingItem,
@@ -36,11 +38,13 @@ function BookingRow({
   slug,
   primary,
   t,
+  locale,
 }: {
   booking: PublicCustomerBookingItem;
   slug: string;
   primary: string;
   t: (key: string) => string;
+  locale: string;
 }) {
   const start = new Date(booking.startTime);
   const end = new Date(booking.endTime);
@@ -52,7 +56,7 @@ function BookingRow({
           <p className="font-medium text-gray-900">{booking.serviceName}</p>
           <p className="text-sm text-gray-500 mt-0.5">{booking.employeeName}</p>
           <p className="text-sm text-gray-600 mt-2">
-            {formatDateDisplay(start)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
+            {formatDateDisplay(start, locale)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
           </p>
         </div>
         <span className="text-xs font-medium text-gray-500 shrink-0">
@@ -75,13 +79,15 @@ function BookingRow({
 }
 
 export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const { customer, loading, googleEnabled, signInWithGoogle, signOut } = usePublicCustomerAuth();
   const [bookings, setBookings] = useState<PublicCustomerBookingItem[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [privacyLoading, setPrivacyLoading] = useState<'export' | 'delete' | null>(null);
+  const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
 
   useEffect(() => {
@@ -181,13 +187,69 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               </button>
             </div>
 
+            <div className="mt-4 bg-white rounded-2xl border border-gray-100 px-5 py-4 space-y-3">
+              <p className="text-sm font-medium text-gray-900">{t('public.privacyConsent')}</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={privacyLoading !== null}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                  onClick={async () => {
+                    setPrivacyLoading('export');
+                    setPrivacyMessage(null);
+                    try {
+                      const data = await exportPublicCustomerData(tenant.slug);
+                      const blob = new Blob([JSON.stringify(data, null, 2)], {
+                        type: 'application/json',
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `my-data-${tenant.slug}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      setPrivacyMessage(t('public.dataExportSuccess'));
+                    } catch {
+                      setPrivacyMessage(t('common.errorGeneric'));
+                    } finally {
+                      setPrivacyLoading(null);
+                    }
+                  }}
+                >
+                  {privacyLoading === 'export' ? t('common.loading') : t('public.exportMyData')}
+                </button>
+                <button
+                  type="button"
+                  disabled={privacyLoading !== null}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  onClick={async () => {
+                    if (!window.confirm(t('public.dataDeleteConfirm'))) return;
+                    setPrivacyLoading('delete');
+                    setPrivacyMessage(null);
+                    try {
+                      await deletePublicCustomerData(tenant.slug);
+                      setPrivacyMessage(t('public.dataDeleteSuccess'));
+                      signOut();
+                    } catch {
+                      setPrivacyMessage(t('common.errorGeneric'));
+                    } finally {
+                      setPrivacyLoading(null);
+                    }
+                  }}
+                >
+                  {privacyLoading === 'delete' ? t('common.loading') : t('public.deleteMyData')}
+                </button>
+              </div>
+              {privacyMessage && <p className="text-xs text-gray-500">{privacyMessage}</p>}
+            </div>
+
             {loyalty && loyalty.pointsBalance > 0 && (
               <div className="mt-4 bg-white rounded-2xl border border-gray-100 px-5 py-4">
                 <p className="text-sm font-medium text-gray-900">{t('public.loyaltyPoints')}</p>
                 <p className="text-sm text-gray-600 mt-1">
                   {t('public.loyaltyBalance')
                     .replace('{points}', String(loyalty.pointsBalance))
-                    .replace('{value}', formatPrice(loyalty.pointsValue, 'USD'))}
+                    .replace('{value}', formatPrice(loyalty.pointsValue, 'USD', locale))}
                 </p>
               </div>
             )}
@@ -220,6 +282,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                     slug={tenant.slug}
                     primary={primary}
                     t={t}
+                    locale={locale}
                   />
                 ))}
               </div>

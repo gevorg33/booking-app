@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
 import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
+import { buildGdprMetadata } from './customer-privacy.types.js';
 import {
   GetCustomersQueryDto,
   parseBookingStatusFilter,
@@ -114,10 +116,13 @@ export class CustomerService {
   constructor(
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async create(businessId: string, dto: CreateCustomerDto): Promise<Customer> {
-    return this.customerRepo.save(this.customerRepo.create({ ...dto, businessId }));
+    const customer = await this.customerRepo.save(this.customerRepo.create({ ...dto, businessId }));
+    this.eventEmitter.emit('customer.upserted', { businessId, customerId: customer.id });
+    return customer;
   }
 
   async findAll(businessId: string): Promise<Customer[]> {
@@ -518,7 +523,12 @@ export class CustomerService {
     if (dto.name !== undefined) customer.name = dto.name;
     if (dto.email !== undefined) customer.email = dto.email;
     if (dto.phone !== undefined) customer.phone = dto.phone;
-    return this.customerRepo.save(customer);
+    const saved = await this.customerRepo.save(customer);
+    this.eventEmitter.emit('customer.upserted', {
+      businessId: saved.businessId,
+      customerId: saved.id,
+    });
+    return saved;
   }
 
   async remove(id: string): Promise<void> {
@@ -562,7 +572,7 @@ export class CustomerService {
           await this.customerRepo.save(byEmail);
         }
         const saved = await this.applyNotificationPreferences(byEmail, dto);
-        return { customer: saved, created: false };
+        return { customer: await this.applyGdprConsent(saved, dto), created: false };
       }
     }
 
@@ -583,7 +593,7 @@ export class CustomerService {
           await this.customerRepo.save(byPhone);
         }
         const saved = await this.applyNotificationPreferences(byPhone, dto);
-        return { customer: saved, created: false };
+        return { customer: await this.applyGdprConsent(saved, dto), created: false };
       }
     }
 
@@ -594,7 +604,19 @@ export class CustomerService {
     });
 
     const saved = await this.applyNotificationPreferences(customer, dto);
-    return { customer: saved, created: true };
+    return { customer: await this.applyGdprConsent(saved, dto), created: true };
+  }
+
+  private async applyGdprConsent(customer: Customer, dto: CreateCustomerDto): Promise<Customer> {
+    if (dto.privacyConsentAccepted === undefined && dto.marketingOptIn === undefined) {
+      return customer;
+    }
+    customer.metadata = buildGdprMetadata(customer.metadata, {
+      privacyAccepted: dto.privacyConsentAccepted,
+      marketingOptIn: dto.marketingOptIn,
+      source: 'checkout',
+    });
+    return this.customerRepo.save(customer);
   }
 
   private async applyNotificationPreferences(

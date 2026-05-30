@@ -54,6 +54,25 @@ export interface PublicLocation {
   mapEmbedHtml?: string;
 }
 
+export interface PublicSupportWidgets {
+  zendeskWidgetKey?: string;
+}
+
+export interface PublicMetaBooking {
+  bookingUrl: string;
+  buttonLabel: string;
+  facebookPageUrl?: string;
+  instagramUsername?: string;
+}
+
+export interface PublicMessagingLinks {
+  publicBookingUrl: string;
+  telegramUrl?: string | null;
+  whatsappUrl?: string | null;
+  facebookBookingUrl?: string | null;
+  instagramBookingUrl?: string | null;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -70,6 +89,9 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode?: string;
   onlinePaymentsEnabled?: boolean;
+  support?: PublicSupportWidgets;
+  metaBooking?: PublicMetaBooking;
+  messaging?: PublicMessagingLinks;
 }
 
 export interface PublicProviderReview {
@@ -366,9 +388,11 @@ export function formatDuration(minutes: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-export function formatPrice(price: number, currency: string): string {
+export function formatPrice(price: number, currency: string, locale?: string): string {
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(price);
+    const intlLocale =
+      locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
+    return new Intl.NumberFormat(intlLocale, { style: 'currency', currency }).format(price);
   } catch {
     return `${price} ${currency}`;
   }
@@ -422,4 +446,12 @@ export function getPublicCustomerMe(slug: string) {
 
 export function getPublicCustomerBookings(slug: string) {
   return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
+}
+
+export function exportPublicCustomerData(slug: string) {
+  return publicFetch<Record<string, unknown>>(`/public/${slug}/me/data`);
+}
+
+export function deletePublicCustomerData(slug: string) {
+  return publicFetch<{ deleted: true }>(`/public/${slug}/me/data`, { method: 'DELETE' });
 }

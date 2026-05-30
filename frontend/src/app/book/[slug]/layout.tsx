@@ -4,6 +4,7 @@ import { PublicBookingAssistantHost } from '@/components/public-booking/public-b
 import { PublicLocaleBootstrap } from '@/components/public-booking/public-locale-bootstrap';
 import { PublicBookingFooter } from '@/components/public-booking/public-booking-footer';
 import { PublicBookingShell } from '@/components/public-booking/public-booking-shell';
+import { PublicGrowthWidgetsHost } from '@/components/public-booking/public-growth-widgets-host';
 
 export default async function PublicBookingLayout({
   children,
@@ -28,6 +29,7 @@ export default async function PublicBookingLayout({
       <style>{`:root { --tenant-primary: ${primary}; }`}</style>
       <PublicLocaleBootstrap businessLocale={tenant.locale} />
       <PublicBookingShell slug={slug}>{children}</PublicBookingShell>
+      <PublicGrowthWidgetsHost tenant={tenant} />
       <PublicBookingAssistantHost slug={slug} tenant={tenant} />
       <PublicBookingFooter />
     </div>

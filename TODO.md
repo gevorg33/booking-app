@@ -5,59 +5,7 @@ Goal: **bookings + reminders + payments + staff schedule + reports** for salon/s
 
 Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
----
-
-## Phase 1 — Table stakes (highest ROI)
-
-- [x] **comms-1** — Email reminders (booking confirmation + 24h / 1h before)
-- [x] **comms-2** — SMS reminders (Twilio or similar, opt-in + templates)
-- [x] **comms-2b** — WhatsApp Business API (Meta Cloud, template messages, opt-in)
-- [x] **comms-3** — Notification preferences (per customer + business settings)
-- [x] **pay-1** — Stripe Checkout prepay on public booking flow
-- [x] **pay-2** — Deposit vs full prepay options per service
-- [x] **analytics-1** — Dashboard KPIs (bookings, revenue, utilization, no-show rate)
-- [x] **crm-1** — Customer appointment history (timeline on customer detail)
-- [x] **crm-2** — No-show tracking (flag bookings, count on customer profile)
-
----
-
-## Phase 2 — CRM & reporting depth
-
-- [x] **crm-3** — Customer segmentation (tags, last visit, no-show rate, VIP)
-- [x] **analytics-2** — Staff performance reports (bookings, revenue, hours booked)
-- [x] **analytics-3** — Service popularity + peak hours / day-of-week heatmaps
-- [x] **analytics-4** — Exportable reports (CSV / PDF) for date ranges
-- [x] **dist-1** — Embeddable booking widget (iframe / script for external sites)
-
----
-
-## Phase 3 — Growth & distribution
-
-- [x] **int-1** — Public REST API docs + API keys for business admins
-- [x] **int-2** — Outbound webhooks (`booking.created`, `cancelled`, `payment.received`, etc.)
-- [x] **polish-1** — Onboarding wizard (services → schedule → booking link)
-- [ ] **int-5** — Zendesk integration — connect business Zendesk account (subdomain + API token)
-- [ ] **int-6** — Zendesk — embed Web Widget in dashboard + public booking (help / contact support)
-- [ ] **int-7** — Zendesk — auto-create tickets from in-app support form (attach business, customer, booking context)
-- [ ] **int-8** — Zendesk — sync customer profile to Zendesk user (email, phone, appointment history link) -->
-- [ ] **dist-2** — Google Reserve / Reserve with Google integration
-- [ ] **dist-3** — Meta / Facebook & Instagram booking integration
-- [ ] **dist-4** — Messenger booking (Telegram deep links or bots; WhatsApp outbound reminders via comms-2b)
-
-
----
-
-## Phase 4 — Monetization extras
-
-- [x] **pay-3** — Gift cards (purchase + redeem at checkout)
-- [x] **pay-4** — Memberships / subscriptions (recurring plans + visit credits)
-- [x] **crm-4** — Loyalty points / rewards program (earn on visit, redeem on booking)
-- [x] **reviews-5** — Customer reviews for service providers 5 star ratings with comments
-- [x] **staff-5** — add feature to invite service providers - adding them will send email notification to accept invitation, probably they gonna use the mobile app in the future to get push notifications but for now let's invite them into protal as a contributor role - they can add sevice types and book appointments in portal and create scedules for themselves only.
-
----
-
-## Phase 5 — Operations ERP (salon chains)
+## Phase 1 — Operations ERP (salon chains)
 
 - [x] **erp-1** — Inventory — products / consumables linked to services
 - [x] **erp-2** — Payroll / commissions (per-service % or flat, payout reports)
@@ -66,27 +14,23 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Phase 6 — Platform maturity
+## Phase 3 — Platform maturity
 
-- [x] **dist-5** — Branded mobile app for service providers (Ionic React in `provider-app/` — iOS/Android, no dashboard; web PWA at `/provider` in `frontend/`)
-- [~] **comms-4** — Push / app reminders for providers (Web Push + Capacitor native token registration; FCM/APNs delivery TBD)
-- [ ] **int-3** — Zapier / Make connector or marketplace listing
-- [ ] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
-- [ ] **polish-4** — Expand localization (dates, currencies, more languages)
-<!-- - [ ] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP -->
+- [x] **comms-4** — Push / app reminders for providers (Web Push + Capacitor native token registration; FCM/APNs delivery TBD)
+- [x] **int-3** — Zapier / Make connector or marketplace listing
+- [x] **polish-3** — GDPR / consent (marketing opt-in, data export / delete for customers)
+- [x] **polish-4** — Expand localization (dates, currencies, more languages)
+- [x] **int-4** — Accounting export (QuickBooks / Xero) — post-MVP
 <!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
 
 ---
 
-## Phase 8 — Competitive gaps (vs Fresha, Vagaro, Square, Acuity, Mindbody)
+## Phase 4 — Competitive gaps (vs Fresha, Vagaro, Square, Acuity, Mindbody)
 
 Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
 
 ### 8.1 Trust & distribution
 
-- [ ] **gap-1.1** — Google Reserve / Book with Google integration (see **dist-2**)
-- [ ] **gap-1.2** — Meta / Facebook & Instagram booking integration (see **dist-3**)
-- [ ] **gap-1.3** — Zapier / Make connector or marketplace listing (see **int-3**)
 - [ ] **gap-1.4** — Public marketing site: pricing page, testimonials, security/trust page
 - [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
 - [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
@@ -164,17 +108,6 @@ Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
 
 ---
 
-## Already shipped (baseline)
-
-- [x] Schedule templates + direct schedules + template edit
-- [x] Public booking pages + AI booking assistant
-- [x] Dashboard: bookings, appointments, customers, services, employees, calendar
-- [x] AI command bar (book, create services, optimize schedule, etc.)
-- [x] Stripe subscription billing (platform plan, not client prepay at booking)
-- [x] Multi-language UI (EN / HY / RU) + light / dark theme
-
----
-
 ## Suggested build order (Phase 1)
 
 1. comms-1 — Email reminders  
@@ -198,9 +131,6 @@ Shared work that unlocks dashboard + mobile extensions.
 
 - [ ] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
 - [ ] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
-- [x] **ai-0.3** — Port completion pipeline to mobile — resolve, validate, clarify parity with dashboard
-- [x] **ai-0.4** — Shared session memory — `employeeName`, `date`, `serviceName`, `timeSlot`, `templateName`, `allProviders`; mobile sends `context` on every command; optional server-side session keyed by user
-- [x] **ai-0.5** — Unify task approval — one task model, one approve endpoint; deprecate duplicate `POST /ai/command/tasks` vs `PUT /agents/tasks`
 - [x] **ai-0.6** — Wire dead agents — register `ScheduleApplyAgent` in `agent.module.ts`; connect `SchedulingAgentService`
 - [x] **ai-0.7** — Complete stub executors — `propose_reassignment`, `find_rebooking_candidates`, `propose_resolutions`; add `execute_reassignment`, waitlist lookup
 - [x] **ai-0.8** — Enrich policy engine — pass real booking counts, business hours, buffer rules into plans; show violations in preview
@@ -239,10 +169,8 @@ Shared work that unlocks dashboard + mobile extensions.
 
 #### Dashboard coverage gaps (quick wins)
 
-- [x] **ai-d20** — Add `AiPagePanel` to `/dashboard/appointments`
 - [ ] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
 - [ ] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
-- [x] **ai-d23** — Invalidate cache after `optimize_schedule`, `resolve_conflicts`, `reassign_cancelled`
 - [ ] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
 - [ ] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
 
@@ -253,10 +181,8 @@ Shared work that unlocks dashboard + mobile extensions.
 - [x] **ai-m1** — Completion pipeline parity — same clarify chips, session inheritance, structured `missing[]` as dashboard
 - [x] **ai-m2** — Context from screen — Today: selected date; booking detail: customer, time, service pre-filled
 - [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
-- [x] **ai-m4** — Booking-detail AI entry — "Cancel because sick", "Mark done + paid", "Reschedule to 4pm" from modal
 - [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)
 - [ ] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
-- [x] **ai-m7** — Confirm UX upgrade — preview list with avatars/times before bulk cancel; swipe to confirm
 
 #### Safe dashboard intent port (mobile)
 
@@ -325,24 +251,12 @@ Shared work that unlocks dashboard + mobile extensions.
 ### Phase 7.5 — Enterprise & scale
 
 - [ ] **ai-e1** — Multi-location businesses — AI scoped by branch
-- [x] **ai-e2** — Audit log for every AI mutation (who approved, which plan, diff)
 - [ ] **ai-e3** — Role-based intent permissions (receptionist vs owner)
 - [ ] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
 - [ ] **ai-e5** — A/B test suggestion copy and auto-execute thresholds
 - [ ] **ai-e6** — Admin analytics: command success rate, clarify rate, approval rate
 - [ ] **ai-e7** — Human-in-the-loop SLA — escalate stuck tasks to owner
 - [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
-
-### Phase 7 — Already shipped (AI baseline)
-
-- [x] **ai-base-1** — Dashboard AI command bar (book, cancel, schedule ops, catalog)
-- [x] **ai-base-2** — Command completion pipeline (classify → resolve → validate → clarify)
-- [x] **ai-base-3** — Schedule orchestration intents (`apply_schedule`, `block_schedule`, `fill_unused_slots`, `create_direct_schedule`, etc.)
-- [x] **ai-base-4** — Proactive suggestions on dashboard home (`GET /ai/suggestions`)
-- [x] **ai-base-5** — AI page panels on Schedule, Calendar, Bookings, Employees, Services, AI Ops, Onboarding
-- [x] **ai-base-6** — Workflow executors for schedule mutations + booking plans
-- [x] **ai-base-7** — Provider mobile AI (cancel/update/list/summarize + bulk confirm)
-- [x] **ai-base-8** — Provider cancel-note LLM suggestion
 
 ### Suggested AI build order
 

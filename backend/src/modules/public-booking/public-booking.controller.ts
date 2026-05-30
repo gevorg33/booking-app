@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
@@ -13,6 +13,7 @@ import { PublicCustomerAuthGuard } from './public-customer-auth.guard.js';
 import { OptionalPublicCustomerAuthGuard } from './optional-public-customer-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { PublicCustomerRequestUser } from './public-customer-auth.decorator.js';
+import { CustomerPrivacyService } from '../customer/customer-privacy.service.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -22,6 +23,7 @@ export class PublicBookingController {
     private bookingPaymentService: BookingPaymentService,
     private reviewsService: ReviewsService,
     private publicCustomerAuthService: PublicCustomerAuthService,
+    private customerPrivacyService: CustomerPrivacyService,
   ) {}
 
   @Get()
@@ -186,5 +188,17 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicBookingService.getCustomerLoyalty(slug, user.customerId);
+  }
+
+  @Get('me/data')
+  @UseGuards(PublicCustomerAuthGuard)
+  exportMyData(@CurrentUser() user: PublicCustomerRequestUser) {
+    return this.customerPrivacyService.exportCustomerData(user.businessId, user.customerId);
+  }
+
+  @Delete('me/data')
+  @UseGuards(PublicCustomerAuthGuard)
+  deleteMyData(@CurrentUser() user: PublicCustomerRequestUser) {
+    return this.customerPrivacyService.deleteCustomerData(user.businessId, user.customerId);
   }
 }

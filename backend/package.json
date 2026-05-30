@@ -16,6 +16,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:growth": "jest --coverage --collectCoverageFrom='modules/integrations/zendesk/**/*.ts' --collectCoverageFrom='!**/*.spec.ts' --collectCoverageFrom='modules/integrations/distribution/**/*.ts' --testPathPatterns='(integrations/(zendesk|distribution)|integrations-growth|public-booking-growth)' --coverageThreshold='{\"global\":{\"statements\":90,\"branches\":90,\"functions\":90,\"lines\":90}}'",
+    "test:phase3": "jest --coverage --collectCoverageFrom='common/utils/locale-format.util.ts' --collectCoverageFrom='modules/customer/customer-privacy*.ts' --collectCoverageFrom='modules/integrations/zapier/**/*.ts' --collectCoverageFrom='modules/integrations/accounting/**/*.ts' --collectCoverageFrom='modules/provider-mobile/listeners/provider-push.listener.ts' --collectCoverageFrom='modules/provider-mobile/provider-end-of-day-push.scheduler.ts' --collectCoverageFrom='!**/*.spec.ts' --testPathPatterns='(locale-format|customer-privacy|zapier|accounting|provider-push|provider-end-of-day|integrations-platform)' --coverageThreshold='{\"global\":{\"statements\":90,\"branches\":80,\"functions\":90,\"lines\":90}}'",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:migrate": "node scripts/run-migrations.mjs",
