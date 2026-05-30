@@ -31,7 +31,7 @@ Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
 
 ### 8.1 Trust & distribution
 
-- [ ] **gap-1.4** — Public marketing site: pricing page, testimonials, security/trust page
+- [x] **gap-1.4** — Public marketing site: pricing page, testimonials, security/trust page + privacy/policy page
 - [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
 - [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
 
@@ -64,9 +64,7 @@ Gap analysis from competitive review. See also `backend/docs/PLANS.md`.
 
 ### 8.5 Compliance & enterprise readiness
 
-- [ ] **gap-5.1** — GDPR — marketing consent, customer data export, customer delete (see **polish-3**)
 - [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
-- [ ] **gap-5.3** — Multi-location AI scoping by branch (see **ai-e1**)
 - [ ] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
 - [ ] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
 - [ ] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
