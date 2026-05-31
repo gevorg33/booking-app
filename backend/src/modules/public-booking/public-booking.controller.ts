@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@n
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, PackageBlockSlotsQueryDto, PackageBlockProvidersQueryDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
@@ -94,6 +94,37 @@ export class PublicBookingController {
     @Param('packageId') packageId: string,
   ) {
     return this.publicBookingService.suggestPackageLineSlots(slug, packageId);
+  }
+
+  @Get('packages/:packageId/suggest-block')
+  suggestPackageBlock(
+    @Param('slug') slug: string,
+    @Param('packageId') packageId: string,
+  ) {
+    return this.publicBookingService.suggestPackageBlock(slug, packageId);
+  }
+
+  @Get('packages/:packageId/block-slots')
+  getPackageBlockSlots(
+    @Param('slug') slug: string,
+    @Param('packageId') packageId: string,
+    @Query() query: PackageBlockSlotsQueryDto,
+  ) {
+    return this.publicBookingService.getPackageBlockDaySlots(slug, packageId, query.date);
+  }
+
+  @Get('packages/:packageId/providers')
+  getPackageBlockProviders(
+    @Param('slug') slug: string,
+    @Param('packageId') packageId: string,
+    @Query() query: PackageBlockProvidersQueryDto,
+  ) {
+    return this.publicBookingService.getPackageBlockProviders(
+      slug,
+      packageId,
+      query.startTime,
+      query.includeLaterDays,
+    );
   }
 
   @Post('packages/quote')

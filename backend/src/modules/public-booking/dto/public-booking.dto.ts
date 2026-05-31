@@ -211,6 +211,21 @@ export class MultiServiceSelectionDto {
   serviceIds: string[];
 }
 
+export class PackageBlockSlotsQueryDto {
+  @IsDateString()
+  date: string;
+}
+
+export class PackageBlockProvidersQueryDto {
+  @IsDateString()
+  startTime: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  includeLaterDays?: boolean;
+}
+
 export class MultiServiceBlockSlotsQueryDto {
   @IsDateString()
   date: string;

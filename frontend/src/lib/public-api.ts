@@ -245,6 +245,7 @@ export interface PublicPackageItem {
   unitPrice: number;
   serviceName: string;
   durationMinutes: number;
+  bufferMinutes?: number;
   lineTotal?: number;
   discountedLineTotal?: number;
   lineSavings?: number;
@@ -279,6 +280,8 @@ export function getPublicPackage(slug: string, packageId: string) {
 
 export function suggestPublicPackageSlots(slug: string, packageId: string) {
   return publicFetch<{
+    dateKey?: string;
+    blockStartTime?: string;
     lines: Array<{
       serviceId: string;
       serviceName: string;
@@ -287,6 +290,40 @@ export function suggestPublicPackageSlots(slug: string, packageId: string) {
       employeeName: string;
     }>;
   }>(`/public/${slug}/packages/${packageId}/suggest-slots`);
+}
+
+export function getPublicPackageBlockSlots(slug: string, packageId: string, date: string) {
+  const params = new URLSearchParams({ date });
+  return publicFetch<{
+    date: string;
+    serviceIds: string[];
+    totalDurationMinutes: number;
+    slots: PublicServiceDaySlot[];
+  }>(`/public/${slug}/packages/${packageId}/block-slots?${params.toString()}`);
+}
+
+export function suggestPublicPackageBlock(slug: string, packageId: string) {
+  return publicFetch<{
+    employeeId: string;
+    employeeName: string;
+    dateKey: string;
+    startTime: string;
+  }>(`/public/${slug}/packages/${packageId}/suggest-block`);
+}
+
+export function getPublicPackageProviders(
+  slug: string,
+  packageId: string,
+  startTime: string,
+  includeLaterDays = false,
+) {
+  const params = new URLSearchParams({
+    startTime,
+    ...(includeLaterDays ? { includeLaterDays: 'true' } : {}),
+  });
+  return publicFetch<{ providers: Array<PublicServiceSlotProvider & { earliestStartTime?: string }> }>(
+    `/public/${slug}/packages/${packageId}/providers?${params.toString()}`,
+  );
 }
 
 export type BookPublicPackageBody = {
