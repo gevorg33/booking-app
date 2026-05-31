@@ -94,45 +94,45 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 #### Plan configuration (admin)
 
-- [ ] **sub-1.1** — Subscription plan CRUD — name, associated service(s), duration (3 / 6 / 12 months or custom), included appointment count, start/expiration rules, pricing model, discount (fixed amount or % vs pay-per-appointment)
-- [ ] **sub-1.2** — Multiple plans per service — same service, different durations/discounts (e.g. Nail Care: 6 appts @ 5%, 12 @ 10%, 24 @ 20%)
-- [ ] **sub-1.3** — Pricing preview — show regular total (single price × appointments), subscription price after discount, total customer savings
+- [x] **sub-1.1** — Subscription plan CRUD — name, associated service(s), duration (3 / 6 / 12 months or custom), included appointment count, start/expiration rules, pricing model, discount (fixed amount or % vs pay-per-appointment)
+- [x] **sub-1.2** — Multiple plans per service — same service, different durations/discounts (e.g. Nail Care: 6 appts @ 5%, 12 @ 10%, 24 @ 20%)
+- [x] **sub-1.3** — Pricing preview — show regular total (single price × appointments), subscription price after discount, total customer savings
 
 #### Customer subscription lifecycle
 
-- [ ] **sub-1.4** — DB schema — `subscription_plans`, `customer_subscriptions`, `subscription_usage` (or equivalent); migration + indexes
-- [ ] **sub-1.5** — Activation & expiration — enforce period boundaries; status: active / expired / exhausted / cancelled
-- [ ] **sub-1.6** — Remaining balance — track appointments left; block booking when balance is 0
-- [ ] **sub-1.7** — Usage history — audit log per subscription (booking consumed, date, service, remaining after)
+- [x] **sub-1.4** — DB schema — `subscription_plans`, `customer_subscriptions`, `subscription_usage` (or equivalent); migration + indexes
+- [x] **sub-1.5** — Activation & expiration — enforce period boundaries; status: active / expired / exhausted / cancelled
+- [x] **sub-1.6** — Remaining balance — track appointments left; block booking when balance is 0
+- [x] **sub-1.7** — Usage history — audit log per subscription (booking consumed, date, service, remaining after)
 
 #### Booking & validation
 
-- [ ] **sub-1.8** — API — plan management, assign/purchase subscription for customer, balance lookup, usage endpoints
-- [ ] **sub-1.9** — Booking flow integration — eligible bookings consume subscription credits before charging standard service fee; show active subscription + remaining count in UI
-- [ ] **sub-1.10** — Validation — prevent over-booking beyond remaining balance; handle cancellation/refund credit policy (define: restore credit on cancel or not)
+- [x] **sub-1.8** — API — plan management, assign/purchase subscription for customer, balance lookup, usage endpoints
+- [x] **sub-1.9** — Booking flow integration — eligible bookings consume subscription credits before charging standard service fee; show active subscription + remaining count in UI
+- [x] **sub-1.10** — Validation — prevent over-booking beyond remaining balance; handle cancellation/refund credit policy (define: restore credit on cancel or not)
 
 #### Dashboard UI
 
-- [ ] **sub-1.11** — Admin UI — list/create/edit subscription plans under Services or Monetization
-- [ ] **sub-1.12** — Dashboard customer profile — staff view of customer subscriptions: plan name, service, status, **expiration date**, **appointments remaining / included**, usage history
+- [x] **sub-1.11** — Admin UI — list/create/edit subscription plans under Services or Monetization
+- [x] **sub-1.12** — Dashboard customer profile — staff view of customer subscriptions: plan name, service, status, **expiration date**, **appointments remaining / included**, usage history
 
 #### Public booking app (consumer)
 
 **User story:** As a customer booking online, I want to see when a service offers subscription plans and choose between a one-time visit or subscribing to a plan.
 
-- [ ] **sub-1.13** — Service list/detail badge — if a service has active subscription plans, show indicator (e.g. “Plans available”, “Subscribe & save”) on service card and service detail
-- [ ] **sub-1.14** — Purchase type selector — after selecting a service with plans, offer **One-time appointment** vs **Subscription** (side-by-side or segmented control); default to one-time; hide subscription option when service has no plans
-- [ ] **sub-1.15** — Plan picker — when **Subscription** is selected, list available plans for that service (duration, included appointments, discount, regular vs subscription price, savings); customer selects one plan before continuing
-- [ ] **sub-1.16** — Subscribe & book checkout — new subscription purchase flow: pay subscription price (Stripe), create `customer_subscription`, then book first appointment (or prompt to book now vs later per start rules)
-- [ ] **sub-1.17** — Existing subscription path — if customer already has an active subscription for the service, show remaining appointments + **Use subscription** vs **Pay one-time**; pre-select subscription when balance > 0
-- [ ] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
-- [ ] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
+- [x] **sub-1.13** — Service list/detail badge — if a service has active subscription plans, show indicator (e.g. “Plans available”, “Subscribe & save”) on service card and service detail
+- [x] **sub-1.14** — Purchase type selector — after selecting a service with plans, offer **One-time appointment** vs **Subscription** (side-by-side or segmented control); default to one-time; hide subscription option when service has no plans
+- [x] **sub-1.15** — Plan picker — when **Subscription** is selected, list available plans for that service (duration, included appointments, discount, regular vs subscription price, savings); customer selects one plan before continuing
+- [x] **sub-1.16** — Subscribe & book checkout — new subscription purchase flow: pay subscription price (Stripe), create `customer_subscription`, then book first appointment (or prompt to book now vs later per start rules)
+- [x] **sub-1.17** — Existing subscription path — if customer already has an active subscription for the service, show remaining appointments + **Use subscription** vs **Pay one-time**; pre-select subscription when balance > 0
+- [x] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
+- [x] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
 
 *(Integrates with **gap-2.5** consumer app — Sprint 10.)*
 
 #### Future-ready
 
-- [ ] **sub-1.20** — Schema & API design — support future multi-service subscription bundles (don't ship bundles yet; avoid rework)
+- [x] **sub-1.20** — Schema & API design — support future multi-service subscription bundles (don't ship bundles yet; avoid rework)
 
 **Example (Nail Care @ $25/visit):**
 

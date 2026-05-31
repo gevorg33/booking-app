@@ -221,6 +221,20 @@ export class PublicBookingController {
     );
   }
 
+  @Get('me/subscriptions/:subscriptionId/usage')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMySubscriptionUsage(
+    @Param('slug') slug: string,
+    @Param('subscriptionId') subscriptionId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerSubscriptionUsage(
+      slug,
+      user.customerId,
+      subscriptionId,
+    );
+  }
+
   @Get('me/data')
   @UseGuards(PublicCustomerAuthGuard)
   exportMyData(@CurrentUser() user: PublicCustomerRequestUser) {

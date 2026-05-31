@@ -12,6 +12,7 @@ export enum EventType {
 
   // Payment events
   PAYMENT_RECEIVED = 'payment.received',
+  SUBSCRIPTION_PURCHASED = 'subscription.purchased',
 
   // Review events
   REVIEW_RECEIVED = 'review.received',

@@ -46,14 +46,45 @@ export class ServiceSubscriptionsService {
     private customerRepo: Repository<Customer>,
   ) {}
 
-  async listPlans(businessId: string, serviceId?: string) {
-    const where: Record<string, unknown> = { businessId, isActive: true };
+  async listPlans(businessId: string, serviceId?: string, includeInactive = false) {
+    const where: Record<string, unknown> = { businessId };
+    if (!includeInactive) where.isActive = true;
     if (serviceId) where.serviceId = serviceId;
     return this.planRepo.find({
       where,
       relations: { service: true },
       order: { durationMonths: 'ASC', includedAppointments: 'ASC' },
     });
+  }
+
+  async deactivatePlan(businessId: string, planId: string) {
+    return this.updatePlan(businessId, planId, { isActive: false });
+  }
+
+  async cancelSubscription(businessId: string, subscriptionId: string) {
+    const sub = await this.subscriptionRepo.findOne({
+      where: { id: subscriptionId, businessId },
+    });
+    if (!sub) throw new NotFoundException('Subscription not found');
+    sub.status = CustomerSubscriptionStatus.CANCELLED;
+    return this.subscriptionRepo.save(sub);
+  }
+
+  async getPlanCheckoutDetails(businessId: string, planId: string) {
+    const preview = await this.previewPlanPricing(businessId, planId);
+    const plan = await this.planRepo.findOne({
+      where: { id: planId, businessId, isActive: true },
+      relations: { service: true },
+    });
+    if (!plan) throw new NotFoundException('Subscription plan not found');
+    return {
+      amount: preview.pricing.subscriptionPrice,
+      currency: plan.service.currency ?? 'USD',
+      planName: plan.name,
+      includedAppointments: plan.includedAppointments,
+      durationMonths: plan.durationMonths,
+      preview,
+    };
   }
 
   async createPlan(businessId: string, dto: CreateSubscriptionPlanDto) {
@@ -296,12 +327,31 @@ export class ServiceSubscriptionsService {
   async getUsageHistory(businessId: string, subscriptionId: string) {
     const sub = await this.subscriptionRepo.findOne({
       where: { id: subscriptionId, businessId },
+      relations: { plan: { service: true } },
     });
     if (!sub) throw new NotFoundException('Subscription not found');
-    return this.usageRepo.find({
+    const usage = await this.usageRepo.find({
       where: { subscriptionId },
       order: { createdAt: 'DESC' },
     });
+    return { subscription: this.syncStatus(sub), usage };
+  }
+
+  async getCustomerSubscriptionUsage(
+    businessId: string,
+    customerId: string,
+    subscriptionId: string,
+  ) {
+    const sub = await this.subscriptionRepo.findOne({
+      where: { id: subscriptionId, businessId, customerId },
+      relations: { plan: { service: true } },
+    });
+    if (!sub) throw new NotFoundException('Subscription not found');
+    const usage = await this.usageRepo.find({
+      where: { subscriptionId },
+      order: { createdAt: 'DESC' },
+    });
+    return { subscription: this.syncStatus(sub), usage };
   }
 
   async serviceIdsWithActivePlans(businessId: string): Promise<string[]> {

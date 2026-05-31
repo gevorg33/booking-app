@@ -446,8 +446,23 @@ export function CheckoutForm({
         </div>
         <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
           <span className="font-semibold text-gray-900">{t('public.total')}</span>
-          <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
+          <span className="font-semibold text-gray-900">
+            {usingSubscriptionCredit
+              ? formatPrice(0, service.currency)
+              : purchaseType === 'subscription' && selectedPlan
+                ? formatPrice(selectedPlan.preview.pricing.subscriptionPrice, service.currency)
+                : formatPrice(service.price, service.currency)}
+          </span>
         </div>
+        {(usingSubscriptionCredit || purchaseType === 'subscription') && (
+          <p className="text-sm text-emerald-700 mt-2">
+            {usingSubscriptionCredit
+              ? `Using subscription — ${Math.max(0, (activeSubscription?.appointmentsRemaining ?? 1) - 1)} visits left after this booking`
+              : selectedPlan
+                ? `Plan includes ${selectedPlan.includedAppointments} visits — first visit ${selectedPlan.preview.pricing.perAppointmentPrice ? `(${formatPrice(selectedPlan.preview.pricing.perAppointmentPrice, service.currency)} effective)` : 'included'}`
+                : null}
+          </p>
+        )}
         {dueNow > 0 && (
           <p className="text-sm text-violet-700 mt-2">
             {t('public.totalDue')}: {formatPrice(dueNow, service.currency)}

@@ -965,6 +965,16 @@ export class PublicBookingService {
     return this.loyaltyService.getPublicSummary(account, business.settings);
   }
 
+  async getCustomerSubscriptionUsage(slug: string, customerId: string, subscriptionId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.subscriptionsService.getCustomerSubscriptionUsage(
+      business.id,
+      customerId,
+      subscriptionId,
+    );
+  }
+
   async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -982,11 +992,6 @@ export class PublicBookingService {
     const prepaymentRequired = paymentsReady && service.prepaymentMode !== PrepaymentMode.NONE;
 
     let useSubscriptionId = dto.useSubscriptionId;
-    if (dto.purchasePlanId) {
-      if (!authenticatedCustomerId) {
-        throw new BadRequestException('Sign in is required to purchase a subscription');
-      }
-    }
 
     const pricing = await this.bookingPaymentService.resolveCheckoutPricing(
       business.id,
@@ -1024,6 +1029,12 @@ export class PublicBookingService {
         business.id,
         customer.id,
         dto.purchasePlanId,
+        {
+          pricePaid:
+            dto.metadata?.subscriptionPricePaid != null
+              ? Number(dto.metadata.subscriptionPricePaid)
+              : undefined,
+        },
       );
       if (dto.useSubscriptionCreditOnPurchase !== false) {
         useSubscriptionId = purchased.id;

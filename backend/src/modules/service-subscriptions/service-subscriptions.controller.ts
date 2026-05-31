@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ServiceSubscriptionsService } from './service-subscriptions.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -16,10 +16,15 @@ export class ServiceSubscriptionsController {
   async listPlans(
     @Param('businessId') businessId: string,
     @Query('serviceId') serviceId: string | undefined,
+    @Query('includeInactive') includeInactive: string | undefined,
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    const plans = await this.subscriptionsService.listPlans(businessId, serviceId);
+    const plans = await this.subscriptionsService.listPlans(
+      businessId,
+      serviceId,
+      includeInactive === 'true',
+    );
     return Promise.all(
       plans.map(async (plan) => ({
         ...plan,
@@ -49,6 +54,16 @@ export class ServiceSubscriptionsController {
     return this.subscriptionsService.updatePlan(businessId, planId, dto as any);
   }
 
+  @Patch('plans/:planId/deactivate')
+  async deactivatePlan(
+    @Param('businessId') businessId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.subscriptionsService.deactivatePlan(businessId, planId);
+  }
+
   @Get('plans/:planId/preview')
   async previewPlan(
     @Param('businessId') businessId: string,
@@ -62,7 +77,7 @@ export class ServiceSubscriptionsController {
   @Post('assign')
   async assign(
     @Param('businessId') businessId: string,
-    @Body() dto: { customerId: string; planId: string },
+    @Body() dto: { customerId: string; planId: string; startsAt?: string },
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
@@ -70,6 +85,7 @@ export class ServiceSubscriptionsController {
       businessId,
       dto.customerId,
       dto.planId,
+      dto.startsAt ? { startsAt: new Date(dto.startsAt) } : undefined,
     );
   }
 
@@ -81,6 +97,32 @@ export class ServiceSubscriptionsController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.subscriptionsService.listCustomerSubscriptions(businessId, customerId);
+  }
+
+  @Get('customer/:customerId/active')
+  async activeForService(
+    @Param('businessId') businessId: string,
+    @Param('customerId') customerId: string,
+    @Query('serviceId') serviceId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const subscription = await this.subscriptionsService.getActiveForCustomerService(
+      businessId,
+      customerId,
+      serviceId,
+    );
+    return { subscription };
+  }
+
+  @Post('customer/:customerId/:subscriptionId/cancel')
+  async cancelSubscription(
+    @Param('businessId') businessId: string,
+    @Param('subscriptionId') subscriptionId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.subscriptionsService.cancelSubscription(businessId, subscriptionId);
   }
 
   @Get(':subscriptionId/usage')

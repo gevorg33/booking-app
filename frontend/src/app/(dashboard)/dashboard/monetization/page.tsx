@@ -176,10 +176,12 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     name: '',
     serviceId: '',
     durationMonths: '3',
+    customDurationMonths: '',
     includedAppointments: '6',
     discountType: 'percent' as 'percent' | 'fixed',
     discountValue: '5',
   });
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [assignCustomerId, setAssignCustomerId] = useState('');
   const [assignPlanId, setAssignPlanId] = useState('');
   const [selectedServicePrice, setSelectedServicePrice] = useState(25);
@@ -200,6 +202,11 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
   });
 
+  const resolvedDurationMonths =
+    form.durationMonths === 'custom'
+      ? parseInt(form.customDurationMonths, 10)
+      : parseInt(form.durationMonths, 10);
+
   const preview = calculateSubscriptionPricing(
     selectedServicePrice,
     parseInt(form.includedAppointments, 10) || 0,
@@ -209,26 +216,48 @@ function MembershipsTab({ businessId }: { businessId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${businessId}/subscriptions/plans`, {
+      const payload = {
         name: form.name,
         serviceId: form.serviceId,
-        durationMonths: parseInt(form.durationMonths, 10),
+        durationMonths: resolvedDurationMonths,
         includedAppointments: parseInt(form.includedAppointments, 10),
         discountType: form.discountType,
         discountValue: parseFloat(form.discountValue),
-      });
+      };
+      if (editingPlanId) {
+        const { data } = await api.put(
+          `/businesses/${businessId}/subscriptions/plans/${editingPlanId}`,
+          payload,
+        );
+        return data;
+      }
+      const { data } = await api.post(`/businesses/${businessId}/subscriptions/plans`, payload);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+      setEditingPlanId(null);
       setForm({
         name: '',
         serviceId: '',
         durationMonths: '3',
+        customDurationMonths: '',
         includedAppointments: '6',
         discountType: 'percent',
         discountValue: '5',
       });
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { data } = await api.patch(
+        `/businesses/${businessId}/subscriptions/plans/${planId}/deactivate`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
     },
   });
 
@@ -294,8 +323,22 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             <option value="3">3 months</option>
             <option value="6">6 months</option>
             <option value="12">12 months</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
+        {form.durationMonths === 'custom' && (
+          <div>
+            <label className="label">Custom months</label>
+            <input
+              type="number"
+              min="1"
+              className="input"
+              value={form.customDurationMonths}
+              onChange={(e) => setForm({ ...form, customDurationMonths: e.target.value })}
+              required
+            />
+          </div>
+        )}
         <div>
           <label className="label">Included appointments</label>
           <input
@@ -347,8 +390,28 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Create subscription plan
+            {editingPlanId ? 'Update subscription plan' : 'Create subscription plan'}
           </button>
+          {editingPlanId && (
+            <button
+              type="button"
+              className="btn-secondary text-sm ml-2"
+              onClick={() => {
+                setEditingPlanId(null);
+                setForm({
+                  name: '',
+                  serviceId: '',
+                  durationMonths: '3',
+                  customDurationMonths: '',
+                  includedAppointments: '6',
+                  discountType: 'percent',
+                  discountValue: '5',
+                });
+              }}
+            >
+              Cancel edit
+            </button>
+          )}
         </div>
       </form>
 
@@ -369,6 +432,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Appointments</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Price</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Savings</th>
+                <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
             <tbody>
@@ -383,6 +447,39 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                   </td>
                   <td className="px-4 py-3 text-emerald-400">
                     ${Number(plan.preview?.pricing?.savings ?? 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button
+                      type="button"
+                      className="text-xs text-blue-400"
+                      onClick={() => {
+                        setEditingPlanId(plan.id);
+                        const preset = ['3', '6', '12'].includes(String(plan.durationMonths))
+                          ? String(plan.durationMonths)
+                          : 'custom';
+                        setForm({
+                          name: plan.name,
+                          serviceId: plan.serviceId,
+                          durationMonths: preset,
+                          customDurationMonths: preset === 'custom' ? String(plan.durationMonths) : '',
+                          includedAppointments: String(plan.includedAppointments),
+                          discountType: plan.discountType,
+                          discountValue: String(plan.discountValue),
+                        });
+                        setSelectedServicePrice(Number(plan.service?.price ?? 0));
+                      }}
+                    >
+                      Edit
+                    </button>
+                    {plan.isActive !== false && (
+                      <button
+                        type="button"
+                        className="text-xs text-red-400"
+                        onClick={() => deactivateMutation.mutate(plan.id)}
+                      >
+                        Deactivate
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

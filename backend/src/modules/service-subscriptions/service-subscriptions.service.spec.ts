@@ -272,9 +272,93 @@ describe('ServiceSubscriptionsService', () => {
   });
 
   it('returns usage history', async () => {
-    subscriptionRepo.findOne.mockResolvedValue({ id: 'sub-1' });
+    subscriptionRepo.findOne.mockResolvedValue({ id: 'sub-1', plan: { service: { name: 'Cut' } } });
     usageRepo.find.mockResolvedValue([{ id: 'u1' }]);
-    await expect(service.getUsageHistory('biz-1', 'sub-1')).resolves.toEqual([{ id: 'u1' }]);
+    const result = await service.getUsageHistory('biz-1', 'sub-1');
+    expect(result.usage).toEqual([{ id: 'u1' }]);
+  });
+
+  it('deactivates plan', async () => {
+    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
+    planRepo.save.mockImplementation(async (v) => v);
+    const updated = await service.deactivatePlan('biz-1', 'plan-1');
+    expect(updated.isActive).toBe(false);
+  });
+
+  it('cancels customer subscription', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({ id: 'sub-1', businessId: 'biz-1', status: 'active' });
+    subscriptionRepo.save.mockImplementation(async (v) => v);
+    const updated = await service.cancelSubscription('biz-1', 'sub-1');
+    expect(updated.status).toBe(CustomerSubscriptionStatus.CANCELLED);
+  });
+
+  it('returns plan checkout details', async () => {
+    planRepo.findOne.mockResolvedValue(basePlan);
+    const details = await service.getPlanCheckoutDetails('biz-1', 'plan-1');
+    expect(details.amount).toBe(142.5);
+    expect(details.planName).toBe('Short');
+  });
+
+  it('lists plans including inactive when requested', async () => {
+    planRepo.find.mockResolvedValue([]);
+    await service.listPlans('biz-1', undefined, true);
+    expect(planRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { businessId: 'biz-1' } }),
+    );
+  });
+
+  it('returns customer subscription usage for owner', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      plan: { service: { name: 'Cut' } },
+      status: CustomerSubscriptionStatus.ACTIVE,
+      startsAt: new Date('2020-01-01'),
+      expiresAt: new Date('2030-01-01'),
+      appointmentsRemaining: 2,
+    });
+    usageRepo.find.mockResolvedValue([{ id: 'u1', action: 'consume' }]);
+    const result = await service.getCustomerSubscriptionUsage('biz-1', 'cust-1', 'sub-1');
+    expect(result.usage).toHaveLength(1);
+  });
+
+  it('assigns with custom start date', async () => {
+    planRepo.findOne.mockResolvedValue(basePlan);
+    const startsAt = new Date('2026-06-01');
+    await service.assignSubscription('biz-1', 'cust-1', 'plan-1', { startsAt });
+    expect(subscriptionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ startsAt }),
+    );
+  });
+
+  it('assertCanConsume rejects zero balance while still marked active', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      appointmentsRemaining: 0,
+      startsAt: new Date('2020-01-01'),
+      expiresAt: new Date('2030-01-01'),
+      status: CustomerSubscriptionStatus.ACTIVE,
+      plan: { serviceId: 'svc-1' },
+    });
+    await expect(
+      service.assertCanConsume('biz-1', 'sub-1', 'cust-1', 'svc-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('throws when customer subscription usage missing', async () => {
+    subscriptionRepo.findOne.mockResolvedValue(null);
+    await expect(
+      service.getCustomerSubscriptionUsage('biz-1', 'cust-1', 'sub-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('updatePlan validates service when serviceId changes', async () => {
+    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', name: 'Old' });
+    serviceRepo.findOne.mockResolvedValue(null);
+    await expect(
+      service.updatePlan('biz-1', 'plan-1', { serviceId: 'svc-x' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects wrong service on consume assert', async () => {

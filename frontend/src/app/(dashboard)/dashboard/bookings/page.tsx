@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -382,6 +382,7 @@ export default function BookingsPage() {
     notes: '',
     description: '',
   });
+  const [useSubscriptionId, setUseSubscriptionId] = useState<string | null>(null);
 
   const dayStr  = toDateKey(day);
   const isToday = dayStr === getTodayDateKey();
@@ -496,6 +497,27 @@ export default function BookingsPage() {
     && isValidTime24(form.startTime)
     && isTimeInRange(form.startTime, periodMinTime, latestStart);
 
+  const { data: activeSubscription } = useQuery({
+    queryKey: ['active-subscription', business?.id, form.customerId, form.serviceId],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${business!.id}/subscriptions/customer/${form.customerId}/active`,
+        { params: { serviceId: form.serviceId } },
+      );
+      const res = (data as { data?: { subscription?: { id: string; appointmentsRemaining: number } } })?.data ?? data;
+      return (res as { subscription?: { id: string; appointmentsRemaining: number } }).subscription ?? null;
+    },
+    enabled: !!business?.id && !!form.customerId && !!form.serviceId,
+  });
+
+  useEffect(() => {
+    if (activeSubscription?.id) {
+      setUseSubscriptionId(activeSubscription.id);
+    } else {
+      setUseSubscriptionId(null);
+    }
+  }, [activeSubscription?.id]);
+
   const [formResetKey, setFormResetKey] = useState(0);
 
   const createMutation = useMutation({
@@ -517,6 +539,7 @@ export default function BookingsPage() {
       };
       if (form.notes)       payload.notes       = form.notes;
       if (form.description) payload.description = form.description;
+      if (useSubscriptionId) payload.useSubscriptionId = useSubscriptionId;
       const { data } = await api.post(`/businesses/${business!.id}/bookings`, payload);
       return data;
     },
@@ -525,6 +548,7 @@ export default function BookingsPage() {
       queryClient.invalidateQueries({ queryKey: ['provider-calendar'] });
       setSelectedPeriod(null);
       setForm({ startTime: '', serviceId: '', customerId: '', notes: '', description: '' });
+      setUseSubscriptionId(null);
       setFormResetKey((k) => k + 1);
     },
   });
@@ -937,6 +961,25 @@ export default function BookingsPage() {
                     />
                   ) : null}
                 </div>
+
+                {activeSubscription && activeSubscription.appointmentsRemaining > 0 && (
+                  <div className="rounded-lg border border-emerald-800/40 bg-emerald-900/10 p-3">
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useSubscriptionId === activeSubscription.id}
+                        onChange={(e) =>
+                          setUseSubscriptionId(e.target.checked ? activeSubscription.id : null)
+                        }
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Use subscription credit ({activeSubscription.appointmentsRemaining} visits
+                        remaining) — no service charge
+                      </span>
+                    </label>
+                  </div>
+                )}
 
                 {/* Start time within the period */}
                 <div>

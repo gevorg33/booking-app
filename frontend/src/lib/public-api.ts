@@ -369,6 +369,19 @@ export function getPublicCustomerSubscriptions(slug: string) {
   return publicFetch<PublicCustomerSubscription[]>(`/public/${slug}/me/subscriptions`);
 }
 
+export interface PublicSubscriptionUsageRow {
+  id: string;
+  action: string;
+  appointmentsRemainingAfter: number;
+  createdAt: string;
+}
+
+export function getPublicCustomerSubscriptionUsage(slug: string, subscriptionId: string) {
+  return publicFetch<{ subscription: PublicCustomerSubscription; usage: PublicSubscriptionUsageRow[] }>(
+    `/public/${slug}/me/subscriptions/${subscriptionId}/usage`,
+  );
+}
+
 export function getPublicActiveSubscription(slug: string, serviceId: string) {
   return publicFetch<{ subscription: PublicCustomerSubscription | null }>(
     `/public/${slug}/me/subscriptions/active?serviceId=${encodeURIComponent(serviceId)}`,

@@ -140,6 +140,27 @@ export function ServiceList({
         </section>
       ))}
 
+      {selectedServiceId && (() => {
+        const selected = services.find((s) => s.id === selectedServiceId);
+        if (!selected) return null;
+        return (
+          <div className="mt-4 p-4 rounded-2xl bg-violet-50 border border-violet-100">
+            <p className="text-sm font-semibold text-gray-900">{selected.name}</p>
+            {selected.description && (
+              <p className="text-sm text-gray-600 mt-1">{selected.description}</p>
+            )}
+            <p className="text-sm text-gray-700 mt-2">
+              One-time visit: {formatPrice(selected.price, selected.currency)}
+            </p>
+            {selected.hasSubscriptionPlans && (
+              <p className="text-sm text-emerald-700 mt-1 font-medium">
+                Subscription plans available — choose Subscribe & save at checkout
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       <FixedActionBar
         primaryColor={primaryColor}
         disabled={!selectedServiceId}

@@ -26,6 +26,8 @@ function CustomerSubscriptionsSection({
   businessId: string;
   customerId: string;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: ['customer-subscriptions', businessId, customerId],
     queryFn: async () => {
@@ -45,6 +47,17 @@ function CustomerSubscriptionsSection({
     },
   });
 
+  const { data: usageData, isLoading: usageLoading } = useQuery({
+    queryKey: ['customer-subscription-usage', businessId, expandedId],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/${expandedId}/usage`,
+      );
+      return unwrap<{ usage: Array<{ id: string; action: string; createdAt: string; appointmentsRemainingAfter: number }> }>(data);
+    },
+    enabled: !!expandedId,
+  });
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-4">
@@ -54,7 +67,7 @@ function CustomerSubscriptionsSection({
   }
 
   if (subscriptions.length === 0) {
-    return <p className="text-sm text-gray-500">No active subscriptions</p>;
+    return <p className="text-sm text-gray-500">No subscriptions</p>;
   }
 
   return (
@@ -77,6 +90,33 @@ function CustomerSubscriptionsSection({
             {sub.appointmentsRemaining} / {sub.appointmentsIncluded} appointments left · expires{' '}
             {formatDateDisplay(new Date(sub.expiresAt))}
           </p>
+          <button
+            type="button"
+            className="text-xs text-blue-400 mt-2"
+            onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
+          >
+            {expandedId === sub.id ? 'Hide usage' : 'View usage history'}
+          </button>
+          {expandedId === sub.id && (
+            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
+              {usageLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+              ) : usageData?.usage?.length ? (
+                <ul className="space-y-1 text-xs text-gray-500">
+                  {usageData.usage.map((row) => (
+                    <li key={row.id} className="flex justify-between gap-2">
+                      <span className="capitalize">{row.action}</span>
+                      <span>
+                        {formatDateDisplay(new Date(row.createdAt))} · {row.appointmentsRemainingAfter} left
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">No usage yet</p>
+              )}
+            </div>
+          )}
         </li>
       ))}
     </ul>
