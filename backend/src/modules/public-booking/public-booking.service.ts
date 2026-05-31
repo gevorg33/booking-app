@@ -46,7 +46,7 @@ import {
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { resolvePackageCheckoutGraceHours } from '../../common/utils/package-pricing.util.js';
-import { validatePackageBookingLines } from '../../common/utils/package-booking.util.js';
+import { validatePackageBookingLines, validatePackageSameDayBlock } from '../../common/utils/package-booking.util.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import {
   buildSequentialAppointments,
@@ -1037,46 +1037,52 @@ export class PublicBookingService {
   }
 
   async suggestPackageLineSlots(slug: string, packageId: string) {
-    const business = await this.resolveBusiness(slug);
-    this.assertPublicBookingEnabled(business);
-    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
-    const pkg = await this.packagesService.assertPackageBookable(
-      business.id,
-      packageId,
-      graceHours,
-    );
-    const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
-    const suggestions: Array<{
-      serviceId: string;
-      serviceName: string;
-      startTime: string;
-      employeeId: string;
-      employeeName: string;
-    }> = [];
-
-    let notBefore: string | null = null;
-    for (const serviceId of serviceIds) {
-      const item = pkg.items!.find((entry) => entry.serviceId === serviceId);
-      const nearest = await this.findNearestBookableSlot(slug, {
-        serviceId,
-        notBeforeTime: notBefore,
-      });
-      if (!nearest) {
-        throw new BadRequestException(
-          `No available slot found for ${item?.service?.name ?? 'a bundled service'}`,
-        );
-      }
-      suggestions.push({
-        serviceId,
-        serviceName: item?.service?.name ?? '',
-        startTime: nearest.startTime,
-        employeeId: nearest.employeeId,
-        employeeName: nearest.employeeName,
-      });
-      notBefore = nearest.startTime;
+    const ctx = await this.resolvePackageBlockContext(slug, packageId);
+    let block: Awaited<ReturnType<PublicBookingService['suggestPackageBlock']>>;
+    try {
+      block = await this.suggestPackageBlock(slug, packageId);
+    } catch {
+      throw new BadRequestException('No available same-day block found for this package');
     }
 
-    return { lines: suggestions };
+    const sequential = buildSequentialAppointments(
+      ctx.services,
+      new Date(block.startTime),
+      ctx.settings.turnoverBufferMinutes,
+    );
+    const nameByServiceId = new Map(ctx.services.map((svc) => [svc.serviceId, svc.name ?? '']));
+
+    return {
+      dateKey: block.dateKey,
+      blockStartTime: block.startTime,
+      lines: sequential.map((appt) => ({
+        serviceId: appt.serviceId,
+        serviceName: nameByServiceId.get(appt.serviceId) ?? '',
+        startTime: appt.startTime.toISOString(),
+        employeeId: block.employeeId,
+        employeeName: block.employeeName,
+      })),
+    };
+  }
+
+  async suggestPackageBlock(slug: string, packageId: string) {
+    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
+    return this.suggestMultiServiceBlock(slug, serviceIds);
+  }
+
+  async getPackageBlockDaySlots(slug: string, packageId: string, date: string) {
+    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
+    return this.getMultiServiceBlockDaySlots(slug, serviceIds, date);
+  }
+
+  async getPackageBlockProviders(
+    slug: string,
+    packageId: string,
+    startTime: string,
+    includeLaterDays = false,
+  ) {
+    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
+    return this.getMultiServiceBlockProviders(slug, serviceIds, startTime, includeLaterDays);
   }
 
   async quotePackageCheckout(
@@ -1122,6 +1128,16 @@ export class PublicBookingService {
       throw new BadRequestException((err as Error).message);
     }
 
+    const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
+    const services = await this.loadOrderedMultiServiceLines(business.id, serviceIds);
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+
+    try {
+      validatePackageSameDayBlock(services, dto.lines, settings.turnoverBufferMinutes);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
+
     for (const line of dto.lines) {
       if (!line.employeeId) {
         const resolved = await this.resolveEmployeeForServiceSlot(
@@ -1134,6 +1150,23 @@ export class PublicBookingService {
         }
         line.employeeId = resolved.employeeId;
       }
+    }
+
+    const primaryEmployeeId = dto.lines[0].employeeId!;
+    for (const line of dto.lines) {
+      line.employeeId = primaryEmployeeId;
+    }
+
+    const blockStart = new Date(dto.lines[0].startTime);
+    const fits = await this.validateMultiServiceBlockAt(
+      business.id,
+      primaryEmployeeId,
+      blockStart,
+      services,
+      settings.turnoverBufferMinutes,
+    );
+    if (!fits) {
+      throw new BadRequestException('That time block is no longer available');
     }
 
     const pricing = await this.bookingPaymentService.resolvePackageCheckoutPricing(
@@ -1167,6 +1200,7 @@ export class PublicBookingService {
 
     const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
     const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
+    const sameVisitMultiService = dto.lines.length > 1;
     for (const line of dto.lines) {
       const booking = await this.bookingService.create(
         business.id,
@@ -1185,7 +1219,7 @@ export class PublicBookingService {
           },
         },
         undefined,
-        { paymentStatus },
+        { paymentStatus, sameVisitMultiService },
       );
       bookings.push(booking);
     }
@@ -1618,6 +1652,34 @@ export class PublicBookingService {
       bookings,
       customer: { id: customer.id, name: customer.name, created },
       pricing,
+    };
+  }
+
+  private async resolvePackageBlockContext(slug: string, packageId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const pkg = await this.packagesService.assertPackageBookable(
+      business.id,
+      packageId,
+      graceHours,
+    );
+    const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
+    const services = await this.loadOrderedMultiServiceLines(business.id, serviceIds);
+    const employees = await this.findQualifiedMultiServiceEmployees(business.id, serviceIds);
+    if (!employees.length) {
+      throw new BadRequestException('No provider can perform all included package services');
+    }
+    return {
+      business,
+      pkg,
+      serviceIds,
+      settings,
+      preview,
+      services,
+      employees,
     };
   }
 

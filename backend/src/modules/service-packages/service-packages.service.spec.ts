@@ -433,7 +433,28 @@ describe('ServicePackagesService', () => {
     } as any);
     expect(preview.items[0].serviceName).toBe('Massage');
     expect(preview.items[0].durationMinutes).toBe(90);
+    expect(preview.items[0].bufferMinutes).toBe(0);
     expect(preview.items[0].quantity).toBe(2);
+  });
+
+  it('preview includes service buffer minutes when configured', () => {
+    const preview = service.previewFromPackage({
+      ...basePackage,
+      items: [
+        {
+          serviceId: 'svc-1',
+          quantity: 1,
+          service: {
+            name: 'Massage',
+            price: 80,
+            currency: 'USD',
+            durationMinutes: 90,
+            bufferMinutes: 15,
+          },
+        },
+      ],
+    } as any);
+    expect(preview.items[0].bufferMinutes).toBe(15);
   });
 
   it('lists all packages including inactive when requested', async () => {

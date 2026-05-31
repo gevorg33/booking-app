@@ -232,6 +232,7 @@ export class ServicePackagesService {
       serviceId: item.serviceId,
       serviceName: item.service?.name ?? '',
       durationMinutes: item.service?.durationMinutes ?? 0,
+      bufferMinutes: item.service?.bufferMinutes ?? 0,
     }));
 
     const pricing = calculatePackagePricing(
