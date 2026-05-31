@@ -30,6 +30,24 @@ interface CatalogCategoryDraft {
   services: CatalogServiceDraft[];
 }
 
+interface VerticalPlaybookPreview {
+  businessType: string;
+  playbookId: string;
+  labelKey: string;
+  descriptionKey: string;
+  serviceCount: number;
+  scheduleTemplates: Array<{
+    name: string;
+    applyDays: number[];
+    timePeriods: Array<{
+      startTime: string;
+      endTime: string;
+      type: string;
+      daysActive: string[];
+    }>;
+  }>;
+}
+
 type Step = 'type' | 'review' | 'schedule' | 'link' | 'done';
 
 function unwrap<T>(res: unknown): T {
@@ -56,6 +74,15 @@ export default function OnboardingPage() {
       return result.types;
     },
     enabled: !!business?.id,
+  });
+
+  const { data: playbookPreview } = useQuery({
+    queryKey: ['onboarding-vertical-playbook', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/onboarding/vertical-playbook`);
+      return unwrap<VerticalPlaybookPreview>(data);
+    },
+    enabled: !!business?.id && (step === 'review' || step === 'schedule'),
   });
 
   const saveTypeMutation = useMutation({
@@ -119,6 +146,18 @@ export default function OnboardingPage() {
       await api.post(`/businesses/${business!.id}/onboarding/skip-schedule`);
     },
     onSuccess: () => setStep('link'),
+  });
+
+  const applyPlaybookMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/onboarding/apply-playbook`);
+      return unwrap(data);
+    },
+    onSuccess: () => {
+      setStep('link');
+      setError(null);
+    },
+    onError: () => setError(t('onboarding.playbooks.playbookFailed')),
   });
 
   const completeMutation = useMutation({
@@ -254,6 +293,21 @@ export default function OnboardingPage() {
 
       {step === 'review' && (
         <div className="space-y-6">
+          {playbookPreview && (
+            <div className="card border-violet-500/20 bg-violet-600/5">
+              <h3 className="font-semibold text-gray-100">{t('onboarding.playbooks.previewTitle')}</h3>
+              <p className="text-sm font-medium text-violet-300 mt-1">{t(playbookPreview.labelKey)}</p>
+              <p className="text-sm text-gray-400 mt-1">{t(playbookPreview.descriptionKey)}</p>
+              <p className="text-xs text-gray-500 mt-2">
+                {t('onboarding.playbooks.servicesIncluded', { count: String(playbookPreview.serviceCount) })}
+                {' · '}
+                {t('onboarding.playbooks.templateCount', {
+                  count: String(playbookPreview.scheduleTemplates.length),
+                })}
+              </p>
+            </div>
+          )}
+
           <div className="card bg-violet-600/5 border-violet-500/20">
             <p className="text-sm text-gray-300">{summary}</p>
             <p className="text-xs text-gray-500 mt-2">
@@ -290,7 +344,20 @@ export default function OnboardingPage() {
             <button type="button" onClick={() => setStep('type')} className="btn-secondary">
               {t('onboarding.back')}
             </button>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => applyPlaybookMutation.mutate()}
+                disabled={applyPlaybookMutation.isPending}
+                className="btn-secondary inline-flex items-center gap-2"
+              >
+                {applyPlaybookMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {t('onboarding.playbooks.applyFullPlaybook')}
+              </button>
               <button type="button" onClick={() => setStep('schedule')} className="btn-secondary">
                 {t('onboarding.skip')}
               </button>
@@ -317,6 +384,31 @@ export default function OnboardingPage() {
 
       {step === 'schedule' && (
         <div className="space-y-6">
+          {playbookPreview && (
+            <div className="card border-violet-500/20">
+              <p className="text-sm font-medium text-violet-300">{t(playbookPreview.labelKey)}</p>
+              <p className="text-sm text-gray-400 mt-1">{t(playbookPreview.descriptionKey)}</p>
+              <div className="mt-4 space-y-3">
+                {playbookPreview.scheduleTemplates.map((template) => (
+                  <div key={template.name} className="rounded-lg border border-gray-800 p-3">
+                    <p className="font-medium text-sm text-gray-200">{template.name}</p>
+                    <ul className="mt-2 space-y-1">
+                      {template.timePeriods.map((period) => (
+                        <li key={`${template.name}-${period.startTime}-${period.endTime}`} className="text-xs text-gray-500">
+                          {period.startTime}–{period.endTime}{' '}
+                          {period.type === 'unavailable_block'
+                            ? t('onboarding.playbooks.periodUnavailable')
+                            : t('onboarding.playbooks.periodService')}
+                          {period.daysActive.length > 0 ? ` (${period.daysActive.join(', ')})` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="card">
             <div className="flex items-center gap-3 mb-3">
               <Clock className="w-5 h-5 text-violet-400" />

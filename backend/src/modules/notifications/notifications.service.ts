@@ -16,6 +16,7 @@ import {
   type NotificationChannel,
   type NotificationKind,
 } from './notification.types.js';
+import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
 import { formatDateDisplay, formatTimeRangeDisplay } from '../../common/utils/date-format.util.js';
 
 interface BookingNotificationContext {
@@ -150,6 +151,11 @@ export class NotificationsService {
   async sendReviewRequest(bookingId: string): Promise<void> {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
+
+    const marketingSettings = mergeMarketingAutomationSettings(
+      ctx.business.settings?.marketingAutomation,
+    );
+    if (!marketingSettings.postVisitReviewEnabled) return;
 
     const { booking, businessSettings } = ctx;
     if (booking.status !== BookingStatus.COMPLETED) return;

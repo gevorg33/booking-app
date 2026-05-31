@@ -8,7 +8,6 @@ import { ServiceCategoryService } from '../service/service-category.service.js';
 import { ServiceService } from '../service/service.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
 import { TemplateApplyService } from '../schedule/services/template-apply.service.js';
-import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import {
   BUSINESS_TYPE_OPTIONS,
@@ -16,6 +15,7 @@ import {
   isKnownBusinessType,
   type CatalogCategoryDraft,
 } from './business-types.constants.js';
+import { getVerticalPlaybook, resolveVerticalPlaybookId } from './vertical-playbooks.constants.js';
 import { ApplyCatalogDto, SetBusinessTypeDto } from './dto/onboarding.dto.js';
 
 const CATALOG_SCHEMA = `{
@@ -54,6 +54,57 @@ export class OnboardingService {
 
   getBusinessTypes() {
     return { types: BUSINESS_TYPE_OPTIONS };
+  }
+
+  async getVerticalPlaybookPreview(businessId: string) {
+    const business = await this.findBusiness(businessId);
+    const businessType = business.settings?.businessType;
+    if (!businessType) {
+      throw new BadRequestException('Select a business type first');
+    }
+    const playbook = getVerticalPlaybook(businessType);
+    return {
+      businessType,
+      playbookId: playbook.id,
+      labelKey: playbook.labelKey,
+      descriptionKey: playbook.descriptionKey,
+      categories: playbook.categories,
+      scheduleTemplates: playbook.scheduleTemplates.map((template) => ({
+        name: template.name,
+        applyDays: template.applyDays,
+        timePeriods: template.timePeriods.map((period) => ({
+          startTime: period.startTime,
+          endTime: period.endTime,
+          type: period.type,
+          daysActive: [
+            period.isActiveOnMonday && 'Mon',
+            period.isActiveOnTuesday && 'Tue',
+            period.isActiveOnWednesday && 'Wed',
+            period.isActiveOnThursday && 'Thu',
+            period.isActiveOnFriday && 'Fri',
+            period.isActiveOnSaturday && 'Sat',
+            period.isActiveOnSunday && 'Sun',
+          ].filter(Boolean),
+        })),
+      })),
+      serviceCount: playbook.categories.reduce((sum, cat) => sum + cat.services.length, 0),
+    };
+  }
+
+  async applyVerticalPlaybook(businessId: string, userId: string) {
+    const business = await this.findBusiness(businessId);
+    const businessType = business.settings?.businessType;
+    if (!businessType) {
+      throw new BadRequestException('Select a business type first');
+    }
+    const playbook = getVerticalPlaybook(businessType);
+    const catalogResult = await this.applyCatalog(businessId, { categories: playbook.categories });
+    const scheduleResult = await this.applyPlaybookSchedule(businessId, userId, playbook.id);
+    return {
+      ...catalogResult,
+      ...scheduleResult,
+      playbookId: playbook.id,
+    };
   }
 
   async getStatus(businessId: string) {
@@ -133,12 +184,12 @@ export class OnboardingService {
         source = 'ai';
       } catch (err: any) {
         this.logger.warn(`AI catalog generation failed, using template: ${err.message}`);
-        categories = getFallbackCatalog(businessType);
-        summary = `Starter catalog for ${businessType.replace(/_/g, ' ')} businesses.`;
+        categories = getVerticalPlaybook(businessType).categories;
+        summary = `Starter ${resolveVerticalPlaybookId(businessType)} playbook catalog.`;
       }
     } else {
-      categories = getFallbackCatalog(businessType);
-      summary = `Starter catalog for ${businessType.replace(/_/g, ' ')} businesses.`;
+      categories = getVerticalPlaybook(businessType).categories;
+      summary = `Starter ${resolveVerticalPlaybookId(businessType)} playbook catalog.`;
     }
 
     categories = this.normalizeCatalog(categories);
@@ -210,9 +261,20 @@ export class OnboardingService {
 
   async applyDefaultSchedule(businessId: string, userId: string) {
     const business = await this.findBusiness(businessId);
+    const businessType = business.settings?.businessType ?? 'other';
+    const playbookId = resolveVerticalPlaybookId(businessType);
+    return this.applyPlaybookSchedule(businessId, userId, playbookId);
+  }
+
+  private async applyPlaybookSchedule(
+    businessId: string,
+    userId: string,
+    playbookId: ReturnType<typeof resolveVerticalPlaybookId>,
+  ) {
+    const business = await this.findBusiness(businessId);
     if (await this.businessHasSchedule(businessId)) {
       await this.setOnboardingStep(business, 'link');
-      return { slotsCreated: 0, alreadyConfigured: true, status: await this.getStatus(businessId) };
+      return { slotsCreated: 0, alreadyConfigured: true, status: await this.getStatus(businessId), playbookId };
     }
 
     const employee =
@@ -223,44 +285,57 @@ export class OnboardingService {
       throw new BadRequestException('Add at least one employee before setting up a schedule');
     }
 
-    const template = await this.scheduleService.createTemplate(
-      businessId,
-      {
-        name: 'Weekday hours',
-        timePeriods: [
-          {
-            startTime: '09:00',
-            endTime: '17:00',
-            type: TemplatePeriodType.SERVICE_BLOCK,
-            isActiveOnMonday: true,
-            isActiveOnTuesday: true,
-            isActiveOnWednesday: true,
-            isActiveOnThursday: true,
-            isActiveOnFriday: true,
-            maxAppointmentCount: 1,
-          },
-        ],
-      },
-      userId,
-    );
+    const playbook = getVerticalPlaybook(business.settings?.businessType ?? 'other');
+    if (playbook.id !== playbookId) {
+      throw new BadRequestException('Playbook mismatch');
+    }
 
     const startDate = new Date();
     startDate.setUTCHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setUTCDate(endDate.getUTCDate() + 27);
 
-    const result = await this.templateApplyService.applyTemplate(
-      {
-        templateId: template.id,
-        employeeId: employee.id,
-        startDate: startDate.toISOString().slice(0, 10),
-        endDate: endDate.toISOString().slice(0, 10),
-        applyDays: [1, 2, 3, 4, 5],
-        repeatWeeksCount: 4,
-      },
-      businessId,
-      userId,
-    );
+    let slotsCreated = 0;
+    const templatesApplied: string[] = [];
+
+    for (const draft of playbook.scheduleTemplates) {
+      const template = await this.scheduleService.createTemplate(
+        businessId,
+        {
+          name: draft.name,
+          timePeriods: draft.timePeriods.map((period) => ({
+            startTime: period.startTime,
+            endTime: period.endTime,
+            type: period.type,
+            isActiveOnMonday: period.isActiveOnMonday,
+            isActiveOnTuesday: period.isActiveOnTuesday,
+            isActiveOnWednesday: period.isActiveOnWednesday,
+            isActiveOnThursday: period.isActiveOnThursday,
+            isActiveOnFriday: period.isActiveOnFriday,
+            isActiveOnSaturday: period.isActiveOnSaturday,
+            isActiveOnSunday: period.isActiveOnSunday,
+            maxAppointmentCount: period.maxAppointmentCount ?? 1,
+            placeholderLabel: period.placeholderLabel,
+          })),
+        },
+        userId,
+      );
+
+      const result = await this.templateApplyService.applyTemplate(
+        {
+          templateId: template.id,
+          employeeId: employee.id,
+          startDate: startDate.toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+          applyDays: draft.applyDays,
+          repeatWeeksCount: draft.repeatWeeksCount,
+        },
+        businessId,
+        userId,
+      );
+      slotsCreated += result.slotsCreated;
+      templatesApplied.push(draft.name);
+    }
 
     business.settings = {
       ...(business.settings ?? {}),
@@ -268,14 +343,17 @@ export class OnboardingService {
         ...(business.settings?.onboarding ?? {}),
         scheduleSeeded: true,
         scheduleSeededAt: new Date().toISOString(),
+        verticalPlaybookId: playbookId,
         step: 'link',
       },
     };
     await this.businessRepo.save(business);
 
     return {
-      slotsCreated: result.slotsCreated,
+      slotsCreated,
       employeeName: employee.name,
+      playbookId,
+      templatesApplied,
       status: await this.getStatus(businessId),
     };
   }
