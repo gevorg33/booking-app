@@ -132,6 +132,7 @@ export interface PublicService {
   prepaymentMode?: 'none' | 'full' | 'deposit';
   onlinePaymentEnabled?: boolean;
   depositAmount?: number | null;
+  hasSubscriptionPlans?: boolean;
   category?: PublicServiceCategory | null;
 }
 
@@ -307,6 +308,9 @@ export type CreatePublicBookingBody = {
   notes?: string;
   promoCode?: string;
   loyaltyPointsToRedeem?: number;
+  useSubscriptionId?: string;
+  purchasePlanId?: string;
+  useSubscriptionCreditOnPurchase?: boolean;
   customer: {
     name: string;
     email?: string;
@@ -329,6 +333,46 @@ export function quotePublicBooking(
 
 export function getPublicCustomerLoyalty(slug: string) {
   return publicFetch<PublicCustomerLoyalty>(`/public/${slug}/me/loyalty`);
+}
+
+export interface PublicSubscriptionPlan {
+  id: string;
+  name: string;
+  durationMonths: number;
+  includedAppointments: number;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  preview: {
+    pricing: {
+      regularTotal: number;
+      subscriptionPrice: number;
+      savings: number;
+      perAppointmentPrice: number;
+    };
+  };
+}
+
+export interface PublicCustomerSubscription {
+  id: string;
+  status: string;
+  appointmentsRemaining: number;
+  appointmentsIncluded: number;
+  expiresAt: string;
+  plan: { name: string; service?: { id: string; name: string } };
+}
+
+export function getPublicServiceSubscriptionPlans(slug: string, serviceId: string) {
+  return publicFetch<PublicSubscriptionPlan[]>(`/public/${slug}/services/${serviceId}/subscription-plans`);
+}
+
+export function getPublicCustomerSubscriptions(slug: string) {
+  return publicFetch<PublicCustomerSubscription[]>(`/public/${slug}/me/subscriptions`);
+}
+
+export function getPublicActiveSubscription(slug: string, serviceId: string) {
+  return publicFetch<{ subscription: PublicCustomerSubscription | null }>(
+    `/public/${slug}/me/subscriptions/active?serviceId=${encodeURIComponent(serviceId)}`,
+  );
 }
 
 export function createPublicBooking(slug: string, body: CreatePublicBookingBody) {

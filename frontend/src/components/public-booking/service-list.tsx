@@ -113,6 +113,11 @@ export function ServiceList({
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">{service.name}</p>
+                    {service.hasSubscriptionPlans && (
+                      <span className="inline-block mt-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Subscribe & save
+                      </span>
+                    )}
                     {service.description && (
                       <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
                     )}

@@ -26,6 +26,7 @@ import { OpenAiModule } from '../integrations/openai/openai.module.js';
 import { FirebaseAdminModule } from '../../common/firebase/firebase-admin.module.js';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { LoyaltyModule } from '../loyalty/loyalty.module.js';
+import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { LoyaltyModule } from '../loyalty/loyalty.module.js';
     OpenAiModule,
     PromoCodesModule,
     LoyaltyModule,
+    ServiceSubscriptionsModule,
   ],
   controllers: [PublicBookingController],
   providers: [

@@ -82,6 +82,21 @@ export class CreatePublicBookingDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   loyaltyPointsToRedeem?: number;
+
+  /** Use an existing customer subscription credit for this booking */
+  @IsOptional()
+  @IsString()
+  useSubscriptionId?: string;
+
+  /** Purchase a subscription plan as part of checkout (creates customer_subscription) */
+  @IsOptional()
+  @IsString()
+  purchasePlanId?: string;
+
+  /** When purchasing a plan, also consume first appointment on this booking (default true) */
+  @IsOptional()
+  @IsBoolean()
+  useSubscriptionCreditOnPurchase?: boolean;
 }
 
 export class PublicBookingQuoteDto {

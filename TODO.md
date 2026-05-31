@@ -85,8 +85,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Multi-resource appointments and customer service subscriptions.
 
-- [ ] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
-- [ ] **sub-1** — Service subscription management — plans, customer subscriptions, booking credit consumption (see spec below)
+- [x] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
+- [x] **sub-1** — Service subscription management — plans, customer subscriptions, booking credit consumption (see spec below)
 
 ### sub-1 — Service subscription management (Dashboard Admin)
 

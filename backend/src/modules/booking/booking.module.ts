@@ -27,6 +27,8 @@ import { BillingModule } from '../billing/billing.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
+import { ResourcesModule } from '../resources/resources.module.js';
+import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { PublicBookingModule } from '../public-booking/public-booking.module.js'
     ReviewsModule,
     NotificationsModule,
     PromoCodesModule,
+    ResourcesModule,
+    ServiceSubscriptionsModule,
   ],
   controllers: [BookingController, AgentController],
   providers: [

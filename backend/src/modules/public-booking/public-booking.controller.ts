@@ -69,6 +69,14 @@ export class PublicBookingController {
     return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime);
   }
 
+  @Get('services/:serviceId/subscription-plans')
+  getServiceSubscriptionPlans(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+  ) {
+    return this.publicBookingService.getServiceSubscriptionPlans(slug, serviceId);
+  }
+
   @Get('services/:serviceId/slots')
   getServiceDaySlots(
     @Param('slug') slug: string,
@@ -188,6 +196,29 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicBookingService.getCustomerLoyalty(slug, user.customerId);
+  }
+
+  @Get('me/subscriptions')
+  @UseGuards(PublicCustomerAuthGuard)
+  listMySubscriptions(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerSubscriptions(slug, user.customerId);
+  }
+
+  @Get('me/subscriptions/active')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyActiveSubscription(
+    @Param('slug') slug: string,
+    @Query('serviceId') serviceId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getActiveCustomerSubscriptionForService(
+      slug,
+      user.customerId,
+      serviceId,
+    );
   }
 
   @Get('me/data')

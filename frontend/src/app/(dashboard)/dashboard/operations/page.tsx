@@ -8,11 +8,12 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { InventoryServiceLinks } from '@/components/operations/inventory-service-links';
+import { SchedulingResourcesPanel } from '@/components/operations/scheduling-resources-panel';
 import { ContextualHelpButton } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
-type Tab = 'locations' | 'inventory' | 'expenses' | 'commissions' | 'pl';
+type Tab = 'locations' | 'resources' | 'inventory' | 'expenses' | 'commissions' | 'pl';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -36,6 +37,7 @@ export default function OperationsPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'locations', label: t('operations.locations') },
+    { id: 'resources', label: t('operations.resources') },
     { id: 'inventory', label: t('operations.inventory') },
     { id: 'expenses', label: t('operations.expenses') },
     { id: 'commissions', label: t('operations.commissions') },
@@ -103,6 +105,7 @@ export default function OperationsPage() {
       </div>
 
       {business?.id && tab === 'locations' && <LocationsTab businessId={business.id} />}
+      {business?.id && tab === 'resources' && <SchedulingResourcesPanel businessId={business.id} />}
       {business?.id && tab === 'inventory' && <InventoryTab businessId={business.id} />}
       {business?.id && tab === 'expenses' && <ExpensesTab businessId={business.id} />}
       {business?.id && tab === 'commissions' && <CommissionsTab businessId={business.id} />}

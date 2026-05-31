@@ -44,6 +44,17 @@ export class CreateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  /** Optional explicit resources; defaults to service requirements when omitted */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  resourceIds?: string[];
+
+  /** Consume one appointment from this customer subscription */
+  @IsOptional()
+  @IsString()
+  useSubscriptionId?: string;
 }
 
 export class UpdateBookingDto {

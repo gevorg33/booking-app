@@ -15,6 +15,74 @@ import {
 } from '@/lib/customer-types';
 import { useI18n } from '@/i18n';
 
+function unwrap<T>(res: unknown): T {
+  return ((res as { data?: T })?.data ?? res) as T;
+}
+
+function CustomerSubscriptionsSection({
+  businessId,
+  customerId,
+}: {
+  businessId: string;
+  customerId: string;
+}) {
+  const { data: subscriptions = [], isLoading } = useQuery({
+    queryKey: ['customer-subscriptions', businessId, customerId],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/customer/${customerId}`,
+      );
+      return unwrap<
+        Array<{
+          id: string;
+          status: string;
+          appointmentsRemaining: number;
+          appointmentsIncluded: number;
+          expiresAt: string;
+          plan: { name: string; service?: { name: string } };
+        }>
+      >(data);
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-4">
+        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+      </div>
+    );
+  }
+
+  if (subscriptions.length === 0) {
+    return <p className="text-sm text-gray-500">No active subscriptions</p>;
+  }
+
+  return (
+    <ul className="space-y-3">
+      {subscriptions.map((sub) => (
+        <li
+          key={sub.id}
+          className="rounded-lg border border-gray-200 dark:border-gray-800 p-3 text-sm"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{sub.plan?.name ?? 'Subscription'}</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 capitalize">
+              {sub.status}
+            </span>
+          </div>
+          {sub.plan?.service?.name && (
+            <p className="text-gray-500 mt-1">{sub.plan.service.name}</p>
+          )}
+          <p className="text-gray-500 mt-1">
+            {sub.appointmentsRemaining} / {sub.appointmentsIncluded} appointments left · expires{' '}
+            {formatDateDisplay(new Date(sub.expiresAt))}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export interface CustomerDetail {
   customer: {
     id: string;
@@ -172,6 +240,13 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                 <p className="text-lg font-bold text-orange-500">{data.stats.noShowCount}</p>
                 <p className="text-xs text-gray-500">No-shows</p>
               </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Subscriptions
+              </h4>
+              <CustomerSubscriptionsSection businessId={businessId} customerId={customerId} />
             </div>
 
             <div>

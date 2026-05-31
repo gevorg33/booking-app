@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { CustomerSelect } from '@/components/customers/customer-select';
+import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -173,41 +174,67 @@ function MembershipsTab({ businessId }: { businessId: string }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: '',
-    price: '99',
-    billingInterval: 'monthly',
-    visitCredits: '4',
+    serviceId: '',
+    durationMonths: '3',
+    includedAppointments: '6',
+    discountType: 'percent' as 'percent' | 'fixed',
+    discountValue: '5',
   });
   const [assignCustomerId, setAssignCustomerId] = useState('');
   const [assignPlanId, setAssignPlanId] = useState('');
+  const [selectedServicePrice, setSelectedServicePrice] = useState(25);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/services`);
+      return unwrap<Array<{ id: string; name: string; price: number }>>(data);
+    },
+  });
 
   const { data: plans = [], isLoading } = useQuery({
-    queryKey: ['membership-plans', businessId],
+    queryKey: ['subscription-plans', businessId],
     queryFn: async () => {
-      const { data } = await api.get(`/businesses/${businessId}/memberships/plans`);
+      const { data } = await api.get(`/businesses/${businessId}/subscriptions/plans`);
       return unwrap<any[]>(data);
     },
   });
 
+  const preview = calculateSubscriptionPricing(
+    selectedServicePrice,
+    parseInt(form.includedAppointments, 10) || 0,
+    form.discountType,
+    parseFloat(form.discountValue) || 0,
+  );
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${businessId}/memberships/plans`, {
+      const { data } = await api.post(`/businesses/${businessId}/subscriptions/plans`, {
         name: form.name,
-        price: parseFloat(form.price),
-        billingInterval: form.billingInterval,
-        visitCredits: parseInt(form.visitCredits, 10),
-        currency: 'USD',
+        serviceId: form.serviceId,
+        durationMonths: parseInt(form.durationMonths, 10),
+        includedAppointments: parseInt(form.includedAppointments, 10),
+        discountType: form.discountType,
+        discountValue: parseFloat(form.discountValue),
       });
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membership-plans', businessId] });
-      setForm({ name: '', price: '99', billingInterval: 'monthly', visitCredits: '4' });
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+      setForm({
+        name: '',
+        serviceId: '',
+        durationMonths: '3',
+        includedAppointments: '6',
+        discountType: 'percent',
+        discountValue: '5',
+      });
     },
   });
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${businessId}/memberships/assign`, {
+      const { data } = await api.post(`/businesses/${businessId}/subscriptions/assign`, {
         customerId: assignCustomerId,
         planId: assignPlanId,
       });
@@ -238,42 +265,89 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Price</label>
+          <label className="label">Service</label>
+          <select
+            className="input"
+            value={form.serviceId}
+            onChange={(e) => {
+              const svc = services.find((s) => s.id === e.target.value);
+              setSelectedServicePrice(Number(svc?.price ?? 0));
+              setForm({ ...form, serviceId: e.target.value });
+            }}
+            required
+          >
+            <option value="">Select service…</option>
+            {services.map((svc) => (
+              <option key={svc.id} value={svc.id}>
+                {svc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Duration (months)</label>
+          <select
+            className="input"
+            value={form.durationMonths}
+            onChange={(e) => setForm({ ...form, durationMonths: e.target.value })}
+          >
+            <option value="3">3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Included appointments</label>
+          <input
+            type="number"
+            min="1"
+            className="input"
+            value={form.includedAppointments}
+            onChange={(e) => setForm({ ...form, includedAppointments: e.target.value })}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Discount type</label>
+          <select
+            className="input"
+            value={form.discountType}
+            onChange={(e) =>
+              setForm({ ...form, discountType: e.target.value as 'percent' | 'fixed' })
+            }
+          >
+            <option value="percent">Percent off</option>
+            <option value="fixed">Fixed amount off</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Discount value</label>
           <input
             type="number"
             min="0"
             step="0.01"
             className="input"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            required
+            value={form.discountValue}
+            onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
           />
         </div>
-        <div>
-          <label className="label">Billing interval</label>
-          <select
-            className="input"
-            value={form.billingInterval}
-            onChange={(e) => setForm({ ...form, billingInterval: e.target.value })}
-          >
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Visit credits</label>
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={form.visitCredits}
-            onChange={(e) => setForm({ ...form, visitCredits: e.target.value })}
-          />
-        </div>
+        {form.serviceId && (
+          <div className="md:col-span-2 rounded-lg bg-gray-800/50 p-4 text-sm space-y-1">
+            <p>
+              Regular total: <strong>${preview.regularTotal.toFixed(2)}</strong>
+            </p>
+            <p>
+              Subscription price: <strong>${preview.subscriptionPrice.toFixed(2)}</strong>
+            </p>
+            <p className="text-emerald-400">
+              Customer saves: ${preview.savings.toFixed(2)}
+            </p>
+          </div>
+        )}
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Create plan
+            Create subscription plan
           </button>
         </div>
       </form>
@@ -284,24 +358,32 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : plans.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No membership plans yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">No subscription plans yet</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
                 <th className="px-4 py-3 font-medium text-gray-400">Name</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Service</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Duration</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Appointments</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Price</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Interval</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Credits</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Savings</th>
               </tr>
             </thead>
             <tbody>
               {plans.map((plan) => (
                 <tr key={plan.id} className="border-b border-gray-800/80">
                   <td className="px-4 py-3 font-medium">{plan.name}</td>
-                  <td className="px-4 py-3">${Number(plan.price).toFixed(2)}</td>
-                  <td className="px-4 py-3 capitalize">{plan.billingInterval}</td>
-                  <td className="px-4 py-3">{plan.visitCredits}</td>
+                  <td className="px-4 py-3">{plan.service?.name ?? '—'}</td>
+                  <td className="px-4 py-3">{plan.durationMonths} mo</td>
+                  <td className="px-4 py-3">{plan.includedAppointments}</td>
+                  <td className="px-4 py-3">
+                    ${Number(plan.preview?.pricing?.subscriptionPrice ?? 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-emerald-400">
+                    ${Number(plan.preview?.pricing?.savings ?? 0).toFixed(2)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -317,7 +399,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             assignMutation.mutate();
           }}
         >
-          <h3 className="font-semibold">Assign plan to customer</h3>
+          <h3 className="font-semibold">Assign subscription to customer</h3>
           <CustomerSelect businessId={businessId} value={assignCustomerId} onChange={setAssignCustomerId} required />
           <div>
             <label className="label">Plan</label>
@@ -330,13 +412,13 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               <option value="">Select plan…</option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name}
+                  {plan.name} ({plan.service?.name})
                 </option>
               ))}
             </select>
           </div>
           <button type="submit" disabled={assignMutation.isPending} className="btn-primary">
-            Assign membership
+            Assign subscription
           </button>
         </form>
       )}
