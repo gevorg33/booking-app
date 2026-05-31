@@ -22,7 +22,7 @@ import { EventType } from '../../events/event-types.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
 import type { CheckoutPricingResult } from '../promo-codes/checkout-pricing.types.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
-import { getEarnPercentCashback } from '../loyalty/loyalty-settings.util.js';
+import { resolveEarnPercentForService } from '../loyalty/loyalty-settings.util.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import {
   resolvePublicCheckoutKind,
@@ -117,7 +117,7 @@ export class BookingPaymentService {
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
-      earnPercentCashback: getEarnPercentCashback(business?.settings),
+      earnPercentCashback: resolveEarnPercentForService(business?.settings, service.id),
     });
   }
 

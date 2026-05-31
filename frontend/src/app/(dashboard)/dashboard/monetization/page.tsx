@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
+import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -63,9 +64,11 @@ export default function MonetizationPage() {
 }
 
 function GiftCardsTab({ businessId }: { businessId: string }) {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('50');
   const [currency, setCurrency] = useState('USD');
+  const [expiresAtDay, setExpiresAtDay] = useState('');
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ['gift-cards', businessId],
@@ -77,15 +80,18 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const expiresAt = expiresAtDay ? dateKeyToExpiresAtEndOfDay(expiresAtDay) : undefined;
       const { data } = await api.post(`/businesses/${businessId}/gift-cards`, {
         amount: parseFloat(amount),
         currency,
+        ...(expiresAt ? { expiresAt } : {}),
       });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gift-cards', businessId] });
       setAmount('50');
+      setExpiresAtDay('');
     },
   });
 
@@ -118,6 +124,16 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
             onChange={(e) => setCurrency(e.target.value.toUpperCase())}
           />
         </div>
+        <div>
+          <label className="label">{t('monetization.expirationDate')}</label>
+          <input
+            type="date"
+            className="input max-w-[160px]"
+            value={expiresAtDay}
+            onChange={(e) => setExpiresAtDay(e.target.value)}
+          />
+          <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
+        </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Create gift card
@@ -138,6 +154,7 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Code</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Balance</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Initial</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Status</th>
               </tr>
             </thead>
@@ -151,13 +168,26 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
                   <td className="px-4 py-3">
                     {Number(card.initialBalance).toFixed(2)} {card.currency}
                   </td>
+                  <td className="px-4 py-3 text-gray-400">
+                    {card.expiresAt
+                      ? formatDateDisplay(card.expiresAt, locale)
+                      : t('monetization.noExpiration')}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        card.isActive ? 'bg-green-600/10 text-green-400' : 'bg-gray-600/10 text-gray-400'
+                        !card.isActive
+                          ? 'bg-gray-600/10 text-gray-400'
+                          : isExpiredAt(card.expiresAt)
+                            ? 'bg-amber-600/10 text-amber-400'
+                            : 'bg-green-600/10 text-green-400'
                       }`}
                     >
-                      {card.isActive ? 'Active' : 'Inactive'}
+                      {!card.isActive
+                        ? 'Inactive'
+                        : isExpiredAt(card.expiresAt)
+                          ? t('monetization.expired')
+                          : 'Active'}
                     </span>
                   </td>
                 </tr>
@@ -530,12 +560,25 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
   const [adjustPoints, setAdjustPoints] = useState('1');
   const [note, setNote] = useState('');
   const [earnPercent, setEarnPercent] = useState('5');
+  const [excludedServiceIds, setExcludedServiceIds] = useState<string[]>([]);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/services`);
+      return unwrap<Array<{ id: string; name: string; isActive?: boolean }>>(data);
+    },
+  });
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['loyalty-settings', businessId],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${businessId}/loyalty/settings`);
-      return unwrap<{ earnPercentCashback: number; bonusDollarValue: number }>(res);
+      return unwrap<{
+        earnPercentCashback: number;
+        earnExcludedServiceIds: string[];
+        bonusDollarValue: number;
+      }>(res);
     },
   });
 
@@ -543,11 +586,13 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
     mutationFn: async () => {
       const { data: res } = await api.patch(`/businesses/${businessId}/loyalty/settings`, {
         earnPercentCashback: parseFloat(earnPercent),
+        earnExcludedServiceIds: excludedServiceIds,
       });
-      return unwrap<{ earnPercentCashback: number }>(res);
+      return unwrap<{ earnPercentCashback: number; earnExcludedServiceIds: string[] }>(res);
     },
     onSuccess: (data) => {
       setEarnPercent(String(data.earnPercentCashback));
+      setExcludedServiceIds(data.earnExcludedServiceIds ?? []);
       queryClient.invalidateQueries({ queryKey: ['loyalty-settings', businessId] });
     },
   });
@@ -556,7 +601,10 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
     if (settings?.earnPercentCashback != null) {
       setEarnPercent(String(settings.earnPercentCashback));
     }
-  }, [settings?.earnPercentCashback]);
+    if (settings?.earnExcludedServiceIds) {
+      setExcludedServiceIds(settings.earnExcludedServiceIds);
+    }
+  }, [settings?.earnPercentCashback, settings?.earnExcludedServiceIds]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['loyalty', businessId, customerId],
@@ -625,6 +673,39 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
             {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
           </p>
         )}
+        <div>
+          <label className="label">{t('monetization.loyaltyExcludedServices')}</label>
+          <p className="text-sm text-gray-500 mb-2">{t('monetization.loyaltyExcludedServicesHint')}</p>
+          {services.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('monetization.loyaltyNoServices')}</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-gray-800 p-3">
+              {services.map((service) => (
+                <label key={service.id} className="flex items-center gap-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-600"
+                    checked={excludedServiceIds.includes(service.id)}
+                    onChange={(e) => {
+                      setExcludedServiceIds((prev) =>
+                        e.target.checked
+                          ? [...prev, service.id]
+                          : prev.filter((id) => id !== service.id),
+                      );
+                    }}
+                    disabled={settingsLoading || !settings}
+                  />
+                  <span>
+                    {service.name}
+                    {service.isActive === false && (
+                      <span className="ml-2 text-xs text-gray-500">(Inactive)</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </form>
 
       <div className="card space-y-4">
@@ -707,6 +788,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
 }
 
 function PromoCodesTab({ businessId }: { businessId: string }) {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -714,6 +796,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [maxUses, setMaxUses] = useState('');
   const [description, setDescription] = useState('');
+  const [expiresAtDay, setExpiresAtDay] = useState('');
 
   const { data: promos = [], isLoading } = useQuery({
     queryKey: ['promo-codes', businessId],
@@ -725,6 +808,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const expiresAt = expiresAtDay ? dateKeyToExpiresAtEndOfDay(expiresAtDay) : undefined;
       const { data } = await api.post(`/businesses/${businessId}/promo-codes`, {
         code,
         discountType,
@@ -732,6 +816,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
         minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : undefined,
         maxUses: maxUses ? parseInt(maxUses, 10) : undefined,
         description: description || undefined,
+        ...(expiresAt ? { expiresAt } : {}),
       });
       return data;
     },
@@ -739,6 +824,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
       queryClient.invalidateQueries({ queryKey: ['promo-codes', businessId] });
       setCode('');
       setDescription('');
+      setExpiresAtDay('');
     },
   });
 
@@ -817,6 +903,16 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           <label className="label">Description</label>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+        <div>
+          <label className="label">{t('monetization.expirationDate')}</label>
+          <input
+            type="date"
+            className="input max-w-[160px]"
+            value={expiresAtDay}
+            onChange={(e) => setExpiresAtDay(e.target.value)}
+          />
+          <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
+        </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Create promo
@@ -837,6 +933,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Code</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Discount</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Uses</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Status</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
@@ -854,7 +951,18 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                     {promo.usedCount}
                     {promo.maxUses != null ? ` / ${promo.maxUses}` : ''}
                   </td>
-                  <td className="px-4 py-3">{promo.isActive ? 'Active' : 'Inactive'}</td>
+                  <td className="px-4 py-3 text-gray-400">
+                    {promo.expiresAt
+                      ? formatDateDisplay(promo.expiresAt, locale)
+                      : t('monetization.noExpiration')}
+                  </td>
+                  <td className="px-4 py-3">
+                    {!promo.isActive
+                      ? 'Inactive'
+                      : isExpiredAt(promo.expiresAt)
+                        ? t('monetization.expired')
+                        : 'Active'}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {promo.isActive && (
                       <button

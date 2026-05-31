@@ -5,7 +5,8 @@ export type LoyaltyAwardSkipReason =
   | 'ambiguous_match'
   | 'zero_points'
   | 'no_eligible_cash_payment'
-  | 'inactive_customer';
+  | 'inactive_customer'
+  | 'service_excluded';
 
 export interface LoyaltyAwardResult {
   status: 'awarded' | 'skipped';

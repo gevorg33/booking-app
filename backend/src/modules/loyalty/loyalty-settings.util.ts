@@ -4,6 +4,38 @@ import {
   roundBonus,
 } from './loyalty.constants.js';
 
+export function getLoyaltyEarnExcludedServiceIds(
+  settings?: Record<string, unknown> | null,
+): string[] {
+  const loyalty = settings?.loyalty;
+  if (!loyalty || typeof loyalty !== 'object') {
+    return [];
+  }
+  const raw = (loyalty as Record<string, unknown>).earnExcludedServiceIds;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
+export function isServiceExcludedFromLoyaltyEarn(
+  settings: Record<string, unknown> | null | undefined,
+  serviceId: string | null | undefined,
+): boolean {
+  if (!serviceId) return false;
+  return getLoyaltyEarnExcludedServiceIds(settings).includes(serviceId);
+}
+
+export function resolveEarnPercentForService(
+  settings: Record<string, unknown> | null | undefined,
+  serviceId: string,
+): number {
+  if (isServiceExcludedFromLoyaltyEarn(settings, serviceId)) {
+    return 0;
+  }
+  return getEarnPercentCashback(settings);
+}
+
 export function getEarnPercentCashback(settings?: Record<string, unknown> | null): number {
   const loyalty = settings?.loyalty;
   if (!loyalty || typeof loyalty !== 'object') {
@@ -36,6 +68,7 @@ export function maxRedeemablePoints(balance: number, amountDue: number): number 
 export function getLoyaltySettingsResponse(settings?: Record<string, unknown> | null) {
   return {
     earnPercentCashback: getEarnPercentCashback(settings),
+    earnExcludedServiceIds: getLoyaltyEarnExcludedServiceIds(settings),
     bonusDollarValue: BONUS_DOLLAR_VALUE,
   };
 }
