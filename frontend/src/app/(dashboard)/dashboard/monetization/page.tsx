@@ -1,12 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2, Plus, Wallet } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { CustomerSelect } from '@/components/customers/customer-select';
+import {
+  filterActiveSubscriptionPlans,
+  formatSubscriptionPlanAssignLabel,
+  serviceIdsWithSubscriptionPlans,
+  subscriptionPlansForService,
+} from '@/lib/subscription-plans';
 import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
 
@@ -201,6 +207,7 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
 }
 
 function MembershipsTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: '',
@@ -213,6 +220,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
   });
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [assignCustomerId, setAssignCustomerId] = useState('');
+  const [assignServiceId, setAssignServiceId] = useState('');
   const [assignPlanId, setAssignPlanId] = useState('');
   const [selectedServicePrice, setSelectedServicePrice] = useState(25);
 
@@ -227,10 +235,24 @@ function MembershipsTab({ businessId }: { businessId: string }) {
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['subscription-plans', businessId],
     queryFn: async () => {
-      const { data } = await api.get(`/businesses/${businessId}/subscriptions/plans`);
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/plans?includeInactive=true`,
+      );
       return unwrap<any[]>(data);
     },
   });
+
+  const activePlans = filterActiveSubscriptionPlans(plans);
+
+  const assignableServices = useMemo(() => {
+    const serviceIds = new Set(serviceIdsWithSubscriptionPlans(activePlans));
+    return services.filter((service) => serviceIds.has(service.id));
+  }, [activePlans, services]);
+
+  const plansForAssignService = useMemo(
+    () => subscriptionPlansForService(activePlans, assignServiceId),
+    [activePlans, assignServiceId],
+  );
 
   const resolvedDurationMonths =
     form.durationMonths === 'custom'
@@ -291,6 +313,39 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
   });
 
+  const activateMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { data } = await api.patch(
+        `/businesses/${businessId}/subscriptions/plans/${planId}/activate`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      await api.delete(`/businesses/${businessId}/subscriptions/plans/${planId}`);
+    },
+    onSuccess: (_data, planId) => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+      if (editingPlanId === planId) {
+        setEditingPlanId(null);
+        setForm({
+          name: '',
+          serviceId: '',
+          durationMonths: '3',
+          customDurationMonths: '',
+          includedAppointments: '6',
+          discountType: 'percent',
+          discountValue: '5',
+        });
+      }
+    },
+  });
+
   const assignMutation = useMutation({
     mutationFn: async () => {
       const { data } = await api.post(`/businesses/${businessId}/subscriptions/assign`, {
@@ -301,9 +356,27 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
     onSuccess: () => {
       setAssignCustomerId('');
+      setAssignServiceId('');
       setAssignPlanId('');
     },
   });
+
+  const startEditingPlan = (plan: (typeof plans)[number]) => {
+    setEditingPlanId(plan.id);
+    const preset = ['3', '6', '12'].includes(String(plan.durationMonths))
+      ? String(plan.durationMonths)
+      : 'custom';
+    setForm({
+      name: plan.name,
+      serviceId: plan.serviceId,
+      durationMonths: preset,
+      customDurationMonths: preset === 'custom' ? String(plan.durationMonths) : '',
+      includedAppointments: String(plan.includedAppointments),
+      discountType: plan.discountType,
+      discountValue: String(plan.discountValue),
+    });
+    setSelectedServicePrice(Number(plan.service?.price ?? 0));
+  };
 
   return (
     <div className="space-y-6">
@@ -462,6 +535,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Appointments</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Price</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Savings</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
@@ -478,37 +552,55 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                   <td className="px-4 py-3 text-emerald-400">
                     ${Number(plan.preview?.pricing?.savings ?? 0).toFixed(2)}
                   </td>
+                  <td className="px-4 py-3">
+                    {plan.isActive !== false
+                      ? t('monetization.subscriptionPlanStatusActive')
+                      : t('monetization.subscriptionPlanStatusDeactivated')}
+                  </td>
                   <td className="px-4 py-3 text-right space-x-2">
                     <button
                       type="button"
                       className="text-xs text-blue-400"
-                      onClick={() => {
-                        setEditingPlanId(plan.id);
-                        const preset = ['3', '6', '12'].includes(String(plan.durationMonths))
-                          ? String(plan.durationMonths)
-                          : 'custom';
-                        setForm({
-                          name: plan.name,
-                          serviceId: plan.serviceId,
-                          durationMonths: preset,
-                          customDurationMonths: preset === 'custom' ? String(plan.durationMonths) : '',
-                          includedAppointments: String(plan.includedAppointments),
-                          discountType: plan.discountType,
-                          discountValue: String(plan.discountValue),
-                        });
-                        setSelectedServicePrice(Number(plan.service?.price ?? 0));
-                      }}
+                      onClick={() => startEditingPlan(plan)}
                     >
                       Edit
                     </button>
-                    {plan.isActive !== false && (
+                    {plan.isActive !== false ? (
                       <button
                         type="button"
                         className="text-xs text-red-400"
-                        onClick={() => deactivateMutation.mutate(plan.id)}
+                        onClick={() => {
+                          if (!window.confirm(t('monetization.subscriptionPlanDeactivateConfirm'))) return;
+                          deactivateMutation.mutate(plan.id);
+                        }}
                       >
-                        Deactivate
+                        {t('monetization.subscriptionPlanDeactivate')}
                       </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="text-xs text-emerald-400"
+                          disabled={activateMutation.isPending}
+                          onClick={() => {
+                            if (!window.confirm(t('monetization.subscriptionPlanActivateConfirm'))) return;
+                            activateMutation.mutate(plan.id);
+                          }}
+                        >
+                          {t('monetization.subscriptionPlanActivate')}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-red-400"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (!window.confirm(t('monetization.subscriptionPlanDeleteConfirm'))) return;
+                            deleteMutation.mutate(plan.id);
+                          }}
+                        >
+                          {t('monetization.subscriptionPlanDelete')}
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -518,7 +610,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         )}
       </div>
 
-      {plans.length > 0 && (
+      {activePlans.length > 0 && (
         <form
           className="card space-y-4"
           onSubmit={(e) => {
@@ -529,20 +621,51 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           <h3 className="font-semibold">Assign subscription to customer</h3>
           <CustomerSelect businessId={businessId} value={assignCustomerId} onChange={setAssignCustomerId} required />
           <div>
+            <label className="label">Service</label>
+            <select
+              className="input max-w-md"
+              value={assignServiceId}
+              onChange={(e) => {
+                setAssignServiceId(e.target.value);
+                setAssignPlanId('');
+              }}
+              required
+            >
+              <option value="">Select service…</option>
+              {assignableServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="label">Plan</label>
             <select
               className="input max-w-md"
               value={assignPlanId}
               onChange={(e) => setAssignPlanId(e.target.value)}
               required
+              disabled={!assignServiceId}
             >
-              <option value="">Select plan…</option>
-              {plans.map((plan) => (
+              <option value="">
+                {assignServiceId
+                  ? plansForAssignService.length > 0
+                    ? 'Select plan…'
+                    : 'No plans for this service'
+                  : 'Select a service first…'}
+              </option>
+              {plansForAssignService.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name} ({plan.service?.name})
+                  {formatSubscriptionPlanAssignLabel(plan)}
                 </option>
               ))}
             </select>
+            {assignServiceId && plansForAssignService.length > 1 && (
+              <p className="text-xs text-gray-500 mt-1">
+                This service has {plansForAssignService.length} subscription plans — pick the one to assign.
+              </p>
+            )}
           </div>
           <button type="submit" disabled={assignMutation.isPending} className="btn-primary">
             Assign subscription

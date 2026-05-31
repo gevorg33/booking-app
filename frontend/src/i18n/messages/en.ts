@@ -432,6 +432,17 @@ const en: MessageTree = {
     bonusBalance: 'Bonus balance',
     lifetimeEarned: 'Lifetime earned',
     adjustBonus: 'Adjust bonus (+/- $)',
+    subscriptionPlanStatusActive: 'Active',
+    subscriptionPlanStatusDeactivated: 'Deactivated',
+    subscriptionPlanDeactivateConfirm:
+      'Deactivate this subscription plan? Customers will no longer be able to purchase or be assigned this plan.',
+    subscriptionPlanDeleteConfirm:
+      'Permanently delete this subscription plan? This cannot be undone.',
+    subscriptionPlanDelete: 'Delete',
+    subscriptionPlanDeactivate: 'Deactivate',
+    subscriptionPlanActivate: 'Activate',
+    subscriptionPlanActivateConfirm:
+      'Reactivate this subscription plan? Customers will be able to purchase and be assigned this plan again, and the service will show subscription options on the public booking site.',
   },
   operations: {
     title: 'Operations',
@@ -1120,6 +1131,16 @@ const en: MessageTree = {
     promoInvalid: 'Invalid or expired promo code',
     quoteFailed: 'Could not update price. Try again.',
     noPointsToEarn: 'No bonus credit — paid with loyalty bonuses',
+    howToBook: 'How would you like to book?',
+    useSubscription: 'Use subscription',
+    appointmentsLeft: 'appointments left',
+    expiresOn: 'expires',
+    freeThisVisit: '$0 for this visit',
+    oneTimeAppointment: 'One-time appointment',
+    subscribeAndSave: 'Subscribe & save',
+    chooseSubscriptionPlan: 'Choose a subscription plan',
+    saveAmount: 'save {amount}',
+    subscriptionPlanRequired: 'Please select a subscription plan',
   },
   settings: {
     title: 'Settings',

@@ -61,6 +61,34 @@ export class ServiceSubscriptionsService {
     return this.updatePlan(businessId, planId, { isActive: false });
   }
 
+  async activatePlan(businessId: string, planId: string) {
+    const plan = await this.planRepo.findOne({ where: { id: planId, businessId } });
+    if (!plan) throw new NotFoundException('Subscription plan not found');
+    if (plan.isActive) {
+      throw new BadRequestException('Subscription plan is already active');
+    }
+    await this.assertService(businessId, plan.serviceId);
+    return this.updatePlan(businessId, planId, { isActive: true });
+  }
+
+  async deletePlan(businessId: string, planId: string) {
+    const plan = await this.planRepo.findOne({ where: { id: planId, businessId } });
+    if (!plan) throw new NotFoundException('Subscription plan not found');
+    if (plan.isActive) {
+      throw new BadRequestException('Deactivate the plan before deleting it');
+    }
+    const subscriptionsCount = await this.subscriptionRepo.count({
+      where: { planId: plan.id, businessId },
+    });
+    if (subscriptionsCount > 0) {
+      throw new ConflictException(
+        'Cannot delete a plan that has customer subscriptions. Keep it deactivated instead.',
+      );
+    }
+    await this.planRepo.remove(plan);
+    return { deleted: true, id: planId };
+  }
+
   async cancelSubscription(businessId: string, subscriptionId: string) {
     const sub = await this.subscriptionRepo.findOne({
       where: { id: subscriptionId, businessId },

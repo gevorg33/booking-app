@@ -6,12 +6,15 @@ export default defineConfig({
     include: ['src/lib/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/help-center-topics.ts'],
+      include: [
+        'src/lib/subscription-plans.ts',
+        'src/lib/subscription-pricing.ts',
+      ],
       thresholds: {
-        statements: 90,
+        statements: 95,
         branches: 85,
-        functions: 90,
-        lines: 90,
+        functions: 95,
+        lines: 95,
       },
     },
   },

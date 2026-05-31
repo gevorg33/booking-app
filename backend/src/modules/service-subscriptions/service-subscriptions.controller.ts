@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ServiceSubscriptionsService } from './service-subscriptions.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -62,6 +73,26 @@ export class ServiceSubscriptionsController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.subscriptionsService.deactivatePlan(businessId, planId);
+  }
+
+  @Patch('plans/:planId/activate')
+  async activatePlan(
+    @Param('businessId') businessId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.subscriptionsService.activatePlan(businessId, planId);
+  }
+
+  @Delete('plans/:planId')
+  async deletePlan(
+    @Param('businessId') businessId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.subscriptionsService.deletePlan(businessId, planId);
   }
 
   @Get('plans/:planId/preview')

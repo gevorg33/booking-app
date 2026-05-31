@@ -20,6 +20,7 @@ import {
   type PublicSubscriptionPlan,
   type PublicCustomerSubscription,
 } from '@/lib/public-api';
+import { isSubscriptionCheckoutSelection, subscriptionCheckoutPayload } from '@/lib/subscription-plans';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
@@ -214,9 +215,7 @@ export function CheckoutForm({
     loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
     ...(usingSubscriptionCredit
       ? { useSubscriptionId: activeSubscription!.id }
-      : purchaseType === 'subscription' && selectedPlanId
-        ? { purchasePlanId: selectedPlanId, useSubscriptionCreditOnPurchase: true }
-        : {}),
+      : subscriptionCheckoutPayload(purchaseType, selectedPlanId)),
     customer: {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
@@ -233,6 +232,25 @@ export function CheckoutForm({
     Boolean(activeSubscription?.appointmentsRemaining) &&
     useExistingSubscription &&
     purchaseType === 'one-time';
+
+  function selectOneTimeVisit() {
+    setPurchaseType('one-time');
+    setUseExistingSubscription(false);
+    setSelectedPlanId('');
+  }
+
+  function selectUseExistingSubscription() {
+    setPurchaseType('one-time');
+    setUseExistingSubscription(true);
+    setSelectedPlanId('');
+  }
+
+  function selectSubscriptionPlan(planId: string) {
+    setPurchaseType('subscription');
+    setUseExistingSubscription(false);
+    setSelectedPlanId(planId);
+  }
+
   const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId);
   const subscriptionCheckoutPrice =
     purchaseType === 'subscription' && selectedPlan
@@ -300,6 +318,10 @@ export function CheckoutForm({
     }
     if (!form.consent) {
       setError(t('public.consentRequired'));
+      return;
+    }
+    if (!isSubscriptionCheckoutSelection(purchaseType, selectedPlanId) && purchaseType === 'subscription') {
+      setError(t('public.subscriptionPlanRequired'));
       return;
     }
 
@@ -511,84 +533,94 @@ export function CheckoutForm({
 
       {(service.hasSubscriptionPlans || activeSubscription) && (
         <section className="border-b border-gray-100 pb-4 mb-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">How would you like to book?</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('public.howToBook')}</h2>
           {activeSubscription && activeSubscription.appointmentsRemaining > 0 && (
             <label className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer">
               <input
                 type="radio"
-                name="purchaseType"
+                name="purchaseOption"
                 checked={usingSubscriptionCredit}
-                onChange={() => {
-                  setPurchaseType('one-time');
-                  setUseExistingSubscription(true);
-                }}
+                onChange={selectUseExistingSubscription}
               />
               <div>
-                <p className="font-medium text-gray-900">Use subscription</p>
+                <p className="font-medium text-gray-900">{t('public.useSubscription')}</p>
                 <p className="text-sm text-gray-600">
                   {activeSubscription.appointmentsRemaining} of {activeSubscription.appointmentsIncluded}{' '}
-                  appointments left · expires{' '}
+                  {t('public.appointmentsLeft')} · {t('public.expiresOn')}{' '}
                   {new Date(activeSubscription.expiresAt).toLocaleDateString()}
                 </p>
-                <p className="text-sm text-emerald-700 mt-1">$0 for this visit</p>
+                <p className="text-sm text-emerald-700 mt-1">{t('public.freeThisVisit')}</p>
               </div>
             </label>
           )}
           <label className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
             <input
               type="radio"
-              name="purchaseType"
+              name="purchaseOption"
               checked={purchaseType === 'one-time' && !usingSubscriptionCredit}
-              onChange={() => {
-                setPurchaseType('one-time');
-                setUseExistingSubscription(false);
-              }}
+              onChange={selectOneTimeVisit}
             />
-            <span className="font-medium text-gray-900">One-time appointment</span>
+            <span className="font-medium text-gray-900">{t('public.oneTimeAppointment')}</span>
           </label>
           {service.hasSubscriptionPlans && subscriptionPlans.length > 0 && (
-            <label className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
-              <input
-                type="radio"
-                name="purchaseType"
-                checked={purchaseType === 'subscription'}
-                onChange={() => {
-                  setPurchaseType('subscription');
-                  setUseExistingSubscription(false);
-                  if (!selectedPlanId && subscriptionPlans[0]) {
-                    setSelectedPlanId(subscriptionPlans[0].id);
-                  }
-                }}
-              />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Subscribe & save</p>
-                {purchaseType === 'subscription' && (
-                  <div className="mt-3 space-y-2">
-                    {subscriptionPlans.map((plan) => (
-                      <label
-                        key={plan.id}
-                        className={`block p-3 rounded-lg border text-sm cursor-pointer ${
-                          selectedPlanId === plan.id ? 'border-violet-400 bg-violet-50' : 'border-gray-200'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="subscriptionPlan"
-                          className="mr-2"
-                          checked={selectedPlanId === plan.id}
-                          onChange={() => setSelectedPlanId(plan.id)}
-                        />
-                        {plan.name} · {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
-                        {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
-                        <span className="text-emerald-600 ml-1">
-                          (save {formatPrice(plan.preview.pricing.savings, service.currency)})
-                        </span>
-                      </label>
-                    ))}
+            <>
+              {subscriptionPlans.length === 1 ? (
+                <label className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="purchaseOption"
+                    checked={purchaseType === 'subscription' && selectedPlanId === subscriptionPlans[0].id}
+                    onChange={() => selectSubscriptionPlan(subscriptionPlans[0].id)}
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">{t('public.subscribeAndSave')}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {subscriptionPlans[0].name} · {subscriptionPlans[0].includedAppointments} visits /{' '}
+                      {subscriptionPlans[0].durationMonths} mo ·{' '}
+                      {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, service.currency)}
+                      <span className="text-emerald-600 ml-1">
+                        ({t('public.saveAmount', {
+                          amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, service.currency),
+                        })})
+                      </span>
+                    </p>
                   </div>
-                )}
-              </div>
-            </label>
+                </label>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-700 px-1">{t('public.chooseSubscriptionPlan')}</p>
+                  {subscriptionPlans.map((plan) => (
+                    <label
+                      key={plan.id}
+                      className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer ${
+                        purchaseType === 'subscription' && selectedPlanId === plan.id
+                          ? 'border-violet-400 bg-violet-50'
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="purchaseOption"
+                        checked={purchaseType === 'subscription' && selectedPlanId === plan.id}
+                        onChange={() => selectSubscriptionPlan(plan.id)}
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900">{plan.name}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
+                          {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
+                          <span className="text-emerald-600 ml-1">
+                            ({t('public.saveAmount', {
+                              amount: formatPrice(plan.preview.pricing.savings, service.currency),
+                            })})
+                          </span>
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </section>
       )}

@@ -10,8 +10,20 @@ import {
 } from './entities/subscription.entity.js';
 
 describe('ServiceSubscriptionsService', () => {
-  const planRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
-  const subscriptionRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const planRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    remove: jest.fn(),
+  };
+  const subscriptionRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    count: jest.fn(),
+  };
   const usageRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
   const serviceRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
@@ -283,6 +295,139 @@ describe('ServiceSubscriptionsService', () => {
     planRepo.save.mockImplementation(async (v) => v);
     const updated = await service.deactivatePlan('biz-1', 'plan-1');
     expect(updated.isActive).toBe(false);
+  });
+
+  it('activates deactivated plan', async () => {
+    planRepo.findOne
+      .mockResolvedValueOnce({ id: 'plan-1', businessId: 'biz-1', serviceId: 'svc-1', isActive: false })
+      .mockResolvedValueOnce({ id: 'plan-1', businessId: 'biz-1', isActive: false });
+    planRepo.save.mockImplementation(async (v) => ({ ...v, isActive: true }));
+    const updated = await service.activatePlan('biz-1', 'plan-1');
+    expect(updated.isActive).toBe(true);
+    expect(serviceRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'svc-1', businessId: 'biz-1', isActive: true } }),
+    );
+  });
+
+  it('rejects activating already active plan', async () => {
+    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
+    await expect(service.activatePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects activating when linked service is inactive', async () => {
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      serviceId: 'svc-1',
+      isActive: false,
+    });
+    serviceRepo.findOne.mockResolvedValue(null);
+    await expect(service.activatePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('deletes deactivated plan with no customer subscriptions', async () => {
+    const plan = { id: 'plan-1', businessId: 'biz-1', isActive: false };
+    planRepo.findOne.mockResolvedValue(plan);
+    subscriptionRepo.count.mockResolvedValue(0);
+    planRepo.remove.mockResolvedValue(plan);
+    const result = await service.deletePlan('biz-1', 'plan-1');
+    expect(result).toEqual({ deleted: true, id: 'plan-1' });
+    expect(planRepo.remove).toHaveBeenCalledWith(plan);
+  });
+
+  it('rejects deleting active plan', async () => {
+    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
+    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects deleting plan with customer subscriptions', async () => {
+    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: false });
+    subscriptionRepo.count.mockResolvedValue(2);
+    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('throws when deleting missing plan', async () => {
+    planRepo.findOne.mockResolvedValue(null);
+    await expect(service.deletePlan('biz-1', 'plan-x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('throws when activating missing plan', async () => {
+    planRepo.findOne.mockResolvedValue(null);
+    await expect(service.activatePlan('biz-1', 'plan-x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('assertCanConsume rejects zero remaining when status stays active', async () => {
+    jest.spyOn(service, 'syncStatus').mockImplementation((sub) => sub);
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      appointmentsRemaining: 0,
+      status: CustomerSubscriptionStatus.ACTIVE,
+      plan: { serviceId: 'svc-1' },
+    });
+    await expect(
+      service.assertCanConsume('biz-1', 'sub-1', 'cust-1', 'svc-1'),
+    ).rejects.toThrow('Subscription has no remaining appointments');
+    jest.restoreAllMocks();
+  });
+
+  it('consume throws when no appointments remain while still active', async () => {
+    jest.spyOn(service, 'syncStatus').mockImplementation((sub) => sub);
+    const manager = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'sub-1',
+        appointmentsRemaining: 0,
+        status: CustomerSubscriptionStatus.ACTIVE,
+      }),
+    };
+    await expect(
+      service.consumeCreditInTransaction(manager as any, 'sub-1', 'b1', 'svc-1'),
+    ).rejects.toThrow('Subscription has no remaining appointments');
+    jest.restoreAllMocks();
+  });
+
+  it('cancelSubscription throws when missing', async () => {
+    subscriptionRepo.findOne.mockResolvedValue(null);
+    await expect(service.cancelSubscription('biz-1', 'sub-x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('getPlanCheckoutDetails throws when plan inactive or missing', async () => {
+    planRepo.findOne.mockResolvedValueOnce(basePlan).mockResolvedValueOnce(null);
+    await expect(service.getPlanCheckoutDetails('biz-1', 'plan-x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('assignSubscription throws when plan missing', async () => {
+    planRepo.findOne.mockResolvedValue(null);
+    await expect(service.assignSubscription('biz-1', 'cust-1', 'plan-x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('assignSubscription throws when customer missing', async () => {
+    planRepo.findOne.mockResolvedValue(basePlan);
+    customerRepo.findOne.mockResolvedValue(null);
+    await expect(service.assignSubscription('biz-1', 'cust-1', 'plan-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('getUsageHistory throws when subscription missing', async () => {
+    subscriptionRepo.findOne.mockResolvedValue(null);
+    await expect(service.getUsageHistory('biz-1', 'sub-x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('syncStatus keeps future start subscriptions non-active', () => {
+    const sub = {
+      status: CustomerSubscriptionStatus.ACTIVE,
+      startsAt: new Date('2099-01-01'),
+      expiresAt: new Date('2099-06-01'),
+      appointmentsRemaining: 3,
+    } as any;
+    service.syncStatus(sub, new Date('2025-01-01'));
+    expect(sub.status).toBe(CustomerSubscriptionStatus.ACTIVE);
   });
 
   it('cancels customer subscription', async () => {
