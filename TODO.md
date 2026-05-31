@@ -5,40 +5,40 @@ Goal: **bookings + reminders + payments + staff schedule + reports** for salon/s
 
 Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
-**Build policy:** Ship **product features** first → then **plans, onboarding & billing** → **App Store / Play Store listings** → then **AI expansion**. Existing AI baseline stays; new AI work is last.
+**Build policy:** Ship **product features** first → **plans, onboarding & billing** → **provider App Store listings** → **AI expansion** → **consumer booking app last** (incl. web → App Store → tenant deep link). Existing AI baseline stays.
 
 ---
 
 ## Sprint overview
 
-~2-week sprints. Features **1–9** → Monetization **10–12** (incl. app store) → AI **13–24**.
+~2-week sprints. Features **1–8** → Monetization **9–11** → AI **12–23** → Consumer app **24** (deferred).
 
 | Sprint | Theme | IDs |
 |--------|--------|-----|
 | **1** | Mobile push & offline | gap-2.1, gap-2.3 |
-| **2** | Consumer booking | gap-2.5 |
-| **3** | Integrations — webhooks & Zapier | gap-4.3, gap-4.4, gap-4.5 |
-| **4** | Integrations — accounting & support | gap-4.1, gap-4.2 |
-| **5** | In-app polish | gap-6.4, gap-6.5 |
-| **6** | Scheduling vertical depth | gap-8.2, **sub-1** |
-| **7** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
-| **8** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
-| **9** | Strategy & compliance eval | gap-5.6, gap-1.6 |
-| **10** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
-| **11** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
-| **12** | Launch — billing & app store | gap-7.5, gap-7.6, gap-1.5 |
-| **13** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
-| **14** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
-| **15** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
-| **16** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
-| **17** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
-| **18** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
-| **19** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
-| **20** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
-| **21** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
-| **22** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
-| **23** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
-| **24** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **2** | Integrations — webhooks & Zapier | gap-4.3, gap-4.4, gap-4.5 |
+| **3** | Integrations — accounting & support | gap-4.1, gap-4.2 |
+| **4** | In-app polish | gap-6.4, gap-6.5 |
+| **5** | Scheduling vertical depth | gap-8.2, **sub-1** |
+| **6** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
+| **7** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
+| **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
+| **9** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
+| **10** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
+| **11** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
+| **12** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
+| **13** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
+| **14** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
+| **15** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
+| **16** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
+| **17** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
+| **18** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
+| **19** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
+| **20** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
+| **21** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
+| **22** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
+| **23** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **24** | Consumer booking app *(deferred — last)* | **gap-2.5** |
 
 ---
 
@@ -51,15 +51,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 2 — Consumer booking
-
-**Goal:** Branded client booking surface (PWA minimum).
-
-- [ ] **gap-2.5** — Branded consumer booking app (PWA minimum; native optional) for client booking
-
----
-
-## Sprint 3 — Integrations: webhooks & Zapier, Zendesk
+## Sprint 2 — Integrations: webhooks & Zapier, Zendesk
 
 **Goal:** Outbound automation for ops teams without custom code.
 
@@ -69,7 +61,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 4 — Integrations: accounting & support
+## Sprint 3 — Integrations: accounting & support
 
 **Goal:** Deeper back-office sync and in-app support handoff.
 
@@ -78,7 +70,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 5 — In-app polish
+## Sprint 4 — In-app polish
 
 **Goal:** Finish rough edges in inventory and self-serve help.
 
@@ -87,7 +79,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 6 — Scheduling vertical depth
+## Sprint 5 — Scheduling vertical depth
 
 **Goal:** Multi-resource appointments and customer service subscriptions.
 
@@ -134,7 +126,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
 - [ ] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
 
-*(Integrates with **gap-2.5** consumer booking PWA.)*
+*(Integrates with **gap-2.5** consumer app — Sprint 24.)*
 
 #### Future-ready
 
@@ -150,7 +142,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 7 — Growth & vertical playbooks
+## Sprint 6 — Growth & vertical playbooks
 
 **Goal:** Retention automation and faster vertical setup.
 
@@ -159,7 +151,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 8 — Retail POS & enterprise trust
+## Sprint 7 — Retail POS & enterprise trust
 
 **Goal:** Chair-side retail and enterprise sales collateral.
 
@@ -169,7 +161,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 9 — Strategy & compliance eval
+## Sprint 8 — Strategy & compliance eval
 
 **Goal:** Decide medical vertical and marketplace positioning before building either.
 
@@ -178,7 +170,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 10 — Onboarding & pricing UX
+## Sprint 9 — Onboarding & pricing UX
 
 **Goal:** Streamlined first-run setup and public pricing once core features are ready.
 
@@ -187,7 +179,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 11 — Stripe plans & seats
+## Sprint 10 — Stripe plans & seats
 
 **Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
 
@@ -199,7 +191,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 12 — Launch: billing & app store
+## Sprint 11 — Launch: billing & provider app store
 
 **Goal:** Public launch readiness — billing options, upgrade flows, and store listings.
 
@@ -209,7 +201,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 13 — AI reliability & regression
+## Sprint 12 — AI reliability & regression
 
 **Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
 
@@ -219,7 +211,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 14 — AI platform & limits
+## Sprint 13 — AI platform & limits
 
 **Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
 
@@ -231,7 +223,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 15 — AI dashboard UX core
+## Sprint 14 — AI dashboard UX core
 
 **Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
 
@@ -242,7 +234,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 16 — AI dashboard depth
+## Sprint 15 — AI dashboard depth
 
 **Goal:** Macros, wizards, risk explainability, proactive reports.
 
@@ -255,7 +247,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 17 — AI page coverage & onboarding
+## Sprint 16 — AI page coverage & onboarding
 
 **Goal:** AI on Customers, Reports, and during onboarding.
 
@@ -268,7 +260,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 18 — AI mobile commands
+## Sprint 17 — AI mobile commands
 
 **Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
 
@@ -281,7 +273,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 19 — AI mobile push & voice
+## Sprint 18 — AI mobile push & voice
 
 **Goal:** Hands-free input and push → deep link → AI prefill.
 
@@ -295,7 +287,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 20 — AI mobile offline
+## Sprint 19 — AI mobile offline
 
 **Goal:** AI commands and suggestions when connectivity drops.
 
@@ -305,7 +297,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 21 — AI intelligence layer
+## Sprint 20 — AI intelligence layer
 
 **Goal:** Memory, handoff, coordination, optional RAG.
 
@@ -316,7 +308,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 22 — AI scheduling scenarios
+## Sprint 21 — AI scheduling scenarios
 
 **Goal:** Advanced NL scheduling ops beyond baseline template cascade.
 
@@ -328,7 +320,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 23 — AI booking & business ops
+## Sprint 22 — AI booking & business ops
 
 **Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
 
@@ -343,7 +335,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 24 — AI enterprise & analytics
+## Sprint 23 — AI enterprise & analytics
 
 **Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
 
@@ -356,7 +348,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
 - [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
 
-### AI success metrics (Sprints 13–24)
+### AI success metrics (Sprints 12–23)
 
 | Metric | Target |
 |--------|--------|
@@ -368,6 +360,46 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | Mean time to resolve conflict via AI | <2 min |
 
 **AI baseline (already shipped):** command completion pipeline, schedule/booking/catalog intents on dashboard, narrow booking ops on mobile, proactive suggestions, conflict recovery, waitlist fill, autopilot rules, morning briefing.
+
+---
+
+## Sprint 24 — Consumer booking app *(deferred — build last)*
+
+**Goal:** Native/PWA consumer app + web → App Store → tenant deep link so customers land on the correct salon after install.
+
+**Target flow:**
+
+1. Customer on web booking for Glow Nails (`/book/glow-nails`)
+2. Taps **Download OptiSchedule app**
+3. App Store / Play Store → install
+4. Opens app → lands on **Glow Nails** (slug preserved)
+5. Signs in → appears as **Customer** under Glow Nails in dashboard
+
+- [ ] **gap-2.5** — Branded consumer booking app (native Capacitor + PWA parity)
+
+#### Native app foundation
+
+- [ ] **gap-2.5.1** — Consumer app shell (Capacitor) — book, account, subscriptions; separate from `provider-app/`
+- [ ] **gap-2.5.2** — Active tenant context — app stores `slug` / `businessId`; all auth + API calls scoped to current salon
+- [ ] **gap-2.5.3** — Tenant entry — deep link, salon code, or “recent salons” if no link; sign-in always after tenant is set
+
+#### Web → App Store → tenant (install attribution)
+
+- [ ] **gap-2.5.4** — Public booking banner — “Download app” + “Open in app” on `/book/{slug}` (web, current stack)
+- [ ] **gap-2.5.5** — Universal Links (iOS) + App Links (Android) — `https://…/book/{slug}` opens consumer app when installed
+- [ ] **gap-2.5.6** — Store CTA URLs carry tenant — smart link or query (`?slug=glow-nails` / deferred deep link) so **post-install first open** restores salon context
+- [ ] **gap-2.5.7** — App first launch — read deep link / deferred slug → navigate to tenant home → then Google sign-in via `/public/{slug}/customer/auth`
+
+#### Customer identity (unchanged backend contract)
+
+- [ ] **gap-2.5.8** — Sign-in creates/finds `Customer` for active `businessId` only (same as web public booking today)
+- [ ] **gap-2.5.9** — Per-tenant session — separate auth storage per `slug`; switching salon = switch tenant context
+
+#### Store launch (consumer)
+
+- [ ] **gap-2.5.10** — Consumer app App Store / Play Store listing (separate from provider app **gap-1.5**)
+
+*(Integrates **sub-1** subscriptions — one-time vs plan picker, My subscriptions profile.)*
 
 ---
 
