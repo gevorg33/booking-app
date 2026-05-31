@@ -41,6 +41,64 @@ export class ProviderPushListener {
     );
   }
 
+  @OnEvent(EventType.PAYMENT_RECEIVED, { async: true })
+  async handlePaymentReceived(event: OperationalEvent): Promise<void> {
+    if (!this.pushService.isConfigured || !event.businessId) return;
+
+    try {
+      const bookingId =
+        typeof event.payload?.bookingId === 'string' ? event.payload.bookingId : event.aggregateId;
+      const booking = await this.bookingRepo.findOne({
+        where: { id: bookingId },
+        relations: { employee: true, service: true, customer: true },
+      });
+      if (!booking?.employeeId) return;
+
+      const amount =
+        typeof event.payload?.amount === 'number'
+          ? event.payload.amount
+          : Number(event.payload?.amount ?? 0);
+      const currency =
+        typeof event.payload?.currency === 'string' ? event.payload.currency : 'USD';
+      const customerName = booking.customer?.name ?? 'A customer';
+      const serviceName = booking.service?.name ?? 'Appointment';
+      const providerName = booking.employee?.name ?? 'Provider';
+      const title = 'Payment received';
+      const body = `${customerName} — ${serviceName}: ${currency} ${amount.toFixed(2)}`;
+      const url = `/provider/today?bookingId=${bookingId}`;
+
+      const notified = new Set<string>();
+      const providerUserId = await this.providerMobileService.findEmployeeUserId(booking.employeeId);
+      if (providerUserId) {
+        const sent = await this.pushService.sendToUser(providerUserId, event.businessId, {
+          title,
+          body,
+          url,
+          bookingId,
+        });
+        if (sent > 0) {
+          notified.add(providerUserId);
+          this.logger.log(`Provider push (payment) for booking ${bookingId} (${sent} device(s))`);
+        }
+      }
+
+      const managerUserIds = await this.providerMobileService.findMobileManagerUserIds(event.businessId);
+      for (const managerUserId of managerUserIds) {
+        if (notified.has(managerUserId)) continue;
+        const sent = await this.pushService.sendToUser(managerUserId, event.businessId, {
+          title,
+          body: `${providerName}: ${body}`,
+          url,
+          bookingId,
+        });
+        if (sent > 0) notified.add(managerUserId);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Provider push (payment) for ${event.aggregateId} failed: ${message}`);
+    }
+  }
+
   private async notifyForBooking(
     event: OperationalEvent,
     kind: 'created' | 'cancelled' | 'rescheduled',

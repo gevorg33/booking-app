@@ -15,6 +15,7 @@ import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, getTodayDateKey, toDateKey, todayDateAnchor } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { AiCalendarSelectionBar, type CalendarSelection } from '@/components/ai-calendar-selection-bar';
@@ -278,15 +279,16 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CalendarDays className="w-6 h-6 text-blue-400" />
-          Provider Calendar
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">
-          View a service provider's weekly schedule — slots are color-coded by service
-        </p>
-      </div>
+      <PageHelpHeader
+        topicId="calendar"
+        title={
+          <>
+            <CalendarDays className="w-6 h-6 text-blue-400" />
+            Provider Calendar
+          </>
+        }
+        subtitle="View a service provider's weekly schedule — slots are color-coded by service"
+      />
 
       <AiContextualSuggestions
         context={{

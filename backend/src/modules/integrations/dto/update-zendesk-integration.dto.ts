@@ -1,4 +1,14 @@
-import { IsBoolean, IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateZendeskIntegrationDto {
   @IsOptional()
@@ -32,6 +42,17 @@ export class UpdateZendeskIntegrationDto {
   @IsOptional()
   @IsBoolean()
   syncCustomersEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  createTicketOnReview?: boolean;
+
+  /** When set, only reviews at or below this rating (1–5) create tickets. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  reviewTicketMaxRating?: number | null;
 
   @IsOptional()
   @IsEmail()

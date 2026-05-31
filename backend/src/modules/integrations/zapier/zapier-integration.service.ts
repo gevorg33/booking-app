@@ -50,7 +50,7 @@ export class ZapierIntegrationService {
       setupSteps: [
         'Create an API key under Integrations → API keys with read:bookings and read:customers scopes.',
         'In Zapier, choose Webhooks by Zapier → Catch Hook and paste your OptiSchedule webhook URL.',
-        'Subscribe to events: booking.created, booking.cancelled, payment.received (see webhooks tab).',
+        'Subscribe to events: booking.created, booking.cancelled, payment.received, review.received (see webhooks tab).',
         'Use REST API polling: GET /v1/bookings with Authorization: Bearer osk_live_…',
         'Make.com: use the same webhook URL and HTTP module with X-OptiSchedule-Signature verification.',
       ],
@@ -117,6 +117,13 @@ export class ZapierIntegrationService {
         aggregateId: '00000000-0000-0000-0000-000000000002',
         timestamp: now,
         payload: { amount: 50, currency: 'USD', bookingId: '00000000-0000-0000-0000-000000000001' },
+      },
+      {
+        event: 'review.received',
+        businessId,
+        aggregateId: '00000000-0000-0000-0000-000000000003',
+        timestamp: now,
+        payload: { rating: 5, comment: 'Great service', employeeId: 'emp-1', customerName: 'Jane Doe' },
       },
     ];
   }

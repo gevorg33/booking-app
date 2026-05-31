@@ -5,28 +5,28 @@ Goal: **bookings + reminders + payments + staff schedule + reports** for salon/s
 
 Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
-**Build policy:** Ship **product features** first → then **plans, onboarding & billing** → **App Store / Play Store listings** → then **AI expansion**. Existing AI baseline stays; new AI work is last.
+**Build policy:** Ship **product features** first → **launch & consumer app** → **lifecycle & ops** → **AI expansion** → **onboarding, pricing & Stripe plans last**. Existing AI baseline stays.
 
 ---
 
 ## Sprint overview
 
-~2-week sprints. Features **1–9** → Monetization **10–12** (incl. app store) → AI **13–24**.
+~2-week sprints. Features **1–8** → Launch & consumer **9–10** → Lifecycle & ops **11–12** → AI **13–24** → Monetization **25–26**.
 
 | Sprint | Theme | IDs |
 |--------|--------|-----|
 | **1** | Mobile push & offline | gap-2.1, gap-2.3 |
-| **2** | Consumer booking | gap-2.5 |
-| **3** | Integrations — webhooks & Zapier | gap-4.3, gap-4.4, gap-4.5 |
-| **4** | Integrations — accounting & support | gap-4.1, gap-4.2 |
-| **5** | In-app polish | gap-6.4, gap-6.5 |
-| **6** | Scheduling vertical depth | gap-8.2, **sub-1** |
-| **7** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
-| **8** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
-| **9** | Strategy & compliance eval | gap-5.6, gap-1.6 |
-| **10** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
-| **11** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
-| **12** | Launch — billing & app store | gap-7.5, gap-7.6, gap-1.5 |
+| **2** | Integrations — webhooks & Zapier | gap-4.3, gap-4.4, gap-4.5 |
+| **3** | Integrations — accounting & support | gap-4.1, gap-4.2 |
+| **4** | In-app polish | gap-6.4, gap-6.5 |
+| **5** | Scheduling vertical depth | gap-8.2, **sub-1** |
+| **6** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
+| **7** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
+| **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
+| **9** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
+| **10** | Consumer booking app | **gap-2.5** |
+| **11** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
+| **12** | Customer booking self-service & staff push | gap-2.7, gap-2.8 |
 | **13** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
 | **14** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
 | **15** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
@@ -39,6 +39,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **22** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
 | **23** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
 | **24** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **25** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
+| **26** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 
 ---
 
@@ -46,48 +48,40 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Reliable push delivery and offline-safe mutations on provider mobile.
 
-- [ ] **gap-2.1** — Finish FCM/APNs push delivery for provider app (see **comms-4**)
-- [ ] **gap-2.3** — Offline-safe mutations on mobile — queue + replay
+- [x] **gap-2.1** — Finish FCM/APNs push delivery for provider app (see **comms-4**)
+- [x] **gap-2.3** — Offline-safe mutations on mobile — queue + replay
 
 ---
 
-## Sprint 2 — Consumer booking
-
-**Goal:** Branded client booking surface (PWA minimum).
-
-- [ ] **gap-2.5** — Branded consumer booking app (PWA minimum; native optional) for client booking
-
----
-
-## Sprint 3 — Integrations: webhooks & Zapier, Zendesk
+## Sprint 2 — Integrations: webhooks & Zapier, Zendesk
 
 **Goal:** Outbound automation for ops teams without custom code.
 
-- [ ] **gap-4.3** — Commission / payout CSV export aligned with accounting workflows
-- [ ] **gap-4.4** — Pre-built integration docs + “Connect in 5 min” templates (webhooks, API keys)
-- [ ] **gap-4.5** — Zapier and Zendesk triggers: `booking.created`, `booking.cancelled`, `payment.received`, 'review.received'
+- [x] **gap-4.3** — Commission / payout CSV export aligned with accounting workflows
+- [x] **gap-4.4** — Pre-built integration docs + “Connect in 5 min” templates (webhooks, API keys)
+- [x] **gap-4.5** — Zapier and Zendesk triggers: `booking.created`, `booking.cancelled`, `payment.received`, 'review.received'
 
 ---
 
-## Sprint 4 — Integrations: accounting & support
+## Sprint 3 — Integrations: accounting & support
 
 **Goal:** Deeper back-office sync and in-app support handoff.
 
-- [ ] **gap-4.1** — Accounting export — QuickBooks / Xero (see **int-4**)
-- [ ] **gap-4.2** — Zendesk — widget, support form → ticket, customer sync (see **int-5**–**int-8**)
+- [x] **gap-4.1** — Accounting export — QuickBooks / Xero (see **int-4**)
+- [x] **gap-4.2** — Zendesk — widget, support form → ticket, customer sync (see **int-5**–**int-8**)
 
 ---
 
-## Sprint 5 — In-app polish
+## Sprint 4 — In-app polish
 
 **Goal:** Finish rough edges in inventory and self-serve help.
 
-- [ ] **gap-6.4** — Inventory → service linking UI (replace “coming soon” copy)
-- [ ] **gap-6.5** — In-app help center + contextual “?” on Schedule, Calendar, Employees
+- [x] **gap-6.4** — Inventory → service linking UI (replace “coming soon” copy)
+- [x] **gap-6.5** — In-app help center + contextual “?” on Schedule, Calendar, Employees
 
 ---
 
-## Sprint 6 — Scheduling vertical depth
+## Sprint 5 — Scheduling vertical depth
 
 **Goal:** Multi-resource appointments and customer service subscriptions.
 
@@ -134,7 +128,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
 - [ ] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
 
-*(Integrates with **gap-2.5** consumer booking PWA.)*
+*(Integrates with **gap-2.5** consumer app — Sprint 10.)*
 
 #### Future-ready
 
@@ -150,7 +144,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 7 — Growth & vertical playbooks
+## Sprint 6 — Growth & vertical playbooks
 
 **Goal:** Retention automation and faster vertical setup.
 
@@ -159,7 +153,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 8 — Retail POS & enterprise trust
+## Sprint 7 — Retail POS & enterprise trust
 
 **Goal:** Chair-side retail and enterprise sales collateral.
 
@@ -169,7 +163,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 9 — Strategy & compliance eval
+## Sprint 8 — Strategy & compliance eval
 
 **Goal:** Decide medical vertical and marketplace positioning before building either.
 
@@ -178,34 +172,114 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 10 — Onboarding & pricing UX
-
-**Goal:** Streamlined first-run setup and public pricing once core features are ready.
-
-- [ ] **gap-6.1** — Simplified “first 30 minutes” onboarding — book link live in ≤3 steps
-- [ ] **gap-7.4** — Public pricing page with seat calculator + feature comparison matrix
-
----
-
-## Sprint 11 — Stripe plans & seats
-
-**Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
-
-- [ ] **gap-7.1** — Implement Solo / Starter / Growth / Business tiers in `plans.ts` + Stripe
-- [ ] **gap-7.2** — Per-seat billing (provider + admin seats) with enforcement on employee create / invite
-- [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
-- [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
-- [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
-
----
-
-## Sprint 12 — Launch: billing & app store
+## Sprint 9 — Launch: billing & provider app store
 
 **Goal:** Public launch readiness — billing options, upgrade flows, and store listings.
 
 - [ ] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
 - [ ] **gap-7.6** — Annual billing option (~20% discount)
 - [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
+
+---
+
+## Sprint 10 — Consumer booking app
+
+**Goal:** Native/PWA consumer app + web → App Store → tenant deep link so customers land on the correct salon after install.
+
+**Target flow:**
+
+1. Customer on web booking for Glow Nails (`/book/glow-nails`)
+2. Taps **Download OptiSchedule app**
+3. App Store / Play Store → install
+4. Opens app → lands on **Glow Nails** (slug preserved)
+5. Signs in → appears as **Customer** under Glow Nails in dashboard
+6. App primary/secondary colors and brand logos can be changed in dashboard from admin/business owner
+
+- [ ] **gap-2.5** — Branded consumer booking app (native Capacitor + PWA parity)
+
+#### Native app foundation
+
+- [ ] **gap-2.5.1** — Consumer app shell (Capacitor) — book, account, subscriptions; separate from `provider-app/`
+- [ ] **gap-2.5.2** — Active tenant context — app stores `slug` / `businessId`; all auth + API calls scoped to current salon
+- [ ] **gap-2.5.3** — Tenant entry — deep link, salon code, or “recent salons” if no link; sign-in always after tenant is set
+
+#### Web → App Store → tenant (install attribution)
+
+- [ ] **gap-2.5.4** — Public booking banner — “Download app” + “Open in app” on `/book/{slug}` (web, current stack)
+- [ ] **gap-2.5.5** — Universal Links (iOS) + App Links (Android) — `https://…/book/{slug}` opens consumer app when installed
+- [ ] **gap-2.5.6** — Store CTA URLs carry tenant — smart link or query (`?slug=glow-nails` / deferred deep link) so **post-install first open** restores salon context
+- [ ] **gap-2.5.7** — App first launch — read deep link / deferred slug → navigate to tenant home → then Google sign-in via `/public/{slug}/customer/auth`
+
+#### Customer identity (unchanged backend contract)
+
+- [ ] **gap-2.5.8** — Sign-in creates/finds `Customer` for active `businessId` only (same as web public booking today)
+- [ ] **gap-2.5.9** — Per-tenant session — separate auth storage per `slug`; switching salon = switch tenant context
+
+#### Store launch (consumer)
+
+- [ ] **gap-2.5.10** — Consumer app App Store / Play Store listing (separate from provider app **gap-1.5**)
+
+*(Integrates **sub-1** subscriptions — one-time vs plan picker, My subscriptions profile.)*
+
+---
+
+## Sprint 11 — Marketing alerts & subscription accounting
+
+**Goal:** Notify the marketing team when customers register, and keep books in sync when subscriptions are sold.
+
+- [ ] **gap-4.6** — New customer registered → email marketing team (see spec below)
+- [ ] **gap-4.7** — Subscription purchased → create accounting record (see spec below)
+
+### gap-4.6 — New customer → marketing email
+
+**User story:** As a business owner, I want the marketing team notified when someone registers as a customer so we can welcome them or add them to campaigns.
+
+- [ ] **gap-4.6.1** — Settings — `Settings → Notifications` (or Integrations): **Marketing team email(s)** (comma-separated or list); toggle **Email on new customer registration**
+- [ ] **gap-4.6.2** — Trigger — on first customer create (public sign-up, booking checkout that creates customer, dashboard create); emit `customer.registered` or reuse `customer.upserted` with `isNew` flag
+- [ ] **gap-4.6.3** — Email content — customer name, email, phone, source (web booking / app / dashboard), business name, link to dashboard customer profile
+- [ ] **gap-4.6.4** — Delivery — use existing transactional email provider; log send failures; skip when toggle off or no recipients configured
+
+### gap-4.7 — Subscription purchase → accounting
+
+**User story:** When a customer buys a service subscription plan, I want an income line in accounting export / books without manual entry.
+
+- [ ] **gap-4.7.1** — Event — emit `subscription.purchased` (or `payment.received` with `source: subscription`) when subscription checkout completes (**sub-1**)
+- [ ] **gap-4.7.2** — Accounting row — date, plan name, amount paid, currency, customer name, subscription ID; type `income` / sub-type `subscription`
+- [ ] **gap-4.7.3** — Integrate with **gap-4.1** export — include subscription purchases in QuickBooks / Xero / CSV export range
+- [ ] **gap-4.7.4** — Optional — separate deferred-revenue handling later; MVP = recognize full plan price on purchase (document assumption)
+
+*(Depends on **sub-1** subscription checkout; can stub event + export row before full sub-1 UI ships.)*
+
+---
+
+## Sprint 12 — Customer booking self-service & staff push
+
+**Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
+
+- [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
+- [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
+
+### gap-2.7 — Customer self-service cancel & reschedule
+
+**User story:** As a registered customer, I want to cancel my appointment or pick a new date/time without calling the salon.
+
+- [ ] **gap-2.7.1** — Policy settings — admin configures: allow cancel (yes/no), allow reschedule (yes/no), minimum notice (e.g. 24h before start), max reschedules per booking
+- [ ] **gap-2.7.2** — API — `POST /public/{slug}/customer/bookings/:id/cancel` and `POST …/reschedule` (or PATCH with new slot); auth = public customer JWT; enforce policy + booking ownership
+- [ ] **gap-2.7.3** — Reschedule UX — show available slots for same service/provider (or allow provider change per policy); validate conflicts server-side
+- [ ] **gap-2.7.4** — Web public booking — “My appointments” for logged-in customer: Cancel / Reschedule actions with policy messaging
+- [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time
+- [ ] **gap-2.7.6** — Side effects — emit `booking.cancelled` / `booking.rescheduled`; restore subscription credit per **sub-1.10** policy when applicable
+
+### gap-2.8 — Staff push on cancel & reschedule
+
+**User story:** When a customer cancels or moves an appointment, the assigned provider and managers should get an immediate app notification.
+
+- [ ] **gap-2.8.1** — Extend **gap-2.1** `ProviderPushListener` — ensure `booking.cancelled` and `booking.rescheduled` fire for **customer-initiated** changes (not only dashboard)
+- [ ] **gap-2.8.2** — Recipients — assigned provider (linked user), mobile-enabled managers; dedupe if same user
+- [ ] **gap-2.8.3** — Push copy — “Jane cancelled Haircut at Mon 10:00” / “Jane rescheduled to Wed 14:00”; deep link to booking in provider app
+- [ ] **gap-2.8.4** — Optional email/SMS to business — settings toggle separate from marketing email (**gap-4.6**)
+
+*(Partial coverage exists via **gap-2.1** push listener; this sprint closes customer-initiated paths and consumer app parity.)*
 
 ---
 
@@ -368,6 +442,27 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | Mean time to resolve conflict via AI | <2 min |
 
 **AI baseline (already shipped):** command completion pipeline, schedule/booking/catalog intents on dashboard, narrow booking ops on mobile, proactive suggestions, conflict recovery, waitlist fill, autopilot rules, morning briefing.
+
+---
+
+## Sprint 25 — Onboarding & pricing UX
+
+**Goal:** Streamlined first-run setup and public pricing once product, consumer app, and AI are ready.
+
+- [ ] **gap-6.1** — Simplified “first 30 minutes” onboarding — book link live in ≤3 steps
+- [ ] **gap-7.4** — Public pricing page with seat calculator + feature comparison matrix
+
+---
+
+## Sprint 26 — Stripe plans & seats
+
+**Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
+
+- [ ] **gap-7.1** — Implement Solo / Starter / Growth / Business tiers in `plans.ts` + Stripe
+- [ ] **gap-7.2** — Per-seat billing (provider + admin seats) with enforcement on employee create / invite
+- [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
+- [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
+- [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
 
 ---
 

@@ -8,6 +8,7 @@ import {
   Brain,
   Building2,
   Calculator,
+  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   MessageSquare,
@@ -112,6 +113,12 @@ function ExampleCommands({
 export default function GuidePage() {
   const { t } = useI18n();
 
+  const coreToc = [
+    { id: 'schedule', label: t('guide.core.scheduleTitle') },
+    { id: 'calendar', label: t('guide.core.calendarTitle') },
+    { id: 'employees', label: t('guide.core.employeesTitle') },
+  ];
+
   const operationsToc = [
     { id: 'overview', label: t('guide.operations.overviewTitle') },
     { id: 'problems', label: t('guide.operations.problemsTitle') },
@@ -159,6 +166,20 @@ export default function GuidePage() {
         <nav className="lg:sticky lg:top-6 h-fit space-y-4">
           <div className="card space-y-1 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 px-2 py-1">
+              {t('guide.core.navLabel')}
+            </p>
+            {coreToc.map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className="block rounded-lg px-3 py-2 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800/60 transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+          <div className="card space-y-1 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 px-2 py-1">
               {t('guide.operations.navLabel')}
             </p>
             {operationsToc.map((item) => (
@@ -203,6 +224,63 @@ export default function GuidePage() {
         </nav>
 
         <div className="space-y-10">
+          <GuideSection id="schedule" icon={CalendarDays} title={t('guide.core.scheduleTitle')}>
+            <p className="text-sm">{t('guide.core.scheduleBody')}</p>
+            <StepList
+              steps={[
+                t('guide.core.scheduleStep1'),
+                t('guide.core.scheduleStep2'),
+                t('guide.core.scheduleStep3'),
+                t('guide.core.scheduleStep4'),
+              ]}
+            />
+            <Link
+              href="/dashboard/schedule"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 mt-2"
+            >
+              Open Schedule
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </GuideSection>
+
+          <GuideSection id="calendar" icon={CalendarDays} accent="violet" title={t('guide.core.calendarTitle')}>
+            <p className="text-sm">{t('guide.core.calendarBody')}</p>
+            <StepList
+              steps={[
+                t('guide.core.calendarStep1'),
+                t('guide.core.calendarStep2'),
+                t('guide.core.calendarStep3'),
+                t('guide.core.calendarStep4'),
+              ]}
+            />
+            <Link
+              href="/dashboard/calendar"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 mt-2"
+            >
+              Open Calendar
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </GuideSection>
+
+          <GuideSection id="employees" icon={Users} title={t('guide.core.employeesTitle')}>
+            <p className="text-sm">{t('guide.core.employeesBody')}</p>
+            <StepList
+              steps={[
+                t('guide.core.employeesStep1'),
+                t('guide.core.employeesStep2'),
+                t('guide.core.employeesStep3'),
+                t('guide.core.employeesStep4'),
+              ]}
+            />
+            <Link
+              href="/dashboard/employees"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 mt-2"
+            >
+              Open Employees
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </GuideSection>
+
           <div className="card bg-gradient-to-br from-amber-600/10 to-transparent border-amber-500/20">
             <div className="flex items-start gap-4">
               <Warehouse className="w-8 h-8 text-amber-400 shrink-0 mt-0.5" />

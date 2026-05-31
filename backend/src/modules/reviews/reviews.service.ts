@@ -16,6 +16,8 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { SubmitPublicReviewDto } from './dto/submit-public-review.dto.js';
 import { SubmitProviderPortalReviewDto } from './dto/submit-provider-portal-review.dto.js';
 import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
+import { EventStoreService } from '../../events/store/event-store.service.js';
+import { EventType } from '../../events/event-types.js';
 
 export interface PublicReviewContext {
   businessName: string;
@@ -65,6 +67,7 @@ export class ReviewsService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     private firebase: FirebaseAdminService,
+    private eventStore: EventStoreService,
   ) {}
 
   async list(businessId: string, employeeId?: string): Promise<Review[]> {
@@ -246,7 +249,7 @@ export class ReviewsService {
       if (existing) throw new ConflictException('A review was already submitted for this appointment');
     }
 
-    return this.reviewRepo.save(
+    const review = await this.reviewRepo.save(
       this.reviewRepo.create({
         businessId,
         employeeId: dto.employeeId,
@@ -257,6 +260,24 @@ export class ReviewsService {
         customerName: dto.customerName?.trim() || undefined,
       }),
     );
+
+    await this.eventStore.publish({
+      eventType: EventType.REVIEW_RECEIVED,
+      aggregateType: 'review',
+      aggregateId: review.id,
+      businessId,
+      payload: {
+        reviewId: review.id,
+        employeeId: review.employeeId,
+        rating: review.rating,
+        comment: review.comment,
+        customerId: review.customerId,
+        bookingId: review.bookingId,
+        customerName: review.customerName,
+      },
+    });
+
+    return review;
   }
 
   async ensureReviewToken(bookingId: string): Promise<string> {

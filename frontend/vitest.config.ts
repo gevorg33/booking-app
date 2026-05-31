@@ -1,17 +1,12 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    host: '127.0.0.1',
-  },
   test: {
     environment: 'node',
+    include: ['src/lib/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/offline-queue.ts'],
+      include: ['src/lib/help-center-topics.ts'],
       thresholds: {
         statements: 90,
         branches: 85,

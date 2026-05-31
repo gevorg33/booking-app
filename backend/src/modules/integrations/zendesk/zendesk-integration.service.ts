@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
 import { Customer } from '../../customer/entities/customer.entity.js';
 import { Booking } from '../../booking/entities/booking.entity.js';
+import { Employee } from '../../employee/entities/employee.entity.js';
 import { UpdateZendeskIntegrationDto } from '../dto/update-zendesk-integration.dto.js';
 import { CreateSupportTicketDto } from '../dto/create-support-ticket.dto.js';
 import {
@@ -25,6 +26,16 @@ import {
 } from './zendesk-integration.types.js';
 import { ZendeskApiClient } from './zendesk-api.client.js';
 
+export interface ReviewTicketPayload {
+  reviewId?: string;
+  employeeId?: string;
+  rating?: number;
+  comment?: string;
+  customerId?: string;
+  bookingId?: string;
+  customerName?: string;
+}
+
 @Injectable()
 export class ZendeskIntegrationService {
   private readonly logger = new Logger(ZendeskIntegrationService.name);
@@ -33,6 +44,7 @@ export class ZendeskIntegrationService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private readonly config: ConfigService,
     private readonly api: ZendeskApiClient,
   ) {}
@@ -83,6 +95,8 @@ export class ZendeskIntegrationService {
       widgetEnabledOnDashboard: integration.widgetEnabledOnDashboard !== false,
       widgetEnabledOnPublicBooking: Boolean(integration.widgetEnabledOnPublicBooking),
       syncCustomersEnabled: Boolean(integration.syncCustomersEnabled),
+      createTicketOnReview: Boolean(integration.createTicketOnReview),
+      reviewTicketMaxRating: integration.reviewTicketMaxRating,
       defaultAssigneeEmail: integration.defaultAssigneeEmail,
     };
   }
@@ -122,6 +136,12 @@ export class ZendeskIntegrationService {
     }
     if (dto.syncCustomersEnabled !== undefined) {
       next.syncCustomersEnabled = dto.syncCustomersEnabled;
+    }
+    if (dto.createTicketOnReview !== undefined) {
+      next.createTicketOnReview = dto.createTicketOnReview;
+    }
+    if (dto.reviewTicketMaxRating !== undefined) {
+      next.reviewTicketMaxRating = dto.reviewTicketMaxRating ?? undefined;
     }
     if (dto.defaultAssigneeEmail !== undefined) {
       next.defaultAssigneeEmail = dto.defaultAssigneeEmail.trim() || undefined;
@@ -248,11 +268,87 @@ export class ZendeskIntegrationService {
       body: dto.body,
       requesterEmail,
       requesterName,
-      tags: ['optischedule', 'dashboard-support'],
+      tags: dto.tags?.length ? dto.tags : ['optischedule', 'dashboard-support'],
       customFields,
     });
 
     return { ...ticket, requesterEmail };
+  }
+
+  async createTicketFromReviewIfEnabled(businessId: string, payload: ReviewTicketPayload) {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) return null;
+
+    const integration = getBusinessZendeskIntegration(business.settings);
+    if (!integration.enabled || !integration.createTicketOnReview) return null;
+
+    const rating = Number(payload.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      this.logger.warn(`Skipping Zendesk review ticket — invalid rating for review ${payload.reviewId}`);
+      return null;
+    }
+
+    if (
+      integration.reviewTicketMaxRating != null &&
+      rating > integration.reviewTicketMaxRating
+    ) {
+      return null;
+    }
+
+    const customerName = payload.customerName?.trim() || 'Customer';
+    const comment = payload.comment?.trim();
+    const employee = payload.employeeId
+      ? await this.employeeRepo.findOne({
+          where: { id: payload.employeeId, businessId },
+        })
+      : null;
+
+    const bodyParts = [
+      `Rating: ${rating}/5`,
+      comment ? `Comment:\n${comment}` : 'No written comment.',
+    ];
+    if (employee?.name) bodyParts.push(`Provider: ${employee.name}`);
+    if (payload.reviewId) bodyParts.push(`Review ID: ${payload.reviewId}`);
+
+    const tags = ['optischedule', 'review'];
+    if (rating <= 3) tags.push('low-rating');
+
+    return this.createSupportTicket(
+      businessId,
+      {
+        subject: `New review — ${rating}★ from ${customerName}`,
+        body: bodyParts.join('\n\n'),
+        customerId: payload.customerId,
+        bookingId: payload.bookingId,
+        requesterName: customerName,
+        requesterEmail: await this.resolveReviewRequesterEmail(businessId, payload),
+        tags,
+      },
+    );
+  }
+
+  private async resolveReviewRequesterEmail(
+    businessId: string,
+    payload: ReviewTicketPayload,
+  ): Promise<string> {
+    if (payload.customerId) {
+      const customer = await this.customerRepo.findOne({
+        where: { id: payload.customerId, businessId },
+      });
+      if (customer?.email?.trim()) return customer.email.trim();
+    }
+
+    if (payload.bookingId) {
+      const booking = await this.bookingRepo.findOne({
+        where: { id: payload.bookingId, businessId },
+        relations: { customer: true },
+      });
+      if (booking?.customer?.email?.trim()) return booking.customer.email.trim();
+    }
+
+    const domain =
+      this.config.get<string>('ZENDESK_REVIEW_NOREPLY_DOMAIN') || 'noreply.optischedule.app';
+    return `reviews+${businessId}@${domain}`;
   }
 
   async syncCustomerIfEnabled(businessId: string, customerId: string) {

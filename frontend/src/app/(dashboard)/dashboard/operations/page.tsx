@@ -7,6 +7,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { InventoryServiceLinks } from '@/components/operations/inventory-service-links';
+import { ContextualHelpButton } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
@@ -69,6 +71,7 @@ export default function OperationsPage() {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Warehouse className="w-6 h-6 text-amber-400" />
               {t('operations.title')}
+              <ContextualHelpButton topicId="operations-inventory" />
             </h1>
             <p className="text-gray-400 text-sm mt-1">{t('operations.subtitle')}</p>
           </div>
@@ -328,6 +331,8 @@ function InventoryTab({ businessId }: { businessId: string }) {
           </table>
         )}
       </div>
+
+      <InventoryServiceLinks businessId={businessId} products={products} />
     </div>
   );
 }

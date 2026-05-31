@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
@@ -88,6 +88,9 @@ export class AccountingIntegrationService {
     if (!business) throw new NotFoundException('Business not found');
 
     const acct = getBusinessAccountingIntegration(business.settings);
+    if (!acct.enabled) {
+      throw new BadRequestException('Accounting integration is not enabled for this business');
+    }
     const provider = acct.provider || 'csv';
     const { start, end } = parseDateRange(from, to);
     const rows = await this.buildRows(businessId, start, end, acct);

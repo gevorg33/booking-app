@@ -123,4 +123,85 @@ describe('ProviderPushListener', () => {
     await listener.handleNewBooking({ ...baseEvent, businessId: undefined } as any);
     expect(pushActionService.notifyBookingActions).not.toHaveBeenCalled();
   });
+
+  it('sends push on payment received', async () => {
+    const paymentEvent = {
+      aggregateId: 'book-1',
+      businessId: 'biz-1',
+      eventType: EventType.PAYMENT_RECEIVED,
+      payload: { bookingId: 'book-1', amount: 50, currency: 'USD' },
+    };
+    await listener.handlePaymentReceived(paymentEvent as any);
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'biz-1',
+      expect.objectContaining({ title: 'Payment received', bookingId: 'book-1' }),
+    );
+  });
+
+  it('coerces string payment amounts and uses aggregate id fallback', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      id: 'book-9',
+      employeeId: 'emp-1',
+      customer: { name: 'Jane' },
+      service: { name: 'Cut' },
+      employee: { name: 'Alex' },
+    });
+    await listener.handlePaymentReceived({
+      aggregateId: 'book-9',
+      businessId: 'biz-1',
+      payload: { amount: '42.5', currency: 'EUR' },
+    } as any);
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'biz-1',
+      expect.objectContaining({ body: expect.stringContaining('EUR 42.50') }),
+    );
+  });
+
+  it('skips payment push when push is not configured', async () => {
+    (pushService as { isConfigured: boolean }).isConfigured = false;
+    await listener.handlePaymentReceived({
+      aggregateId: 'book-1',
+      businessId: 'biz-1',
+      payload: { amount: 10 },
+    } as any);
+    expect(pushService.sendToUser).not.toHaveBeenCalled();
+    (pushService as { isConfigured: boolean }).isConfigured = true;
+  });
+
+  it('skips payment push when booking has no employee', async () => {
+    bookingRepo.findOne.mockResolvedValue({ id: 'book-1', employeeId: null });
+    await listener.handlePaymentReceived({
+      aggregateId: 'book-1',
+      businessId: 'biz-1',
+      payload: { amount: 25 },
+    } as any);
+    expect(pushService.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it('notifies managers on payment received', async () => {
+    providerMobileService.findEmployeeUserId.mockResolvedValue(null);
+    await listener.handlePaymentReceived({
+      aggregateId: 'book-1',
+      businessId: 'biz-1',
+      payload: { bookingId: 'book-1', amount: 50, currency: 'USD' },
+    } as any);
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'mgr-1',
+      'biz-1',
+      expect.objectContaining({ title: 'Payment received' }),
+    );
+  });
+
+  it('swallows payment push errors', async () => {
+    bookingRepo.findOne.mockRejectedValue('db down');
+    await expect(
+      listener.handlePaymentReceived({
+        aggregateId: 'book-1',
+        businessId: 'biz-1',
+        payload: { amount: 25 },
+      } as any),
+    ).resolves.toBeUndefined();
+  });
 });

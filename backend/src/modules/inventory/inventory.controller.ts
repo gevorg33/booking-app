@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
+import { LinkServiceProductDto } from './dto/link-service-product.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -43,13 +44,42 @@ export class InventoryController {
     return this.inventoryService.adjustStock(id, businessId, dto.delta);
   }
 
-  @Post('service-links')
-  async link(
+  @Get('service-links')
+  async listLinks(
     @Param('businessId') businessId: string,
-    @Body() dto: { serviceId: string; productId: string; quantityPerService?: number },
+    @Query('serviceId') serviceId: string,
+    @Query('productId') productId: string,
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.inventoryService.linkToService(dto.serviceId, dto.productId, dto.quantityPerService);
+    return this.inventoryService.listServiceLinks(businessId, {
+      serviceId: serviceId || undefined,
+      productId: productId || undefined,
+    });
+  }
+
+  @Post('service-links')
+  async link(
+    @Param('businessId') businessId: string,
+    @Body() dto: LinkServiceProductDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.inventoryService.linkToService(
+      businessId,
+      dto.serviceId,
+      dto.productId,
+      dto.quantityPerService ?? 1,
+    );
+  }
+
+  @Delete('service-links/:linkId')
+  async unlink(
+    @Param('businessId') businessId: string,
+    @Param('linkId') linkId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.inventoryService.unlinkServiceProduct(linkId, businessId);
   }
 }

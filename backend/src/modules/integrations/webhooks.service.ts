@@ -22,6 +22,7 @@ export const WEBHOOK_EVENT_OPTIONS = [
   EventType.BOOKING_COMPLETED,
   EventType.BOOKING_RESCHEDULED,
   EventType.PAYMENT_RECEIVED,
+  EventType.REVIEW_RECEIVED,
 ] as const;
 
 @Injectable()
