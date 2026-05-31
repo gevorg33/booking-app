@@ -245,8 +245,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Decide medical vertical and marketplace positioning before building either.
 
-- [ ] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
-- [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
+- [x] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
+- [x] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
 
 ---
 

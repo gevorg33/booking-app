@@ -161,6 +161,67 @@ describe('resolveBookingPaymentSummary', () => {
       { type: 'gift_card', label: 'Gift card', amount: 5 },
     ]);
   });
+
+  it('ignores invalid pricing adjustments and non-numeric amounts', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          subtotal: 90,
+          amountDue: 90,
+          adjustments: [
+            null,
+            { type: 'gift_card', amount: 'bad' },
+            { type: 'loyalty', amount: 10, label: 'Points' },
+            { type: 'gift_card', amount: 8 },
+          ],
+        },
+      },
+      service: { price: 90, currency: 'USD' },
+    });
+
+    expect(summary?.adjustments).toEqual([
+      { type: 'loyalty', label: 'Points', amount: 10 },
+      { type: 'gift_card', label: 'Gift card', amount: 8 },
+    ]);
+  });
+
+  it('derives cash paid from amountPaid and cashPaidEligible fallbacks', () => {
+    const fromAmountPaid = resolveBookingPaymentSummary({
+      metadata: { amountPaid: 42 },
+      service: { price: 100, currency: 'USD' },
+    });
+    const fromCashEligible = resolveBookingPaymentSummary({
+      metadata: { cashPaidEligible: 55, pricing: {} },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(fromAmountPaid?.cashPaid).toBe(42);
+    expect(fromCashEligible?.cashPaid).toBe(55);
+  });
+
+  it('omits loyalty points in fallback when none were redeemed', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          subtotal: 100,
+          loyaltyDiscount: 20,
+          promoDiscount: 0,
+          giftCardDiscount: 0,
+        },
+      },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(summary?.adjustments).toEqual([
+      { type: 'loyalty', label: 'Loyalty bonuses', amount: 20 },
+    ]);
+  });
+
+  it('handles null metadata on booking source', () => {
+    expect(
+      resolveBookingPaymentSummary({ metadata: null, service: { price: 100 } }, []),
+    ).toBeNull();
+  });
 });
 
 describe('withBookingPaymentSummary', () => {

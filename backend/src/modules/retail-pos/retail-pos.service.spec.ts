@@ -182,6 +182,25 @@ describe('RetailPosService', () => {
     );
   });
 
+  it('skips stock restore when prior sale has no product relation', async () => {
+    const productRepoTx = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
+    const saleRepoTx = {
+      find: jest.fn().mockResolvedValue([{ id: 'old-sale', quantity: 2, product: null }]),
+      delete: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+    };
+    mockTransaction(saleRepo, productRepoTx, saleRepoTx);
+    saleRepo.find.mockResolvedValue([]);
+
+    await service.setBookingRetailSales('biz-1', 'booking-1', 'user-1', { lines: [] });
+    expect(productRepoTx.save).not.toHaveBeenCalled();
+    expect(saleRepoTx.delete).toHaveBeenCalledWith({ bookingId: 'booking-1' });
+  });
+
   it('rejects checkout when stock is insufficient', async () => {
     const productRepoTx = {
       findOne: jest.fn().mockResolvedValue({ ...product, quantityOnHand: 1 }),
@@ -245,6 +264,20 @@ describe('RetailPosService', () => {
     const map = await service.listSaleViewsForBookings(['b1', 'b2']);
     expect(map.get('b1')).toHaveLength(1);
     expect(map.get('b2')?.[0]?.lineTotal).toBe(36);
+  });
+
+  it('normalizes null line input when clearing cart', async () => {
+    const saleRepoTx = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+    };
+    mockTransaction(saleRepo, { findOne: jest.fn(), save: jest.fn() }, saleRepoTx);
+    saleRepo.find.mockResolvedValue([]);
+
+    await service.setBookingRetailSales('biz-1', 'booking-1', 'user-1', { lines: null as any });
+    expect(saleRepoTx.delete).not.toHaveBeenCalled();
   });
 
   it('throws when booking is missing', async () => {
