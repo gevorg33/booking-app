@@ -1,5 +1,11 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
+import {
+  enqueueMutation,
+  flushQueue,
+  isNetworkError,
+  isOfflineMutation,
+} from '../lib/offline-queue';
 
 /** Android emulator uses 10.0.2.2; physical devices need your Mac LAN IP in VITE_API_URL. */
 function getApiBaseUrl(): string {
@@ -15,6 +21,23 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+type OfflineAxiosConfig = {
+  __offlineReplay?: boolean;
+  __offlineQueued?: boolean;
+};
+
+async function replayOfflineQueue(): Promise<void> {
+  if (typeof window === 'undefined' || !navigator.onLine) return;
+  await flushQueue(async (item) => {
+    await api.request({
+      method: item.method,
+      url: item.url,
+      data: item.data,
+      __offlineReplay: true,
+    } as OfflineAxiosConfig & Parameters<typeof api.request>[0]);
+  });
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -22,10 +45,37 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
-  (error) => {
-    const url = error.config?.url ?? '';
+  (res) => {
+    void replayOfflineQueue();
+    return res;
+  },
+  async (error) => {
+    const config = (error.config ?? {}) as OfflineAxiosConfig & typeof error.config;
+    const url = config?.url ?? '';
     const isAuth = ['/auth/login', '/auth/google', '/auth/forgot-password'].some((p) => url.includes(p));
+
+    if (
+      config &&
+      !config.__offlineReplay &&
+      !config.__offlineQueued &&
+      isOfflineMutation(config.method) &&
+      isNetworkError(error)
+    ) {
+      enqueueMutation({
+        method: config.method ?? 'post',
+        url: config.url ?? '',
+        data: config.data,
+      });
+      config.__offlineQueued = true;
+      return {
+        data: { queued: true, offline: true },
+        status: 202,
+        statusText: 'Queued Offline',
+        headers: {},
+        config,
+      };
+    }
+
     if (error.response?.status === 401 && !isAuth) {
       localStorage.removeItem('token');
       window.location.href = '/login';
@@ -33,6 +83,12 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    void replayOfflineQueue();
+  });
+}
 
 export function unwrap<T>(data: unknown): T {
   return ((data as { data?: T })?.data ?? data) as T;

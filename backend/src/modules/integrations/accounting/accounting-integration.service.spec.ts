@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AccountingIntegrationService } from './accounting-integration.service.js';
 import { AccountingExportService } from './accounting-export.service.js';
 import { BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
@@ -21,7 +21,10 @@ describe('AccountingIntegrationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     businessRepo.save.mockImplementation(async (b: unknown) => b);
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: {} });
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { integrations: { accounting: { enabled: true } } },
+    });
     bookingRepo.find.mockResolvedValue([
       {
         id: 'b1',
@@ -71,12 +74,42 @@ describe('AccountingIntegrationService', () => {
     expect(view.includeExpenses).toBe(false);
   });
 
+  it('clears optional accounting fields when blank strings are sent', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        integrations: {
+          accounting: {
+            enabled: true,
+            incomeAccountName: 'Sales',
+            accountCode: '400',
+          },
+        },
+      },
+    });
+    const view = await service.updateSettings('biz-1', {
+      incomeAccountName: '   ',
+      accountCode: ' ',
+    });
+    expect(view.incomeAccountName).toBeUndefined();
+    expect(view.accountCode).toBeUndefined();
+  });
+
   it('throws when business missing on export', async () => {
     businessRepo.findOne.mockResolvedValue(null);
     await expect(service.generateExport('x')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('throws when accounting integration is disabled', async () => {
+    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: {} });
+    await expect(service.generateExport('biz-1')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('generates export via export service', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { integrations: { accounting: { enabled: true } } },
+    });
     const result = await service.generateExport('biz-1', '2026-05-01', '2026-05-31');
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
@@ -142,7 +175,7 @@ describe('AccountingIntegrationService', () => {
       id: 'biz-1',
       settings: {
         integrations: {
-          accounting: { includeExpenses: false, includeCommissions: false },
+          accounting: { enabled: true, includeExpenses: false, includeCommissions: false },
         },
       },
     });
@@ -154,7 +187,7 @@ describe('AccountingIntegrationService', () => {
   it('uses configured provider from settings', async () => {
     businessRepo.findOne.mockResolvedValue({
       id: 'biz-1',
-      settings: { integrations: { accounting: { provider: 'quickbooks' } } },
+      settings: { integrations: { accounting: { enabled: true, provider: 'quickbooks' } } },
     });
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
@@ -177,6 +210,62 @@ describe('AccountingIntegrationService', () => {
       expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -10 })]),
       expect.any(Object),
     );
+  });
+
+  it('matches service-only commission rules and skips bookings without rules', async () => {
+    commissionRepo.find.mockResolvedValue([
+      { serviceId: 's1', type: 'percent', value: 5, isActive: true },
+    ]);
+    bookingRepo.find.mockResolvedValue([
+      {
+        id: 'b1',
+        employeeId: 'e1',
+        serviceId: 's1',
+        startTime: new Date('2026-05-01T10:00:00Z'),
+        status: BookingStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
+        service: { name: 'Cut', price: 100, currency: 'USD' },
+        customer: { name: 'Jane' },
+        employee: { name: 'Alex' },
+      },
+      {
+        id: 'b2',
+        employeeId: 'e2',
+        serviceId: 's2',
+        startTime: new Date('2026-05-02T10:00:00Z'),
+        status: BookingStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
+        service: { name: 'Color', price: 80, currency: 'USD' },
+        customer: { name: 'Sam' },
+        employee: { name: 'Blake' },
+      },
+    ]);
+    await service.generateExport('biz-1');
+    expect(exportService.buildExport).toHaveBeenCalledWith(
+      'csv',
+      expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -5 })]),
+      expect.any(Object),
+    );
+  });
+
+  it('skips income rows when booking has no service', async () => {
+    bookingRepo.find.mockResolvedValue([
+      {
+        id: 'b1',
+        employeeId: 'e1',
+        serviceId: 's1',
+        startTime: new Date('2026-05-01T10:00:00Z'),
+        status: BookingStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
+        service: null,
+        customer: { name: 'Jane' },
+        employee: { name: 'Alex' },
+      },
+    ]);
+    await service.generateExport('biz-1');
+    const rows = exportService.buildExport.mock.calls[0][1] as { type: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe('expense');
   });
 
   it('returns full settings view when configured', async () => {

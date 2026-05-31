@@ -8,6 +8,10 @@ export interface BusinessZendeskIntegration {
   widgetEnabledOnPublicBooking?: boolean;
   /** Auto-sync customers to Zendesk users on create/update */
   syncCustomersEnabled?: boolean;
+  /** Create a Zendesk ticket when a customer review is submitted */
+  createTicketOnReview?: boolean;
+  /** Only create review tickets at or below this star rating (1–5). Omit for all reviews. */
+  reviewTicketMaxRating?: number;
   /** Email of agent to assign new tickets (optional) */
   defaultAssigneeEmail?: string;
 }
@@ -22,6 +26,8 @@ export interface ZendeskIntegrationPublicView {
   widgetEnabledOnDashboard: boolean;
   widgetEnabledOnPublicBooking: boolean;
   syncCustomersEnabled: boolean;
+  createTicketOnReview: boolean;
+  reviewTicketMaxRating?: number;
   defaultAssigneeEmail?: string;
 }
 

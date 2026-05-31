@@ -6,6 +6,7 @@ export const ZAPIER_TRIGGER_EVENTS = [
   EventType.BOOKING_COMPLETED,
   EventType.BOOKING_RESCHEDULED,
   EventType.PAYMENT_RECEIVED,
+  EventType.REVIEW_RECEIVED,
 ] as const;
 
 export type ZapierTriggerEvent = (typeof ZAPIER_TRIGGER_EVENTS)[number];

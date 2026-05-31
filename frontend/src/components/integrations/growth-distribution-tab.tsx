@@ -27,6 +27,8 @@ interface ZendeskSettings {
   widgetEnabledOnDashboard: boolean;
   widgetEnabledOnPublicBooking: boolean;
   syncCustomersEnabled: boolean;
+  createTicketOnReview: boolean;
+  reviewTicketMaxRating?: number;
   defaultAssigneeEmail?: string;
 }
 
@@ -104,6 +106,8 @@ export function GrowthDistributionTab() {
     widgetEnabledOnDashboard: true,
     widgetEnabledOnPublicBooking: false,
     syncCustomersEnabled: false,
+    createTicketOnReview: false,
+    reviewTicketMaxRating: '',
     defaultAssigneeEmail: '',
   });
 
@@ -133,6 +137,9 @@ export function GrowthDistributionTab() {
       widgetEnabledOnDashboard: zendesk.widgetEnabledOnDashboard,
       widgetEnabledOnPublicBooking: zendesk.widgetEnabledOnPublicBooking,
       syncCustomersEnabled: zendesk.syncCustomersEnabled,
+      createTicketOnReview: zendesk.createTicketOnReview,
+      reviewTicketMaxRating:
+        zendesk.reviewTicketMaxRating != null ? String(zendesk.reviewTicketMaxRating) : '',
       defaultAssigneeEmail: zendesk.defaultAssigneeEmail ?? '',
     }));
   }, [zendesk]);
@@ -165,6 +172,10 @@ export function GrowthDistributionTab() {
         widgetEnabledOnDashboard: zendeskForm.widgetEnabledOnDashboard,
         widgetEnabledOnPublicBooking: zendeskForm.widgetEnabledOnPublicBooking,
         syncCustomersEnabled: zendeskForm.syncCustomersEnabled,
+        createTicketOnReview: zendeskForm.createTicketOnReview,
+        reviewTicketMaxRating: zendeskForm.reviewTicketMaxRating.trim()
+          ? Number(zendeskForm.reviewTicketMaxRating)
+          : null,
         defaultAssigneeEmail: zendeskForm.defaultAssigneeEmail.trim() || undefined,
       };
       if (zendeskForm.apiToken.trim()) payload.apiToken = zendeskForm.apiToken.trim();
@@ -313,7 +324,37 @@ export function GrowthDistributionTab() {
               />
               Sync customers to Zendesk
             </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={zendeskForm.createTicketOnReview}
+                onChange={(e) =>
+                  setZendeskForm({ ...zendeskForm, createTicketOnReview: e.target.checked })
+                }
+              />
+              Create ticket on new review
+            </label>
           </div>
+
+          {zendeskForm.createTicketOnReview && (
+            <div>
+              <label className="label">Review ticket max rating (optional)</label>
+              <input
+                type="number"
+                min={1}
+                max={5}
+                className="input max-w-[8rem]"
+                placeholder="All reviews"
+                value={zendeskForm.reviewTicketMaxRating}
+                onChange={(e) =>
+                  setZendeskForm({ ...zendeskForm, reviewTicketMaxRating: e.target.value })
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty for every review. Set to 3 to ticket only 1–3 star reviews.
+              </p>
+            </div>
+          )}
 
           {zendesk?.configured && (
             <p className="text-xs text-green-400">Connected to {zendesk.subdomain}.zendesk.com</p>

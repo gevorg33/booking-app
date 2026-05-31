@@ -46,8 +46,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Reliable push delivery and offline-safe mutations on provider mobile.
 
-- [ ] **gap-2.1** — Finish FCM/APNs push delivery for provider app (see **comms-4**)
-- [ ] **gap-2.3** — Offline-safe mutations on mobile — queue + replay
+- [x] **gap-2.1** — Finish FCM/APNs push delivery for provider app (see **comms-4**)
+- [x] **gap-2.3** — Offline-safe mutations on mobile — queue + replay
 
 ---
 
@@ -55,9 +55,9 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Outbound automation for ops teams without custom code.
 
-- [ ] **gap-4.3** — Commission / payout CSV export aligned with accounting workflows
-- [ ] **gap-4.4** — Pre-built integration docs + “Connect in 5 min” templates (webhooks, API keys)
-- [ ] **gap-4.5** — Zapier and Zendesk triggers: `booking.created`, `booking.cancelled`, `payment.received`, 'review.received'
+- [x] **gap-4.3** — Commission / payout CSV export aligned with accounting workflows
+- [x] **gap-4.4** — Pre-built integration docs + “Connect in 5 min” templates (webhooks, API keys)
+- [x] **gap-4.5** — Zapier and Zendesk triggers: `booking.created`, `booking.cancelled`, `payment.received`, 'review.received'
 
 ---
 
@@ -65,8 +65,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Deeper back-office sync and in-app support handoff.
 
-- [ ] **gap-4.1** — Accounting export — QuickBooks / Xero (see **int-4**)
-- [ ] **gap-4.2** — Zendesk — widget, support form → ticket, customer sync (see **int-5**–**int-8**)
+- [x] **gap-4.1** — Accounting export — QuickBooks / Xero (see **int-4**)
+- [x] **gap-4.2** — Zendesk — widget, support form → ticket, customer sync (see **int-5**–**int-8**)
 
 ---
 

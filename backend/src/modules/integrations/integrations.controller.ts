@@ -27,6 +27,7 @@ import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
 import { ZapierIntegrationService } from './zapier/zapier-integration.service.js';
 import { AccountingIntegrationService } from './accounting/accounting-integration.service.js';
+import { IntegrationsDocsService } from './integrations-docs.service.js';
 
 @Controller('businesses/:businessId/integrations')
 @UseGuards(JwtAuthGuard)
@@ -41,42 +42,14 @@ export class IntegrationsController {
     private distributionIntegrationService: DistributionIntegrationService,
     private zapierIntegrationService: ZapierIntegrationService,
     private accountingIntegrationService: AccountingIntegrationService,
+    private integrationsDocsService: IntegrationsDocsService,
   ) {}
 
   @Get('docs')
   getApiDocs(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
-    return this.businessService.ensureMember(businessId, user.id).then(() => ({
-      baseUrl: process.env.API_PUBLIC_URL || 'http://localhost:3001',
-      authentication: {
-        type: 'api_key',
-        header: 'Authorization: Bearer osk_live_…',
-        alternateHeader: 'X-Api-Key: osk_live_…',
-      },
-      publicBookingApi: {
-        description: 'No API key required — scoped by business slug',
-        endpoints: [
-          { method: 'GET', path: '/public/:slug', description: 'Business profile' },
-          { method: 'GET', path: '/public/:slug/services', description: 'List bookable services' },
-          { method: 'GET', path: '/public/:slug/providers', description: 'List providers for a date' },
-          { method: 'GET', path: '/public/:slug/providers/:employeeId/slots', description: 'Available time slots' },
-          { method: 'POST', path: '/public/:slug/bookings', description: 'Create a booking' },
-          { method: 'POST', path: '/public/:slug/bookings/checkout', description: 'Start Stripe prepay checkout' },
-        ],
-      },
-      businessApi: {
-        description: 'Requires API key created in Integrations settings',
-        endpoints: [
-          { method: 'GET', path: '/v1/bookings', description: 'List bookings (optional ?date=, ?employeeId=)' },
-          { method: 'GET', path: '/v1/bookings/:id', description: 'Get booking by ID' },
-          { method: 'GET', path: '/v1/customers', description: 'List customers' },
-          { method: 'GET', path: '/v1/services', description: 'List services' },
-        ],
-      },
-      webhooks: {
-        description: 'Outbound HTTP POST with HMAC-SHA256 signature in X-OptiSchedule-Signature',
-        events: this.webhooksService.getEventOptions().events,
-      },
-    }));
+    return this.businessService.ensureMember(businessId, user.id).then(() =>
+      this.integrationsDocsService.buildDocs(businessId),
+    );
   }
 
   @Get('api-keys')

@@ -13,6 +13,7 @@ describe('ZendeskIntegrationService', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
   const bookingRepo = { findOne: jest.fn(), count: jest.fn() };
+  const employeeRepo = { findOne: jest.fn() };
   const api = {
     verifyCredentials: jest.fn(),
     createTicket: jest.fn(),
@@ -30,6 +31,7 @@ describe('ZendeskIntegrationService', () => {
     businessRepo as any,
     customerRepo as any,
     bookingRepo as any,
+    employeeRepo as any,
     config as unknown as ConfigService,
     api as unknown as ZendeskApiClient,
   );
@@ -468,6 +470,90 @@ describe('ZendeskIntegrationService', () => {
     });
   });
 
+  describe('createTicketFromReviewIfEnabled', () => {
+    it('returns null when createTicketOnReview is disabled', async () => {
+      businessRepo.findOne.mockResolvedValue(businessWithZendesk());
+      expect(
+        await service.createTicketFromReviewIfEnabled('biz-1', { rating: 5, reviewId: 'rev-1' }),
+      ).toBeNull();
+    });
+
+    it('returns null when rating exceeds max threshold', async () => {
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ createTicketOnReview: true, reviewTicketMaxRating: 3 }),
+      );
+      expect(
+        await service.createTicketFromReviewIfEnabled('biz-1', {
+          rating: 5,
+          reviewId: 'rev-1',
+          customerName: 'Jane',
+        }),
+      ).toBeNull();
+    });
+
+    it('creates review ticket via createSupportTicket', async () => {
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ createTicketOnReview: true }),
+      );
+      employeeRepo.findOne.mockResolvedValue({ id: 'emp-1', name: 'Alex' });
+      customerRepo.findOne.mockResolvedValue({
+        id: 'cust-1',
+        name: 'Jane',
+        email: 'jane@example.com',
+      });
+      api.createTicket.mockResolvedValue({
+        ticketId: 77,
+        url: 'https://testsalon.zendesk.com/agent/tickets/77',
+      });
+
+      const result = await service.createTicketFromReviewIfEnabled('biz-1', {
+        reviewId: 'rev-1',
+        rating: 2,
+        comment: 'Long wait',
+        customerName: 'Jane',
+        employeeId: 'emp-1',
+        customerId: 'cust-1',
+        bookingId: 'book-1',
+      });
+
+      expect(result?.ticketId).toBe(77);
+      expect(api.createTicket).toHaveBeenCalledWith(
+        expect.objectContaining({ subdomain: 'testsalon' }),
+        expect.objectContaining({
+          subject: 'New review — 2★ from Jane',
+          requesterEmail: 'jane@example.com',
+          tags: expect.arrayContaining(['optischedule', 'review', 'low-rating']),
+          body: expect.stringContaining('Provider: Alex'),
+        }),
+      );
+    });
+
+    it('uses noreply fallback email when customer has no email', async () => {
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ createTicketOnReview: true }),
+      );
+      employeeRepo.findOne.mockResolvedValue(null);
+      customerRepo.findOne.mockResolvedValue({ id: 'cust-1', name: 'Guest' });
+      bookingRepo.findOne.mockResolvedValue(null);
+      api.createTicket.mockResolvedValue({ ticketId: 88, url: 'https://x.zendesk.com/t/88' });
+
+      await service.createTicketFromReviewIfEnabled('biz-1', {
+        reviewId: 'rev-2',
+        rating: 4,
+        customerId: 'cust-1',
+        customerName: 'Guest',
+      });
+
+      expect(api.createTicket).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          requesterEmail: 'reviews+biz-1@noreply.optischedule.app',
+          tags: expect.not.arrayContaining(['low-rating']),
+        }),
+      );
+    });
+  });
+
   describe('encryption key fallback', () => {
     it('uses JWT_SECRET when INTEGRATIONS_ENCRYPTION_KEY missing', async () => {
       const fallbackConfig = {
@@ -481,6 +567,7 @@ describe('ZendeskIntegrationService', () => {
         businessRepo as any,
         customerRepo as any,
         bookingRepo as any,
+        employeeRepo as any,
         fallbackConfig as unknown as ConfigService,
         api as unknown as ZendeskApiClient,
       );

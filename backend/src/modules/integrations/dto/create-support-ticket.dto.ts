@@ -1,4 +1,12 @@
-import { IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateSupportTicketDto {
   @IsString()
@@ -27,4 +35,9 @@ export class CreateSupportTicketDto {
   @IsOptional()
   @IsUUID()
   bookingId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

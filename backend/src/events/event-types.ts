@@ -13,6 +13,9 @@ export enum EventType {
   // Payment events
   PAYMENT_RECEIVED = 'payment.received',
 
+  // Review events
+  REVIEW_RECEIVED = 'review.received',
+
   // Schedule events
   SCHEDULE_UPDATED = 'schedule.updated',
   SCHEDULE_OVERRIDE_CREATED = 'schedule.override.created',
