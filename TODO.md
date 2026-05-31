@@ -76,8 +76,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Finish rough edges in inventory and self-serve help.
 
-- [ ] **gap-6.4** — Inventory → service linking UI (replace “coming soon” copy)
-- [ ] **gap-6.5** — In-app help center + contextual “?” on Schedule, Calendar, Employees
+- [x] **gap-6.4** — Inventory → service linking UI (replace “coming soon” copy)
+- [x] **gap-6.5** — In-app help center + contextual “?” on Schedule, Calendar, Employees
 
 ---
 
@@ -193,6 +193,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 3. App Store / Play Store → install
 4. Opens app → lands on **Glow Nails** (slug preserved)
 5. Signs in → appears as **Customer** under Glow Nails in dashboard
+6. App primary/secondary colors and brand logos can be changed in dashboard from admin/business owner
 
 - [ ] **gap-2.5** — Branded consumer booking app (native Capacitor + PWA parity)
 

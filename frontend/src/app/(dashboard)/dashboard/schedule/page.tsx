@@ -23,6 +23,7 @@ import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
 import { BlockScheduleTab } from '@/components/scheduling/block-schedule-tab';
+import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
@@ -353,12 +354,11 @@ export default function SchedulePage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t('schedule.title')}</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Create day schedules, manage templates, or block time on existing schedules
-        </p>
-      </div>
+      <PageHelpHeader
+        topicId="schedule"
+        title={t('schedule.title')}
+        subtitle="Create day schedules, manage templates, or block time on existing schedules"
+      />
 
       <AiContextualSuggestions
         context={{ route: '/dashboard/schedule', scheduleTab: tab }}
