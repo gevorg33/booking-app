@@ -28,6 +28,8 @@ import { MembershipsModule } from './modules/memberships/memberships.module.js';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
 import { PromoCodesModule } from './modules/promo-codes/promo-codes.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
+import { ResourcesModule } from './modules/resources/resources.module.js';
+import { ServiceSubscriptionsModule } from './modules/service-subscriptions/service-subscriptions.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
@@ -79,6 +81,8 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     LoyaltyModule,
     PromoCodesModule,
     InventoryModule,
+    ResourcesModule,
+    ServiceSubscriptionsModule,
     CommissionsModule,
     ExpensesModule,
     OnboardingModule,

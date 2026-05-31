@@ -6,7 +6,11 @@ import { LoyaltyService } from './loyalty.service.js';
 import { LoyaltyCustomerMatcherService } from './loyalty-customer-matcher.service.js';
 import { LoyaltyAccount, LoyaltyTransaction } from './entities/loyalty-account.entity.js';
 import { resolveEligibleCashPaidForEarn, wasLoyaltyRedeemedOnBooking } from './loyalty-amount.util.js';
-import { calculateEarnPoints, getEarnPercentCashback } from './loyalty-settings.util.js';
+import {
+  calculateEarnPoints,
+  getEarnPercentCashback,
+  isServiceExcludedFromLoyaltyEarn,
+} from './loyalty-settings.util.js';
 import { roundBonus } from './loyalty.constants.js';
 import type {
   LoyaltyAwardResult,
@@ -55,6 +59,10 @@ export class LoyaltyAwardService {
     }
     if (match.status !== 'matched' || !match.customerId) {
       return { status: 'skipped', bookingId, reason: 'no_customer' };
+    }
+
+    if (isServiceExcludedFromLoyaltyEarn(booking.business?.settings, booking.serviceId)) {
+      return { status: 'skipped', bookingId, customerId: match.customerId, reason: 'service_excluded' };
     }
 
     const earnPercent = getEarnPercentCashback(booking.business?.settings);
@@ -117,6 +125,7 @@ export class LoyaltyAwardService {
         zero_points: 0,
         no_eligible_cash_payment: 0,
         inactive_customer: 0,
+        service_excluded: 0,
       },
       ambiguousRecords: [],
       byTenant: [],
@@ -217,6 +226,25 @@ export class LoyaltyAwardService {
       });
       if (!booking || booking.paymentStatus !== PaymentStatus.PAID) {
         unchanged += 1;
+        continue;
+      }
+
+      if (isServiceExcludedFromLoyaltyEarn(booking.business?.settings, booking.serviceId)) {
+        const current = roundBonus(Number(tx.points));
+        if (current > 0) {
+          tx.points = 0;
+          tx.note = 'Service excluded from bonus earn rate';
+          await this.txRepo.save(tx);
+          const account = await this.accountRepo.findOne({ where: { id: tx.accountId } });
+          if (account) {
+            account.pointsBalance = roundBonus(Math.max(0, account.pointsBalance - current));
+            account.lifetimeEarned = roundBonus(Math.max(0, account.lifetimeEarned - current));
+            await this.accountRepo.save(account);
+          }
+          corrected += 1;
+        } else {
+          unchanged += 1;
+        }
         continue;
       }
 

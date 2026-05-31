@@ -103,9 +103,8 @@ export function useDraggableFloatingPosition({
 }: UseDraggableFloatingPositionOptions) {
   const anchorRef = useRef<ViewportAnchor>(defaultAnchor());
   const sizeRef = useRef<ElementSize>(estimatedSize);
-  const [position, setPosition] = useState<FloatingPosition>(() =>
-    positionFromAnchor(readStoredAnchor(storageKey), estimatedSize),
-  );
+  // Keep initial position SSR-stable; restore from storage in useLayoutEffect before paint.
+  const [position, setPosition] = useState<FloatingPosition>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [measuredSize, setMeasuredSize] = useState<ElementSize | null>(null);
 
@@ -311,15 +310,12 @@ export function useDraggableFloatingPosition({
 }
 
 export function useViewportSize() {
-  const [viewport, setViewport] = useState(() =>
-    typeof window === 'undefined'
-      ? { width: 0, height: 0 }
-      : { width: window.innerWidth, height: window.innerHeight },
-  );
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const update = () =>
       setViewport({ width: window.innerWidth, height: window.innerHeight });
+    update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);

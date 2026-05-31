@@ -41,6 +41,7 @@ import {
   buildMessagingLinksForBusiness,
   getDistributionIntegrations,
 } from '../integrations/distribution/distribution-integration.types.js';
+import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -180,6 +181,7 @@ export class PublicBookingService {
     private bookingPaymentService: BookingPaymentService,
     private checkoutPricingService: CheckoutPricingService,
     private loyaltyService: LoyaltyService,
+    private subscriptionsService: ServiceSubscriptionsService,
     private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
@@ -262,7 +264,11 @@ export class PublicBookingService {
     };
   }
 
-  private mapPublicService(service: Service, onlinePaymentsEnabled: boolean) {
+  private mapPublicService(
+    service: Service,
+    onlinePaymentsEnabled: boolean,
+    hasSubscriptionPlans = false,
+  ) {
     const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
     return {
       id: service.id,
@@ -275,6 +281,7 @@ export class PublicBookingService {
       prepaymentMode: service.prepaymentMode,
       onlinePaymentEnabled: onlinePaymentsEnabled && wantsOnline,
       depositAmount: service.depositAmount != null ? Number(service.depositAmount) : null,
+      hasSubscriptionPlans,
       category: service.category
         ? {
             id: service.category.id,
@@ -689,13 +696,48 @@ export class PublicBookingService {
       }
     }
 
+    const planServiceIds = await this.subscriptionsService.serviceIdsWithActivePlans(business.id);
+    const planSet = new Set(planServiceIds);
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+
     return {
       services: this.sortPublicServices(
         services.map((s) =>
-          this.mapPublicService(s, this.stripeIntegrationService.isConnectReady(business.settings)),
+          this.mapPublicService(s, paymentsReady, planSet.has(s.id)),
         ),
       ),
     };
+  }
+
+  async getServiceSubscriptionPlans(slug: string, serviceId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const plans = await this.subscriptionsService.listPlans(business.id, serviceId);
+    return plans.map((plan) => ({
+      ...plan,
+      preview: this.subscriptionsService.previewFromPlan(plan, Number(plan.service.price)),
+    }));
+  }
+
+  async getCustomerSubscriptions(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.subscriptionsService.listCustomerSubscriptions(business.id, customerId);
+  }
+
+  async getActiveCustomerSubscriptionForService(
+    slug: string,
+    customerId: string,
+    serviceId: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const sub = await this.subscriptionsService.getActiveForCustomerService(
+      business.id,
+      customerId,
+      serviceId,
+    );
+    return { subscription: sub };
   }
 
   async getServicesForSlot(slug: string, employeeId: string, startTime: string) {
@@ -912,6 +954,7 @@ export class PublicBookingService {
         customer: { name: 'Quote' },
         promoCode: dto.promoCode,
         loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+        purchasePlanId: dto.purchasePlanId,
       },
       authenticatedCustomerId,
     );
@@ -921,6 +964,16 @@ export class PublicBookingService {
     const business = await this.resolveBusiness(slug);
     const account = await this.loyaltyService.getOrCreate(business.id, customerId);
     return this.loyaltyService.getPublicSummary(account, business.settings);
+  }
+
+  async getCustomerSubscriptionUsage(slug: string, customerId: string, subscriptionId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.subscriptionsService.getCustomerSubscriptionUsage(
+      business.id,
+      customerId,
+      subscriptionId,
+    );
   }
 
   async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
@@ -939,6 +992,8 @@ export class PublicBookingService {
     const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
     const prepaymentRequired = paymentsReady && service.prepaymentMode !== PrepaymentMode.NONE;
 
+    let useSubscriptionId = dto.useSubscriptionId;
+
     const pricing = await this.bookingPaymentService.resolveCheckoutPricing(
       business.id,
       service,
@@ -946,7 +1001,10 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
 
-    if (prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid) {
+    const subscriptionCoversVisit = Boolean(useSubscriptionId);
+    if (subscriptionCoversVisit && prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid) {
+      // Subscription credit — no service fee due
+    } else if (prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid && !dto.purchasePlanId) {
       throw new BadRequestException(
         'Online payment is required for this service. Complete payment at checkout.',
       );
@@ -967,9 +1025,37 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
 
-    const paymentStatus = dto.markPaid
-      ? PaymentStatus.PAID
-      : resolveCheckoutPaymentStatus(pricing);
+    if (dto.purchasePlanId) {
+      const purchased = await this.subscriptionsService.assignSubscription(
+        business.id,
+        customer.id,
+        dto.purchasePlanId,
+        {
+          pricePaid:
+            dto.metadata?.subscriptionPricePaid != null
+              ? Number(dto.metadata.subscriptionPricePaid)
+              : undefined,
+        },
+      );
+      if (dto.useSubscriptionCreditOnPurchase !== false) {
+        useSubscriptionId = purchased.id;
+      }
+    }
+
+    if (useSubscriptionId) {
+      await this.subscriptionsService.assertCanConsume(
+        business.id,
+        useSubscriptionId,
+        customer.id,
+        dto.serviceId,
+      );
+    }
+
+    const paymentStatus = useSubscriptionId
+      ? PaymentStatus.NOT_APPLICABLE
+      : dto.markPaid
+        ? PaymentStatus.PAID
+        : resolveCheckoutPaymentStatus(pricing);
 
     const booking = await this.bookingService.create(
       business.id,
@@ -979,10 +1065,12 @@ export class PublicBookingService {
         customerId: customer.id,
         startTime: dto.startTime,
         notes: dto.notes,
+        useSubscriptionId,
         metadata: {
           source: 'public_booking',
           ...this.bookingPaymentService.pricingMetadata(pricing),
           ...(dto.metadata || {}),
+          ...(dto.purchasePlanId ? { purchasePlanId: dto.purchasePlanId } : {}),
         },
       },
       undefined,

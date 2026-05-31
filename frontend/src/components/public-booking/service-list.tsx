@@ -113,6 +113,11 @@ export function ServiceList({
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">{service.name}</p>
+                    {service.hasSubscriptionPlans && (
+                      <span className="inline-block mt-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Subscribe & save
+                      </span>
+                    )}
                     {service.description && (
                       <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
                     )}
@@ -134,6 +139,27 @@ export function ServiceList({
           </div>
         </section>
       ))}
+
+      {selectedServiceId && (() => {
+        const selected = services.find((s) => s.id === selectedServiceId);
+        if (!selected) return null;
+        return (
+          <div className="mt-4 p-4 rounded-2xl bg-violet-50 border border-violet-100">
+            <p className="text-sm font-semibold text-gray-900">{selected.name}</p>
+            {selected.description && (
+              <p className="text-sm text-gray-600 mt-1">{selected.description}</p>
+            )}
+            <p className="text-sm text-gray-700 mt-2">
+              One-time visit: {formatPrice(selected.price, selected.currency)}
+            </p>
+            {selected.hasSubscriptionPlans && (
+              <p className="text-sm text-emerald-700 mt-1 font-medium">
+                Subscription plans available — choose Subscribe & save at checkout
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       <FixedActionBar
         primaryColor={primaryColor}

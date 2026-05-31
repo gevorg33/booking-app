@@ -19,6 +19,8 @@ import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezone.util.js';
 import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
+import { SchedulingResourcesService } from '../resources/scheduling-resources.service.js';
+import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -57,6 +59,8 @@ export class BookingService {
     private eventStore: EventStoreService,
     private dataSource: DataSource,
     private loyaltyAwardService: LoyaltyAwardService,
+    private resourcesService: SchedulingResourcesService,
+    private subscriptionsService: ServiceSubscriptionsService,
   ) {}
 
   async getAvailability(businessId: string, dto: GetAvailabilityDto) {
@@ -182,6 +186,34 @@ export class BookingService {
     // Validate the entire booking window against applied schedule
     await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
 
+    const requiredResourceIds = await this.resourcesService.getRequiredResourceIds(
+      businessId,
+      dto.serviceId,
+    );
+    const resourceIds =
+      dto.resourceIds && dto.resourceIds.length > 0 ? dto.resourceIds : requiredResourceIds;
+    if (resourceIds.length > 0) {
+      await this.resourcesService.assertResourcesAvailable(
+        businessId,
+        resourceIds,
+        startTime,
+        endTime,
+      );
+    }
+
+    const useSubscriptionId = dto.useSubscriptionId;
+    if (useSubscriptionId) {
+      if (!dto.customerId) {
+        throw new BadRequestException('Customer is required when using a subscription');
+      }
+      await this.subscriptionsService.assertCanConsume(
+        businessId,
+        useSubscriptionId,
+        dto.customerId,
+        dto.serviceId,
+      );
+    }
+
     // Find all available micro-slots that fall within the booking window
     const slotsToLock = await this.findSlotsInWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
 
@@ -216,9 +248,11 @@ export class BookingService {
 
       const paymentStatus =
         options?.paymentStatus ??
-        (service.prepaymentMode === PrepaymentMode.NONE
+        (useSubscriptionId
           ? PaymentStatus.NOT_APPLICABLE
-          : PaymentStatus.PENDING);
+          : service.prepaymentMode === PrepaymentMode.NONE
+            ? PaymentStatus.NOT_APPLICABLE
+            : PaymentStatus.PENDING);
 
       const newBooking = manager.create(Booking, {
         businessId,
@@ -233,12 +267,30 @@ export class BookingService {
         description: dto.description,
         linkedEmployeeIds: dto.linkedEmployeeIds,
         virtualMeetingUrl: dto.virtualMeetingUrl,
-        metadata: dto.metadata || {},
+        metadata: {
+          ...(dto.metadata || {}),
+          ...(useSubscriptionId ? { subscriptionId: useSubscriptionId, subscriptionCreditUsed: true } : {}),
+        },
         // Store the first slot id for backward compat
         slotId: slotsToLock[0]?.id,
       });
 
-      return manager.save(newBooking);
+      const saved = await manager.save(newBooking);
+
+      if (resourceIds.length > 0) {
+        await this.resourcesService.assignToBooking(manager, saved.id, resourceIds);
+      }
+
+      if (useSubscriptionId) {
+        await this.subscriptionsService.consumeCreditInTransaction(
+          manager,
+          useSubscriptionId,
+          saved.id,
+          dto.serviceId,
+        );
+      }
+
+      return saved;
     });
 
     await this.eventStore.publish({
@@ -719,6 +771,8 @@ export class BookingService {
         BookingStatus.CANCELLED,
       );
       await this.bookingRepo.save(booking);
+
+      await this.subscriptionsService.restoreCreditForBooking(id);
 
       await this.eventStore.publish({
         eventType: EventType.BOOKING_CANCELLED,

@@ -134,3 +134,15 @@ export function todayDisplay(timeZone?: string): string {
   const [yyyy, mm, dd] = key.split('-');
   return `${dd}_${mm}_${yyyy}`;
 }
+
+/** End of UTC day — valid through the selected calendar day (promo codes, gift cards). */
+export function dateKeyToExpiresAtEndOfDay(day: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  return `${day}T23:59:59.999Z`;
+}
+
+export function isExpiredAt(expiresAt: string | Date | null | undefined): boolean {
+  if (!expiresAt) return false;
+  const d = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
+  return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
+}

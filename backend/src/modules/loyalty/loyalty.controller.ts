@@ -32,12 +32,16 @@ export class LoyaltyController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     const business = await this.businessService.findOne(businessId);
+    const loyalty: Record<string, unknown> = {
+      ...((business.settings?.loyalty as Record<string, unknown>) || {}),
+      earnPercentCashback: dto.earnPercentCashback,
+    };
+    if (dto.earnExcludedServiceIds !== undefined) {
+      loyalty.earnExcludedServiceIds = dto.earnExcludedServiceIds;
+    }
     business.settings = {
       ...(business.settings || {}),
-      loyalty: {
-        ...((business.settings?.loyalty as Record<string, unknown>) || {}),
-        earnPercentCashback: dto.earnPercentCashback,
-      },
+      loyalty,
     };
     await this.businessService.update(businessId, { settings: business.settings });
     return getLoyaltySettingsResponse(business.settings);

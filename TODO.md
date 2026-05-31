@@ -11,7 +11,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Sprint overview
 
-~2-week sprints. Features **1–8** → Launch & consumer **9–10** → Lifecycle & ops **11–12** → AI **13–24** → Monetization **25–26**.
+~2-week sprints. Features **1–8** → Gift cards **9** → Launch & consumer **10–11** → Lifecycle & ops **12–13** → AI **14–25** → Monetization **26–27**.
 
 | Sprint | Theme | IDs |
 |--------|--------|-----|
@@ -19,28 +19,29 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **2** | Integrations — webhooks & Zapier | gap-4.3, gap-4.4, gap-4.5 |
 | **3** | Integrations — accounting & support | gap-4.1, gap-4.2 |
 | **4** | In-app polish | gap-6.4, gap-6.5 |
-| **5** | Scheduling vertical depth | gap-8.2, **sub-1** |
+| **5** | Scheduling vertical depth | gap-8.2, **sub-1**, **gap-8.3**, **gap-8.7** |
 | **6** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
 | **7** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
 | **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
-| **9** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
-| **10** | Consumer booking app | **gap-2.5** |
-| **11** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
-| **12** | Customer booking self-service & staff push | gap-2.7, gap-2.8 |
-| **13** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
-| **14** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
-| **15** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
-| **16** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
-| **17** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
-| **18** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
-| **19** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
-| **20** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
-| **21** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
-| **22** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
-| **23** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
-| **24** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
-| **25** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
-| **26** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
+| **9** | Customer gift card purchase & delivery | **gc-1** |
+| **10** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
+| **11** | Consumer booking app | **gap-2.5** |
+| **12** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
+| **13** | Customer booking self-service & staff push | gap-2.7, gap-2.8, **pay-2** |
+| **14** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
+| **15** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
+| **16** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
+| **17** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
+| **18** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
+| **19** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
+| **20** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
+| **21** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
+| **22** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
+| **23** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
+| **24** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
+| **25** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **26** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
+| **27** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 
 ---
 
@@ -85,8 +86,10 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Multi-resource appointments and customer service subscriptions.
 
-- [ ] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
-- [ ] **sub-1** — Service subscription management — plans, customer subscriptions, booking credit consumption (see spec below)
+- [x] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
+- [x] **sub-1** — Service subscription management — plans, customer subscriptions, booking credit consumption (see spec below)
+- [ ] **gap-8.3** — Admin **service packages** — discounted multi-service product on public Services tab (see spec below)
+- [ ] **gap-8.7** — Customer **multi-service booking** — customer picks multiple individual services in one flow (**separate** from admin packages; see spec below)
 
 ### sub-1 — Service subscription management (Dashboard Admin)
 
@@ -94,45 +97,45 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 #### Plan configuration (admin)
 
-- [ ] **sub-1.1** — Subscription plan CRUD — name, associated service(s), duration (3 / 6 / 12 months or custom), included appointment count, start/expiration rules, pricing model, discount (fixed amount or % vs pay-per-appointment)
-- [ ] **sub-1.2** — Multiple plans per service — same service, different durations/discounts (e.g. Nail Care: 6 appts @ 5%, 12 @ 10%, 24 @ 20%)
-- [ ] **sub-1.3** — Pricing preview — show regular total (single price × appointments), subscription price after discount, total customer savings
+- [x] **sub-1.1** — Subscription plan CRUD — name, associated service(s), duration (3 / 6 / 12 months or custom), included appointment count, start/expiration rules, pricing model, discount (fixed amount or % vs pay-per-appointment)
+- [x] **sub-1.2** — Multiple plans per service — same service, different durations/discounts (e.g. Nail Care: 6 appts @ 5%, 12 @ 10%, 24 @ 20%)
+- [x] **sub-1.3** — Pricing preview — show regular total (single price × appointments), subscription price after discount, total customer savings
 
 #### Customer subscription lifecycle
 
-- [ ] **sub-1.4** — DB schema — `subscription_plans`, `customer_subscriptions`, `subscription_usage` (or equivalent); migration + indexes
-- [ ] **sub-1.5** — Activation & expiration — enforce period boundaries; status: active / expired / exhausted / cancelled
-- [ ] **sub-1.6** — Remaining balance — track appointments left; block booking when balance is 0
-- [ ] **sub-1.7** — Usage history — audit log per subscription (booking consumed, date, service, remaining after)
+- [x] **sub-1.4** — DB schema — `subscription_plans`, `customer_subscriptions`, `subscription_usage` (or equivalent); migration + indexes
+- [x] **sub-1.5** — Activation & expiration — enforce period boundaries; status: active / expired / exhausted / cancelled
+- [x] **sub-1.6** — Remaining balance — track appointments left; block booking when balance is 0
+- [x] **sub-1.7** — Usage history — audit log per subscription (booking consumed, date, service, remaining after)
 
 #### Booking & validation
 
-- [ ] **sub-1.8** — API — plan management, assign/purchase subscription for customer, balance lookup, usage endpoints
-- [ ] **sub-1.9** — Booking flow integration — eligible bookings consume subscription credits before charging standard service fee; show active subscription + remaining count in UI
-- [ ] **sub-1.10** — Validation — prevent over-booking beyond remaining balance; handle cancellation/refund credit policy (define: restore credit on cancel or not)
+- [x] **sub-1.8** — API — plan management, assign/purchase subscription for customer, balance lookup, usage endpoints
+- [x] **sub-1.9** — Booking flow integration — eligible bookings consume subscription credits before charging standard service fee; show active subscription + remaining count in UI
+- [x] **sub-1.10** — Validation — prevent over-booking beyond remaining balance; handle cancellation/refund credit policy (define: restore credit on cancel or not)
 
 #### Dashboard UI
 
-- [ ] **sub-1.11** — Admin UI — list/create/edit subscription plans under Services or Monetization
-- [ ] **sub-1.12** — Dashboard customer profile — staff view of customer subscriptions: plan name, service, status, **expiration date**, **appointments remaining / included**, usage history
+- [x] **sub-1.11** — Admin UI — list/create/edit subscription plans under Services or Monetization
+- [x] **sub-1.12** — Dashboard customer profile — staff view of customer subscriptions: plan name, service, status, **expiration date**, **appointments remaining / included**, usage history
 
 #### Public booking app (consumer)
 
 **User story:** As a customer booking online, I want to see when a service offers subscription plans and choose between a one-time visit or subscribing to a plan.
 
-- [ ] **sub-1.13** — Service list/detail badge — if a service has active subscription plans, show indicator (e.g. “Plans available”, “Subscribe & save”) on service card and service detail
-- [ ] **sub-1.14** — Purchase type selector — after selecting a service with plans, offer **One-time appointment** vs **Subscription** (side-by-side or segmented control); default to one-time; hide subscription option when service has no plans
-- [ ] **sub-1.15** — Plan picker — when **Subscription** is selected, list available plans for that service (duration, included appointments, discount, regular vs subscription price, savings); customer selects one plan before continuing
-- [ ] **sub-1.16** — Subscribe & book checkout — new subscription purchase flow: pay subscription price (Stripe), create `customer_subscription`, then book first appointment (or prompt to book now vs later per start rules)
-- [ ] **sub-1.17** — Existing subscription path — if customer already has an active subscription for the service, show remaining appointments + **Use subscription** vs **Pay one-time**; pre-select subscription when balance > 0
-- [ ] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
-- [ ] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
+- [x] **sub-1.13** — Service list/detail badge — if a service has active subscription plans, show indicator (e.g. “Plans available”, “Subscribe & save”) on service card and service detail
+- [x] **sub-1.14** — Purchase type selector — after selecting a service with plans, offer **One-time appointment** vs **Subscription** (side-by-side or segmented control); default to one-time; hide subscription option when service has no plans
+- [x] **sub-1.15** — Plan picker — when **Subscription** is selected, list available plans for that service (duration, included appointments, discount, regular vs subscription price, savings); customer selects one plan before continuing
+- [x] **sub-1.16** — Subscribe & book checkout — new subscription purchase flow: pay subscription price (Stripe), create `customer_subscription`, then book first appointment (or prompt to book now vs later per start rules)
+- [x] **sub-1.17** — Existing subscription path — if customer already has an active subscription for the service, show remaining appointments + **Use subscription** vs **Pay one-time**; pre-select subscription when balance > 0
+- [x] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
+- [x] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
 
-*(Integrates with **gap-2.5** consumer app — Sprint 10.)*
+*(Integrates with **gap-2.5** consumer app — Sprint 11.)*
 
 #### Future-ready
 
-- [ ] **sub-1.20** — Schema & API design — support future multi-service subscription bundles (don't ship bundles yet; avoid rework)
+- [x] **sub-1.20** — Schema & API design — support future multi-service subscription bundles (don't ship bundles yet; avoid rework)
 
 **Example (Nail Care @ $25/visit):**
 
@@ -141,6 +144,82 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | Short | 3 mo | 6 | 5% | $150 | $142.50 | $7.50 |
 | Medium | 6 mo | 12 | 10% | $300 | $270 | $30 |
 | Annual | 12 mo | 24 | 20% | $600 | $480 | $120 |
+
+### gap-8.3 — Admin service packages (catalog)
+
+> **Not the same as gap-8.7.** Admin packages are a **single product** on the Services tab (one card with sub-services + admin discount). **gap-8.7** is when the **customer** freely picks multiple standalone services — no package product, no admin bundle price.
+
+**User stories:**
+
+- **Admin:** Select multiple services, set a **total discount**, optional expiration; create, edit, deactivate, delete; package appears on public **Services** tab as **one offering** that lists included sub-services.
+- **Customer:** Book that package like one service; on **Confirm booking**, schedule **each sub-service** with its own date/time/provider; pay once at the **discounted package price**.
+
+#### Admin — package catalog (dashboard)
+
+- [ ] **gap-8.3.1** — **Package CRUD** — create / edit / **deactivate** / **delete**: name, description, image (optional), **multi-select services** (+ quantities), display order, `isActive`
+- [ ] **gap-8.3.2** — **Package discount** — show sum of underlying service prices vs **package price**; discount as **fixed amount** or **percent** off total; savings preview in admin
+- [ ] **gap-8.3.3** — **Package offer expiration** — optional `expiresAt`; hide from Services tab when expired; checkout grace policy (admin setting)
+- [ ] **gap-8.3.4** — **Dashboard UI** — **Services** or **Packages** tab: list/filter active · inactive · expired; duplicate; block delete when future bookings reference package
+
+#### Public booking — Services tab (one package = one card)
+
+- [ ] **gap-8.3.5** — **Services tab display** — active packages shown **as one service card** (not separate cards per sub-service): package name, bundle price, "Includes: …", "Save X%", validity; detail view lists **sub-services** with durations and struck-through individual prices
+- [ ] **gap-8.3.6** — **Select package** — customer taps **one** package product; session expands into sub-service line items internally (customer does **not** assemble services à la carte)
+- [ ] **gap-8.3.7** — **Per sub-service scheduling (confirm page)** — each included service uses **existing single-service** slot/provider UI; customer picks **date & time per sub-service**; smart defaults (earliest slot per line)
+- [ ] **gap-8.3.8** — **Single checkout** — one payment at **package price**; create **linked bookings** (`packagePurchaseId`) — one booking per sub-service
+- [ ] **gap-8.3.9** — **Confirm guards** — block checkout until every sub-service has a slot; re-validate all lines on submit
+- [ ] **gap-8.3.10** — **DB schema & API** — `service_packages`, `service_package_items`, `package_purchases`; public list/detail; `POST …/book-package`
+- [ ] **gap-8.3.11** — **Deactivate / delete / expired offer** — hidden from Services tab when inactive or expired; delete blocked with open bookings
+- [ ] **gap-8.3.12** — **Cancel / reschedule / promos** — sub-appointments independent (**gap-2.7**); promo/subscription rules per admin policy
+- [ ] **gap-8.3.13** — **Dashboard calendar** — linked appointments share package badge/group
+
+#### Examples (gap-8.3)
+
+1. Admin creates **"Spa day package"** (15% off) → **one card** on Services tab → customer books package → confirm: Massage Tue, Facial Thu, Manicure Fri → one discounted payment.
+2. Package expired → card hidden from Services tab.
+
+---
+
+### gap-8.7 — Customer multi-service booking (ad-hoc)
+
+> **Separate from gap-8.3.** Customer chooses **multiple individual services** from the regular service list (multi-select / cart). **No admin package**, **no package discount** — total price = sum of services. Scheduling: same-visit block and/or per-service dates (admin setting).
+
+**User story:** As a customer, I want to select several available services myself and book them together — total duration calculated, earliest slot suggested, provider changeable including providers available on later days.
+
+#### Settings (dashboard)
+
+- [ ] **gap-8.7.1** — Enable/disable **multi-service booking** (separate toggle from admin packages)
+- [ ] **gap-8.7.2** — **Max duration** + **max service count**; turnover buffer; **service compatibility** matrix
+- [ ] **gap-8.7.3** — Scheduling mode: **same-visit block** vs **per-service dates** (admin default; v1 may ship one mode)
+
+#### Customer UI (public booking)
+
+- [ ] **gap-8.7.4** — **Multi-select on Services tab** — cart of **normal single services** (not package cards); live total duration + **sum of service prices**
+- [ ] **gap-8.7.5** — Block when over max duration/count; incompatible pair warnings
+
+#### Same-visit block scheduling
+
+- [ ] **gap-8.7.6** — **Block availability API** — contiguous slot for total duration; provider qualified for all selected services
+- [ ] **gap-8.7.7** — **Default auto-pick** — earliest slot + first free qualified provider
+- [ ] **gap-8.7.8** — **Provider picker** + **"Show providers available on later days"**
+- [ ] **gap-8.7.9** — Atomic conflict validation on submit
+
+#### Per-service dates mode (optional)
+
+- [ ] **gap-8.7.10** — Confirm page: one date/time picker per selected service (same UX as **gap-8.3.7**, **no package discount**)
+
+#### Booking record & edge cases
+
+- [ ] **gap-8.7.11** — **DB / API** — `multi_service_booking_group` (distinct from `package_purchases`); staff booking parity
+- [ ] **gap-8.7.12** — No provider for all services; past closing; resources (**gap-8.2**); list change invalidates slots
+- [ ] **gap-8.7.13** — Cancel/reschedule: same-visit = atomic; per-service dates = independent (**gap-2.7**)
+
+#### Examples (gap-8.7)
+
+1. Customer checks **Haircut** + **Beard trim** (two singles, no package) → 50m block → Maria Tue 10:00 → pays sum of both prices.
+2. Three services exceed 3h max → must remove one before continuing.
+
+*(Independent of **gap-8.3** package catalog; builds on slot resolver + **gap-8.2**.)*
 
 ---
 
@@ -172,7 +251,103 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 9 — Launch: billing & provider app store
+## Sprint 9 — Customer gift card purchase & delivery
+
+**Goal:** Let customers buy gift cards for themselves or others — monetary, service-specific, or bundled — with digital or physical delivery and full redemption tracking.
+
+- [ ] **gc-1** — Customer gift card purchase — types, delivery, redemption, balance & history (see spec below)
+
+### gc-1 — Customer gift card purchase (public booking)
+
+**User story:** As a customer, I want to purchase gift cards for myself or others so recipients can redeem them toward eligible services — delivered digitally or as a physical card shipped to an address.
+
+#### Gift card types
+
+- [ ] **gc-1.1** — **Monetary gift cards** — customer chooses any amount or selects from business-defined preset amounts; balance decrements on redemption until exhausted
+- [ ] **gc-1.2** — **Service-specific gift cards** — purchase a gift card tied to one service (e.g. Classic Manicure); recipient redeems for one appointment on that service
+- [ ] **gc-1.3** — **Service bundle gift cards** — single gift card includes multiple services (e.g. 1 Haircut + 1 Beard Trim + 1 Facial); recipient redeems each included service individually until all are used
+
+#### Purchase flow (buyer)
+
+- [ ] **gc-1.4** — Public purchase UI — “Buy gift card” entry on `/book/{slug}`; choose type (monetary / service / bundle), amount or service(s), buy for self vs gift to someone else
+- [ ] **gc-1.5** — Recipient details — recipient name, email, phone (optional), personal message (optional); purchaser email for receipt
+- [ ] **gc-1.6** — Delivery method — **Digital** (email / WhatsApp code) or **Physical** (ship printed card to address); show only methods enabled by business settings
+- [ ] **gc-1.7** — Stripe checkout — pay gift card price (+ shipping fee when physical); on success create gift card record and trigger fulfillment
+
+#### Digital gift card delivery
+
+- [ ] **gc-1.8** — Unique code generation — cryptographically safe, business-scoped code after purchase (extend existing `GC-…` pattern or typed prefixes per card type)
+- [ ] **gc-1.9** — Email delivery — send code, balance or included services, expiration (if any), personal message, and redemption instructions to recipient (and receipt to purchaser)
+- [ ] **gc-1.10** — WhatsApp delivery — when recipient phone is provided, send gift card details via WhatsApp (Twilio / Business API or existing messaging integration)
+
+#### Physical gift card delivery (mail / courier)
+
+**User story:** As a customer, I want to order physical delivery of a gift card so the recipient receives a printed card at their address.
+
+- [ ] **gc-1.11** — Shipping address form — collect everything needed for delivery: recipient name, phone, full address (line 1, line 2, city, state/region, postal code, country), optional delivery instructions; validate required fields per country
+- [ ] **gc-1.12** — Delivery options — business-configured shipping methods (standard / express), estimated delivery window, shipping fee added at checkout when physical is selected
+- [ ] **gc-1.13** — Fulfillment workflow — order status: `pending` → **`awaiting_card_creation`** → **`ready_for_delivery`** → `out_for_delivery` → `shipped` / `delivered` (or `failed` / `cancelled`); store carrier + tracking when applicable; email/SMS to purchaser and recipient on key status changes
+- [ ] **gc-1.14** — Printed card + code — physical package includes unique redemption code (same code as digital path); code remains inactive or hidden until delivery confirmed (define policy: active on purchase vs active on ship)
+- [ ] **gc-1.15** — Dashboard fulfillment — staff view/filter physical gift card orders, print packing slip, assign card creator / delivery staff, mark shipped with tracking, mark delivered; optional export for fulfillment partner
+
+#### Provider app — card creation & delivery handoff
+
+**User story:** When a customer orders physical gift card delivery, the **card creator** is notified in the provider app to prepare the card; when ready, the **delivery staff** is notified to pick up and deliver.
+
+- [ ] **gc-1.32** — **Card creator push** — on physical gift card order (post-payment), send provider app push to assigned **card creator** role(s): “New gift card to prepare” + order summary (type, amount/services, recipient message, delivery method)
+- [ ] **gc-1.33** — **Card creator queue (provider app)** — list orders in `awaiting_card_creation`; open detail with printable template, recipient message, bundle/service breakdown; actions: start / mark **card ready**
+- [ ] **gc-1.34** — **Mark card ready** — card creator sets status to **`ready_for_delivery`** (`done` from creation step); timestamp + staff id recorded; purchaser optional “your gift card is being prepared” notification
+- [ ] **gc-1.35** — **Delivery staff push** — when status becomes `ready_for_delivery`, push to assigned **delivery** role(s): “Gift card ready for delivery” + pickup summary and full shipping address / phone / instructions
+- [ ] **gc-1.36** — **Delivery staff queue (provider app)** — list ready cards; actions: accept pickup → `out_for_delivery` → `delivered` (capture proof optional: photo / signature); sync with dashboard fulfillment board
+
+*(Provider push reuses **gap-2.1** FCM/APNs — Sprint 1.)*
+
+#### Business settings (dashboard)
+
+- [ ] **gc-1.16** — Gift card products — admin configures preset monetary amounts, which services/bundles are purchasable; **optional expiration date** per product (default validity period, e.g. 12 months) and whether purchasers may request custom expiry
+- [ ] **gc-1.17** — Bundle builder — define named bundles (service list + quantity per service) for sale as gift cards
+- [ ] **gc-1.18** — Delivery settings — enable/disable digital and physical delivery; shipping zones & fees; ship-from address; printable card template (logo, message layout); assign default **card creator** and **delivery** staff (or role pools) for provider app notifications
+- [ ] **gc-1.19** — **Admin expiration management** — set, extend, or clear expiration on any gift card from dashboard; optional business-wide default expiry; audit log of admin changes; enforce expiry at redemption (build on existing per-card `expiresAt`)
+- [ ] **gc-1.37** — **Cancel / modify policy (admin)** — dashboard setting per business: **allow cancel/modify** within configurable window after order (e.g. **1 day after purchase**) or **disallow cancel/modify entirely**; separate rules optional for digital vs physical (e.g. no cancel after card is `ready_for_delivery`); show remaining window to customer in UI
+
+#### Redemption & validation
+
+- [ ] **gc-1.20** — Checkout redemption — apply gift card code during public booking checkout and staff booking creation (extend current single-use monetary flow)
+- [ ] **gc-1.21** — Type-aware redemption — monetary: apply up to remaining balance; service: consume one credit for matching service; bundle: consume one credit per included service line item
+- [ ] **gc-1.22** — Guardrails — reject expired codes, zero balance, wrong service for service/bundle cards, over-redemption beyond available balance or remaining credits
+
+#### Cancel & modify (customer request → Zendesk → sales specialist)
+
+**User story:** As a customer, I want to cancel or modify a gift card / bundle order I placed; the request goes to a sales specialist who applies the change after review.
+
+- [ ] **gc-1.23** — **Request cancel or modify** — from public account “My gift cards” / order detail: actions **Cancel order** and **Modify order**; enabled only per **gc-1.37** policy (e.g. within 24h of order, or hidden when admin disabled); also block when ineligible: fully redeemed or physical order past allowed creation stage
+- [ ] **gc-1.24** — **Modify request form** — customer describes desired changes: bundle/service lineup, monetary amount, recipient or delivery address, personal message, expiration preference; attach reason/notes
+- [ ] **gc-1.25** — **Zendesk ticket on submit** — auto-create ticket via existing Zendesk integration with gift card order id, code, type (monetary / service / bundle), purchaser & recipient, delivery method, fulfillment status, amount/credits, current expiration, and customer request payload; tag/route to **sales specialist** queue
+- [ ] **gc-1.26** — **Sales specialist fulfillment** — dashboard or Zendesk side panel shows linked gift card; specialist applies approved changes (update bundle services, balance, recipient, shipping, expiration, cancel + Stripe refund); ticket status synced when resolved
+- [ ] **gc-1.27** — **Customer notifications** — email (and WhatsApp if on file) when request is received, when specialist needs info, and when cancel/modify is completed or denied
+
+#### Balance, history & dashboard
+
+- [ ] **gc-1.28** — DB schema — gift card type, recipient/purchaser fields, delivery method, shipping address, fulfillment status (`awaiting_card_creation`, `ready_for_delivery`, etc.), assigned card creator / delivery staff ids, service/bundle linkage, per-service credits remaining, redemption ledger, **modification/cancel request** records linked to Zendesk ticket id (migration + indexes)
+- [ ] **gc-1.29** — Balance & history API — remaining monetary balance or service credits; redemption history with date, booking, amount/credit consumed
+- [ ] **gc-1.30** — Dashboard — list purchased gift cards, status, **admin-managed expiration**, balance/credits left, delivery/fulfillment status; purchaser/recipient and shipping details; pending cancel/modify requests
+- [ ] **gc-1.31** — Customer profile — purchaser view of gift cards in public account; track physical order status and tracking link; **Cancel / Modify** actions and request status (pending / in review / completed)
+
+#### Examples
+
+1. **Monetary (digital):** Customer buys $100 card → recipient gets code via email/WhatsApp → code applies toward any eligible service until balance is $0.
+2. **Monetary (physical):** Customer buys $100 card, selects physical delivery → **card creator** gets provider app push → prepares card → marks **ready for delivery** → **delivery staff** gets push → delivers to recipient address → recipient redeems code from the card.
+3. **Service:** Customer buys “Classic Manicure” card → recipient redeems once for that service.
+4. **Bundle:** Customer buys package (Haircut + Beard Trim + Facial) → recipient redeems each service once until all three are used.
+5. **Cancel / modify:** Customer requests to change bundle services within admin window (e.g. 1 day) → Zendesk ticket → sales specialist updates order → customer notified; after window or if admin disabled cancel, actions are hidden.
+6. **Expiration:** Admin sets optional 12-month default on gift card products; can extend or clear expiry on a specific card from dashboard; expired codes rejected at checkout.
+7. **No cancel policy:** Admin sets “cancel/modify not allowed” → customer never sees Cancel/Modify buttons; changes only via support contact.
+
+*(Zendesk ticket flow reuses **gap-4.2** integration — Sprint 2.)*
+
+---
+
+## Sprint 10 — Launch: billing & provider app store
 
 **Goal:** Public launch readiness — billing options, upgrade flows, and store listings.
 
@@ -182,7 +357,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 10 — Consumer booking app
+## Sprint 11 — Consumer booking app
 
 **Goal:** Native/PWA consumer app + web → App Store → tenant deep link so customers land on the correct salon after install.
 
@@ -223,7 +398,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 11 — Marketing alerts & subscription accounting
+## Sprint 12 — Marketing alerts & subscription accounting
 
 **Goal:** Notify the marketing team when customers register, and keep books in sync when subscriptions are sold.
 
@@ -252,12 +427,13 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 12 — Customer booking self-service & staff push
+## Sprint 13 — Customer booking self-service & staff push
 
 **Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
 
 - [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
 - [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
+- [ ] **pay-2** — Customer **cash payment** option at booking when admin enables it (see spec below)
 
 ### gap-2.7 — Customer self-service cancel & reschedule
 
@@ -265,7 +441,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [ ] **gap-2.7.1** — Policy settings — admin configures: allow cancel (yes/no), allow reschedule (yes/no), minimum notice (e.g. 24h before start), max reschedules per booking
 - [ ] **gap-2.7.2** — API — `POST /public/{slug}/customer/bookings/:id/cancel` and `POST …/reschedule` (or PATCH with new slot); auth = public customer JWT; enforce policy + booking ownership
-- [ ] **gap-2.7.3** — Reschedule UX — show available slots for same service/provider (or allow provider change per policy); validate conflicts server-side
+- [ ] **gap-2.7.3** — Reschedule UX — show available slots for same service/provider (or allow provider change per policy); validate conflicts server-side; **gap-8.3** package sub-bookings reschedule independently; **gap-8.7** same-visit group reschedules atomically
 - [ ] **gap-2.7.4** — Web public booking — “My appointments” for logged-in customer: Cancel / Reschedule actions with policy messaging
 - [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time
 - [ ] **gap-2.7.6** — Side effects — emit `booking.cancelled` / `booking.rescheduled`; restore subscription credit per **sub-1.10** policy when applicable
@@ -281,9 +457,44 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 *(Partial coverage exists via **gap-2.1** push listener; this sprint closes customer-initiated paths and consumer app parity.)*
 
+### pay-2 — Cash payment at booking (public checkout)
+
+**User story:** As a customer, I want to choose **Pay in cash** at checkout when the business accepts cash, instead of being forced through online card payment only.
+
+**User story (admin):** As a dashboard admin, I want to enable or disable cash as an accepted payment method for public bookings so customers can pay at the venue.
+
+#### Admin settings (dashboard)
+
+- [ ] **pay-2.1** — **Accept cash payments** toggle — business setting (e.g. Monetization → Payments or Business settings): when **off**, public checkout shows online payment only (Stripe when configured); when **on**, customer may select cash
+- [ ] **pay-2.2** — **Rules** — optional: allow cash only when service prepayment is none/deposit; disallow cash when full prepayment required online; admin copy explaining when cash appears
+- [ ] **pay-2.3** — **Public API** — expose `acceptCashPayments` (and related rules) on business/public booking config so frontend can show/hide cash option without extra round-trip
+
+#### Customer checkout (public booking)
+
+- [ ] **pay-2.4** — **Payment method selector** — on confirm/checkout step when admin enabled cash: **Pay online** (Stripe — existing **pay-1** flow) vs **Pay in cash at visit**; hide cash option when admin disabled or service rules block it
+- [ ] **pay-2.5** — **Cash booking flow** — selecting cash creates booking without Stripe session; `paymentStatus`: **pending** / **pay_at_venue**; amount due stored on booking metadata; confirmation copy: “Pay {amount} in cash when you arrive”
+- [ ] **pay-2.6** — **Online still default** — when both methods available, default to online if service requires prepayment/deposit; cash pre-selected only when no online charge due or admin prefers cash-first (setting)
+
+#### Staff & reconciliation
+
+- [ ] **pay-2.7** — **Mark paid in dashboard / provider app** — staff confirms cash received → `paymentStatus` → **paid**; optional “Mark paid (cash)” action with timestamp + user id
+- [ ] **pay-2.8** — **Reports & calendar** — show unpaid / pay-at-venue bookings; filter by payment method; loyalty earn on cash when marked paid (reuse eligible cash rules)
+
+#### Edge cases
+
+- [ ] **pay-2.9** — **Mixed checkout** — gift card / promo / loyalty + cash remainder: cash option covers **amount due** after credits; no Stripe for zero online portion
+- [ ] **pay-2.10** — **Subscriptions & packages** — define whether **sub-1** / **gap-8.3** purchases require online pay or can use cash (default: online only for prepaid products)
+- [ ] **pay-2.11** — **No-show / cancel** — cash bookings follow same cancel policy (**gap-2.7**); no automatic refund path
+
+#### Example
+
+Admin enables “Accept cash payments” → customer books Haircut ($30, no prepayment) → checkout shows **Pay in cash at visit** → booking confirmed, payment pending → stylist marks **Paid (cash)** after appointment.
+
+*(Complements historical **pay-1** Stripe prepay; Stripe remains required when admin disables cash or service mandates online prepayment.)*
+
 ---
 
-## Sprint 13 — AI reliability & regression
+## Sprint 14 — AI reliability & regression
 
 **Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
 
@@ -293,7 +504,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 14 — AI platform & limits
+## Sprint 15 — AI platform & limits
 
 **Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
 
@@ -305,7 +516,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 15 — AI dashboard UX core
+## Sprint 16 — AI dashboard UX core
 
 **Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
 
@@ -316,7 +527,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 16 — AI dashboard depth
+## Sprint 17 — AI dashboard depth
 
 **Goal:** Macros, wizards, risk explainability, proactive reports.
 
@@ -329,7 +540,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 17 — AI page coverage & onboarding
+## Sprint 18 — AI page coverage & onboarding
 
 **Goal:** AI on Customers, Reports, and during onboarding.
 
@@ -342,7 +553,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 18 — AI mobile commands
+## Sprint 19 — AI mobile commands
 
 **Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
 
@@ -355,7 +566,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 19 — AI mobile push & voice
+## Sprint 20 — AI mobile push & voice
 
 **Goal:** Hands-free input and push → deep link → AI prefill.
 
@@ -369,7 +580,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 20 — AI mobile offline
+## Sprint 21 — AI mobile offline
 
 **Goal:** AI commands and suggestions when connectivity drops.
 
@@ -379,7 +590,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 21 — AI intelligence layer
+## Sprint 22 — AI intelligence layer
 
 **Goal:** Memory, handoff, coordination, optional RAG.
 
@@ -390,7 +601,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 22 — AI scheduling scenarios
+## Sprint 23 — AI scheduling scenarios
 
 **Goal:** Advanced NL scheduling ops beyond baseline template cascade.
 
@@ -402,7 +613,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 23 — AI booking & business ops
+## Sprint 24 — AI booking & business ops
 
 **Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
 
@@ -417,7 +628,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 24 — AI enterprise & analytics
+## Sprint 25 — AI enterprise & analytics
 
 **Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
 
@@ -445,7 +656,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 25 — Onboarding & pricing UX
+## Sprint 26 — Onboarding & pricing UX
 
 **Goal:** Streamlined first-run setup and public pricing once product, consumer app, and AI are ready.
 
@@ -454,7 +665,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 26 — Stripe plans & seats
+## Sprint 27 — Stripe plans & seats
 
 **Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
 

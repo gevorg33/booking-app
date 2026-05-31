@@ -11,11 +11,22 @@ import {
   prepaymentDue,
   quotePublicBooking,
   getPublicCustomerLoyalty,
+  getPublicServiceSubscriptionPlans,
+  getPublicActiveSubscription,
   type PublicBusinessProfile,
   type PublicService,
   type PublicCheckoutQuote,
   type PublicCustomerLoyalty,
+  type PublicSubscriptionPlan,
+  type PublicCustomerSubscription,
 } from '@/lib/public-api';
+import {
+  buildQuoteRequest,
+  isSubscriptionCheckoutSelection,
+  resolveCheckoutAmountDue,
+  resolveCheckoutSubtotal,
+  subscriptionCheckoutPayload,
+} from '@/lib/subscription-plans';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
@@ -74,6 +85,11 @@ export function CheckoutForm({
   const [quote, setQuote] = useState<PublicCheckoutQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const quoteRequestId = useRef(0);
+  const [purchaseType, setPurchaseType] = useState<'one-time' | 'subscription'>('one-time');
+  const [subscriptionPlans, setSubscriptionPlans] = useState<PublicSubscriptionPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [activeSubscription, setActiveSubscription] = useState<PublicCustomerSubscription | null>(null);
+  const [useExistingSubscription, setUseExistingSubscription] = useState(true);
 
   const resolvedEmployee =
     specialistChoice.type === 'provider'
@@ -98,23 +114,47 @@ export function CheckoutForm({
   useEffect(() => {
     if (!customer) {
       setLoyalty(null);
+      setActiveSubscription(null);
       return;
     }
     void getPublicCustomerLoyalty(tenant.slug)
       .then(setLoyalty)
       .catch(() => setLoyalty(null));
-  }, [customer, tenant.slug]);
+    void getPublicActiveSubscription(tenant.slug, service.id)
+      .then((res) => {
+        setActiveSubscription(res.subscription);
+        if (res.subscription && res.subscription.appointmentsRemaining > 0) {
+          setUseExistingSubscription(true);
+        }
+      })
+      .catch(() => setActiveSubscription(null));
+  }, [customer, tenant.slug, service.id]);
+
+  useEffect(() => {
+    if (!service.hasSubscriptionPlans) {
+      setSubscriptionPlans([]);
+      return;
+    }
+    void getPublicServiceSubscriptionPlans(tenant.slug, service.id)
+      .then(setSubscriptionPlans)
+      .catch(() => setSubscriptionPlans([]));
+  }, [service.hasSubscriptionPlans, service.id, tenant.slug]);
 
   useEffect(() => {
     let cancelled = false;
     const requestId = ++quoteRequestId.current;
     setQuoteLoading(true);
     setQuoteError(null);
-    void quotePublicBooking(tenant.slug, {
-      serviceId: service.id,
-      promoCode: appliedPromo || undefined,
-      loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
-    })
+    void quotePublicBooking(
+      tenant.slug,
+      buildQuoteRequest({
+        serviceId: service.id,
+        purchaseType,
+        selectedPlanId,
+        promoCode: appliedPromo || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+      }),
+    )
       .then((res) => {
         if (cancelled || requestId !== quoteRequestId.current) return;
         setQuote(res);
@@ -148,7 +188,16 @@ export function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [tenant.slug, service.id, appliedPromo, loyaltyPoints, customer?.id, t]);
+  }, [
+    tenant.slug,
+    service.id,
+    appliedPromo,
+    loyaltyPoints,
+    customer?.id,
+    purchaseType,
+    selectedPlanId,
+    t,
+  ]);
 
   useEffect(() => {
     if (!paymentSessionId) return;
@@ -184,6 +233,9 @@ export function CheckoutForm({
     notes: form.notes || undefined,
     promoCode: appliedPromo || undefined,
     loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+    ...(usingSubscriptionCredit
+      ? { useSubscriptionId: activeSubscription!.id }
+      : subscriptionCheckoutPayload(purchaseType, selectedPlanId)),
     customer: {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
@@ -196,7 +248,48 @@ export function CheckoutForm({
   });
 
   const chargeBase = dueNow > 0 ? dueNow : service.price;
-  const amountDue = quote?.amountDue ?? chargeBase;
+  const usingSubscriptionCredit =
+    Boolean(activeSubscription?.appointmentsRemaining) &&
+    useExistingSubscription &&
+    purchaseType === 'one-time';
+
+  function selectOneTimeVisit() {
+    setPurchaseType('one-time');
+    setUseExistingSubscription(false);
+    setSelectedPlanId('');
+  }
+
+  function selectUseExistingSubscription() {
+    setPurchaseType('one-time');
+    setUseExistingSubscription(true);
+    setSelectedPlanId('');
+  }
+
+  function selectSubscriptionPlan(planId: string) {
+    setPurchaseType('subscription');
+    setUseExistingSubscription(false);
+    setSelectedPlanId(planId);
+  }
+
+  const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId);
+  const amountDue = resolveCheckoutAmountDue({
+    usingSubscriptionCredit,
+    quoteAmountDue: quote?.amountDue,
+    subscriptionPlanPrice:
+      purchaseType === 'subscription' && selectedPlan
+        ? selectedPlan.preview.pricing.subscriptionPrice
+        : undefined,
+    fallback: quote?.amountDue ?? chargeBase,
+  });
+  const checkoutSubtotal = resolveCheckoutSubtotal({
+    purchaseType,
+    quoteSubtotal: quote?.subtotal,
+    subscriptionPlanPrice:
+      purchaseType === 'subscription' && selectedPlan
+        ? selectedPlan.preview.pricing.subscriptionPrice
+        : undefined,
+    fallback: chargeBase,
+  });
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
   const promoApplied =
     !!appliedPromo &&
@@ -256,10 +349,14 @@ export function CheckoutForm({
       setError(t('public.consentRequired'));
       return;
     }
+    if (!isSubscriptionCheckoutSelection(purchaseType, selectedPlanId) && purchaseType === 'subscription') {
+      setError(t('public.subscriptionPlanRequired'));
+      return;
+    }
 
     setSubmitting(true);
     try {
-      if (amountDue > 0 && dueNow > 0) {
+      if (amountDue > 0 && (dueNow > 0 || purchaseType === 'subscription')) {
         const { url } = await createPublicBookingCheckout(tenant.slug, payload());
         window.location.href = url;
         return;
@@ -400,9 +497,22 @@ export function CheckoutForm({
         </div>
         <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
           <span className="font-semibold text-gray-900">{t('public.total')}</span>
-          <span className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</span>
+          <span className="font-semibold text-gray-900">
+            {usingSubscriptionCredit
+              ? formatPrice(0, service.currency)
+              : formatPrice(checkoutSubtotal, service.currency)}
+          </span>
         </div>
-        {dueNow > 0 && (
+        {(usingSubscriptionCredit || purchaseType === 'subscription') && (
+          <p className="text-sm text-emerald-700 mt-2">
+            {usingSubscriptionCredit
+              ? `Using subscription — ${Math.max(0, (activeSubscription?.appointmentsRemaining ?? 1) - 1)} visits left after this booking`
+              : selectedPlan
+                ? `Plan includes ${selectedPlan.includedAppointments} visits — first visit ${selectedPlan.preview.pricing.perAppointmentPrice ? `(${formatPrice(selectedPlan.preview.pricing.perAppointmentPrice, service.currency)} effective)` : 'included'}`
+                : null}
+          </p>
+        )}
+        {dueNow > 0 && purchaseType !== 'subscription' && (
           <p className="text-sm text-violet-700 mt-2">
             {t('public.totalDue')}: {formatPrice(dueNow, service.currency)}
             {service.prepaymentMode === 'deposit' ? ' (deposit)' : ''}
@@ -447,6 +557,100 @@ export function CheckoutForm({
           <p className="text-xs text-gray-500 mt-2">{t('public.noPointsToEarn')}</p>
         )}
       </section>
+
+      {(service.hasSubscriptionPlans || activeSubscription) && (
+        <section className="border-b border-gray-100 pb-4 mb-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">{t('public.howToBook')}</h2>
+          {activeSubscription && activeSubscription.appointmentsRemaining > 0 && (
+            <label className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer">
+              <input
+                type="radio"
+                name="purchaseOption"
+                checked={usingSubscriptionCredit}
+                onChange={selectUseExistingSubscription}
+              />
+              <div>
+                <p className="font-medium text-gray-900">{t('public.useSubscription')}</p>
+                <p className="text-sm text-gray-600">
+                  {activeSubscription.appointmentsRemaining} of {activeSubscription.appointmentsIncluded}{' '}
+                  {t('public.appointmentsLeft')} · {t('public.expiresOn')}{' '}
+                  {new Date(activeSubscription.expiresAt).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-emerald-700 mt-1">{t('public.freeThisVisit')}</p>
+              </div>
+            </label>
+          )}
+          <label className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
+            <input
+              type="radio"
+              name="purchaseOption"
+              checked={purchaseType === 'one-time' && !usingSubscriptionCredit}
+              onChange={selectOneTimeVisit}
+            />
+            <span className="font-medium text-gray-900">{t('public.oneTimeAppointment')}</span>
+          </label>
+          {service.hasSubscriptionPlans && subscriptionPlans.length > 0 && (
+            <>
+              {subscriptionPlans.length === 1 ? (
+                <label className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="purchaseOption"
+                    checked={purchaseType === 'subscription' && selectedPlanId === subscriptionPlans[0].id}
+                    onChange={() => selectSubscriptionPlan(subscriptionPlans[0].id)}
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">{t('public.subscribeAndSave')}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {subscriptionPlans[0].name} · {subscriptionPlans[0].includedAppointments} visits /{' '}
+                      {subscriptionPlans[0].durationMonths} mo ·{' '}
+                      {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, service.currency)}
+                      <span className="text-emerald-600 ml-1">
+                        ({t('public.saveAmount', {
+                          amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, service.currency),
+                        })})
+                      </span>
+                    </p>
+                  </div>
+                </label>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-700 px-1">{t('public.chooseSubscriptionPlan')}</p>
+                  {subscriptionPlans.map((plan) => (
+                    <label
+                      key={plan.id}
+                      className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer ${
+                        purchaseType === 'subscription' && selectedPlanId === plan.id
+                          ? 'border-violet-400 bg-violet-50'
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="purchaseOption"
+                        checked={purchaseType === 'subscription' && selectedPlanId === plan.id}
+                        onChange={() => selectSubscriptionPlan(plan.id)}
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900">{plan.name}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
+                          {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
+                          <span className="text-emerald-600 ml-1">
+                            ({t('public.saveAmount', {
+                              amount: formatPrice(plan.preview.pricing.savings, service.currency),
+                            })})
+                          </span>
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       <section className="border-b border-gray-100 pb-4 mb-6 space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">{t('public.promoCode')}</h2>

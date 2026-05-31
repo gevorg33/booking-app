@@ -7,13 +7,16 @@ import { PublicHeader } from '@/components/public-booking/public-header';
 import {
   getPublicCustomerBookings,
   getPublicCustomerLoyalty,
+  getPublicCustomerSubscriptions,
   exportPublicCustomerData,
   deletePublicCustomerData,
   formatPrice,
   type PublicBusinessProfile,
   type PublicCustomerBookingItem,
   type PublicCustomerLoyalty,
+  type PublicCustomerSubscription,
 } from '@/lib/public-api';
+import { PublicSubscriptionsSection } from '@/components/public-booking/public-subscriptions-section';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
@@ -89,11 +92,13 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const [privacyLoading, setPrivacyLoading] = useState<'export' | 'delete' | null>(null);
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
+  const [subscriptions, setSubscriptions] = useState<PublicCustomerSubscription[]>([]);
 
   useEffect(() => {
     if (!customer) {
       setBookings([]);
       setLoyalty(null);
+      setSubscriptions([]);
       return;
     }
 
@@ -104,11 +109,13 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
     void Promise.all([
       getPublicCustomerBookings(tenant.slug),
       getPublicCustomerLoyalty(tenant.slug).catch(() => null),
+      getPublicCustomerSubscriptions(tenant.slug).catch(() => []),
     ])
-      .then(([bookingsRes, loyaltyRes]) => {
+      .then(([bookingsRes, loyaltyRes, subsRes]) => {
         if (!cancelled) {
           setBookings(bookingsRes.bookings);
           setLoyalty(loyaltyRes);
+          setSubscriptions(subsRes);
         }
       })
       .catch((err) => {
@@ -253,6 +260,14 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                 </p>
               </div>
             )}
+
+            <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">My subscriptions</h2>
+            <PublicSubscriptionsSection
+              slug={tenant.slug}
+              subscriptions={subscriptions}
+              primary={primary}
+              locale={locale}
+            />
 
             <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.myBookings')}</h2>
 

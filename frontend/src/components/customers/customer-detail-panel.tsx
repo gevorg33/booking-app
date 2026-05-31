@@ -15,6 +15,114 @@ import {
 } from '@/lib/customer-types';
 import { useI18n } from '@/i18n';
 
+function unwrap<T>(res: unknown): T {
+  return ((res as { data?: T })?.data ?? res) as T;
+}
+
+function CustomerSubscriptionsSection({
+  businessId,
+  customerId,
+}: {
+  businessId: string;
+  customerId: string;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: subscriptions = [], isLoading } = useQuery({
+    queryKey: ['customer-subscriptions', businessId, customerId],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/customer/${customerId}`,
+      );
+      return unwrap<
+        Array<{
+          id: string;
+          status: string;
+          appointmentsRemaining: number;
+          appointmentsIncluded: number;
+          expiresAt: string;
+          plan: { name: string; service?: { name: string } };
+        }>
+      >(data);
+    },
+  });
+
+  const { data: usageData, isLoading: usageLoading } = useQuery({
+    queryKey: ['customer-subscription-usage', businessId, expandedId],
+    queryFn: async () => {
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/${expandedId}/usage`,
+      );
+      return unwrap<{ usage: Array<{ id: string; action: string; createdAt: string; appointmentsRemainingAfter: number }> }>(data);
+    },
+    enabled: !!expandedId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-4">
+        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+      </div>
+    );
+  }
+
+  if (subscriptions.length === 0) {
+    return <p className="text-sm text-gray-500">No subscriptions</p>;
+  }
+
+  return (
+    <ul className="space-y-3">
+      {subscriptions.map((sub) => (
+        <li
+          key={sub.id}
+          className="rounded-lg border border-gray-200 dark:border-gray-800 p-3 text-sm"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{sub.plan?.name ?? 'Subscription'}</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 capitalize">
+              {sub.status}
+            </span>
+          </div>
+          {sub.plan?.service?.name && (
+            <p className="text-gray-500 mt-1">{sub.plan.service.name}</p>
+          )}
+          <p className="text-gray-500 mt-1">
+            {sub.appointmentsRemaining} / {sub.appointmentsIncluded} appointments left · expires{' '}
+            {formatDateDisplay(new Date(sub.expiresAt))}
+          </p>
+          <button
+            type="button"
+            className="text-xs text-blue-400 mt-2"
+            onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
+          >
+            {expandedId === sub.id ? 'Hide usage' : 'View usage history'}
+          </button>
+          {expandedId === sub.id && (
+            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
+              {usageLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+              ) : usageData?.usage?.length ? (
+                <ul className="space-y-1 text-xs text-gray-500">
+                  {usageData.usage.map((row) => (
+                    <li key={row.id} className="flex justify-between gap-2">
+                      <span className="capitalize">{row.action}</span>
+                      <span>
+                        {formatDateDisplay(new Date(row.createdAt))} · {row.appointmentsRemainingAfter} left
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">No usage yet</p>
+              )}
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export interface CustomerDetail {
   customer: {
     id: string;
@@ -172,6 +280,13 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                 <p className="text-lg font-bold text-orange-500">{data.stats.noShowCount}</p>
                 <p className="text-xs text-gray-500">No-shows</p>
               </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Subscriptions
+              </h4>
+              <CustomerSubscriptionsSection businessId={businessId} customerId={customerId} />
             </div>
 
             <div>

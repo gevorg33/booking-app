@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2, Plus, Wallet } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { CustomerSelect } from '@/components/customers/customer-select';
+import {
+  filterActiveSubscriptionPlans,
+  formatSubscriptionPlanAssignLabel,
+  serviceIdsWithSubscriptionPlans,
+  subscriptionPlansForService,
+} from '@/lib/subscription-plans';
+import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
+import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -62,9 +70,11 @@ export default function MonetizationPage() {
 }
 
 function GiftCardsTab({ businessId }: { businessId: string }) {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('50');
   const [currency, setCurrency] = useState('USD');
+  const [expiresAtDay, setExpiresAtDay] = useState('');
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ['gift-cards', businessId],
@@ -76,15 +86,18 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const expiresAt = expiresAtDay ? dateKeyToExpiresAtEndOfDay(expiresAtDay) : undefined;
       const { data } = await api.post(`/businesses/${businessId}/gift-cards`, {
         amount: parseFloat(amount),
         currency,
+        ...(expiresAt ? { expiresAt } : {}),
       });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gift-cards', businessId] });
       setAmount('50');
+      setExpiresAtDay('');
     },
   });
 
@@ -117,6 +130,16 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
             onChange={(e) => setCurrency(e.target.value.toUpperCase())}
           />
         </div>
+        <div>
+          <label className="label">{t('monetization.expirationDate')}</label>
+          <input
+            type="date"
+            className="input max-w-[160px]"
+            value={expiresAtDay}
+            onChange={(e) => setExpiresAtDay(e.target.value)}
+          />
+          <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
+        </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Create gift card
@@ -137,6 +160,7 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Code</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Balance</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Initial</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Status</th>
               </tr>
             </thead>
@@ -150,13 +174,26 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
                   <td className="px-4 py-3">
                     {Number(card.initialBalance).toFixed(2)} {card.currency}
                   </td>
+                  <td className="px-4 py-3 text-gray-400">
+                    {card.expiresAt
+                      ? formatDateDisplay(card.expiresAt, locale)
+                      : t('monetization.noExpiration')}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        card.isActive ? 'bg-green-600/10 text-green-400' : 'bg-gray-600/10 text-gray-400'
+                        !card.isActive
+                          ? 'bg-gray-600/10 text-gray-400'
+                          : isExpiredAt(card.expiresAt)
+                            ? 'bg-amber-600/10 text-amber-400'
+                            : 'bg-green-600/10 text-green-400'
                       }`}
                     >
-                      {card.isActive ? 'Active' : 'Inactive'}
+                      {!card.isActive
+                        ? 'Inactive'
+                        : isExpiredAt(card.expiresAt)
+                          ? t('monetization.expired')
+                          : 'Active'}
                     </span>
                   </td>
                 </tr>
@@ -170,44 +207,148 @@ function GiftCardsTab({ businessId }: { businessId: string }) {
 }
 
 function MembershipsTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: '',
-    price: '99',
-    billingInterval: 'monthly',
-    visitCredits: '4',
+    serviceId: '',
+    durationMonths: '3',
+    customDurationMonths: '',
+    includedAppointments: '6',
+    discountType: 'percent' as 'percent' | 'fixed',
+    discountValue: '5',
   });
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [assignCustomerId, setAssignCustomerId] = useState('');
+  const [assignServiceId, setAssignServiceId] = useState('');
   const [assignPlanId, setAssignPlanId] = useState('');
+  const [selectedServicePrice, setSelectedServicePrice] = useState(25);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/services`);
+      return unwrap<Array<{ id: string; name: string; price: number }>>(data);
+    },
+  });
 
   const { data: plans = [], isLoading } = useQuery({
-    queryKey: ['membership-plans', businessId],
+    queryKey: ['subscription-plans', businessId],
     queryFn: async () => {
-      const { data } = await api.get(`/businesses/${businessId}/memberships/plans`);
+      const { data } = await api.get(
+        `/businesses/${businessId}/subscriptions/plans?includeInactive=true`,
+      );
       return unwrap<any[]>(data);
     },
   });
 
+  const activePlans = filterActiveSubscriptionPlans(plans);
+
+  const assignableServices = useMemo(() => {
+    const serviceIds = new Set(serviceIdsWithSubscriptionPlans(activePlans));
+    return services.filter((service) => serviceIds.has(service.id));
+  }, [activePlans, services]);
+
+  const plansForAssignService = useMemo(
+    () => subscriptionPlansForService(activePlans, assignServiceId),
+    [activePlans, assignServiceId],
+  );
+
+  const resolvedDurationMonths =
+    form.durationMonths === 'custom'
+      ? parseInt(form.customDurationMonths, 10)
+      : parseInt(form.durationMonths, 10);
+
+  const preview = calculateSubscriptionPricing(
+    selectedServicePrice,
+    parseInt(form.includedAppointments, 10) || 0,
+    form.discountType,
+    parseFloat(form.discountValue) || 0,
+  );
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${businessId}/memberships/plans`, {
+      const payload = {
         name: form.name,
-        price: parseFloat(form.price),
-        billingInterval: form.billingInterval,
-        visitCredits: parseInt(form.visitCredits, 10),
-        currency: 'USD',
-      });
+        serviceId: form.serviceId,
+        durationMonths: resolvedDurationMonths,
+        includedAppointments: parseInt(form.includedAppointments, 10),
+        discountType: form.discountType,
+        discountValue: parseFloat(form.discountValue),
+      };
+      if (editingPlanId) {
+        const { data } = await api.put(
+          `/businesses/${businessId}/subscriptions/plans/${editingPlanId}`,
+          payload,
+        );
+        return data;
+      }
+      const { data } = await api.post(`/businesses/${businessId}/subscriptions/plans`, payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membership-plans', businessId] });
-      setForm({ name: '', price: '99', billingInterval: 'monthly', visitCredits: '4' });
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+      setEditingPlanId(null);
+      setForm({
+        name: '',
+        serviceId: '',
+        durationMonths: '3',
+        customDurationMonths: '',
+        includedAppointments: '6',
+        discountType: 'percent',
+        discountValue: '5',
+      });
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { data } = await api.patch(
+        `/businesses/${businessId}/subscriptions/plans/${planId}/deactivate`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { data } = await api.patch(
+        `/businesses/${businessId}/subscriptions/plans/${planId}/activate`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      await api.delete(`/businesses/${businessId}/subscriptions/plans/${planId}`);
+    },
+    onSuccess: (_data, planId) => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
+      if (editingPlanId === planId) {
+        setEditingPlanId(null);
+        setForm({
+          name: '',
+          serviceId: '',
+          durationMonths: '3',
+          customDurationMonths: '',
+          includedAppointments: '6',
+          discountType: 'percent',
+          discountValue: '5',
+        });
+      }
     },
   });
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${businessId}/memberships/assign`, {
+      const { data } = await api.post(`/businesses/${businessId}/subscriptions/assign`, {
         customerId: assignCustomerId,
         planId: assignPlanId,
       });
@@ -215,9 +356,27 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
     onSuccess: () => {
       setAssignCustomerId('');
+      setAssignServiceId('');
       setAssignPlanId('');
     },
   });
+
+  const startEditingPlan = (plan: (typeof plans)[number]) => {
+    setEditingPlanId(plan.id);
+    const preset = ['3', '6', '12'].includes(String(plan.durationMonths))
+      ? String(plan.durationMonths)
+      : 'custom';
+    setForm({
+      name: plan.name,
+      serviceId: plan.serviceId,
+      durationMonths: preset,
+      customDurationMonths: preset === 'custom' ? String(plan.durationMonths) : '',
+      includedAppointments: String(plan.includedAppointments),
+      discountType: plan.discountType,
+      discountValue: String(plan.discountValue),
+    });
+    setSelectedServicePrice(Number(plan.service?.price ?? 0));
+  };
 
   return (
     <div className="space-y-6">
@@ -238,43 +397,124 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Price</label>
+          <label className="label">Service</label>
+          <select
+            className="input"
+            value={form.serviceId}
+            onChange={(e) => {
+              const svc = services.find((s) => s.id === e.target.value);
+              setSelectedServicePrice(Number(svc?.price ?? 0));
+              setForm({ ...form, serviceId: e.target.value });
+            }}
+            required
+          >
+            <option value="">Select service…</option>
+            {services.map((svc) => (
+              <option key={svc.id} value={svc.id}>
+                {svc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Duration (months)</label>
+          <select
+            className="input"
+            value={form.durationMonths}
+            onChange={(e) => setForm({ ...form, durationMonths: e.target.value })}
+          >
+            <option value="3">3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        {form.durationMonths === 'custom' && (
+          <div>
+            <label className="label">Custom months</label>
+            <input
+              type="number"
+              min="1"
+              className="input"
+              value={form.customDurationMonths}
+              onChange={(e) => setForm({ ...form, customDurationMonths: e.target.value })}
+              required
+            />
+          </div>
+        )}
+        <div>
+          <label className="label">Included appointments</label>
+          <input
+            type="number"
+            min="1"
+            className="input"
+            value={form.includedAppointments}
+            onChange={(e) => setForm({ ...form, includedAppointments: e.target.value })}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Discount type</label>
+          <select
+            className="input"
+            value={form.discountType}
+            onChange={(e) =>
+              setForm({ ...form, discountType: e.target.value as 'percent' | 'fixed' })
+            }
+          >
+            <option value="percent">Percent off</option>
+            <option value="fixed">Fixed amount off</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Discount value</label>
           <input
             type="number"
             min="0"
             step="0.01"
             className="input"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            required
+            value={form.discountValue}
+            onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
           />
         </div>
-        <div>
-          <label className="label">Billing interval</label>
-          <select
-            className="input"
-            value={form.billingInterval}
-            onChange={(e) => setForm({ ...form, billingInterval: e.target.value })}
-          >
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Visit credits</label>
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={form.visitCredits}
-            onChange={(e) => setForm({ ...form, visitCredits: e.target.value })}
-          />
-        </div>
+        {form.serviceId && (
+          <div className="md:col-span-2 rounded-lg bg-gray-800/50 p-4 text-sm space-y-1">
+            <p>
+              Regular total: <strong>${preview.regularTotal.toFixed(2)}</strong>
+            </p>
+            <p>
+              Subscription price: <strong>${preview.subscriptionPrice.toFixed(2)}</strong>
+            </p>
+            <p className="text-emerald-400">
+              Customer saves: ${preview.savings.toFixed(2)}
+            </p>
+          </div>
+        )}
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Create plan
+            {editingPlanId ? 'Update subscription plan' : 'Create subscription plan'}
           </button>
+          {editingPlanId && (
+            <button
+              type="button"
+              className="btn-secondary text-sm ml-2"
+              onClick={() => {
+                setEditingPlanId(null);
+                setForm({
+                  name: '',
+                  serviceId: '',
+                  durationMonths: '3',
+                  customDurationMonths: '',
+                  includedAppointments: '6',
+                  discountType: 'percent',
+                  discountValue: '5',
+                });
+              }}
+            >
+              Cancel edit
+            </button>
+          )}
         </div>
       </form>
 
@@ -284,24 +524,85 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : plans.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No membership plans yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">No subscription plans yet</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
                 <th className="px-4 py-3 font-medium text-gray-400">Name</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Service</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Duration</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Appointments</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Price</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Interval</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Credits</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Savings</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
             <tbody>
               {plans.map((plan) => (
                 <tr key={plan.id} className="border-b border-gray-800/80">
                   <td className="px-4 py-3 font-medium">{plan.name}</td>
-                  <td className="px-4 py-3">${Number(plan.price).toFixed(2)}</td>
-                  <td className="px-4 py-3 capitalize">{plan.billingInterval}</td>
-                  <td className="px-4 py-3">{plan.visitCredits}</td>
+                  <td className="px-4 py-3">{plan.service?.name ?? '—'}</td>
+                  <td className="px-4 py-3">{plan.durationMonths} mo</td>
+                  <td className="px-4 py-3">{plan.includedAppointments}</td>
+                  <td className="px-4 py-3">
+                    ${Number(plan.preview?.pricing?.subscriptionPrice ?? 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-emerald-400">
+                    ${Number(plan.preview?.pricing?.savings ?? 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {plan.isActive !== false
+                      ? t('monetization.subscriptionPlanStatusActive')
+                      : t('monetization.subscriptionPlanStatusDeactivated')}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button
+                      type="button"
+                      className="text-xs text-blue-400"
+                      onClick={() => startEditingPlan(plan)}
+                    >
+                      Edit
+                    </button>
+                    {plan.isActive !== false ? (
+                      <button
+                        type="button"
+                        className="text-xs text-red-400"
+                        onClick={() => {
+                          if (!window.confirm(t('monetization.subscriptionPlanDeactivateConfirm'))) return;
+                          deactivateMutation.mutate(plan.id);
+                        }}
+                      >
+                        {t('monetization.subscriptionPlanDeactivate')}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="text-xs text-emerald-400"
+                          disabled={activateMutation.isPending}
+                          onClick={() => {
+                            if (!window.confirm(t('monetization.subscriptionPlanActivateConfirm'))) return;
+                            activateMutation.mutate(plan.id);
+                          }}
+                        >
+                          {t('monetization.subscriptionPlanActivate')}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-red-400"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (!window.confirm(t('monetization.subscriptionPlanDeleteConfirm'))) return;
+                            deleteMutation.mutate(plan.id);
+                          }}
+                        >
+                          {t('monetization.subscriptionPlanDelete')}
+                        </button>
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -309,7 +610,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         )}
       </div>
 
-      {plans.length > 0 && (
+      {activePlans.length > 0 && (
         <form
           className="card space-y-4"
           onSubmit={(e) => {
@@ -317,8 +618,27 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             assignMutation.mutate();
           }}
         >
-          <h3 className="font-semibold">Assign plan to customer</h3>
+          <h3 className="font-semibold">Assign subscription to customer</h3>
           <CustomerSelect businessId={businessId} value={assignCustomerId} onChange={setAssignCustomerId} required />
+          <div>
+            <label className="label">Service</label>
+            <select
+              className="input max-w-md"
+              value={assignServiceId}
+              onChange={(e) => {
+                setAssignServiceId(e.target.value);
+                setAssignPlanId('');
+              }}
+              required
+            >
+              <option value="">Select service…</option>
+              {assignableServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="label">Plan</label>
             <select
@@ -326,17 +646,29 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               value={assignPlanId}
               onChange={(e) => setAssignPlanId(e.target.value)}
               required
+              disabled={!assignServiceId}
             >
-              <option value="">Select plan…</option>
-              {plans.map((plan) => (
+              <option value="">
+                {assignServiceId
+                  ? plansForAssignService.length > 0
+                    ? 'Select plan…'
+                    : 'No plans for this service'
+                  : 'Select a service first…'}
+              </option>
+              {plansForAssignService.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name}
+                  {formatSubscriptionPlanAssignLabel(plan)}
                 </option>
               ))}
             </select>
+            {assignServiceId && plansForAssignService.length > 1 && (
+              <p className="text-xs text-gray-500 mt-1">
+                This service has {plansForAssignService.length} subscription plans — pick the one to assign.
+              </p>
+            )}
           </div>
           <button type="submit" disabled={assignMutation.isPending} className="btn-primary">
-            Assign membership
+            Assign subscription
           </button>
         </form>
       )}
@@ -351,12 +683,25 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
   const [adjustPoints, setAdjustPoints] = useState('1');
   const [note, setNote] = useState('');
   const [earnPercent, setEarnPercent] = useState('5');
+  const [excludedServiceIds, setExcludedServiceIds] = useState<string[]>([]);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}/services`);
+      return unwrap<Array<{ id: string; name: string; isActive?: boolean }>>(data);
+    },
+  });
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['loyalty-settings', businessId],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${businessId}/loyalty/settings`);
-      return unwrap<{ earnPercentCashback: number; bonusDollarValue: number }>(res);
+      return unwrap<{
+        earnPercentCashback: number;
+        earnExcludedServiceIds: string[];
+        bonusDollarValue: number;
+      }>(res);
     },
   });
 
@@ -364,11 +709,13 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
     mutationFn: async () => {
       const { data: res } = await api.patch(`/businesses/${businessId}/loyalty/settings`, {
         earnPercentCashback: parseFloat(earnPercent),
+        earnExcludedServiceIds: excludedServiceIds,
       });
-      return unwrap<{ earnPercentCashback: number }>(res);
+      return unwrap<{ earnPercentCashback: number; earnExcludedServiceIds: string[] }>(res);
     },
     onSuccess: (data) => {
       setEarnPercent(String(data.earnPercentCashback));
+      setExcludedServiceIds(data.earnExcludedServiceIds ?? []);
       queryClient.invalidateQueries({ queryKey: ['loyalty-settings', businessId] });
     },
   });
@@ -377,7 +724,10 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
     if (settings?.earnPercentCashback != null) {
       setEarnPercent(String(settings.earnPercentCashback));
     }
-  }, [settings?.earnPercentCashback]);
+    if (settings?.earnExcludedServiceIds) {
+      setExcludedServiceIds(settings.earnExcludedServiceIds);
+    }
+  }, [settings?.earnPercentCashback, settings?.earnExcludedServiceIds]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['loyalty', businessId, customerId],
@@ -446,6 +796,39 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
             {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
           </p>
         )}
+        <div>
+          <label className="label">{t('monetization.loyaltyExcludedServices')}</label>
+          <p className="text-sm text-gray-500 mb-2">{t('monetization.loyaltyExcludedServicesHint')}</p>
+          {services.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('monetization.loyaltyNoServices')}</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-gray-800 p-3">
+              {services.map((service) => (
+                <label key={service.id} className="flex items-center gap-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-600"
+                    checked={excludedServiceIds.includes(service.id)}
+                    onChange={(e) => {
+                      setExcludedServiceIds((prev) =>
+                        e.target.checked
+                          ? [...prev, service.id]
+                          : prev.filter((id) => id !== service.id),
+                      );
+                    }}
+                    disabled={settingsLoading || !settings}
+                  />
+                  <span>
+                    {service.name}
+                    {service.isActive === false && (
+                      <span className="ml-2 text-xs text-gray-500">(Inactive)</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </form>
 
       <div className="card space-y-4">
@@ -528,6 +911,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
 }
 
 function PromoCodesTab({ businessId }: { businessId: string }) {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -535,6 +919,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [maxUses, setMaxUses] = useState('');
   const [description, setDescription] = useState('');
+  const [expiresAtDay, setExpiresAtDay] = useState('');
 
   const { data: promos = [], isLoading } = useQuery({
     queryKey: ['promo-codes', businessId],
@@ -546,6 +931,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const expiresAt = expiresAtDay ? dateKeyToExpiresAtEndOfDay(expiresAtDay) : undefined;
       const { data } = await api.post(`/businesses/${businessId}/promo-codes`, {
         code,
         discountType,
@@ -553,6 +939,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
         minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : undefined,
         maxUses: maxUses ? parseInt(maxUses, 10) : undefined,
         description: description || undefined,
+        ...(expiresAt ? { expiresAt } : {}),
       });
       return data;
     },
@@ -560,6 +947,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
       queryClient.invalidateQueries({ queryKey: ['promo-codes', businessId] });
       setCode('');
       setDescription('');
+      setExpiresAtDay('');
     },
   });
 
@@ -638,6 +1026,16 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           <label className="label">Description</label>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+        <div>
+          <label className="label">{t('monetization.expirationDate')}</label>
+          <input
+            type="date"
+            className="input max-w-[160px]"
+            value={expiresAtDay}
+            onChange={(e) => setExpiresAtDay(e.target.value)}
+          />
+          <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
+        </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Create promo
@@ -658,6 +1056,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Code</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Discount</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Uses</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Status</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
@@ -675,7 +1074,18 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                     {promo.usedCount}
                     {promo.maxUses != null ? ` / ${promo.maxUses}` : ''}
                   </td>
-                  <td className="px-4 py-3">{promo.isActive ? 'Active' : 'Inactive'}</td>
+                  <td className="px-4 py-3 text-gray-400">
+                    {promo.expiresAt
+                      ? formatDateDisplay(promo.expiresAt, locale)
+                      : t('monetization.noExpiration')}
+                  </td>
+                  <td className="px-4 py-3">
+                    {!promo.isActive
+                      ? 'Inactive'
+                      : isExpiredAt(promo.expiresAt)
+                        ? t('monetization.expired')
+                        : 'Active'}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {promo.isActive && (
                       <button
