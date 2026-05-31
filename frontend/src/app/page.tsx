@@ -1,33 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Calendar, Brain, Shield, Zap, ArrowRight } from 'lucide-react';
+import { Calendar, Brain, Shield, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { TestimonialsSection } from '@/components/marketing/testimonials-section';
 
 export default function HomePage() {
   const { t } = useI18n();
 
   return (
-    <div className="min-h-screen">
-      <nav className="border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold">OptiSchedule</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-gray-400 hover:text-white transition-colors">
-              {t('nav.signIn')}
-            </Link>
-            <Link href="/register" className="btn-primary">
-              {t('nav.getStarted')}
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <MarketingShell activeNav="home">
       <section className="max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-400 text-sm mb-6">
@@ -86,11 +69,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-gray-800 px-6 py-8 mt-16">
-        <div className="max-w-7xl mx-auto text-center text-gray-500 text-sm">
-          OptiSchedule — AI-native scheduling platform
+      <TestimonialsSection />
+
+      <section className="border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-2xl font-bold mb-3">{t('marketing.cta.title')}</h2>
+          <p className="text-gray-400 mb-8 max-w-xl mx-auto">{t('marketing.cta.body')}</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link href="/register" className="btn-primary inline-flex items-center gap-2 px-8 py-3">
+              {t('marketing.cta.button')} <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/pricing" className="btn-secondary px-8 py-3">
+              {t('marketing.nav.pricing')}
+            </Link>
+          </div>
         </div>
-      </footer>
-    </div>
+      </section>
+    </MarketingShell>
   );
 }

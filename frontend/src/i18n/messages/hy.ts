@@ -130,6 +130,132 @@ const hy: MessageTree = {
     featureCalendarBody:
       'Բազմամասնագետ օրացույցներ, ծառայության բլոկներ և իրական ժամանակի հասանելիություն՝ կlinիկաների, salon-ների և ծառայությունների բիզնեսների համար։',
   },
+  marketing: {
+    nav: {
+      home: 'Գլխավոր',
+      pricing: 'Գնացուցակ',
+      trust: 'Անվտանգություն',
+      testimonials: 'Կարծիքներ',
+    },
+    footer: {
+      tagline: 'OptiSchedule — AI-նative ամրագրման հարթակ',
+      rights: '© {year} OptiSchedule. Բոլոր իրավունքները պահպանված են.',
+    },
+    cta: {
+      title: 'Պատրա՞ստ եք նորացնել ձեր գrafik-ը',
+      body: 'Սկսեք անվճար Solo-ով կամ ավելացրեք թիմը հետո։ Քարտ պետք չէ explore-ի համար։',
+      button: 'Սկսել անվճար',
+    },
+    pricing: {
+      title: 'Պարզ, թափանցիկ գնացուցակ',
+      subtitle: 'Հիմնական պlan + seat-ի գին՝ ըստ թիմի չափի։ Owner seat-ը միշտ անվճար է։',
+      perMonth: '/ամ base',
+      providerSeat: 'provider seat-ի համար',
+      adminSeat: 'admin seat-ի համար',
+      popular: 'Ամենահաճելի',
+      startFree: 'Սկսել անվճար',
+      startTrial: 'Փորձարկել',
+      contactSales: 'Կապ sales-ի հետ',
+      seatNote: 'Յուրաքանչյուր պlan-ում մեկ owner seat անվճար է։',
+      annualNote: 'Տարեկան վճարմամբ ~20% զեղչ։',
+      checkoutNoteTitle: 'Անմիջական checkout',
+      checkoutNoteBody: 'Այժմ checkout-ով հասանելի պlanներ՝ {plan}։ Մնացած tier-երը rollout-ի փուլում են։',
+      plans: {
+        solo: {
+          name: 'Solo',
+          description: 'Solo մասնագետների և trial-ի համար։',
+          feature1: '1 provider seat',
+          feature2: '25 AI հրաման/ամիս',
+          feature3: 'Հանրային booking էջ',
+          feature4: 'Provider mobile app',
+        },
+        starter: {
+          name: 'Starter',
+          description: 'Փոքր salon/clinic (2–5 աշխատակից)։',
+          feature1: 'Մինչև 5 provider seat',
+          feature2: '150 AI հրաման/ամիս',
+          feature3: 'Waitlist և email support',
+          feature4: 'Schedule templates',
+          feature5: '2 admin dashboard seat',
+        },
+        growth: {
+          name: 'Growth',
+          description: 'AI և mobile-ով աշխատող թիմերի համար։',
+          feature1: 'Մինչև 15 provider seat',
+          feature2: '600 AI հրաման/ամիս',
+          feature3: 'Ընդլայնված integrations',
+          feature4: 'Priority support',
+          feature5: '5 admin dashboard seat',
+        },
+        business: {
+          name: 'Business',
+          description: 'Multi-role ops և enterprise integrations։',
+          feature1: 'Անսահմանա provider seat',
+          feature2: '2,000 AI հրաման/ամիս',
+          feature3: 'Zapier, accounting export, API',
+          feature4: 'Dedicated onboarding',
+          feature5: 'Անսահմանա admin seat',
+        },
+      },
+    },
+    testimonials: {
+      title: 'Վստահում են service բիզնեսները',
+      subtitle: 'Salon, clinic և studio-ները OptiSchedule-ով լրացնում են calendar-ը և նվազեցնում no-show-ները։',
+      items: {
+        t1: {
+          quote: 'Առաջին ամսում scheduling conflict-ները կիսով չափ նվազեցին։ AI-ի առաջարկները հասկանում են salon workflow-ը։',
+          author: 'Maria K.',
+          role: 'Owner',
+          business: 'Lumière Hair Studio',
+        },
+        t2: {
+          quote: 'Հ пациентները 24/7 book են անում, provider-ները push reminder են ստանում։ GDPR գործիքները compliance-ը պարզեցրին։',
+          author: 'Dr. Arman T.',
+          role: 'Clinic Director',
+          business: 'Yerevan Dental Care',
+        },
+        t3: {
+          quote: 'Spreadsheet-ից OptiSchedule անցնելը մեկ օր տev։ Public booking էջը մեկ շաբաթում իր արժեքը վերադարձրեց։',
+          author: 'Sofia R.',
+          role: 'Operations Lead',
+          business: 'Balance Yoga & Wellness',
+        },
+      },
+    },
+    trust: {
+      badge: 'Enterprise-grade practice-ներ',
+      title: 'Անվտանգություն և վստահություն',
+      subtitle: 'Ձեր բիզնեսի և հաճախորդների տվյալները ապահովված են encryption-ով, audit trail-ով և privacy control-ներով։',
+      commitmentTitle: 'Մեր պարտավորությունը',
+      commitmentBody: 'Կառուցված ենք regulated ոլորտների համար — clinic, personal service և multi-staff ops։ Անվտանգությունը bolt-on չէ, այլ ամեն AI action-ի մասն է։',
+      sections: {
+        encryption: {
+          title: 'Encryption transit և at rest',
+          body: 'Բոլոր connection-ները TLS-ով։ Credentials և integration token-ները encrypted են պահվում։ Session token-ները expire են լինում։',
+        },
+        privacy: {
+          title: 'GDPR-ready privacy',
+          body: 'Հաճախորդները կարող են export/delete անել public booking flow-ից։ Consent-ը checkout-ում locale-aware disclosure-ով է։',
+        },
+        aiSafety: {
+          title: 'AI guardrail-ներով',
+          body: 'AI-ը առաջարկում է, համակարգը validate է անում policy և constraint-ներով։ Ամեն command-ի audit log։',
+        },
+        payments: {
+          title: 'Stripe վճարումներ',
+          body: 'Subscription billing Stripe-ով։ Raw card number-ները մեր server-ում չեն պահվում։',
+        },
+        infrastructure: {
+          title: 'Հուսալի infrastructure',
+          body: 'Multi-tenant isolation, health check, structured logging — scale-ի համար։',
+        },
+        audit: {
+          title: 'Audit trail և access control',
+          body: 'Role-based permissions owner/admin/provider-ի համար։ Booking և AI action-ները traceable են compliance-ի համար։',
+        },
+      },
+    },
+  },
   dashboard: {
     welcome: 'Բարի վերադարձ, {name}',
     welcomeThere: 'Բարի վերադարձ',

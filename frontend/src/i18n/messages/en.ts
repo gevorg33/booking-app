@@ -119,6 +119,139 @@ const en: MessageTree = {
     featureCalendarBody:
       'Multi-provider calendars, service blocks, and real-time availability — built for clinics, salons, and service businesses.',
   },
+  marketing: {
+    nav: {
+      home: 'Home',
+      pricing: 'Pricing',
+      trust: 'Security & Trust',
+      testimonials: 'Testimonials',
+    },
+    footer: {
+      tagline: 'OptiSchedule — AI-native scheduling platform',
+      rights: '© {year} OptiSchedule. All rights reserved.',
+    },
+    cta: {
+      title: 'Ready to modernize your schedule?',
+      body: 'Start free with Solo, or upgrade when your team grows. No credit card required to explore.',
+      button: 'Get started free',
+    },
+    pricing: {
+      title: 'Simple, transparent pricing',
+      subtitle:
+        'Base plan plus per-seat pricing that scales with your team. Owner seat always included free.',
+      perMonth: '/mo base',
+      providerSeat: 'per provider seat',
+      adminSeat: 'per admin seat',
+      popular: 'Most popular',
+      startFree: 'Start free',
+      startTrial: 'Start trial',
+      contactSales: 'Contact sales',
+      seatNote: 'One owner seat included free on every plan.',
+      annualNote: 'Save ~20% with annual billing.',
+      checkoutNoteTitle: 'Self-serve checkout',
+      checkoutNoteBody:
+        'Plans currently available for instant checkout: {plan}. Other tiers are rolling out — contact us or start on Solo/Starter today.',
+      plans: {
+        solo: {
+          name: 'Solo',
+          description: 'For solo practitioners and trial users.',
+          feature1: '1 provider seat',
+          feature2: '25 AI commands per month',
+          feature3: 'Public booking page',
+          feature4: 'Provider mobile app',
+        },
+        starter: {
+          name: 'Starter',
+          description: 'For small salons and clinics (2–5 staff).',
+          feature1: 'Up to 5 provider seats',
+          feature2: '150 AI commands per month',
+          feature3: 'Waitlist & email support',
+          feature4: 'Schedule templates',
+          feature5: '2 admin dashboard seats',
+        },
+        growth: {
+          name: 'Growth',
+          description: 'For teams that rely on AI and mobile daily.',
+          feature1: 'Up to 15 provider seats',
+          feature2: '600 AI commands per month',
+          feature3: 'Advanced integrations',
+          feature4: 'Priority support',
+          feature5: '5 admin dashboard seats',
+        },
+        business: {
+          name: 'Business',
+          description: 'Multi-role operations and enterprise integrations.',
+          feature1: 'Unlimited provider seats',
+          feature2: '2,000 AI commands per month',
+          feature3: 'Zapier, accounting exports, API access',
+          feature4: 'Dedicated onboarding',
+          feature5: 'Unlimited admin seats',
+        },
+      },
+    },
+    testimonials: {
+      title: 'Trusted by service businesses',
+      subtitle: 'Salons, clinics, and studios use OptiSchedule to fill calendars and reduce no-shows.',
+      items: {
+        t1: {
+          quote:
+            'We cut scheduling conflicts by half in the first month. The AI suggestions actually understand our salon workflow.',
+          author: 'Maria K.',
+          role: 'Owner',
+          business: 'Lumière Hair Studio',
+        },
+        t2: {
+          quote:
+            'Patients book online 24/7 and our providers get push reminders. GDPR tools made compliance straightforward.',
+          author: 'Dr. Arman T.',
+          role: 'Clinic Director',
+          business: 'Yerevan Dental Care',
+        },
+        t3: {
+          quote:
+            'Moving from spreadsheets to OptiSchedule took an afternoon. The public booking page paid for itself in a week.',
+          author: 'Sofia R.',
+          role: 'Operations Lead',
+          business: 'Balance Yoga & Wellness',
+        },
+      },
+    },
+    trust: {
+      badge: 'Enterprise-grade practices',
+      title: 'Security & Trust',
+      subtitle:
+        'Your business data and customer bookings are protected with encryption, audit trails, and privacy controls built in from day one.',
+      commitmentTitle: 'Our commitment',
+      commitmentBody:
+        'We design for regulated industries — healthcare-adjacent clinics, personal services, and multi-staff operations. Security is not a bolt-on; it is part of every AI action, booking change, and integration.',
+      sections: {
+        encryption: {
+          title: 'Encryption in transit & at rest',
+          body: 'All traffic uses TLS. Sensitive credentials and integration tokens are stored encrypted. Session tokens expire and can be revoked.',
+        },
+        privacy: {
+          title: 'GDPR-ready privacy controls',
+          body: 'Customers can export or delete their data from the public booking flow. Consent is captured at checkout with locale-aware disclosures.',
+        },
+        aiSafety: {
+          title: 'AI with guardrails',
+          body: 'The AI operator proposes actions; the system validates against policies and constraints before anything changes. Full audit logging on every command.',
+        },
+        payments: {
+          title: 'Secure payments via Stripe',
+          body: 'Subscription billing runs through Stripe. We never store raw card numbers on our servers.',
+        },
+        infrastructure: {
+          title: 'Reliable infrastructure',
+          body: 'Multi-tenant isolation per business, health checks, and structured logging. Designed for high availability as you scale.',
+        },
+        audit: {
+          title: 'Audit trails & access control',
+          body: 'Role-based permissions for owners, admins, and providers. Booking and AI actions are traceable for compliance reviews.',
+        },
+      },
+    },
+  },
   dashboard: {
     welcome: 'Welcome back, {name}',
     welcomeThere: 'Welcome back, there',
