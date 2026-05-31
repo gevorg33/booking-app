@@ -37,8 +37,33 @@ describe('MultiServiceBookingsService', () => {
   };
 
   const loadedServices = [
-    { id: 'svc-1', name: 'Haircut', price: 40, durationMinutes: 30, bufferMinutes: 0, currency: 'USD' },
-    { id: 'svc-2', name: 'Beard', price: 25, durationMinutes: 20, bufferMinutes: 0, currency: 'USD' },
+    {
+      id: 'svc-1',
+      name: 'Haircut',
+      price: 40,
+      durationMinutes: 30,
+      bufferMinutes: 0,
+      currency: 'USD',
+      categoryId: 'cat-hair',
+    },
+    {
+      id: 'svc-2',
+      name: 'Beard',
+      price: 25,
+      durationMinutes: 20,
+      bufferMinutes: 0,
+      currency: 'USD',
+      categoryId: 'cat-hair',
+    },
+    {
+      id: 'svc-3',
+      name: 'Massage',
+      price: 80,
+      durationMinutes: 60,
+      bufferMinutes: 0,
+      currency: 'USD',
+      categoryId: 'cat-spa',
+    },
   ];
 
   beforeEach(() => {
@@ -47,7 +72,16 @@ describe('MultiServiceBookingsService', () => {
       ...business,
       settings: JSON.parse(JSON.stringify(business.settings)),
     });
-    serviceRepo.find.mockResolvedValue(loadedServices);
+    serviceRepo.find.mockImplementation(async (opts: { where?: { id?: unknown } }) => {
+      const idFilter = opts?.where?.id as { _value?: string[] } | string | undefined;
+      let ids: string[] | undefined;
+      if (Array.isArray(idFilter)) ids = idFilter;
+      else if (idFilter && typeof idFilter === 'object' && Array.isArray(idFilter._value)) {
+        ids = idFilter._value;
+      } else if (typeof idFilter === 'string') ids = [idFilter];
+      if (!ids) return loadedServices;
+      return loadedServices.filter((svc) => ids!.includes(svc.id));
+    });
   });
 
   it('returns and updates settings', async () => {
@@ -118,9 +152,11 @@ describe('MultiServiceBookingsService', () => {
       enabled: true,
       maxServiceCount: 5,
       maxDurationMinutes: 200,
-      turnoverBufferMinutes: 8,
+      turnoverBufferMinutes:  8,
       schedulingMode: 'per_service',
+      incompatiblePairMode: 'category',
       incompatiblePairs: [['svc-1', 'svc-2']],
+      incompatibleCategoryPairs: [['cat-hair', 'cat-spa']],
     });
     expect(businessRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,7 +164,9 @@ describe('MultiServiceBookingsService', () => {
           publicBooking: expect.objectContaining({
             multiService: expect.objectContaining({
               schedulingMode: 'per_service',
+              incompatiblePairMode: 'category',
               incompatiblePairs: [['svc-1', 'svc-2']],
+              incompatibleCategoryPairs: [['cat-hair', 'cat-spa']],
             }),
           }),
         }),
@@ -136,11 +174,68 @@ describe('MultiServiceBookingsService', () => {
     );
   });
 
+  it('rejects category-incompatible services when pair mode is category', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        publicBooking: {
+          multiService: {
+            enabled: true,
+            maxServiceCount: 4,
+            maxDurationMinutes: 300,
+            turnoverBufferMinutes: 5,
+            schedulingMode: 'same_visit',
+            incompatiblePairMode: 'category',
+            incompatiblePairs: [],
+            incompatibleCategoryPairs: [['cat-hair', 'cat-spa']],
+          },
+        },
+      },
+    });
+
+    const validation = await service.validateSelection('biz-1', ['svc-1', 'svc-3']);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors[0]).toContain('cannot be booked together');
+  });
+
   it('rejects preview when a selected service is missing', async () => {
     serviceRepo.find.mockResolvedValue([loadedServices[0]]);
     await expect(service.previewTotals('biz-1', ['svc-1', 'svc-2'])).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it('rejects service-pair incompatible selections', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        publicBooking: {
+          multiService: {
+            enabled: true,
+            maxServiceCount: 4,
+            maxDurationMinutes: 300,
+            turnoverBufferMinutes: 5,
+            schedulingMode: 'same_visit',
+            incompatiblePairMode: 'service',
+            incompatiblePairs: [['svc-1', 'svc-3']],
+            incompatibleCategoryPairs: [],
+          },
+        },
+      },
+    });
+
+    const validation = await service.validateSelection('biz-1', ['svc-1', 'svc-3']);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors[0]).toContain('cannot be booked together');
+  });
+
+  it('loads services with null category id for category rules', async () => {
+    serviceRepo.find.mockResolvedValue([
+      { ...loadedServices[0], categoryId: null },
+      loadedServices[1],
+    ]);
+    const loaded = await service.loadServicesForSelection('biz-1', ['svc-1', 'svc-2']);
+    expect(loaded[0].categoryId).toBeNull();
   });
 
   it('updates settings when business settings are empty', async () => {

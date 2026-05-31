@@ -316,8 +316,19 @@ export class PublicMultiServiceQuoteDto {
   loyaltyPointsToRedeem?: number;
 }
 
-function parseServiceIdsQuery(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === 'string') return value.split(',').map((v) => v.trim()).filter(Boolean);
-  return [];
+export function parseServiceIdsQuery(value: unknown): string[] {
+  const raw = Array.isArray(value)
+    ? value.map(String)
+    : typeof value === 'string'
+      ? value.split(',')
+      : [];
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const entry of raw) {
+    const id = String(entry ?? '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }

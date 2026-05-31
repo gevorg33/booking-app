@@ -2,19 +2,60 @@ import {
   buildSequentialAppointments,
   calculateMultiServiceTotals,
   employeeQualifiesForServices,
+  findIncompatibleCategoryPairs,
+  findIncompatibleForSelection,
   findIncompatiblePairs,
+  normalizeMultiServiceIds,
+  resolveSelectedCategoryKeys,
   validateMultiServiceSelection,
   validatePerServiceLines,
 } from './multi-service-booking.util.js';
 import { DEFAULT_MULTI_SERVICE_SETTINGS } from './multi-service-settings.util.js';
 
 const services = [
-  { serviceId: 'haircut', durationMinutes: 30, bufferMinutes: 0, price: 40, currency: 'USD', name: 'Haircut' },
-  { serviceId: 'beard', durationMinutes: 20, bufferMinutes: 0, price: 25, currency: 'USD', name: 'Beard trim' },
-  { serviceId: 'color', durationMinutes: 90, bufferMinutes: 10, price: 120, currency: 'USD', name: 'Color' },
+  {
+    serviceId: 'haircut',
+    durationMinutes: 30,
+    bufferMinutes: 0,
+    price: 40,
+    currency: 'USD',
+    name: 'Haircut',
+    categoryId: 'cat-hair',
+  },
+  {
+    serviceId: 'beard',
+    durationMinutes: 20,
+    bufferMinutes: 0,
+    price: 25,
+    currency: 'USD',
+    name: 'Beard trim',
+    categoryId: 'cat-hair',
+  },
+  {
+    serviceId: 'color',
+    durationMinutes: 90,
+    bufferMinutes: 10,
+    price: 120,
+    currency: 'USD',
+    name: 'Color',
+    categoryId: 'cat-color',
+  },
+  {
+    serviceId: 'massage',
+    durationMinutes: 60,
+    bufferMinutes: 0,
+    price: 80,
+    currency: 'USD',
+    name: 'Massage',
+    categoryId: 'cat-spa',
+  },
 ];
 
 describe('multi-service-booking.util', () => {
+  it('dedupes service ids while preserving order', () => {
+    expect(normalizeMultiServiceIds(['a', 'b', 'a', ' c ', ''])).toEqual(['a', 'b', 'c']);
+  });
+
   it('calculates totals with turnover buffer between services', () => {
     const totals = calculateMultiServiceTotals(
       [services[0], services[1]],
@@ -51,6 +92,61 @@ describe('multi-service-booking.util', () => {
     ).toBe(true);
   });
 
+  it('validates incompatible category pairs when mode is category', () => {
+    const settings = {
+      ...DEFAULT_MULTI_SERVICE_SETTINGS,
+      enabled: true,
+      maxServiceCount: 4,
+      maxDurationMinutes: 300,
+      incompatiblePairMode: 'category' as const,
+      incompatibleCategoryPairs: [['cat-hair', 'cat-spa']] as Array<[string, string]>,
+    };
+
+    expect(
+      validateMultiServiceSelection(['haircut', 'massage'], services, settings).errors[0],
+    ).toContain('cannot be booked together');
+    expect(
+      validateMultiServiceSelection(['haircut', 'beard'], services, settings).valid,
+    ).toBe(true);
+    expect(
+      findIncompatibleForSelection(['haircut', 'massage'], services, settings),
+    ).toHaveLength(1);
+    expect(resolveSelectedCategoryKeys(['haircut', 'beard'], services)).toEqual(['cat-hair']);
+    expect(
+      findIncompatibleCategoryPairs(['cat-hair', 'cat-spa'], [['cat-hair', 'cat-spa']]),
+    ).toHaveLength(1);
+  });
+
+  it('resolves uncategorized services and service-mode incompatible pairs', () => {
+    const uncategorized = {
+      serviceId: 'walk-in',
+      durationMinutes: 15,
+      bufferMinutes: 0,
+      price: 20,
+      currency: 'USD',
+      categoryId: null,
+    };
+    expect(resolveSelectedCategoryKeys(['walk-in'], [uncategorized])).toEqual(['__uncategorized__']);
+    expect(
+      findIncompatibleForSelection(
+        ['haircut', 'color'],
+        services,
+        {
+          incompatiblePairMode: 'service',
+          incompatiblePairs: [['haircut', 'color']],
+          incompatibleCategoryPairs: [],
+        },
+      ),
+    ).toHaveLength(1);
+    expect(
+      findIncompatibleForSelection(['haircut', 'beard'], services, {
+        incompatiblePairMode: 'service',
+        incompatiblePairs: [],
+        incompatibleCategoryPairs: [],
+      }),
+    ).toHaveLength(0);
+  });
+
   it('flags unavailable services and duration over max', () => {
     const settings = { ...DEFAULT_MULTI_SERVICE_SETTINGS, enabled: true, maxDurationMinutes: 40 };
     const missing = validateMultiServiceSelection(['haircut', 'missing'], services, settings);
@@ -60,19 +156,17 @@ describe('multi-service-booking.util', () => {
     expect(tooLong.errors[0]).toContain('exceeds the 40 minute limit');
   });
 
-  it('builds sequential appointments within a block', () => {
-    const start = new Date('2026-06-03T10:00:00Z');
+  it('builds sequential appointments with turnover between services', () => {
     const lines = buildSequentialAppointments(
       [
-        { serviceId: 'haircut', durationMinutes: 30, bufferMinutes: 0 },
-        { serviceId: 'beard', durationMinutes: 20, bufferMinutes: 0 },
+        { serviceId: 'a', durationMinutes: 60, bufferMinutes: 0 },
+        { serviceId: 'b', durationMinutes: 45, bufferMinutes: 0 },
       ],
-      start,
+      new Date('2026-05-31T09:00:00.000Z'),
       5,
     );
-    expect(lines).toHaveLength(2);
-    expect(lines[0].startTime.toISOString()).toBe('2026-06-03T10:00:00.000Z');
-    expect(lines[1].startTime.toISOString()).toBe('2026-06-03T10:35:00.000Z');
+    expect(lines[1].startTime.toISOString()).toBe('2026-05-31T10:05:00.000Z');
+    expect(lines[1].endTime.toISOString()).toBe('2026-05-31T10:50:00.000Z');
   });
 
   it('checks employee qualification and per-service line validation', () => {

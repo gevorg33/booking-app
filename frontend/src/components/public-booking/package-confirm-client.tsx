@@ -17,6 +17,7 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
+import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 
 interface PackageLineState {
   key: string;
@@ -62,6 +63,11 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
   const [lines, setLines] = useState<PackageLineState[]>(() => expandPackageLines(pkg));
   const [loadingDefaults, setLoadingDefaults] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pricedItems = useMemo(() => resolvePackageItemPricing(pkg), [pkg]);
+  const pricedByServiceId = useMemo(
+    () => new Map(pricedItems.map((item) => [item.serviceId, item])),
+    [pricedItems],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -173,11 +179,29 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
                 <p className="text-sm text-gray-500">
                   {formatDuration(line.durationMinutes)}
                   {(() => {
-                    const item = pkg.items.find((entry) => entry.serviceId === line.serviceId);
+                    const item = pricedByServiceId.get(line.serviceId);
                     if (!item) return null;
+                    const discountedUnit =
+                      item.quantity > 0 ? item.discountedLineTotal / item.quantity : item.unitPrice;
+                    const savingsUnit =
+                      item.quantity > 0 ? item.lineSavings / item.quantity : item.lineSavings;
                     return (
-                      <span className="ml-2 text-gray-400 line-through">
-                        {formatPrice(item.unitPrice, pkg.currency)}
+                      <span className="ml-2 inline-flex flex-wrap items-center gap-x-2">
+                        <span className="font-medium text-gray-900">
+                          {formatPrice(discountedUnit, pkg.currency)}
+                        </span>
+                        {savingsUnit > 0 && (
+                          <>
+                            <span className="text-gray-400 line-through">
+                              {formatPrice(item.unitPrice, pkg.currency)}
+                            </span>
+                            <span className="text-emerald-700 font-medium">
+                              {t('public.packageItemSave', {
+                                amount: formatPrice(savingsUnit, pkg.currency),
+                              })}
+                            </span>
+                          </>
+                        )}
                       </span>
                     );
                   })()}

@@ -11,6 +11,7 @@ export default defineConfig({
         'src/lib/subscription-pricing.ts',
         'src/lib/service-packages.ts',
         'src/lib/service-package-pricing.ts',
+        'src/lib/multi-service-booking.ts',
       ],
       thresholds: {
         statements: 98,

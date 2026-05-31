@@ -98,6 +98,9 @@ export interface PublicBusinessProfile {
     maxDurationMinutes: number;
     turnoverBufferMinutes: number;
     schedulingMode: 'same_visit' | 'per_service';
+    incompatiblePairMode: 'service' | 'category';
+    incompatiblePairs: Array<[string, string]>;
+    incompatibleCategoryPairs: Array<[string, string]>;
   };
 }
 
@@ -243,6 +246,8 @@ export interface PublicPackageItem {
   serviceName: string;
   durationMinutes: number;
   lineTotal?: number;
+  discountedLineTotal?: number;
+  lineSavings?: number;
 }
 
 export interface PublicServicePackage {
@@ -344,7 +349,7 @@ export function previewPublicMultiService(slug: string, serviceIds: string[]) {
 export function getPublicMultiServiceBlockSlots(slug: string, serviceIds: string[], date: string) {
   const params = new URLSearchParams({
     date,
-    serviceIds: serviceIds.join(','),
+    serviceIds: [...new Set(serviceIds)].join(','),
   });
   return publicFetch<{
     date: string;
@@ -355,7 +360,9 @@ export function getPublicMultiServiceBlockSlots(slug: string, serviceIds: string
 }
 
 export function suggestPublicMultiServiceBlock(slug: string, serviceIds: string[]) {
-  const params = new URLSearchParams({ serviceIds: serviceIds.join(',') });
+  const params = new URLSearchParams({
+    serviceIds: [...new Set(serviceIds)].join(','),
+  });
   return publicFetch<{
     employeeId: string;
     employeeName: string;
@@ -387,7 +394,11 @@ export type BookPublicMultiServiceBody = {
   lines?: Array<{ serviceId: string; employeeId?: string; startTime: string }>;
   notes?: string;
   promoCode?: string;
-  customer: CreatePublicBookingBody['customer'];
+  loyaltyPointsToRedeem?: number;
+  customer: CreatePublicBookingBody['customer'] & {
+    privacyConsentAccepted?: boolean;
+    marketingOptIn?: boolean;
+  };
 };
 
 export function bookPublicMultiService(slug: string, body: BookPublicMultiServiceBody) {

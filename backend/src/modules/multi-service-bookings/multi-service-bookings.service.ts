@@ -42,7 +42,10 @@ export class MultiServiceBookingsService {
     const current = resolveMultiServiceSettings(business.settings);
     const next = mergeMultiServiceSettingsPatch(current, {
       ...dto,
+      incompatiblePairMode: dto.incompatiblePairMode ?? current.incompatiblePairMode,
       incompatiblePairs: dto.incompatiblePairs ?? current.incompatiblePairs,
+      incompatibleCategoryPairs:
+        dto.incompatibleCategoryPairs ?? current.incompatibleCategoryPairs,
     });
 
     business.settings = applyMultiServiceSettingsToBusinessSettings(
@@ -68,6 +71,7 @@ export class MultiServiceBookingsService {
       price: Number(svc.price),
       currency: svc.currency || 'USD',
       name: svc.name,
+      categoryId: svc.categoryId,
     }));
   }
 

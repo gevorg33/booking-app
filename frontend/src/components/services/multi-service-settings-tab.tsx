@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import {
   DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS,
+  UNCATEGORIZED_CATEGORY_KEY,
+  type IncompatiblePairMode,
   type MultiServiceAdminSettings,
 } from '@/lib/multi-service-booking';
 
@@ -14,17 +16,39 @@ function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
 }
 
+function normalizePair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
+function pairKey(a: string, b: string) {
+  const [x, y] = normalizePair(a, b);
+  return `${x}|${y}`;
+}
+
 interface MultiServiceSettingsTabProps {
   businessId: string;
   services: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string }>;
 }
 
-export function MultiServiceSettingsTab({ businessId, services }: MultiServiceSettingsTabProps) {
+export function MultiServiceSettingsTab({
+  businessId,
+  services,
+  categories,
+}: MultiServiceSettingsTabProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<MultiServiceAdminSettings>(DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS);
   const [pairA, setPairA] = useState('');
   const [pairB, setPairB] = useState('');
+
+  const categoryOptions = useMemo(
+    () => [
+      { id: UNCATEGORIZED_CATEGORY_KEY, name: t('servicesPage.multiServiceUncategorized') },
+      ...categories,
+    ],
+    [categories, t],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['multi-service-settings', businessId],
@@ -35,7 +59,14 @@ export function MultiServiceSettingsTab({ businessId, services }: MultiServiceSe
   });
 
   useEffect(() => {
-    if (data) setForm(data);
+    if (data) {
+      setForm({
+        ...DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS,
+        ...data,
+        incompatiblePairMode: data.incompatiblePairMode ?? 'service',
+        incompatibleCategoryPairs: data.incompatibleCategoryPairs ?? [],
+      });
+    }
   }, [data]);
 
   const saveMutation = useMutation({
@@ -48,20 +79,57 @@ export function MultiServiceSettingsTab({ businessId, services }: MultiServiceSe
     },
   });
 
+  const activePairs =
+    form.incompatiblePairMode === 'category'
+      ? form.incompatibleCategoryPairs
+      : form.incompatiblePairs;
+
   const addPair = () => {
     if (!pairA || !pairB || pairA === pairB) return;
-    const key = pairA < pairB ? `${pairA}|${pairB}` : `${pairB}|${pairA}`;
-    const exists = form.incompatiblePairs.some(([a, b]) => {
-      const existing = a < b ? `${a}|${b}` : `${b}|${a}`;
-      return existing === key;
-    });
-    if (exists) return;
-    setForm({
-      ...form,
-      incompatiblePairs: [...form.incompatiblePairs, pairA < pairB ? [pairA, pairB] : [pairB, pairA]],
-    });
+    const key = pairKey(pairA, pairB);
+    if (activePairs.some(([a, b]) => pairKey(a, b) === key)) return;
+
+    if (form.incompatiblePairMode === 'category') {
+      setForm({
+        ...form,
+        incompatibleCategoryPairs: [
+          ...form.incompatibleCategoryPairs,
+          normalizePair(pairA, pairB),
+        ],
+      });
+    } else {
+      setForm({
+        ...form,
+        incompatiblePairs: [...form.incompatiblePairs, normalizePair(pairA, pairB)],
+      });
+    }
     setPairA('');
     setPairB('');
+  };
+
+  const removePair = (index: number) => {
+    if (form.incompatiblePairMode === 'category') {
+      setForm({
+        ...form,
+        incompatibleCategoryPairs: form.incompatibleCategoryPairs.filter((_, i) => i !== index),
+      });
+    } else {
+      setForm({
+        ...form,
+        incompatiblePairs: form.incompatiblePairs.filter((_, i) => i !== index),
+      });
+    }
+  };
+
+  const resolvePairLabel = (a: string, b: string) => {
+    if (form.incompatiblePairMode === 'category') {
+      const nameA = categoryOptions.find((cat) => cat.id === a)?.name ?? a;
+      const nameB = categoryOptions.find((cat) => cat.id === b)?.name ?? b;
+      return `${nameA} + ${nameB}`;
+    }
+    const nameA = services.find((svc) => svc.id === a)?.name ?? a;
+    const nameB = services.find((svc) => svc.id === b)?.name ?? b;
+    return `${nameA} + ${nameB}`;
   };
 
   if (isLoading) {
@@ -142,22 +210,53 @@ export function MultiServiceSettingsTab({ businessId, services }: MultiServiceSe
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-800 p-4 space-y-3">
-        <p className="text-sm font-medium">{t('servicesPage.multiServiceIncompatible')}</p>
+      <div className="rounded-lg border border-gray-800 p-4 space-y-4">
+        <div>
+          <p className="text-sm font-medium">{t('servicesPage.multiServiceIncompatible')}</p>
+          <p className="text-xs text-gray-500 mt-1">{t('servicesPage.multiServiceIncompatibleHint')}</p>
+        </div>
+
+        <div>
+          <label className="label">{t('servicesPage.multiServiceIncompatibleMode')}</label>
+          <select
+            className="input max-w-md"
+            value={form.incompatiblePairMode}
+            onChange={(e) => {
+              setPairA('');
+              setPairB('');
+              setForm({
+                ...form,
+                incompatiblePairMode: e.target.value as IncompatiblePairMode,
+              });
+            }}
+          >
+            <option value="service">{t('servicesPage.multiServiceIncompatibleByService')}</option>
+            <option value="category">{t('servicesPage.multiServiceIncompatibleByCategory')}</option>
+          </select>
+        </div>
+
         <div className="flex flex-wrap gap-2 items-end">
           <select className="input max-w-xs" value={pairA} onChange={(e) => setPairA(e.target.value)}>
-            <option value="">Service A</option>
-            {services.map((svc) => (
-              <option key={svc.id} value={svc.id}>
-                {svc.name}
+            <option value="">
+              {form.incompatiblePairMode === 'category'
+                ? t('servicesPage.multiServiceCategoryA')
+                : t('servicesPage.multiServiceServiceA')}
+            </option>
+            {(form.incompatiblePairMode === 'category' ? categoryOptions : services).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
           <select className="input max-w-xs" value={pairB} onChange={(e) => setPairB(e.target.value)}>
-            <option value="">Service B</option>
-            {services.map((svc) => (
-              <option key={svc.id} value={svc.id}>
-                {svc.name}
+            <option value="">
+              {form.incompatiblePairMode === 'category'
+                ? t('servicesPage.multiServiceCategoryB')
+                : t('servicesPage.multiServiceServiceB')}
+            </option>
+            {(form.incompatiblePairMode === 'category' ? categoryOptions : services).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -165,12 +264,19 @@ export function MultiServiceSettingsTab({ businessId, services }: MultiServiceSe
             {t('servicesPage.multiServiceAddPair')}
           </button>
         </div>
-        {form.incompatiblePairs.length > 0 && (
-          <ul className="text-sm text-gray-400 space-y-1">
-            {form.incompatiblePairs.map(([a, b]) => (
-              <li key={`${a}-${b}`}>
-                {services.find((s) => s.id === a)?.name ?? a} +{' '}
-                {services.find((s) => s.id === b)?.name ?? b}
+
+        {activePairs.length > 0 && (
+          <ul className="text-sm text-gray-400 space-y-2">
+            {activePairs.map(([a, b], index) => (
+              <li key={`${a}-${b}`} className="flex items-center justify-between gap-3">
+                <span>{resolvePairLabel(a, b)}</span>
+                <button
+                  type="button"
+                  className="text-xs text-red-400 hover:text-red-300"
+                  onClick={() => removePair(index)}
+                >
+                  {t('common.delete')}
+                </button>
               </li>
             ))}
           </ul>

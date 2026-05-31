@@ -11,6 +11,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
+    "test:multi-service": "vitest run --config vitest.multi-service.config.ts --coverage src/lib/multi-service-booking.spec.ts",
     "sync:firebase": "bash scripts/sync-firebase-from-provider.sh",
     "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"
   },

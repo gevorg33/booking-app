@@ -1,4 +1,5 @@
 import type { MultiServiceSettings } from './multi-service-settings.util.js';
+import { UNCATEGORIZED_CATEGORY_KEY } from './multi-service-settings.util.js';
 
 export interface MultiServiceLineInput {
   serviceId: string;
@@ -7,6 +8,7 @@ export interface MultiServiceLineInput {
   price: number;
   currency?: string;
   name?: string;
+  categoryId?: string | null;
 }
 
 export interface MultiServiceTotals {
@@ -30,6 +32,18 @@ export interface MultiServiceValidationResult {
   totals: MultiServiceTotals | null;
 }
 
+export function normalizeMultiServiceIds(serviceIds: string[]): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const raw of serviceIds) {
+    const id = String(raw ?? '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
 export function employeeQualifiesForServices(
   employeeServiceIds: string[] | null | undefined,
   serviceIds: string[],
@@ -44,6 +58,41 @@ export function findIncompatiblePairs(
 ): Array<[string, string]> {
   const selected = new Set(serviceIds);
   return incompatiblePairs.filter(([a, b]) => selected.has(a) && selected.has(b));
+}
+
+export function resolveSelectedCategoryKeys(
+  serviceIds: string[],
+  services: Array<Pick<MultiServiceLineInput, 'serviceId' | 'categoryId'>>,
+): string[] {
+  const byId = new Map(
+    services.map((svc) => [svc.serviceId, svc.categoryId ?? UNCATEGORIZED_CATEGORY_KEY]),
+  );
+  return [...new Set(serviceIds.map((id) => byId.get(id) ?? UNCATEGORIZED_CATEGORY_KEY))];
+}
+
+export function findIncompatibleCategoryPairs(
+  categoryKeys: string[],
+  incompatibleCategoryPairs: Array<[string, string]>,
+): Array<[string, string]> {
+  const selected = new Set(categoryKeys);
+  return incompatibleCategoryPairs.filter(([a, b]) => selected.has(a) && selected.has(b));
+}
+
+export function findIncompatibleForSelection(
+  serviceIds: string[],
+  services: Array<Pick<MultiServiceLineInput, 'serviceId' | 'categoryId'>>,
+  settings: Pick<
+    MultiServiceSettings,
+    'incompatiblePairMode' | 'incompatiblePairs' | 'incompatibleCategoryPairs'
+  >,
+): Array<[string, string]> {
+  if (settings.incompatiblePairMode === 'category') {
+    return findIncompatibleCategoryPairs(
+      resolveSelectedCategoryKeys(serviceIds, services),
+      settings.incompatibleCategoryPairs,
+    );
+  }
+  return findIncompatiblePairs(serviceIds, settings.incompatiblePairs);
 }
 
 export function calculateMultiServiceTotals(
@@ -97,7 +146,7 @@ export function validateMultiServiceSelection(
   }
 
   const ordered = uniqueIds.map((id) => byId.get(id)!);
-  const incompatible = findIncompatiblePairs(uniqueIds, settings.incompatiblePairs);
+  const incompatible = findIncompatibleForSelection(uniqueIds, ordered, settings);
   if (incompatible.length) {
     errors.push('Some selected services cannot be booked together');
   }

@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { ServicePackagesTab } from '@/components/services/service-packages-tab';
 import { MultiServiceSettingsTab } from '@/components/services/multi-service-settings-tab';
+import { AiPagePanel } from '@/components/ai-page-panel';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
@@ -759,6 +760,7 @@ export default function ServicesPage() {
         <MultiServiceSettingsTab
           businessId={business.id}
           services={(services ?? []).map((svc) => ({ id: svc.id, name: svc.name }))}
+          categories={categories.map((cat) => ({ id: cat.id, name: cat.name }))}
         />
       )}
 

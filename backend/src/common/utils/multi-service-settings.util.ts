@@ -1,4 +1,8 @@
 export type MultiServiceSchedulingMode = 'same_visit' | 'per_service';
+export type IncompatiblePairMode = 'service' | 'category';
+
+/** Sentinel for services with no category when using category incompatible pairs. */
+export const UNCATEGORIZED_CATEGORY_KEY = '__uncategorized__';
 
 export interface MultiServiceSettings {
   enabled: boolean;
@@ -6,7 +10,9 @@ export interface MultiServiceSettings {
   maxDurationMinutes: number;
   turnoverBufferMinutes: number;
   schedulingMode: MultiServiceSchedulingMode;
+  incompatiblePairMode: IncompatiblePairMode;
   incompatiblePairs: Array<[string, string]>;
+  incompatibleCategoryPairs: Array<[string, string]>;
 }
 
 export const DEFAULT_MULTI_SERVICE_SETTINGS: MultiServiceSettings = {
@@ -15,7 +21,9 @@ export const DEFAULT_MULTI_SERVICE_SETTINGS: MultiServiceSettings = {
   maxDurationMinutes: 180,
   turnoverBufferMinutes: 5,
   schedulingMode: 'same_visit',
+  incompatiblePairMode: 'service',
   incompatiblePairs: [],
+  incompatibleCategoryPairs: [],
 };
 
 export function resolveMultiServiceSettings(
@@ -37,13 +45,18 @@ export function resolveMultiServiceSettings(
   const schedulingMode =
     raw.schedulingMode === 'per_service' ? 'per_service' : 'same_visit';
 
+  const incompatiblePairMode =
+    raw.incompatiblePairMode === 'category' ? 'category' : 'service';
+
   return {
     enabled: raw.enabled === true,
     maxServiceCount,
     maxDurationMinutes,
     turnoverBufferMinutes,
     schedulingMode,
+    incompatiblePairMode,
     incompatiblePairs: normalizeIncompatiblePairs(raw.incompatiblePairs),
+    incompatibleCategoryPairs: normalizeIncompatiblePairs(raw.incompatibleCategoryPairs),
   };
 }
 
@@ -57,7 +70,10 @@ export function mergeMultiServiceSettingsPatch(
     maxDurationMinutes: patch.maxDurationMinutes ?? current.maxDurationMinutes,
     turnoverBufferMinutes: patch.turnoverBufferMinutes ?? current.turnoverBufferMinutes,
     schedulingMode: patch.schedulingMode ?? current.schedulingMode,
+    incompatiblePairMode: patch.incompatiblePairMode ?? current.incompatiblePairMode,
     incompatiblePairs: patch.incompatiblePairs ?? current.incompatiblePairs,
+    incompatibleCategoryPairs:
+      patch.incompatibleCategoryPairs ?? current.incompatibleCategoryPairs,
   };
 }
 

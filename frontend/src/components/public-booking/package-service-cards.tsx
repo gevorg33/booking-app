@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/date-format';
 import { formatDuration, formatPrice, type PublicServicePackage } from '@/lib/public-api';
+import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -36,6 +37,7 @@ export function PackageServiceCards({
         const includes = pkg.items
           .map((item) => `${item.serviceName}${item.quantity > 1 ? ` ×${item.quantity}` : ''}`)
           .join(', ');
+        const pricedItems = resolvePackageItemPricing(pkg);
         return (
           <div
             key={pkg.id}
@@ -95,19 +97,31 @@ export function PackageServiceCards({
               </button>
               {expanded && (
                 <ul className="mt-2 space-y-2 border-t border-gray-100 pt-2">
-                  {pkg.items.map((item, itemIndex) => (
-                    <li key={`${item.serviceId}-${itemIndex}`} className="flex justify-between text-sm">
-                      <div>
+                  {pricedItems.map((item, itemIndex) => (
+                    <li key={`${item.serviceId}-${itemIndex}`} className="flex justify-between gap-3 text-sm">
+                      <div className="min-w-0">
                         <p className="text-gray-900">
                           {item.serviceName}
                           {item.quantity > 1 ? ` ×${item.quantity}` : ''}
                         </p>
                         <p className="text-gray-500">{formatDuration(item.durationMinutes)}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-gray-400 line-through">
-                          {formatPrice(item.unitPrice * item.quantity, pkg.currency)}
+                      <div className="text-right shrink-0">
+                        <p className="font-medium text-gray-900">
+                          {formatPrice(item.discountedLineTotal, pkg.currency)}
                         </p>
+                        {item.lineSavings > 0 && (
+                          <>
+                            <p className="text-gray-400 line-through text-xs">
+                              {formatPrice(item.lineTotal, pkg.currency)}
+                            </p>
+                            <p className="text-emerald-700 text-xs font-medium">
+                              {t('public.packageItemSave', {
+                                amount: formatPrice(item.lineSavings, pkg.currency),
+                              })}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </li>
                   ))}

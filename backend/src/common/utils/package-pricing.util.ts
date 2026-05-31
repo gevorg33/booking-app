@@ -54,6 +54,56 @@ export function calculatePackagePricing(
   };
 }
 
+export interface PackageLineAllocation {
+  lineTotal: number;
+  discountedLineTotal: number;
+  lineSavings: number;
+}
+
+/** Proportional per-line discount so line totals sum to packagePrice. */
+export function allocatePackageLinePricing(
+  items: PackageLineItemInput[],
+  packagePrice: number,
+): PackageLineAllocation[] {
+  const lineTotals = items.map((item) => roundMoney(item.unitPrice * item.quantity));
+  const regularTotal = roundMoney(lineTotals.reduce((sum, total) => sum + total, 0));
+
+  if (regularTotal <= 0 || items.length === 0) {
+    return items.map(() => ({
+      lineTotal: 0,
+      discountedLineTotal: 0,
+      lineSavings: 0,
+    }));
+  }
+
+  if (packagePrice >= regularTotal) {
+    return lineTotals.map((lineTotal) => ({
+      lineTotal,
+      discountedLineTotal: lineTotal,
+      lineSavings: 0,
+    }));
+  }
+
+  const discountedLines = lineTotals.map((lineTotal) =>
+    roundMoney((lineTotal / regularTotal) * packagePrice),
+  );
+  const allocatedSum = roundMoney(discountedLines.reduce((sum, total) => sum + total, 0));
+  const remainder = roundMoney(packagePrice - allocatedSum);
+  if (remainder !== 0) {
+    const lastIndex = discountedLines.length - 1;
+    discountedLines[lastIndex] = roundMoney(discountedLines[lastIndex] + remainder);
+  }
+
+  return lineTotals.map((lineTotal, index) => {
+    const discountedLineTotal = discountedLines[index];
+    return {
+      lineTotal,
+      discountedLineTotal,
+      lineSavings: roundMoney(lineTotal - discountedLineTotal),
+    };
+  });
+}
+
 export function isPackageOfferExpired(expiresAt: Date | string | null | undefined, now = new Date()): boolean {
   if (!expiresAt) return false;
   return new Date(expiresAt) < now;

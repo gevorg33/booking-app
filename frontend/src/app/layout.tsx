@@ -17,12 +17,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={initialLocale} suppressHydrationWarning>
-      <head>
-        <ThemeInitScript />
-      </head>
       <body
         className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen`}
       >
+        <ThemeInitScript />
         <Providers initialLocale={initialLocale}>{children}</Providers>
       </body>
     </html>

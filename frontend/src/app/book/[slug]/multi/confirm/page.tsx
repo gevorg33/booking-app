@@ -1,5 +1,5 @@
 import { getPublicProfile, getPublicServices } from '@/lib/public-api';
-import { bookPath } from '@/lib/tenant-host';
+import { buildMultiServicePickerHref, parseMultiServiceIds } from '@/lib/multi-service-booking';
 import { MultiServiceConfirmClient } from '@/components/public-booking/multi-service-confirm-client';
 
 function pickParam(value: string | string[] | undefined): string | undefined {
@@ -17,24 +17,19 @@ export default async function MultiServiceConfirmPage({
   const { slug } = await params;
   const raw = await searchParams;
   const servicesParam = pickParam(raw.services);
+  const serviceIds = servicesParam ? parseMultiServiceIds(servicesParam) : [];
 
   const [tenant, { services }] = await Promise.all([
     getPublicProfile(slug),
     getPublicServices(slug),
   ]);
 
-  const filtered = servicesParam
-    ? services.filter((svc) => servicesParam.split(',').includes(svc.id))
-    : services;
-
-  const backQuery = servicesParam ? `?services=${encodeURIComponent(servicesParam)}` : '';
-
   return (
     <MultiServiceConfirmClient
       slug={slug}
       tenant={tenant}
-      services={filtered}
-      backHref={`${bookPath(slug, '/any')}${backQuery}`}
+      services={services}
+      backHref={buildMultiServicePickerHref(slug, serviceIds)}
     />
   );
 }

@@ -35,7 +35,7 @@ export class ServicePackage {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ name: 'image_url', nullable: true })
+  @Column({ name: 'image_url', type: 'varchar', length: 1024, nullable: true })
   imageUrl: string | null;
 
   @Column({ name: 'discount_type', default: PackageDiscountType.PERCENT })

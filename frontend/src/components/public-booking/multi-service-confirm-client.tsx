@@ -16,7 +16,12 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
-import { sumMultiServicePrice } from '@/lib/multi-service-booking';
+import {
+  sumMultiServicePrice,
+  resolveMultiServiceCartFromLocation,
+  persistMultiServiceCart,
+  buildMultiServicePickerHref,
+} from '@/lib/multi-service-booking';
 
 interface LineState {
   key: string;
@@ -47,29 +52,39 @@ export function MultiServiceConfirmClient({
   const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
-  const serviceIds = useMemo(() => {
-    const raw = searchParams.get('services');
-    if (!raw) return services.map((svc) => svc.id);
-    return raw.split(',').filter(Boolean);
-  }, [searchParams, services]);
+  const serviceIds = useMemo(
+    () => resolveMultiServiceCartFromLocation(slug, searchParams.get('services'), services),
+    [searchParams, services, slug],
+  );
+
+  useEffect(() => {
+    const resolved = resolveMultiServiceCartFromLocation(
+      slug,
+      searchParams.get('services'),
+      services,
+    );
+    if (resolved.length < 2) {
+      router.replace(
+        resolved.length > 0 ? buildMultiServicePickerHref(slug, resolved) : bookPath(slug, '/any'),
+      );
+      return;
+    }
+    persistMultiServiceCart(slug, resolved);
+    if (!searchParams.get('services')) {
+      const q = new URLSearchParams({ services: resolved.join(',') });
+      router.replace(`${bookPath(slug, '/multi/confirm')}?${q.toString()}`, { scroll: false });
+    }
+  }, [router, searchParams, services, slug]);
 
   const selectedServices = useMemo(
-    () => serviceIds.map((id) => services.find((svc) => svc.id === id)).filter(Boolean) as PublicService[],
+    () =>
+      serviceIds
+        .map((id) => services.find((svc) => svc.id === id))
+        .filter(Boolean) as PublicService[],
     [serviceIds, services],
   );
 
-  const [lines, setLines] = useState<LineState[]>(() =>
-    selectedServices.map((svc) => ({
-      key: svc.id,
-      serviceId: svc.id,
-      serviceName: svc.name,
-      durationMinutes: svc.durationMinutes + svc.bufferMinutes,
-      employeeId: '',
-      employeeName: '',
-      startTime: '',
-      dateKey: '',
-    })),
-  );
+  const [lines, setLines] = useState<LineState[]>([]);
   const [loadingDefaults, setLoadingDefaults] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +92,21 @@ export function MultiServiceConfirmClient({
   const currency = selectedServices[0]?.currency ?? 'USD';
 
   useEffect(() => {
+    setLines(
+      selectedServices.map((svc) => ({
+        key: svc.id,
+        serviceId: svc.id,
+        serviceName: svc.name,
+        durationMinutes: svc.durationMinutes + svc.bufferMinutes,
+        employeeId: '',
+        employeeName: '',
+        startTime: '',
+        dateKey: '',
+      })),
+    );
+    setLoadingDefaults(true);
+    setError(null);
+
     let cancelled = false;
     void (async () => {
       try {
@@ -104,7 +134,7 @@ export function MultiServiceConfirmClient({
     return () => {
       cancelled = true;
     };
-  }, [serviceIds, slug, t]);
+  }, [selectedServices, serviceIds, slug, t]);
 
   const allScheduled = useMemo(
     () => lines.every((line) => line.startTime && line.employeeId),

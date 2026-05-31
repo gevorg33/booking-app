@@ -1,6 +1,9 @@
 import { getPublicProfile, getPublicServices } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { parseMultiServiceIds } from '@/lib/multi-service-booking';
 import { MultiServiceCheckoutClient } from '@/components/public-booking/multi-service-checkout-client';
+
+export const dynamic = 'force-dynamic';
 
 function pickParam(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0];
@@ -30,11 +33,10 @@ export default async function MultiServiceCheckoutPage({
     getPublicServices(slug),
   ]);
 
-  const filtered = servicesParam
-    ? services.filter((svc) => servicesParam.split(',').includes(svc.id))
-    : services;
+  const serviceIds = servicesParam ? parseMultiServiceIds(servicesParam) : [];
 
-  const backQuery = servicesParam ? `?services=${encodeURIComponent(servicesParam)}` : '';
+  const backQuery =
+    serviceIds.length > 0 ? `?services=${encodeURIComponent(serviceIds.join(','))}` : '';
   const backHref =
     pickParam(raw.lines) != null
       ? `${bookPath(slug, '/multi/confirm')}${backQuery}`
@@ -44,7 +46,7 @@ export default async function MultiServiceCheckoutPage({
     <MultiServiceCheckoutClient
       slug={slug}
       tenant={tenant}
-      services={filtered}
+      services={services}
       backHref={backHref}
       paymentSessionId={sessionId}
     />

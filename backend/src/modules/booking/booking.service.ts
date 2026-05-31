@@ -1047,6 +1047,124 @@ export class BookingService {
     await this.validateBookingWindow(businessId, employeeId, startTime, endTime, serviceId);
   }
 
+  /**
+   * Same-visit multi-service: validate the full contiguous block once.
+   * Per-segment checks fail when turnover pushes a segment off the micro-slot grid (e.g. 10:05).
+   */
+  async validateMultiServiceBlockFits(
+    businessId: string,
+    employeeId: string,
+    blockStart: Date,
+    blockEnd: Date,
+    serviceIds: string[],
+    excludeBookingId?: string,
+  ): Promise<void> {
+    const periodCheck = await this.checkServicePeriodsForMultiService(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+      serviceIds,
+    );
+    if (periodCheck === 'invalid') {
+      throw new BadRequestException(
+        'The booking does not fit within an available service period. ' +
+          'The full service duration must finish before the period ends.',
+      );
+    }
+
+    await this.assertNoBlockingScheduleOverlap(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+    );
+
+    if (periodCheck === 'valid') {
+      const hasActiveBooking = await this.hasActiveBookingOverlap(
+        businessId,
+        employeeId,
+        blockStart,
+        blockEnd,
+        excludeBookingId,
+      );
+      if (hasActiveBooking) {
+        throw new ConflictException(
+          'All time slots in the requested window are already fully booked.',
+        );
+      }
+      return;
+    }
+
+    const microSlotsInWindow = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime: blockStart })
+      .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .getMany();
+
+    if (microSlotsInWindow.length === 0) {
+      const anySlotInWindow = await this.slotRepo
+        .createQueryBuilder('slot')
+        .where('slot.business_id = :businessId', { businessId })
+        .andWhere('slot.employee_id = :employeeId', { employeeId })
+        .andWhere('slot.startTime >= :startTime', { startTime: blockStart })
+        .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+        .andWhere('slot.status NOT IN (:...blockStatuses)', {
+          blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+        })
+        .getCount();
+
+      if (anySlotInWindow > 0) {
+        const hasActiveBooking = await this.hasActiveBookingOverlap(
+          businessId,
+          employeeId,
+          blockStart,
+          blockEnd,
+          excludeBookingId,
+        );
+        if (hasActiveBooking) {
+          throw new ConflictException(
+            'All time slots in the requested window are already fully booked.',
+          );
+        }
+        await this.reconcileStuckSlotsInWindow(businessId, employeeId, blockStart, blockEnd);
+        return;
+      }
+      throw new BadRequestException(
+        'No bookable schedule window exists for this provider at the requested time.',
+      );
+    }
+
+    const slotGranularityMs = 10 * 60 * 1000;
+    const slotsNeeded = Math.ceil(
+      (blockEnd.getTime() - blockStart.getTime()) / slotGranularityMs,
+    );
+    const dedupedSlots = this.dedupeSlotsByStartTime(microSlotsInWindow);
+
+    if (dedupedSlots.length < slotsNeeded) {
+      throw new BadRequestException(
+        'The full service duration does not fit within the available schedule. ' +
+          'Choose an earlier start time so the appointment ends within the service period.',
+      );
+    }
+
+    const hasActiveBooking = await this.hasActiveBookingOverlap(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+      excludeBookingId,
+    );
+    if (hasActiveBooking) {
+      throw new ConflictException(
+        'All time slots in the requested window are already fully booked.',
+      );
+    }
+  }
+
   /** Explains why a service cannot be booked at a given start time (for assistant UX). */
   async explainServiceSlotFit(
     businessId: string,
@@ -1468,6 +1586,126 @@ export class BookingService {
     if (!serviceAllowed) {
       throw new BadRequestException(
         'This service is not offered in the service period for the selected time.',
+      );
+    }
+  }
+
+  private async validateAgainstServicePeriodsForMultiService(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceIds: string[],
+  ): Promise<void> {
+    const periodCheck = await this.checkServicePeriodsForMultiService(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+      serviceIds,
+    );
+    if (periodCheck === 'no_periods') {
+      throw new BadRequestException(
+        'This provider has no schedule on the selected day. Booking is not allowed.',
+      );
+    }
+    if (periodCheck === 'invalid') {
+      throw new BadRequestException(
+        'The booking does not fit within an available service period. ' +
+          'The full service duration must finish before the period ends.',
+      );
+    }
+  }
+
+  private async checkServicePeriodsForMultiService(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceIds: string[],
+  ): Promise<'valid' | 'no_periods' | 'invalid'> {
+    const dayStart = new Date(startTime);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(startTime);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const servicePeriods = dayPeriods.filter(
+      (p) => p.type === TemplatePeriodType.SERVICE_BLOCK,
+    );
+    if (servicePeriods.length === 0) {
+      return 'no_periods';
+    }
+
+    const containing = servicePeriods.filter(
+      (p) => p.startTime <= startTime && p.endTime >= endTime,
+    );
+    if (containing.length === 0) {
+      return 'invalid';
+    }
+
+    const allServicesAllowed = containing.some((p) => {
+      const ids = p.serviceIds;
+      if (!ids || ids.length === 0) return true;
+      return serviceIds.every((id) => ids.includes(id));
+    });
+
+    return allServicesAllowed ? 'valid' : 'invalid';
+  }
+
+  private async assertNoBlockingScheduleOverlap(
+    businessId: string,
+    employeeId: string,
+    blockStart: Date,
+    blockEnd: Date,
+  ): Promise<void> {
+    const dayStart = new Date(blockStart);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(blockStart);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const blockingPeriod = dayPeriods.find(
+      (p) =>
+        (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK ||
+          p.type === TemplatePeriodType.BLOCKED_TIME) &&
+        p.startTime < blockEnd &&
+        p.endTime > blockStart,
+    );
+    if (blockingPeriod) {
+      throw new BadRequestException(
+        'This time window overlaps with a blocked or unavailable period. Booking is not allowed.',
+      );
+    }
+
+    const blockingSlots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+      .andWhere('slot.endTime > :startTime', { startTime: blockStart })
+      .andWhere('slot.status IN (:...blockStatuses)', {
+        blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+      })
+      .getCount();
+
+    if (blockingSlots > 0) {
+      throw new BadRequestException(
+        'This time window overlaps with a blocked or unavailable period. Booking is not allowed.',
       );
     }
   }

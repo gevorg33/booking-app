@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@n
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
@@ -14,6 +14,7 @@ import { OptionalPublicCustomerAuthGuard } from './optional-public-customer-auth
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { PublicCustomerRequestUser } from './public-customer-auth.decorator.js';
 import { CustomerPrivacyService } from '../customer/customer-privacy.service.js';
+import { normalizeMultiServiceIds } from '../../common/utils/multi-service-booking.util.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -152,9 +153,9 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @Query('serviceIds') serviceIdsRaw?: string | string[],
   ) {
-    const serviceIds = Array.isArray(serviceIdsRaw)
-      ? serviceIdsRaw
-      : (serviceIdsRaw ?? '').split(',').filter(Boolean);
+    const serviceIds = normalizeMultiServiceIds(
+      parseServiceIdsQuery(Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw),
+    );
     return this.publicBookingService.suggestMultiServiceBlock(slug, serviceIds);
   }
 
@@ -163,9 +164,9 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @Query('serviceIds') serviceIdsRaw?: string | string[],
   ) {
-    const serviceIds = Array.isArray(serviceIdsRaw)
-      ? serviceIdsRaw
-      : (serviceIdsRaw ?? '').split(',').filter(Boolean);
+    const serviceIds = normalizeMultiServiceIds(
+      parseServiceIdsQuery(Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw),
+    );
     return this.publicBookingService.suggestMultiServicePerServiceLines(slug, serviceIds);
   }
 

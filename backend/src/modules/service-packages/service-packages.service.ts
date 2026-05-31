@@ -16,6 +16,7 @@ import { Service } from '../service/entities/service.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   calculatePackagePricing,
+  allocatePackageLinePricing,
   isPackageOfferExpired,
   isPackagePubliclyVisible,
   isPackageBookable,
@@ -239,6 +240,18 @@ export class ServicePackagesService {
       Number(pkg.discountValue),
     );
 
+    const lineAllocations = allocatePackageLinePricing(
+      items.map(({ unitPrice, quantity }) => ({ unitPrice, quantity })),
+      pricing.packagePrice,
+    );
+
+    const itemsWithPricing = items.map((item, index) => ({
+      ...item,
+      lineTotal: lineAllocations[index].lineTotal,
+      discountedLineTotal: lineAllocations[index].discountedLineTotal,
+      lineSavings: lineAllocations[index].lineSavings,
+    }));
+
     const currency = pkg.items?.[0]?.service?.currency ?? 'USD';
 
     return {
@@ -248,7 +261,7 @@ export class ServicePackagesService {
         discountType: pkg.discountType,
         discountValue: Number(pkg.discountValue),
       },
-      items,
+      items: itemsWithPricing,
       pricing,
       currency,
     };

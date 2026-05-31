@@ -16,6 +16,7 @@ import { CustomerModule } from '../customer/customer.module.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
+import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
@@ -32,7 +33,7 @@ import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-serv
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, Service, SchedulingSlot, Customer, Booking, Review]),
+    TypeOrmModule.forFeature([Employee, Service, SchedulingSlot, SchedulingPeriod, Customer, Booking, Review]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

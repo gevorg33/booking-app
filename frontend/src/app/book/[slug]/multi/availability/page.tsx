@@ -1,6 +1,9 @@
 import { getPublicProfile, getPublicServices } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { buildMultiServicePickerHref, parseMultiServiceIds } from '@/lib/multi-service-booking';
 import { MultiServiceAvailabilityClient } from '@/components/public-booking/multi-service-availability-client';
+
+export const dynamic = 'force-dynamic';
 
 function pickParam(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0];
@@ -17,22 +20,20 @@ export default async function MultiServiceAvailabilityPage({
   const { slug } = await params;
   const raw = await searchParams;
   const servicesParam = pickParam(raw.services);
+  const serviceIds = servicesParam ? parseMultiServiceIds(servicesParam) : [];
 
   const [tenant, { services }] = await Promise.all([
     getPublicProfile(slug),
     getPublicServices(slug),
   ]);
 
-  const filtered = servicesParam
-    ? services.filter((svc) => servicesParam.split(',').includes(svc.id))
-    : services;
-
   return (
     <MultiServiceAvailabilityClient
       slug={slug}
       tenant={tenant}
-      services={filtered}
-      backHref={bookPath(slug, '/any')}
+      services={services}
+      serviceIds={serviceIds}
+      backHref={buildMultiServicePickerHref(slug, serviceIds)}
     />
   );
 }

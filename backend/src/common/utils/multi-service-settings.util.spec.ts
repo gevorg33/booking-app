@@ -27,6 +27,8 @@ describe('multi-service-settings.util', () => {
     expect(settings.maxServiceCount).toBe(3);
     expect(settings.schedulingMode).toBe('per_service');
     expect(settings.incompatiblePairs).toEqual([['a', 'b']]);
+    expect(settings.incompatiblePairMode).toBe('service');
+    expect(settings.incompatibleCategoryPairs).toEqual([]);
   });
 
   it('accepts valid positive integers from settings', () => {
@@ -92,5 +94,37 @@ describe('multi-service-settings.util', () => {
         },
       }).incompatiblePairs,
     ).toEqual([]);
+  });
+
+  it('reads category incompatible pair mode and normalizes category pairs', () => {
+    const settings = resolveMultiServiceSettings({
+      publicBooking: {
+        multiService: {
+          incompatiblePairMode: 'category',
+          incompatibleCategoryPairs: [
+            ['cat-a', 'cat-b'],
+            ['cat-b', 'cat-a'],
+            ['', 'cat-c'],
+          ],
+        },
+      },
+    });
+    expect(settings.incompatiblePairMode).toBe('category');
+    expect(settings.incompatibleCategoryPairs).toEqual([['cat-a', 'cat-b']]);
+  });
+
+  it('merges incompatible pair patches without dropping existing values', () => {
+    const merged = mergeMultiServiceSettingsPatch(
+      {
+        ...DEFAULT_MULTI_SERVICE_SETTINGS,
+        incompatiblePairMode: 'service',
+        incompatiblePairs: [['a', 'b']],
+        incompatibleCategoryPairs: [['cat-1', 'cat-2']],
+      },
+      { incompatiblePairMode: 'category' },
+    );
+    expect(merged.incompatiblePairMode).toBe('category');
+    expect(merged.incompatiblePairs).toEqual([['a', 'b']]);
+    expect(merged.incompatibleCategoryPairs).toEqual([['cat-1', 'cat-2']]);
   });
 });

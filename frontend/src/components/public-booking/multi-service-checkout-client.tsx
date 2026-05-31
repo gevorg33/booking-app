@@ -1,25 +1,38 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PhoneInput } from '@/components/public-booking/phone-input';
 import {
   bookPublicMultiService,
   confirmPublicBookingPayment,
   createPublicMultiServiceCheckout,
+  formatDuration,
   formatPrice,
+  getPublicCustomerLoyalty,
   quotePublicMultiService,
   type PublicBusinessProfile,
   type PublicCheckoutQuote,
+  type PublicCustomerLoyalty,
   type PublicService,
 } from '@/lib/public-api';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
-import { sumMultiServicePrice } from '@/lib/multi-service-booking';
+import { bookPath } from '@/lib/tenant-host';
+import {
+  buildMultiServicePickerHref,
+  buildMultiServiceScheduleHref,
+  persistMultiServiceCart,
+  resolveMultiServiceCartFromLocation,
+  resolvePathAfterRemovingService,
+  sumMultiServiceDuration,
+  sumMultiServicePrice,
+  uniqueMultiServiceIds,
+} from '@/lib/multi-service-booking';
 
 interface MultiServiceCheckoutClientProps {
   slug: string;
@@ -29,6 +42,11 @@ interface MultiServiceCheckoutClientProps {
   paymentSessionId?: string;
 }
 
+type ScheduleLine = { serviceId: string; employeeId: string; startTime: string };
+
+const inputClassName =
+  'w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400';
+
 export function MultiServiceCheckoutClient({
   slug,
   tenant,
@@ -37,30 +55,52 @@ export function MultiServiceCheckoutClient({
   paymentSessionId,
 }: MultiServiceCheckoutClientProps) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { customer, loading: authLoading } = usePublicCustomerAuth();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
 
-  const serviceIds = useMemo(() => {
-    const raw = searchParams.get('services');
-    if (!raw) return services.map((svc) => svc.id);
-    return raw.split(',').filter(Boolean);
-  }, [searchParams, services]);
+  const serviceIds = useMemo(
+    () => resolveMultiServiceCartFromLocation(slug, searchParams.get('services'), services),
+    [searchParams, services, slug],
+  );
+
+  useEffect(() => {
+    const resolved = resolveMultiServiceCartFromLocation(
+      slug,
+      searchParams.get('services'),
+      services,
+    );
+    if (resolved.length < 2) {
+      router.replace(
+        resolved.length > 0 ? buildMultiServicePickerHref(slug, resolved) : bookPath(slug, '/any'),
+      );
+      return;
+    }
+    persistMultiServiceCart(slug, resolved);
+    if (!searchParams.get('services')) {
+      const q = new URLSearchParams(searchParams.toString());
+      q.set('services', resolved.join(','));
+      router.replace(`${bookPath(slug, '/multi/checkout')}?${q.toString()}`, { scroll: false });
+    }
+  }, [router, searchParams, services, slug]);
 
   const selectedServices = useMemo(
-    () => services.filter((svc) => serviceIds.includes(svc.id)),
+    () =>
+      serviceIds
+        .map((id) => services.find((svc) => svc.id === id))
+        .filter(Boolean) as PublicService[],
     [serviceIds, services],
   );
 
   const blockStartTime = searchParams.get('startTime') ?? undefined;
-  const employeeId = searchParams.get('employeeId') ?? undefined;
   const linesRaw = searchParams.get('lines');
 
   const lines = useMemo(() => {
     if (!linesRaw) return undefined;
     try {
-      return JSON.parse(linesRaw) as Array<{ serviceId: string; employeeId: string; startTime: string }>;
+      return JSON.parse(linesRaw) as ScheduleLine[];
     } catch {
       return undefined;
     }
@@ -72,15 +112,52 @@ export function MultiServiceCheckoutClient({
     phone: undefined as string | undefined,
     notes: '',
     consent: false,
+    marketingOptIn: false,
+    emailReminders: true,
+    whatsappReminders: true,
   });
   const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState('');
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
   const [quote, setQuote] = useState<PublicCheckoutQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const quoteRequestId = useRef(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const totalPrice = sumMultiServicePrice(selectedServices);
+  const schedulingMode = tenant.multiService?.schedulingMode ?? 'same_visit';
+
+  const servicesPickerHref = useMemo(
+    () => buildMultiServicePickerHref(slug, serviceIds),
+    [serviceIds, slug],
+  );
+
+  const scheduleEditHref = useMemo(
+    () => buildMultiServiceScheduleHref(slug, serviceIds, schedulingMode),
+    [schedulingMode, serviceIds, slug],
+  );
+
+  const removeService = useCallback(
+    (removeId: string) => {
+      router.push(resolvePathAfterRemovingService(slug, serviceIds, removeId, schedulingMode));
+    },
+    [router, schedulingMode, serviceIds, slug],
+  );
+
+  const subtotal = sumMultiServicePrice(selectedServices);
   const currency = selectedServices[0]?.currency ?? 'USD';
+  const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
+  const totalDuration = sumMultiServiceDuration(selectedServices, turnover);
+
+  const scheduleStart = blockStartTime ?? lines?.[0]?.startTime;
+  const scheduleEnd = useMemo(() => {
+    if (!scheduleStart) return null;
+    return new Date(new Date(scheduleStart).getTime() + totalDuration * 60_000);
+  }, [scheduleStart, totalDuration]);
 
   useEffect(() => {
     if (authLoading || !customer) return;
@@ -93,11 +170,59 @@ export function MultiServiceCheckoutClient({
   }, [authLoading, customer]);
 
   useEffect(() => {
+    if (!customer) {
+      setLoyalty(null);
+      return;
+    }
+    void getPublicCustomerLoyalty(slug)
+      .then(setLoyalty)
+      .catch(() => setLoyalty(null));
+  }, [customer, slug]);
+
+  useEffect(() => {
     if (serviceIds.length < 2) return;
-    void quotePublicMultiService(slug, { serviceIds, promoCode: promoCode || undefined })
-      .then(setQuote)
-      .catch(() => setQuote(null));
-  }, [promoCode, serviceIds, slug]);
+    let cancelled = false;
+    const requestId = ++quoteRequestId.current;
+    setQuoteLoading(true);
+    setQuoteError(null);
+    void quotePublicMultiService(slug, {
+      serviceIds,
+      promoCode: appliedPromo || undefined,
+      loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+    })
+      .then((res) => {
+        if (cancelled || requestId !== quoteRequestId.current) return;
+        setQuote(res);
+        if (res.loyaltyPointsToRedeem !== loyaltyPoints) {
+          setLoyaltyPoints(res.loyaltyPointsToRedeem);
+        }
+        if (
+          appliedPromo &&
+          (res.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+            res.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase())
+        ) {
+          setPromoError(null);
+        }
+      })
+      .catch((err) => {
+        if (cancelled || requestId !== quoteRequestId.current) return;
+        setQuote(null);
+        const message = err instanceof Error ? err.message : t('public.quoteFailed');
+        setQuoteError(message);
+        if (appliedPromo && /promo|gift card/i.test(message)) {
+          setAppliedPromo('');
+          setPromoError(message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled && requestId === quoteRequestId.current) {
+          setQuoteLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedPromo, loyaltyPoints, serviceIds, slug, t]);
 
   useEffect(() => {
     if (!paymentSessionId) return;
@@ -107,50 +232,97 @@ export function MultiServiceCheckoutClient({
         await confirmPublicBookingPayment(slug, paymentSessionId);
         setSuccess(true);
       } catch (err: unknown) {
-        setError((err as Error)?.message || t('common.errorGeneric'));
+        setError((err as Error)?.message || t('public.bookingFailed'));
       } finally {
         setSubmitting(false);
       }
     })();
   }, [paymentSessionId, slug, t]);
 
-  const amountDue = quote?.amountDue ?? totalPrice;
+  const amountDue = quote?.amountDue ?? subtotal;
+  const checkoutSubtotal = quote?.subtotal ?? subtotal;
+  const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
   const requiresPayment = tenant.onlinePaymentsEnabled && amountDue > 0;
+  const promoApplied =
+    !!appliedPromo &&
+    (!quote ||
+      quote.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+      quote.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+      quote.promoDiscount > 0 ||
+      quote.giftCardDiscount > 0);
+
+  const fullPhone = () => formatPhoneForApi(form.phone);
 
   const payload = useMemo(
     () => ({
       serviceIds,
       blockStartTime,
-      employeeId,
+      employeeId: searchParams.get('employeeId') ?? undefined,
       lines,
       notes: form.notes || undefined,
-      promoCode: promoCode || undefined,
+      promoCode: appliedPromo || undefined,
+      loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
       customer: {
-        name: form.name,
-        email: form.email || undefined,
-        phone: form.phone ? formatPhoneForApi(form.phone) : undefined,
+        name: form.name.trim(),
+        email: form.email.trim() || undefined,
+        phone: fullPhone() || undefined,
+        emailReminders: form.emailReminders,
+        whatsappReminders: form.whatsappReminders,
         privacyConsentAccepted: form.consent,
+        marketingOptIn: form.marketingOptIn,
       },
     }),
-    [blockStartTime, employeeId, form, lines, promoCode, serviceIds],
+    [appliedPromo, blockStartTime, form, lines, loyaltyPoints, searchParams, serviceIds],
   );
 
-  const onSubmit = async () => {
+  function applyPromoCode() {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    setPromoError(null);
+    setQuoteError(null);
+    setAppliedPromo(code);
+  }
+
+  function clearPromoCode() {
+    setAppliedPromo('');
+    setPromoCode('');
+    setPromoError(null);
+  }
+
+  function useMaxLoyaltyPoints() {
+    const balance = quote?.loyaltyPointsBalance ?? loyalty?.pointsBalance ?? 0;
+    const promoDiscount = quote?.promoDiscount ?? 0;
+    const giftCardDiscount = quote?.giftCardDiscount ?? 0;
+    const quoteSubtotal = quote?.subtotal ?? subtotal;
+    const redeemable =
+      quote?.afterGiftCard ??
+      Math.max(0, (quote?.afterPromo ?? quoteSubtotal - promoDiscount) - giftCardDiscount);
+    if (balance <= 0 || redeemable <= 0) return;
+    setLoyaltyPoints(Math.round(Math.min(balance, redeemable) * 100) / 100);
+  }
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
+
     if (!form.name.trim()) {
-      setError('Name is required');
+      setError(t('public.nameRequired'));
       return;
     }
-    if (!form.email && !form.phone) {
-      setError('Email or phone is required');
+    if (!form.email.trim() && !fullPhone()) {
+      setError(t('public.contactRequired'));
       return;
     }
-    if (form.phone && !isValidPhone(form.phone)) {
-      setError('Enter a valid phone number');
+    if (form.phone?.trim() && !isValidPhone(form.phone)) {
+      setError(t('public.phoneInvalid'));
+      return;
+    }
+    if (form.whatsappReminders && !fullPhone()) {
+      setError(t('public.whatsappPhoneRequired'));
       return;
     }
     if (!form.consent) {
-      setError('Please accept the privacy policy');
+      setError(t('public.consentRequired'));
       return;
     }
     if (!blockStartTime && !lines?.length) {
@@ -168,7 +340,7 @@ export function MultiServiceCheckoutClient({
       await bookPublicMultiService(slug, payload);
       setSuccess(true);
     } catch (err: unknown) {
-      setError((err as Error)?.message || t('common.errorGeneric'));
+      setError((err as Error)?.message || t('public.bookingFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -179,6 +351,9 @@ export function MultiServiceCheckoutClient({
       <>
         <PublicHeader tenant={tenant} />
         <main className="max-w-lg mx-auto px-4 py-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+            ✓
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">{t('public.multiServiceBookedTitle')}</h1>
           <p className="text-gray-600 mt-2">{t('public.multiServiceBookedHint')}</p>
         </main>
@@ -189,66 +364,292 @@ export function MultiServiceCheckoutClient({
   return (
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('public.multiServiceCheckoutTitle')}</h1>
-          <p className="text-sm text-gray-500 mt-1">{selectedServices.map((svc) => svc.name).join(' + ')}</p>
-        </div>
+      <main className="max-w-lg mx-auto px-4 py-6">
+        <form onSubmit={onSubmit} className="pb-36">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('public.checkoutTitle')}</h1>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2 text-sm">
-          {blockStartTime && (
-            <p className="text-gray-600">
-              {formatDateDisplay(blockStartTime, locale)} · {formatScheduleTime(blockStartTime)}
-            </p>
+          {scheduleStart && (
+            <section className="border-b border-gray-100 pb-4 mb-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Calendar className="w-5 h-5 text-gray-400 shrink-0" />
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {formatDateDisplay(scheduleStart, locale)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {formatScheduleTime(scheduleStart)}
+                      {scheduleEnd ? ` – ${formatScheduleTime(scheduleEnd.toISOString())}` : ''}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-0.5">{formatDuration(totalDuration)}</p>
+                  </div>
+                </div>
+                <a
+                  href={scheduleEditHref}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                  aria-label={t('public.multiServiceEditSchedule')}
+                >
+                  <Pencil className="w-4 h-4" />
+                </a>
+              </div>
+            </section>
           )}
-          <div className="flex justify-between font-semibold">
-            <span className="text-gray-500">{t('public.total')}</span>
-            <span>{formatPrice(amountDue, currency)}</span>
-          </div>
-        </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void onSubmit();
-          }}
-        >
-          <div>
-            <label className="label">Name</label>
-            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </div>
-          <div>
-            <label className="label">Email</label>
-            <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Phone</label>
-            <PhoneInput value={form.phone} onChange={(phone) => setForm({ ...form, phone })} defaultCountry={defaultPhoneCountry} />
-          </div>
-          <div>
-            <label className="label">{t('public.promoCode')}</label>
-            <input className="input" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} />
-          </div>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
-            <span>I agree to the privacy policy</span>
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-3 rounded-xl text-white font-medium disabled:opacity-50"
-            style={{ backgroundColor: primary }}
-          >
-            {submitting ? (
-              <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-            ) : requiresPayment ? (
-              t('public.multiServicePayAndBook')
-            ) : (
-              t('public.multiServiceBook')
+          <section className="border-b border-gray-100 pb-4 mb-6">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-sm font-medium text-gray-500">{t('public.servicesSection')}</p>
+              <a
+                href={servicesPickerHref}
+                className="text-gray-400 hover:text-gray-600 shrink-0"
+                aria-label={t('public.multiServiceEditServices')}
+              >
+                <Pencil className="w-4 h-4" />
+              </a>
+            </div>
+            <ul className="space-y-3">
+              {selectedServices.map((service) => {
+                const line = lines?.find((entry) => entry.serviceId === service.id);
+                const lineMinutes = service.durationMinutes + service.bufferMinutes;
+                return (
+                  <li key={service.id} className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900">{service.name}</p>
+                      <p className="text-sm text-gray-500">{formatDuration(lineMinutes)}</p>
+                      {line && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatDateDisplay(line.startTime, locale)} · {formatScheduleTime(line.startTime)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-2 shrink-0">
+                      <p className="font-medium text-gray-900 pt-0.5">
+                        {formatPrice(service.price, service.currency)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => removeService(service.id)}
+                        className="text-gray-400 hover:text-red-600 p-0.5"
+                        aria-label={t('public.multiServiceRemoveService', { name: service.name })}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
+              <span className="font-semibold text-gray-900">{t('public.total')}</span>
+              <span className="font-semibold text-gray-900">
+                {formatPrice(checkoutSubtotal, currency)}
+              </span>
+            </div>
+            {quote && hasDiscounts && (
+              <div className="mt-3 space-y-1 text-sm">
+                {quote.promoDiscount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{t('public.discountPromo')}</span>
+                    <span>-{formatPrice(quote.promoDiscount, currency)}</span>
+                  </div>
+                )}
+                {quote.giftCardDiscount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{t('public.discountGiftCard')}</span>
+                    <span>-{formatPrice(quote.giftCardDiscount, currency)}</span>
+                  </div>
+                )}
+                {quote.loyaltyDiscount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{t('public.discountLoyalty')}</span>
+                    <span>-{formatPrice(quote.loyaltyDiscount, currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold text-gray-900 pt-1">
+                  <span>{amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}</span>
+                  <span>{formatPrice(amountDue, currency)}</span>
+                </div>
+              </div>
             )}
-          </button>
+            {quote && quote.pointsToEarn > 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                {t('public.pointsToEarn').replace('{points}', String(quote.pointsToEarn))}
+              </p>
+            )}
+          </section>
+
+          <section className="border-b border-gray-100 pb-4 mb-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">{t('public.promoCode')}</h2>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 uppercase"
+                placeholder={t('public.promoCodePlaceholder')}
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              />
+              <button
+                type="button"
+                onClick={applyPromoCode}
+                className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {t('public.applyPromo')}
+              </button>
+            </div>
+            {promoApplied && (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-green-700">
+                  Applied: {quote?.giftCardCode ?? quote?.promoCode ?? appliedPromo}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearPromoCode}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {(promoError || quoteError) && (
+              <p className="text-xs text-red-600">{promoError ?? quoteError}</p>
+            )}
+
+            {customer && loyalty && loyalty.pointsBalance > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('public.loyaltyPoints')}
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  {t('public.loyaltyBalance')
+                    .replace('{points}', loyalty.pointsBalance.toFixed(2))
+                    .replace('{value}', formatPrice(loyalty.pointsValue, currency))}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={loyalty.pointsBalance}
+                    className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                    value={loyaltyPoints || ''}
+                    onChange={(e) => setLoyaltyPoints(Math.max(0, parseFloat(e.target.value) || 0))}
+                    step="0.01"
+                  />
+                  <button
+                    type="button"
+                    onClick={useMaxLoyaltyPoints}
+                    className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    {t('public.useMaxPoints')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {quoteLoading && <p className="text-xs text-gray-400">{t('public.submitting')}</p>}
+          </section>
+
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal information</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input
+                className={inputClassName}
+                placeholder="Enter name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+            <PhoneInput
+              label={t('public.phone')}
+              placeholder={t('public.phonePlaceholder')}
+              searchPlaceholder={t('public.phoneCountrySearch')}
+              searchNotFound={t('public.phoneCountryNotFound')}
+              defaultCountry={defaultPhoneCountry}
+              locale={locale}
+              value={form.phone}
+              onChange={(phone) => setForm({ ...form, phone })}
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                className={inputClassName}
+                placeholder="Enter email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+              <textarea
+                className={`${inputClassName} min-h-[80px]`}
+                placeholder="Comment"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+
+            <label className="flex items-start gap-3 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.emailReminders}
+                onChange={(e) => setForm({ ...form, emailReminders: e.target.checked })}
+                className="mt-1 rounded border-gray-300"
+              />
+              <span>Send me email reminders about this appointment</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.whatsappReminders}
+                onChange={(e) => setForm({ ...form, whatsappReminders: e.target.checked })}
+                className="mt-1 rounded border-gray-300"
+              />
+              <span>{t('public.whatsappReminders')}</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.consent}
+                onChange={(e) => setForm({ ...form, consent: e.target.checked })}
+                className="mt-1 rounded border-gray-300"
+              />
+              <span>{t('public.privacyConsent')}</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.marketingOptIn}
+                onChange={(e) => setForm({ ...form, marketingOptIn: e.target.checked })}
+                className="mt-1 rounded border-gray-300"
+              />
+              <span>{t('public.marketingOptIn')}</span>
+            </label>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+
+          <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
+            <div className="max-w-lg mx-auto">
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-gray-500">
+                  {amountDue <= 0 && hasDiscounts ? t('public.freeAfterDiscounts') : t('public.totalDue')}
+                </span>
+                <span className="font-semibold text-gray-900">{formatPrice(amountDue, currency)}</span>
+              </div>
+              <button
+                type="submit"
+                disabled={submitting || quoteLoading}
+                className="w-full py-3.5 rounded-2xl font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ backgroundColor: primary }}
+              >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {submitting
+                  ? t('public.submitting')
+                  : requiresPayment
+                    ? t('public.multiServicePayAndBook')
+                    : t('public.confirmBooking')}
+              </button>
+            </div>
+          </div>
         </form>
       </main>
     </>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import {
@@ -19,8 +19,13 @@ import {
   packageConfirmHref,
 } from '@/components/public-booking/package-service-cards';
 import {
+  getDisabledMultiServiceIds,
+  parseMultiServiceIds,
+  persistMultiServiceCart,
+  resolveMultiServiceCartFromLocation,
   sumMultiServiceDuration,
   sumMultiServicePrice,
+  uniqueMultiServiceIds,
 } from '@/lib/multi-service-booking';
 
 interface AnyServicesClientProps {
@@ -62,6 +67,7 @@ function groupServicesByCategory(services: PublicService[], uncategorizedLabel: 
 
 export function AnyServicesClient({ slug, tenant, services, packages = [], backHref }: AnyServicesClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const multiEnabled = tenant.multiService?.enabled === true;
   const [serviceId, setServiceId] = useState<string | null>(null);
@@ -69,6 +75,26 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
   const [packageId, setPackageId] = useState<string | null>(null);
   const [cartErrors, setCartErrors] = useState<string[]>([]);
   const primary = tenant.branding.primaryColor || '#7c3aed';
+
+  useEffect(() => {
+    if (!multiEnabled) return;
+    const raw = searchParams.get('services');
+    const ids = resolveMultiServiceCartFromLocation(slug, raw, services);
+    if (ids.length === 0) return;
+    setSelectedServiceIds(ids);
+    setServiceId(null);
+    setPackageId(null);
+    persistMultiServiceCart(slug, ids);
+    if (!raw) {
+      const q = new URLSearchParams({ services: ids.join(',') });
+      router.replace(`${bookPath(slug, '/any')}?${q.toString()}`, { scroll: false });
+    }
+  }, [multiEnabled, router, searchParams, services, slug]);
+
+  useEffect(() => {
+    if (!multiEnabled) return;
+    persistMultiServiceCart(slug, selectedServiceIds);
+  }, [multiEnabled, selectedServiceIds, slug]);
 
   const groupedServices = useMemo(
     () => groupServicesByCategory(services, t('public.uncategorizedServices')),
@@ -88,6 +114,21 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
     return { duration, price, currency: selectedServices[0]?.currency ?? 'USD' };
   }, [selectedServices, tenant.multiService?.turnoverBufferMinutes]);
 
+  const disabledServiceIds = useMemo(() => {
+    if (!multiEnabled || !tenant.multiService || selectedServiceIds.length === 0) {
+      return new Set<string>();
+    }
+    return getDisabledMultiServiceIds({
+      services,
+      selectedIds: selectedServiceIds,
+      settings: {
+        incompatiblePairMode: tenant.multiService.incompatiblePairMode ?? 'service',
+        incompatiblePairs: tenant.multiService.incompatiblePairs ?? [],
+        incompatibleCategoryPairs: tenant.multiService.incompatibleCategoryPairs ?? [],
+      },
+    });
+  }, [multiEnabled, selectedServiceIds, services, tenant.multiService]);
+
   useEffect(() => {
     if (!multiEnabled || selectedServiceIds.length < 2) {
       setCartErrors([]);
@@ -101,10 +142,16 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
   }, [multiEnabled, selectedServiceIds, slug]);
 
   const availabilityHref = useMemo(() => {
-    if (!serviceId) return null;
-    const q = new URLSearchParams({ serviceId });
+    const effectiveServiceId =
+      serviceId ?? (multiEnabled && selectedServiceIds.length === 1 ? selectedServiceIds[0] : null);
+    if (!effectiveServiceId) return null;
+    const q = new URLSearchParams({ serviceId: effectiveServiceId });
     return `${bookPath(slug, '/any/availability')}?${q.toString()}`;
-  }, [slug, serviceId]);
+  }, [multiEnabled, selectedServiceIds, serviceId, slug]);
+
+  const hasSingleSelection =
+    Boolean(serviceId) || (multiEnabled && selectedServiceIds.length === 1);
+  const hasMultiSelection = multiEnabled && selectedServiceIds.length >= 2;
 
   const toggleMultiService = (id: string) => {
     setPackageId(null);
@@ -120,7 +167,7 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
       return;
     }
     if (multiEnabled && selectedServiceIds.length >= 2 && !cartErrors.length) {
-      const q = new URLSearchParams({ services: selectedServiceIds.join(',') });
+      const q = new URLSearchParams({ services: uniqueMultiServiceIds(selectedServiceIds).join(',') });
       const path =
         tenant.multiService?.schedulingMode === 'per_service'
           ? `/multi/confirm?${q.toString()}`
@@ -141,12 +188,12 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
   ]);
 
   const continueDisabled =
-    (!serviceId && !packageId && selectedServiceIds.length < 2) ||
-    (selectedServiceIds.length >= 2 && cartErrors.length > 0);
+    (!hasSingleSelection && !packageId && !hasMultiSelection) ||
+    (hasMultiSelection && cartErrors.length > 0);
 
   const continueLabel = packageId
     ? t('public.schedulePackage')
-    : selectedServiceIds.length >= 2
+    : hasMultiSelection
       ? t('public.multiServiceContinue')
       : t('public.selectDateTime');
 
@@ -187,12 +234,16 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
                     const multiSelected = selectedServiceIds.includes(service.id);
                     const singleSelected = !multiEnabled && serviceId === service.id;
                     const selected = multiEnabled ? multiSelected : singleSelected;
+                    const incompatibleDisabled =
+                      multiEnabled && disabledServiceIds.has(service.id) && !multiSelected;
                     const totalMin = service.durationMinutes + service.bufferMinutes;
                     return (
                       <button
                         key={service.id}
                         type="button"
+                        disabled={incompatibleDisabled}
                         onClick={() => {
+                          if (incompatibleDisabled) return;
                           if (multiEnabled) {
                             toggleMultiService(service.id);
                             return;
@@ -201,11 +252,18 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
                           setPackageId(null);
                         }}
                         className={`w-full flex items-start gap-3 p-4 rounded-2xl border bg-white text-left transition-colors ${
-                          selected ? 'border-violet-400 ring-2 ring-violet-100' : 'border-gray-100 hover:border-gray-200'
+                          incompatibleDisabled
+                            ? 'border-gray-100 opacity-50 cursor-not-allowed'
+                            : selected
+                              ? 'border-violet-400 ring-2 ring-violet-100'
+                              : 'border-gray-100 hover:border-gray-200'
                         }`}
                       >
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900">{service.name}</p>
+                          {incompatibleDisabled && (
+                            <p className="text-xs text-gray-500 mt-1">{t('public.multiServiceIncompatibleDisabled')}</p>
+                          )}
                           {service.hasSubscriptionPlans && (
                             <span className="inline-block mt-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                               Subscribe & save

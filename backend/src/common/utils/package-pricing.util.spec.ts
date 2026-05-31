@@ -1,5 +1,6 @@
 import {
   calculatePackagePricing,
+  allocatePackageLinePricing,
   isPackageBookable,
   isPackageOfferExpired,
   isPackagePubliclyVisible,
@@ -81,4 +82,51 @@ describe('package-pricing.util', () => {
     expect(isPackageBookable(true, null, 0)).toBe(true);
     expect(isPackageBookable(true, future, undefined, now)).toBe(true);
   });
+
+  it('allocates package discount proportionally per line item', () => {
+    const items = [
+      { unitPrice: 60, quantity: 1 },
+      { unitPrice: 50, quantity: 1 },
+      { unitPrice: 120, quantity: 1 },
+      { unitPrice: 95, quantity: 1 },
+      { unitPrice: 80, quantity: 1 },
+    ];
+    const pricing = calculatePackagePricing(items, 'percent', 15);
+    const lines = allocatePackageLinePricing(items, pricing.packagePrice);
+
+    expect(pricing.regularTotal).toBe(405);
+    expect(pricing.packagePrice).toBe(344.25);
+    expect(lines.map((line) => line.discountedLineTotal)).toEqual([51, 42.5, 102, 80.75, 68]);
+    expect(lines.map((line) => line.lineSavings)).toEqual([9, 7.5, 18, 14.25, 12]);
+    expect(
+      roundSum(lines.map((line) => line.discountedLineTotal)),
+    ).toBe(pricing.packagePrice);
+  });
+
+  it('returns zero allocations for empty item lists', () => {
+    expect(allocatePackageLinePricing([], 100)).toEqual([]);
+  });
+
+  it('returns full line totals when package price equals regular total', () => {
+    const items = [{ unitPrice: 50, quantity: 2 }];
+    expect(allocatePackageLinePricing(items, 100)).toEqual([
+      { lineTotal: 100, discountedLineTotal: 100, lineSavings: 0 },
+    ]);
+  });
+
+  it('adjusts rounding remainder on the last line', () => {
+    const items = [
+      { unitPrice: 33.33, quantity: 1 },
+      { unitPrice: 33.33, quantity: 1 },
+      { unitPrice: 33.34, quantity: 1 },
+    ];
+    const pricing = calculatePackagePricing(items, 'percent', 10);
+    const lines = allocatePackageLinePricing(items, pricing.packagePrice);
+    expect(roundSum(lines.map((line) => line.discountedLineTotal))).toBe(pricing.packagePrice);
+    expect(lines.every((line) => line.lineSavings >= 0)).toBe(true);
+  });
 });
+
+function roundSum(values: number[]) {
+  return Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
+}

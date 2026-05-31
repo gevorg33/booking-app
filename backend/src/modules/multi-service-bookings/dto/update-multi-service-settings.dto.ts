@@ -42,4 +42,13 @@ export class UpdateMultiServiceSettingsDto {
   @IsOptional()
   @IsArray()
   incompatiblePairs?: Array<[string, string]>;
+
+  @IsOptional()
+  @IsIn(['service', 'category'])
+  incompatiblePairMode?: 'service' | 'category';
+
+  /** Pairs of service category IDs that cannot be booked together */
+  @IsOptional()
+  @IsArray()
+  incompatibleCategoryPairs?: Array<[string, string]>;
 }
