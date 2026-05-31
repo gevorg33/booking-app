@@ -954,6 +954,7 @@ export class PublicBookingService {
         customer: { name: 'Quote' },
         promoCode: dto.promoCode,
         loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+        purchasePlanId: dto.purchasePlanId,
       },
       authenticatedCustomerId,
     );

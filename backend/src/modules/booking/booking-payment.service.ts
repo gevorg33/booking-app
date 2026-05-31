@@ -107,11 +107,24 @@ export class BookingPaymentService {
     customerId?: string,
   ) {
     const business = await this.businessRepo.findOne({ where: { id: businessId } });
-    const prepaymentAmount = this.calculatePrepaymentAmount(service);
-    const chargeBase = prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+    let chargeBase: number;
+    let servicePrice = Number(service.price);
+
+    if (dto.purchasePlanId) {
+      const planCheckout = await this.subscriptionsService.getPlanCheckoutDetails(
+        businessId,
+        dto.purchasePlanId,
+      );
+      chargeBase = planCheckout.amount;
+      servicePrice = planCheckout.amount;
+    } else {
+      const prepaymentAmount = this.calculatePrepaymentAmount(service);
+      chargeBase = prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+    }
+
     return this.checkoutPricingService.calculate({
       businessId,
-      servicePrice: Number(service.price),
+      servicePrice,
       prepaymentAmount: chargeBase,
       currency: service.currency || 'USD',
       promoCode: dto.promoCode,
@@ -143,7 +156,23 @@ export class BookingPaymentService {
     if (!service) throw new NotFoundException('Service not found');
 
     const checkoutKind = resolvePublicCheckoutKind(dto);
-    let amount: number;
+    if (checkoutKind === 'subscription_purchase' && !dto.purchasePlanId) {
+      throw new BadRequestException('purchasePlanId is required');
+    }
+
+    const pricing = await this.resolveCheckoutPricing(
+      business.id,
+      service,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    if (pricing.amountDue <= 0) {
+      throw new BadRequestException(
+        'No payment is due after discounts. Confirm booking without checkout.',
+      );
+    }
+
     let currency = service.currency || 'USD';
     let lineItemName = service.name;
     let lineItemDescription =
@@ -152,14 +181,10 @@ export class BookingPaymentService {
         : service.name;
 
     if (checkoutKind === 'subscription_purchase') {
-      if (!dto.purchasePlanId) {
-        throw new BadRequestException('purchasePlanId is required');
-      }
       const planCheckout = await this.subscriptionsService.getPlanCheckoutDetails(
         business.id,
-        dto.purchasePlanId,
+        dto.purchasePlanId!,
       );
-      amount = planCheckout.amount;
       currency = planCheckout.currency;
       const line = buildSubscriptionLineItem(
         planCheckout.planName,
@@ -168,43 +193,22 @@ export class BookingPaymentService {
       );
       lineItemName = line.name;
       lineItemDescription = line.description;
-    } else {
-      const pricing = await this.resolveCheckoutPricing(
-        business.id,
-        service,
-        dto,
-        authenticatedCustomerId,
-      );
-      if (pricing.amountDue <= 0) {
-        throw new BadRequestException(
-          'No payment is due after discounts. Confirm booking without checkout.',
-        );
-      }
-      amount = pricing.amountDue;
-      if (this.calculatePrepaymentAmount(service) <= 0) {
-        throw new BadRequestException('This service does not require online payment');
-      }
+    } else if (this.calculatePrepaymentAmount(service) <= 0) {
+      throw new BadRequestException('This service does not require online payment');
     }
 
-    if (amount <= 0) {
-      throw new BadRequestException('Checkout amount must be greater than zero');
-    }
+    const amount = pricing.amountDue;
 
     if (!dto.customer.email && !dto.customer.phone) {
       throw new BadRequestException('Email or phone number is required');
     }
-
-    const pricing =
-      checkoutKind === 'subscription_purchase'
-        ? null
-        : await this.resolveCheckoutPricing(business.id, service, dto, authenticatedCustomerId);
 
     const draftPayload: CreatePublicBookingDto = {
       ...dto,
       metadata: {
         ...(dto.metadata || {}),
         ...(authenticatedCustomerId ? { authenticatedCustomerId } : {}),
-        ...(pricing ? { checkoutPricing: pricing } : {}),
+        checkoutPricing: pricing,
         checkoutKind,
       },
     };

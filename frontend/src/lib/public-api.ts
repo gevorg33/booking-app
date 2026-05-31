@@ -323,7 +323,12 @@ export type CreatePublicBookingBody = {
 
 export function quotePublicBooking(
   slug: string,
-  body: { serviceId: string; promoCode?: string; loyaltyPointsToRedeem?: number },
+  body: {
+    serviceId: string;
+    purchasePlanId?: string;
+    promoCode?: string;
+    loyaltyPointsToRedeem?: number;
+  },
 ) {
   return publicFetch<PublicCheckoutQuote>(`/public/${slug}/bookings/quote`, {
     method: 'POST',

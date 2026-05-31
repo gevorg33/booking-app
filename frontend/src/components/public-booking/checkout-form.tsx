@@ -20,7 +20,13 @@ import {
   type PublicSubscriptionPlan,
   type PublicCustomerSubscription,
 } from '@/lib/public-api';
-import { isSubscriptionCheckoutSelection, subscriptionCheckoutPayload } from '@/lib/subscription-plans';
+import {
+  buildQuoteRequest,
+  isSubscriptionCheckoutSelection,
+  resolveCheckoutAmountDue,
+  resolveCheckoutSubtotal,
+  subscriptionCheckoutPayload,
+} from '@/lib/subscription-plans';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
@@ -139,11 +145,16 @@ export function CheckoutForm({
     const requestId = ++quoteRequestId.current;
     setQuoteLoading(true);
     setQuoteError(null);
-    void quotePublicBooking(tenant.slug, {
-      serviceId: service.id,
-      promoCode: appliedPromo || undefined,
-      loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
-    })
+    void quotePublicBooking(
+      tenant.slug,
+      buildQuoteRequest({
+        serviceId: service.id,
+        purchaseType,
+        selectedPlanId,
+        promoCode: appliedPromo || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+      }),
+    )
       .then((res) => {
         if (cancelled || requestId !== quoteRequestId.current) return;
         setQuote(res);
@@ -177,7 +188,16 @@ export function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [tenant.slug, service.id, appliedPromo, loyaltyPoints, customer?.id, t]);
+  }, [
+    tenant.slug,
+    service.id,
+    appliedPromo,
+    loyaltyPoints,
+    customer?.id,
+    purchaseType,
+    selectedPlanId,
+    t,
+  ]);
 
   useEffect(() => {
     if (!paymentSessionId) return;
@@ -252,15 +272,24 @@ export function CheckoutForm({
   }
 
   const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId);
-  const subscriptionCheckoutPrice =
-    purchaseType === 'subscription' && selectedPlan
-      ? selectedPlan.preview.pricing.subscriptionPrice
-      : 0;
-  const amountDue = usingSubscriptionCredit
-    ? 0
-    : purchaseType === 'subscription' && selectedPlan
-      ? subscriptionCheckoutPrice
-      : quote?.amountDue ?? chargeBase;
+  const amountDue = resolveCheckoutAmountDue({
+    usingSubscriptionCredit,
+    quoteAmountDue: quote?.amountDue,
+    subscriptionPlanPrice:
+      purchaseType === 'subscription' && selectedPlan
+        ? selectedPlan.preview.pricing.subscriptionPrice
+        : undefined,
+    fallback: quote?.amountDue ?? chargeBase,
+  });
+  const checkoutSubtotal = resolveCheckoutSubtotal({
+    purchaseType,
+    quoteSubtotal: quote?.subtotal,
+    subscriptionPlanPrice:
+      purchaseType === 'subscription' && selectedPlan
+        ? selectedPlan.preview.pricing.subscriptionPrice
+        : undefined,
+    fallback: chargeBase,
+  });
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
   const promoApplied =
     !!appliedPromo &&
@@ -471,9 +500,7 @@ export function CheckoutForm({
           <span className="font-semibold text-gray-900">
             {usingSubscriptionCredit
               ? formatPrice(0, service.currency)
-              : purchaseType === 'subscription' && selectedPlan
-                ? formatPrice(selectedPlan.preview.pricing.subscriptionPrice, service.currency)
-                : formatPrice(service.price, service.currency)}
+              : formatPrice(checkoutSubtotal, service.currency)}
           </span>
         </div>
         {(usingSubscriptionCredit || purchaseType === 'subscription') && (
@@ -485,7 +512,7 @@ export function CheckoutForm({
                 : null}
           </p>
         )}
-        {dueNow > 0 && (
+        {dueNow > 0 && purchaseType !== 'subscription' && (
           <p className="text-sm text-violet-700 mt-2">
             {t('public.totalDue')}: {formatPrice(dueNow, service.currency)}
             {service.prepaymentMode === 'deposit' ? ' (deposit)' : ''}

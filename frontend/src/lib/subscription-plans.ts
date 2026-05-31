@@ -35,6 +35,53 @@ export function isSubscriptionCheckoutSelection(
   return purchaseType === 'subscription' && selectedPlanId.trim().length > 0;
 }
 
+export function resolveCheckoutAmountDue(options: {
+  usingSubscriptionCredit: boolean;
+  quoteAmountDue?: number;
+  subscriptionPlanPrice?: number;
+  fallback: number;
+}): number {
+  if (options.usingSubscriptionCredit) return 0;
+  if (options.quoteAmountDue != null) return options.quoteAmountDue;
+  if (options.subscriptionPlanPrice != null) return options.subscriptionPlanPrice;
+  return options.fallback;
+}
+
+export function resolveCheckoutSubtotal(options: {
+  purchaseType: 'one-time' | 'subscription';
+  quoteSubtotal?: number;
+  subscriptionPlanPrice?: number;
+  fallback: number;
+}): number {
+  if (options.purchaseType === 'subscription') {
+    if (options.quoteSubtotal != null) return options.quoteSubtotal;
+    if (options.subscriptionPlanPrice != null) return options.subscriptionPlanPrice;
+  }
+  return options.quoteSubtotal ?? options.fallback;
+}
+
+export function buildQuoteRequest(options: {
+  serviceId: string;
+  purchaseType: 'one-time' | 'subscription';
+  selectedPlanId: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+}): {
+  serviceId: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  purchasePlanId?: string;
+} {
+  return {
+    serviceId: options.serviceId,
+    promoCode: options.promoCode,
+    loyaltyPointsToRedeem: options.loyaltyPointsToRedeem,
+    ...(options.purchaseType === 'subscription' && options.selectedPlanId
+      ? { purchasePlanId: options.selectedPlanId }
+      : {}),
+  };
+}
+
 export function subscriptionCheckoutPayload(
   purchaseType: 'one-time' | 'subscription',
   selectedPlanId: string,

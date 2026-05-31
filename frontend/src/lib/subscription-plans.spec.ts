@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildQuoteRequest,
   filterActiveSubscriptionPlans,
   formatSubscriptionPlanAssignLabel,
   isSubscriptionCheckoutSelection,
+  resolveCheckoutAmountDue,
+  resolveCheckoutSubtotal,
   serviceIdsWithSubscriptionPlans,
   subscriptionCheckoutPayload,
   subscriptionPlansForService,
@@ -82,5 +85,97 @@ describe('subscription-plans', () => {
     });
     expect(subscriptionCheckoutPayload('one-time', 'p2')).toEqual({});
     expect(subscriptionCheckoutPayload('subscription', '')).toEqual({});
+  });
+
+  it('resolves checkout amount due with promo quote for subscription', () => {
+    expect(
+      resolveCheckoutAmountDue({
+        usingSubscriptionCredit: false,
+        quoteAmountDue: 672,
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(672);
+    expect(
+      resolveCheckoutAmountDue({
+        usingSubscriptionCredit: false,
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(684);
+    expect(
+      resolveCheckoutAmountDue({
+        usingSubscriptionCredit: true,
+        quoteAmountDue: 672,
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(0);
+    expect(
+      resolveCheckoutAmountDue({
+        usingSubscriptionCredit: false,
+        fallback: 120,
+      }),
+    ).toBe(120);
+  });
+
+  it('resolves checkout subtotal for subscription plans', () => {
+    expect(
+      resolveCheckoutSubtotal({
+        purchaseType: 'subscription',
+        quoteSubtotal: 684,
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(684);
+    expect(
+      resolveCheckoutSubtotal({
+        purchaseType: 'subscription',
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(684);
+    expect(
+      resolveCheckoutSubtotal({
+        purchaseType: 'one-time',
+        quoteSubtotal: 120,
+        subscriptionPlanPrice: 684,
+        fallback: 120,
+      }),
+    ).toBe(120);
+    expect(
+      resolveCheckoutSubtotal({
+        purchaseType: 'one-time',
+        fallback: 120,
+      }),
+    ).toBe(120);
+  });
+
+  it('builds quote request with subscription plan and promo', () => {
+    expect(
+      buildQuoteRequest({
+        serviceId: 'svc-1',
+        purchaseType: 'subscription',
+        selectedPlanId: 'plan-1',
+        promoCode: 'SAVE12',
+        loyaltyPointsToRedeem: 5,
+      }),
+    ).toEqual({
+      serviceId: 'svc-1',
+      purchasePlanId: 'plan-1',
+      promoCode: 'SAVE12',
+      loyaltyPointsToRedeem: 5,
+    });
+    expect(
+      buildQuoteRequest({
+        serviceId: 'svc-1',
+        purchaseType: 'one-time',
+        selectedPlanId: '',
+        promoCode: 'SAVE12',
+      }),
+    ).toEqual({
+      serviceId: 'svc-1',
+      promoCode: 'SAVE12',
+    });
   });
 });

@@ -153,4 +153,132 @@ describe('CheckoutPricingService loyalty earn', () => {
     expect(result.loyaltyPointsToRedeem).toBe(0);
     expect(result.amountDue).toBe(0);
   });
+
+  it('applies promo to subscription plan subtotal', async () => {
+    promoCodesService.calculateDiscount.mockImplementation((_promo, amount: number) =>
+      Math.min(12, amount),
+    );
+
+    const result = await service.calculate({
+      businessId: 'biz-1',
+      servicePrice: 684,
+      prepaymentAmount: 684,
+      currency: 'USD',
+      promoCode: 'SAVE12',
+      earnPercentCashback: 5,
+    });
+
+    expect(promoCodesService.findValidForCheckout).toHaveBeenCalledWith('biz-1', 'SAVE12', 684);
+    expect(result.subtotal).toBe(684);
+    expect(result.promoDiscount).toBe(12);
+    expect(result.amountDue).toBe(672);
+    expect(loyaltyService.calculateEarnPoints).toHaveBeenCalledWith(672, 5);
+    expect(result.pointsToEarn).toBe(33.6);
+  });
+
+  it('rejects gift card currency mismatch', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-1',
+      code: 'GC-ABCD1234',
+      balance: 50,
+      currency: 'EUR',
+    });
+
+    await expect(
+      service.calculate({
+        businessId: 'biz-1',
+        servicePrice: 684,
+        prepaymentAmount: 684,
+        currency: 'USD',
+        promoCode: 'GC-ABCD1234',
+      }),
+    ).rejects.toThrow('Gift card currency does not match this booking');
+  });
+
+  it('requires sign in to redeem loyalty points', async () => {
+    await expect(
+      service.calculate({
+        businessId: 'biz-1',
+        servicePrice: 684,
+        prepaymentAmount: 684,
+        currency: 'USD',
+        loyaltyPointsToRedeem: 10,
+      }),
+    ).rejects.toThrow('Sign in to use loyalty points');
+  });
+
+  it('ignores zero-balance gift cards on subscription checkout', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-1',
+      code: 'GC-ABCD1234',
+      balance: 0,
+      currency: 'USD',
+    });
+
+    const result = await service.calculate({
+      businessId: 'biz-1',
+      servicePrice: 684,
+      prepaymentAmount: 684,
+      currency: 'USD',
+      promoCode: 'GC-ABCD1234',
+    });
+
+    expect(result.giftCardDiscount).toBe(0);
+    expect(result.amountDue).toBe(684);
+    expect(result.adjustments).toHaveLength(0);
+  });
+});
+
+describe('CheckoutPricingService.applyRedemptions', () => {
+  const loyaltyService = {
+    getOrCreate: jest.fn(),
+    pointsToCurrency: jest.fn(),
+    calculateEarnPoints: jest.fn(),
+    redeem: jest.fn(),
+  };
+  const promoCodesService = {
+    findValidForCheckout: jest.fn(),
+    calculateDiscount: jest.fn(),
+    recordUse: jest.fn(),
+  };
+  const giftCardsService = {
+    validate: jest.fn(),
+    redeem: jest.fn(),
+  };
+
+  const service = new CheckoutPricingService(
+    promoCodesService as unknown as PromoCodesService,
+    loyaltyService as unknown as LoyaltyService,
+    giftCardsService as unknown as GiftCardsService,
+  );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('applies loyalty, promo, and gift card redemptions after subscription checkout', async () => {
+    await service.applyRedemptions(
+      'biz-1',
+      'cust-1',
+      {
+        loyaltyPointsToRedeem: 20,
+        promoCodeId: 'promo-1',
+        giftCardCode: 'GC-ABCD1234',
+        giftCardDiscount: 15,
+      } as any,
+      'booking-1',
+    );
+
+    expect(loyaltyService.redeem).toHaveBeenCalledWith('biz-1', 'cust-1', 20, 'booking-1');
+    expect(promoCodesService.recordUse).toHaveBeenCalledWith('promo-1');
+    expect(giftCardsService.redeem).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234', 15);
+  });
+
+  it('skips empty redemptions', async () => {
+    await service.applyRedemptions('biz-1', 'cust-1', {} as any, 'booking-1');
+
+    expect(loyaltyService.redeem).not.toHaveBeenCalled();
+    expect(promoCodesService.recordUse).not.toHaveBeenCalled();
+    expect(giftCardsService.redeem).not.toHaveBeenCalled();
+  });
 });

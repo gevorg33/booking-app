@@ -105,6 +105,10 @@ export class PublicBookingQuoteDto {
 
   @IsOptional()
   @IsString()
+  purchasePlanId?: string;
+
+  @IsOptional()
+  @IsString()
   promoCode?: string;
 
   @IsOptional()

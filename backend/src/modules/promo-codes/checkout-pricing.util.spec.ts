@@ -22,6 +22,11 @@ describe('checkout-pricing.util', () => {
       expect(resolveGiftCardRedemption(100, 50)).toBe(50);
       expect(resolveGiftCardRedemption(30, 50)).toBe(30);
     });
+
+    it('returns zero when balance or amount due is zero', () => {
+      expect(resolveGiftCardRedemption(0, 50)).toBe(0);
+      expect(resolveGiftCardRedemption(50, 0)).toBe(0);
+    });
   });
 
   describe('computeAfterPromo', () => {
@@ -166,6 +171,10 @@ describe('checkout-pricing.util', () => {
       });
       expect(amountDue).toBe(50);
       expect(computePointsToEarn(amountDue, 5)).toBe(2.5);
+    });
+
+    it('defaults earn percent to zero', () => {
+      expect(computePointsToEarn(100)).toBe(0);
     });
   });
 });
