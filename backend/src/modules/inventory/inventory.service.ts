@@ -34,6 +34,7 @@ export class InventoryService {
         name: dto.name!,
         sku: dto.sku,
         unitCost: dto.unitCost ?? 0,
+        retailPrice: dto.retailPrice ?? 0,
         quantityOnHand: dto.quantityOnHand ?? 0,
         reorderLevel: dto.reorderLevel ?? 0,
         locationId: dto.locationId || undefined,

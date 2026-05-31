@@ -30,6 +30,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   unitCost: number;
 
+  @Column({ name: 'retail_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  retailPrice: number;
+
   @Column({ type: 'int', default: 0 })
   quantityOnHand: number;
 

@@ -36,6 +36,8 @@ import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { MarketingAutomationModule } from './modules/marketing-automation/marketing-automation.module.js';
+import { RetailPosModule } from './modules/retail-pos/retail-pos.module.js';
+import { EnterpriseTrustModule } from './modules/enterprise-trust/enterprise-trust.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { ProviderMobileModule } from './modules/provider-mobile/provider-mobile.module.js';
 
@@ -92,6 +94,8 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     ExpensesModule,
     OnboardingModule,
     MarketingAutomationModule,
+    RetailPosModule,
+    EnterpriseTrustModule,
     IntegrationsModule,
     ProviderMobileModule,
 

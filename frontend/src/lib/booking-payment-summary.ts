@@ -1,7 +1,7 @@
 import { formatServicePrice } from '@/lib/booking-types';
 
 export interface BookingPaymentAdjustment {
-  type: 'promo' | 'gift_card' | 'loyalty';
+  type: 'promo' | 'gift_card' | 'loyalty' | 'retail';
   label: string;
   code?: string;
   amount: number;
@@ -13,10 +13,13 @@ export interface BookingPaymentSummary {
   servicePrice: number | null;
   subtotal: number | null;
   promoDiscount: number;
+  giftCardDiscount?: number;
   loyaltyDiscount: number;
   loyaltyPointsRedeemed: number;
   promoCode: string | null;
   cashPaid: number;
+  retailTotal?: number;
+  grandTotal?: number;
   totalDiscount: number;
   hasDiscounts: boolean;
   adjustments: BookingPaymentAdjustment[];

@@ -37,6 +37,7 @@ import {
 } from '@/lib/schedule-period-services';
 import { type BookingPaymentSummary } from '@/lib/booking-payment-summary';
 import { BookingPaymentBreakdown } from '@/components/bookings/booking-payment-breakdown';
+import { BookingRetailPosPanel } from '@/components/retail-pos/booking-retail-pos-panel';
 import { useI18n } from '@/i18n';
 
 export interface BookingDetail {
@@ -571,6 +572,19 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               </select>
             </div>
 
+            {bookingId && (
+              <div className="mb-5">
+                <BookingRetailPosPanel
+                  businessId={businessId}
+                  bookingId={bookingId}
+                  disabled={status === 'cancelled'}
+                  onSaved={() => {
+                    void queryClient.invalidateQueries({ queryKey: ['booking', businessId, bookingId] });
+                  }}
+                />
+              </div>
+            )}
+
             {booking.paymentSummary && (
               <div className="mb-5">
                 <BookingPaymentBreakdown
@@ -584,6 +598,8 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     cashPaid: t('appointments.paymentCashPaid'),
                     fullyCovered: t('appointments.paymentFullyCovered'),
                     loyaltyPoints: t('appointments.paymentLoyaltyPoints'),
+                    retailTotal: t('retailPos.retailTotal'),
+                    grandTotal: t('retailPos.grandTotal'),
                   }}
                 />
               </div>

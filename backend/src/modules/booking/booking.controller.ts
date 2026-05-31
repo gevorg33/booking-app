@@ -5,11 +5,13 @@ import { GetBookingsQueryDto } from './dto/get-bookings-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { withBookingPaymentSummary } from './booking-payment-summary.util.js';
+import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 
 @Controller('businesses/:businessId/bookings')
 export class BookingController {
   constructor(
     private bookingService: BookingService,
+    private retailPosService: RetailPosService,
   ) {}
 
   @Get('availability')
@@ -67,9 +69,16 @@ export class BookingController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('businessId') businessId: string, @Param('id') id: string) {
     const booking = await this.bookingService.findOne(id);
-    return withBookingPaymentSummary(booking);
+    const checkout = await this.retailPosService.getBookingRetailSales(businessId, id);
+    const retailLines = checkout.lines.map((line) => ({
+      productName: line.productName,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      lineTotal: line.lineTotal,
+    }));
+    return withBookingPaymentSummary(booking, retailLines);
   }
 
   @Put(':id/cancel')

@@ -235,9 +235,9 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Chair-side retail and enterprise sales collateral.
 
-- [ ] **gap-8.4** — Retail POS at chair — sell products during checkout (deeper than inventory module)
-- [ ] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
-- [ ] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
+- [x] **gap-8.4** — Retail POS at chair — sell products during checkout (deeper than inventory module)
+- [x] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
+- [x] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
 
 ---
 

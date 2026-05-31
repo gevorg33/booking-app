@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Key, Webhook, BookOpen, Plus, Trash2, Copy, Check, Share2, Layers } from 'lucide-react';
+import { Key, Webhook, BookOpen, Plus, Trash2, Copy, Check, Share2, Layers, Shield } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { GrowthDistributionTab } from '@/components/integrations/growth-distribution-tab';
 import { PlatformMaturityTab } from '@/components/integrations/platform-maturity-tab';
+import { EnterpriseTrustTab } from '@/components/enterprise-trust/enterprise-trust-tab';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -38,7 +39,7 @@ interface ApiDocs {
   webhooks: { description: string; events: string[] };
 }
 
-type Tab = 'keys' | 'webhooks' | 'docs' | 'growth' | 'platform';
+type Tab = 'keys' | 'webhooks' | 'docs' | 'growth' | 'platform' | 'enterprise';
 
 export default function IntegrationsPage() {
   const { t } = useI18n();
@@ -137,6 +138,7 @@ export default function IntegrationsPage() {
     { id: 'webhooks', label: t('integrations.tabWebhooks'), icon: Webhook },
     { id: 'growth', label: 'Growth & distribution', icon: Share2 },
     { id: 'platform', label: 'Platform maturity', icon: Layers },
+    { id: 'enterprise', label: t('enterpriseTrust.tabLabel'), icon: Shield },
     { id: 'docs', label: t('integrations.tabDocs'), icon: BookOpen },
   ];
 
@@ -296,6 +298,7 @@ export default function IntegrationsPage() {
       {tab === 'growth' && <GrowthDistributionTab />}
 
       {tab === 'platform' && <PlatformMaturityTab />}
+      {tab === 'enterprise' && <EnterpriseTrustTab />}
 
       {tab === 'docs' && docs && (
         <div className="space-y-4">
