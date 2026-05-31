@@ -1580,6 +1580,8 @@ export class PublicBookingService {
 
     const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
     const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
+    const sameVisitMultiService =
+      settings.schedulingMode === 'same_visit' && appointments.length > 1;
 
     for (const appt of appointments) {
       const booking = await this.bookingService.create(
@@ -1599,7 +1601,7 @@ export class PublicBookingService {
           },
         },
         undefined,
-        { paymentStatus },
+        { paymentStatus, sameVisitMultiService },
       );
       bookings.push(booking);
     }

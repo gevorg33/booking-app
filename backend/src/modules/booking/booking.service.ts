@@ -139,7 +139,7 @@ export class BookingService {
     businessId: string,
     dto: CreateBookingDto,
     userId?: string,
-    options?: { paymentStatus?: PaymentStatus },
+    options?: { paymentStatus?: PaymentStatus; sameVisitMultiService?: boolean },
   ): Promise<Booking> {
     const service = await this.serviceRepo.findOne({ where: { id: dto.serviceId, businessId } });
     if (!service) throw new NotFoundException('Service not found');
@@ -188,8 +188,10 @@ export class BookingService {
     // Free any stuck micro-slots when no active booking occupies this window
     await this.reconcileStuckSlotsInWindow(businessId, dto.employeeId, startTime, endTime);
 
-    // Validate the entire booking window against applied schedule
-    await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    // Same-visit multi-service: the full block is validated once before creating siblings.
+    if (!options?.sameVisitMultiService) {
+      await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    }
 
     const requiredResourceIds = await this.resourcesService.getRequiredResourceIds(
       businessId,
@@ -219,8 +221,15 @@ export class BookingService {
       );
     }
 
-    // Find all available micro-slots that fall within the booking window
-    const slotsToLock = await this.findSlotsInWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    // Same-visit segments may reuse generic micro-slots not tagged for every service id.
+    const slotServiceFilter = options?.sameVisitMultiService ? undefined : dto.serviceId;
+    const slotsToLock = await this.findSlotsInWindow(
+      businessId,
+      dto.employeeId,
+      startTime,
+      endTime,
+      slotServiceFilter,
+    );
 
     const booking = await this.dataSource.transaction(async (manager) => {
       if (slotsToLock.length > 0) {
@@ -234,7 +243,7 @@ export class BookingService {
         }
       } else {
         // No scheduled slots — fall back to engine / conflict check
-        const conflicts = await manager
+        const conflictQb = manager
           .createQueryBuilder(Booking, 'booking')
           .setLock('pessimistic_write')
           .where('booking.employee_id = :employeeId', { employeeId: dto.employeeId })
@@ -243,8 +252,16 @@ export class BookingService {
             excludedStatuses: [BookingStatus.CANCELLED],
           })
           .andWhere('booking.startTime < :endTime', { endTime })
-          .andWhere('booking.endTime > :startTime', { startTime })
-          .getMany();
+          .andWhere('booking.endTime > :startTime', { startTime });
+
+        if (options?.sameVisitMultiService && dto.multiServiceGroupId) {
+          conflictQb.andWhere(
+            '(booking.multiServiceGroupId IS NULL OR booking.multiServiceGroupId != :groupId)',
+            { groupId: dto.multiServiceGroupId },
+          );
+        }
+
+        const conflicts = await conflictQb.getMany();
 
         if (conflicts.length > 0) {
           throw new ConflictException('Time slot is already booked');
