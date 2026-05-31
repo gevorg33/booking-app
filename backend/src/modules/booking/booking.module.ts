@@ -29,6 +29,9 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ResourcesModule } from '../resources/resources.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
+import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
+import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
+import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
 
 @Module({
   imports: [
@@ -41,6 +44,7 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
       Customer,
       Business,
       Employee,
+      MultiServiceBookingGroup,
     ]),
     SchedulingEngineModule,
     EventStoreModule,
@@ -55,6 +59,8 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
     PromoCodesModule,
     ResourcesModule,
     ServiceSubscriptionsModule,
+    ServicePackagesModule,
+    MultiServiceBookingsModule,
   ],
   controllers: [BookingController, AgentController],
   providers: [

@@ -21,6 +21,9 @@ import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezon
 import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
 import { SchedulingResourcesService } from '../resources/scheduling-resources.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
+import { buildSequentialAppointments } from '../../common/utils/multi-service-booking.util.js';
+import { resolveMultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -55,6 +58,8 @@ export class BookingService {
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(MultiServiceBookingGroup)
+    private multiServiceGroupRepo: Repository<MultiServiceBookingGroup>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
@@ -134,7 +139,7 @@ export class BookingService {
     businessId: string,
     dto: CreateBookingDto,
     userId?: string,
-    options?: { paymentStatus?: PaymentStatus },
+    options?: { paymentStatus?: PaymentStatus; sameVisitMultiService?: boolean },
   ): Promise<Booking> {
     const service = await this.serviceRepo.findOne({ where: { id: dto.serviceId, businessId } });
     if (!service) throw new NotFoundException('Service not found');
@@ -183,8 +188,10 @@ export class BookingService {
     // Free any stuck micro-slots when no active booking occupies this window
     await this.reconcileStuckSlotsInWindow(businessId, dto.employeeId, startTime, endTime);
 
-    // Validate the entire booking window against applied schedule
-    await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    // Same-visit multi-service: the full block is validated once before creating siblings.
+    if (!options?.sameVisitMultiService) {
+      await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    }
 
     const requiredResourceIds = await this.resourcesService.getRequiredResourceIds(
       businessId,
@@ -214,8 +221,15 @@ export class BookingService {
       );
     }
 
-    // Find all available micro-slots that fall within the booking window
-    const slotsToLock = await this.findSlotsInWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+    // Same-visit segments may reuse generic micro-slots not tagged for every service id.
+    const slotServiceFilter = options?.sameVisitMultiService ? undefined : dto.serviceId;
+    const slotsToLock = await this.findSlotsInWindow(
+      businessId,
+      dto.employeeId,
+      startTime,
+      endTime,
+      slotServiceFilter,
+    );
 
     const booking = await this.dataSource.transaction(async (manager) => {
       if (slotsToLock.length > 0) {
@@ -229,7 +243,7 @@ export class BookingService {
         }
       } else {
         // No scheduled slots — fall back to engine / conflict check
-        const conflicts = await manager
+        const conflictQb = manager
           .createQueryBuilder(Booking, 'booking')
           .setLock('pessimistic_write')
           .where('booking.employee_id = :employeeId', { employeeId: dto.employeeId })
@@ -238,8 +252,16 @@ export class BookingService {
             excludedStatuses: [BookingStatus.CANCELLED],
           })
           .andWhere('booking.startTime < :endTime', { endTime })
-          .andWhere('booking.endTime > :startTime', { startTime })
-          .getMany();
+          .andWhere('booking.endTime > :startTime', { startTime });
+
+        if (options?.sameVisitMultiService && dto.multiServiceGroupId) {
+          conflictQb.andWhere(
+            '(booking.multiServiceGroupId IS NULL OR booking.multiServiceGroupId != :groupId)',
+            { groupId: dto.multiServiceGroupId },
+          );
+        }
+
+        const conflicts = await conflictQb.getMany();
 
         if (conflicts.length > 0) {
           throw new ConflictException('Time slot is already booked');
@@ -248,7 +270,11 @@ export class BookingService {
 
       const paymentStatus =
         options?.paymentStatus ??
-        (useSubscriptionId
+        (dto.packagePurchaseId
+          ? PaymentStatus.NOT_APPLICABLE
+          : dto.multiServiceGroupId
+            ? PaymentStatus.NOT_APPLICABLE
+            : useSubscriptionId
           ? PaymentStatus.NOT_APPLICABLE
           : service.prepaymentMode === PrepaymentMode.NONE
             ? PaymentStatus.NOT_APPLICABLE
@@ -259,6 +285,8 @@ export class BookingService {
         employeeId: dto.employeeId,
         serviceId: dto.serviceId,
         customerId: dto.customerId,
+        packagePurchaseId: dto.packagePurchaseId ?? null,
+        multiServiceGroupId: dto.multiServiceGroupId ?? null,
         startTime,
         endTime,
         status: BookingStatus.CONFIRMED,
@@ -315,7 +343,7 @@ export class BookingService {
     return this.findOne(booking.id);
   }
 
-  async update(bookingId: string, dto: UpdateBookingDto, userId?: string): Promise<Booking> {
+  async update(bookingId: string, dto: UpdateBookingDto, userId?: string, internal?: { skipGroupReschedule?: boolean }): Promise<Booking> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: { employee: true, service: true, customer: true },
@@ -374,6 +402,17 @@ export class BookingService {
     const oldEmployeeId = booking.employeeId;
 
     if (isRescheduling) {
+      if (!internal?.skipGroupReschedule && booking.multiServiceGroupId) {
+        const rescheduled = await this.maybeRescheduleMultiServiceGroup(
+          booking,
+          targetStart,
+          targetEmployeeId,
+          userId,
+          dto.expectedUpdatedAt,
+        );
+        if (rescheduled) return this.findOne(booking.id);
+      }
+
       if (targetStart <= new Date()) {
         throw new ConflictException('Cannot reschedule to a time in the past');
       }
@@ -743,9 +782,29 @@ export class BookingService {
     reason?: string,
     userId?: string,
     expectedUpdatedAt?: string,
+    options?: { skipGroupCancel?: boolean },
   ): Promise<Booking> {
     const booking = await this.findOne(id);
     this.assertExpectedUpdatedAt(booking, expectedUpdatedAt);
+
+    if (!options?.skipGroupCancel && booking.multiServiceGroupId) {
+      const group = await this.multiServiceGroupRepo.findOne({
+        where: { id: booking.multiServiceGroupId },
+      });
+      if (group?.schedulingMode === 'same_visit') {
+        const siblings = await this.bookingRepo.find({
+          where: {
+            multiServiceGroupId: group.id,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+        });
+        for (const sibling of siblings) {
+          if (sibling.id === id) continue;
+          await this.cancel(sibling.id, reason, userId, undefined, { skipGroupCancel: true });
+        }
+      }
+    }
+
     const wasAlreadyCancelled = booking.status === BookingStatus.CANCELLED;
 
     await this.releaseSlotsByWindow(
@@ -1003,6 +1062,124 @@ export class BookingService {
     serviceId: string,
   ): Promise<void> {
     await this.validateBookingWindow(businessId, employeeId, startTime, endTime, serviceId);
+  }
+
+  /**
+   * Same-visit multi-service: validate the full contiguous block once.
+   * Per-segment checks fail when turnover pushes a segment off the micro-slot grid (e.g. 10:05).
+   */
+  async validateMultiServiceBlockFits(
+    businessId: string,
+    employeeId: string,
+    blockStart: Date,
+    blockEnd: Date,
+    serviceIds: string[],
+    excludeBookingId?: string,
+  ): Promise<void> {
+    const periodCheck = await this.checkServicePeriodsForMultiService(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+      serviceIds,
+    );
+    if (periodCheck === 'invalid') {
+      throw new BadRequestException(
+        'The booking does not fit within an available service period. ' +
+          'The full service duration must finish before the period ends.',
+      );
+    }
+
+    await this.assertNoBlockingScheduleOverlap(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+    );
+
+    if (periodCheck === 'valid') {
+      const hasActiveBooking = await this.hasActiveBookingOverlap(
+        businessId,
+        employeeId,
+        blockStart,
+        blockEnd,
+        excludeBookingId,
+      );
+      if (hasActiveBooking) {
+        throw new ConflictException(
+          'All time slots in the requested window are already fully booked.',
+        );
+      }
+      return;
+    }
+
+    const microSlotsInWindow = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime: blockStart })
+      .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .getMany();
+
+    if (microSlotsInWindow.length === 0) {
+      const anySlotInWindow = await this.slotRepo
+        .createQueryBuilder('slot')
+        .where('slot.business_id = :businessId', { businessId })
+        .andWhere('slot.employee_id = :employeeId', { employeeId })
+        .andWhere('slot.startTime >= :startTime', { startTime: blockStart })
+        .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+        .andWhere('slot.status NOT IN (:...blockStatuses)', {
+          blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+        })
+        .getCount();
+
+      if (anySlotInWindow > 0) {
+        const hasActiveBooking = await this.hasActiveBookingOverlap(
+          businessId,
+          employeeId,
+          blockStart,
+          blockEnd,
+          excludeBookingId,
+        );
+        if (hasActiveBooking) {
+          throw new ConflictException(
+            'All time slots in the requested window are already fully booked.',
+          );
+        }
+        await this.reconcileStuckSlotsInWindow(businessId, employeeId, blockStart, blockEnd);
+        return;
+      }
+      throw new BadRequestException(
+        'No bookable schedule window exists for this provider at the requested time.',
+      );
+    }
+
+    const slotGranularityMs = 10 * 60 * 1000;
+    const slotsNeeded = Math.ceil(
+      (blockEnd.getTime() - blockStart.getTime()) / slotGranularityMs,
+    );
+    const dedupedSlots = this.dedupeSlotsByStartTime(microSlotsInWindow);
+
+    if (dedupedSlots.length < slotsNeeded) {
+      throw new BadRequestException(
+        'The full service duration does not fit within the available schedule. ' +
+          'Choose an earlier start time so the appointment ends within the service period.',
+      );
+    }
+
+    const hasActiveBooking = await this.hasActiveBookingOverlap(
+      businessId,
+      employeeId,
+      blockStart,
+      blockEnd,
+      excludeBookingId,
+    );
+    if (hasActiveBooking) {
+      throw new ConflictException(
+        'All time slots in the requested window are already fully booked.',
+      );
+    }
   }
 
   /** Explains why a service cannot be booked at a given start time (for assistant UX). */
@@ -1430,6 +1607,126 @@ export class BookingService {
     }
   }
 
+  private async validateAgainstServicePeriodsForMultiService(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceIds: string[],
+  ): Promise<void> {
+    const periodCheck = await this.checkServicePeriodsForMultiService(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+      serviceIds,
+    );
+    if (periodCheck === 'no_periods') {
+      throw new BadRequestException(
+        'This provider has no schedule on the selected day. Booking is not allowed.',
+      );
+    }
+    if (periodCheck === 'invalid') {
+      throw new BadRequestException(
+        'The booking does not fit within an available service period. ' +
+          'The full service duration must finish before the period ends.',
+      );
+    }
+  }
+
+  private async checkServicePeriodsForMultiService(
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceIds: string[],
+  ): Promise<'valid' | 'no_periods' | 'invalid'> {
+    const dayStart = new Date(startTime);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(startTime);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const servicePeriods = dayPeriods.filter(
+      (p) => p.type === TemplatePeriodType.SERVICE_BLOCK,
+    );
+    if (servicePeriods.length === 0) {
+      return 'no_periods';
+    }
+
+    const containing = servicePeriods.filter(
+      (p) => p.startTime <= startTime && p.endTime >= endTime,
+    );
+    if (containing.length === 0) {
+      return 'invalid';
+    }
+
+    const allServicesAllowed = containing.some((p) => {
+      const ids = p.serviceIds;
+      if (!ids || ids.length === 0) return true;
+      return serviceIds.every((id) => ids.includes(id));
+    });
+
+    return allServicesAllowed ? 'valid' : 'invalid';
+  }
+
+  private async assertNoBlockingScheduleOverlap(
+    businessId: string,
+    employeeId: string,
+    blockStart: Date,
+    blockEnd: Date,
+  ): Promise<void> {
+    const dayStart = new Date(blockStart);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(blockStart);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const blockingPeriod = dayPeriods.find(
+      (p) =>
+        (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK ||
+          p.type === TemplatePeriodType.BLOCKED_TIME) &&
+        p.startTime < blockEnd &&
+        p.endTime > blockStart,
+    );
+    if (blockingPeriod) {
+      throw new BadRequestException(
+        'This time window overlaps with a blocked or unavailable period. Booking is not allowed.',
+      );
+    }
+
+    const blockingSlots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime < :endTime', { endTime: blockEnd })
+      .andWhere('slot.endTime > :startTime', { startTime: blockStart })
+      .andWhere('slot.status IN (:...blockStatuses)', {
+        blockStatuses: [SlotStatus.BLOCKED, SlotStatus.UNAVAILABLE],
+      })
+      .getCount();
+
+    if (blockingSlots > 0) {
+      throw new BadRequestException(
+        'This time window overlaps with a blocked or unavailable period. Booking is not allowed.',
+      );
+    }
+  }
+
   /**
    * Returns all available micro-slots whose startTime falls within [startTime, endTime).
    * Matches clinic-app's `findSlotsByServiceTypeProviderAndDates` query pattern.
@@ -1578,5 +1875,57 @@ export class BookingService {
       }
       await this.slotRepo.save(slot);
     }
+  }
+
+  private async maybeRescheduleMultiServiceGroup(
+    booking: Booking,
+    targetStart: Date,
+    targetEmployeeId: string,
+    userId?: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean> {
+    if (!booking.multiServiceGroupId) return false;
+
+    const group = await this.multiServiceGroupRepo.findOne({
+      where: { id: booking.multiServiceGroupId },
+    });
+    if (!group || group.schedulingMode !== 'same_visit') return false;
+
+    const siblings = await this.bookingRepo.find({
+      where: {
+        multiServiceGroupId: group.id,
+        status: Not(BookingStatus.CANCELLED) as any,
+      },
+      relations: { service: true },
+      order: { startTime: 'ASC' },
+    });
+    if (siblings.length === 0) return false;
+
+    const business = await this.businessRepo.findOne({ where: { id: booking.businessId } });
+    const turnover = resolveMultiServiceSettings(business?.settings).turnoverBufferMinutes;
+    const serviceLines = siblings.map((entry) => ({
+      serviceId: entry.serviceId,
+      durationMinutes: entry.service!.durationMinutes,
+      bufferMinutes: entry.service!.bufferMinutes,
+    }));
+
+    const sequential = buildSequentialAppointments(serviceLines, targetStart, turnover);
+
+    for (let i = 0; i < siblings.length; i++) {
+      const sibling = siblings[i];
+      const slot = sequential[i];
+      await this.update(
+        sibling.id,
+        {
+          startTime: slot.startTime.toISOString(),
+          employeeId: targetEmployeeId,
+          ...(sibling.id === booking.id ? { expectedUpdatedAt } : {}),
+        },
+        userId,
+        { skipGroupReschedule: true },
+      );
+    }
+
+    return true;
   }
 }

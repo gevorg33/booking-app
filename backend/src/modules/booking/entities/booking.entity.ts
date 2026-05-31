@@ -108,6 +108,14 @@ export class Booking {
   @Column({ name: 'hidden_from_calendar', default: false })
   hiddenFromCalendar: boolean;
 
+  /** Linked package purchase when booking is part of a service package (gap-8.3). */
+  @Column({ name: 'package_purchase_id', type: 'uuid', nullable: true })
+  packagePurchaseId: string | null;
+
+  /** Linked multi-service group for ad-hoc multi-service bookings (gap-8.7). */
+  @Column({ name: 'multi_service_group_id', type: 'uuid', nullable: true })
+  multiServiceGroupId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

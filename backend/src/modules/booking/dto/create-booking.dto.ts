@@ -55,6 +55,16 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   useSubscriptionId?: string;
+
+  /** Linked package purchase when booking is part of a service package (gap-8.3) */
+  @IsOptional()
+  @IsString()
+  packagePurchaseId?: string;
+
+  /** Linked multi-service group for ad-hoc multi-service bookings (gap-8.7) */
+  @IsOptional()
+  @IsString()
+  multiServiceGroupId?: string;
 }
 
 export class UpdateBookingDto {

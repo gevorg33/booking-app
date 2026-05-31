@@ -16,6 +16,7 @@ import { CustomerModule } from '../customer/customer.module.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
+import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
@@ -27,10 +28,12 @@ import { FirebaseAdminModule } from '../../common/firebase/firebase-admin.module
 import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
+import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
+import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, Service, SchedulingSlot, Customer, Booking, Review]),
+    TypeOrmModule.forFeature([Employee, Service, SchedulingSlot, SchedulingPeriod, Customer, Booking, Review]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -50,6 +53,8 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
     PromoCodesModule,
     LoyaltyModule,
     ServiceSubscriptionsModule,
+    ServicePackagesModule,
+    MultiServiceBookingsModule,
   ],
   controllers: [PublicBookingController],
   providers: [

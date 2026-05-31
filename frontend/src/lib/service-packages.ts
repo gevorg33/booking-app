@@ -1,0 +1,123 @@
+import { calculatePackagePricing, type PackageDiscountType } from './service-package-pricing';
+
+export type PackageStatus = 'active' | 'inactive' | 'expired';
+
+export interface ServicePackageItemInput {
+  serviceId: string;
+  quantity: number;
+}
+
+export interface ServicePackageRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  discountType: PackageDiscountType;
+  discountValue: number;
+  displayOrder: number;
+  isActive: boolean;
+  expiresAt?: string | null;
+  status?: PackageStatus;
+  items?: Array<{
+    serviceId: string;
+    quantity: number;
+    service?: { id: string; name: string; price: number; durationMinutes?: number };
+  }>;
+  preview?: {
+    pricing?: {
+      regularTotal?: number;
+      packagePrice?: number;
+      savings?: number;
+      savingsPercent?: number;
+    };
+  };
+}
+
+export function isPackageExpired(
+  expiresAt: string | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < now;
+}
+
+export function resolvePackageStatus(
+  pkg: Pick<ServicePackageRecord, 'isActive' | 'expiresAt'>,
+  now = Date.now(),
+): PackageStatus {
+  if (!pkg.isActive) return 'inactive';
+  if (isPackageExpired(pkg.expiresAt, now)) return 'expired';
+  return 'active';
+}
+
+export function formatPackageSavings(
+  savings: number,
+  savingsPercent: number,
+  currency = 'USD',
+): string {
+  return `Save ${savingsPercent.toFixed(0)}% (${formatMoney(savings, currency)})`;
+}
+
+export function previewPackageFromForm(options: {
+  selectedItems: Array<{ serviceId: string; quantity: number; unitPrice: number }>;
+  discountType: PackageDiscountType;
+  discountValue: number;
+}) {
+  return calculatePackagePricing(
+    options.selectedItems.map((item) => ({
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+    })),
+    options.discountType,
+    options.discountValue,
+  );
+}
+
+export function buildPackageItemsPayload(
+  selectedServiceIds: string[],
+  quantities: Record<string, number>,
+): ServicePackageItemInput[] {
+  return selectedServiceIds.map((serviceId) => ({
+    serviceId,
+    quantity: Math.max(1, quantities[serviceId] ?? 1),
+  }));
+}
+
+export function togglePackageServiceSelection(
+  selected: string[],
+  serviceId: string,
+): string[] {
+  return selected.includes(serviceId)
+    ? selected.filter((id) => id !== serviceId)
+    : [...selected, serviceId];
+}
+
+export function packageToFormState(pkg: ServicePackageRecord) {
+  const selectedServiceIds = (pkg.items ?? []).map((item) => item.serviceId);
+  const quantities = Object.fromEntries(
+    (pkg.items ?? []).map((item) => [item.serviceId, item.quantity]),
+  );
+  return {
+    name: pkg.name,
+    description: pkg.description ?? '',
+    imageUrl: pkg.imageUrl ?? '',
+    discountType: pkg.discountType,
+    discountValue: String(pkg.discountValue),
+    displayOrder: String(pkg.displayOrder ?? 0),
+    expiresAtDay: pkg.expiresAt ? pkg.expiresAt.slice(0, 10) : '',
+    selectedServiceIds,
+    quantities,
+  };
+}
+
+function formatMoney(value: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
+}

@@ -92,6 +92,16 @@ export interface PublicBusinessProfile {
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
   messaging?: PublicMessagingLinks;
+  multiService?: {
+    enabled: boolean;
+    maxServiceCount: number;
+    maxDurationMinutes: number;
+    turnoverBufferMinutes: number;
+    schedulingMode: 'same_visit' | 'per_service';
+    incompatiblePairMode: 'service' | 'category';
+    incompatiblePairs: Array<[string, string]>;
+    incompatibleCategoryPairs: Array<[string, string]>;
+  };
 }
 
 export interface PublicProviderReview {
@@ -227,6 +237,205 @@ export function getPublicProviderReviews(slug: string, employeeId: string, page 
 export function getPublicServices(slug: string, employeeId?: string) {
   const q = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
   return publicFetch<{ services: PublicService[] }>(`/public/${slug}/services${q}`);
+}
+
+export interface PublicPackageItem {
+  serviceId: string;
+  quantity: number;
+  unitPrice: number;
+  serviceName: string;
+  durationMinutes: number;
+  lineTotal?: number;
+  discountedLineTotal?: number;
+  lineSavings?: number;
+}
+
+export interface PublicServicePackage {
+  id: string;
+  kind: 'package';
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  expiresAt?: string | null;
+  displayOrder: number;
+  totalDurationMinutes: number;
+  currency: string;
+  items: PublicPackageItem[];
+  pricing: {
+    regularTotal: number;
+    packagePrice: number;
+    savings: number;
+    savingsPercent: number;
+  };
+}
+
+export function getPublicPackages(slug: string) {
+  return publicFetch<{ packages: PublicServicePackage[] }>(`/public/${slug}/packages`);
+}
+
+export function getPublicPackage(slug: string, packageId: string) {
+  return publicFetch<{ package: PublicServicePackage }>(`/public/${slug}/packages/${packageId}`);
+}
+
+export function suggestPublicPackageSlots(slug: string, packageId: string) {
+  return publicFetch<{
+    lines: Array<{
+      serviceId: string;
+      serviceName: string;
+      startTime: string;
+      employeeId: string;
+      employeeName: string;
+    }>;
+  }>(`/public/${slug}/packages/${packageId}/suggest-slots`);
+}
+
+export type BookPublicPackageBody = {
+  packageId: string;
+  lines: Array<{ serviceId: string; employeeId?: string; startTime: string }>;
+  notes?: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  customer: CreatePublicBookingBody['customer'];
+};
+
+export function quotePublicPackage(
+  slug: string,
+  body: { packageId: string; promoCode?: string; loyaltyPointsToRedeem?: number },
+) {
+  return publicFetch<PublicCheckoutQuote>(`/public/${slug}/packages/quote`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function bookPublicPackage(slug: string, body: BookPublicPackageBody) {
+  return publicFetch<{ bookings: unknown[]; packagePurchase: { id: string } }>(
+    `/public/${slug}/packages/book`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function createPublicPackageCheckout(slug: string, body: BookPublicPackageBody) {
+  return publicFetch<{ url: string; sessionId: string; amount: number; currency: string }>(
+    `/public/${slug}/packages/checkout`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function previewPublicMultiService(slug: string, serviceIds: string[]) {
+  return publicFetch<{
+    valid: boolean;
+    errors: string[];
+    services: Array<{
+      serviceId: string;
+      name?: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+      price: number;
+    }>;
+    totals: {
+      serviceCount: number;
+      totalDurationMinutes: number;
+      blockDurationMinutes: number;
+      totalPrice: number;
+      currency: string;
+    } | null;
+  }>(`/public/${slug}/multi-service/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ serviceIds }),
+  });
+}
+
+export function getPublicMultiServiceBlockSlots(slug: string, serviceIds: string[], date: string) {
+  const params = new URLSearchParams({
+    date,
+    serviceIds: [...new Set(serviceIds)].join(','),
+  });
+  return publicFetch<{
+    date: string;
+    serviceIds: string[];
+    totalDurationMinutes: number;
+    slots: PublicServiceDaySlot[];
+  }>(`/public/${slug}/multi-service/block-slots?${params.toString()}`);
+}
+
+export function suggestPublicMultiServiceBlock(slug: string, serviceIds: string[]) {
+  const params = new URLSearchParams({
+    serviceIds: [...new Set(serviceIds)].join(','),
+  });
+  return publicFetch<{
+    employeeId: string;
+    employeeName: string;
+    dateKey: string;
+    startTime: string;
+  }>(`/public/${slug}/multi-service/suggest-block?${params.toString()}`);
+}
+
+export function getPublicMultiServiceProviders(
+  slug: string,
+  serviceIds: string[],
+  startTime: string,
+  includeLaterDays = false,
+) {
+  const params = new URLSearchParams({
+    startTime,
+    serviceIds: serviceIds.join(','),
+    ...(includeLaterDays ? { includeLaterDays: 'true' } : {}),
+  });
+  return publicFetch<{ providers: Array<PublicServiceSlotProvider & { earliestStartTime?: string }> }>(
+    `/public/${slug}/multi-service/providers?${params.toString()}`,
+  );
+}
+
+export type BookPublicMultiServiceBody = {
+  serviceIds: string[];
+  blockStartTime?: string;
+  employeeId?: string;
+  lines?: Array<{ serviceId: string; employeeId?: string; startTime: string }>;
+  notes?: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  customer: CreatePublicBookingBody['customer'] & {
+    privacyConsentAccepted?: boolean;
+    marketingOptIn?: boolean;
+  };
+};
+
+export function bookPublicMultiService(slug: string, body: BookPublicMultiServiceBody) {
+  return publicFetch<{ multiServiceGroup: { id: string }; bookings: unknown[] }>(
+    `/public/${slug}/multi-service/book`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function createPublicMultiServiceCheckout(slug: string, body: BookPublicMultiServiceBody) {
+  return publicFetch<{ url: string; sessionId: string; amount: number; currency: string }>(
+    `/public/${slug}/multi-service/checkout`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function suggestPublicMultiServiceLines(slug: string, serviceIds: string[]) {
+  const params = new URLSearchParams({ serviceIds: serviceIds.join(',') });
+  return publicFetch<{
+    lines: Array<{
+      serviceId: string;
+      serviceName: string;
+      startTime: string;
+      employeeId: string;
+      employeeName: string;
+    }>;
+  }>(`/public/${slug}/multi-service/suggest-lines?${params.toString()}`);
+}
+
+export function quotePublicMultiService(
+  slug: string,
+  body: { serviceIds: string[]; promoCode?: string; loyaltyPointsToRedeem?: number },
+) {
+  return publicFetch<PublicCheckoutQuote>(`/public/${slug}/multi-service/quote`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export interface PublicServiceDaySlot {

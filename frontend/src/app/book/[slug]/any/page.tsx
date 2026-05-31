@@ -1,4 +1,4 @@
-import { getPublicProfile, getPublicServices } from '@/lib/public-api';
+import { getPublicProfile, getPublicServices, getPublicPackages } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { AnyServicesClient } from './any-services-client';
 
@@ -8,9 +8,10 @@ export default async function AnySpecialistServicesPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [tenant, { services }] = await Promise.all([
+  const [tenant, { services }, { packages }] = await Promise.all([
     getPublicProfile(slug),
     getPublicServices(slug),
+    getPublicPackages(slug).catch(() => ({ packages: [] })),
   ]);
 
   return (
@@ -18,6 +19,7 @@ export default async function AnySpecialistServicesPage({
       slug={slug}
       tenant={tenant}
       services={services}
+      packages={packages}
       backHref={bookPath(slug)}
     />
   );

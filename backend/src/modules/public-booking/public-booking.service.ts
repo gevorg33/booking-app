@@ -17,8 +17,10 @@ import { resolveCheckoutPaymentStatus } from '../booking/booking-payment-status.
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
-import { CreatePublicBookingDto, PublicBookingQuoteDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto } from './dto/public-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
@@ -42,6 +44,17 @@ import {
   getDistributionIntegrations,
 } from '../integrations/distribution/distribution-integration.types.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { ServicePackagesService } from '../service-packages/service-packages.service.js';
+import { resolvePackageCheckoutGraceHours } from '../../common/utils/package-pricing.util.js';
+import { validatePackageBookingLines } from '../../common/utils/package-booking.util.js';
+import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
+import {
+  buildSequentialAppointments,
+  employeeQualifiesForServices,
+  normalizeMultiServiceIds,
+  validatePerServiceLines,
+} from '../../common/utils/multi-service-booking.util.js';
+import type { MultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -101,6 +114,16 @@ export interface PublicBusinessProfile {
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
   messaging?: PublicMessagingLinks;
+  multiService?: {
+    enabled: boolean;
+    maxServiceCount: number;
+    maxDurationMinutes: number;
+    turnoverBufferMinutes: number;
+    schedulingMode: 'same_visit' | 'per_service';
+    incompatiblePairMode: 'service' | 'category';
+    incompatiblePairs: Array<[string, string]>;
+    incompatibleCategoryPairs: Array<[string, string]>;
+  };
 }
 
 export interface ProviderSlotPreview {
@@ -182,10 +205,13 @@ export class PublicBookingService {
     private checkoutPricingService: CheckoutPricingService,
     private loyaltyService: LoyaltyService,
     private subscriptionsService: ServiceSubscriptionsService,
+    private packagesService: ServicePackagesService,
+    private multiServiceBookingsService: MultiServiceBookingsService,
     private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
   ) {}
 
   async resolveBusiness(slug: string): Promise<Business> {
@@ -261,6 +287,24 @@ export class PublicBookingService {
           }
         : {}),
       ...(hasMessaging ? { messaging: messagingLinks } : {}),
+      ...this.mapPublicMultiServiceSettings(business),
+    };
+  }
+
+  private mapPublicMultiServiceSettings(business: Business) {
+    const ms = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    if (!ms.enabled) return {};
+    return {
+      multiService: {
+        enabled: true,
+        maxServiceCount: ms.maxServiceCount,
+        maxDurationMinutes: ms.maxDurationMinutes,
+        turnoverBufferMinutes: ms.turnoverBufferMinutes,
+        schedulingMode: ms.schedulingMode,
+        incompatiblePairMode: ms.incompatiblePairMode,
+        incompatiblePairs: ms.incompatiblePairs,
+        incompatibleCategoryPairs: ms.incompatibleCategoryPairs,
+      },
     };
   }
 
@@ -976,6 +1020,760 @@ export class PublicBookingService {
     );
   }
 
+  async getPublicPackages(slug: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const packages = await this.packagesService.listPublicPackages(business.id, graceHours);
+    return { packages };
+  }
+
+  async getPublicPackage(slug: string, packageId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const pkg = await this.packagesService.getPublicPackage(business.id, packageId, graceHours);
+    return { package: pkg };
+  }
+
+  async suggestPackageLineSlots(slug: string, packageId: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const pkg = await this.packagesService.assertPackageBookable(
+      business.id,
+      packageId,
+      graceHours,
+    );
+    const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
+    const suggestions: Array<{
+      serviceId: string;
+      serviceName: string;
+      startTime: string;
+      employeeId: string;
+      employeeName: string;
+    }> = [];
+
+    let notBefore: string | null = null;
+    for (const serviceId of serviceIds) {
+      const item = pkg.items!.find((entry) => entry.serviceId === serviceId);
+      const nearest = await this.findNearestBookableSlot(slug, {
+        serviceId,
+        notBeforeTime: notBefore,
+      });
+      if (!nearest) {
+        throw new BadRequestException(
+          `No available slot found for ${item?.service?.name ?? 'a bundled service'}`,
+        );
+      }
+      suggestions.push({
+        serviceId,
+        serviceName: item?.service?.name ?? '',
+        startTime: nearest.startTime,
+        employeeId: nearest.employeeId,
+        employeeName: nearest.employeeName,
+      });
+      notBefore = nearest.startTime;
+    }
+
+    return { lines: suggestions };
+  }
+
+  async quotePackageCheckout(
+    slug: string,
+    dto: PublicPackageQuoteDto,
+    authenticatedCustomerId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.bookingPaymentService.resolvePackageCheckoutPricing(
+      business.id,
+      dto.packageId,
+      {
+        promoCode: dto.promoCode,
+        loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+      },
+      authenticatedCustomerId,
+    );
+  }
+
+  async bookPackage(
+    slug: string,
+    dto: BookPublicPackageDto,
+    authenticatedCustomerId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    if (!dto.customer.email && !dto.customer.phone) {
+      throw new BadRequestException('Email or phone number is required');
+    }
+
+    const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const pkg = await this.packagesService.assertPackageBookable(
+      business.id,
+      dto.packageId,
+      graceHours,
+    );
+
+    try {
+      validatePackageBookingLines(this.packagesService.expectedLineServiceIds(pkg), dto.lines);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
+
+    for (const line of dto.lines) {
+      if (!line.employeeId) {
+        const resolved = await this.resolveEmployeeForServiceSlot(
+          slug,
+          line.serviceId,
+          line.startTime,
+        );
+        if (!resolved) {
+          throw new BadRequestException('One or more selected time slots are no longer available');
+        }
+        line.employeeId = resolved.employeeId;
+      }
+    }
+
+    const pricing = await this.bookingPaymentService.resolvePackageCheckoutPricing(
+      business.id,
+      dto.packageId,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    if (paymentsReady && pricing.amountDue > 0 && !dto.markPaid) {
+      throw new BadRequestException(
+        'Online payment is required for this package. Complete payment at checkout.',
+      );
+    }
+
+    const { customer, created } = await this.resolvePublicBookingCustomer(
+      business.id,
+      dto.customer,
+      authenticatedCustomerId,
+    );
+
+    const preview = this.packagesService.previewFromPackage(pkg);
+    const purchase = await this.packagesService.createPackagePurchase(
+      business.id,
+      pkg.id,
+      customer.id,
+      pricing.amountDue,
+      preview.currency,
+    );
+
+    const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
+    const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
+    for (const line of dto.lines) {
+      const booking = await this.bookingService.create(
+        business.id,
+        {
+          employeeId: line.employeeId!,
+          serviceId: line.serviceId,
+          customerId: customer.id,
+          startTime: line.startTime,
+          notes: dto.notes,
+          packagePurchaseId: purchase.id,
+          metadata: {
+            source: 'public_package_booking',
+            packageId: pkg.id,
+            packageName: pkg.name,
+            packagePurchaseId: purchase.id,
+          },
+        },
+        undefined,
+        { paymentStatus },
+      );
+      bookings.push(booking);
+    }
+
+    await this.checkoutPricingService.applyRedemptions(
+      business.id,
+      customer.id,
+      pricing,
+      bookings[0]?.id,
+    );
+
+    return {
+      packagePurchase: purchase,
+      bookings,
+      customer: { id: customer.id, name: customer.name, created },
+      pricing,
+    };
+  }
+
+  async getMultiServiceSettings(slug: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+  }
+
+  async previewMultiServiceSelection(slug: string, serviceIds: string[]) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
+  }
+
+  async getMultiServiceBlockDaySlots(slug: string, serviceIds: string[], date: string) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const normalizedIds = normalizeMultiServiceIds(serviceIds);
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(business.id, normalizedIds);
+    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
+    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    if (!employees.length) {
+      throw new BadRequestException('No provider can perform all selected services');
+    }
+
+    const tz = resolveTimezone(business.timezone);
+    const slotMap = new Map<string, PublicServiceDaySlot>();
+
+    for (const employee of employees) {
+      const rawSlots = await this.getMultiServiceBlockStartCandidates(
+        business.id,
+        employee,
+        date,
+        normalizedIds,
+        preview.totals!.blockDurationMinutes,
+      );
+      const upcoming = rawSlots.filter((startTime) =>
+        isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, null),
+      );
+
+      for (const startTime of upcoming) {
+        const fits = await this.validateMultiServiceBlockAt(
+          business.id,
+          employee.id,
+          startTime,
+          services,
+          settings.turnoverBufferMinutes,
+        );
+        if (!fits) continue;
+        const key = startTime.toISOString();
+        if (slotMap.has(key)) continue;
+        const endTime = new Date(
+          startTime.getTime() + preview.totals!.blockDurationMinutes * 60_000,
+        );
+        slotMap.set(key, {
+          startTime: key,
+          endTime: endTime.toISOString(),
+          employeeId: employee.id,
+          employeeName: employee.name,
+        });
+      }
+    }
+
+    return {
+      date,
+      serviceIds: normalizedIds,
+      totalDurationMinutes: preview.totals!.blockDurationMinutes,
+      slots: [...slotMap.values()].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    };
+  }
+
+  async suggestMultiServiceBlock(slug: string, serviceIds: string[]) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const normalizedIds = normalizeMultiServiceIds(serviceIds);
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(business.id, normalizedIds);
+    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
+    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    if (!employees.length) {
+      throw new BadRequestException('No provider can perform all selected services');
+    }
+    const tz = resolveTimezone(business.timezone);
+    const todayKey = getDateKeyInTimezone(new Date(), tz);
+    const blockDurationMinutes = preview.totals!.blockDurationMinutes;
+
+    type BlockSuggestion = { employee: Employee; dateKey: string; startTime: Date };
+    let blockSuggestion: BlockSuggestion | undefined;
+
+    outer: for (let offset = 0; offset < SCAN_DAYS; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      for (const employee of employees) {
+        const daySlots = await this.getMultiServiceBlockStartCandidates(
+          business.id,
+          employee,
+          dateKey,
+          normalizedIds,
+          blockDurationMinutes,
+        );
+        for (const startTime of daySlots) {
+          if (!isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), tz, null)) continue;
+          const fits = await this.validateMultiServiceBlockAt(
+            business.id,
+            employee.id,
+            startTime,
+            services,
+            settings.turnoverBufferMinutes,
+          );
+          if (!fits) continue;
+          if (!blockSuggestion || startTime.getTime() < blockSuggestion.startTime.getTime()) {
+            blockSuggestion = { employee, dateKey, startTime };
+          }
+        }
+      }
+      if (blockSuggestion) break outer;
+    }
+
+    if (!blockSuggestion) {
+      throw new BadRequestException('No available block found for the selected services');
+    }
+
+    return {
+      employeeId: blockSuggestion.employee.id,
+      employeeName: blockSuggestion.employee.name,
+      dateKey: blockSuggestion.dateKey,
+      startTime: blockSuggestion.startTime.toISOString(),
+    };
+  }
+
+  async getMultiServiceBlockProviders(
+    slug: string,
+    serviceIds: string[],
+    startTime: string,
+    includeLaterDays = false,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const normalizedIds = normalizeMultiServiceIds(serviceIds);
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
+    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    const start = new Date(startTime);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('Invalid start time');
+    }
+
+    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
+      business.id,
+      employees.map((e) => e.id),
+    );
+
+    const providers: Array<PublicServiceSlotProvider & { earliestStartTime?: string }> = [];
+
+    for (const employee of employees) {
+      if (includeLaterDays) {
+        const earliest = await this.suggestMultiServiceBlockForEmployee(
+          business,
+          employee,
+          normalizedIds,
+          services,
+          settings,
+        );
+        if (!earliest) continue;
+        providers.push(
+          this.mapMultiServiceProvider(employee, reviewSummaries, earliest.startTime),
+        );
+        continue;
+      }
+
+      const fits = await this.validateMultiServiceBlockAt(
+        business.id,
+        employee.id,
+        start,
+        services,
+        settings.turnoverBufferMinutes,
+      );
+      if (!fits) continue;
+      providers.push(this.mapMultiServiceProvider(employee, reviewSummaries));
+    }
+
+    return { providers };
+  }
+
+  async suggestMultiServicePerServiceLines(slug: string, serviceIds: string[]) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    await this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
+
+    const suggestions: Array<{
+      serviceId: string;
+      serviceName: string;
+      startTime: string;
+      employeeId: string;
+      employeeName: string;
+    }> = [];
+
+    let notBefore: string | null = null;
+    for (const serviceId of serviceIds) {
+      const service = await this.serviceRepo.findOne({
+        where: { id: serviceId, businessId: business.id, isActive: true },
+      });
+      const nearest = await this.findNearestBookableSlot(slug, {
+        serviceId,
+        notBeforeTime: notBefore,
+      });
+      if (!nearest) {
+        throw new BadRequestException(
+          `No available slot found for ${service?.name ?? 'a selected service'}`,
+        );
+      }
+      suggestions.push({
+        serviceId,
+        serviceName: service?.name ?? '',
+        startTime: nearest.startTime,
+        employeeId: nearest.employeeId,
+        employeeName: nearest.employeeName,
+      });
+      notBefore = nearest.startTime;
+    }
+
+    return { lines: suggestions };
+  }
+
+  async quoteMultiServiceCheckout(
+    slug: string,
+    dto: PublicMultiServiceQuoteDto,
+    authenticatedCustomerId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.bookingPaymentService.resolveMultiServiceCheckoutPricing(
+      business.id,
+      dto.serviceIds,
+      dto,
+      authenticatedCustomerId,
+    );
+  }
+
+  async bookMultiService(
+    slug: string,
+    dto: BookPublicMultiServiceDto,
+    authenticatedCustomerId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    if (!dto.customer.email && !dto.customer.phone) {
+      throw new BadRequestException('Email or phone number is required');
+    }
+
+    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      dto.serviceIds,
+    );
+    const services = await this.loadOrderedMultiServiceLines(business.id, dto.serviceIds);
+    const serviceNames = await this.loadMultiServiceNames(business.id, dto.serviceIds);
+
+    const pricing = await this.bookingPaymentService.resolveMultiServiceCheckoutPricing(
+      business.id,
+      dto.serviceIds,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    if (paymentsReady && pricing.amountDue > 0 && !dto.markPaid) {
+      throw new BadRequestException(
+        'Online payment is required for this booking. Complete payment at checkout.',
+      );
+    }
+
+    const { customer, created } = await this.resolvePublicBookingCustomer(
+      business.id,
+      dto.customer,
+      authenticatedCustomerId,
+    );
+
+    let appointments: Array<{ serviceId: string; employeeId: string; startTime: string }> = [];
+    let blockStartTime: Date | null = null;
+    let primaryEmployeeId: string | null = null;
+
+    if (settings.schedulingMode === 'per_service') {
+      if (!dto.lines?.length) {
+        throw new BadRequestException('Schedule each selected service before checkout');
+      }
+      try {
+        validatePerServiceLines(dto.serviceIds, dto.lines);
+      } catch (err) {
+        throw new BadRequestException((err as Error).message);
+      }
+      for (const line of dto.lines) {
+        if (!line.employeeId) {
+          const resolved = await this.resolveEmployeeForServiceSlot(
+            slug,
+            line.serviceId,
+            line.startTime,
+          );
+          if (!resolved) {
+            throw new BadRequestException('One or more selected time slots are no longer available');
+          }
+          line.employeeId = resolved.employeeId;
+        }
+      }
+      appointments = dto.lines.map((line) => ({
+        serviceId: line.serviceId,
+        employeeId: line.employeeId!,
+        startTime: line.startTime,
+      }));
+    } else {
+      if (!dto.blockStartTime) {
+        throw new BadRequestException('Select a time block for your visit');
+      }
+      let employeeId = dto.employeeId;
+      if (!employeeId) {
+        const providers = await this.getMultiServiceBlockProviders(
+          slug,
+          dto.serviceIds,
+          dto.blockStartTime,
+          false,
+        );
+        if (!providers.providers.length) {
+          throw new BadRequestException('That time block is no longer available');
+        }
+        employeeId = providers.providers[0].id;
+      }
+
+      const blockStart = new Date(dto.blockStartTime);
+      const sequential = buildSequentialAppointments(
+        services,
+        blockStart,
+        settings.turnoverBufferMinutes,
+      );
+      const fits = await this.validateMultiServiceBlockAt(
+        business.id,
+        employeeId,
+        blockStart,
+        services,
+        settings.turnoverBufferMinutes,
+      );
+      if (!fits) {
+        throw new BadRequestException('That time block is no longer available');
+      }
+
+      blockStartTime = blockStart;
+      primaryEmployeeId = employeeId;
+      appointments = sequential.map((line) => ({
+        serviceId: line.serviceId,
+        employeeId: employeeId!,
+        startTime: line.startTime.toISOString(),
+      }));
+    }
+
+    await this.assertMultiServiceAppointmentsAvailable(
+      business.id,
+      settings,
+      services,
+      appointments,
+    );
+
+    const group = await this.multiServiceBookingsService.createGroup({
+      businessId: business.id,
+      customerId: customer.id,
+      schedulingMode: settings.schedulingMode,
+      totals: preview.totals!,
+      blockStartTime,
+      primaryEmployeeId,
+      metadata: {
+        serviceIds: dto.serviceIds,
+        serviceNames,
+        schedulingMode: settings.schedulingMode,
+      },
+    });
+
+    const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
+    const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
+    const sameVisitMultiService =
+      settings.schedulingMode === 'same_visit' && appointments.length > 1;
+
+    for (const appt of appointments) {
+      const booking = await this.bookingService.create(
+        business.id,
+        {
+          employeeId: appt.employeeId,
+          serviceId: appt.serviceId,
+          customerId: customer.id,
+          startTime: appt.startTime,
+          notes: dto.notes,
+          multiServiceGroupId: group.id,
+          metadata: {
+            source: 'public_multi_service_booking',
+            multiServiceGroupId: group.id,
+            groupLabel: serviceNames.join(' + '),
+            schedulingMode: settings.schedulingMode,
+          },
+        },
+        undefined,
+        { paymentStatus, sameVisitMultiService },
+      );
+      bookings.push(booking);
+    }
+
+    await this.checkoutPricingService.applyRedemptions(
+      business.id,
+      customer.id,
+      pricing,
+      bookings[0]?.id,
+    );
+
+    return {
+      multiServiceGroup: group,
+      bookings,
+      customer: { id: customer.id, name: customer.name, created },
+      pricing,
+    };
+  }
+
+  private async loadOrderedMultiServiceLines(businessId: string, serviceIds: string[]) {
+    const loaded = await this.multiServiceBookingsService.loadServicesForSelection(
+      businessId,
+      serviceIds,
+    );
+    const byId = new Map(loaded.map((svc) => [svc.serviceId, svc]));
+    return serviceIds.map((id) => {
+      const svc = byId.get(id);
+      if (!svc) throw new NotFoundException('Service not found');
+      return svc;
+    });
+  }
+
+  private async loadMultiServiceNames(businessId: string, serviceIds: string[]) {
+    const lines = await this.loadOrderedMultiServiceLines(businessId, serviceIds);
+    return lines.map((line) => line.name ?? line.serviceId);
+  }
+
+  private async findQualifiedMultiServiceEmployees(businessId: string, serviceIds: string[]) {
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
+    return employees.filter((employee) =>
+      employeeQualifiesForServices(employee.serviceIds, serviceIds),
+    );
+  }
+
+  private async validateMultiServiceBlockAt(
+    businessId: string,
+    employeeId: string,
+    blockStart: Date,
+    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
+    turnoverBufferMinutes: number,
+  ): Promise<boolean> {
+    const sequential = buildSequentialAppointments(services, blockStart, turnoverBufferMinutes);
+    if (!sequential.length) return false;
+
+    const blockEnd = sequential[sequential.length - 1].endTime;
+    const serviceIds = services.map((svc) => svc.serviceId);
+
+    try {
+      await this.bookingService.validateMultiServiceBlockFits(
+        businessId,
+        employeeId,
+        sequential[0].startTime,
+        blockEnd,
+        serviceIds,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async assertMultiServiceAppointmentsAvailable(
+    businessId: string,
+    settings: MultiServiceSettings,
+    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
+    appointments: Array<{ serviceId: string; employeeId: string; startTime: string }>,
+  ): Promise<void> {
+    if (settings.schedulingMode === 'same_visit' && appointments.length > 1) {
+      const blockStart = new Date(appointments[0].startTime);
+      const employeeId = appointments[0].employeeId;
+      const fits = await this.validateMultiServiceBlockAt(
+        businessId,
+        employeeId,
+        blockStart,
+        services,
+        settings.turnoverBufferMinutes,
+      );
+      if (!fits) {
+        throw new BadRequestException('That time block is no longer available');
+      }
+      return;
+    }
+
+    for (const appt of appointments) {
+      const svc = services.find((entry) => entry.serviceId === appt.serviceId);
+      if (!svc) throw new BadRequestException('One or more selected services are unavailable');
+
+      const start = new Date(appt.startTime);
+      const end = new Date(start.getTime() + (svc.durationMinutes + svc.bufferMinutes) * 60_000);
+      try {
+        await this.bookingService.validateServiceFitsWindow(
+          businessId,
+          appt.employeeId,
+          start,
+          end,
+          appt.serviceId,
+        );
+      } catch {
+        throw new BadRequestException('One or more selected time slots are no longer available');
+      }
+    }
+  }
+
+  private mapMultiServiceProvider(
+    employee: Employee,
+    reviewSummaries: Map<string, { averageRating: number | null; reviewCount: number }>,
+    earliestStartTime?: string,
+  ): PublicServiceSlotProvider & { earliestStartTime?: string } {
+    const summary = reviewSummaries.get(employee.id);
+    const metadata = employee.metadata || {};
+    return {
+      id: employee.id,
+      name: employee.name,
+      role: metadata.role || metadata.title,
+      avatarUrl: metadata.avatarUrl,
+      averageRating: summary?.averageRating ?? null,
+      reviewCount: summary?.reviewCount ?? 0,
+      ...(earliestStartTime ? { earliestStartTime } : {}),
+    };
+  }
+
+  private async suggestMultiServiceBlockForEmployee(
+    business: Business,
+    employee: Employee,
+    serviceIds: string[],
+    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
+    settings: MultiServiceSettings,
+  ): Promise<{ startTime: string } | null> {
+    const tz = resolveTimezone(business.timezone);
+    const todayKey = getDateKeyInTimezone(new Date(), tz);
+
+    const blockDurationMinutes =
+      services.reduce((sum, svc) => sum + svc.durationMinutes + svc.bufferMinutes, 0) +
+      Math.max(0, services.length - 1) * Math.max(0, settings.turnoverBufferMinutes);
+
+    for (let offset = 0; offset < SCAN_DAYS; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      const daySlots = await this.getMultiServiceBlockStartCandidates(
+        business.id,
+        employee,
+        dateKey,
+        serviceIds,
+        blockDurationMinutes,
+      );
+      for (const startTime of daySlots) {
+        if (!isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), tz, null)) continue;
+        const fits = await this.validateMultiServiceBlockAt(
+          business.id,
+          employee.id,
+          startTime,
+          services,
+          settings.turnoverBufferMinutes,
+        );
+        if (fits) return { startTime: startTime.toISOString() };
+      }
+    }
+    return null;
+  }
+
   async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -1251,6 +2049,81 @@ export class PublicBookingService {
     const formatted = formatZonedDateLabel(dateKey, timeZone);
     if (dateKey === todayDateKey) return `today, ${formatted}`;
     return formatted;
+  }
+
+  private async getMultiServiceBlockStartCandidates(
+    businessId: string,
+    employee: Employee,
+    dateKey: string,
+    serviceIds: string[],
+    blockDurationMinutes: number,
+  ): Promise<Date[]> {
+    const seen = new Set<string>();
+    const candidates: Date[] = [];
+    const addTimes = (times: Date[]) => {
+      for (const time of times) {
+        const key = time.toISOString();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        candidates.push(time);
+      }
+    };
+
+    addTimes(await this.getEmployeeStartTimes(businessId, employee, dateKey));
+
+    const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(dateKey, 'UTC');
+    for (const serviceId of serviceIds) {
+      if (employee.serviceIds?.length && !employee.serviceIds.includes(serviceId)) continue;
+      try {
+        const engineSlots = await this.schedulingEngine.getAvailableSlots({
+          businessId,
+          serviceId,
+          date: dayStart,
+          employeeId: employee.id,
+        });
+        addTimes(this.snapToGrid(engineSlots.map((slot) => slot.startTime)));
+      } catch {
+        // ignore per-service engine failures
+      }
+    }
+
+    const dayPeriods = await this.schedulingPeriodRepo.find({
+      where: {
+        businessId,
+        employeeId: employee.id,
+        startTime: Between(dayStart, dayEnd),
+      },
+      order: { startTime: 'ASC' },
+    });
+
+    const blockMs = blockDurationMinutes * 60_000;
+    const stepMs = SLOT_STEP_MINUTES * 60_000;
+
+    for (const period of dayPeriods) {
+      if (period.type !== TemplatePeriodType.SERVICE_BLOCK) continue;
+      const allowedIds = period.serviceIds;
+      if (allowedIds?.length && !serviceIds.every((id) => allowedIds.includes(id))) continue;
+
+      let cursor = period.startTime.getTime();
+      const periodEnd = period.endTime.getTime();
+      while (cursor + blockMs <= periodEnd) {
+        const start = new Date(cursor);
+        const end = new Date(cursor + blockMs);
+        const blocked = dayPeriods.some(
+          (p) =>
+            (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK ||
+              p.type === TemplatePeriodType.BLOCKED_TIME) &&
+            p.startTime < end &&
+            p.endTime > start,
+        );
+        if (!blocked) {
+          addTimes(this.snapToGrid([start]));
+        }
+        cursor += stepMs;
+      }
+    }
+
+    return candidates.sort((a, b) => a.getTime() - b.getTime());
   }
 
   private async getEmployeeStartTimes(

@@ -88,8 +88,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [x] **gap-8.2** — Resource / room / chair scheduling (multi-resource appointments)
 - [x] **sub-1** — Service subscription management — plans, customer subscriptions, booking credit consumption (see spec below)
-- [ ] **gap-8.3** — Admin **service packages** — discounted multi-service product on public Services tab (see spec below)
-- [ ] **gap-8.7** — Customer **multi-service booking** — customer picks multiple individual services in one flow (**separate** from admin packages; see spec below)
+- [x] **gap-8.7** — Customer **multi-service booking** — customer picks multiple individual services in one flow (**separate** from admin packages; see spec below)
 
 ### sub-1 — Service subscription management (Dashboard Admin)
 
@@ -156,22 +155,22 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 #### Admin — package catalog (dashboard)
 
-- [ ] **gap-8.3.1** — **Package CRUD** — create / edit / **deactivate** / **delete**: name, description, image (optional), **multi-select services** (+ quantities), display order, `isActive`
-- [ ] **gap-8.3.2** — **Package discount** — show sum of underlying service prices vs **package price**; discount as **fixed amount** or **percent** off total; savings preview in admin
-- [ ] **gap-8.3.3** — **Package offer expiration** — optional `expiresAt`; hide from Services tab when expired; checkout grace policy (admin setting)
-- [ ] **gap-8.3.4** — **Dashboard UI** — **Services** or **Packages** tab: list/filter active · inactive · expired; duplicate; block delete when future bookings reference package
+- [x] **gap-8.3.1** — **Package CRUD** — create / edit / **deactivate** / **delete**: name, description, image (optional), **multi-select services** (+ quantities), display order, `isActive`
+- [x] **gap-8.3.2** — **Package discount** — show sum of underlying service prices vs **package price**; discount as **fixed amount** or **percent** off total; savings preview in admin
+- [x] **gap-8.3.3** — **Package offer expiration** — optional `expiresAt`; hide from Services tab when expired; checkout grace policy (admin setting)
+- [x] **gap-8.3.4** — **Dashboard UI** — **Services** or **Packages** tab: list/filter active · inactive · expired; duplicate; block delete when future bookings reference package
 
 #### Public booking — Services tab (one package = one card)
 
-- [ ] **gap-8.3.5** — **Services tab display** — active packages shown **as one service card** (not separate cards per sub-service): package name, bundle price, "Includes: …", "Save X%", validity; detail view lists **sub-services** with durations and struck-through individual prices
-- [ ] **gap-8.3.6** — **Select package** — customer taps **one** package product; session expands into sub-service line items internally (customer does **not** assemble services à la carte)
-- [ ] **gap-8.3.7** — **Per sub-service scheduling (confirm page)** — each included service uses **existing single-service** slot/provider UI; customer picks **date & time per sub-service**; smart defaults (earliest slot per line)
-- [ ] **gap-8.3.8** — **Single checkout** — one payment at **package price**; create **linked bookings** (`packagePurchaseId`) — one booking per sub-service
-- [ ] **gap-8.3.9** — **Confirm guards** — block checkout until every sub-service has a slot; re-validate all lines on submit
-- [ ] **gap-8.3.10** — **DB schema & API** — `service_packages`, `service_package_items`, `package_purchases`; public list/detail; `POST …/book-package`
-- [ ] **gap-8.3.11** — **Deactivate / delete / expired offer** — hidden from Services tab when inactive or expired; delete blocked with open bookings
-- [ ] **gap-8.3.12** — **Cancel / reschedule / promos** — sub-appointments independent (**gap-2.7**); promo/subscription rules per admin policy
-- [ ] **gap-8.3.13** — **Dashboard calendar** — linked appointments share package badge/group
+- [x] **gap-8.3.5** — **Services tab display** — active packages shown **as one service card** (not separate cards per sub-service): package name, bundle price, "Includes: …", "Save X%", validity; detail view lists **sub-services** with durations and struck-through individual prices
+- [x] **gap-8.3.6** — **Select package** — customer taps **one** package product; session expands into sub-service line items internally (customer does **not** assemble services à la carte)
+- [x] **gap-8.3.7** — **Per sub-service scheduling (confirm page)** — each included service uses **existing single-service** slot/provider UI; customer picks **date & time per sub-service**; smart defaults (earliest slot per line)
+- [x] **gap-8.3.8** — **Single checkout** — one payment at **package price**; create **linked bookings** (`packagePurchaseId`) — one booking per sub-service
+- [x] **gap-8.3.9** — **Confirm guards** — block checkout until every sub-service has a slot; re-validate all lines on submit
+- [x] **gap-8.3.10** — **DB schema & API** — `service_packages`, `service_package_items`, `package_purchases`; public list/detail; `POST …/book-package` *(admin catalog API done; public booking pending)*
+- [x] **gap-8.3.11** — **Deactivate / delete / expired offer** — hidden from Services tab when inactive or expired; delete blocked with open bookings
+- [x] **gap-8.3.12** — **Cancel / reschedule / promos** — sub-appointments independent (**gap-2.7**); promo/subscription rules per admin policy
+- [x] **gap-8.3.13** — **Dashboard calendar** — linked appointments share package badge/group
 
 #### Examples (gap-8.3)
 
@@ -188,31 +187,31 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 #### Settings (dashboard)
 
-- [ ] **gap-8.7.1** — Enable/disable **multi-service booking** (separate toggle from admin packages)
-- [ ] **gap-8.7.2** — **Max duration** + **max service count**; turnover buffer; **service compatibility** matrix
-- [ ] **gap-8.7.3** — Scheduling mode: **same-visit block** vs **per-service dates** (admin default; v1 may ship one mode)
+- [x] **gap-8.7.1** — Enable/disable **multi-service booking** (separate toggle from admin packages)
+- [x] **gap-8.7.2** — **Max duration** + **max service count**; turnover buffer; **service compatibility** matrix
+- [x] **gap-8.7.3** — Scheduling mode: **same-visit block** vs **per-service dates** (admin default; v1 may ship one mode)
 
 #### Customer UI (public booking)
 
-- [ ] **gap-8.7.4** — **Multi-select on Services tab** — cart of **normal single services** (not package cards); live total duration + **sum of service prices**
-- [ ] **gap-8.7.5** — Block when over max duration/count; incompatible pair warnings
+- [x] **gap-8.7.4** — **Multi-select on Services tab** — cart of **normal single services** (not package cards); live total duration + **sum of service prices**
+- [x] **gap-8.7.5** — Block when over max duration/count; incompatible pair warnings
 
 #### Same-visit block scheduling
 
-- [ ] **gap-8.7.6** — **Block availability API** — contiguous slot for total duration; provider qualified for all selected services
-- [ ] **gap-8.7.7** — **Default auto-pick** — earliest slot + first free qualified provider
-- [ ] **gap-8.7.8** — **Provider picker** + **"Show providers available on later days"**
-- [ ] **gap-8.7.9** — Atomic conflict validation on submit
+- [x] **gap-8.7.6** — **Block availability API** — contiguous slot for total duration; provider qualified for all selected services
+- [x] **gap-8.7.7** — **Default auto-pick** — earliest slot + first free qualified provider
+- [x] **gap-8.7.8** — **Provider picker** + **"Show providers available on later days"**
+- [x] **gap-8.7.9** — Atomic conflict validation on submit
 
 #### Per-service dates mode (optional)
 
-- [ ] **gap-8.7.10** — Confirm page: one date/time picker per selected service (same UX as **gap-8.3.7**, **no package discount**)
+- [x] **gap-8.7.10** — Confirm page: one date/time picker per selected service (same UX as **gap-8.3.7**, **no package discount**)
 
 #### Booking record & edge cases
 
-- [ ] **gap-8.7.11** — **DB / API** — `multi_service_booking_group` (distinct from `package_purchases`); staff booking parity
-- [ ] **gap-8.7.12** — No provider for all services; past closing; resources (**gap-8.2**); list change invalidates slots
-- [ ] **gap-8.7.13** — Cancel/reschedule: same-visit = atomic; per-service dates = independent (**gap-2.7**)
+- [x] **gap-8.7.11** — **DB / API** — `multi_service_booking_group` (distinct from `package_purchases`); staff booking parity
+- [x] **gap-8.7.12** — No provider for all services; past closing; resources (**gap-8.2**); list change invalidates slots
+- [x] **gap-8.7.13** — Cancel/reschedule: same-visit = atomic; per-service dates = independent (**gap-2.7**)
 
 #### Examples (gap-8.7)
 
