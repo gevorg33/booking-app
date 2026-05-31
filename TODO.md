@@ -5,13 +5,13 @@ Goal: **bookings + reminders + payments + staff schedule + reports** for salon/s
 
 Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
-**Build policy:** Ship **product features** first → **plans, onboarding & billing** → **provider App Store listings** → **AI expansion** → **consumer booking app last** (incl. web → App Store → tenant deep link). Existing AI baseline stays.
+**Build policy:** Ship **product features** first → **launch & consumer app** → **AI expansion** → **onboarding, pricing & Stripe plans last**. Existing AI baseline stays.
 
 ---
 
 ## Sprint overview
 
-~2-week sprints. Features **1–8** → Monetization **9–11** → AI **12–23** → Consumer app **24** (deferred).
+~2-week sprints. Features **1–8** → Launch & consumer **9–10** → AI **11–22** → Monetization **23–24**.
 
 | Sprint | Theme | IDs |
 |--------|--------|-----|
@@ -23,22 +23,22 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **6** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
 | **7** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
 | **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
-| **9** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
-| **10** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
-| **11** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
-| **12** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
-| **13** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
-| **14** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
-| **15** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
-| **16** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
-| **17** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
-| **18** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
-| **19** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
-| **20** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
-| **21** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
-| **22** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
-| **23** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
-| **24** | Consumer booking app *(deferred — last)* | **gap-2.5** |
+| **9** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
+| **10** | Consumer booking app | **gap-2.5** |
+| **11** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
+| **12** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
+| **13** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
+| **14** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
+| **15** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
+| **16** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
+| **17** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
+| **18** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
+| **19** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
+| **20** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
+| **21** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
+| **22** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **23** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
+| **24** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 
 ---
 
@@ -126,7 +126,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **sub-1.18** — Booking step copy — throughout flow show what they’re paying (one-time service price vs plan price vs $0 when using remaining credit) and appointments left after booking
 - [ ] **sub-1.19** — **My subscriptions** (user profile) — logged-in customer sees all subscriptions: plan name, linked service, **expiration date**, **appointments remaining** (and total included), status (active / expired / exhausted); tap through to usage history or book next visit
 
-*(Integrates with **gap-2.5** consumer app — Sprint 24.)*
+*(Integrates with **gap-2.5** consumer app — Sprint 10.)*
 
 #### Future-ready
 
@@ -170,28 +170,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 9 — Onboarding & pricing UX
-
-**Goal:** Streamlined first-run setup and public pricing once core features are ready.
-
-- [ ] **gap-6.1** — Simplified “first 30 minutes” onboarding — book link live in ≤3 steps
-- [ ] **gap-7.4** — Public pricing page with seat calculator + feature comparison matrix
-
----
-
-## Sprint 10 — Stripe plans & seats
-
-**Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
-
-- [ ] **gap-7.1** — Implement Solo / Starter / Growth / Business tiers in `plans.ts` + Stripe
-- [ ] **gap-7.2** — Per-seat billing (provider + admin seats) with enforcement on employee create / invite
-- [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
-- [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
-- [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
-
----
-
-## Sprint 11 — Launch: billing & provider app store
+## Sprint 9 — Launch: billing & provider app store
 
 **Goal:** Public launch readiness — billing options, upgrade flows, and store listings.
 
@@ -201,169 +180,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 12 — AI reliability & regression
-
-**Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
-
-- [ ] **gap-3.2** — Fix top failure modes — reschedule time parsing (AM/PM), clearer conflict errors, partial undo gaps (e.g. create schedule)
-- [ ] **gap-3.7** — Complete undo coverage for schedule mutations (snapshot period/slot IDs on create)
-- [ ] **gap-3.1** — AI eval harness — golden NL prompts + expected plans; CI regression (see **ai-i9**)
-
----
-
-## Sprint 13 — AI platform & limits
-
-**Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
-
-- [ ] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
-- [ ] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
-- [ ] **ai-0.10** — Extract shared hooks/libs — `useAiCommand`, `useAiSuggestions`, `useProviderAiCommand`; shared AI client types
-- [ ] **gap-3.3** — Enforce plan-based AI limits + usage meters (see `PLANS.md`, **ai-i10**)
-- [ ] **ai-i10** — Cost & latency budgets — route simple reads to rules; reserve LLM for classify + complex plans
-
----
-
-## Sprint 14 — AI dashboard UX core
-
-**Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
-
-- [ ] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
-- [ ] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
-- [ ] **ai-d7** — Undo / rollback — after mutation, show "Undo" window using workflow execution log
-- [ ] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
-
----
-
-## Sprint 15 — AI dashboard depth
-
-**Goal:** Macros, wizards, risk explainability, proactive reports.
-
-- [ ] **ai-d5** — Command templates / macros — save frequent ops: "Monday morning setup", "End-of-week gap fill"
-- [ ] **ai-d6** — Multi-step wizard mode — complex ops (`setup_week_schedule`) → guided steps with preview between stages
-- [ ] **ai-d10** — Risk badges + policy explain — why approval required: "3 providers × 7 days = high risk"
-- [ ] **ai-d11** — Execution timeline — step-by-step workflow progress with retry on failed step
-- [ ] **ai-d18** — Weekly ops report — AI-generated: underutilized staff, top gaps, recommended template changes
-- [ ] **ai-d19** — Notification center integration — in-app alerts: "Conflict detected — tap to resolve"
-
----
-
-## Sprint 16 — AI page coverage & onboarding
-
-**Goal:** AI on Customers, Reports, and during onboarding.
-
-- [ ] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
-- [ ] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
-- [ ] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
-- [ ] **gap-6.3** — Complete AI i18n — all strings in EN / HY / RU (see **ai-d22**)
-- [ ] **gap-6.6** — Enable AI assistant during onboarding with guided prompts (see **ai-d21**)
-- [ ] **gap-8.6** — AI customer panels — no-show re-engagement, inactive lookup (see **ai-d24**)
-
----
-
-## Sprint 17 — AI mobile commands
-
-**Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
-
-- [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
-- [ ] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
-- [ ] **ai-m8** — `check_availability` — own schedule only (provider view)
-- [ ] **ai-m9** — `show_appointments` / `list_bookings` — enrich with service filters
-- [ ] **ai-m11** — `block_schedule` — own lunch/break blocks only
-- [ ] **ai-m13** — `summarize_utilization` — own week stats; managers see team summary
-
----
-
-## Sprint 18 — AI mobile push & voice
-
-**Goal:** Hands-free input and push → deep link → AI prefill.
-
-- [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)
-- [ ] **ai-m16** — Push deep links — `pushNotificationActionPerformed` → route + prefill AI prompt
-- [ ] **ai-m17** — Foreground push banner — in-app toast: "New booking 14:00 — Add buffer?"
-- [ ] **ai-m19** — End-of-day summary push — "4 appointments, 1 unpaid, 2 gaps tomorrow"
-- [ ] **gap-2.2** — Push deep links into booking detail + AI prefill (see **ai-m16**)
-- [ ] **gap-2.4** — Voice input on provider mobile (see **ai-m5**)
-- [ ] **gap-2.6** — End-of-day / new-booking push summaries for providers (see **ai-m19**, **ai-m17**)
-
----
-
-## Sprint 19 — AI mobile offline
-
-**Goal:** AI commands and suggestions when connectivity drops.
-
-- [ ] **ai-m20** — Offline command queue — queue safe mutations; replay when online
-- [ ] **ai-m21** — Optimistic UI — instant feedback on "mark paid" with rollback on failure
-- [ ] **ai-m22** — Cached last suggestions — show stale suggestions offline with "refresh when online"
-
----
-
-## Sprint 20 — AI intelligence layer
-
-**Goal:** Memory, handoff, coordination, optional RAG.
-
-- [ ] **ai-i2** — Entity memory — "Gevorg" → default provider; "facemassage" → default service for this business
-- [ ] **ai-i3** — Conversation summaries — compress long AI threads for session handoff dashboard ↔ mobile
-- [ ] **ai-i6** — Cross-provider coordination — "If Maria cancels, offer slot to waitlist customer John"
-- [ ] **ai-i8** — Optional RAG — embed SOP docs, past successful plans, business notes for better planning
-
----
-
-## Sprint 21 — AI scheduling scenarios
-
-**Goal:** Advanced NL scheduling ops beyond baseline template cascade.
-
-- [ ] **ai-s2** — Smart block propagation — "Block lunch 12–13 for everyone, repeat 4 weeks, skip holidays"
-- [ ] **ai-s3** — Schedule swap — "Swap Friday schedules between Gevorg and Maria"
-- [ ] **ai-s4** — Capacity rebalance — "Move 2 facemassage slots from Gevorg to Maria on Friday"
-- [ ] **ai-s5** — Holiday mode — "Close Dec 24–26 for all, extend Dec 23 hours"
-- [ ] **ai-s6** — New hire onboarding schedule — "Set up Anna's first week from weekday template + assign massage services"
-
----
-
-## Sprint 22 — AI booking & business ops
-
-**Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
-
-- [ ] **ai-b3** — No-show handling — "Mark no-shows today, release slots, suggest rebooking messages"
-- [ ] **ai-b4** — Payment sweep — "Mark all completed today as paid except walk-ins"
-- [ ] **ai-b5** — Day replan — "Maria is sick — cancel her day and redistribute urgent bookings"
-- [ ] **ai-o1** — Catalog from photo/menu — OCR + `create_services` batch with human review
-- [ ] **ai-o2** — Pricing adjustment — "Raise all massage prices 10% from June 1"
-- [ ] **ai-o3** — Staff-service matrix — "Assign all color services to senior stylists only"
-- [ ] **ai-o4** — Compliance check — "Any appointments outside business hours this month?"
-- [ ] **ai-o5** — Revenue forecast — "Project next week revenue from current schedule + historical no-show rate"
-
----
-
-## Sprint 23 — AI enterprise & analytics
-
-**Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
-
-- [ ] **ai-e1** — Multi-location businesses — AI scoped by branch
-- [ ] **ai-e3** — Role-based intent permissions (receptionist vs owner)
-- [ ] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
-- [ ] **ai-e5** — A/B test suggestion copy and auto-execute thresholds
-- [ ] **ai-e6** — Admin analytics: command success rate, clarify rate, approval rate
-- [ ] **ai-e7** — Human-in-the-loop SLA — escalate stuck tasks to owner
-- [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
-- [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
-
-### AI success metrics (Sprints 12–23)
-
-| Metric | Target |
-|--------|--------|
-| Command completion rate (no clarify) | >75% |
-| Clarify → success on 2nd turn | >90% |
-| Auto-execute rate (low-risk) | >60% |
-| Approval → execute rate | >80% |
-| Mobile AI adoption (DAU providers using AI) | >40% |
-| Mean time to resolve conflict via AI | <2 min |
-
-**AI baseline (already shipped):** command completion pipeline, schedule/booking/catalog intents on dashboard, narrow booking ops on mobile, proactive suggestions, conflict recovery, waitlist fill, autopilot rules, morning briefing.
-
----
-
-## Sprint 24 — Consumer booking app *(deferred — build last)*
+## Sprint 10 — Consumer booking app
 
 **Goal:** Native/PWA consumer app + web → App Store → tenant deep link so customers land on the correct salon after install.
 
@@ -400,6 +217,189 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **gap-2.5.10** — Consumer app App Store / Play Store listing (separate from provider app **gap-1.5**)
 
 *(Integrates **sub-1** subscriptions — one-time vs plan picker, My subscriptions profile.)*
+
+---
+
+## Sprint 11 — AI reliability & regression
+
+**Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
+
+- [ ] **gap-3.2** — Fix top failure modes — reschedule time parsing (AM/PM), clearer conflict errors, partial undo gaps (e.g. create schedule)
+- [ ] **gap-3.7** — Complete undo coverage for schedule mutations (snapshot period/slot IDs on create)
+- [ ] **gap-3.1** — AI eval harness — golden NL prompts + expected plans; CI regression (see **ai-i9**)
+
+---
+
+## Sprint 12 — AI platform & limits
+
+**Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
+
+- [ ] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
+- [ ] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
+- [ ] **ai-0.10** — Extract shared hooks/libs — `useAiCommand`, `useAiSuggestions`, `useProviderAiCommand`; shared AI client types
+- [ ] **gap-3.3** — Enforce plan-based AI limits + usage meters (see `PLANS.md`, **ai-i10**)
+- [ ] **ai-i10** — Cost & latency budgets — route simple reads to rules; reserve LLM for classify + complex plans
+
+---
+
+## Sprint 13 — AI dashboard UX core
+
+**Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
+
+- [ ] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
+- [ ] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
+- [ ] **ai-d7** — Undo / rollback — after mutation, show "Undo" window using workflow execution log
+- [ ] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
+
+---
+
+## Sprint 14 — AI dashboard depth
+
+**Goal:** Macros, wizards, risk explainability, proactive reports.
+
+- [ ] **ai-d5** — Command templates / macros — save frequent ops: "Monday morning setup", "End-of-week gap fill"
+- [ ] **ai-d6** — Multi-step wizard mode — complex ops (`setup_week_schedule`) → guided steps with preview between stages
+- [ ] **ai-d10** — Risk badges + policy explain — why approval required: "3 providers × 7 days = high risk"
+- [ ] **ai-d11** — Execution timeline — step-by-step workflow progress with retry on failed step
+- [ ] **ai-d18** — Weekly ops report — AI-generated: underutilized staff, top gaps, recommended template changes
+- [ ] **ai-d19** — Notification center integration — in-app alerts: "Conflict detected — tap to resolve"
+
+---
+
+## Sprint 15 — AI page coverage & onboarding
+
+**Goal:** AI on Customers, Reports, and during onboarding.
+
+- [ ] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
+- [ ] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
+- [ ] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
+- [ ] **gap-6.3** — Complete AI i18n — all strings in EN / HY / RU (see **ai-d22**)
+- [ ] **gap-6.6** — Enable AI assistant during onboarding with guided prompts (see **ai-d21**)
+- [ ] **gap-8.6** — AI customer panels — no-show re-engagement, inactive lookup (see **ai-d24**)
+
+---
+
+## Sprint 16 — AI mobile commands
+
+**Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
+
+- [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
+- [ ] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
+- [ ] **ai-m8** — `check_availability` — own schedule only (provider view)
+- [ ] **ai-m9** — `show_appointments` / `list_bookings` — enrich with service filters
+- [ ] **ai-m11** — `block_schedule` — own lunch/break blocks only
+- [ ] **ai-m13** — `summarize_utilization` — own week stats; managers see team summary
+
+---
+
+## Sprint 17 — AI mobile push & voice
+
+**Goal:** Hands-free input and push → deep link → AI prefill.
+
+- [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)
+- [ ] **ai-m16** — Push deep links — `pushNotificationActionPerformed` → route + prefill AI prompt
+- [ ] **ai-m17** — Foreground push banner — in-app toast: "New booking 14:00 — Add buffer?"
+- [ ] **ai-m19** — End-of-day summary push — "4 appointments, 1 unpaid, 2 gaps tomorrow"
+- [ ] **gap-2.2** — Push deep links into booking detail + AI prefill (see **ai-m16**)
+- [ ] **gap-2.4** — Voice input on provider mobile (see **ai-m5**)
+- [ ] **gap-2.6** — End-of-day / new-booking push summaries for providers (see **ai-m19**, **ai-m17**)
+
+---
+
+## Sprint 18 — AI mobile offline
+
+**Goal:** AI commands and suggestions when connectivity drops.
+
+- [ ] **ai-m20** — Offline command queue — queue safe mutations; replay when online
+- [ ] **ai-m21** — Optimistic UI — instant feedback on "mark paid" with rollback on failure
+- [ ] **ai-m22** — Cached last suggestions — show stale suggestions offline with "refresh when online"
+
+---
+
+## Sprint 19 — AI intelligence layer
+
+**Goal:** Memory, handoff, coordination, optional RAG.
+
+- [ ] **ai-i2** — Entity memory — "Gevorg" → default provider; "facemassage" → default service for this business
+- [ ] **ai-i3** — Conversation summaries — compress long AI threads for session handoff dashboard ↔ mobile
+- [ ] **ai-i6** — Cross-provider coordination — "If Maria cancels, offer slot to waitlist customer John"
+- [ ] **ai-i8** — Optional RAG — embed SOP docs, past successful plans, business notes for better planning
+
+---
+
+## Sprint 20 — AI scheduling scenarios
+
+**Goal:** Advanced NL scheduling ops beyond baseline template cascade.
+
+- [ ] **ai-s2** — Smart block propagation — "Block lunch 12–13 for everyone, repeat 4 weeks, skip holidays"
+- [ ] **ai-s3** — Schedule swap — "Swap Friday schedules between Gevorg and Maria"
+- [ ] **ai-s4** — Capacity rebalance — "Move 2 facemassage slots from Gevorg to Maria on Friday"
+- [ ] **ai-s5** — Holiday mode — "Close Dec 24–26 for all, extend Dec 23 hours"
+- [ ] **ai-s6** — New hire onboarding schedule — "Set up Anna's first week from weekday template + assign massage services"
+
+---
+
+## Sprint 21 — AI booking & business ops
+
+**Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
+
+- [ ] **ai-b3** — No-show handling — "Mark no-shows today, release slots, suggest rebooking messages"
+- [ ] **ai-b4** — Payment sweep — "Mark all completed today as paid except walk-ins"
+- [ ] **ai-b5** — Day replan — "Maria is sick — cancel her day and redistribute urgent bookings"
+- [ ] **ai-o1** — Catalog from photo/menu — OCR + `create_services` batch with human review
+- [ ] **ai-o2** — Pricing adjustment — "Raise all massage prices 10% from June 1"
+- [ ] **ai-o3** — Staff-service matrix — "Assign all color services to senior stylists only"
+- [ ] **ai-o4** — Compliance check — "Any appointments outside business hours this month?"
+- [ ] **ai-o5** — Revenue forecast — "Project next week revenue from current schedule + historical no-show rate"
+
+---
+
+## Sprint 22 — AI enterprise & analytics
+
+**Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
+
+- [ ] **ai-e1** — Multi-location businesses — AI scoped by branch
+- [ ] **ai-e3** — Role-based intent permissions (receptionist vs owner)
+- [ ] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
+- [ ] **ai-e5** — A/B test suggestion copy and auto-execute thresholds
+- [ ] **ai-e6** — Admin analytics: command success rate, clarify rate, approval rate
+- [ ] **ai-e7** — Human-in-the-loop SLA — escalate stuck tasks to owner
+- [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
+- [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
+
+### AI success metrics (Sprints 11–22)
+
+| Metric | Target |
+|--------|--------|
+| Command completion rate (no clarify) | >75% |
+| Clarify → success on 2nd turn | >90% |
+| Auto-execute rate (low-risk) | >60% |
+| Approval → execute rate | >80% |
+| Mobile AI adoption (DAU providers using AI) | >40% |
+| Mean time to resolve conflict via AI | <2 min |
+
+**AI baseline (already shipped):** command completion pipeline, schedule/booking/catalog intents on dashboard, narrow booking ops on mobile, proactive suggestions, conflict recovery, waitlist fill, autopilot rules, morning briefing.
+
+---
+
+## Sprint 23 — Onboarding & pricing UX
+
+**Goal:** Streamlined first-run setup and public pricing once product, consumer app, and AI are ready.
+
+- [ ] **gap-6.1** — Simplified “first 30 minutes” onboarding — book link live in ≤3 steps
+- [ ] **gap-7.4** — Public pricing page with seat calculator + feature comparison matrix
+
+---
+
+## Sprint 24 — Stripe plans & seats
+
+**Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
+
+- [ ] **gap-7.1** — Implement Solo / Starter / Growth / Business tiers in `plans.ts` + Stripe
+- [ ] **gap-7.2** — Per-seat billing (provider + admin seats) with enforcement on employee create / invite
+- [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
+- [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
+- [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
 
 ---
 
