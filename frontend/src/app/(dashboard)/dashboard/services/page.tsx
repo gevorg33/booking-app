@@ -6,10 +6,11 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
-import { AiPagePanel } from '@/components/ai-page-panel';
+import { ServicePackagesTab } from '@/components/services/service-packages-tab';
+import { MultiServiceSettingsTab } from '@/components/services/multi-service-settings-tab';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
-type ServicesTab = 'categories' | 'types';
+type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
 
 interface ServiceCategoryRecord {
   id: string;
@@ -573,6 +574,8 @@ export default function ServicesPage() {
   const tabs: { id: ServicesTab; label: string }[] = [
     { id: 'types', label: t('servicesPage.tabServiceTypes') },
     { id: 'categories', label: t('servicesPage.tabCategories') },
+    { id: 'packages', label: t('servicesPage.tabPackages') },
+    { id: 'multiService', label: t('servicesPage.tabMultiService') },
   ];
 
   const { data: stripeConnect } = useQuery({
@@ -748,6 +751,14 @@ export default function ServicesPage() {
           createCategoryMutation={createCategoryMutation}
           deleteCategoryMutation={deleteCategoryMutation}
           t={t}
+        />
+      )}
+
+      {tab === 'packages' && business?.id && <ServicePackagesTab businessId={business.id} />}
+      {tab === 'multiService' && business?.id && (
+        <MultiServiceSettingsTab
+          businessId={business.id}
+          services={(services ?? []).map((svc) => ({ id: svc.id, name: svc.name }))}
         />
       )}
 

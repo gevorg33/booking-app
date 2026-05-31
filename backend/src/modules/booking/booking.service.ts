@@ -21,6 +21,9 @@ import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezon
 import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
 import { SchedulingResourcesService } from '../resources/scheduling-resources.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
+import { buildSequentialAppointments } from '../../common/utils/multi-service-booking.util.js';
+import { resolveMultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -55,6 +58,8 @@ export class BookingService {
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(MultiServiceBookingGroup)
+    private multiServiceGroupRepo: Repository<MultiServiceBookingGroup>,
     private schedulingEngine: SchedulingEngineService,
     private eventStore: EventStoreService,
     private dataSource: DataSource,
@@ -248,7 +253,11 @@ export class BookingService {
 
       const paymentStatus =
         options?.paymentStatus ??
-        (useSubscriptionId
+        (dto.packagePurchaseId
+          ? PaymentStatus.NOT_APPLICABLE
+          : dto.multiServiceGroupId
+            ? PaymentStatus.NOT_APPLICABLE
+            : useSubscriptionId
           ? PaymentStatus.NOT_APPLICABLE
           : service.prepaymentMode === PrepaymentMode.NONE
             ? PaymentStatus.NOT_APPLICABLE
@@ -259,6 +268,8 @@ export class BookingService {
         employeeId: dto.employeeId,
         serviceId: dto.serviceId,
         customerId: dto.customerId,
+        packagePurchaseId: dto.packagePurchaseId ?? null,
+        multiServiceGroupId: dto.multiServiceGroupId ?? null,
         startTime,
         endTime,
         status: BookingStatus.CONFIRMED,
@@ -315,7 +326,7 @@ export class BookingService {
     return this.findOne(booking.id);
   }
 
-  async update(bookingId: string, dto: UpdateBookingDto, userId?: string): Promise<Booking> {
+  async update(bookingId: string, dto: UpdateBookingDto, userId?: string, internal?: { skipGroupReschedule?: boolean }): Promise<Booking> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: { employee: true, service: true, customer: true },
@@ -374,6 +385,17 @@ export class BookingService {
     const oldEmployeeId = booking.employeeId;
 
     if (isRescheduling) {
+      if (!internal?.skipGroupReschedule && booking.multiServiceGroupId) {
+        const rescheduled = await this.maybeRescheduleMultiServiceGroup(
+          booking,
+          targetStart,
+          targetEmployeeId,
+          userId,
+          dto.expectedUpdatedAt,
+        );
+        if (rescheduled) return this.findOne(booking.id);
+      }
+
       if (targetStart <= new Date()) {
         throw new ConflictException('Cannot reschedule to a time in the past');
       }
@@ -743,9 +765,29 @@ export class BookingService {
     reason?: string,
     userId?: string,
     expectedUpdatedAt?: string,
+    options?: { skipGroupCancel?: boolean },
   ): Promise<Booking> {
     const booking = await this.findOne(id);
     this.assertExpectedUpdatedAt(booking, expectedUpdatedAt);
+
+    if (!options?.skipGroupCancel && booking.multiServiceGroupId) {
+      const group = await this.multiServiceGroupRepo.findOne({
+        where: { id: booking.multiServiceGroupId },
+      });
+      if (group?.schedulingMode === 'same_visit') {
+        const siblings = await this.bookingRepo.find({
+          where: {
+            multiServiceGroupId: group.id,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+        });
+        for (const sibling of siblings) {
+          if (sibling.id === id) continue;
+          await this.cancel(sibling.id, reason, userId, undefined, { skipGroupCancel: true });
+        }
+      }
+    }
+
     const wasAlreadyCancelled = booking.status === BookingStatus.CANCELLED;
 
     await this.releaseSlotsByWindow(
@@ -1578,5 +1620,57 @@ export class BookingService {
       }
       await this.slotRepo.save(slot);
     }
+  }
+
+  private async maybeRescheduleMultiServiceGroup(
+    booking: Booking,
+    targetStart: Date,
+    targetEmployeeId: string,
+    userId?: string,
+    expectedUpdatedAt?: string,
+  ): Promise<boolean> {
+    if (!booking.multiServiceGroupId) return false;
+
+    const group = await this.multiServiceGroupRepo.findOne({
+      where: { id: booking.multiServiceGroupId },
+    });
+    if (!group || group.schedulingMode !== 'same_visit') return false;
+
+    const siblings = await this.bookingRepo.find({
+      where: {
+        multiServiceGroupId: group.id,
+        status: Not(BookingStatus.CANCELLED) as any,
+      },
+      relations: { service: true },
+      order: { startTime: 'ASC' },
+    });
+    if (siblings.length === 0) return false;
+
+    const business = await this.businessRepo.findOne({ where: { id: booking.businessId } });
+    const turnover = resolveMultiServiceSettings(business?.settings).turnoverBufferMinutes;
+    const serviceLines = siblings.map((entry) => ({
+      serviceId: entry.serviceId,
+      durationMinutes: entry.service!.durationMinutes,
+      bufferMinutes: entry.service!.bufferMinutes,
+    }));
+
+    const sequential = buildSequentialAppointments(serviceLines, targetStart, turnover);
+
+    for (let i = 0; i < siblings.length; i++) {
+      const sibling = siblings[i];
+      const slot = sequential[i];
+      await this.update(
+        sibling.id,
+        {
+          startTime: slot.startTime.toISOString(),
+          employeeId: targetEmployeeId,
+          ...(sibling.id === booking.id ? { expectedUpdatedAt } : {}),
+        },
+        userId,
+        { skipGroupReschedule: true },
+      );
+    }
+
+    return true;
   }
 }

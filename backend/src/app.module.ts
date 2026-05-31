@@ -30,6 +30,8 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { ResourcesModule } from './modules/resources/resources.module.js';
 import { ServiceSubscriptionsModule } from './modules/service-subscriptions/service-subscriptions.module.js';
+import { ServicePackagesModule } from './modules/service-packages/service-packages.module.js';
+import { MultiServiceBookingsModule } from './modules/multi-service-bookings/multi-service-bookings.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ExpensesModule } from './modules/expenses/expenses.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
@@ -83,6 +85,8 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     InventoryModule,
     ResourcesModule,
     ServiceSubscriptionsModule,
+    ServicePackagesModule,
+    MultiServiceBookingsModule,
     CommissionsModule,
     ExpensesModule,
     OnboardingModule,

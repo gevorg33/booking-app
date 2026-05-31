@@ -8,8 +8,10 @@ import {
   IsObject,
   IsNumber,
   Min,
+  IsArray,
+  ArrayMinSize,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class PublicCustomerDto {
   @IsString()
@@ -136,4 +138,186 @@ export class GetServiceSlotsQueryDto {
 export class GetServiceSlotProvidersQueryDto {
   @IsDateString()
   startTime: string;
+}
+
+export class PackageBookingLineDto {
+  @IsString()
+  serviceId: string;
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @IsDateString()
+  startTime: string;
+}
+
+export class BookPublicPackageDto {
+  @IsString()
+  packageId: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PackageBookingLineDto)
+  lines: PackageBookingLineDto[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ValidateNested()
+  @Type(() => PublicCustomerDto)
+  customer: PublicCustomerDto;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  markPaid?: boolean;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  loyaltyPointsToRedeem?: number;
+}
+
+export class PublicPackageQuoteDto {
+  @IsString()
+  packageId: string;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  loyaltyPointsToRedeem?: number;
+}
+
+export class MultiServiceSelectionDto {
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  serviceIds: string[];
+}
+
+export class MultiServiceBlockSlotsQueryDto {
+  @IsDateString()
+  date: string;
+
+  @Transform(({ value }) => parseServiceIdsQuery(value))
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  serviceIds: string[];
+}
+
+export class MultiServiceBlockProvidersQueryDto {
+  @IsDateString()
+  startTime: string;
+
+  @Transform(({ value }) => parseServiceIdsQuery(value))
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  serviceIds: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  includeLaterDays?: boolean;
+}
+
+export class MultiServiceBookingLineDto {
+  @IsString()
+  serviceId: string;
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @IsDateString()
+  startTime: string;
+}
+
+export class BookPublicMultiServiceDto {
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  serviceIds: string[];
+
+  /** Same-visit block start (required when schedulingMode is same_visit) */
+  @IsOptional()
+  @IsDateString()
+  blockStartTime?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  /** Per-service lines (required when schedulingMode is per_service) */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MultiServiceBookingLineDto)
+  lines?: MultiServiceBookingLineDto[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ValidateNested()
+  @Type(() => PublicCustomerDto)
+  customer: PublicCustomerDto;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  markPaid?: boolean;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  loyaltyPointsToRedeem?: number;
+}
+
+export class PublicMultiServiceQuoteDto {
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  serviceIds: string[];
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  loyaltyPointsToRedeem?: number;
+}
+
+function parseServiceIdsQuery(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === 'string') return value.split(',').map((v) => v.trim()).filter(Boolean);
+  return [];
 }

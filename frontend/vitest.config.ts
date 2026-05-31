@@ -9,6 +9,8 @@ export default defineConfig({
       include: [
         'src/lib/subscription-plans.ts',
         'src/lib/subscription-pricing.ts',
+        'src/lib/service-packages.ts',
+        'src/lib/service-package-pricing.ts',
       ],
       thresholds: {
         statements: 98,

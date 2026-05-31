@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@n
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto } from './dto/public-booking.dto.js';
+import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
@@ -75,6 +75,145 @@ export class PublicBookingController {
     @Param('serviceId') serviceId: string,
   ) {
     return this.publicBookingService.getServiceSubscriptionPlans(slug, serviceId);
+  }
+
+  @Get('packages')
+  getPackages(@Param('slug') slug: string) {
+    return this.publicBookingService.getPublicPackages(slug);
+  }
+
+  @Get('packages/:packageId')
+  getPackage(@Param('slug') slug: string, @Param('packageId') packageId: string) {
+    return this.publicBookingService.getPublicPackage(slug, packageId);
+  }
+
+  @Get('packages/:packageId/suggest-slots')
+  suggestPackageSlots(
+    @Param('slug') slug: string,
+    @Param('packageId') packageId: string,
+  ) {
+    return this.publicBookingService.suggestPackageLineSlots(slug, packageId);
+  }
+
+  @Post('packages/quote')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  quotePackage(
+    @Param('slug') slug: string,
+    @Body() dto: PublicPackageQuoteDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.quotePackageCheckout(slug, dto, user?.customerId);
+  }
+
+  @Post('packages/book')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  bookPackage(
+    @Param('slug') slug: string,
+    @Body() dto: BookPublicPackageDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.bookPackage(slug, dto, user?.customerId);
+  }
+
+  @Post('packages/checkout')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  createPackageCheckout(
+    @Param('slug') slug: string,
+    @Body() dto: BookPublicPackageDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.bookingPaymentService.createPackageCheckoutSession(slug, dto, user?.customerId);
+  }
+
+  @Get('multi-service/settings')
+  getMultiServiceSettings(@Param('slug') slug: string) {
+    return this.publicBookingService.getMultiServiceSettings(slug);
+  }
+
+  @Post('multi-service/preview')
+  previewMultiService(@Param('slug') slug: string, @Body() dto: MultiServiceSelectionDto) {
+    return this.publicBookingService.previewMultiServiceSelection(slug, dto.serviceIds);
+  }
+
+  @Get('multi-service/block-slots')
+  getMultiServiceBlockSlots(
+    @Param('slug') slug: string,
+    @Query() query: MultiServiceBlockSlotsQueryDto,
+  ) {
+    return this.publicBookingService.getMultiServiceBlockDaySlots(
+      slug,
+      query.serviceIds,
+      query.date,
+    );
+  }
+
+  @Get('multi-service/suggest-block')
+  suggestMultiServiceBlock(
+    @Param('slug') slug: string,
+    @Query('serviceIds') serviceIdsRaw?: string | string[],
+  ) {
+    const serviceIds = Array.isArray(serviceIdsRaw)
+      ? serviceIdsRaw
+      : (serviceIdsRaw ?? '').split(',').filter(Boolean);
+    return this.publicBookingService.suggestMultiServiceBlock(slug, serviceIds);
+  }
+
+  @Get('multi-service/suggest-lines')
+  suggestMultiServiceLines(
+    @Param('slug') slug: string,
+    @Query('serviceIds') serviceIdsRaw?: string | string[],
+  ) {
+    const serviceIds = Array.isArray(serviceIdsRaw)
+      ? serviceIdsRaw
+      : (serviceIdsRaw ?? '').split(',').filter(Boolean);
+    return this.publicBookingService.suggestMultiServicePerServiceLines(slug, serviceIds);
+  }
+
+  @Get('multi-service/providers')
+  getMultiServiceProviders(
+    @Param('slug') slug: string,
+    @Query() query: MultiServiceBlockProvidersQueryDto,
+  ) {
+    return this.publicBookingService.getMultiServiceBlockProviders(
+      slug,
+      query.serviceIds,
+      query.startTime,
+      query.includeLaterDays === true,
+    );
+  }
+
+  @Post('multi-service/quote')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  quoteMultiService(
+    @Param('slug') slug: string,
+    @Body() dto: PublicMultiServiceQuoteDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.quoteMultiServiceCheckout(slug, dto, user?.customerId);
+  }
+
+  @Post('multi-service/book')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  bookMultiService(
+    @Param('slug') slug: string,
+    @Body() dto: BookPublicMultiServiceDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.bookMultiService(slug, dto, user?.customerId);
+  }
+
+  @Post('multi-service/checkout')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  createMultiServiceCheckout(
+    @Param('slug') slug: string,
+    @Body() dto: BookPublicMultiServiceDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    return this.bookingPaymentService.createMultiServiceCheckoutSession(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Get('services/:serviceId/slots')

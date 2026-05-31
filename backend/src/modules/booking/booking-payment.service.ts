@@ -24,10 +24,15 @@ import type { CheckoutPricingResult } from '../promo-codes/checkout-pricing.type
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { resolveEarnPercentForService } from '../loyalty/loyalty-settings.util.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import {
   resolvePublicCheckoutKind,
   buildSubscriptionLineItem,
+  buildPackageLineItem,
+  buildMultiServiceLineItem,
 } from '../../common/utils/subscription-checkout.util.js';
+import { BookPublicPackageDto, BookPublicMultiServiceDto } from '../public-booking/dto/public-booking.dto.js';
+import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 
 interface StripeCheckoutSession {
   id?: string;
@@ -54,6 +59,8 @@ export class BookingPaymentService {
     private publicBookingService: PublicBookingService,
     private checkoutPricingService: CheckoutPricingService,
     private subscriptionsService: ServiceSubscriptionsService,
+    private packagesService: ServicePackagesService,
+    private multiServiceBookingsService: MultiServiceBookingsService,
   ) {}
 
   calculatePrepaymentAmount(service: Service): number {
@@ -97,6 +104,277 @@ export class BookingPaymentService {
       },
       amountPaid: pricing.amountDue,
       cashPaidEligible: pricing.amountDue,
+    };
+  }
+
+  async resolvePackageCheckoutPricing(
+    businessId: string,
+    packageId: string,
+    dto: Pick<BookPublicPackageDto, 'promoCode' | 'loyaltyPointsToRedeem'>,
+    customerId?: string,
+  ) {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const preview = await this.packagesService.previewPackagePricing(businessId, packageId);
+    const packagePrice = preview.pricing.packagePrice;
+
+    return this.checkoutPricingService.calculate({
+      businessId,
+      servicePrice: packagePrice,
+      prepaymentAmount: packagePrice,
+      currency: preview.currency,
+      promoCode: dto.promoCode,
+      loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+      customerId,
+      earnPercentCashback: resolveEarnPercentForService(business?.settings, packageId),
+    });
+  }
+
+  async createPackageCheckoutSession(
+    slug: string,
+    dto: BookPublicPackageDto,
+    authenticatedCustomerId?: string,
+  ) {
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Online payments are not configured on the server');
+    }
+
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+      business.id,
+    );
+
+    const pricing = await this.resolvePackageCheckoutPricing(
+      business.id,
+      dto.packageId,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    if (pricing.amountDue <= 0) {
+      throw new BadRequestException(
+        'No payment is due after discounts. Confirm booking without checkout.',
+      );
+    }
+
+    const preview = await this.packagesService.previewPackagePricing(business.id, dto.packageId);
+    const line = buildPackageLineItem(preview.package.name, dto.lines.length);
+
+    if (!dto.customer.email && !dto.customer.phone) {
+      throw new BadRequestException('Email or phone number is required');
+    }
+
+    const draftPayload = {
+      ...dto,
+      metadata: {
+        ...(dto.metadata || {}),
+        ...(authenticatedCustomerId ? { authenticatedCustomerId } : {}),
+        checkoutPricing: pricing,
+        checkoutKind: 'package_purchase',
+        packageId: dto.packageId,
+      },
+    };
+
+    const draft = await this.draftRepo.save(
+      this.draftRepo.create({
+        businessId: business.id,
+        payload: draftPayload as unknown as Record<string, unknown>,
+        amount: pricing.amountDue,
+        currency: preview.currency,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        stripeConnectAccountId: connectAccountId,
+      }),
+    );
+
+    const frontendUrl = this.stripeService.frontendUrl;
+    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
+    const checkoutQuery = new URLSearchParams({
+      paid: '1',
+      session_id: '{CHECKOUT_SESSION_ID}',
+      packageId: dto.packageId,
+    });
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      {
+        mode: 'payment',
+        customer_email: dto.customer.email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: preview.currency.toLowerCase(),
+              unit_amount: Math.round(pricing.amountDue * 100),
+              product_data: {
+                name: line.name,
+                description: line.description,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          type: 'booking_payment',
+          draftId: draft.id,
+          businessId: business.id,
+          slug,
+          connectAccountId,
+          checkoutKind: 'package_purchase',
+        },
+        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}`,
+        cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
+      },
+      connectOpts,
+    );
+
+    if (!session.url) {
+      throw new BadRequestException('Failed to create payment session');
+    }
+
+    draft.stripeSessionId = session.id;
+    await this.draftRepo.save(draft);
+
+    return {
+      url: session.url,
+      sessionId: session.id,
+      amount: pricing.amountDue,
+      currency: preview.currency,
+    };
+  }
+
+  async resolveMultiServiceCheckoutPricing(
+    businessId: string,
+    serviceIds: string[],
+    dto: Pick<BookPublicMultiServiceDto, 'promoCode' | 'loyaltyPointsToRedeem'>,
+    customerId?: string,
+  ) {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const preview = await this.multiServiceBookingsService.previewTotals(businessId, serviceIds);
+    const totalPrice = preview.totals!.totalPrice;
+    const currency = preview.totals!.currency;
+
+    return this.checkoutPricingService.calculate({
+      businessId,
+      servicePrice: totalPrice,
+      prepaymentAmount: totalPrice,
+      currency,
+      promoCode: dto.promoCode,
+      loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
+      customerId,
+      earnPercentCashback: resolveEarnPercentForService(business?.settings, serviceIds[0]),
+    });
+  }
+
+  async createMultiServiceCheckoutSession(
+    slug: string,
+    dto: BookPublicMultiServiceDto,
+    authenticatedCustomerId?: string,
+  ) {
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Online payments are not configured on the server');
+    }
+
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+      business.id,
+    );
+
+    const pricing = await this.resolveMultiServiceCheckoutPricing(
+      business.id,
+      dto.serviceIds,
+      dto,
+      authenticatedCustomerId,
+    );
+
+    if (pricing.amountDue <= 0) {
+      throw new BadRequestException(
+        'No payment is due after discounts. Confirm booking without checkout.',
+      );
+    }
+
+    const preview = await this.multiServiceBookingsService.previewTotals(business.id, dto.serviceIds);
+    const line = buildMultiServiceLineItem(dto.serviceIds.length);
+
+    if (!dto.customer.email && !dto.customer.phone) {
+      throw new BadRequestException('Email or phone number is required');
+    }
+
+    const draftPayload = {
+      ...dto,
+      metadata: {
+        ...(dto.metadata || {}),
+        ...(authenticatedCustomerId ? { authenticatedCustomerId } : {}),
+        checkoutPricing: pricing,
+        checkoutKind: 'multi_service_booking',
+        serviceIds: dto.serviceIds,
+      },
+    };
+
+    const draft = await this.draftRepo.save(
+      this.draftRepo.create({
+        businessId: business.id,
+        payload: draftPayload as unknown as Record<string, unknown>,
+        amount: pricing.amountDue,
+        currency: preview.totals!.currency,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        stripeConnectAccountId: connectAccountId,
+      }),
+    );
+
+    const frontendUrl = this.stripeService.frontendUrl;
+    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
+    const checkoutQuery = new URLSearchParams({
+      paid: '1',
+      session_id: '{CHECKOUT_SESSION_ID}',
+      services: dto.serviceIds.join(','),
+    });
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      {
+        mode: 'payment',
+        customer_email: dto.customer.email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: preview.totals!.currency.toLowerCase(),
+              unit_amount: Math.round(pricing.amountDue * 100),
+              product_data: {
+                name: line.name,
+                description: line.description,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          type: 'booking_payment',
+          draftId: draft.id,
+          businessId: business.id,
+          slug,
+          connectAccountId,
+          checkoutKind: 'multi_service_booking',
+        },
+        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}`,
+        cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
+      },
+      connectOpts,
+    );
+
+    if (!session.url) {
+      throw new BadRequestException('Failed to create payment session');
+    }
+
+    draft.stripeSessionId = session.id;
+    await this.draftRepo.save(draft);
+
+    return {
+      url: session.url,
+      sessionId: session.id,
+      amount: pricing.amountDue,
+      currency: preview.totals!.currency,
     };
   }
 
@@ -346,6 +624,81 @@ export class BookingPaymentService {
       typeof dto.metadata?.authenticatedCustomerId === 'string'
         ? dto.metadata.authenticatedCustomerId
         : undefined;
+
+    const checkoutKind =
+      typeof dto.metadata?.checkoutKind === 'string'
+        ? dto.metadata.checkoutKind
+        : resolvePublicCheckoutKind(dto);
+
+    if (checkoutKind === 'package_purchase') {
+      const packageDto = dto as unknown as BookPublicPackageDto;
+      const result = await this.publicBookingService.bookPackage(
+        business.slug,
+        { ...packageDto, markPaid: true },
+        authenticatedCustomerId,
+      );
+
+      draft.status = 'completed';
+      draft.stripeSessionId = sessionId;
+      await this.draftRepo.save(draft);
+
+      await this.eventStore.publish({
+        eventType: EventType.PAYMENT_RECEIVED,
+        aggregateType: 'package_purchase',
+        aggregateId: result.packagePurchase.id,
+        businessId: business.id,
+        payload: {
+          packageId: packageDto.packageId,
+          customerId: result.customer.id,
+          amount: Number(draft.amount),
+          currency: draft.currency,
+          stripeSessionId: sessionId,
+          source: 'package_purchase',
+        },
+      });
+
+      return {
+        alreadyCompleted: false,
+        packagePurchase: result.packagePurchase,
+        bookings: result.bookings,
+        customer: result.customer,
+      };
+    }
+
+    if (checkoutKind === 'multi_service_booking') {
+      const multiDto = dto as unknown as BookPublicMultiServiceDto;
+      const result = await this.publicBookingService.bookMultiService(
+        business.slug,
+        { ...multiDto, markPaid: true },
+        authenticatedCustomerId,
+      );
+
+      draft.status = 'completed';
+      draft.stripeSessionId = sessionId;
+      await this.draftRepo.save(draft);
+
+      await this.eventStore.publish({
+        eventType: EventType.PAYMENT_RECEIVED,
+        aggregateType: 'multi_service_booking_group',
+        aggregateId: result.multiServiceGroup.id,
+        businessId: business.id,
+        payload: {
+          multiServiceGroupId: result.multiServiceGroup.id,
+          customerId: result.customer.id,
+          amount: Number(draft.amount),
+          currency: draft.currency,
+          stripeSessionId: sessionId,
+          source: 'multi_service_booking',
+        },
+      });
+
+      return {
+        alreadyCompleted: false,
+        multiServiceGroup: result.multiServiceGroup,
+        bookings: result.bookings,
+        customer: result.customer,
+      };
+    }
 
     const enrichedDto: CreatePublicBookingDto = {
       ...dto,

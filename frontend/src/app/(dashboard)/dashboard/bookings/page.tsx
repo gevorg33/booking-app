@@ -106,6 +106,15 @@ interface BookingItem {
   notes?: string;
   description?: string;
   cancellationReason?: string;
+  packagePurchaseId?: string | null;
+  multiServiceGroupId?: string | null;
+  metadata?: {
+    packageName?: string;
+    packageId?: string;
+    packagePurchaseId?: string;
+    groupLabel?: string;
+    multiServiceGroupId?: string;
+  };
   service?: { id: string; name: string; durationMinutes?: number; price?: number; currency?: string };
   employee?: { id: string; name: string };
   customer?: { id: string; name: string; email?: string; phone?: string };
