@@ -5,13 +5,13 @@ Goal: **bookings + reminders + payments + staff schedule + reports** for salon/s
 
 Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
-**Build policy:** Ship **product features** first → **launch & consumer app** → **AI expansion** → **onboarding, pricing & Stripe plans last**. Existing AI baseline stays.
+**Build policy:** Ship **product features** first → **launch & consumer app** → **lifecycle & ops** → **AI expansion** → **onboarding, pricing & Stripe plans last**. Existing AI baseline stays.
 
 ---
 
 ## Sprint overview
 
-~2-week sprints. Features **1–8** → Launch & consumer **9–10** → AI **11–22** → Monetization **23–24**.
+~2-week sprints. Features **1–8** → Launch & consumer **9–10** → Lifecycle & ops **11–12** → AI **13–24** → Monetization **25–26**.
 
 | Sprint | Theme | IDs |
 |--------|--------|-----|
@@ -25,20 +25,22 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
 | **9** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
 | **10** | Consumer booking app | **gap-2.5** |
-| **11** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
-| **12** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
-| **13** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
-| **14** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
-| **15** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
-| **16** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
-| **17** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
-| **18** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
-| **19** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
-| **20** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
-| **21** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
-| **22** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
-| **23** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
-| **24** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
+| **11** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
+| **12** | Customer booking self-service & staff push | gap-2.7, gap-2.8 |
+| **13** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
+| **14** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
+| **15** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
+| **16** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
+| **17** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
+| **18** | AI mobile commands | ai-m3, ai-m6, ai-m8, ai-m9, ai-m11, ai-m13 |
+| **19** | AI mobile push & voice | ai-m5, ai-m16, ai-m17, ai-m19, gap-2.2, gap-2.4, gap-2.6 |
+| **20** | AI mobile offline | ai-m20, ai-m21, ai-m22 |
+| **21** | AI intelligence layer | ai-i2, ai-i3, ai-i6, ai-i8 |
+| **22** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
+| **23** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
+| **24** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **25** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
+| **26** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 
 ---
 
@@ -220,7 +222,67 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 11 — AI reliability & regression
+## Sprint 11 — Marketing alerts & subscription accounting
+
+**Goal:** Notify the marketing team when customers register, and keep books in sync when subscriptions are sold.
+
+- [ ] **gap-4.6** — New customer registered → email marketing team (see spec below)
+- [ ] **gap-4.7** — Subscription purchased → create accounting record (see spec below)
+
+### gap-4.6 — New customer → marketing email
+
+**User story:** As a business owner, I want the marketing team notified when someone registers as a customer so we can welcome them or add them to campaigns.
+
+- [ ] **gap-4.6.1** — Settings — `Settings → Notifications` (or Integrations): **Marketing team email(s)** (comma-separated or list); toggle **Email on new customer registration**
+- [ ] **gap-4.6.2** — Trigger — on first customer create (public sign-up, booking checkout that creates customer, dashboard create); emit `customer.registered` or reuse `customer.upserted` with `isNew` flag
+- [ ] **gap-4.6.3** — Email content — customer name, email, phone, source (web booking / app / dashboard), business name, link to dashboard customer profile
+- [ ] **gap-4.6.4** — Delivery — use existing transactional email provider; log send failures; skip when toggle off or no recipients configured
+
+### gap-4.7 — Subscription purchase → accounting
+
+**User story:** When a customer buys a service subscription plan, I want an income line in accounting export / books without manual entry.
+
+- [ ] **gap-4.7.1** — Event — emit `subscription.purchased` (or `payment.received` with `source: subscription`) when subscription checkout completes (**sub-1**)
+- [ ] **gap-4.7.2** — Accounting row — date, plan name, amount paid, currency, customer name, subscription ID; type `income` / sub-type `subscription`
+- [ ] **gap-4.7.3** — Integrate with **gap-4.1** export — include subscription purchases in QuickBooks / Xero / CSV export range
+- [ ] **gap-4.7.4** — Optional — separate deferred-revenue handling later; MVP = recognize full plan price on purchase (document assumption)
+
+*(Depends on **sub-1** subscription checkout; can stub event + export row before full sub-1 UI ships.)*
+
+---
+
+## Sprint 12 — Customer booking self-service & staff push
+
+**Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
+
+- [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
+- [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
+
+### gap-2.7 — Customer self-service cancel & reschedule
+
+**User story:** As a registered customer, I want to cancel my appointment or pick a new date/time without calling the salon.
+
+- [ ] **gap-2.7.1** — Policy settings — admin configures: allow cancel (yes/no), allow reschedule (yes/no), minimum notice (e.g. 24h before start), max reschedules per booking
+- [ ] **gap-2.7.2** — API — `POST /public/{slug}/customer/bookings/:id/cancel` and `POST …/reschedule` (or PATCH with new slot); auth = public customer JWT; enforce policy + booking ownership
+- [ ] **gap-2.7.3** — Reschedule UX — show available slots for same service/provider (or allow provider change per policy); validate conflicts server-side
+- [ ] **gap-2.7.4** — Web public booking — “My appointments” for logged-in customer: Cancel / Reschedule actions with policy messaging
+- [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time
+- [ ] **gap-2.7.6** — Side effects — emit `booking.cancelled` / `booking.rescheduled`; restore subscription credit per **sub-1.10** policy when applicable
+
+### gap-2.8 — Staff push on cancel & reschedule
+
+**User story:** When a customer cancels or moves an appointment, the assigned provider and managers should get an immediate app notification.
+
+- [ ] **gap-2.8.1** — Extend **gap-2.1** `ProviderPushListener` — ensure `booking.cancelled` and `booking.rescheduled` fire for **customer-initiated** changes (not only dashboard)
+- [ ] **gap-2.8.2** — Recipients — assigned provider (linked user), mobile-enabled managers; dedupe if same user
+- [ ] **gap-2.8.3** — Push copy — “Jane cancelled Haircut at Mon 10:00” / “Jane rescheduled to Wed 14:00”; deep link to booking in provider app
+- [ ] **gap-2.8.4** — Optional email/SMS to business — settings toggle separate from marketing email (**gap-4.6**)
+
+*(Partial coverage exists via **gap-2.1** push listener; this sprint closes customer-initiated paths and consumer app parity.)*
+
+---
+
+## Sprint 13 — AI reliability & regression
 
 **Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
 
@@ -230,7 +292,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 12 — AI platform & limits
+## Sprint 14 — AI platform & limits
 
 **Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
 
@@ -242,7 +304,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 13 — AI dashboard UX core
+## Sprint 15 — AI dashboard UX core
 
 **Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
 
@@ -253,7 +315,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 14 — AI dashboard depth
+## Sprint 16 — AI dashboard depth
 
 **Goal:** Macros, wizards, risk explainability, proactive reports.
 
@@ -266,7 +328,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 15 — AI page coverage & onboarding
+## Sprint 17 — AI page coverage & onboarding
 
 **Goal:** AI on Customers, Reports, and during onboarding.
 
@@ -279,7 +341,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 16 — AI mobile commands
+## Sprint 18 — AI mobile commands
 
 **Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
 
@@ -292,7 +354,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 17 — AI mobile push & voice
+## Sprint 19 — AI mobile push & voice
 
 **Goal:** Hands-free input and push → deep link → AI prefill.
 
@@ -306,7 +368,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 18 — AI mobile offline
+## Sprint 20 — AI mobile offline
 
 **Goal:** AI commands and suggestions when connectivity drops.
 
@@ -316,7 +378,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 19 — AI intelligence layer
+## Sprint 21 — AI intelligence layer
 
 **Goal:** Memory, handoff, coordination, optional RAG.
 
@@ -327,7 +389,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 20 — AI scheduling scenarios
+## Sprint 22 — AI scheduling scenarios
 
 **Goal:** Advanced NL scheduling ops beyond baseline template cascade.
 
@@ -339,7 +401,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 21 — AI booking & business ops
+## Sprint 23 — AI booking & business ops
 
 **Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
 
@@ -354,7 +416,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 22 — AI enterprise & analytics
+## Sprint 24 — AI enterprise & analytics
 
 **Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
 
@@ -367,7 +429,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
 - [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
 
-### AI success metrics (Sprints 11–22)
+### AI success metrics (Sprints 13–24)
 
 | Metric | Target |
 |--------|--------|
@@ -382,7 +444,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 23 — Onboarding & pricing UX
+## Sprint 25 — Onboarding & pricing UX
 
 **Goal:** Streamlined first-run setup and public pricing once product, consumer app, and AI are ready.
 
@@ -391,7 +453,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 24 — Stripe plans & seats
+## Sprint 26 — Stripe plans & seats
 
 **Goal:** Solo / Starter / Growth / Business tiers live in Stripe; entitlements and tier-gated UI.
 
