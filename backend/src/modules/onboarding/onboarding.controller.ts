@@ -60,6 +60,18 @@ export class OnboardingController {
     return this.onboardingService.applyDefaultSchedule(businessId, user.id);
   }
 
+  @Get('vertical-playbook')
+  async getVerticalPlaybook(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+    await this.guard(businessId, user.id);
+    return this.onboardingService.getVerticalPlaybookPreview(businessId);
+  }
+
+  @Post('apply-playbook')
+  async applyPlaybook(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+    await this.guard(businessId, user.id);
+    return this.onboardingService.applyVerticalPlaybook(businessId, user.id);
+  }
+
   @Post('skip-schedule')
   async skipSchedule(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
     await this.guard(businessId, user.id);

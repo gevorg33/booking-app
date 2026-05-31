@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { MarketingAutomationSettingsPanel } from '@/components/integrations/marketing-automation-settings';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -219,6 +220,8 @@ export function GrowthDistributionTab() {
 
   return (
     <div className="space-y-6">
+      <MarketingAutomationSettingsPanel />
+
       {/* int-5 to int-8 Zendesk */}
       <div className="card">
         <div className="flex items-start gap-3 mb-4">

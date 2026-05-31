@@ -245,7 +245,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
 
 function InventoryTab({ businessId }: { businessId: string }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: '', sku: '', quantityOnHand: '0', unitCost: '0' });
+  const [form, setForm] = useState({ name: '', sku: '', quantityOnHand: '0', unitCost: '0', retailPrice: '0' });
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['inventory', businessId],
@@ -262,12 +262,13 @@ function InventoryTab({ businessId }: { businessId: string }) {
         sku: form.sku || undefined,
         quantityOnHand: parseInt(form.quantityOnHand, 10),
         unitCost: parseFloat(form.unitCost),
+        retailPrice: parseFloat(form.retailPrice),
       });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory', businessId] });
-      setForm({ name: '', sku: '', quantityOnHand: '0', unitCost: '0' });
+      setForm({ name: '', sku: '', quantityOnHand: '0', unitCost: '0', retailPrice: '0' });
     },
   });
 
@@ -296,6 +297,10 @@ function InventoryTab({ businessId }: { businessId: string }) {
           <label className="label">Unit cost</label>
           <input type="number" step="0.01" className="input" value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} />
         </div>
+        <div>
+          <label className="label">Retail price</label>
+          <input type="number" step="0.01" className="input" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} />
+        </div>
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -318,6 +323,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">Name</th>
                 <th className="px-4 py-3 font-medium text-gray-400">SKU</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Qty</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Retail</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Unit cost</th>
               </tr>
             </thead>
@@ -327,6 +333,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
                   <td className="px-4 py-3 font-medium">{p.name}</td>
                   <td className="px-4 py-3 text-gray-400">{p.sku || '—'}</td>
                   <td className="px-4 py-3">{p.quantityOnHand}</td>
+                  <td className="px-4 py-3">${Number(p.retailPrice ?? 0).toFixed(2)}</td>
                   <td className="px-4 py-3">${Number(p.unitCost).toFixed(2)}</td>
                 </tr>
               ))}

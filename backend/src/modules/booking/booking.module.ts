@@ -32,6 +32,7 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
 import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
+import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/mul
     ServiceSubscriptionsModule,
     ServicePackagesModule,
     MultiServiceBookingsModule,
+    RetailPosModule,
   ],
   controllers: [BookingController, AgentController],
   providers: [

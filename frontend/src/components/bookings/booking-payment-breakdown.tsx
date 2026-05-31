@@ -1,4 +1,4 @@
-import { Tag, Gift, CreditCard } from 'lucide-react';
+import { Tag, Gift, CreditCard, ShoppingBag } from 'lucide-react';
 import {
   type BookingPaymentSummary,
   formatBookingMoney,
@@ -15,10 +15,13 @@ interface BookingPaymentBreakdownProps {
     cashPaid: string;
     fullyCovered: string;
     loyaltyPoints: string;
+    retailTotal: string;
+    grandTotal: string;
   };
 }
 
-function AdjustmentIcon({ type }: { type: 'promo' | 'gift_card' | 'loyalty' }) {
+function AdjustmentIcon({ type }: { type: 'promo' | 'gift_card' | 'loyalty' | 'retail' }) {
+  if (type === 'retail') return <ShoppingBag className="w-3.5 h-3.5 shrink-0" />;
   if (type === 'promo') return <Tag className="w-3.5 h-3.5 shrink-0" />;
   return <Gift className="w-3.5 h-3.5 shrink-0" />;
 }
@@ -54,7 +57,9 @@ export function BookingPaymentBreakdown({ summary, labels }: BookingPaymentBreak
                   ? labels.promoDiscount
                   : item.type === 'gift_card'
                     ? 'Gift card'
-                    : labels.loyaltyDiscount}
+                    : item.type === 'retail'
+                      ? item.label
+                      : labels.loyaltyDiscount}
                 {item.code ? ` (${item.code})` : ''}
               </span>
             </dt>
@@ -66,11 +71,26 @@ export function BookingPaymentBreakdown({ summary, labels }: BookingPaymentBreak
             {labels.loyaltyPoints.replace('{points}', summary.loyaltyPointsRedeemed.toFixed(2))}
           </p>
         )}
+        {summary.retailTotal != null && summary.retailTotal > 0 && (
+          <div className="flex justify-between gap-3 text-gray-300">
+            <dt className="flex items-center gap-1.5">
+              <ShoppingBag className="w-3.5 h-3.5" />
+              {labels.retailTotal}
+            </dt>
+            <dd>{formatBookingMoney(summary.retailTotal, currency)}</dd>
+          </div>
+        )}
         <div className="flex justify-between gap-3 pt-1.5 border-t border-gray-700/80 font-medium">
           <dt className="text-gray-300">
-            {summary.cashPaid <= 0 && summary.hasDiscounts ? labels.fullyCovered : labels.cashPaid}
+            {summary.grandTotal != null && summary.grandTotal > (summary.cashPaid ?? 0)
+              ? labels.grandTotal
+              : summary.cashPaid <= 0 && summary.hasDiscounts
+                ? labels.fullyCovered
+                : labels.cashPaid}
           </dt>
-          <dd className="text-gray-100">{formatBookingMoney(summary.cashPaid, currency)}</dd>
+          <dd className="text-gray-100">
+            {formatBookingMoney(summary.grandTotal ?? summary.cashPaid, currency)}
+          </dd>
         </div>
       </dl>
     </div>

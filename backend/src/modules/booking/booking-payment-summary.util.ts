@@ -1,11 +1,18 @@
 import { roundBonus } from '../loyalty/loyalty.constants.js';
 
 export interface BookingPaymentAdjustment {
-  type: 'promo' | 'gift_card' | 'loyalty';
+  type: 'promo' | 'gift_card' | 'loyalty' | 'retail';
   label: string;
   code?: string;
   amount: number;
   points?: number;
+}
+
+export interface BookingRetailLineSummary {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
 }
 
 export interface BookingPaymentSummary {
@@ -19,6 +26,9 @@ export interface BookingPaymentSummary {
   promoCode: string | null;
   giftCardCode: string | null;
   cashPaid: number;
+  retailTotal: number;
+  retailLines: BookingRetailLineSummary[];
+  grandTotal: number;
   totalDiscount: number;
   hasDiscounts: boolean;
   adjustments: BookingPaymentAdjustment[];
@@ -49,7 +59,7 @@ function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjust
     if (!item || typeof item !== 'object') continue;
     const row = item as Record<string, unknown>;
     const type =
-      row.type === 'promo' || row.type === 'gift_card' || row.type === 'loyalty'
+      row.type === 'promo' || row.type === 'gift_card' || row.type === 'loyalty' || row.type === 'retail'
         ? row.type
         : null;
     const amount = readNumber(row.amount);
@@ -59,7 +69,9 @@ function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjust
         ? 'Promo discount'
         : type === 'gift_card'
           ? 'Gift card'
-          : 'Loyalty bonuses';
+          : type === 'retail'
+            ? 'Retail product'
+            : 'Loyalty bonuses';
     adjustments.push({
       type,
       label: typeof row.label === 'string' ? row.label : defaultLabel,
@@ -110,10 +122,16 @@ function fallbackAdjustments(
 /** Structured checkout payment breakdown for admin/provider appointment details. */
 export function resolveBookingPaymentSummary(
   source: BookingPaymentSummarySource,
+  retailLines: BookingRetailLineSummary[] = [],
 ): BookingPaymentSummary | null {
   const metadata = source.metadata ?? {};
   const pricing = readPricing(metadata);
-  if (!pricing && metadata.amountPaid == null && metadata.prepaymentAmount == null) {
+  if (
+    !pricing &&
+    metadata.amountPaid == null &&
+    metadata.prepaymentAmount == null &&
+    retailLines.length === 0
+  ) {
     return null;
   }
 
@@ -141,6 +159,11 @@ export function resolveBookingPaymentSummary(
     cashPaid = Math.max(0, subtotal - promoDiscount - giftCardDiscount - loyaltyDiscount);
   }
   cashPaid = roundBonus(cashPaid ?? 0);
+
+  const retailTotal = roundBonus(
+    retailLines.reduce((sum, line) => sum + line.lineTotal, 0),
+  );
+  const grandTotal = roundBonus(cashPaid + retailTotal);
 
   const totalDiscount = roundBonus(
     readNumber(pricing?.totalDiscount) ?? promoDiscount + giftCardDiscount + loyaltyDiscount,
@@ -170,17 +193,21 @@ export function resolveBookingPaymentSummary(
     promoCode,
     giftCardCode,
     cashPaid,
+    retailTotal,
+    retailLines,
+    grandTotal,
     totalDiscount,
-    hasDiscounts: promoDiscount > 0 || giftCardDiscount > 0 || loyaltyDiscount > 0,
+    hasDiscounts: promoDiscount > 0 || giftCardDiscount > 0 || loyaltyDiscount > 0 || retailTotal > 0,
     adjustments,
   };
 }
 
 export function withBookingPaymentSummary<T extends BookingPaymentSummarySource>(
   booking: T,
+  retailLines: BookingRetailLineSummary[] = [],
 ): T & { paymentSummary: BookingPaymentSummary | null } {
   return {
     ...booking,
-    paymentSummary: resolveBookingPaymentSummary(booking),
+    paymentSummary: resolveBookingPaymentSummary(booking, retailLines),
   };
 }

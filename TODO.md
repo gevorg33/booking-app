@@ -226,8 +226,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Retention automation and faster vertical setup.
 
-- [ ] **gap-8.1** — Marketing automation — re-engage inactive customers, post-visit follow-ups
-- [ ] **gap-8.5** — Vertical playbooks — pre-built services + schedule templates for “salon” vs “clinic”
+- [x] **gap-8.1** — Marketing automation — re-engage inactive customers, post-visit follow-ups
+- [x] **gap-8.5** — Vertical playbooks — pre-built services + schedule templates for “salon” vs “clinic”
 
 ---
 
@@ -235,9 +235,9 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Chair-side retail and enterprise sales collateral.
 
-- [ ] **gap-8.4** — Retail POS at chair — sell products during checkout (deeper than inventory module)
-- [ ] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
-- [ ] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
+- [x] **gap-8.4** — Retail POS at chair — sell products during checkout (deeper than inventory module)
+- [x] **gap-5.4** — Data processing agreement (DPA) + privacy policy templates for EU customers
+- [x] **gap-5.5** — SOC 2 / security questionnaire one-pager (encryption, backups, access control)
 
 ---
 
@@ -245,8 +245,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Decide medical vertical and marketplace positioning before building either.
 
-- [ ] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
-- [ ] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
+- [x] **gap-5.6** — Clinic/health vertical — evaluate HIPAA BAA requirements before medical positioning
+- [x] **gap-1.6** — Optional client discovery / marketplace (or partner directory) — evaluate vs software-only positioning
 
 ---
 
@@ -431,6 +431,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 **Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
 
 - [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
+- [ ] **feature** — After a booking is completed and the customer receives the confirmation email, add a Reschedule / Cancel Booking button on the final "Booking Complete" step.
+When the user clicks this button, provide two possible flows:
+If the user does not have an account, prompt them to register using the same email address they entered during checkout. After registration, they should be able to view, reschedule, or cancel their bookings.
+If the user accesses the booking through the confirmation email, the redirect URL should include a secure token or identifier associated with the booking/email, allowing the system to recognize the customer and take them directly to the booking management page without requiring additional steps.
+The goal is to provide a seamless self-service experience for customers to manage their bookings after checkout.
 - [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
 - [ ] **pay-2** — Customer **cash payment** option at booking when admin enables it (see spec below)
 
