@@ -27,7 +27,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **10** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
 | **11** | Consumer booking app | **gap-2.5** |
 | **12** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
-| **13** | Customer booking self-service & staff push | gap-2.7, gap-2.8 |
+| **13** | Customer booking self-service & staff push | gap-2.7, gap-2.8, **pay-2** |
 | **14** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
 | **15** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
 | **16** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
@@ -433,6 +433,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
 - [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
+- [ ] **pay-2** — Customer **cash payment** option at booking when admin enables it (see spec below)
 
 ### gap-2.7 — Customer self-service cancel & reschedule
 
@@ -455,6 +456,41 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **gap-2.8.4** — Optional email/SMS to business — settings toggle separate from marketing email (**gap-4.6**)
 
 *(Partial coverage exists via **gap-2.1** push listener; this sprint closes customer-initiated paths and consumer app parity.)*
+
+### pay-2 — Cash payment at booking (public checkout)
+
+**User story:** As a customer, I want to choose **Pay in cash** at checkout when the business accepts cash, instead of being forced through online card payment only.
+
+**User story (admin):** As a dashboard admin, I want to enable or disable cash as an accepted payment method for public bookings so customers can pay at the venue.
+
+#### Admin settings (dashboard)
+
+- [ ] **pay-2.1** — **Accept cash payments** toggle — business setting (e.g. Monetization → Payments or Business settings): when **off**, public checkout shows online payment only (Stripe when configured); when **on**, customer may select cash
+- [ ] **pay-2.2** — **Rules** — optional: allow cash only when service prepayment is none/deposit; disallow cash when full prepayment required online; admin copy explaining when cash appears
+- [ ] **pay-2.3** — **Public API** — expose `acceptCashPayments` (and related rules) on business/public booking config so frontend can show/hide cash option without extra round-trip
+
+#### Customer checkout (public booking)
+
+- [ ] **pay-2.4** — **Payment method selector** — on confirm/checkout step when admin enabled cash: **Pay online** (Stripe — existing **pay-1** flow) vs **Pay in cash at visit**; hide cash option when admin disabled or service rules block it
+- [ ] **pay-2.5** — **Cash booking flow** — selecting cash creates booking without Stripe session; `paymentStatus`: **pending** / **pay_at_venue**; amount due stored on booking metadata; confirmation copy: “Pay {amount} in cash when you arrive”
+- [ ] **pay-2.6** — **Online still default** — when both methods available, default to online if service requires prepayment/deposit; cash pre-selected only when no online charge due or admin prefers cash-first (setting)
+
+#### Staff & reconciliation
+
+- [ ] **pay-2.7** — **Mark paid in dashboard / provider app** — staff confirms cash received → `paymentStatus` → **paid**; optional “Mark paid (cash)” action with timestamp + user id
+- [ ] **pay-2.8** — **Reports & calendar** — show unpaid / pay-at-venue bookings; filter by payment method; loyalty earn on cash when marked paid (reuse eligible cash rules)
+
+#### Edge cases
+
+- [ ] **pay-2.9** — **Mixed checkout** — gift card / promo / loyalty + cash remainder: cash option covers **amount due** after credits; no Stripe for zero online portion
+- [ ] **pay-2.10** — **Subscriptions & packages** — define whether **sub-1** / **gap-8.3** purchases require online pay or can use cash (default: online only for prepaid products)
+- [ ] **pay-2.11** — **No-show / cancel** — cash bookings follow same cancel policy (**gap-2.7**); no automatic refund path
+
+#### Example
+
+Admin enables “Accept cash payments” → customer books Haircut ($30, no prepayment) → checkout shows **Pay in cash at visit** → booking confirmed, payment pending → stylist marks **Paid (cash)** after appointment.
+
+*(Complements historical **pay-1** Stripe prepay; Stripe remains required when admin disables cash or service mandates online prepayment.)*
 
 ---
 
