@@ -5,6 +5,7 @@ import { BusinessService } from '../business/business.service.js';
 import { GiftCardsService } from './gift-cards.service.js';
 import { GiftCardPurchaseService } from './gift-card-purchase.service.js';
 import { GiftCardFulfillmentService } from './gift-card-fulfillment.service.js';
+import { GiftCardOrderService } from './gift-card-order.service.js';
 import {
   mergeGiftCardSettings,
   readBusinessGiftCardSettings,
@@ -21,6 +22,7 @@ export class GiftCardsController {
     private giftCardsService: GiftCardsService,
     private purchaseService: GiftCardPurchaseService,
     private fulfillmentService: GiftCardFulfillmentService,
+    private orderService: GiftCardOrderService,
     private businessService: BusinessService,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
   ) {}
@@ -86,6 +88,38 @@ export class GiftCardsController {
     );
   }
 
+  @Get('change-requests')
+  @UseGuards(JwtAuthGuard)
+  async listChangeRequests(
+    @Param('businessId') businessId: string,
+    @Query('status') status: string | undefined,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return { requests: await this.orderService.listChangeRequests(businessId, status) };
+  }
+
+  @Put('change-requests/:requestId/resolve')
+  @UseGuards(JwtAuthGuard)
+  async resolveChangeRequest(
+    @Param('businessId') businessId: string,
+    @Param('requestId') requestId: string,
+    @Body()
+    dto: {
+      resolution: 'approve' | 'deny' | 'needs_info';
+      specialistNotes?: string;
+    },
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.orderService.resolveChangeRequest(
+      businessId,
+      requestId,
+      dto.resolution,
+      dto.specialistNotes,
+    );
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
@@ -95,6 +129,43 @@ export class GiftCardsController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.giftCardsService.create(businessId, dto);
+  }
+
+  @Put(':giftCardId/expiration')
+  @UseGuards(JwtAuthGuard)
+  async updateExpiration(
+    @Param('businessId') businessId: string,
+    @Param('giftCardId') giftCardId: string,
+    @Body()
+    dto: {
+      expiresAt?: string | null;
+      extendMonths?: number;
+      extendDays?: number;
+      note?: string;
+    },
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const card = await this.giftCardsService.updateExpiration(
+      businessId,
+      giftCardId,
+      dto,
+      user.id,
+    );
+    return { card };
+  }
+
+  @Get(':giftCardId/expiration-audit')
+  @UseGuards(JwtAuthGuard)
+  async expirationAudit(
+    @Param('businessId') businessId: string,
+    @Param('giftCardId') giftCardId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return {
+      entries: await this.giftCardsService.listExpirationAudit(giftCardId),
+    };
   }
 
   @Get(':giftCardId/history')

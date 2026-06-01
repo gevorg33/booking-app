@@ -333,4 +333,27 @@ describe('GiftCardPurchaseService', () => {
     });
     expect(quote.subtotal).toBe(45);
   });
+
+  it('uses default shipping method when shippingMethodId is omitted', async () => {
+    businessRepo.findOne.mockResolvedValue(business);
+    const quote = await service.quotePurchase('biz-1', {
+      cardType: 'monetary',
+      amount: 50,
+      deliveryMethod: 'physical',
+      purchaserEmail: 'buyer@test.com',
+    });
+    expect(quote.shippingFee).toBe(5);
+  });
+
+  it('fulfills service card when service entity exists after quote validation', async () => {
+    serviceRepo.findOne.mockResolvedValue({ id: 'svc-1', name: 'Facial', price: 45 });
+    const card = await service.fulfillPurchase('biz-1', {
+      cardType: 'service',
+      serviceId: 'svc-1',
+      deliveryMethod: 'digital',
+      purchaserEmail: 'buyer@test.com',
+    });
+    expect(card.cardType).toBe('service');
+    expect(creditRepo.save).toHaveBeenCalled();
+  });
 });

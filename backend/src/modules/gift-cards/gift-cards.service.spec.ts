@@ -10,8 +10,18 @@ describe('GiftCardsService', () => {
   };
   const creditRepo = { find: jest.fn(), save: jest.fn(), create: jest.fn() };
   const redemptionRepo = { find: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const expirationAuditRepo = {
+    find: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
 
-  const service = new GiftCardsService(giftCardRepo as any, creditRepo as any, redemptionRepo as any);
+  const service = new GiftCardsService(
+    giftCardRepo as any,
+    creditRepo as any,
+    redemptionRepo as any,
+    expirationAuditRepo as any,
+  );
 
   const baseCard = {
     id: 'gc-1',
@@ -35,6 +45,9 @@ describe('GiftCardsService', () => {
     creditRepo.save.mockImplementation(async (v) => v);
     redemptionRepo.create.mockImplementation((v) => v);
     redemptionRepo.save.mockImplementation(async (v) => v);
+    expirationAuditRepo.create.mockImplementation((v) => v);
+    expirationAuditRepo.save.mockImplementation(async (v) => v);
+    expirationAuditRepo.find.mockResolvedValue([]);
   });
 
   it('creates typed monetary gift card codes', async () => {
@@ -213,5 +226,69 @@ describe('GiftCardsService', () => {
     giftCardRepo.save.mockImplementation(async (v) => v);
     const result = await service.redeemServiceCredit('biz-1', 'GCB-MULTI', 'svc-1');
     expect(result.isActive).toBe(true);
+  });
+
+  it('updates expiration, writes audit, and skips no-op changes', async () => {
+    const previous = new Date('2027-06-01T23:59:59.999Z');
+    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: previous });
+    giftCardRepo.save.mockImplementation(async (v) => v);
+
+    const updated = await service.updateExpiration(
+      'biz-1',
+      'gc-1',
+      { expiresAt: '2028-12-31', note: 'Customer request' },
+      'admin-1',
+    );
+    expect(updated.expiresAt).toEqual(new Date('2028-12-31T23:59:59.999Z'));
+    expect(expirationAuditRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'set',
+        adminUserId: 'admin-1',
+        note: 'Customer request',
+        previousExpiresAt: previous,
+      }),
+    );
+
+    jest.clearAllMocks();
+    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: updated.expiresAt });
+    const unchanged = await service.updateExpiration(
+      'biz-1',
+      'gc-1',
+      { expiresAt: '2028-12-31' },
+      'admin-1',
+    );
+    expect(expirationAuditRepo.save).not.toHaveBeenCalled();
+    expect(unchanged.expiresAt).toEqual(updated.expiresAt);
+  });
+
+  it('extends and clears expiration with audit trail', async () => {
+    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: null });
+    giftCardRepo.save.mockImplementation(async (v) => v);
+
+    await service.updateExpiration('biz-1', 'gc-1', { extendMonths: 3 }, 'admin-2');
+    expect(expirationAuditRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'extend', adminUserId: 'admin-2' }),
+    );
+
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      expiresAt: new Date('2028-01-01T00:00:00.000Z'),
+    });
+    await service.updateExpiration('biz-1', 'gc-1', { expiresAt: null }, 'admin-2');
+    expect(expirationAuditRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'clear', newExpiresAt: null }),
+    );
+  });
+
+  it('lists expiration audit entries', async () => {
+    expirationAuditRepo.find.mockResolvedValue([{ id: 'audit-1', action: 'set' }]);
+    await expect(service.listExpirationAudit('gc-1')).resolves.toHaveLength(1);
+  });
+
+  it('rejects expiration update for missing card', async () => {
+    giftCardRepo.findOne.mockResolvedValue(null);
+    await expect(
+      service.updateExpiration('biz-1', 'missing', { expiresAt: '2028-01-01' }, 'admin-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -74,6 +74,7 @@ export class GiftCardPurchaseService {
         shippingMethods: settings.physicalDeliveryEnabled ? settings.shippingMethods : [],
         cancelModifyEnabled: settings.cancelModifyEnabled,
         cancelModifyWindowHours: settings.cancelModifyWindowHours,
+        physicalCancelBeforeReady: settings.physicalCancelBeforeReady,
       },
     };
   }
@@ -140,6 +141,7 @@ export class GiftCardPurchaseService {
         serviceId: input.serviceId ?? null,
         purchaserCustomerId: input.purchaserCustomerId ?? null,
         codeRevealed: !isPhysical,
+        stripeSessionId: stripeSessionId ?? null,
         cardCreatorStaffId: settings.cardCreatorStaffIds[0] ?? null,
         deliveryStaffId: settings.deliveryStaffIds[0] ?? null,
       }),

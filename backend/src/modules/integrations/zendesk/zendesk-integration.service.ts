@@ -367,6 +367,69 @@ export class ZendeskIntegrationService {
     return this.syncCustomerRecord(business, customer, runtime);
   }
 
+  async createGiftCardChangeTicket(
+    businessId: string,
+    card: {
+      id: string;
+      code: string;
+      cardType: string;
+      deliveryMethod?: string | null;
+      fulfillmentStatus?: string | null;
+      purchaseAmount?: number | null;
+      balance?: number;
+      expiresAt?: Date | null;
+      recipientName?: string | null;
+      recipientEmail?: string | null;
+      purchaserEmail?: string | null;
+      serviceCredits?: Array<{ serviceName: string; quantityRemaining: number }>;
+    },
+    request: {
+      id: string;
+      requestType: string;
+      customerNotes?: string | null;
+      modifyPayload?: Record<string, unknown> | null;
+    },
+  ) {
+    const requesterEmail = card.purchaserEmail?.trim();
+    if (!requesterEmail) {
+      throw new BadRequestException('Purchaser email is required for Zendesk ticket');
+    }
+
+    const creditsSummary = (card.serviceCredits ?? [])
+      .map((c) => `${c.serviceName} (${c.quantityRemaining} left)`)
+      .join(', ');
+    const bodyParts = [
+      `Request type: ${request.requestType}`,
+      `Gift card order ID: ${card.id}`,
+      `Code: ${card.code}`,
+      `Type: ${card.cardType}`,
+      `Delivery: ${card.deliveryMethod ?? 'n/a'}`,
+      `Fulfillment status: ${card.fulfillmentStatus ?? 'n/a'}`,
+      `Purchase amount: ${card.purchaseAmount ?? card.balance ?? 'n/a'}`,
+      card.expiresAt ? `Expiration: ${card.expiresAt.toISOString()}` : 'Expiration: none',
+      `Recipient: ${card.recipientName ?? 'n/a'} <${card.recipientEmail ?? 'n/a'}>`,
+      request.customerNotes ? `Customer notes:\n${request.customerNotes}` : null,
+      request.modifyPayload
+        ? `Requested changes:\n${JSON.stringify(request.modifyPayload, null, 2)}`
+        : null,
+      creditsSummary ? `Service credits: ${creditsSummary}` : null,
+      `Change request ID: ${request.id}`,
+    ].filter(Boolean);
+
+    const integration = getBusinessZendeskIntegration(
+      (await this.businessRepo.findOne({ where: { id: businessId } }))?.settings,
+    );
+    const tags = ['optischedule', 'gift-card', 'sales-specialist', request.requestType];
+
+    return this.createSupportTicket(businessId, {
+      subject: `Gift card ${request.requestType} request — ${card.code}`,
+      body: bodyParts.join('\n\n'),
+      requesterEmail,
+      requesterName: card.recipientName ?? requesterEmail,
+      tags,
+    });
+  }
+
   private async syncCustomerRecord(
     business: Business,
     customer: Customer,

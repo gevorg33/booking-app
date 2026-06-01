@@ -121,6 +121,9 @@ export class GiftCard {
   @Column({ name: 'zendesk_ticket_id', nullable: true })
   zendeskTicketId: string | null;
 
+  @Column({ name: 'stripe_session_id', nullable: true })
+  stripeSessionId: string | null;
+
   @OneToMany(() => GiftCardServiceCredit, (credit) => credit.giftCard)
   serviceCredits: GiftCardServiceCredit[];
 

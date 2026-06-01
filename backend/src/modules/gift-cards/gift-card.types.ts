@@ -102,6 +102,12 @@ export function mergeGiftCardSettings(raw?: Record<string, unknown>): GiftCardBu
       ? partial.cardCreatorStaffIds
       : [],
     deliveryStaffIds: Array.isArray(partial.deliveryStaffIds) ? partial.deliveryStaffIds : [],
+    cancelModifyEnabled:
+      partial.cancelModifyEnabled ?? DEFAULT_GIFT_CARD_SETTINGS.cancelModifyEnabled,
+    cancelModifyWindowHours:
+      partial.cancelModifyWindowHours ?? DEFAULT_GIFT_CARD_SETTINGS.cancelModifyWindowHours,
+    physicalCancelBeforeReady:
+      partial.physicalCancelBeforeReady ?? DEFAULT_GIFT_CARD_SETTINGS.physicalCancelBeforeReady,
   };
 }
 

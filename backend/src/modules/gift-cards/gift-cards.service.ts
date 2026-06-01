@@ -4,8 +4,13 @@ import { Repository } from 'typeorm';
 import { GiftCard } from './entities/gift-card.entity.js';
 import { GiftCardServiceCredit } from './entities/gift-card-service-credit.entity.js';
 import { GiftCardRedemption } from './entities/gift-card-redemption.entity.js';
+import { GiftCardExpirationAudit } from './entities/gift-card-expiration-audit.entity.js';
 import { generateGiftCardCode } from './gift-card-code.util.js';
 import type { GiftCardType } from './gift-card.types.js';
+import {
+  resolveGiftCardExpirationUpdate,
+  type UpdateGiftCardExpirationInput,
+} from './gift-card-expiration.util.js';
 
 export interface GiftCardBalanceView {
   id: string;
@@ -29,6 +34,8 @@ export class GiftCardsService {
     @InjectRepository(GiftCard) private giftCardRepo: Repository<GiftCard>,
     @InjectRepository(GiftCardServiceCredit) private creditRepo: Repository<GiftCardServiceCredit>,
     @InjectRepository(GiftCardRedemption) private redemptionRepo: Repository<GiftCardRedemption>,
+    @InjectRepository(GiftCardExpirationAudit)
+    private expirationAuditRepo: Repository<GiftCardExpirationAudit>,
   ) {}
 
   async list(businessId: string): Promise<GiftCard[]> {
@@ -190,6 +197,50 @@ export class GiftCardsService {
 
   async listRedemptions(giftCardId: string): Promise<GiftCardRedemption[]> {
     return this.redemptionRepo.find({
+      where: { giftCardId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async updateExpiration(
+    businessId: string,
+    giftCardId: string,
+    input: UpdateGiftCardExpirationInput,
+    adminUserId: string,
+  ): Promise<GiftCard> {
+    const card = await this.giftCardRepo.findOne({ where: { id: giftCardId, businessId } });
+    if (!card) throw new NotFoundException('Gift card not found');
+
+    const previousExpiresAt = card.expiresAt;
+    const resolved = resolveGiftCardExpirationUpdate(previousExpiresAt, input);
+
+    if (
+      previousExpiresAt?.getTime() === resolved.expiresAt?.getTime() ||
+      (!previousExpiresAt && !resolved.expiresAt)
+    ) {
+      return card;
+    }
+
+    card.expiresAt = resolved.expiresAt;
+    const saved = await this.giftCardRepo.save(card);
+
+    await this.expirationAuditRepo.save(
+      this.expirationAuditRepo.create({
+        giftCardId: card.id,
+        businessId,
+        adminUserId,
+        action: resolved.action,
+        previousExpiresAt,
+        newExpiresAt: resolved.expiresAt,
+        note: input.note?.trim() || null,
+      }),
+    );
+
+    return saved;
+  }
+
+  async listExpirationAudit(giftCardId: string): Promise<GiftCardExpirationAudit[]> {
+    return this.expirationAuditRepo.find({
       where: { giftCardId },
       order: { createdAt: 'DESC' },
     });

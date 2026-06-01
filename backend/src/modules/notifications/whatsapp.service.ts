@@ -17,6 +17,14 @@ export interface WhatsAppBookingPayload {
   cancelReason?: string;
 }
 
+export interface WhatsAppGiftCardPayload {
+  toPhone: string;
+  recipientName: string;
+  businessName: string;
+  giftCardCode: string;
+  summary: string;
+}
+
 interface TemplateSendOptions {
   name: string;
   language: string;
@@ -284,6 +292,51 @@ export class WhatsAppService implements OnModuleInit {
       } else if (resolved.isFallback) {
         this.logger.log(
           `WhatsApp delivered via fallback — personalized template will be used automatically once Meta approves "${templateName}"`,
+        );
+      }
+
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WhatsApp send failed';
+      return { ok: false, error: message };
+    }
+  }
+
+  async sendGiftCardMessage(
+    payload: WhatsAppGiftCardPayload,
+    config: WhatsAppRuntimeConfig,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const to = this.normalizeRecipient(payload.toPhone);
+    if (!to) {
+      return { ok: false, error: `Invalid phone number for WhatsApp: ${payload.toPhone}` };
+    }
+
+    const templateName = config.templateGiftCard;
+    const templateLang = config.templateLanguage;
+    const allBodyParams = [
+      payload.recipientName,
+      payload.businessName,
+      payload.giftCardCode,
+      payload.summary,
+    ];
+    const bodyParams =
+      config.giftCardBodyParamCount > 0
+        ? allBodyParams
+            .slice(0, config.giftCardBodyParamCount)
+            .map((v) => this.formatTemplateValue(v))
+        : [];
+
+    const preview = `[gift card] ${payload.businessName}: ${payload.giftCardCode} → ${payload.summary}`;
+
+    try {
+      const resolved = await this.resolveTemplateSend(config, templateName, templateLang, bodyParams);
+      const result = await this.sendTemplate(config, to, resolved, preview);
+
+      if (!result.ok) {
+        this.logger.warn(`WhatsApp gift card error to ${to}: ${result.error}`);
+      } else if (resolved.isFallback) {
+        this.logger.log(
+          `WhatsApp gift card delivered via fallback — approve "${templateName}" in Meta for full message content`,
         );
       }
 

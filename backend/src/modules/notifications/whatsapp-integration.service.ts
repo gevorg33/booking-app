@@ -51,6 +51,9 @@ export class WhatsAppIntegrationService {
       templateReminder:
         this.config.get<string>('WHATSAPP_TEMPLATE_REMINDER') ||
         DEFAULT_WHATSAPP_INTEGRATION.templateReminder,
+      templateGiftCard:
+        this.config.get<string>('WHATSAPP_TEMPLATE_GIFT_CARD') ||
+        DEFAULT_WHATSAPP_INTEGRATION.templateGiftCard,
       templateLanguage:
         this.config.get<string>('WHATSAPP_TEMPLATE_LANGUAGE') ||
         DEFAULT_WHATSAPP_INTEGRATION.templateLanguage,
@@ -61,6 +64,10 @@ export class WhatsAppIntegrationService {
       reminderBodyParamCount: Number(
         this.config.get<string>('WHATSAPP_TEMPLATE_REMINDER_BODY_PARAMS') ??
           DEFAULT_WHATSAPP_INTEGRATION.templateReminderBodyParams,
+      ),
+      giftCardBodyParamCount: Number(
+        this.config.get<string>('WHATSAPP_TEMPLATE_GIFT_CARD_BODY_PARAMS') ??
+          DEFAULT_WHATSAPP_INTEGRATION.templateGiftCardBodyParams,
       ),
       fallbackTemplate:
         this.config.get<string>('WHATSAPP_FALLBACK_TEMPLATE') ||
@@ -99,6 +106,8 @@ export class WhatsAppIntegrationService {
         DEFAULT_WHATSAPP_INTEGRATION.templateConfirmation,
       templateReminder:
         integration.templateReminder || DEFAULT_WHATSAPP_INTEGRATION.templateReminder,
+      templateGiftCard:
+        integration.templateGiftCard || DEFAULT_WHATSAPP_INTEGRATION.templateGiftCard,
       templateLanguage:
         integration.templateLanguage || DEFAULT_WHATSAPP_INTEGRATION.templateLanguage,
       templateBodyParamCount:
@@ -106,6 +115,9 @@ export class WhatsAppIntegrationService {
       reminderBodyParamCount:
         integration.templateReminderBodyParams ??
         DEFAULT_WHATSAPP_INTEGRATION.templateReminderBodyParams,
+      giftCardBodyParamCount:
+        integration.templateGiftCardBodyParams ??
+        DEFAULT_WHATSAPP_INTEGRATION.templateGiftCardBodyParams,
       fallbackTemplate:
         integration.fallbackTemplate || DEFAULT_WHATSAPP_INTEGRATION.fallbackTemplate,
       fallbackLanguage:

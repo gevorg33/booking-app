@@ -34,4 +34,12 @@ describe('gift-card.types', () => {
       shippingMethods: expect.arrayContaining([expect.objectContaining({ id: 'standard' })]),
     });
   });
+
+  it('falls back to defaults for cancel/modify settings', () => {
+    expect(mergeGiftCardSettings({ cancelModifyEnabled: false, cancelModifyWindowHours: 12 })).toMatchObject({
+      cancelModifyEnabled: false,
+      cancelModifyWindowHours: 12,
+      physicalCancelBeforeReady: true,
+    });
+  });
 });

@@ -125,6 +125,14 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
     await expect(service.listDashboardOrders('biz-1')).resolves.toHaveLength(1);
   });
 
+  it('lists delivery queue including ready and out-for-delivery orders', async () => {
+    giftCardRepo.find.mockResolvedValue([
+      { ...physicalOrder, fulfillmentStatus: 'ready_for_delivery' },
+      { ...physicalOrder, id: 'order-2', fulfillmentStatus: 'out_for_delivery' },
+    ]);
+    await expect(service.listDeliveryQueue('biz-1')).resolves.toHaveLength(2);
+  });
+
   it('throws when physical order is missing', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
     await expect(service.markDelivered('biz-1', 'missing')).rejects.toThrow('not found');
