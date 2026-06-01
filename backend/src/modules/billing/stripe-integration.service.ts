@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
+import { resolveStripeConnectCountry } from './stripe-connect-country.util.js';
 import { StripeService } from './stripe.service.js';
 import { UpdateStripeIntegrationDto } from './dto/update-stripe-integration.dto.js';
 import {
@@ -33,14 +34,176 @@ export class StripeIntegrationService {
     return getBusinessStripeIntegration(settings).connectAccountId ?? null;
   }
 
+  private connectCallbackUrls() {
+    const base = `${this.stripeService.frontendUrl}/dashboard/billing`;
+    return {
+      returnUrl: `${base}?stripe_connect=return`,
+      refreshUrl: `${base}?stripe_connect=refresh`,
+    };
+  }
+
+  private resolveConnectCountry(business: Business): string {
+    return resolveStripeConnectCountry(business, this.stripeService.connectDefaultCountry);
+  }
+
+  private async persistConnectSettings(
+    business: Business,
+    patch: { connectAccountId?: string; connectCountry?: string },
+  ) {
+    const settings = { ...(business.settings || {}) };
+    const integrations = { ...(settings.integrations as Record<string, unknown>) || {} };
+    const current = { ...((integrations.stripe as Record<string, unknown>) || {}) };
+    if (patch.connectAccountId !== undefined) current.connectAccountId = patch.connectAccountId;
+    if (patch.connectCountry !== undefined) current.connectCountry = patch.connectCountry;
+    integrations.stripe = current;
+    settings.integrations = integrations;
+    business.settings = settings;
+    await this.businessRepo.save(business);
+  }
+
+  private connectAccountCapabilities():
+    | { transfers: { requested: true } }
+    | { card_payments: { requested: true }; transfers: { requested: true } } {
+    if (this.stripeService.usesDestinationCharges()) {
+      return { transfers: { requested: true } };
+    }
+    return {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    };
+  }
+
+  private isConnectAccountReady(account: {
+    charges_enabled?: boolean;
+    capabilities?: { transfers?: string };
+  }): boolean {
+    if (this.stripeService.usesDestinationCharges()) {
+      return account.capabilities?.transfers === 'active';
+    }
+    return Boolean(account.charges_enabled);
+  }
+
+  /** Platform-managed Express account — appears under Stripe Connect → Connected accounts. */
+  async createConnectOnboardingLink(businessId: string): Promise<{ url: string }> {
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Stripe is not configured on the platform');
+    }
+
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const country = this.resolveConnectCountry(business);
+    const stripe = this.stripeService.client;
+    let connectAccountId = this.resolveConnectAccountId(business.settings);
+
+    if (!connectAccountId) {
+      let account;
+      try {
+        account = await stripe.accounts.create({
+          type: 'express',
+          country,
+          email: business.email || undefined,
+          capabilities: this.connectAccountCapabilities(),
+          metadata: { businessId: business.id, businessSlug: business.slug },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (/cannot be created by platforms in/i.test(message)) {
+          throw new BadRequestException(
+            `Stripe does not allow ${country} connected accounts on this platform. ` +
+              `Set STRIPE_CONNECT_DEFAULT_COUNTRY to a supported value (e.g. AE) and try again.`,
+          );
+        }
+        if (/card_payments capability is not supported/i.test(message)) {
+          throw new BadRequestException(
+            'Stripe UAE Connect does not support card_payments on connected accounts. ' +
+              'Ensure STRIPE_CONNECT_CHARGE_MODEL=destination is set and try again. ' +
+              'If the issue persists, contact Stripe to enable Express Connect for your UAE platform.',
+          );
+        }
+        throw err;
+      }
+      connectAccountId = account.id;
+      await this.persistConnectSettings(business, {
+        connectAccountId: account.id,
+        connectCountry: country,
+      });
+    }
+
+    if (!connectAccountId) {
+      throw new BadRequestException('Failed to create Stripe connected account');
+    }
+
+    const { returnUrl, refreshUrl } = this.connectCallbackUrls();
+    const link = await stripe.accountLinks.create({
+      account: connectAccountId,
+      type: 'account_onboarding',
+      return_url: returnUrl,
+      refresh_url: refreshUrl,
+    });
+
+    if (!link.url) {
+      throw new BadRequestException('Failed to create Stripe onboarding link');
+    }
+
+    return { url: link.url };
+  }
+
+  async syncConnectAccount(businessId: string): Promise<StripeIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = this.resolveConnectAccountId(business.settings);
+    if (!connectAccountId) {
+      throw new BadRequestException('No Stripe account linked for this business');
+    }
+
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Stripe is not configured on the platform');
+    }
+
+    try {
+      await this.stripeService.client.accounts.retrieve(connectAccountId);
+    } catch (err) {
+      this.logger.warn(`Stripe sync failed for ${connectAccountId}`);
+      throw new BadRequestException('Could not verify Stripe account. Try connecting again.');
+    }
+
+    return this.getPublicSettings(businessId);
+  }
+
+  async createConnectLoginLink(businessId: string): Promise<{ url: string }> {
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Stripe is not configured on the platform');
+    }
+
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = this.resolveConnectAccountId(business.settings);
+    if (!connectAccountId) {
+      throw new BadRequestException('Connect Stripe before opening the dashboard');
+    }
+
+    const link = await this.stripeService.client.accounts.createLoginLink(connectAccountId);
+    if (!link.url) {
+      throw new BadRequestException('Failed to create Stripe dashboard link');
+    }
+
+    return { url: link.url };
+  }
+
   async getPublicSettings(businessId: string): Promise<StripeIntegrationPublicView> {
     const business = await this.businessRepo.findOne({ where: { id: businessId } });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessStripeIntegration(business.settings);
+    const connectCountry = this.resolveConnectCountry(business);
+
     if (!integration.connectAccountId) {
       return {
         configured: false,
+        connectCountry,
         chargesEnabled: false,
         detailsSubmitted: false,
       };
@@ -50,6 +213,7 @@ export class StripeIntegrationService {
       return {
         configured: false,
         connectAccountId: integration.connectAccountId,
+        connectCountry: integration.connectCountry ?? connectCountry,
         chargesEnabled: false,
         detailsSubmitted: false,
       };
@@ -60,12 +224,15 @@ export class StripeIntegrationService {
         integration.connectAccountId,
       );
       return {
-        configured: Boolean(account.charges_enabled),
+        configured: this.isConnectAccountReady(account),
         connectAccountId: integration.connectAccountId,
-        chargesEnabled: Boolean(account.charges_enabled),
+        connectCountry: integration.connectCountry ?? account.country?.toUpperCase(),
+        accountType: account.type ?? undefined,
+        chargesEnabled: this.isConnectAccountReady(account),
         detailsSubmitted: Boolean(account.details_submitted),
         displayName:
           account.business_profile?.name ||
+          account.email ||
           (account as { settings?: { dashboard?: { display_name?: string } } }).settings?.dashboard
             ?.display_name,
       };
@@ -74,6 +241,7 @@ export class StripeIntegrationService {
       return {
         configured: false,
         connectAccountId: integration.connectAccountId,
+        connectCountry: integration.connectCountry,
         chargesEnabled: false,
         detailsSubmitted: false,
       };
@@ -109,17 +277,19 @@ export class StripeIntegrationService {
       throw new BadRequestException('Stripe is not configured on the platform');
     }
 
-    const account = await this.stripeService.client.accounts.retrieve(connectAccountId);
-    if (!account.charges_enabled) {
+    let account;
+    try {
+      account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+    } catch {
       throw new BadRequestException(
-        'This Stripe account cannot accept charges yet. Complete Stripe onboarding first.',
+        'Could not find that connected account. Copy the ID from Stripe → Connect → Connected accounts.',
       );
     }
 
-    integrations.stripe = { connectAccountId };
-    settings.integrations = integrations;
-    business.settings = settings;
-    await this.businessRepo.save(business);
+    await this.persistConnectSettings(business, {
+      connectAccountId,
+      connectCountry: account.country?.toUpperCase(),
+    });
 
     return this.getPublicSettings(businessId);
   }
@@ -136,6 +306,13 @@ export class StripeIntegrationService {
     }
     if (!this.stripeService.isConfigured) {
       throw new BadRequestException('Online payments are not configured on the platform');
+    }
+
+    const account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+    if (!this.isConnectAccountReady(account)) {
+      throw new BadRequestException(
+        'Stripe onboarding is incomplete. Click Continue setup in Billing to add your business address and bank details.',
+      );
     }
 
     return connectAccountId;

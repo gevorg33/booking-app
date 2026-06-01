@@ -26,6 +26,11 @@ describe('BookingPaymentService', () => {
       },
     },
     connectRequestOptions: jest.fn().mockReturnValue({ stripeAccount: 'acct_1' }),
+    usesDestinationCharges: jest.fn().mockReturnValue(false),
+    connectCheckoutSessionCreate: jest.fn((accountId: string, params: unknown) => [
+      params,
+      { stripeAccount: 'acct_1' },
+    ]),
   };
   const stripeIntegrationService = {
     assertCanAcceptOnlinePayments: jest.fn(),

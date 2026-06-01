@@ -1,10 +1,13 @@
 export interface BusinessStripeIntegration {
   connectAccountId?: string;
+  connectCountry?: string;
 }
 
 export interface StripeIntegrationPublicView {
   configured: boolean;
   connectAccountId?: string;
+  connectCountry?: string;
+  accountType?: string;
   chargesEnabled: boolean;
   detailsSubmitted: boolean;
   displayName?: string;
@@ -17,6 +20,7 @@ export function getBusinessStripeIntegration(
   const raw = integrations?.stripe as BusinessStripeIntegration | undefined;
   return {
     connectAccountId: raw?.connectAccountId?.trim() || undefined,
+    connectCountry: raw?.connectCountry?.trim().toUpperCase() || undefined,
   };
 }
 

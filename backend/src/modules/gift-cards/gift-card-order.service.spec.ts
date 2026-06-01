@@ -26,6 +26,11 @@ describe('GiftCardOrderService', () => {
       refunds: { create: jest.fn() },
     },
     connectRequestOptions: jest.fn((id: string) => ({ stripeAccount: id })),
+    usesDestinationCharges: jest.fn().mockReturnValue(false),
+    connectCheckoutSessionCreate: jest.fn((accountId: string, params: unknown) => [
+      params,
+      { stripeAccount: accountId },
+    ]),
   };
   const stripeIntegrationService = { resolveConnectAccountId: jest.fn() };
 

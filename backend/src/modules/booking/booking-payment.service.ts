@@ -195,14 +195,14 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       session_id: '{CHECKOUT_SESSION_ID}',
       packageId: dto.packageId,
     });
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -230,6 +230,10 @@ export class BookingPaymentService {
         success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}`,
         cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
       },
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -293,7 +297,6 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const lineItems = [
       {
         price_data: {
@@ -315,7 +318,8 @@ export class BookingPaymentService {
       });
     }
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.purchaserEmail.trim(),
@@ -331,6 +335,10 @@ export class BookingPaymentService {
         success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
       },
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -425,14 +433,14 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       session_id: '{CHECKOUT_SESSION_ID}',
       services: dto.serviceIds.join(','),
     });
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -460,6 +468,10 @@ export class BookingPaymentService {
         success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}`,
         cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
       },
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -604,7 +616,6 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       session_id: '{CHECKOUT_SESSION_ID}',
@@ -616,7 +627,9 @@ export class BookingPaymentService {
     } else {
       checkoutQuery.set('autoAssign', '1');
     }
-    const session = await this.stripeService.client.checkout.sessions.create(
+
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -644,6 +657,10 @@ export class BookingPaymentService {
         success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}`,
         cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
       },
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 

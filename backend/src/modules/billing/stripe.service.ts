@@ -4,6 +4,14 @@ import Stripe from 'stripe';
 
 type StripeClient = InstanceType<typeof Stripe>;
 
+type ConnectCheckoutExtras = {
+  payment_intent_data?: {
+    transfer_data?: { destination: string };
+  };
+};
+
+type ConnectRequestOptions = { stripeAccount?: string };
+
 @Injectable()
 export class StripeService implements OnModuleInit {
   private readonly logger = new Logger(StripeService.name);
@@ -42,7 +50,50 @@ export class StripeService implements OnModuleInit {
     return this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   }
 
-  connectRequestOptions(connectAccountId: string) {
+  /** Default country for new Express connected accounts (e.g. AE). */
+  get connectDefaultCountry(): string {
+    const raw = this.config.get<string>('STRIPE_CONNECT_DEFAULT_COUNTRY')?.trim().toUpperCase();
+    return raw && /^[A-Z]{2}$/.test(raw) ? raw : 'AE';
+  }
+
+  /**
+   * UAE Connect platforms must use destination charges — connected accounts receive
+   * transfers only; the platform processes card payments. See Stripe Connect docs.
+   */
+  get connectChargeModel(): 'direct' | 'destination' {
+    const explicit = this.config.get<string>('STRIPE_CONNECT_CHARGE_MODEL')?.trim().toLowerCase();
+    if (explicit === 'direct' || explicit === 'destination') return explicit;
+    if (this.connectDefaultCountry === 'AE') return 'destination';
+    return 'direct';
+  }
+
+  usesDestinationCharges(): boolean {
+    return this.connectChargeModel === 'destination';
+  }
+
+  /** Request options for Stripe API calls scoped to a connected account. */
+  connectRequestOptions(connectAccountId: string): ConnectRequestOptions {
+    if (this.usesDestinationCharges()) return {};
     return { stripeAccount: connectAccountId };
+  }
+
+  /** Extra Checkout Session fields for Connect (destination charges on platform account). */
+  connectCheckoutSessionParams(connectAccountId: string): ConnectCheckoutExtras {
+    if (!this.usesDestinationCharges()) return {};
+    return {
+      payment_intent_data: {
+        transfer_data: { destination: connectAccountId },
+      },
+    };
+  }
+
+  connectCheckoutSessionCreate(
+    connectAccountId: string,
+    sessionParams: Record<string, unknown>,
+  ): [Record<string, unknown>, ConnectRequestOptions] {
+    return [
+      { ...this.connectCheckoutSessionParams(connectAccountId), ...sessionParams },
+      this.connectRequestOptions(connectAccountId),
+    ];
   }
 }

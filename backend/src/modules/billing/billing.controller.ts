@@ -93,6 +93,15 @@ export class BillingController {
     return this.stripeIntegrationService.getPublicSettings(businessId);
   }
 
+  @Get('stripe-connect/supported-countries')
+  async listStripeConnectCountries(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return [];
+  }
+
   @Put('stripe-connect')
   async updateStripeConnect(
     @Param('businessId') businessId: string,
@@ -101,6 +110,33 @@ export class BillingController {
   ) {
     await this.ensureMember(businessId, user.id);
     return this.stripeIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Post('stripe-connect/onboard')
+  async startStripeConnectOnboarding(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.createConnectOnboardingLink(businessId);
+  }
+
+  @Post('stripe-connect/sync')
+  async syncStripeConnect(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.syncConnectAccount(businessId);
+  }
+
+  @Post('stripe-connect/login')
+  async stripeConnectLogin(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.createConnectLoginLink(businessId);
   }
 
   private async ensureMember(businessId: string, userId: string) {
