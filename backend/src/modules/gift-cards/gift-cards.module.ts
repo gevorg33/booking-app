@@ -19,7 +19,7 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
-import { IntegrationsModule } from '../integrations/integrations.module.js';
+import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 
 @Module({
@@ -36,8 +36,8 @@ import { BillingModule } from '../billing/billing.module.js';
     ]),
     BusinessModule,
     NotificationsModule,
-    IntegrationsModule,
-    BillingModule,
+    ZendeskModule,
+    forwardRef(() => BillingModule),
     forwardRef(() => PublicBookingModule),
     forwardRef(() => BookingModule),
   ],

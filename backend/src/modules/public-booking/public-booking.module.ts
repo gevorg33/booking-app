@@ -50,7 +50,7 @@ import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-serv
     StripeIntegrationModule,
     ReviewsModule,
     OpenAiModule,
-    PromoCodesModule,
+    forwardRef(() => PromoCodesModule),
     LoyaltyModule,
     ServiceSubscriptionsModule,
     ServicePackagesModule,

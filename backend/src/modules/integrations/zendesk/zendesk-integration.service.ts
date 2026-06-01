@@ -25,6 +25,7 @@ import {
   ZendeskPublicWidgetConfig,
 } from './zendesk-integration.types.js';
 import { ZendeskApiClient } from './zendesk-api.client.js';
+import type { GiftCardModifyPayload } from '../../gift-cards/gift-card-order.types.js';
 
 export interface ReviewTicketPayload {
   reviewId?: string;
@@ -387,7 +388,7 @@ export class ZendeskIntegrationService {
       id: string;
       requestType: string;
       customerNotes?: string | null;
-      modifyPayload?: Record<string, unknown> | null;
+      modifyPayload?: GiftCardModifyPayload | null;
     },
   ) {
     const requesterEmail = card.purchaserEmail?.trim();

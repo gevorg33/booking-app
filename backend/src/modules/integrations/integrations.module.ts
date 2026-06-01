@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessApiKey } from './entities/business-api-key.entity.js';
 import { WebhookSubscription } from './entities/webhook-subscription.entity.js';
@@ -20,8 +20,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
-import { ZendeskApiClient } from './zendesk/zendesk-api.client.js';
-import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
+import { ZendeskModule } from './zendesk/zendesk.module.js';
 import { ZendeskCustomerSyncListener } from './zendesk/zendesk-customer-sync.listener.js';
 import { ZendeskReviewListener } from './zendesk/zendesk-review.listener.js';
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
@@ -48,10 +47,11 @@ import { CommissionRule } from '../commissions/entities/commission-rule.entity.j
       CommissionRule,
     ]),
     BusinessModule,
-    BookingModule,
+    forwardRef(() => BookingModule),
     CustomerModule,
     ServiceModule,
     OpenAiModule,
+    ZendeskModule,
   ],
   controllers: [IntegrationsController, BusinessApiController],
   providers: [
@@ -59,8 +59,6 @@ import { CommissionRule } from '../commissions/entities/commission-rule.entity.j
     WebhooksService,
     WebhookDispatcherListener,
     ApiKeyGuard,
-    ZendeskApiClient,
-    ZendeskIntegrationService,
     ZendeskCustomerSyncListener,
     ZendeskReviewListener,
     DistributionIntegrationService,
@@ -69,6 +67,6 @@ import { CommissionRule } from '../commissions/entities/commission-rule.entity.j
     AccountingIntegrationService,
     IntegrationsDocsService,
   ],
-  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskIntegrationService, DistributionIntegrationService, ZapierIntegrationService, AccountingIntegrationService],
+  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskModule, DistributionIntegrationService, ZapierIntegrationService, AccountingIntegrationService],
 })
 export class IntegrationsModule {}

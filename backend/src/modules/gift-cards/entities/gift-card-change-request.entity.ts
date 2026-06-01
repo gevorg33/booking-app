@@ -47,7 +47,7 @@ export class GiftCardChangeRequest {
   @Column({ name: 'specialist_notes', type: 'text', nullable: true })
   specialistNotes: string | null;
 
-  @Column({ name: 'zendesk_ticket_id', nullable: true })
+  @Column({ name: 'zendesk_ticket_id', type: 'varchar', nullable: true })
   zendeskTicketId: string | null;
 
   @Column({ name: 'resolved_at', type: 'timestamptz', nullable: true })

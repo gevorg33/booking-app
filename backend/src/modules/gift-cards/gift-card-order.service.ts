@@ -258,6 +258,7 @@ export class GiftCardOrderService {
         : undefined;
       const session = await this.stripeService.client.checkout.sessions.retrieve(
         card.stripeSessionId,
+        {},
         opts,
       );
       const paymentIntent =

@@ -32,7 +32,7 @@ export class GiftCardRedemption {
   @Column({ name: 'service_id', type: 'uuid', nullable: true })
   serviceId: string | null;
 
-  @Column({ name: 'service_name', nullable: true })
+  @Column({ name: 'service_name', type: 'varchar', nullable: true })
   serviceName: string | null;
 
   @Column({ name: 'credits_consumed', type: 'int', default: 0 })

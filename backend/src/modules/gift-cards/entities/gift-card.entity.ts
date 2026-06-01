@@ -36,7 +36,7 @@ export class GiftCard {
   @Column()
   code: string;
 
-  @Column({ name: 'card_type', default: 'monetary' })
+  @Column({ name: 'card_type', type: 'varchar', default: 'monetary' })
   cardType: GiftCardType;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
@@ -45,7 +45,7 @@ export class GiftCard {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   balance: number;
 
-  @Column({ default: 'USD' })
+  @Column({ type: 'varchar', default: 'USD' })
   currency: string;
 
   @Column({ name: 'purchaser_customer_id', type: 'uuid', nullable: true })
@@ -61,22 +61,22 @@ export class GiftCard {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ name: 'delivery_method', nullable: true })
+  @Column({ name: 'delivery_method', type: 'varchar', nullable: true })
   deliveryMethod: GiftCardDeliveryMethod | null;
 
-  @Column({ name: 'fulfillment_status', nullable: true })
+  @Column({ name: 'fulfillment_status', type: 'varchar', nullable: true })
   fulfillmentStatus: GiftCardFulfillmentStatus | null;
 
-  @Column({ name: 'recipient_name', nullable: true })
+  @Column({ name: 'recipient_name', type: 'varchar', nullable: true })
   recipientName: string | null;
 
-  @Column({ name: 'recipient_email', nullable: true })
+  @Column({ name: 'recipient_email', type: 'varchar', nullable: true })
   recipientEmail: string | null;
 
-  @Column({ name: 'recipient_phone', nullable: true })
+  @Column({ name: 'recipient_phone', type: 'varchar', nullable: true })
   recipientPhone: string | null;
 
-  @Column({ name: 'purchaser_email', nullable: true })
+  @Column({ name: 'purchaser_email', type: 'varchar', nullable: true })
   purchaserEmail: string | null;
 
   @Column({ name: 'personal_message', type: 'text', nullable: true })
@@ -85,7 +85,7 @@ export class GiftCard {
   @Column({ name: 'shipping_address', type: 'jsonb', nullable: true })
   shippingAddress: GiftCardShippingAddress | null;
 
-  @Column({ name: 'shipping_method', nullable: true })
+  @Column({ name: 'shipping_method', type: 'varchar', nullable: true })
   shippingMethod: string | null;
 
   @Column({ name: 'purchase_amount', type: 'decimal', precision: 10, scale: 2, nullable: true })
@@ -106,10 +106,10 @@ export class GiftCard {
   @Column({ name: 'delivery_staff_id', type: 'uuid', nullable: true })
   deliveryStaffId: string | null;
 
-  @Column({ name: 'tracking_carrier', nullable: true })
+  @Column({ name: 'tracking_carrier', type: 'varchar', nullable: true })
   trackingCarrier: string | null;
 
-  @Column({ name: 'tracking_number', nullable: true })
+  @Column({ name: 'tracking_number', type: 'varchar', nullable: true })
   trackingNumber: string | null;
 
   @Column({ name: 'card_ready_at', type: 'timestamptz', nullable: true })
@@ -118,10 +118,10 @@ export class GiftCard {
   @Column({ name: 'delivered_at', type: 'timestamptz', nullable: true })
   deliveredAt: Date | null;
 
-  @Column({ name: 'zendesk_ticket_id', nullable: true })
+  @Column({ name: 'zendesk_ticket_id', type: 'varchar', nullable: true })
   zendeskTicketId: string | null;
 
-  @Column({ name: 'stripe_session_id', nullable: true })
+  @Column({ name: 'stripe_session_id', type: 'varchar', nullable: true })
   stripeSessionId: string | null;
 
   @OneToMany(() => GiftCardServiceCredit, (credit) => credit.giftCard)
