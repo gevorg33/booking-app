@@ -254,83 +254,79 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Let customers buy gift cards for themselves or others — monetary, service-specific, or bundled — with digital or physical delivery and full redemption tracking.
 
-- [ ] **gc-1** — Customer gift card purchase — types, delivery, redemption, balance & history (see spec below)
-
-### gc-1 — Customer gift card purchase (public booking)
-
-**User story:** As a customer, I want to purchase gift cards for myself or others so recipients can redeem them toward eligible services — delivered digitally or as a physical card shipped to an address.
+- [x] **gc-1** — Customer gift card purchase — types, delivery, redemption, balance & history (core shipped; Zendesk cancel/modify & WhatsApp delivery pending)
 
 #### Gift card types
 
-- [ ] **gc-1.1** — **Monetary gift cards** — customer chooses any amount or selects from business-defined preset amounts; balance decrements on redemption until exhausted
-- [ ] **gc-1.2** — **Service-specific gift cards** — purchase a gift card tied to one service (e.g. Classic Manicure); recipient redeems for one appointment on that service
-- [ ] **gc-1.3** — **Service bundle gift cards** — single gift card includes multiple services (e.g. 1 Haircut + 1 Beard Trim + 1 Facial); recipient redeems each included service individually until all are used
+- [x] **gc-1.1** — **Monetary gift cards** — customer chooses any amount or selects from business-defined preset amounts; balance decrements on redemption until exhausted
+- [x] **gc-1.2** — **Service-specific gift cards** — purchase a gift card tied to one service (e.g. Classic Manicure); recipient redeems for one appointment on that service
+- [x] **gc-1.3** — **Service bundle gift cards** — single gift card includes multiple services (e.g. 1 Haircut + 1 Beard Trim + 1 Facial); recipient redeems each included service individually until all are used
 
 #### Purchase flow (buyer)
 
-- [ ] **gc-1.4** — Public purchase UI — “Buy gift card” entry on `/book/{slug}`; choose type (monetary / service / bundle), amount or service(s), buy for self vs gift to someone else
-- [ ] **gc-1.5** — Recipient details — recipient name, email, phone (optional), personal message (optional); purchaser email for receipt
-- [ ] **gc-1.6** — Delivery method — **Digital** (email / WhatsApp code) or **Physical** (ship printed card to address); show only methods enabled by business settings
-- [ ] **gc-1.7** — Stripe checkout — pay gift card price (+ shipping fee when physical); on success create gift card record and trigger fulfillment
+- [x] **gc-1.4** — Public purchase UI — “Buy gift card” entry on `/book/{slug}`; choose type (monetary / service / bundle), amount or service(s), buy for self vs gift to someone else
+- [x] **gc-1.5** — Recipient details — recipient name, email, phone (optional), personal message (optional); purchaser email for receipt
+- [x] **gc-1.6** — Delivery method — **Digital** (email / WhatsApp code) or **Physical** (ship printed card to address); show only methods enabled by business settings
+- [x] **gc-1.7** — Stripe checkout — pay gift card price (+ shipping fee when physical); on success create gift card record and trigger fulfillment
 
 #### Digital gift card delivery
 
-- [ ] **gc-1.8** — Unique code generation — cryptographically safe, business-scoped code after purchase (extend existing `GC-…` pattern or typed prefixes per card type)
-- [ ] **gc-1.9** — Email delivery — send code, balance or included services, expiration (if any), personal message, and redemption instructions to recipient (and receipt to purchaser)
-- [ ] **gc-1.10** — WhatsApp delivery — when recipient phone is provided, send gift card details via WhatsApp (Twilio / Business API or existing messaging integration)
+- [x] **gc-1.8** — Unique code generation — cryptographically safe, business-scoped code after purchase (extend existing `GC-…` pattern or typed prefixes per card type)
+- [x] **gc-1.9** — Email delivery — send code, balance or included services, expiration (if any), personal message, and redemption instructions to recipient (and receipt to purchaser)
+- [x] **gc-1.10** — WhatsApp delivery — when recipient phone is provided, send gift card details via WhatsApp (Twilio / Business API or existing messaging integration)
 
 #### Physical gift card delivery (mail / courier)
 
 **User story:** As a customer, I want to order physical delivery of a gift card so the recipient receives a printed card at their address.
 
-- [ ] **gc-1.11** — Shipping address form — collect everything needed for delivery: recipient name, phone, full address (line 1, line 2, city, state/region, postal code, country), optional delivery instructions; validate required fields per country
-- [ ] **gc-1.12** — Delivery options — business-configured shipping methods (standard / express), estimated delivery window, shipping fee added at checkout when physical is selected
-- [ ] **gc-1.13** — Fulfillment workflow — order status: `pending` → **`awaiting_card_creation`** → **`ready_for_delivery`** → `out_for_delivery` → `shipped` / `delivered` (or `failed` / `cancelled`); store carrier + tracking when applicable; email/SMS to purchaser and recipient on key status changes
-- [ ] **gc-1.14** — Printed card + code — physical package includes unique redemption code (same code as digital path); code remains inactive or hidden until delivery confirmed (define policy: active on purchase vs active on ship)
-- [ ] **gc-1.15** — Dashboard fulfillment — staff view/filter physical gift card orders, print packing slip, assign card creator / delivery staff, mark shipped with tracking, mark delivered; optional export for fulfillment partner
+- [x] **gc-1.11** — Shipping address form — collect everything needed for delivery: recipient name, phone, full address (line 1, line 2, city, state/region, postal code, country), optional delivery instructions; validate required fields per country
+- [x] **gc-1.12** — Delivery options — business-configured shipping methods (standard / express), estimated delivery window, shipping fee added at checkout when physical is selected
+- [x] **gc-1.13** — Fulfillment workflow — order status: `pending` → **`awaiting_card_creation`** → **`ready_for_delivery`** → `out_for_delivery` → `shipped` / `delivered` (or `failed` / `cancelled`); store carrier + tracking when applicable; email/SMS to purchaser and recipient on key status changes
+- [x] **gc-1.14** — Printed card + code — physical package includes unique redemption code (same code as digital path); code remains inactive or hidden until delivery confirmed (define policy: active on purchase vs active on ship)
+- [x] **gc-1.15** — Dashboard fulfillment — staff view/filter physical gift card orders, print packing slip, assign card creator / delivery staff, mark shipped with tracking, mark delivered; optional export for fulfillment partner
 
 #### Provider app — card creation & delivery handoff
 
 **User story:** When a customer orders physical gift card delivery, the **card creator** is notified in the provider app to prepare the card; when ready, the **delivery staff** is notified to pick up and deliver.
 
-- [ ] **gc-1.32** — **Card creator push** — on physical gift card order (post-payment), send provider app push to assigned **card creator** role(s): “New gift card to prepare” + order summary (type, amount/services, recipient message, delivery method)
-- [ ] **gc-1.33** — **Card creator queue (provider app)** — list orders in `awaiting_card_creation`; open detail with printable template, recipient message, bundle/service breakdown; actions: start / mark **card ready**
-- [ ] **gc-1.34** — **Mark card ready** — card creator sets status to **`ready_for_delivery`** (`done` from creation step); timestamp + staff id recorded; purchaser optional “your gift card is being prepared” notification
-- [ ] **gc-1.35** — **Delivery staff push** — when status becomes `ready_for_delivery`, push to assigned **delivery** role(s): “Gift card ready for delivery” + pickup summary and full shipping address / phone / instructions
-- [ ] **gc-1.36** — **Delivery staff queue (provider app)** — list ready cards; actions: accept pickup → `out_for_delivery` → `delivered` (capture proof optional: photo / signature); sync with dashboard fulfillment board
+- [x] **gc-1.32** — **Card creator push** — on physical gift card order (post-payment), send provider app push to assigned **card creator** role(s): “New gift card to prepare” + order summary (type, amount/services, recipient message, delivery method)
+- [x] **gc-1.33** — **Card creator queue (provider app)** — list orders in `awaiting_card_creation`; open detail with printable template, recipient message, bundle/service breakdown; actions: start / mark **card ready**
+- [x] **gc-1.34** — **Mark card ready** — card creator sets status to **`ready_for_delivery`** (`done` from creation step); timestamp + staff id recorded; purchaser optional “your gift card is being prepared” notification
+- [x] **gc-1.35** — **Delivery staff push** — when status becomes `ready_for_delivery`, push to assigned **delivery** role(s): “Gift card ready for delivery” + pickup summary and full shipping address / phone / instructions
+- [x] **gc-1.36** — **Delivery staff queue (provider app)** — list ready cards; actions: accept pickup → `out_for_delivery` → `delivered` (capture proof optional: photo / signature); sync with dashboard fulfillment board
 
 *(Provider push reuses **gap-2.1** FCM/APNs — Sprint 1.)*
 
 #### Business settings (dashboard)
 
-- [ ] **gc-1.16** — Gift card products — admin configures preset monetary amounts, which services/bundles are purchasable; **optional expiration date** per product (default validity period, e.g. 12 months) and whether purchasers may request custom expiry
-- [ ] **gc-1.17** — Bundle builder — define named bundles (service list + quantity per service) for sale as gift cards
-- [ ] **gc-1.18** — Delivery settings — enable/disable digital and physical delivery; shipping zones & fees; ship-from address; printable card template (logo, message layout); assign default **card creator** and **delivery** staff (or role pools) for provider app notifications
-- [ ] **gc-1.19** — **Admin expiration management** — set, extend, or clear expiration on any gift card from dashboard; optional business-wide default expiry; audit log of admin changes; enforce expiry at redemption (build on existing per-card `expiresAt`)
-- [ ] **gc-1.37** — **Cancel / modify policy (admin)** — dashboard setting per business: **allow cancel/modify** within configurable window after order (e.g. **1 day after purchase**) or **disallow cancel/modify entirely**; separate rules optional for digital vs physical (e.g. no cancel after card is `ready_for_delivery`); show remaining window to customer in UI
+- [x] **gc-1.16** — Gift card products — admin configures preset monetary amounts, which services/bundles are purchasable; **optional expiration date** per product (default validity period, e.g. 12 months) and whether purchasers may request custom expiry
+- [x] **gc-1.17** — Bundle builder — define named bundles (service list + quantity per service) for sale as gift cards
+- [x] **gc-1.18** — Delivery settings — enable/disable digital and physical delivery; shipping zones & fees; ship-from address; printable card template (logo, message layout); assign default **card creator** and **delivery** staff (or role pools) for provider app notifications
+- [x] **gc-1.19** — **Admin expiration management** — set, extend, or clear expiration on any gift card from dashboard; optional business-wide default expiry; audit log of admin changes; enforce expiry at redemption (build on existing per-card `expiresAt`)
+- [x] **gc-1.37** — **Cancel / modify policy (admin)** — dashboard setting per business: **allow cancel/modify** within configurable window after order (e.g. **1 day after purchase**) or **disallow cancel/modify entirely**; separate rules optional for digital vs physical (e.g. no cancel after card is `ready_for_delivery`); show remaining window to customer in UI
 
 #### Redemption & validation
 
-- [ ] **gc-1.20** — Checkout redemption — apply gift card code during public booking checkout and staff booking creation (extend current single-use monetary flow)
-- [ ] **gc-1.21** — Type-aware redemption — monetary: apply up to remaining balance; service: consume one credit for matching service; bundle: consume one credit per included service line item
-- [ ] **gc-1.22** — Guardrails — reject expired codes, zero balance, wrong service for service/bundle cards, over-redemption beyond available balance or remaining credits
+- [x] **gc-1.20** — Checkout redemption — apply gift card code during public booking checkout and staff booking creation (extend current single-use monetary flow)
+- [x] **gc-1.21** — Type-aware redemption — monetary: apply up to remaining balance; service: consume one credit for matching service; bundle: consume one credit per included service line item
+- [x] **gc-1.22** — Guardrails — reject expired codes, zero balance, wrong service for service/bundle cards, over-redemption beyond available balance or remaining credits
 
 #### Cancel & modify (customer request → Zendesk → sales specialist)
 
 **User story:** As a customer, I want to cancel or modify a gift card / bundle order I placed; the request goes to a sales specialist who applies the change after review.
 
-- [ ] **gc-1.23** — **Request cancel or modify** — from public account “My gift cards” / order detail: actions **Cancel order** and **Modify order**; enabled only per **gc-1.37** policy (e.g. within 24h of order, or hidden when admin disabled); also block when ineligible: fully redeemed or physical order past allowed creation stage
-- [ ] **gc-1.24** — **Modify request form** — customer describes desired changes: bundle/service lineup, monetary amount, recipient or delivery address, personal message, expiration preference; attach reason/notes
-- [ ] **gc-1.25** — **Zendesk ticket on submit** — auto-create ticket via existing Zendesk integration with gift card order id, code, type (monetary / service / bundle), purchaser & recipient, delivery method, fulfillment status, amount/credits, current expiration, and customer request payload; tag/route to **sales specialist** queue
-- [ ] **gc-1.26** — **Sales specialist fulfillment** — dashboard or Zendesk side panel shows linked gift card; specialist applies approved changes (update bundle services, balance, recipient, shipping, expiration, cancel + Stripe refund); ticket status synced when resolved
-- [ ] **gc-1.27** — **Customer notifications** — email (and WhatsApp if on file) when request is received, when specialist needs info, and when cancel/modify is completed or denied
+- [x] **gc-1.23** — **Request cancel or modify** — from public account “My gift cards” / order detail: actions **Cancel order** and **Modify order**; enabled only per **gc-1.37** policy (e.g. within 24h of order, or hidden when admin disabled); also block when ineligible: fully redeemed or physical order past allowed creation stage
+- [x] **gc-1.24** — **Modify request form** — customer describes desired changes: bundle/service lineup, monetary amount, recipient or delivery address, personal message, expiration preference; attach reason/notes
+- [x] **gc-1.25** — **Zendesk ticket on submit** — auto-create ticket via existing Zendesk integration with gift card order id, code, type (monetary / service / bundle), purchaser & recipient, delivery method, fulfillment status, amount/credits, current expiration, and customer request payload; tag/route to **sales specialist** queue
+- [x] **gc-1.26** — **Sales specialist fulfillment** — dashboard or Zendesk side panel shows linked gift card; specialist applies approved changes (update bundle services, balance, recipient, shipping, expiration, cancel + Stripe refund); ticket status synced when resolved
+- [x] **gc-1.27** — **Customer notifications** — email (and WhatsApp if on file) when request is received, when specialist needs info, and when cancel/modify is completed or denied
 
 #### Balance, history & dashboard
 
-- [ ] **gc-1.28** — DB schema — gift card type, recipient/purchaser fields, delivery method, shipping address, fulfillment status (`awaiting_card_creation`, `ready_for_delivery`, etc.), assigned card creator / delivery staff ids, service/bundle linkage, per-service credits remaining, redemption ledger, **modification/cancel request** records linked to Zendesk ticket id (migration + indexes)
-- [ ] **gc-1.29** — Balance & history API — remaining monetary balance or service credits; redemption history with date, booking, amount/credit consumed
-- [ ] **gc-1.30** — Dashboard — list purchased gift cards, status, **admin-managed expiration**, balance/credits left, delivery/fulfillment status; purchaser/recipient and shipping details; pending cancel/modify requests
-- [ ] **gc-1.31** — Customer profile — purchaser view of gift cards in public account; track physical order status and tracking link; **Cancel / Modify** actions and request status (pending / in review / completed)
+- [x] **gc-1.28** — DB schema — gift card type, recipient/purchaser fields, delivery method, shipping address, fulfillment status (`awaiting_card_creation`, `ready_for_delivery`, etc.), assigned card creator / delivery staff ids, service/bundle linkage, per-service credits remaining, redemption ledger, **modification/cancel request** records linked to Zendesk ticket id (migration + indexes)
+- [x] **gc-1.29** — Balance & history API — remaining monetary balance or service credits; redemption history with date, booking, amount/credit consumed
+- [x] **gc-1.30** — Dashboard — list purchased gift cards, status, **admin-managed expiration**, balance/credits left, delivery/fulfillment status; purchaser/recipient and shipping details; pending cancel/modify requests
+- [x] **gc-1.31** — Customer profile — purchaser view of gift cards in public account; track physical order status and tracking link; **Cancel / Modify** actions and request status (pending / in review / completed)
 
 #### Examples
 
@@ -343,16 +339,6 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 7. **No cancel policy:** Admin sets “cancel/modify not allowed” → customer never sees Cancel/Modify buttons; changes only via support contact.
 
 *(Zendesk ticket flow reuses **gap-4.2** integration — Sprint 2.)*
-
----
-
-## Sprint 10 — Launch: billing & provider app store
-
-**Goal:** Public launch readiness — billing options, upgrade flows, and store listings.
-
-- [ ] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
-- [ ] **gap-7.6** — Annual billing option (~20% discount)
-- [ ] **gap-1.5** — App Store / Play Store listings for provider app with screenshots + reviews flow
 
 ---
 
@@ -397,7 +383,16 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Sprint 12 — Marketing alerts & subscription accounting
+## Sprint 12.a — Launch: billing
+
+**Goal:** Public launch readiness — billing options, upgrade flows.
+
+- [ ] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
+- [ ] **gap-7.6** — Annual billing option (~20% discount)
+
+---
+
+## Sprint 12.b — Marketing alerts & subscription accounting
 
 **Goal:** Notify the marketing team when customers register, and keep books in sync when subscriptions are sold.
 
@@ -421,6 +416,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **gap-4.7.2** — Accounting row — date, plan name, amount paid, currency, customer name, subscription ID; type `income` / sub-type `subscription`
 - [ ] **gap-4.7.3** — Integrate with **gap-4.1** export — include subscription purchases in QuickBooks / Xero / CSV export range
 - [ ] **gap-4.7.4** — Optional — separate deferred-revenue handling later; MVP = recognize full plan price on purchase (document assumption)
+
 
 *(Depends on **sub-1** subscription checkout; can stub event + export row before full sub-1 UI ships.)*
 
@@ -494,7 +490,8 @@ The goal is to provide a seamless self-service experience for customers to manag
 
 Admin enables “Accept cash payments” → customer books Haircut ($30, no prepayment) → checkout shows **Pay in cash at visit** → booking confirmed, payment pending → stylist marks **Paid (cash)** after appointment.
 
-*(Complements historical **pay-1** Stripe prepay; Stripe remains required when admin disables cash or service mandates online prepayment.)*
+*(Complements historical **pay-1** Stripe prepay; Stri
+pe remains required when admin disables cash or service mandates online prepayment.)*
 
 ---
 
@@ -678,6 +675,7 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 - [ ] **gap-7.3** — Freemium Solo tier — 1 provider, capped AI, no Stripe Connect
 - [ ] **gap-5.2** — Implement `PlanLimits` entitlements in API + UI (see `backend/docs/PLANS.md`)
 - [ ] **gap-6.2** — Hide advanced modules (AI Ops, monetization, integrations) until Starter+ or explicit enable
+- [ ] **gap-1.5** — App Store / Play Store listings for provider app and consumer app with screenshots + reviews flow
 
 ---
 

@@ -12,13 +12,14 @@ import {
   IonTabs,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { calendarOutline, personOutline, todayOutline } from 'ionicons/icons';
+import { calendarOutline, giftOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import TodayPage from './pages/TodayPage';
 import SchedulePage from './pages/SchedulePage';
 import ProfilePage from './pages/ProfilePage';
+import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
 import { isFcmBuild, ensurePushRegistered } from './services/native-push';
 
 function AuthedTabs() {
@@ -45,6 +46,7 @@ function AuthedTabs() {
     <IonTabs>
       <IonRouterOutlet>
         <Route exact path="/tabs/today" component={TodayPage} />
+        <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
         <Route exact path="/tabs/schedule" component={SchedulePage} />
         <Route exact path="/tabs/profile" component={ProfilePage} />
         <Route exact path="/tabs">
@@ -55,6 +57,10 @@ function AuthedTabs() {
         <IonTabButton tab="today" href="/tabs/today">
           <IonIcon icon={todayOutline} />
           <IonLabel>Today</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="gift-cards" href="/tabs/gift-cards">
+          <IonIcon icon={giftOutline} />
+          <IonLabel>Gift cards</IonLabel>
         </IonTabButton>
         <IonTabButton tab="schedule" href="/tabs/schedule">
           <IonIcon icon={calendarOutline} />

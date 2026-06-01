@@ -748,6 +748,154 @@ export function loginPublicCustomer(slug: string, idToken: string) {
   });
 }
 
+export type PublicGiftCardType = 'monetary' | 'service' | 'bundle';
+export type PublicGiftCardDeliveryMethod = 'digital' | 'physical';
+
+export interface PublicGiftCardCatalogSettings {
+  digitalDeliveryEnabled: boolean;
+  physicalDeliveryEnabled: boolean;
+  presetAmounts: number[];
+  purchasableServices: Array<{ serviceId: string; price?: number | null }>;
+  bundles: Array<{
+    id: string;
+    name: string;
+    lines: Array<{ serviceId: string; serviceName: string; quantity: number }>;
+    price: number;
+  }>;
+  shippingMethods: Array<{ id: string; label: string; fee: number; estimatedDays: string }>;
+  cancelModifyEnabled: boolean;
+  cancelModifyWindowHours: number;
+}
+
+export interface PublicGiftCardCatalog {
+  purchaseEnabled: boolean;
+  settings: PublicGiftCardCatalogSettings | null;
+}
+
+export interface PublicGiftCardPurchaseQuote {
+  cardType: PublicGiftCardType;
+  subtotal: number;
+  shippingFee: number;
+  total: number;
+  currency: string;
+  label: string;
+}
+
+export interface PublicGiftCardShippingAddress {
+  recipientName: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  stateRegion?: string;
+  postalCode: string;
+  country: string;
+  instructions?: string;
+}
+
+export interface PurchasePublicGiftCardBody {
+  cardType: PublicGiftCardType;
+  amount?: number;
+  serviceId?: string;
+  bundleId?: string;
+  deliveryMethod: PublicGiftCardDeliveryMethod;
+  buyForSelf?: boolean;
+  recipientName?: string;
+  recipientEmail?: string;
+  recipientPhone?: string;
+  purchaserEmail: string;
+  personalMessage?: string;
+  shippingAddress?: PublicGiftCardShippingAddress;
+  shippingMethodId?: string;
+}
+
+export function getPublicGiftCardCatalog(slug: string) {
+  return publicFetch<PublicGiftCardCatalog>(`/public/${slug}/gift-cards/catalog`);
+}
+
+export function quotePublicGiftCardPurchase(slug: string, body: PurchasePublicGiftCardBody) {
+  return publicFetch<PublicGiftCardPurchaseQuote>(`/public/${slug}/gift-cards/quote`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function createPublicGiftCardCheckout(slug: string, body: PurchasePublicGiftCardBody) {
+  return publicFetch<{ url: string; sessionId: string; amount: number; currency: string }>(
+    `/public/${slug}/gift-cards/checkout`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export interface PublicGiftCardOrderPolicy {
+  canCancel: boolean;
+  canModify: boolean;
+  cancelModifyEnabled: boolean;
+  windowExpiresAt: string | null;
+  windowRemainingMs: number;
+  blockReason: string | null;
+}
+
+export interface PublicGiftCardOrder {
+  id: string;
+  code: string;
+  cardType: string;
+  balance: number;
+  currency: string;
+  deliveryMethod: string | null;
+  fulfillmentStatus: string | null;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  expiresAt: string | null;
+  isActive: boolean;
+  purchaseAmount: number | null;
+  trackingCarrier: string | null;
+  trackingNumber: string | null;
+  createdAt: string;
+  serviceCredits: Array<{
+    serviceId: string;
+    serviceName: string;
+    quantityRemaining: number;
+    quantityTotal: number;
+  }>;
+  policy: PublicGiftCardOrderPolicy;
+  changeRequest: {
+    id: string;
+    requestType: 'cancel' | 'modify';
+    status: string;
+    createdAt: string;
+  } | null;
+}
+
+export function getPublicCustomerGiftCards(slug: string) {
+  return publicFetch<{ orders: PublicGiftCardOrder[] }>(`/public/${slug}/gift-cards/orders`);
+}
+
+export function submitPublicGiftCardCancelRequest(
+  slug: string,
+  giftCardId: string,
+  body: { customerNotes?: string },
+) {
+  return publicFetch<{ request: unknown; order: PublicGiftCardOrder }>(
+    `/public/${slug}/gift-cards/orders/${giftCardId}/cancel-request`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function submitPublicGiftCardModifyRequest(
+  slug: string,
+  giftCardId: string,
+  body: {
+    modifyPayload: Record<string, unknown>;
+    customerNotes?: string;
+  },
+) {
+  return publicFetch<{ request: unknown; order: PublicGiftCardOrder }>(
+    `/public/${slug}/gift-cards/orders/${giftCardId}/modify-request`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
 export function getPublicCustomerMe(slug: string) {
   return publicFetch<PublicCustomerProfile>(`/public/${slug}/auth/me`);
 }
