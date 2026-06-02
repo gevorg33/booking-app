@@ -38,11 +38,15 @@ interface StripeConnectInfo {
   configured: boolean;
   connectAccountId?: string;
   connectCountry?: string;
+  connectMode?: 'oauth' | 'express' | 'manual';
   accountType?: string;
+  oauthAvailable?: boolean;
   chargesEnabled: boolean;
   detailsSubmitted: boolean;
   displayName?: string;
 }
+
+const EXPRESS_COUNTRIES = ['AE', 'AM', 'DE', 'GB', 'US', 'FR', 'AU', 'CA'] as const;
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   active: { label: 'Active', className: 'bg-green-600/15 text-green-400' },
@@ -62,7 +66,9 @@ export default function BillingPage() {
   const [connectNotice, setConnectNotice] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [connectAccountId, setConnectAccountId] = useState('');
+  const [expressCountry, setExpressCountry] = useState('AM');
   const connectCallbackHandled = useRef(false);
+  const oauthCallbackHandled = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -115,13 +121,39 @@ export default function BillingPage() {
     }
   }, [stripeConnect?.connectAccountId]);
 
+  useEffect(() => {
+    if (stripeConnect?.connectCountry) {
+      setExpressCountry(stripeConnect.connectCountry);
+    }
+  }, [stripeConnect?.connectCountry]);
+
+  const oauthCompleteMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/oauth`, {
+        code,
+      });
+      return data.data || data;
+    },
+    onSuccess: () => {
+      setConnectError(null);
+      setConnectNotice(t('billing.stripeConnectSaved'));
+      queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
+    },
+    onError: (err: unknown) => {
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
+
   const handleConnectCallback = async (mode: 'return' | 'refresh') => {
     if (!business?.id || connectCallbackHandled.current) return;
     connectCallbackHandled.current = true;
     window.history.replaceState({}, '', '/dashboard/billing');
 
     if (mode === 'refresh') {
-      onboardMutation.mutate();
+      expressConnectMutation.mutate();
       return;
     }
 
@@ -143,6 +175,24 @@ export default function BillingPage() {
     const params = new URLSearchParams(window.location.search);
     const connectParam = params.get('stripe_connect');
     if (!connectParam || !business?.id) return;
+
+    if (connectParam === 'oauth') {
+      if (oauthCallbackHandled.current) return;
+      window.history.replaceState({}, '', '/dashboard/billing');
+      const error = params.get('error_description') || params.get('error');
+      if (error) {
+        oauthCallbackHandled.current = true;
+        setConnectError(error);
+        return;
+      }
+      const code = params.get('code');
+      if (code) {
+        oauthCallbackHandled.current = true;
+        oauthCompleteMutation.mutate(code);
+      }
+      return;
+    }
+
     if (connectParam === 'return') {
       void handleConnectCallback('return');
     } else if (connectParam === 'refresh') {
@@ -150,6 +200,41 @@ export default function BillingPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [business?.id]);
+
+  const oauthConnectMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
+        mode: 'oauth',
+      });
+      const url = data.data?.url || data.url;
+      if (!url) throw new Error('No OAuth URL returned');
+      window.location.href = url;
+    },
+    onError: (err: unknown) => {
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
+
+  const expressConnectMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
+        mode: 'express',
+        country: expressCountry,
+      });
+      const url = data.data?.url || data.url;
+      if (!url) throw new Error('No onboarding URL returned');
+      window.location.href = url;
+    },
+    onError: (err: unknown) => {
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
 
   const syncConnectMutation = useMutation({
     mutationFn: async () => {
@@ -186,21 +271,6 @@ export default function BillingPage() {
       const url = data.data?.url || data.url;
       if (!url) throw new Error('No portal URL returned');
       window.location.href = url;
-    },
-  });
-
-  const onboardMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`);
-      const url = data.data?.url || data.url;
-      if (!url) throw new Error('No onboarding URL returned');
-      window.location.href = url;
-    },
-    onError: (err: unknown) => {
-      setConnectError(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          t('errors.saveFailed'),
-      );
     },
   });
 
@@ -259,7 +329,9 @@ export default function BillingPage() {
   const statusInfo = STATUS_LABEL[subscription?.status ?? 'inactive'] ?? STATUS_LABEL.inactive;
   const loading = plansLoading || subLoading || confirming || connectLoading;
   const connectBusy =
-    onboardMutation.isPending ||
+    oauthConnectMutation.isPending ||
+    expressConnectMutation.isPending ||
+    oauthCompleteMutation.isPending ||
     loginMutation.isPending ||
     saveConnectMutation.isPending ||
     syncConnectMutation.isPending ||
@@ -300,22 +372,58 @@ export default function BillingPage() {
         </p>
 
         <div className="flex flex-wrap gap-3 mb-4">
-          {!stripeConnect?.chargesEnabled ? (
-            <button
-              type="button"
-              onClick={() => onboardMutation.mutate()}
-              disabled={connectBusy}
-              className="btn-primary flex items-center gap-2"
-            >
-              {onboardMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+          {connectLoading ? (
+            <div className="h-9 w-40 rounded-lg bg-white/5 animate-pulse" />
+          ) : !stripeConnect?.chargesEnabled ? (
+            <>
+              {stripeConnect?.oauthAvailable ? (                <button
+                  type="button"
+                  onClick={() => oauthConnectMutation.mutate()}
+                  disabled={connectBusy}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {oauthConnectMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}
+                  {stripeConnect?.connectAccountId
+                    ? t('billing.stripeConnectContinueOAuth')
+                    : t('billing.stripeConnectOAuth')}
+                </button>
               ) : (
-                <ExternalLink className="w-4 h-4" />
+                !stripeConnect?.connectAccountId && (
+                  <button
+                    type="button"
+                    onClick={() => expressConnectMutation.mutate()}
+                    disabled={connectBusy}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    {expressConnectMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4" />
+                    )}
+                    {t('billing.stripeConnectStart')}
+                  </button>
+                )
               )}
-              {stripeConnect?.connectAccountId
-                ? t('billing.stripeConnectContinue')
-                : t('billing.stripeConnectStart')}
-            </button>
+              {stripeConnect?.connectAccountId && stripeConnect.connectMode === 'express' && (
+                <button
+                  type="button"
+                  onClick={() => expressConnectMutation.mutate()}
+                  disabled={connectBusy}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  {expressConnectMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}
+                  {t('billing.stripeConnectContinue')}
+                </button>
+              )}
+            </>
           ) : (
             <button
               type="button"
@@ -371,7 +479,38 @@ export default function BillingPage() {
         </button>
 
         {showAdvanced && (
-          <div className="mt-3 flex flex-col sm:flex-row gap-3 max-w-xl">
+          <div className="mt-3 space-y-3 max-w-xl">
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">
+                {t('billing.stripeConnectExpressCountry')}
+              </label>
+              <select
+                className="input w-full max-w-xs"
+                value={expressCountry}
+                onChange={(e) => setExpressCountry(e.target.value)}
+              >
+                {EXPRESS_COUNTRIES.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">{t('billing.stripeConnectExpressHint')}</p>
+              <button
+                type="button"
+                onClick={() => expressConnectMutation.mutate()}
+                disabled={connectBusy}
+                className="btn-secondary mt-2 flex items-center gap-2"
+              >
+                {expressConnectMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
+                )}
+                {t('billing.stripeConnectExpress')}
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
             <input
               className="input flex-1 font-mono text-sm"
               placeholder={t('billing.stripeConnectPlaceholder')}
@@ -390,6 +529,7 @@ export default function BillingPage() {
                 t('billing.stripeConnectSaveManual')
               )}
             </button>
+            </div>
           </div>
         )}
       </div>

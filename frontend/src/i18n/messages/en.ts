@@ -1221,7 +1221,13 @@ const en: MessageTree = {
     manage: 'Manage subscription',
     clientPayments: 'Client booking payments',
     clientPaymentsDescription:
-      'Connect your own Stripe account. You sign in on Stripe and manage payouts, country, and compliance in your Stripe Dashboard — we never create an account for you.',
+      'Connect your tenant Stripe account (Armenia, EU, US, UK, UAE, etc.). Booking payments go to the tenant; your platform subscription stays on your UAE Stripe account.',
+    stripeConnectOAuth: 'Connect your Stripe account',
+    stripeConnectContinueOAuth: 'Reconnect your Stripe account',
+    stripeConnectExpress: 'Create managed Express account',
+    stripeConnectExpressCountry: 'Business country (ISO code)',
+    stripeConnectExpressHint:
+      'Prefer OAuth for international tenants. Express creates a platform-managed account when Stripe allows it in that country.',
     stripeConnectAccountId: 'Stripe Connect account ID',
     stripeConnectPlaceholder: 'acct_...',
     stripeConnectStart: 'Connect with Stripe',
