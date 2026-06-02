@@ -24,6 +24,7 @@ import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { expandPackageServiceItems } from '@/lib/package-booking';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
+import { bookPath } from '@/lib/tenant-host';
 
 interface PackageCheckoutClientProps {
   slug: string;
@@ -286,15 +287,96 @@ export function PackageCheckoutClient({
   };
 
   if (success) {
+    const confirmedTotal = quote?.amountDue ?? pkg.pricing.packagePrice;
+
     return (
       <>
         <PublicHeader tenant={tenant} />
-        <main className="max-w-lg mx-auto px-4 py-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 text-2xl">
-            ✓
+        <main className="max-w-lg mx-auto px-4 py-12">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+              ✓
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">{t('public.packageBookedTitle')}</h1>
+            <p className="text-gray-600 mt-2">{t('public.packageBookedHint')}</p>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('public.packageBookedTitle')}</h1>
-          <p className="text-gray-600 mt-2">{t('public.packageBookedHint')}</p>
+
+          <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm text-left">
+            {scheduleStart && (
+              <div className="flex items-start gap-3 pb-4 mb-4 border-b border-gray-100">
+                <Calendar className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {formatDateDisplay(scheduleStart, locale)}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatScheduleTime(scheduleStart)}
+                    {scheduleEnd ? ` – ${formatScheduleTime(scheduleEnd.toISOString())}` : ''}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-0.5">{formatDuration(totalDuration)}</p>
+                  {employeeName && (
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {t('public.multiServiceWithProvider').replace('{name}', employeeName)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm font-medium text-gray-500 mb-1">{t('public.packageIncludedServices')}</p>
+            <p className="font-medium text-gray-900 mb-3">{pkg.name}</p>
+            <ul className="space-y-3">
+              {expandedItems.map((item, index) => {
+                const line = lines[index];
+                const priced = pricedItems.find((entry) => entry.serviceId === item.serviceId);
+                const discountedUnit =
+                  priced && priced.quantity > 0
+                    ? priced.discountedLineTotal / priced.quantity
+                    : priced?.unitPrice;
+
+                return (
+                  <li
+                    key={`${item.serviceId}:${index}`}
+                    className="flex items-start justify-between gap-3 pb-3 border-b border-gray-50 last:border-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{item.serviceName}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDuration(item.durationMinutes + item.bufferMinutes)}
+                      </p>
+                      {line && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatDateDisplay(line.startTime, locale)} · {formatScheduleTime(line.startTime)}
+                        </p>
+                      )}
+                    </div>
+                    {discountedUnit != null && (
+                      <p className="font-medium text-gray-900 shrink-0">
+                        {formatPrice(discountedUnit, pkg.currency)}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="flex justify-between mt-4 pt-4 border-t border-gray-100">
+              <span className="font-semibold text-gray-900">{t('public.total')}</span>
+              <span className="font-semibold text-gray-900">
+                {formatPrice(confirmedTotal, pkg.currency)}
+              </span>
+            </div>
+          </section>
+
+          <div className="text-center mt-8">
+            <a
+              href={bookPath(slug)}
+              className="inline-block px-6 py-3 rounded-2xl text-white font-semibold"
+              style={{ backgroundColor: primary }}
+            >
+              {t('public.bookAnother')}
+            </a>
+          </div>
         </main>
       </>
     );

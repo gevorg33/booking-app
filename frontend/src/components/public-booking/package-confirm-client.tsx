@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
+import { BookingDayStrip } from '@/components/public-booking/booking-day-strip';
+import { BookingTimeSlotGrid } from '@/components/public-booking/booking-time-slot-grid';
 import {
   formatDuration,
   formatPrice,
@@ -15,7 +17,8 @@ import {
   type PublicServicePackage,
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
-import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
+import { formatDateDisplay, formatScheduleTime, toDateKey } from '@/lib/date-format';
+import { buildBookingDayOptions } from '@/lib/booking-day-options';
 import { useI18n } from '@/i18n';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { buildPackageLinesFromBlockStart, expandPackageServiceItems } from '@/lib/package-booking';
@@ -30,8 +33,10 @@ interface PackageConfirmClientProps {
 export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageConfirmClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const tz = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
+  const dayOptions = useMemo(() => buildBookingDayOptions(tz), [tz]);
 
   const expandedItems = useMemo(() => expandPackageServiceItems(pkg), [pkg]);
   const pricedItems = useMemo(() => resolvePackageItemPricing(pkg), [pkg]);
@@ -54,10 +59,15 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
-  const [providers, setProviders] = useState<Array<{ id: string; name: string; earliestStartTime?: string }>>([]);
+  const [slotProviders, setSlotProviders] = useState<
+    Array<{ id: string; name: string; earliestStartTime?: string }>
+  >([]);
+  const [laterProviders, setLaterProviders] = useState<
+    Array<{ id: string; name: string; earliestStartTime?: string }>
+  >([]);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [includeLaterDays, setIncludeLaterDays] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const suggestRequestRef = useRef(0);
@@ -127,8 +137,9 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
     setDateKey('');
     dateKeyRef.current = '';
     setSlots([]);
-    setProviders([]);
-    setIncludeLaterDays(false);
+    setSlotProviders([]);
+    setLaterProviders([]);
+    setProviderPickerOpen(false);
     setLoading(true);
     setSlotsLoading(true);
     setError(null);
@@ -182,18 +193,105 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
       setSelectedStart(null);
       setEmployeeId(null);
       setEmployeeName(null);
+      setProviderPickerOpen(false);
       if (!nextDate) return;
       void loadDaySlots(nextDate, null);
     },
     [loadDaySlots],
   );
 
+  const onSelectStartTime = useCallback(
+    (startTime: string) => {
+      selectedStartRef.current = startTime;
+      setSelectedStart(startTime);
+      const slot = slots.find((entry) => entry.startTime === startTime);
+      if (slot) {
+        setEmployeeId(slot.employeeId);
+        setEmployeeName(slot.employeeName);
+      }
+      setProviderPickerOpen(false);
+    },
+    [slots],
+  );
+
+  const selectedSlot = useMemo(
+    () => slots.find((slot) => slot.startTime === selectedStart) ?? null,
+    [selectedStart, slots],
+  );
+
+  const availableProviders = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string; earliestStartTime?: string }>();
+    for (const provider of slotProviders) {
+      byId.set(provider.id, provider);
+    }
+    for (const provider of laterProviders) {
+      if (!byId.has(provider.id)) {
+        byId.set(provider.id, provider);
+      }
+    }
+    return [...byId.values()];
+  }, [laterProviders, slotProviders]);
+
+  const canChangeProvider = availableProviders.length > 1;
+
+  const selectedProviderName = useMemo(() => {
+    if (employeeId) {
+      const match = availableProviders.find((provider) => provider.id === employeeId);
+      if (match?.name) return match.name;
+    }
+    return employeeName ?? selectedSlot?.employeeName ?? '';
+  }, [availableProviders, employeeId, employeeName, selectedSlot?.employeeName]);
+
   useEffect(() => {
-    if (!selectedStart) return;
-    void getPublicPackageProviders(slug, pkg.id, selectedStart, includeLaterDays)
-      .then((result) => setProviders(result.providers))
-      .catch(() => setProviders([]));
-  }, [includeLaterDays, pkg.id, selectedStart, slug]);
+    if (!selectedStart) {
+      setSlotProviders([]);
+      setLaterProviders([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    void Promise.all([
+      getPublicPackageProviders(slug, pkg.id, selectedStart, false),
+      getPublicPackageProviders(slug, pkg.id, selectedStart, true),
+    ])
+      .then(([slotResult, laterResult]) => {
+        if (cancelled) return;
+        setSlotProviders(slotResult.providers);
+        setLaterProviders(laterResult.providers);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSlotProviders([]);
+          setLaterProviders([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pkg.id, selectedStart, slug]);
+
+  const onSelectProvider = useCallback(
+    (providerId: string) => {
+      setEmployeeId(providerId);
+      const provider = availableProviders.find((entry) => entry.id === providerId);
+      if (provider?.name) {
+        setEmployeeName(provider.name);
+      }
+      if (
+        provider?.earliestStartTime &&
+        provider.earliestStartTime !== selectedStartRef.current
+      ) {
+        selectedStartRef.current = provider.earliestStartTime;
+        setSelectedStart(provider.earliestStartTime);
+        setDateKey(toDateKey(new Date(provider.earliestStartTime), tz));
+        dateKeyRef.current = toDateKey(new Date(provider.earliestStartTime), tz);
+      }
+      setProviderPickerOpen(false);
+    },
+    [availableProviders, tz],
+  );
 
   const sequentialLines = useMemo(() => {
     if (!selectedStart || !employeeId) return [];
@@ -204,19 +302,80 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
     if (!selectedStart || !employeeId || sequentialLines.length === 0) return;
     const q = new URLSearchParams({
       lines: JSON.stringify(sequentialLines),
-      ...(employeeName ? { employeeName } : {}),
+      ...(selectedProviderName ? { employeeName: selectedProviderName } : {}),
     });
     router.push(`${bookPath(slug, `/packages/${pkg.id}/checkout`)}?${q.toString()}`);
-  }, [employeeId, employeeName, pkg.id, router, sequentialLines, selectedStart, slug]);
+  }, [employeeId, pkg.id, router, selectedProviderName, sequentialLines, slug]);
 
   return (
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <main className="max-w-lg mx-auto px-4 py-6 pb-32 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{pkg.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('public.selectDateTime')}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('public.packageScheduleEach')}</p>
-          <div className="mt-3 flex flex-wrap gap-3 text-sm">
+        </div>
+
+        {(selectedProviderName || employeeId) && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-gray-500">{t('public.selectSpecialist')}</p>
+              {canChangeProvider && (
+                <button
+                  type="button"
+                  onClick={() => setProviderPickerOpen((open) => !open)}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                  aria-label={t('public.multiServiceEditProvider')}
+                  aria-expanded={providerPickerOpen}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {!providerPickerOpen && selectedProviderName && (
+              <p className="font-medium text-gray-900 mt-1">{selectedProviderName}</p>
+            )}
+            {providerPickerOpen && (
+              <div className="space-y-2 mt-3">
+                {availableProviders.map((provider) => {
+                  const active = employeeId === provider.id;
+                  const atSelectedTime = slotProviders.some((entry) => entry.id === provider.id);
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      onClick={() => onSelectProvider(provider.id)}
+                      className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                        active ? 'border-violet-400 bg-violet-50' : 'border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900">{provider.name}</p>
+                        {!atSelectedTime && provider.earliestStartTime && (
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            {formatDateDisplay(provider.earliestStartTime, locale)}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className="w-5 h-5 rounded-full border-2 shrink-0"
+                        style={{
+                          borderColor: active ? primary : '#d1d5db',
+                          backgroundColor: active ? primary : 'transparent',
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-4">
+          <p className="text-sm font-medium text-gray-500 mb-1">{t('public.packageIncludedServices')}</p>
+          <p className="font-medium text-gray-900 mb-3">{pkg.name}</p>
+          <div className="flex flex-wrap gap-3 text-sm mb-4">
             <span className="font-semibold text-gray-900">
               {formatPrice(pkg.pricing.packagePrice, pkg.currency)}
             </span>
@@ -224,13 +383,9 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
               {formatPrice(pkg.pricing.regularTotal, pkg.currency)}
             </span>
             <span className="text-emerald-700 font-medium">
-              Save {pkg.pricing.savingsPercent.toFixed(0)}%
+              {t('public.packageSavePercent', { percent: pkg.pricing.savingsPercent.toFixed(0) })}
             </span>
           </div>
-        </div>
-
-        <section className="rounded-2xl border border-gray-100 bg-white p-4">
-          <p className="text-sm font-medium text-gray-500 mb-3">{t('public.packageIncludedServices')}</p>
           <ul className="space-y-3">
             {expandedItems.map((item, index) => {
               const scheduled = sequentialLines[index];
@@ -249,7 +404,7 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
                     <p className="text-sm text-gray-500">
                       {formatDuration(item.durationMinutes + item.bufferMinutes)}
                       {scheduled && (
-                        <span className="ml-2 text-violet-700">
+                        <span className="ml-2">
                           · {formatScheduleTime(scheduled.startTime)}
                         </span>
                       )}
@@ -299,80 +454,24 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           </p>
         )}
 
-        <div>
-          <label className="label">{t('public.dateLabel')}</label>
-          <input
-            type="date"
-            className="input"
-            value={dateKey}
-            onChange={(e) => onDateChange(e.target.value)}
-          />
-        </div>
+        <BookingDayStrip
+          dayOptions={dayOptions}
+          selectedDateKey={dateKey}
+          onSelectDateKey={onDateChange}
+          primaryColor={primary}
+          todayLabel={t('public.today')}
+        />
 
-        <div className="space-y-2">
-          {slotsLoading && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t('public.packageFindingSlots')}
-            </div>
-          )}
-          {slots.length === 0 && dateKey && !loading && !slotsLoading && (
-            <p className="text-sm text-gray-500">{t('public.noSlotsThisDay')}</p>
-          )}
-          {slots.map((slot) => {
-            const selected = selectedStart === slot.startTime;
-            return (
-              <button
-                key={`${slot.startTime}-${slot.employeeId}`}
-                type="button"
-                onClick={() => {
-                  setSelectedStart(slot.startTime);
-                  setEmployeeId(slot.employeeId);
-                  setEmployeeName(slot.employeeName);
-                }}
-                className={`w-full text-left p-3 rounded-xl border ${
-                  selected ? 'border-violet-400 bg-violet-50' : 'border-gray-100'
-                }`}
-              >
-                {formatDateDisplay(slot.startTime, locale)} · {formatScheduleTime(slot.startTime)} ·{' '}
-                {slot.employeeName}
-              </button>
-            );
-          })}
-        </div>
-
-        {selectedStart && slots.some((slot) => slot.startTime === selectedStart) && (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={includeLaterDays}
-                onChange={(e) => setIncludeLaterDays(e.target.checked)}
-              />
-              {t('public.multiServiceLaterProviders')}
-            </label>
-            {providers.map((provider) => (
-              <button
-                key={provider.id}
-                type="button"
-                onClick={() => {
-                  setEmployeeId(provider.id);
-                  setEmployeeName(provider.name);
-                }}
-                className={`w-full text-left p-3 rounded-xl border ${
-                  employeeId === provider.id ? 'border-violet-400 bg-violet-50' : 'border-gray-100'
-                }`}
-              >
-                {provider.name}
-                {provider.earliestStartTime && includeLaterDays && (
-                  <span className="text-gray-500 text-sm ml-2">
-                    · {formatDateDisplay(provider.earliestStartTime, locale)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+        <BookingTimeSlotGrid
+          slots={slots}
+          selectedStartTime={selectedStart}
+          onSelectStartTime={onSelectStartTime}
+          primaryColor={primary}
+          loading={loading || slotsLoading}
+          error={null}
+          emptyLabel={t('public.noSlotsThisDay')}
+          heading={t('public.availableSlots')}
+        />
       </main>
       <FixedActionBar
         primaryColor={primary}

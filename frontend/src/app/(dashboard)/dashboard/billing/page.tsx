@@ -46,8 +46,6 @@ interface StripeConnectInfo {
   displayName?: string;
 }
 
-const EXPRESS_COUNTRIES = ['AE', 'AM', 'DE', 'GB', 'US', 'FR', 'AU', 'CA'] as const;
-
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   active: { label: 'Active', className: 'bg-green-600/15 text-green-400' },
   trialing: { label: 'Trial', className: 'bg-blue-600/15 text-blue-400' },
@@ -64,8 +62,6 @@ export default function BillingPage() {
   const [confirming, setConfirming] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectNotice, setConnectNotice] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [connectAccountId, setConnectAccountId] = useState('');
   const [expressCountry, setExpressCountry] = useState('AM');
   const connectCallbackHandled = useRef(false);
   const oauthCallbackHandled = useRef(false);
@@ -114,12 +110,6 @@ export default function BillingPage() {
     },
     enabled: !!business?.id,
   });
-
-  useEffect(() => {
-    if (stripeConnect?.connectAccountId) {
-      setConnectAccountId(stripeConnect.connectAccountId);
-    }
-  }, [stripeConnect?.connectAccountId]);
 
   useEffect(() => {
     if (stripeConnect?.connectCountry) {
@@ -289,33 +279,11 @@ export default function BillingPage() {
     },
   });
 
-  const saveConnectMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.put(`/businesses/${business!.id}/billing/stripe-connect`, {
-        connectAccountId: connectAccountId.trim(),
-      });
-      return data.data || data;
-    },
-    onSuccess: () => {
-      setConnectError(null);
-      setConnectNotice(t('billing.stripeConnectSaved'));
-      queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
-    },
-    onError: (err: unknown) => {
-      setConnectNotice(null);
-      setConnectError(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          t('errors.saveFailed'),
-      );
-    },
-  });
-
   const disconnectConnectMutation = useMutation({
     mutationFn: async () => {
       await api.put(`/businesses/${business!.id}/billing/stripe-connect`, { disconnect: true });
     },
     onSuccess: () => {
-      setConnectAccountId('');
       setConnectError(null);
       setConnectNotice(null);
       queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
@@ -333,7 +301,6 @@ export default function BillingPage() {
     expressConnectMutation.isPending ||
     oauthCompleteMutation.isPending ||
     loginMutation.isPending ||
-    saveConnectMutation.isPending ||
     syncConnectMutation.isPending ||
     disconnectConnectMutation.isPending;
 
@@ -348,11 +315,10 @@ export default function BillingPage() {
       </div>
 
       <div className="card mb-8">
-        <h2 className="font-semibold mb-1 flex items-center gap-2">
+        <h2 className="font-semibold mb-4 flex items-center gap-2">
           <Wallet className="w-4 h-4 text-violet-400" />
           {t('billing.clientPayments')}
         </h2>
-        <p className="text-sm text-gray-400 mb-4">{t('billing.clientPaymentsDescription')}</p>
         <p className="text-xs mb-4">
           {stripeConnect?.configured && stripeConnect.chargesEnabled ? (
             <span className="text-green-400">{t('billing.stripeConnectConfigured')}</span>
@@ -469,69 +435,6 @@ export default function BillingPage() {
 
         {connectError && <p className="text-sm text-red-400 mb-2">{connectError}</p>}
         {connectNotice && <p className="text-sm text-green-400 mb-2">{connectNotice}</p>}
-
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          className="text-xs text-gray-500 underline"
-        >
-          {showAdvanced ? t('billing.stripeConnectHideAdvanced') : t('billing.stripeConnectShowAdvanced')}
-        </button>
-
-        {showAdvanced && (
-          <div className="mt-3 space-y-3 max-w-xl">
-            <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                {t('billing.stripeConnectExpressCountry')}
-              </label>
-              <select
-                className="input w-full max-w-xs"
-                value={expressCountry}
-                onChange={(e) => setExpressCountry(e.target.value)}
-              >
-                {EXPRESS_COUNTRIES.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">{t('billing.stripeConnectExpressHint')}</p>
-              <button
-                type="button"
-                onClick={() => expressConnectMutation.mutate()}
-                disabled={connectBusy}
-                className="btn-secondary mt-2 flex items-center gap-2"
-              >
-                {expressConnectMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-4 h-4" />
-                )}
-                {t('billing.stripeConnectExpress')}
-              </button>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              className="input flex-1 font-mono text-sm"
-              placeholder={t('billing.stripeConnectPlaceholder')}
-              value={connectAccountId}
-              onChange={(e) => setConnectAccountId(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => saveConnectMutation.mutate()}
-              disabled={connectBusy}
-              className="btn-secondary shrink-0"
-            >
-              {saveConnectMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                t('billing.stripeConnectSaveManual')
-              )}
-            </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {banner === 'success' && (
