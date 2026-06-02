@@ -1,0 +1,7 @@
+{
+  "name": "optischedule-consumer",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

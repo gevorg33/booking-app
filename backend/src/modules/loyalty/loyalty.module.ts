@@ -6,6 +6,7 @@ import { LoyaltyController } from './loyalty.controller.js';
 import { LoyaltyAwardService } from './loyalty-award.service.js';
 import { LoyaltyCustomerMatcherService } from './loyalty-customer-matcher.service.js';
 import { BusinessModule } from '../business/business.module.js';
+import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 
@@ -18,6 +19,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
       Customer,
     ]),
     BusinessModule,
+    PlanEntitlementsModule,
   ],
   controllers: [LoyaltyController],
   providers: [LoyaltyService, LoyaltyAwardService, LoyaltyCustomerMatcherService],

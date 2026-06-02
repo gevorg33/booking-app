@@ -32,6 +32,11 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsBoolean()
   marketingOptIn?: boolean;
+
+  /** Where the customer record was first created (for marketing alerts). */
+  @IsOptional()
+  @IsIn(['dashboard', 'web_booking', 'app'])
+  registrationSource?: 'dashboard' | 'web_booking' | 'app';
 }
 
 export class UpdateCustomerDto {

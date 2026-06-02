@@ -1,0 +1,26 @@
+:root {
+  --tenant-primary: #7c3aed;
+  --ion-color-primary: var(--tenant-primary);
+  --ion-color-primary-rgb: 124, 58, 237;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #6d28d9;
+  --ion-color-primary-tint: #8b5cf6;
+}
+
+ion-toolbar {
+  --background: #ffffff;
+  --color: #111827;
+}
+
+ion-content {
+  --background: #f5f5f7;
+}
+
+.salon-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}

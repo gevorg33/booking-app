@@ -371,25 +371,25 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 5. Signs in → appears as **Customer** under Glow Nails in dashboard
 6. App primary/secondary colors and brand logos can be changed in dashboard from admin/business owner
 
-- [ ] **gap-2.5** — Branded consumer booking app (native Capacitor + PWA parity)
+- [x] **gap-2.5** — Branded consumer booking app (native Capacitor + PWA parity) — iOS-first in `consumer-app/`
 
 #### Native app foundation
 
-- [ ] **gap-2.5.1** — Consumer app shell (Capacitor) — book, account, subscriptions; separate from `provider-app/`
-- [ ] **gap-2.5.2** — Active tenant context — app stores `slug` / `businessId`; all auth + API calls scoped to current salon
-- [ ] **gap-2.5.3** — Tenant entry — deep link, salon code, or “recent salons” if no link; sign-in always after tenant is set
+- [x] **gap-2.5.1** — Consumer app shell (Capacitor) — book, account, subscriptions; separate from `provider-app/`
+- [x] **gap-2.5.2** — Active tenant context — app stores `slug` / `businessId`; all auth + API calls scoped to current salon
+- [x] **gap-2.5.3** — Tenant entry — deep link, salon code, or “recent salons” if no link; sign-in always after tenant is set
 
 #### Web → App Store → tenant (install attribution)
 
-- [ ] **gap-2.5.4** — Public booking banner — “Download app” + “Open in app” on `/book/{slug}` (web, current stack)
-- [ ] **gap-2.5.5** — Universal Links (iOS) + App Links (Android) — `https://…/book/{slug}` opens consumer app when installed
-- [ ] **gap-2.5.6** — Store CTA URLs carry tenant — smart link or query (`?slug=glow-nails` / deferred deep link) so **post-install first open** restores salon context
-- [ ] **gap-2.5.7** — App first launch — read deep link / deferred slug → navigate to tenant home → then Google sign-in via `/public/{slug}/customer/auth`
+- [x] **gap-2.5.4** — Public booking banner — “Download app” + “Open in app” on `/book/{slug}` (web, current stack)
+- [x] **gap-2.5.5** — Universal Links (iOS) + App Links (Android) — AASA, `assetlinks.json`, configure scripts
+- [x] **gap-2.5.6** — Store CTA URLs carry tenant — `?slug=` on App Store URL + deferred deep link in `localStorage`
+- [x] **gap-2.5.7** — App first launch — read deep link / deferred slug → navigate to tenant home → Google sign-in via `/public/{slug}/auth/google`
 
 #### Customer identity (unchanged backend contract)
 
-- [ ] **gap-2.5.8** — Sign-in creates/finds `Customer` for active `businessId` only (same as web public booking today)
-- [ ] **gap-2.5.9** — Per-tenant session — separate auth storage per `slug`; switching salon = switch tenant context
+- [x] **gap-2.5.8** — Sign-in creates/finds `Customer` for active `businessId` only (same as web public booking today)
+- [x] **gap-2.5.9** — Per-tenant session — separate auth storage per `slug`; switching salon = switch tenant context
 
 #### Store launch (consumer)
 
@@ -403,8 +403,8 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 **Goal:** Public launch readiness — billing options, upgrade flows.
 
-- [ ] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
-- [ ] **gap-7.6** — Annual billing option (~20% discount)
+- [x] **gap-7.5** — In-app upgrade prompts when hitting limits (seats, AI, monetization flags)
+- [x] **gap-7.6** — Annual billing option (~20% discount)
 
 ---
 
@@ -412,26 +412,28 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 **Goal:** Notify the marketing team when customers register, and keep books in sync when subscriptions are sold.
 
-- [ ] **gap-4.6** — New customer registered → email marketing team (see spec below)
-- [ ] **gap-4.7** — Subscription purchased → create accounting record (see spec below)
+**Status:** Shipped. Run `npm run test:sprint12b` in `backend/` (55 tests, per-file 100% statements/lines/functions on Sprint 12.b modules).
+
+- [x] **gap-4.6** — New customer registered → email marketing team (see spec below)
+- [x] **gap-4.7** — Subscription purchased → create accounting record (see spec below)
 
 ### gap-4.6 — New customer → marketing email
 
 **User story:** As a business owner, I want the marketing team notified when someone registers as a customer so we can welcome them or add them to campaigns.
 
-- [ ] **gap-4.6.1** — Settings — `Settings → Notifications` (or Integrations): **Marketing team email(s)** (comma-separated or list); toggle **Email on new customer registration**
-- [ ] **gap-4.6.2** — Trigger — on first customer create (public sign-up, booking checkout that creates customer, dashboard create); emit `customer.registered` or reuse `customer.upserted` with `isNew` flag
-- [ ] **gap-4.6.3** — Email content — customer name, email, phone, source (web booking / app / dashboard), business name, link to dashboard customer profile
-- [ ] **gap-4.6.4** — Delivery — use existing transactional email provider; log send failures; skip when toggle off or no recipients configured
+- [x] **gap-4.6.1** — Settings — `Settings → Notifications`: **Marketing team email(s)** (comma-separated); toggle **Email on new customer registration**
+- [x] **gap-4.6.2** — Trigger — `customer.registered` on first create (dashboard, web booking checkout, Google sign-in)
+- [x] **gap-4.6.3** — Email content — customer name, email, phone, source, business name, dashboard profile link
+- [x] **gap-4.6.4** — Delivery — Resend/email service; warn on failures; skip when toggle off or no recipients
 
 ### gap-4.7 — Subscription purchase → accounting
 
 **User story:** When a customer buys a service subscription plan, I want an income line in accounting export / books without manual entry.
 
-- [ ] **gap-4.7.1** — Event — emit `subscription.purchased` (or `payment.received` with `source: subscription`) when subscription checkout completes (**sub-1**)
-- [ ] **gap-4.7.2** — Accounting row — date, plan name, amount paid, currency, customer name, subscription ID; type `income` / sub-type `subscription`
-- [ ] **gap-4.7.3** — Integrate with **gap-4.1** export — include subscription purchases in QuickBooks / Xero / CSV export range
-- [ ] **gap-4.7.4** — Optional — separate deferred-revenue handling later; MVP = recognize full plan price on purchase (document assumption)
+- [x] **gap-4.7.1** — Event — `subscription.purchased` + `payment.received` with `source: subscription` on checkout complete
+- [x] **gap-4.7.2** — Accounting row — plan name, amount paid, currency, customer, subscription ID; `income` / `incomeSubType: subscription`
+- [x] **gap-4.7.3** — **gap-4.1** export — subscription purchases in QuickBooks / Xero / CSV by purchase date
+- [x] **gap-4.7.4** — MVP recognizes full plan price on purchase (no deferred revenue)
 
 
 *(Depends on **sub-1** subscription checkout; can stub event + export row before full sub-1 UI ships.)*
@@ -442,7 +444,7 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 **Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
 
-**Status (web + backend):** Shipped except **gap-2.7.5** (native consumer app) and **gap-8.7** same-visit atomic customer reschedule for ad-hoc multi-service (package visit self-service shipped). Run `npm run test:sprint13` in `backend/`.
+**Status (web + backend + consumer app):** Shipped except **gap-8.7** same-visit atomic customer reschedule for ad-hoc multi-service (package visit self-service shipped). Run `npm run test:sprint13` in `backend/`, `npm run test:sprint11` in `consumer-app/`.
 
 - [x] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
 - [x] **feature** — After checkout, confirmation email + success step link to **Manage booking** (`/book/{slug}/manage?bookingId=&token=`). Token flow works without login; optional Google sign-in on manage page; logged-in customers use **My appointments** (`/account`). Cancel/reschedule on manage page and account (not inline on success step).
@@ -457,7 +459,7 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 - [x] **gap-2.7.2** — API — JWT: `POST /public/{slug}/me/bookings/:id/cancel|reschedule`; token (no login): `POST /public/{slug}/bookings/manage/cancel|reschedule` + `GET …/bookings/manage`; policy + ownership enforced
 - [x] **gap-2.7.3** — Reschedule UX — **done (web):** single booking + **package visit** cancel/reschedule (all sub-appointments in one flow). **Deferred:** **gap-8.7** same-visit multi-service group reschedules atomically via customer API
 - [x] **gap-2.7.4** — Web public booking — `/book/{slug}/account` “My appointments” + `/manage` token page; `PublicCustomerBookingActions` with policy messaging
-- [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time *(web parity only today)*
+- [x] **gap-2.7.5** — Consumer app (**gap-2.5**) — cancel/reschedule on account + manage token; confirmation with old vs new time
 - [x] **gap-2.7.6** — Side effects — `booking.cancelled` / `booking.rescheduled` events; `restoreCreditForBooking` on cancel via shared `BookingService.cancel`
 
 ### gap-2.8 — Staff push on cancel & reschedule

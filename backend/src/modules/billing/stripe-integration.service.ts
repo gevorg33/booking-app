@@ -16,6 +16,7 @@ import {
   isValidConnectAccountId,
   StripeIntegrationPublicView,
 } from './stripe-integration.types.js';
+import { PlanEntitlementsService } from './plan-entitlements.service.js';
 
 @Injectable()
 export class StripeIntegrationService {
@@ -24,6 +25,7 @@ export class StripeIntegrationService {
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private stripeService: StripeService,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   isConnectReady(settings?: Record<string, unknown>): boolean {
@@ -108,6 +110,7 @@ export class StripeIntegrationService {
 
   /** Preferred onboarding: OAuth when configured (tenant's own Stripe account, any supported country). */
   async startConnect(businessId: string, dto: StartStripeConnectDto = {}): Promise<{ url: string }> {
+    await this.planEntitlements.assertFeature(businessId, 'stripeConnect');
     const mode = dto.mode ?? (this.stripeService.isOAuthConfigured() ? 'oauth' : 'express');
     if (mode === 'oauth') {
       return this.createConnectOAuthLink(businessId);
@@ -412,6 +415,8 @@ export class StripeIntegrationService {
       await this.businessRepo.save(business);
       return this.getPublicSettings(businessId);
     }
+
+    await this.planEntitlements.assertFeature(businessId, 'stripeConnect');
 
     const connectAccountId = dto.connectAccountId?.trim();
     if (!connectAccountId) {

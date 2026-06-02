@@ -26,6 +26,7 @@ describe('AccountingExportService', () => {
   it('builds generic csv export', () => {
     const result = service.buildExport('csv', rows);
     expect(result.format).toBe('csv');
+    expect(result.content).toContain('IncomeSubType');
     expect(result.content).toContain('Haircut');
     expect(result.rowCount).toBe(2);
   });
@@ -49,6 +50,21 @@ describe('AccountingExportService', () => {
       { ...rows[0], description: 'Cut, color' },
     ]);
     expect(result.content).toContain('"Cut, color"');
+  });
+
+  it('includes incomeSubType in subscription quickbooks memo', () => {
+    const subRow = {
+      date: '2026-06-01',
+      description: '6-month plan',
+      amount: 120,
+      currency: 'USD',
+      type: 'income' as const,
+      incomeSubType: 'subscription' as const,
+      reference: 'sub-1',
+      customerName: 'Jane',
+    };
+    const result = service.buildExport('quickbooks', [subRow]);
+    expect(result.content).toContain('[subscription]');
   });
 
   it('defaults xero account code and quickbooks account name', () => {

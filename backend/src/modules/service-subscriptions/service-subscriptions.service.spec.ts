@@ -28,12 +28,17 @@ describe('ServiceSubscriptionsService', () => {
   const serviceRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
 
+  const planEntitlements = {
+    assertFeature: jest.fn().mockResolvedValue(undefined),
+  };
+
   const service = new ServiceSubscriptionsService(
     planRepo as any,
     subscriptionRepo as any,
     usageRepo as any,
     serviceRepo as any,
     customerRepo as any,
+    planEntitlements as any,
   );
 
   const basePlan = {

@@ -21,6 +21,7 @@ import {
   addMonths,
   type SubscriptionDiscountType as DiscountType,
 } from '../../common/utils/subscription-pricing.util.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 export interface CreateSubscriptionPlanDto {
   name: string;
@@ -44,6 +45,7 @@ export class ServiceSubscriptionsService {
     private serviceRepo: Repository<Service>,
     @InjectRepository(Customer)
     private customerRepo: Repository<Customer>,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   async listPlans(businessId: string, serviceId?: string, includeInactive = false) {
@@ -116,6 +118,7 @@ export class ServiceSubscriptionsService {
   }
 
   async createPlan(businessId: string, dto: CreateSubscriptionPlanDto) {
+    await this.planEntitlements.assertFeature(businessId, 'memberships');
     await this.assertService(businessId, dto.serviceId);
     if (dto.includedAppointments < 1) {
       throw new BadRequestException('includedAppointments must be at least 1');

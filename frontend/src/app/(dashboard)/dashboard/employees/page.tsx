@@ -25,6 +25,9 @@ import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
+import { usePlanEntitlements } from '@/lib/use-plan-entitlements';
+import { isPlanLimitError, planLimitMessage } from '@/lib/plan-entitlements';
 
 export default function EmployeesPage() {
   const { t } = useI18n();
@@ -75,6 +78,8 @@ export default function EmployeesPage() {
     return map;
   }, [teamMembers]);
 
+  const { data: entitlements } = usePlanEntitlements(business?.id);
+
   const { data: services = [] } = useQuery({
     queryKey: ['services', business?.id],
     queryFn: async () => {
@@ -98,10 +103,18 @@ export default function EmployeesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err?.response?.data?.message || 'Failed to create employee');
+    onError: (err: unknown) => {
+      if (isPlanLimitError(err)) {
+        setFormError(planLimitMessage(err));
+        return;
+      }
+      setFormError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          'Failed to create employee',
+      );
     },
   });
 
@@ -271,6 +284,10 @@ export default function EmployeesPage() {
           }
         />
       </DashboardPageShell>
+
+      {entitlements?.atLimit.providerSeats && (
+        <UpgradePrompt limit="provider_seats" className="mb-6" />
+      )}
 
       <div className="card flex items-start gap-3 border-blue-500/20 bg-blue-600/5">
         <Smartphone className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />

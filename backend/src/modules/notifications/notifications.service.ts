@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { NotificationLog } from './entities/notification-log.entity.js';
 import { EmailService } from './email.service.js';
 import { SmsService } from './sms.service.js';
@@ -36,6 +37,10 @@ import {
   resolveBookingReminderHoursBefore,
   resolveReminderChannelFlags,
 } from './appointment-reminder-settings.util.js';
+import {
+  formatCustomerRegistrationSourceLabel,
+  type CustomerRegistrationSource,
+} from './customer-registration.types.js';
 
 interface BookingNotificationContext {
   booking: Booking;
@@ -50,6 +55,7 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(NotificationLog) private logRepo: Repository<NotificationLog>,
     private emailService: EmailService,
     private smsService: SmsService,
@@ -276,6 +282,63 @@ export class NotificationsService {
         html: `<p>${summary.replace(/\n/g, '<br/>')}</p>`,
       }),
     );
+  }
+
+  async sendMarketingNewCustomerRegistration(
+    businessId: string,
+    customerId: string,
+    source: CustomerRegistrationSource,
+  ): Promise<void> {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    if (!business) return;
+
+    const settings = mergeBusinessNotificationSettings(business.settings?.notifications);
+    if (!settings.emailOnNewCustomerRegistration) return;
+    if (!settings.emailEnabled) return;
+    if (settings.marketingTeamEmails.length === 0) return;
+
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId, isActive: true },
+    });
+    if (!customer) return;
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const profileUrl = `${frontendUrl.replace(/\/$/, '')}/dashboard/customers?search=${encodeURIComponent(customer.name)}`;
+    const sourceLabel = formatCustomerRegistrationSourceLabel(source);
+    const subject = `New customer — ${customer.name}`;
+    const lines = [
+      `${customer.name} just registered as a customer.`,
+      '',
+      `Email: ${customer.email ?? '—'}`,
+      `Phone: ${customer.phone ?? '—'}`,
+      `Source: ${sourceLabel}`,
+      `Business: ${business.name}`,
+      '',
+      `View profile: ${profileUrl}`,
+    ];
+    const text = lines.join('\n');
+    const html = `<p><strong>${customer.name}</strong> just registered as a customer.</p>
+<ul>
+<li>Email: ${customer.email ?? '—'}</li>
+<li>Phone: ${customer.phone ?? '—'}</li>
+<li>Source: ${sourceLabel}</li>
+<li>Business: ${business.name}</li>
+</ul>
+<p><a href="${profileUrl}">Open customer profile</a></p>`;
+
+    for (const recipient of settings.marketingTeamEmails) {
+      const result = await this.emailService.send({
+        to: recipient,
+        subject,
+        text,
+        html,
+      });
+      if (!result.ok) {
+        this.logger.warn(
+          `Failed marketing new-customer email to ${recipient} for ${customerId}: ${result.error}`,
+        );
+      }
+    }
   }
 
   async sendReviewRequest(bookingId: string): Promise<void> {

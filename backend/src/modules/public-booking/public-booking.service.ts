@@ -110,6 +110,15 @@ export interface PublicMessagingLinks {
   instagramBookingUrl?: string | null;
 }
 
+export interface PublicBookingCreateResult {
+  booking: Booking;
+  customer: { id: string; name: string; created: boolean };
+  customerSubscriptionId?: string;
+  manageToken: string;
+  paymentMethod: string;
+  amountDue: number;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -1006,6 +1015,7 @@ export class PublicBookingService {
         whatsappReminders: contact.whatsappReminders,
         privacyConsentAccepted: contact.privacyConsentAccepted,
         marketingOptIn: contact.marketingOptIn,
+        registrationSource: 'web_booking',
       });
     }
 
@@ -1900,7 +1910,11 @@ export class PublicBookingService {
     return null;
   }
 
-  async createBooking(slug: string, dto: CreatePublicBookingDto, authenticatedCustomerId?: string) {
+  async createBooking(
+    slug: string,
+    dto: CreatePublicBookingDto,
+    authenticatedCustomerId?: string,
+  ): Promise<PublicBookingCreateResult> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
@@ -1955,6 +1969,7 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
 
+    let customerSubscriptionId: string | undefined;
     if (dto.purchasePlanId) {
       const purchased = await this.subscriptionsService.assignSubscription(
         business.id,
@@ -1967,6 +1982,7 @@ export class PublicBookingService {
               : undefined,
         },
       );
+      customerSubscriptionId = purchased.id;
       if (dto.useSubscriptionCreditOnPurchase !== false) {
         useSubscriptionId = purchased.id;
       }
@@ -2039,6 +2055,7 @@ export class PublicBookingService {
     return {
       booking,
       customer: { id: customer.id, name: customer.name, created },
+      customerSubscriptionId,
       manageToken,
       paymentMethod: wantsCash ? 'cash' : 'online',
       amountDue: pricing.amountDue,

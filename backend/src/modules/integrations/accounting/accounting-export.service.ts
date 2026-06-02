@@ -20,11 +20,13 @@ export class AccountingExportService {
   }
 
   private genericCsv(rows: AccountingExportRow[], generatedAt: string): AccountingExportResult {
-    const header = 'Date,Type,Description,Amount,Currency,Reference,Customer,Employee';
+    const header =
+      'Date,Type,IncomeSubType,Description,Amount,Currency,Reference,Customer,Employee';
     const lines = rows.map((r) =>
       [
         r.date,
         r.type,
+        this.csvEscape(r.incomeSubType || ''),
         this.csvEscape(r.description),
         r.amount.toFixed(2),
         r.currency,
@@ -79,7 +81,8 @@ export class AccountingExportService {
       '!ENDTRNS',
     ];
     for (const r of rows) {
-      const memo = `${r.description} (${r.reference})`;
+      const subLabel = r.incomeSubType ? ` [${r.incomeSubType}]` : '';
+      const memo = `${r.description}${subLabel} (${r.reference})`;
       lines.push(`TRNS\tGENERAL JOURNAL\t${r.date}\t${account}\t${r.customerName || ''}\t${r.amount.toFixed(2)}\t${memo}`);
       lines.push(`SPL\tGENERAL JOURNAL\t${r.date}\tAccounts Receivable\t${r.customerName || ''}\t-${r.amount.toFixed(2)}\t${memo}`);
       lines.push('ENDTRNS');

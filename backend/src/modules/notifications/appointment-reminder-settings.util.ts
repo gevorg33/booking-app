@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import type { BusinessNotificationSettings } from './notification.types.js';
-import { mergeBusinessNotificationSettings } from './notification.types.js';
 
 export interface CustomerReminderChoiceSettings {
   /** When true, checkout shows a reminder timing picker. */
@@ -55,11 +54,6 @@ export function mergeCustomerReminderChoiceSettings(
   };
 }
 
-export function mergeBusinessNotificationSettingsWithReminders(
-  raw?: Record<string, unknown>,
-): BusinessNotificationSettings {
-  return mergeBusinessNotificationSettings(raw);
-}
 
 export function readBookingReminderHoursBefore(metadata?: Record<string, unknown>): number | null | undefined {
   if (!metadata || !('reminderHoursBefore' in metadata)) return undefined;

@@ -168,19 +168,21 @@ export function ToggleChoice({
   disabled,
   className = '',
   variant = 'light',
-  layout = 'inline',
+  layout,
 }: ToggleChoiceProps) {
   const id = useId();
   const accent = primaryColor;
+  /** Public booking stacks toggles — align switches on one column at the right. */
+  const resolvedLayout = layout ?? (variant === 'light' ? 'spread' : 'inline');
 
   return (
     <label
       htmlFor={id}
       className={`flex max-w-full cursor-pointer select-none items-center gap-3 py-2 ${
-        layout === 'spread' ? 'w-full justify-between' : 'w-fit justify-start'
+        resolvedLayout === 'spread' ? 'w-full justify-between' : 'w-fit justify-start'
       } ${disabled ? 'pointer-events-none opacity-60' : ''} ${className}`}
     >
-      {label != null && <span className={toggleLabelClass(variant, layout)}>{label}</span>}
+      {label != null && <span className={toggleLabelClass(variant, resolvedLayout)}>{label}</span>}
       <span
         className="relative isolate h-7 w-12 shrink-0 rounded-full"
         style={{ ['--toggle-accent' as string]: accent }}

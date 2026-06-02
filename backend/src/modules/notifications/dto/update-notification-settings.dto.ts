@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsArray, IsInt, Min, Max } from 'class-validator';
+import { IsBoolean, IsOptional, IsArray, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateNotificationSettingsDto {
@@ -71,4 +71,13 @@ export class UpdateNotificationSettingsDto {
   @Min(1)
   @Max(168)
   defaultCustomerReminderHours?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  emailOnNewCustomerRegistration?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  marketingTeamEmails?: string[];
 }

@@ -30,6 +30,7 @@ import { AccountingExportService } from './accounting/accounting-export.service.
 import { IntegrationsDocsService } from './integrations-docs.service.js';
 import { Expense } from '../expenses/entities/expense.entity.js';
 import { CommissionRule } from '../commissions/entities/commission-rule.entity.js';
+import { CustomerSubscription } from '../service-subscriptions/entities/subscription.entity.js';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { CommissionRule } from '../commissions/entities/commission-rule.entity.j
       Service,
       Expense,
       CommissionRule,
+      CustomerSubscription,
     ]),
     BusinessModule,
     forwardRef(() => BookingModule),

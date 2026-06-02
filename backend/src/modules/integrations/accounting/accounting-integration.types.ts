@@ -13,12 +13,16 @@ export interface BusinessAccountingIntegration {
   includeExpenses?: boolean;
 }
 
+export type AccountingIncomeSubType = 'service' | 'subscription';
+
 export interface AccountingExportRow {
   date: string;
   description: string;
   amount: number;
   currency: string;
   type: 'income' | 'expense' | 'commission';
+  /** Income classification for books (MVP: full plan price on purchase). */
+  incomeSubType?: AccountingIncomeSubType;
   reference: string;
   customerName?: string;
   employeeName?: string;

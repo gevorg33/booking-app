@@ -24,6 +24,7 @@ import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-co
 import { usePathname } from 'next/navigation';
 import { useI18n } from '@/i18n';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
+import { isPlanLimitError, planLimitMessage } from '@/lib/plan-entitlements';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
 interface Message {
@@ -456,15 +457,19 @@ export function AiCommandBar() {
         invalidateAfterMutation(queryClient);
         queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const limitMsg = planLimitMessage(err);
       setMessages((prev) => [
         ...prev,
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: err?.response?.data?.message || 'Something went wrong. Please try again.',
+          text:
+            limitMsg ??
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            'Something went wrong. Please try again.',
           success: false,
-          action: 'error',
+          action: isPlanLimitError(err) ? 'plan_limit' : 'error',
           timestamp: new Date(),
         },
       ]);

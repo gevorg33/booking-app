@@ -5,6 +5,7 @@ import { Business } from '../../business/entities/business.entity.js';
 import { Booking, BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
 import { Expense } from '../../expenses/entities/expense.entity.js';
 import { CommissionRule } from '../../commissions/entities/commission-rule.entity.js';
+import { CustomerSubscription } from '../../service-subscriptions/entities/subscription.entity.js';
 import { UpdateAccountingIntegrationDto } from '../dto/update-accounting-integration.dto.js';
 import { parseDateRange } from '../../analytics/dto/analytics-query.dto.js';
 import {
@@ -27,13 +28,28 @@ export interface AccountingIntegrationPublicView {
 
 @Injectable()
 export class AccountingIntegrationService {
+  private readonly businessRepo: Repository<Business>;
+  private readonly bookingRepo: Repository<Booking>;
+  private readonly expenseRepo: Repository<Expense>;
+  private readonly commissionRepo: Repository<CommissionRule>;
+  private readonly customerSubscriptionRepo: Repository<CustomerSubscription>;
+  private readonly exportService: AccountingExportService;
+
   constructor(
-    @InjectRepository(Business) private businessRepo: Repository<Business>,
-    @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(Expense) private expenseRepo: Repository<Expense>,
-    @InjectRepository(CommissionRule) private commissionRepo: Repository<CommissionRule>,
-    private exportService: AccountingExportService,
-  ) {}
+    @InjectRepository(Business) businessRepo: Repository<Business>,
+    @InjectRepository(Booking) bookingRepo: Repository<Booking>,
+    @InjectRepository(Expense) expenseRepo: Repository<Expense>,
+    @InjectRepository(CommissionRule) commissionRepo: Repository<CommissionRule>,
+    @InjectRepository(CustomerSubscription) customerSubscriptionRepo: Repository<CustomerSubscription>,
+    exportService: AccountingExportService,
+  ) {
+    this.businessRepo = businessRepo;
+    this.bookingRepo = bookingRepo;
+    this.expenseRepo = expenseRepo;
+    this.commissionRepo = commissionRepo;
+    this.customerSubscriptionRepo = customerSubscriptionRepo;
+    this.exportService = exportService;
+  }
 
   async getPublicSettings(businessId: string): Promise<AccountingIntegrationPublicView> {
     const business = await this.businessRepo.findOne({ where: { id: businessId } });
@@ -128,11 +144,38 @@ export class AccountingIntegrationService {
         amount: Number(b.service.price),
         currency: b.service.currency || 'USD',
         type: 'income',
+        incomeSubType: 'service',
         reference: b.id,
         customerName: b.customer?.name,
         employeeName: b.employee?.name,
       });
     }
+
+    const subscriptions = await this.customerSubscriptionRepo.find({
+      where: {
+        businessId,
+        createdAt: Between(start, end) as any,
+      },
+      relations: { plan: true, customer: true },
+      order: { createdAt: 'ASC' },
+    });
+
+    for (const sub of subscriptions) {
+      const amount = Number(sub.pricePaid);
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+      rows.push({
+        date: sub.createdAt.toISOString().slice(0, 10),
+        description: sub.plan?.name ?? 'Subscription plan',
+        amount,
+        currency: sub.currency || 'USD',
+        type: 'income',
+        incomeSubType: 'subscription',
+        reference: sub.id,
+        customerName: sub.customer?.name,
+      });
+    }
+
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.reference.localeCompare(b.reference));
 
     if (acct.includeExpenses !== false) {
       const expenses = await this.expenseRepo

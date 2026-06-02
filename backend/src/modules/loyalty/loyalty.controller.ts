@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto.js';
 import { getLoyaltySettingsResponse } from './loyalty-settings.util.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 @Controller('businesses/:businessId/loyalty')
 @UseGuards(JwtAuthGuard)
@@ -12,6 +13,7 @@ export class LoyaltyController {
   constructor(
     private loyaltyService: LoyaltyService,
     private businessService: BusinessService,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   @Get('settings')
@@ -31,6 +33,7 @@ export class LoyaltyController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
+    await this.planEntitlements.assertFeature(businessId, 'loyalty');
     const business = await this.businessService.findOne(businessId);
     const loyalty: Record<string, unknown> = {
       ...((business.settings?.loyalty as Record<string, unknown>) || {}),
