@@ -63,12 +63,33 @@ export class GiftCardsController {
   async listFulfillment(
     @Param('businessId') businessId: string,
     @Query('status') status: string | undefined,
+    @Query('search') search: string | undefined,
+    @Query('page') page: string | undefined,
+    @Query('pageSize') pageSize: string | undefined,
+    @Query('sortBy') sortBy: string | undefined,
+    @Query('sortOrder') sortOrder: string | undefined,
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return {
-      orders: await this.fulfillmentService.listDashboardOrders(businessId, status as any),
-    };
+    return this.fulfillmentService.listDashboardOrders(businessId, {
+      status: status as any,
+      search,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      sortBy: sortBy === 'createdAt' ? 'createdAt' : 'createdAt',
+      sortOrder: sortOrder === 'ASC' ? 'ASC' : 'DESC',
+    });
+  }
+
+  @Get('fulfillment/:giftCardId')
+  @UseGuards(JwtAuthGuard)
+  async getFulfillmentOrder(
+    @Param('businessId') businessId: string,
+    @Param('giftCardId') giftCardId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return { order: await this.fulfillmentService.getDashboardOrder(businessId, giftCardId) };
   }
 
   @Put('fulfillment/:giftCardId/ship')

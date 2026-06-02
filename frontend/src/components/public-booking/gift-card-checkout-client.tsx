@@ -8,6 +8,7 @@ import { PhoneInput } from '@/components/public-booking/phone-input';
 import {
   confirmPublicBookingPayment,
   createPublicGiftCardCheckout,
+  purchasePublicGiftCard,
   formatPrice,
   quotePublicGiftCardPurchase,
   type PublicBusinessProfile,
@@ -56,6 +57,12 @@ export function GiftCardCheckoutClient({
     return single ? [single] : [];
   }, [searchParams, settings.purchasableServices]);
   const bundleId = searchParams.get('bundleId') ?? settings.bundles[0]?.id ?? '';
+  const packageId =
+    searchParams.get('packageId') ?? settings.purchasablePackages?.[0]?.packageId ?? '';
+  const subscriptionPlanId =
+    searchParams.get('subscriptionPlanId') ??
+    settings.purchasableSubscriptionPlans?.[0]?.planId ??
+    '';
 
   const deliveryOptions = useMemo(() => {
     const opts: Array<'digital' | 'physical'> = [];
@@ -68,6 +75,7 @@ export function GiftCardCheckoutClient({
   const [deliveryMethod, setDeliveryMethod] = useState<'digital' | 'physical'>(deliveryOptions[0] ?? 'digital');
   const [shippingMethodId, setShippingMethodId] = useState(settings.shippingMethods[0]?.id ?? 'standard');
   const [form, setForm] = useState({
+    purchaserName: '',
     purchaserEmail: '',
     recipientName: '',
     recipientEmail: '',
@@ -89,11 +97,14 @@ export function GiftCardCheckoutClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
+  const showCashOption = settings.acceptCashPayments === true && (quote?.total ?? 0) > 0;
 
   useEffect(() => {
     if (authLoading || !customer) return;
     setForm((prev) => ({
       ...prev,
+      purchaserName: prev.purchaserName || customer.name || '',
       purchaserEmail: prev.purchaserEmail || customer.email || '',
       recipientName: prev.recipientName || customer.name,
       recipientEmail: prev.recipientEmail || customer.email || '',
@@ -112,11 +123,13 @@ export function GiftCardCheckoutClient({
 
   const buildPayload = useCallback((): PurchasePublicGiftCardBody | null => {
     if (!form.purchaserEmail.trim()) return null;
+    const purchaserName = form.purchaserName.trim() || customer?.name?.trim() || undefined;
     const payload: PurchasePublicGiftCardBody = {
       cardType,
       deliveryMethod,
       buyForSelf,
       purchaserEmail: form.purchaserEmail.trim(),
+      purchaserName,
       personalMessage: form.personalMessage.trim() || undefined,
     };
     if (cardType === 'monetary') payload.amount = Number(amount);
@@ -128,13 +141,15 @@ export function GiftCardCheckoutClient({
       }
     }
     if (cardType === 'bundle') payload.bundleId = bundleId;
+    if (cardType === 'package') payload.packageId = packageId;
+    if (cardType === 'subscription') payload.subscriptionPlanId = subscriptionPlanId;
     if (!buyForSelf || deliveryMethod === 'physical') {
       payload.recipientName = form.recipientName.trim() || undefined;
       payload.recipientEmail = form.recipientEmail.trim() || undefined;
       payload.recipientPhone = form.recipientPhone ? formatPhoneForApi(form.recipientPhone) : undefined;
     } else if (buyForSelf && deliveryMethod === 'digital') {
       payload.recipientEmail = form.purchaserEmail.trim();
-      payload.recipientName = form.recipientName.trim() || undefined;
+      payload.recipientName = purchaserName;
     }
     if (deliveryMethod === 'physical') {
       payload.shippingMethodId = shippingMethodId;
@@ -154,12 +169,15 @@ export function GiftCardCheckoutClient({
   }, [
     amount,
     bundleId,
+    packageId,
+    subscriptionPlanId,
     buyForSelf,
     cardType,
     deliveryMethod,
     form,
     serviceIdsFromUrl,
     shippingMethodId,
+    customer?.name,
   ]);
 
   useEffect(() => {
@@ -197,8 +215,17 @@ export function GiftCardCheckoutClient({
       setError(t('public.consentRequired'));
       return;
     }
+    if (!customer && !form.purchaserName.trim()) {
+      setError(t('public.giftCards.purchaserNameRequired'));
+      return;
+    }
     setSubmitting(true);
     try {
+      if (paymentMethod === 'cash' && showCashOption) {
+        await purchasePublicGiftCard(slug, { ...payload, paymentMethod: 'cash' });
+        setSuccess(true);
+        return;
+      }
       const checkout = await createPublicGiftCardCheckout(slug, payload);
       window.location.href = checkout.url;
     } catch (err) {
@@ -231,6 +258,31 @@ export function GiftCardCheckoutClient({
         <p className="text-sm text-gray-500 mb-6">{quote?.label ?? t(`public.giftCards.type.${cardType}`)}</p>
 
         <section className="space-y-4 mb-6">
+          <h2 className="text-sm font-semibold text-gray-900">{t('public.giftCards.yourDetailsSection')}</h2>
+          {!customer && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.giftCards.purchaserName')}</label>
+              <input
+                className={inputClassName}
+                required
+                value={form.purchaserName}
+                onChange={(e) => setForm({ ...form, purchaserName: e.target.value })}
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.giftCards.purchaserEmail')}</label>
+            <input
+              type="email"
+              required
+              className={inputClassName}
+              value={form.purchaserEmail}
+              onChange={(e) => setForm({ ...form, purchaserEmail: e.target.value })}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4 mb-6">
           <h2 className="text-sm font-semibold text-gray-900">{t('public.giftCards.recipientSection')}</h2>
           <div className="flex gap-2">
             <button
@@ -253,18 +305,7 @@ export function GiftCardCheckoutClient({
             </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.giftCards.purchaserEmail')}</label>
-            <input
-              type="email"
-              required
-              className={inputClassName}
-              value={form.purchaserEmail}
-              onChange={(e) => setForm({ ...form, purchaserEmail: e.target.value })}
-            />
-          </div>
-
-          {(!buyForSelf || deliveryMethod === 'digital') && (
+          {(!buyForSelf || deliveryMethod === 'physical') && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.giftCards.recipientName')}</label>
@@ -384,6 +425,41 @@ export function GiftCardCheckoutClient({
         </label>
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
+        {showCashOption && (
+          <section className="rounded-2xl border border-gray-100 p-4 mb-4">
+            <p className="text-sm font-medium text-gray-900 mb-2">{t('public.paymentMethod')}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('online')}
+                className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                  paymentMethod === 'online' ? 'border-transparent text-white' : 'border-gray-200 text-gray-700'
+                }`}
+                style={paymentMethod === 'online' ? { backgroundColor: primary } : undefined}
+              >
+                {t('public.payOnline')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cash')}
+                className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                  paymentMethod === 'cash' ? 'border-transparent text-white' : 'border-gray-200 text-gray-700'
+                }`}
+                style={paymentMethod === 'cash' ? { backgroundColor: primary } : undefined}
+              >
+                {t('public.payCashAtVisitShort')}
+              </button>
+            </div>
+            {paymentMethod === 'cash' && quote && (
+              <p className="text-xs text-gray-600 mt-2">
+                {t('public.giftCards.payCashAtVisit', {
+                  amount: formatPrice(quote.total, quote.currency, locale),
+                })}
+              </p>
+            )}
+          </section>
+        )}
+
         <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
           <div className="max-w-lg mx-auto">
             <button
@@ -393,7 +469,9 @@ export function GiftCardCheckoutClient({
               style={{ backgroundColor: primary }}
             >
               {(submitting || quoteLoading) && <Loader2 className="w-4 h-4 animate-spin" />}
-              {t('public.giftCards.payNow')}
+              {paymentMethod === 'cash' && showCashOption
+                ? t('public.giftCards.confirmCashPurchase')
+                : t('public.giftCards.payNow')}
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getPublicProfile } from '@/lib/public-api';
 import { AccountClient } from './account-client';
@@ -12,5 +13,13 @@ export default async function AccountPage({ params }: { params: Promise<{ slug: 
     notFound();
   }
 
-  return <AccountClient tenant={tenant} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-lg mx-auto px-4 py-16 text-center text-gray-500 text-sm">Loading…</div>
+      }
+    >
+      <AccountClient tenant={tenant} />
+    </Suspense>
+  );
 }

@@ -72,6 +72,40 @@ describe('ProviderPushListener', () => {
     );
   });
 
+  it('sends push on booking rescheduled with customer old and new times', async () => {
+    await listener.handleRescheduledBooking({
+      ...baseEvent,
+      eventType: EventType.BOOKING_RESCHEDULED,
+      userId: 'customer:cust-1',
+      payload: {
+        oldStartTime: '2026-05-01T10:00:00.000Z',
+        newStartTime: '2026-05-03T14:00:00.000Z',
+      },
+    } as any);
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'biz-1',
+      expect.objectContaining({
+        body: expect.stringMatching(/rescheduled from.*to/i),
+      }),
+    );
+  });
+
+  it('uses customer-initiated cancel copy', async () => {
+    await listener.handleCancelledBooking({
+      ...baseEvent,
+      eventType: EventType.BOOKING_CANCELLED,
+      payload: { reason: 'Cancelled by customer' },
+    } as any);
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'biz-1',
+      expect.objectContaining({
+        body: expect.stringMatching(/cancelled Cut at/i),
+      }),
+    );
+  });
+
   it('skips when push not configured', async () => {
     (pushService as { isConfigured: boolean }).isConfigured = false;
     await listener.handleNewBooking(baseEvent as any);

@@ -3,7 +3,12 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GiftCardFulfillmentService } from './gift-card-fulfillment.service.js';
 
 describe('GiftCardFulfillmentService — card makers & drivers', () => {
-  const giftCardRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
+  const giftCardRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
   const employeeRepo = { findOne: jest.fn(), find: jest.fn() };
   const eventEmitter = { emit: jest.fn() };
 
@@ -104,13 +109,27 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
       ...physicalOrder,
       fulfillmentStatus: 'out_for_delivery',
     });
-    giftCardRepo.find.mockResolvedValue([physicalOrder]);
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[physicalOrder], 1]),
+    };
+    giftCardRepo.createQueryBuilder.mockReturnValue(qb);
 
     const shipped = await service.markShipped('biz-1', 'order-1', 'DHL', 'TRACK123');
     expect(shipped.fulfillmentStatus).toBe('shipped');
     expect(shipped.trackingNumber).toBe('TRACK123');
 
-    await expect(service.listDashboardOrders('biz-1', 'awaiting_card_creation')).resolves.toHaveLength(1);
+    const listed = await service.listDashboardOrders('biz-1', {
+      status: 'awaiting_card_creation',
+    });
+    expect(listed.orders).toHaveLength(1);
+    expect(listed.total).toBe(1);
+    expect(qb.orderBy).toHaveBeenCalledWith('card.createdAt', 'DESC');
   });
 
   it('rejects delivery pickup when not ready', async () => {
@@ -121,8 +140,40 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   });
 
   it('lists all fulfillment orders when status filter is omitted', async () => {
-    giftCardRepo.find.mockResolvedValue([physicalOrder]);
-    await expect(service.listDashboardOrders('biz-1')).resolves.toHaveLength(1);
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[physicalOrder], 1]),
+    };
+    giftCardRepo.createQueryBuilder.mockReturnValue(qb);
+    const listed = await service.listDashboardOrders('biz-1');
+    expect(listed.orders).toHaveLength(1);
+    expect(listed.page).toBe(1);
+  });
+
+  it('searches dashboard orders by recipient email', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
+    giftCardRepo.createQueryBuilder.mockReturnValue(qb);
+    await service.listDashboardOrders('biz-1', { search: 'mary@example.com' });
+    expect(qb.andWhere).toHaveBeenCalled();
+  });
+
+  it('loads a single dashboard order with relations', async () => {
+    giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder, code: 'GCS-TEST' });
+    const order = await service.getDashboardOrder('biz-1', 'order-1');
+    expect(order.code).toBe('GCS-TEST');
   });
 
   it('lists delivery queue including ready and out-for-delivery orders', async () => {

@@ -114,6 +114,8 @@ interface BookingItem {
     packagePurchaseId?: string;
     groupLabel?: string;
     multiServiceGroupId?: string;
+    payAtVenue?: boolean;
+    paymentMethod?: string;
   };
   service?: { id: string; name: string; durationMinutes?: number; price?: number; currency?: string };
   employee?: { id: string; name: string };
@@ -381,6 +383,7 @@ export default function BookingsPage() {
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [showPayAtVenueOnly, setShowPayAtVenueOnly] = useState(false);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
 
@@ -453,6 +456,14 @@ export default function BookingsPage() {
 
   const calPeriods: CalPeriod[] = calData?.periods || [];
   const bookings: BookingItem[] = bookingsRaw;
+  const visibleBookings = useMemo(() => {
+    if (!showPayAtVenueOnly) return bookings;
+    return bookings.filter(
+      (b) =>
+        b.paymentStatus === 'pending' &&
+        (b.metadata?.payAtVenue === true || b.metadata?.paymentMethod === 'cash'),
+    );
+  }, [bookings, showPayAtVenueOnly]);
 
   // ── Derived UI state ───────────────────────────────────────────────────────
 
@@ -656,6 +667,14 @@ export default function BookingsPage() {
               }}
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={showPayAtVenueOnly}
+              onChange={(e) => setShowPayAtVenueOnly(e.target.checked)}
+            />
+            {t('bookings.payAtVenueOnly')}
+          </label>
         </div>
       </div>
 
@@ -819,11 +838,11 @@ export default function BookingsPage() {
 
                   {/* Booking overlays — side-by-side when overlapping; cancelled blocks are click-through */}
                   {(() => {
-                    const layout = computeLayout(bookings.map((b) => ({
+                    const layout = computeLayout(visibleBookings.map((b) => ({
                       id: b.id, startISO: b.startTime, endISO: b.endTime,
                     })));
 
-                    const cancelledNodes = bookings
+                    const cancelledNodes = visibleBookings
                       .filter((b) => b.status === 'cancelled')
                       .map((b) => {
                         const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
@@ -845,7 +864,7 @@ export default function BookingsPage() {
                         );
                       });
 
-                    const activeNodes = bookings
+                    const activeNodes = visibleBookings
                       .filter((b) => b.status !== 'cancelled')
                       .map((b) => {
                         const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
@@ -874,7 +893,7 @@ export default function BookingsPage() {
                     );
                   })()}
 
-                  {calPeriods.length === 0 && bookings.length === 0 && (
+                  {calPeriods.length === 0 && visibleBookings.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <p className="text-gray-600 text-sm">No schedule applied for this day</p>
                     </div>

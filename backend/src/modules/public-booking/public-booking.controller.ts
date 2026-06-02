@@ -2,8 +2,10 @@ import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@n
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
+import { PublicCustomerBookingService } from './public-customer-booking.service.js';
 import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, PackageBlockSlotsQueryDto, PackageBlockProvidersQueryDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
+import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -24,6 +26,7 @@ export class PublicBookingController {
     private bookingPaymentService: BookingPaymentService,
     private reviewsService: ReviewsService,
     private publicCustomerAuthService: PublicCustomerAuthService,
+    private publicCustomerBookingService: PublicCustomerBookingService,
     private customerPrivacyService: CustomerPrivacyService,
   ) {}
 
@@ -358,6 +361,66 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicCustomerAuthService.listBookings(slug, user.customerId);
+  }
+
+  @Post('me/bookings/:bookingId/cancel')
+  @UseGuards(PublicCustomerAuthGuard)
+  cancelMyBooking(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.cancelBooking(slug, user.customerId, bookingId);
+  }
+
+  @Post('me/bookings/:bookingId/reschedule')
+  @UseGuards(PublicCustomerAuthGuard)
+  rescheduleMyBooking(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @Body() dto: PublicCustomerRescheduleBookingDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.rescheduleBooking(
+      slug,
+      user.customerId,
+      bookingId,
+      dto,
+    );
+  }
+
+  @Get('bookings/manage')
+  getBookingManageContext(
+    @Param('slug') slug: string,
+    @Query('bookingId') bookingId: string,
+    @Query('token') token: string,
+  ) {
+    return this.publicCustomerBookingService.getManageContext(slug, bookingId, token);
+  }
+
+  @Post('bookings/manage/cancel')
+  cancelBookingWithManageToken(
+    @Param('slug') slug: string,
+    @Body() dto: { bookingId: string; token: string },
+  ) {
+    return this.publicCustomerBookingService.cancelBookingWithToken(
+      slug,
+      dto.bookingId,
+      dto.token,
+    );
+  }
+
+  @Post('bookings/manage/reschedule')
+  rescheduleBookingWithManageToken(
+    @Param('slug') slug: string,
+    @Body() dto: { bookingId: string; token: string; startTime: string; employeeId?: string },
+  ) {
+    return this.publicCustomerBookingService.rescheduleBookingWithToken(
+      slug,
+      dto.bookingId,
+      dto.token,
+      { startTime: dto.startTime, employeeId: dto.employeeId },
+    );
   }
 
   @Get('me/loyalty')

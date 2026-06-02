@@ -31,7 +31,14 @@ export interface PublicCustomerBookingItem {
   serviceName: string;
   employeeName: string;
   employeeId: string;
+  serviceId: string;
   canReview: boolean;
+  canCancel: boolean;
+  canReschedule: boolean;
+  policyMessage: string | null;
+  rescheduleCount: number;
+  maxReschedules: number;
+  allowProviderChangeOnReschedule?: boolean;
 }
 
 export interface PublicBranding {
@@ -89,6 +96,14 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode?: string;
   onlinePaymentsEnabled?: boolean;
+  acceptCashPayments?: boolean;
+  customerSelfService?: {
+    allowCancel: boolean;
+    allowReschedule: boolean;
+    minimumNoticeHours: number;
+    maxReschedulesPerBooking: number;
+    allowProviderChangeOnReschedule?: boolean;
+  };
   giftCardsPurchaseEnabled?: boolean;
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
@@ -558,6 +573,7 @@ export type CreatePublicBookingBody = {
   useSubscriptionId?: string;
   purchasePlanId?: string;
   useSubscriptionCreditOnPurchase?: boolean;
+  paymentMethod?: 'online' | 'cash';
   customer: {
     name: string;
     email?: string;
@@ -641,10 +657,13 @@ export function getPublicActiveSubscription(slug: string, serviceId: string) {
 }
 
 export function createPublicBooking(slug: string, body: CreatePublicBookingBody) {
-  return publicFetch<{ booking: unknown; customer: { id: string; name: string; created: boolean } }>(
-    `/public/${slug}/bookings`,
-    { method: 'POST', body: JSON.stringify(body) },
-  );
+  return publicFetch<{
+    booking: { id: string };
+    customer: { id: string; name: string; created: boolean };
+    manageToken?: string;
+    paymentMethod?: 'online' | 'cash';
+    amountDue?: number;
+  }>(`/public/${slug}/bookings`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function createPublicBookingCheckout(slug: string, body: CreatePublicBookingBody) {
@@ -749,7 +768,7 @@ export function loginPublicCustomer(slug: string, idToken: string) {
   });
 }
 
-export type PublicGiftCardType = 'monetary' | 'service' | 'bundle';
+export type PublicGiftCardType = 'monetary' | 'service' | 'bundle' | 'package' | 'subscription';
 export type PublicGiftCardDeliveryMethod = 'digital' | 'physical';
 
 export interface PublicGiftCardCatalogSettings {
@@ -757,6 +776,29 @@ export interface PublicGiftCardCatalogSettings {
   physicalDeliveryEnabled: boolean;
   presetAmounts: number[];
   purchasableServices: Array<{ serviceId: string; price?: number | null }>;
+  purchasablePackages: Array<{
+    packageId: string;
+    price?: number | null;
+    name: string;
+    packagePrice: number;
+    regularTotal?: number;
+    savingsPercent?: number;
+    itemSummary: string;
+    currency: string;
+  }>;
+  purchasableSubscriptionPlans: Array<{
+    planId: string;
+    price?: number | null;
+    name: string;
+    serviceName: string;
+    includedAppointments: number;
+    durationMonths: number;
+    subscriptionPrice: number;
+    regularTotal: number;
+    savings: number;
+    savingsPercent: number;
+    currency: string;
+  }>;
   bundles: Array<{
     id: string;
     name: string;
@@ -766,6 +808,7 @@ export interface PublicGiftCardCatalogSettings {
   shippingMethods: Array<{ id: string; label: string; fee: number; estimatedDays: string }>;
   cancelModifyEnabled: boolean;
   cancelModifyWindowHours: number;
+  acceptCashPayments?: boolean;
 }
 
 export interface PublicGiftCardCatalog {
@@ -800,15 +843,19 @@ export interface PurchasePublicGiftCardBody {
   serviceId?: string;
   serviceIds?: string[];
   bundleId?: string;
+  packageId?: string;
+  subscriptionPlanId?: string;
   deliveryMethod: PublicGiftCardDeliveryMethod;
   buyForSelf?: boolean;
   recipientName?: string;
   recipientEmail?: string;
   recipientPhone?: string;
   purchaserEmail: string;
+  purchaserName?: string;
   personalMessage?: string;
   shippingAddress?: PublicGiftCardShippingAddress;
   shippingMethodId?: string;
+  paymentMethod?: 'online' | 'cash';
 }
 
 export function getPublicGiftCardCatalog(slug: string) {
@@ -827,6 +874,25 @@ export function createPublicGiftCardCheckout(slug: string, body: PurchasePublicG
     `/public/${slug}/gift-cards/checkout`,
     { method: 'POST', body: JSON.stringify(body) },
   );
+}
+
+export function purchasePublicGiftCard(slug: string, body: PurchasePublicGiftCardBody) {
+  return publicFetch<{ giftCard: { id: string; code: string } }>(
+    `/public/${slug}/gift-cards/purchase`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function claimPublicGiftCard(slug: string, code: string) {
+  return publicFetch<{
+    giftCardId: string;
+    cardType: string;
+    packagePurchaseId?: string;
+    subscriptionId?: string;
+  }>(`/public/${slug}/gift-cards/claim`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
 }
 
 export interface PublicGiftCardOrderPolicy {
@@ -869,8 +935,30 @@ export interface PublicGiftCardOrder {
   } | null;
 }
 
+export interface PublicGiftCardRedeemed {
+  id: string;
+  code: string;
+  cardType: string;
+  currency: string;
+  claimedAt: string;
+  purchaseAmount: number | null;
+  packageId: string | null;
+  subscriptionPlanId: string | null;
+  serviceCredits: Array<{
+    serviceId: string;
+    serviceName: string;
+    quantityRemaining: number;
+    quantityTotal: number;
+  }>;
+}
+
+export interface PublicCustomerGiftCardAccount {
+  orders: PublicGiftCardOrder[];
+  redeemed: PublicGiftCardRedeemed[];
+}
+
 export function getPublicCustomerGiftCards(slug: string) {
-  return publicFetch<{ orders: PublicGiftCardOrder[] }>(`/public/${slug}/gift-cards/orders`);
+  return publicFetch<PublicCustomerGiftCardAccount>(`/public/${slug}/gift-cards/orders`);
 }
 
 export function submitPublicGiftCardCancelRequest(
@@ -878,10 +966,14 @@ export function submitPublicGiftCardCancelRequest(
   giftCardId: string,
   body: { customerNotes?: string },
 ) {
-  return publicFetch<{ request: unknown; order: PublicGiftCardOrder }>(
-    `/public/${slug}/gift-cards/orders/${giftCardId}/cancel-request`,
-    { method: 'POST', body: JSON.stringify(body) },
-  );
+  return publicFetch<{
+    request: { status: string; requestType: string };
+    order: PublicGiftCardOrder;
+    refundStatus?: 'refunded' | 'failed' | 'skipped' | 'already_refunded';
+  }>(`/public/${slug}/gift-cards/orders/${giftCardId}/cancel-request`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function submitPublicGiftCardModifyRequest(
@@ -904,6 +996,68 @@ export function getPublicCustomerMe(slug: string) {
 
 export function getPublicCustomerBookings(slug: string) {
   return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
+}
+
+export function cancelPublicCustomerBooking(slug: string, bookingId: string) {
+  return publicFetch<{ booking: { id: string; status: string } }>(
+    `/public/${slug}/me/bookings/${bookingId}/cancel`,
+    { method: 'POST' },
+  );
+}
+
+export function cancelPublicBookingWithToken(slug: string, bookingId: string, token: string) {
+  return publicFetch<{ booking: { id: string; status: string } }>(
+    `/public/${slug}/bookings/manage/cancel`,
+    { method: 'POST', body: JSON.stringify({ bookingId, token }) },
+  );
+}
+
+export function reschedulePublicCustomerBooking(
+  slug: string,
+  bookingId: string,
+  body: { startTime: string; employeeId?: string },
+) {
+  return publicFetch<{ booking: { id: string; startTime: string }; previousStartTime: string }>(
+    `/public/${slug}/me/bookings/${bookingId}/reschedule`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function reschedulePublicBookingWithToken(
+  slug: string,
+  bookingId: string,
+  token: string,
+  body: { startTime: string; employeeId?: string },
+) {
+  return publicFetch<{ booking: { id: string; startTime: string }; previousStartTime: string }>(
+    `/public/${slug}/bookings/manage/reschedule`,
+    { method: 'POST', body: JSON.stringify({ bookingId, token, ...body }) },
+  );
+}
+
+export interface PublicBookingManageContext {
+  bookingId: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
+  serviceName: string;
+  employeeName: string;
+  employeeId: string;
+  serviceId: string;
+  customerEmail: string | null;
+  canCancel: boolean;
+  canReschedule: boolean;
+  policyMessage: string | null;
+  manageUrl: string;
+  allowProviderChangeOnReschedule: boolean;
+  rescheduleCount: number;
+  maxReschedules: number;
+}
+
+export function getPublicBookingManageContext(slug: string, bookingId: string, token: string) {
+  const params = new URLSearchParams({ bookingId, token });
+  return publicFetch<PublicBookingManageContext>(`/public/${slug}/bookings/manage?${params.toString()}`);
 }
 
 export function exportPublicCustomerData(slug: string) {

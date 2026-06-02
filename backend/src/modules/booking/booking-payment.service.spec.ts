@@ -140,6 +140,10 @@ describe('BookingPaymentService', () => {
 
   const multiServicePreview = {
     valid: true,
+    services: [
+      { serviceId: 'svc-1', name: 'Haircut A', durationMinutes: 30, bufferMinutes: 0, price: 50 },
+      { serviceId: 'svc-2', name: 'Haircut B', durationMinutes: 30, bufferMinutes: 0, price: 45 },
+    ],
     totals: { totalPrice: 95, currency: 'USD', blockDurationMinutes: 90, serviceCount: 2 },
   };
 
@@ -1062,6 +1066,10 @@ describe('BookingPaymentService', () => {
           prepaymentAmount: 95,
           currency: 'USD',
           promoCode: 'MULTI5',
+          serviceLineItems: [
+            { serviceId: 'svc-1', amount: 50 },
+            { serviceId: 'svc-2', amount: 45 },
+          ],
         }),
       );
       expect(result).toEqual(multiServicePricing);

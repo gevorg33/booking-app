@@ -147,13 +147,23 @@ export function formatBookingBlockSublabel(input: {
   service?: { name?: string | null } | null;
   customer?: { name?: string | null } | null;
   employee?: { name?: string | null } | null;
-  metadata?: { packageName?: string | null; groupLabel?: string | null } | null;
+  metadata?: {
+    packageName?: string | null;
+    groupLabel?: string | null;
+    payAtVenue?: boolean;
+    paymentMethod?: string;
+  } | null;
   packagePurchaseId?: string | null;
   multiServiceGroupId?: string | null;
+  paymentStatus?: string;
 }): string {
   const name = input.service?.name || 'Appointment';
   const who = input.customer?.name || input.employee?.name || '';
-  const base = who ? `${name} · ${who}` : name;
+  let base = who ? `${name} · ${who}` : name;
+  const payAtVenue =
+    (input.metadata?.payAtVenue === true || input.metadata?.paymentMethod === 'cash') &&
+    input.paymentStatus === 'pending';
+  if (payAtVenue) base = `${base} · Pay at venue`;
   const pkg = input.metadata?.packageName;
   if (pkg) return `Package: ${pkg} · ${base}`;
   const group = input.metadata?.groupLabel;

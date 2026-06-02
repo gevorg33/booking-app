@@ -27,6 +27,9 @@ function createPackagePublicBookingHarness() {
   const checkoutPricingService = {
     applyRedemptions: jest.fn(),
   };
+  const notificationsService = {
+    sendMultiAppointmentConfirmation: jest.fn().mockResolvedValue(undefined),
+  };
   const stripeIntegrationService = {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
@@ -47,6 +50,7 @@ function createPackagePublicBookingHarness() {
     {} as any,
     packagesService as any,
     multiServiceBookingsService as any,
+    notificationsService as any,
     config as unknown as ConfigService,
     { find: jest.fn() } as any,
     { findOne: jest.fn(), find: jest.fn() } as any,
@@ -154,6 +158,7 @@ function createPackagePublicBookingHarness() {
     ]);
     jest.spyOn(service as any, 'validateMultiServiceBlockAt').mockResolvedValue(true);
     checkoutPricingService.applyRedemptions.mockResolvedValue(undefined);
+    notificationsService.sendMultiAppointmentConfirmation.mockResolvedValue(undefined);
   }
 
   return {
@@ -163,6 +168,7 @@ function createPackagePublicBookingHarness() {
     multiServiceBookingsService,
     bookingPaymentService,
     checkoutPricingService,
+    notificationsService,
     stripeIntegrationService,
     business,
     pkg,
@@ -337,6 +343,10 @@ describe('PublicBookingService package same-day block scheduling', () => {
         { paymentStatus: PaymentStatus.PAID, sameVisitMultiService: true },
       );
       expect(result.bookings).toHaveLength(2);
+      expect(harness.notificationsService.sendMultiAppointmentConfirmation).toHaveBeenCalledWith([
+        expect.any(String),
+        expect.any(String),
+      ]);
     });
 
     it('does not set sameVisitMultiService for single-service packages', async () => {

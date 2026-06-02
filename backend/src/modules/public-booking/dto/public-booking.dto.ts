@@ -99,6 +99,11 @@ export class CreatePublicBookingDto {
   @IsOptional()
   @IsBoolean()
   useSubscriptionCreditOnPurchase?: boolean;
+
+  /** Pay in cash at visit when business accepts cash and no online prepayment is due */
+  @IsOptional()
+  @IsString()
+  paymentMethod?: 'online' | 'cash';
 }
 
 export class PublicBookingQuoteDto {

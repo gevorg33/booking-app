@@ -22,18 +22,48 @@ export interface GiftCardPurchasableService {
   price?: number | null;
 }
 
+export interface GiftCardPurchasablePackage {
+  packageId: string;
+  price?: number | null;
+}
+
+export interface GiftCardPurchasableSubscriptionPlan {
+  planId: string;
+  price?: number | null;
+}
+
 interface ServiceOption {
   id: string;
   name: string;
   price: number;
 }
 
+interface PackageOption {
+  id: string;
+  name: string;
+  packagePrice: number;
+  itemSummary: string;
+}
+
+interface SubscriptionPlanOption {
+  id: string;
+  name: string;
+  serviceName: string;
+  subscriptionPrice: number;
+}
+
 interface GiftCardProductsPanelProps {
   services: ServiceOption[];
+  packages: PackageOption[];
+  subscriptionPlans: SubscriptionPlanOption[];
   purchasableServices: GiftCardPurchasableService[];
+  purchasablePackages: GiftCardPurchasablePackage[];
+  purchasableSubscriptionPlans: GiftCardPurchasableSubscriptionPlan[];
   bundles: GiftCardProductBundle[];
   onChange: (next: {
     purchasableServices: GiftCardPurchasableService[];
+    purchasablePackages: GiftCardPurchasablePackage[];
+    purchasableSubscriptionPlans: GiftCardPurchasableSubscriptionPlan[];
     bundles: GiftCardProductBundle[];
   }) => void;
 }
@@ -47,7 +77,11 @@ const defaultBundleForm = () => ({
 
 export function GiftCardProductsPanel({
   services,
+  packages,
+  subscriptionPlans,
   purchasableServices,
+  purchasablePackages,
+  purchasableSubscriptionPlans,
   bundles,
   onChange,
 }: GiftCardProductsPanelProps) {
@@ -60,17 +94,38 @@ export function GiftCardProductsPanel({
     () => new Set(purchasableServices.map((s) => s.serviceId)),
     [purchasableServices],
   );
+  const enabledPackageIds = useMemo(
+    () => new Set(purchasablePackages.map((p) => p.packageId)),
+    [purchasablePackages],
+  );
+  const enabledPlanIds = useMemo(
+    () => new Set(purchasableSubscriptionPlans.map((p) => p.planId)),
+    [purchasableSubscriptionPlans],
+  );
+
+  const emit = (next: Partial<{
+    purchasableServices: GiftCardPurchasableService[];
+    purchasablePackages: GiftCardPurchasablePackage[];
+    purchasableSubscriptionPlans: GiftCardPurchasableSubscriptionPlan[];
+    bundles: GiftCardProductBundle[];
+  }>) =>
+    onChange({
+      purchasableServices,
+      purchasablePackages,
+      purchasableSubscriptionPlans,
+      bundles,
+      ...next,
+    });
 
   const toggleService = (serviceId: string, enabled: boolean) => {
     if (enabled) {
       const svc = services.find((s) => s.id === serviceId);
-      onChange({
+      emit({
         purchasableServices: [...purchasableServices, { serviceId, price: svc?.price ?? null }],
-        bundles,
       });
       return;
     }
-    onChange({
+    emit({
       purchasableServices: purchasableServices.filter((s) => s.serviceId !== serviceId),
       bundles: bundles
         .map((bundle) => ({
@@ -82,13 +137,59 @@ export function GiftCardProductsPanel({
   };
 
   const updateServicePrice = (serviceId: string, price: string) => {
-    onChange({
+    emit({
       purchasableServices: purchasableServices.map((s) =>
         s.serviceId === serviceId
           ? { ...s, price: price.trim() === '' ? null : Number(price) }
           : s,
       ),
-      bundles,
+    });
+  };
+
+  const togglePackage = (packageId: string, enabled: boolean) => {
+    if (enabled) {
+      const pkg = packages.find((p) => p.id === packageId);
+      emit({
+        purchasablePackages: [...purchasablePackages, { packageId, price: pkg?.packagePrice ?? null }],
+      });
+      return;
+    }
+    emit({ purchasablePackages: purchasablePackages.filter((p) => p.packageId !== packageId) });
+  };
+
+  const updatePackagePrice = (packageId: string, price: string) => {
+    emit({
+      purchasablePackages: purchasablePackages.map((p) =>
+        p.packageId === packageId
+          ? { ...p, price: price.trim() === '' ? null : Number(price) }
+          : p,
+      ),
+    });
+  };
+
+  const togglePlan = (planId: string, enabled: boolean) => {
+    if (enabled) {
+      const plan = subscriptionPlans.find((p) => p.id === planId);
+      emit({
+        purchasableSubscriptionPlans: [
+          ...purchasableSubscriptionPlans,
+          { planId, price: plan?.subscriptionPrice ?? null },
+        ],
+      });
+      return;
+    }
+    emit({
+      purchasableSubscriptionPlans: purchasableSubscriptionPlans.filter((p) => p.planId !== planId),
+    });
+  };
+
+  const updatePlanPrice = (planId: string, price: string) => {
+    emit({
+      purchasableSubscriptionPlans: purchasableSubscriptionPlans.map((p) =>
+        p.planId === planId
+          ? { ...p, price: price.trim() === '' ? null : Number(price) }
+          : p,
+      ),
     });
   };
 
@@ -130,7 +231,7 @@ export function GiftCardProductsPanel({
       ? bundles.map((b) => (b.id === editingBundleId ? payload : b))
       : [...bundles, payload];
 
-    onChange({ purchasableServices, bundles: nextBundles });
+    emit({ bundles: nextBundles });
     resetBundleForm();
   };
 
@@ -146,10 +247,7 @@ export function GiftCardProductsPanel({
   };
 
   const removeBundle = (bundleId: string) => {
-    onChange({
-      purchasableServices,
-      bundles: bundles.filter((b) => b.id !== bundleId),
-    });
+    emit({ bundles: bundles.filter((b) => b.id !== bundleId) });
     if (editingBundleId === bundleId) resetBundleForm();
   };
 
@@ -188,6 +286,94 @@ export function GiftCardProductsPanel({
                       placeholder={t('monetization.giftCardOverridePrice')}
                       value={configured?.price ?? ''}
                       onChange={(e) => updateServicePrice(svc.id, e.target.value)}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="card space-y-3">
+        <h3 className="font-medium text-gray-200">{t('monetization.giftCardPurchasablePackages')}</h3>
+        <p className="text-xs text-gray-500">{t('monetization.giftCardPurchasablePackagesHint')}</p>
+        {packages.length === 0 ? (
+          <p className="text-sm text-gray-500">{t('monetization.giftCardNoPackages')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {packages.map((pkg) => {
+              const enabled = enabledPackageIds.has(pkg.id);
+              const configured = purchasablePackages.find((p) => p.packageId === pkg.id);
+              return (
+                <li
+                  key={pkg.id}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 px-3 py-2"
+                >
+                  <label className="flex items-center gap-2 text-sm min-w-[180px]">
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={(e) => togglePackage(pkg.id, e.target.checked)}
+                    />
+                    <span>{pkg.name}</span>
+                  </label>
+                  <span className="text-xs text-gray-500">
+                    ${Number(pkg.packagePrice).toFixed(2)} · {pkg.itemSummary}
+                  </span>
+                  {enabled && (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input max-w-[120px] ml-auto"
+                      placeholder={t('monetization.giftCardOverridePrice')}
+                      value={configured?.price ?? ''}
+                      onChange={(e) => updatePackagePrice(pkg.id, e.target.value)}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="card space-y-3">
+        <h3 className="font-medium text-gray-200">{t('monetization.giftCardPurchasableSubscriptions')}</h3>
+        <p className="text-xs text-gray-500">{t('monetization.giftCardPurchasableSubscriptionsHint')}</p>
+        {subscriptionPlans.length === 0 ? (
+          <p className="text-sm text-gray-500">{t('monetization.giftCardNoSubscriptionPlans')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {subscriptionPlans.map((plan) => {
+              const enabled = enabledPlanIds.has(plan.id);
+              const configured = purchasableSubscriptionPlans.find((p) => p.planId === plan.id);
+              return (
+                <li
+                  key={plan.id}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 px-3 py-2"
+                >
+                  <label className="flex items-center gap-2 text-sm min-w-[180px]">
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={(e) => togglePlan(plan.id, e.target.checked)}
+                    />
+                    <span>{plan.name}</span>
+                  </label>
+                  <span className="text-xs text-gray-500">
+                    {plan.serviceName} · ${Number(plan.subscriptionPrice).toFixed(2)}
+                  </span>
+                  {enabled && (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input max-w-[120px] ml-auto"
+                      placeholder={t('monetization.giftCardOverridePrice')}
+                      value={configured?.price ?? ''}
+                      onChange={(e) => updatePlanPrice(plan.id, e.target.value)}
                     />
                   )}
                 </li>

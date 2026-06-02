@@ -8,6 +8,16 @@ export interface CheckoutAdjustment {
   giftCardId?: string;
 }
 
+export interface CheckoutServiceLineItem {
+  serviceId: string;
+  amount: number;
+}
+
+export interface GiftCardServiceRedemption {
+  serviceId: string;
+  units: number;
+}
+
 export interface CheckoutPricingInput {
   businessId: string;
   servicePrice: number;
@@ -17,6 +27,8 @@ export interface CheckoutPricingInput {
   loyaltyPointsToRedeem?: number;
   customerId?: string;
   earnPercentCashback?: number;
+  /** Cart lines used to match service/bundle gift card credits. */
+  serviceLineItems?: CheckoutServiceLineItem[];
 }
 
 export interface CheckoutPricingResult {
@@ -37,5 +49,6 @@ export interface CheckoutPricingResult {
   promoCode?: string;
   giftCardId?: string;
   giftCardCode?: string;
+  giftCardServiceRedemptions?: GiftCardServiceRedemption[];
   adjustments: CheckoutAdjustment[];
 }

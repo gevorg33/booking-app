@@ -79,6 +79,9 @@ export class GiftCard {
   @Column({ name: 'purchaser_email', type: 'varchar', nullable: true })
   purchaserEmail: string | null;
 
+  @Column({ name: 'purchaser_name', type: 'varchar', nullable: true })
+  purchaserName: string | null;
+
   @Column({ name: 'personal_message', type: 'text', nullable: true })
   personalMessage: string | null;
 
@@ -96,6 +99,18 @@ export class GiftCard {
 
   @Column({ name: 'service_id', type: 'uuid', nullable: true })
   serviceId: string | null;
+
+  @Column({ name: 'package_id', type: 'uuid', nullable: true })
+  packageId: string | null;
+
+  @Column({ name: 'subscription_plan_id', type: 'uuid', nullable: true })
+  subscriptionPlanId: string | null;
+
+  @Column({ name: 'claimed_at', type: 'timestamptz', nullable: true })
+  claimedAt: Date | null;
+
+  @Column({ name: 'claimed_by_customer_id', type: 'uuid', nullable: true })
+  claimedByCustomerId: string | null;
 
   @Column({ name: 'code_revealed', default: true })
   codeRevealed: boolean;
@@ -123,6 +138,9 @@ export class GiftCard {
 
   @Column({ name: 'stripe_session_id', type: 'varchar', nullable: true })
   stripeSessionId: string | null;
+
+  @Column({ name: 'stripe_refund_id', type: 'varchar', nullable: true })
+  stripeRefundId: string | null;
 
   @OneToMany(() => GiftCardServiceCredit, (credit) => credit.giftCard)
   serviceCredits: GiftCardServiceCredit[];

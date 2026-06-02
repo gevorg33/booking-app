@@ -8,12 +8,33 @@ describe('GiftCardPurchaseService', () => {
   const giftCardRepo = { save: jest.fn(), create: jest.fn(), find: jest.fn() };
   const creditRepo = { save: jest.fn(), create: jest.fn() };
   const eventEmitter = { emit: jest.fn() };
+  const packagesService = {
+    assertPackageBookable: jest.fn(),
+    previewFromPackage: jest.fn(),
+    getPublicPackage: jest.fn(),
+    listPublicPackages: jest.fn().mockResolvedValue([]),
+  };
+  const subscriptionsService = {
+    previewPlanPricing: jest.fn(),
+    listPlans: jest.fn(),
+  };
+  const claimService = { claimCard: jest.fn() };
+  const customerService = {
+    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
+      customer: { id: 'cust-guest', name: dto.name, email: dto.email },
+      created: true,
+    })),
+  };
 
   const service = new GiftCardPurchaseService(
     businessRepo as any,
     serviceRepo as any,
     giftCardRepo as any,
     creditRepo as any,
+    packagesService as any,
+    subscriptionsService as any,
+    claimService as any,
+    customerService as any,
     eventEmitter as unknown as EventEmitter2,
   );
 
@@ -52,6 +73,8 @@ describe('GiftCardPurchaseService', () => {
     creditRepo.create.mockImplementation((v) => v);
     creditRepo.save.mockResolvedValue(undefined);
     serviceRepo.findOne.mockResolvedValue({ id: 'svc-1', name: 'Facial', price: 45 });
+    packagesService.getPublicPackage.mockResolvedValue(undefined);
+    subscriptionsService.listPlans.mockResolvedValue([]);
   });
 
   it('returns public catalog when purchase is enabled', async () => {
@@ -382,5 +405,293 @@ describe('GiftCardPurchaseService', () => {
     });
     expect(card.cardType).toBe('service');
     expect(creditRepo.save).toHaveBeenCalled();
+  });
+
+  it('fulfills cash gift card purchase without stripe session', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        publicBooking: { acceptCashPayments: true },
+      },
+    });
+
+    const card = await service.fulfillPurchase('biz-1', {
+      cardType: 'monetary',
+      amount: 50,
+      deliveryMethod: 'physical',
+      shippingMethodId: 'standard',
+      purchaserEmail: 'buyer@test.com',
+      paymentMethod: 'cash',
+      shippingAddress: {
+        recipientName: 'Alex',
+        line1: '1 Main',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'DE',
+      },
+    });
+
+    expect(card.stripeSessionId).toBeNull();
+    expect(card.purchaseAmount).toBe(55);
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        payload: expect.objectContaining({ paymentMethod: 'cash', stripeSessionId: null }),
+      }),
+    );
+  });
+
+  it('rejects cash gift card purchase when cash is disabled', async () => {
+    await expect(
+      service.fulfillPurchase('biz-1', {
+        cardType: 'monetary',
+        amount: 50,
+        deliveryMethod: 'digital',
+        purchaserEmail: 'buyer@test.com',
+        paymentMethod: 'cash',
+      }),
+    ).rejects.toThrow('Cash payment is not accepted');
+  });
+
+  it('rejects cash gift card purchase with stripe session', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        publicBooking: { acceptCashPayments: true },
+      },
+    });
+
+    await expect(
+      service.fulfillPurchase(
+        'biz-1',
+        {
+          cardType: 'monetary',
+          amount: 50,
+          deliveryMethod: 'digital',
+          purchaserEmail: 'buyer@test.com',
+          paymentMethod: 'cash',
+        },
+        'sess_cash_conflict',
+      ),
+    ).rejects.toThrow('cannot include an online payment session');
+  });
+
+  it('exposes acceptCashPayments in public catalog', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        publicBooking: { acceptCashPayments: true },
+      },
+    });
+    const catalog = await service.getPublicCatalog('biz-1');
+    expect(catalog.settings?.acceptCashPayments).toBe(true);
+  });
+
+  it('quotes package gift card from configured catalog price', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasablePackages: [{ packageId: 'pkg-1', price: 199 }],
+        },
+      },
+    });
+    packagesService.assertPackageBookable.mockResolvedValue({
+      id: 'pkg-1',
+      name: 'Summer glow',
+      items: [{ serviceId: 'svc-1', quantity: 1, service: { price: 50 } }],
+      discountType: 'percent',
+      discountValue: 10,
+    });
+    packagesService.previewFromPackage.mockReturnValue({
+      pricing: { packagePrice: 180 },
+    });
+
+    const quote = await service.quotePurchase('biz-1', {
+      cardType: 'package',
+      packageId: 'pkg-1',
+      deliveryMethod: 'digital',
+      purchaserEmail: 'buyer@test.com',
+    });
+
+    expect(quote.cardType).toBe('package');
+    expect(quote.subtotal).toBe(199);
+    expect(quote.label).toContain('Summer glow');
+  });
+
+  it('quotes subscription gift card using configured override price', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasableSubscriptionPlans: [{ planId: 'plan-1', price: 220 }],
+        },
+      },
+    });
+    subscriptionsService.previewPlanPricing.mockResolvedValue({
+      plan: { name: '6 visits' },
+      pricing: { subscriptionPrice: 240 },
+    });
+
+    const quote = await service.quotePurchase('biz-1', {
+      cardType: 'subscription',
+      subscriptionPlanId: 'plan-1',
+      deliveryMethod: 'digital',
+      purchaserEmail: 'buyer@test.com',
+    });
+
+    expect(quote.cardType).toBe('subscription');
+    expect(quote.subtotal).toBe(220);
+    expect(quote.label).toContain('6 visits');
+  });
+
+  it('auto-claims digital self-purchase and reloads saved card', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasablePackages: [{ packageId: 'pkg-1', price: 199 }],
+        },
+      },
+    });
+    packagesService.assertPackageBookable.mockResolvedValue({
+      id: 'pkg-1',
+      name: 'Summer glow',
+      items: [],
+    });
+    packagesService.previewFromPackage.mockReturnValue({
+      pricing: { packagePrice: 180 },
+    });
+
+    const saved = { id: 'order-claimed', cardType: 'package', isActive: true };
+    giftCardRepo.save.mockResolvedValueOnce(saved);
+    claimService.claimCard.mockResolvedValue(undefined);
+    giftCardRepo.findOne = jest.fn().mockResolvedValue(null);
+
+    const result = await service.fulfillPurchase('biz-1', {
+      cardType: 'package',
+      packageId: 'pkg-1',
+      deliveryMethod: 'digital',
+      purchaserEmail: 'self@test.com',
+      buyForSelf: true,
+      purchaserCustomerId: 'cust-self',
+    });
+
+    expect(claimService.claimCard).toHaveBeenCalled();
+    expect(result.cardType).toBe('package');
+  });
+
+  it('includes all active public packages when none are manually selected', async () => {
+    packagesService.listPublicPackages.mockResolvedValue([
+      {
+        id: 'pkg-haircut',
+        name: 'haricut package',
+        currency: 'USD',
+        pricing: { packagePrice: 80.75, regularTotal: 95, savingsPercent: 15 },
+        items: [
+          { serviceName: 'Baby haircut', quantity: 1 },
+          { serviceName: "men's haircut", quantity: 1 },
+        ],
+      },
+    ]);
+    packagesService.getPublicPackage.mockResolvedValue({
+      name: 'haricut package',
+      currency: 'USD',
+      pricing: { packagePrice: 80.75, regularTotal: 95, savingsPercent: 15 },
+      items: [
+        { serviceName: 'Baby haircut', quantity: 1 },
+        { serviceName: "men's haircut", quantity: 1 },
+      ],
+    });
+    subscriptionsService.listPlans.mockResolvedValue([
+      {
+        id: 'plan-baby',
+        name: 'Baby visits',
+        isActive: true,
+        service: { name: 'Baby haircut', currency: 'USD' },
+      },
+    ]);
+    subscriptionsService.previewPlanPricing.mockResolvedValue({
+      plan: { name: '6 visits', includedAppointments: 6, durationMonths: 6 },
+      pricing: { subscriptionPrice: 120, regularTotal: 150, savings: 30 },
+    });
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: { giftCards: { ...business.settings.giftCards, purchasablePackages: [], purchasableSubscriptionPlans: [] } },
+    });
+
+    const catalog = await service.getPublicCatalog('biz-1');
+    expect(catalog.settings?.purchasablePackages).toHaveLength(1);
+    expect(catalog.settings?.purchasablePackages?.[0].name).toBe('haricut package');
+    expect(catalog.settings?.purchasableSubscriptionPlans).toHaveLength(1);
+  });
+
+  it('includes purchasable packages and plans in public catalog', async () => {
+    packagesService.getPublicPackage.mockResolvedValue({
+      name: 'Summer glow',
+      currency: 'USD',
+      pricing: { packagePrice: 180, regularTotal: 200, savingsPercent: 10 },
+      items: [{ serviceName: 'Facial', quantity: 1 }],
+    });
+    subscriptionsService.listPlans.mockResolvedValue([
+      { id: 'plan-1', isActive: true, service: { name: 'Facial', currency: 'USD' } },
+    ]);
+    subscriptionsService.previewPlanPricing.mockResolvedValue({
+      plan: {
+        name: '6 visits',
+        includedAppointments: 6,
+        durationMonths: 6,
+      },
+      pricing: { subscriptionPrice: 240, regularTotal: 300, savings: 60 },
+    });
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasablePackages: [{ packageId: 'pkg-1' }],
+          purchasableSubscriptionPlans: [{ planId: 'plan-1' }],
+        },
+      },
+    });
+
+    const catalog = await service.getPublicCatalog('biz-1');
+    expect(catalog.settings?.purchasablePackages).toHaveLength(1);
+    expect(catalog.settings?.purchasableSubscriptionPlans).toEqual([
+      expect.objectContaining({
+        planId: 'plan-1',
+        subscriptionPrice: 240,
+        regularTotal: 300,
+        savings: 60,
+        savingsPercent: 20,
+      }),
+    ]);
+  });
+
+  it('skips unavailable catalog entries', async () => {
+    packagesService.getPublicPackage.mockRejectedValue(new Error('gone'));
+    subscriptionsService.listPlans.mockResolvedValue([
+      { id: 'plan-1', isActive: false, service: { name: 'Facial', currency: 'USD' } },
+    ]);
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasablePackages: [{ packageId: 'pkg-1' }],
+          purchasableSubscriptionPlans: [{ planId: 'plan-1' }],
+        },
+      },
+    });
+
+    const catalog = await service.getPublicCatalog('biz-1');
+    expect(catalog.settings?.purchasablePackages).toEqual([]);
+    expect(catalog.settings?.purchasableSubscriptionPlans).toEqual([]);
   });
 });

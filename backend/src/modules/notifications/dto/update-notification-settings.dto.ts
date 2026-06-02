@@ -48,4 +48,8 @@ export class UpdateNotificationSettingsDto {
   @IsOptional()
   @IsBoolean()
   reminderImmediateWhatsapp?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyBusinessOnCustomerBookingChange?: boolean;
 }

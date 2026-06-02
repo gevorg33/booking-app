@@ -20,7 +20,8 @@ export interface WhatsAppBookingPayload {
 export interface WhatsAppGiftCardPayload {
   toPhone: string;
   recipientName: string;
-  businessName: string;
+  /** Template body {{2}} — gift sender (person), not the business name */
+  senderName: string;
   giftCardCode: string;
   summary: string;
 }
@@ -315,7 +316,7 @@ export class WhatsAppService implements OnModuleInit {
     const templateLang = config.templateLanguage;
     const allBodyParams = [
       payload.recipientName,
-      payload.businessName,
+      payload.senderName,
       payload.giftCardCode,
       payload.summary,
     ];
@@ -326,7 +327,7 @@ export class WhatsAppService implements OnModuleInit {
             .map((v) => this.formatTemplateValue(v))
         : [];
 
-    const preview = `[gift card] ${payload.businessName}: ${payload.giftCardCode} → ${payload.summary}`;
+    const preview = `[gift card] from ${payload.senderName}: ${payload.giftCardCode} → ${payload.summary}`;
 
     try {
       const resolved = await this.resolveTemplateSend(config, templateName, templateLang, bodyParams);

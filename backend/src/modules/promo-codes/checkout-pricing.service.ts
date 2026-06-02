@@ -11,7 +11,9 @@ import {
   isGiftCardCode,
   resolveGiftCardRedemption,
   resolveLoyaltyRedemption,
+  resolveServiceGiftCardDiscount,
 } from './checkout-pricing.util.js';
+import type { GiftCardServiceRedemption } from './checkout-pricing.types.js';
 
 @Injectable()
 export class CheckoutPricingService {
@@ -33,6 +35,7 @@ export class CheckoutPricingService {
     let giftCardDiscount = 0;
     let giftCardId: string | undefined;
     let giftCardCode: string | undefined;
+    let giftCardServiceRedemptions: GiftCardServiceRedemption[] | undefined;
 
     if (code) {
       if (isGiftCardCode(code)) {
@@ -44,9 +47,31 @@ export class CheckoutPricingService {
         ) {
           throw new BadRequestException('Gift card currency does not match this booking');
         }
-        giftCardDiscount = resolveGiftCardRedemption(Number(card.balance), subtotal);
         giftCardId = card.id;
         giftCardCode = card.code;
+
+        if (card.cardType === 'service' || card.cardType === 'bundle') {
+          const lineItems = input.serviceLineItems ?? [];
+          if (!lineItems.length) {
+            throw new BadRequestException(
+              'Service gift cards can only be applied to a service booking checkout',
+            );
+          }
+          const resolved = resolveServiceGiftCardDiscount(card.serviceCredits ?? [], lineItems);
+          giftCardDiscount = resolved.discount;
+          giftCardServiceRedemptions = resolved.redemptions;
+          if (giftCardDiscount <= 0) {
+            throw new BadRequestException(
+              'Gift card has no matching service credits for this booking',
+            );
+          }
+        } else {
+          giftCardDiscount = resolveGiftCardRedemption(Number(card.balance), subtotal);
+          if (giftCardDiscount <= 0) {
+            throw new BadRequestException('Gift card has no remaining balance');
+          }
+        }
+
         if (giftCardDiscount > 0) {
           adjustments.push({
             type: 'gift_card',
@@ -148,6 +173,7 @@ export class CheckoutPricingService {
       promoCode,
       giftCardId,
       giftCardCode,
+      giftCardServiceRedemptions,
       adjustments,
     };
   }
@@ -169,11 +195,23 @@ export class CheckoutPricingService {
     if (pricing.promoCodeId) {
       await this.promoCodesService.recordUse(pricing.promoCodeId);
     }
-    if (pricing.giftCardCode && pricing.giftCardDiscount > 0) {
+    if (pricing.giftCardCode && pricing.giftCardServiceRedemptions?.length) {
+      for (const { serviceId, units } of pricing.giftCardServiceRedemptions) {
+        for (let i = 0; i < units; i += 1) {
+          await this.giftCardsService.redeemServiceCredit(
+            businessId,
+            pricing.giftCardCode,
+            serviceId,
+            bookingId,
+          );
+        }
+      }
+    } else if (pricing.giftCardCode && pricing.giftCardDiscount > 0) {
       await this.giftCardsService.redeem(
         businessId,
         pricing.giftCardCode,
         pricing.giftCardDiscount,
+        bookingId,
       );
     }
   }

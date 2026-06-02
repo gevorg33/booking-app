@@ -5,6 +5,7 @@ import {
   isGiftCardCode,
   resolveGiftCardRedemption,
   resolveLoyaltyRedemption,
+  resolveServiceGiftCardDiscount,
 } from './checkout-pricing.util.js';
 
 const base = { giftCardDiscount: 0 };
@@ -16,6 +17,8 @@ describe('checkout-pricing.util', () => {
       expect(isGiftCardCode('GCM-ABCD1234')).toBe(true);
       expect(isGiftCardCode('GCS-SERVICE1')).toBe(true);
       expect(isGiftCardCode('GCB-BUNDLE1')).toBe(true);
+      expect(isGiftCardCode('GCP-PACKAGE1')).toBe(true);
+      expect(isGiftCardCode('GCU-PLAN1')).toBe(true);
       expect(isGiftCardCode('SAVE20')).toBe(false);
     });
   });
@@ -29,6 +32,29 @@ describe('checkout-pricing.util', () => {
     it('returns zero when balance or amount due is zero', () => {
       expect(resolveGiftCardRedemption(0, 50)).toBe(0);
       expect(resolveGiftCardRedemption(50, 0)).toBe(0);
+    });
+  });
+
+  describe('resolveServiceGiftCardDiscount', () => {
+    it('covers one matching line per credit unit', () => {
+      const result = resolveServiceGiftCardDiscount(
+        [{ serviceId: 'svc-baby', quantityRemaining: 1 }],
+        [
+          { serviceId: 'svc-girls', amount: 50 },
+          { serviceId: 'svc-baby', amount: 25 },
+        ],
+      );
+      expect(result.discount).toBe(25);
+      expect(result.redemptions).toEqual([{ serviceId: 'svc-baby', units: 1 }]);
+    });
+
+    it('returns zero when no cart line matches credits', () => {
+      const result = resolveServiceGiftCardDiscount(
+        [{ serviceId: 'svc-baby', quantityRemaining: 1 }],
+        [{ serviceId: 'svc-girls', amount: 50 }],
+      );
+      expect(result.discount).toBe(0);
+      expect(result.redemptions).toEqual([]);
     });
   });
 

@@ -5,6 +5,8 @@ const PREFIX: Record<GiftCardType, string> = {
   monetary: 'GCM',
   service: 'GCS',
   bundle: 'GCB',
+  package: 'GCP',
+  subscription: 'GCU',
 };
 
 export function generateGiftCardCode(type: GiftCardType): string {

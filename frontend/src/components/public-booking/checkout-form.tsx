@@ -31,10 +31,10 @@ import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { PhoneInput } from '@/components/public-booking/phone-input';
-import {
-  SpecialistPickerSheet,
+import { SpecialistPickerSheet,
   type SpecialistChoice,
 } from '@/components/public-booking/specialist-picker-sheet';
+import { BookingSuccessPanel } from '@/components/public-booking/booking-success-panel';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 
 interface CheckoutFormProps {
@@ -72,6 +72,12 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMeta, setSuccessMeta] = useState<{
+    bookingId?: string;
+    manageToken?: string;
+    cashDueLabel?: string | null;
+  }>({});
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [specialistPickerOpen, setSpecialistPickerOpen] = useState(false);
   const [specialistChoice, setSpecialistChoice] = useState<SpecialistChoice>(() =>
     autoAssign ? { type: 'any' } : { type: 'provider', provider: { id: employee!.id, name: employee!.name, role: employee?.role, averageRating: null, reviewCount: 0 } },
@@ -236,6 +242,7 @@ export function CheckoutForm({
     ...(usingSubscriptionCredit
       ? { useSubscriptionId: activeSubscription!.id }
       : subscriptionCheckoutPayload(purchaseType, selectedPlanId)),
+    ...(paymentMethod === 'cash' ? { paymentMethod: 'cash' as const } : {}),
     customer: {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
@@ -281,6 +288,19 @@ export function CheckoutForm({
         : undefined,
     fallback: quote?.amountDue ?? chargeBase,
   });
+  const requiresOnlinePayment =
+    amountDue > 0 &&
+    paymentMethod !== 'cash' &&
+    (purchaseType === 'subscription' ||
+      service.prepaymentMode === 'full' ||
+      (service.prepaymentMode === 'deposit' && dueNow > 0));
+  const showCashOption =
+    tenant.acceptCashPayments === true &&
+    purchaseType === 'one-time' &&
+    !usingSubscriptionCredit &&
+    service.prepaymentMode !== 'full' &&
+    amountDue > 0 &&
+    !(dueNow > 0 && service.prepaymentMode === 'deposit');
   const checkoutSubtotal = resolveCheckoutSubtotal({
     purchaseType,
     quoteSubtotal: quote?.subtotal,
@@ -293,9 +313,10 @@ export function CheckoutForm({
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
   const promoApplied =
     !!appliedPromo &&
-    (!quote ||
-      quote.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
-      quote.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+    !!quote &&
+    (quote.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+      (quote.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase() &&
+        quote.giftCardDiscount > 0) ||
       quote.promoDiscount > 0 ||
       quote.giftCardDiscount > 0);
 
@@ -356,12 +377,22 @@ export function CheckoutForm({
 
     setSubmitting(true);
     try {
-      if (amountDue > 0 && (dueNow > 0 || purchaseType === 'subscription')) {
+      if (requiresOnlinePayment && paymentMethod !== 'cash') {
         const { url } = await createPublicBookingCheckout(tenant.slug, payload());
         window.location.href = url;
         return;
       }
-      await createPublicBooking(tenant.slug, payload());
+      const result = await createPublicBooking(tenant.slug, payload());
+      setSuccessMeta({
+        bookingId: result.booking.id,
+        manageToken: result.manageToken,
+        cashDueLabel:
+          result.paymentMethod === 'cash' && (result.amountDue ?? 0) > 0
+            ? t('public.payCashAtVisit', {
+                amount: formatPrice(result.amountDue ?? amountDue, service.currency),
+              })
+            : null,
+      });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('public.bookingFailed'));
@@ -381,13 +412,14 @@ export function CheckoutForm({
           {formatDateDisplay(start)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
         </p>
         <p className="text-gray-500 mt-3 text-sm max-w-sm mx-auto">{t('public.reviewAfterVisitHint')}</p>
-        <a
-          href={bookPath(tenant.slug)}
-          className="inline-block mt-8 px-6 py-3 rounded-2xl text-white font-semibold"
-          style={{ backgroundColor: primary }}
-        >
-          {t('public.bookAnother')}
-        </a>
+        <BookingSuccessPanel
+          slug={tenant.slug}
+          primary={primary}
+          bookingId={successMeta.bookingId}
+          manageToken={successMeta.manageToken}
+          customerEmail={form.email.trim() || undefined}
+          cashDueLabel={successMeta.cashDueLabel}
+        />
       </div>
     );
   }
@@ -821,6 +853,38 @@ export function CheckoutForm({
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
 
+      {showCashOption && (
+        <section className="border-b border-gray-100 pb-4 mb-4">
+          <p className="text-sm font-medium text-gray-900 mb-2">{t('public.paymentMethod')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('online')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                paymentMethod === 'online'
+                  ? 'border-transparent text-white'
+                  : 'border-gray-200 text-gray-700'
+              }`}
+              style={paymentMethod === 'online' ? { backgroundColor: primary } : undefined}
+            >
+              {t('public.payOnline')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('cash')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                paymentMethod === 'cash'
+                  ? 'border-transparent text-white'
+                  : 'border-gray-200 text-gray-700'
+              }`}
+              style={paymentMethod === 'cash' ? { backgroundColor: primary } : undefined}
+            >
+              {t('public.payCashAtVisitShort')}
+            </button>
+          </div>
+        </section>
+      )}
+
       <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between text-sm mb-3">
@@ -844,9 +908,11 @@ export function CheckoutForm({
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             {submitting
               ? t('public.submitting')
-              : amountDue > 0 && dueNow > 0
-                ? `Pay ${formatPrice(amountDue, service.currency)} & book`
-                : t('public.confirmBooking')}
+              : paymentMethod === 'cash' && showCashOption
+                ? t('public.confirmCashBooking')
+                : requiresOnlinePayment
+                  ? `Pay ${formatPrice(amountDue, service.currency)} & book`
+                  : t('public.confirmBooking')}
           </button>
         </div>
       </div>

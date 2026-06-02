@@ -29,12 +29,26 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const settings = catalog.settings!;
 
-  const [cardType, setCardType] = useState<PublicGiftCardType>('monetary');
+  const availableTypes = useMemo(() => {
+    const types: PublicGiftCardType[] = [];
+    if (settings.presetAmounts.length > 0) types.push('monetary');
+    if (settings.purchasableServices.length > 0) types.push('service');
+    if (settings.bundles.length > 0) types.push('bundle');
+    if ((settings.purchasablePackages ?? []).length > 0) types.push('package');
+    if ((settings.purchasableSubscriptionPlans ?? []).length > 0) types.push('subscription');
+    return types;
+  }, [settings]);
+
+  const [cardType, setCardType] = useState<PublicGiftCardType>(() => availableTypes[0] ?? 'monetary');
   const [amount, setAmount] = useState(String(settings.presetAmounts[0] ?? 50));
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() =>
     settings.purchasableServices[0]?.serviceId ? [settings.purchasableServices[0].serviceId] : [],
   );
   const [bundleId, setBundleId] = useState(settings.bundles[0]?.id ?? '');
+  const [packageId, setPackageId] = useState(settings.purchasablePackages?.[0]?.packageId ?? '');
+  const [subscriptionPlanId, setSubscriptionPlanId] = useState(
+    settings.purchasableSubscriptionPlans?.[0]?.planId ?? '',
+  );
 
   const selectedBundle = useMemo(
     () => settings.bundles.find((b) => b.id === bundleId),
@@ -70,8 +84,10 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
   const canContinue = useMemo(() => {
     if (cardType === 'monetary') return Number(amount) > 0;
     if (cardType === 'service') return selectedServiceIds.length > 0;
+    if (cardType === 'package') return !!packageId;
+    if (cardType === 'subscription') return !!subscriptionPlanId;
     return !!bundleId;
-  }, [amount, bundleId, cardType, selectedServiceIds.length]);
+  }, [amount, bundleId, cardType, packageId, selectedServiceIds.length, subscriptionPlanId]);
 
   function onContinue() {
     const params = new URLSearchParams({ cardType });
@@ -84,6 +100,8 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
       }
     }
     if (cardType === 'bundle') params.set('bundleId', bundleId);
+    if (cardType === 'package') params.set('packageId', packageId);
+    if (cardType === 'subscription') params.set('subscriptionPlanId', subscriptionPlanId);
     router.push(`${bookPath(slug, '/gift-cards/checkout')}?${params.toString()}`);
   }
 
@@ -106,8 +124,8 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
 
         <section className="bg-white rounded-3xl border border-gray-100 p-5 mb-5 shadow-sm space-y-4">
           <h2 className="text-sm font-semibold text-gray-900">{t('public.giftCards.chooseType')}</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {(['monetary', 'service', 'bundle'] as PublicGiftCardType[]).map((type) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {availableTypes.map((type) => (
               <button
                 key={type}
                 type="button"
@@ -122,6 +140,9 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
               </button>
             ))}
           </div>
+          <p className="text-xs text-gray-500">
+            {t(`public.giftCards.typeDescription.${cardType}`)}
+          </p>
 
           {cardType === 'monetary' && (
             <div className="space-y-3">
@@ -201,6 +222,96 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {cardType === 'package' && (
+            <div className="space-y-2">
+              {(settings.purchasablePackages ?? []).map((pkg) => (
+                <button
+                  key={pkg.packageId}
+                  type="button"
+                  onClick={() => setPackageId(pkg.packageId)}
+                  className={`w-full text-left rounded-xl border p-4 ${
+                    packageId === pkg.packageId
+                      ? 'border-violet-400 bg-violet-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full">
+                      {t('public.giftCards.packageBadge')}
+                    </span>
+                    {(pkg.savingsPercent ?? 0) > 0 && (
+                      <span className="text-xs font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full">
+                        {t('public.giftCards.packageSaveBadge', { percent: Math.round(pkg.savingsPercent ?? 0) })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-medium text-gray-900">{pkg.name}</p>
+                  <p className="text-sm text-gray-500 mt-1">{pkg.itemSummary}</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-2">
+                    {formatPrice(pkg.packagePrice, pkg.currency || DEFAULT_CURRENCY)}
+                    {(pkg.regularTotal ?? 0) > pkg.packagePrice && (
+                      <span className="text-gray-400 font-normal line-through ml-2">
+                        {formatPrice(pkg.regularTotal ?? 0, pkg.currency || DEFAULT_CURRENCY)}
+                      </span>
+                    )}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {cardType === 'subscription' && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">{t('public.giftCards.subscriptionPurchaseHint')}</p>
+              {(settings.purchasableSubscriptionPlans ?? []).map((plan) => (
+                <button
+                  key={plan.planId}
+                  type="button"
+                  onClick={() => setSubscriptionPlanId(plan.planId)}
+                  className={`w-full text-left rounded-xl border p-4 ${
+                    subscriptionPlanId === plan.planId
+                      ? 'border-violet-400 bg-violet-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      {t('public.giftCards.subscribeAndSaveBadge')}
+                    </span>
+                    {(plan.savingsPercent ?? 0) > 0 && (
+                      <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {t('public.giftCards.packageSaveBadge', { percent: Math.round(plan.savingsPercent ?? 0) })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-medium text-gray-900">
+                    {plan.serviceName || plan.name}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {plan.name} · {plan.includedAppointments}{' '}
+                    {t('public.giftCards.subscriptionAppointments')} · {plan.durationMonths}{' '}
+                    {t('public.giftCards.subscriptionMonths')}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 mt-2">
+                    {formatPrice(plan.subscriptionPrice, plan.currency || DEFAULT_CURRENCY)}
+                    {(plan.regularTotal ?? 0) > plan.subscriptionPrice && (
+                      <span className="text-gray-400 font-normal line-through ml-2">
+                        {formatPrice(plan.regularTotal ?? 0, plan.currency || DEFAULT_CURRENCY)}
+                      </span>
+                    )}
+                  </p>
+                  {(plan.savings ?? 0) > 0 && (
+                    <p className="text-sm text-emerald-600 mt-1">
+                      ({t('public.saveAmount', {
+                        amount: formatPrice(plan.savings ?? 0, plan.currency || DEFAULT_CURRENCY),
+                      })})
+                    </p>
+                  )}
+                </button>
+              ))}
             </div>
           )}
 

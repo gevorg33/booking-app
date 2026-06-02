@@ -1,10 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GiftCard } from './entities/gift-card.entity.js';
 import { EmailService } from '../notifications/email.service.js';
 import { WhatsAppService } from '../notifications/whatsapp.service.js';
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
+import {
+  buildPublicBookingLinks,
+  buildPurchaserReceiptEmail,
+  buildRecipientGiftCardEmail,
+  buildWhatsAppGiftCardSummary,
+  resolveGiftCardSenderName,
+} from './gift-card-delivery-content.util.js';
 
 @Injectable()
 export class GiftCardDeliveryService {
@@ -15,12 +23,13 @@ export class GiftCardDeliveryService {
     private emailService: EmailService,
     private whatsappService: WhatsAppService,
     private whatsappIntegrationService: WhatsAppIntegrationService,
+    private configService: ConfigService,
   ) {}
 
   async deliverDigitalGiftCard(giftCardId: string): Promise<void> {
     const card = await this.giftCardRepo.findOne({
       where: { id: giftCardId },
-      relations: { serviceCredits: true, business: true },
+      relations: { serviceCredits: true, business: true, purchaser: true },
     });
     if (!card || card.deliveryMethod !== 'digital') return;
 
@@ -32,24 +41,29 @@ export class GiftCardDeliveryService {
       return;
     }
 
-    const summary = this.buildSummary(card);
+    const links = buildPublicBookingLinks(
+      card.business?.slug,
+      this.configService.get<string>('FRONTEND_URL'),
+    );
     let delivered = false;
 
     if (recipientEmail) {
+      const email = buildRecipientGiftCardEmail(card, links);
       await this.emailService.send({
         to: recipientEmail,
-        subject: `Your gift card from ${card.business?.name ?? 'us'}`,
-        html: `<p>${summary.replace(/\n/g, '<br/>')}</p>`,
-        text: summary,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
       });
       delivered = true;
 
       if (card.purchaserEmail && card.purchaserEmail !== recipientEmail) {
+        const receipt = buildPurchaserReceiptEmail(card, recipientEmail, links);
         await this.emailService.send({
           to: card.purchaserEmail,
-          subject: 'Gift card purchase receipt',
-          html: `<p>Your gift card order was delivered to ${recipientEmail}.</p>`,
-          text: `Your gift card order was delivered to ${recipientEmail}.`,
+          subject: receipt.subject,
+          html: receipt.html,
+          text: receipt.text,
         });
       }
     }
@@ -61,14 +75,18 @@ export class GiftCardDeliveryService {
       if (!whatsappConfig) {
         this.logger.warn(`WhatsApp not configured — skipping gift card WhatsApp for ${card.id}`);
       } else {
-        const whatsappSummary = this.buildWhatsAppSummary(card);
+        const whatsappSummary = buildWhatsAppGiftCardSummary(card, links);
+        const businessName = card.business?.name ?? 'Gift card';
+        const summary = whatsappSummary.includes(businessName)
+          ? whatsappSummary
+          : `${businessName} — ${whatsappSummary}`;
         const result = await this.whatsappService.sendGiftCardMessage(
           {
             toPhone: recipientPhone,
             recipientName: card.recipientName ?? 'there',
-            businessName: card.business?.name ?? 'Gift card',
+            senderName: resolveGiftCardSenderName(card),
             giftCardCode: card.code,
-            summary: whatsappSummary,
+            summary,
           },
           whatsappConfig,
         );
@@ -84,45 +102,5 @@ export class GiftCardDeliveryService {
 
     card.fulfillmentStatus = 'delivered';
     await this.giftCardRepo.save(card);
-  }
-
-  private buildWhatsAppSummary(card: GiftCard): string {
-    const parts: string[] = [];
-    if (card.personalMessage) parts.push(card.personalMessage);
-
-    if (card.cardType === 'monetary') {
-      parts.push(`Balance: ${card.currency} ${Number(card.balance).toFixed(2)}`);
-    } else {
-      for (const credit of card.serviceCredits ?? []) {
-        parts.push(`${credit.serviceName} x${credit.quantityRemaining}`);
-      }
-    }
-
-    if (card.expiresAt) {
-      parts.push(`Expires ${card.expiresAt.toISOString().slice(0, 10)}`);
-    }
-
-    return parts.join(' · ').slice(0, 1024) || 'Redeem at checkout with your code.';
-  }
-
-  private buildSummary(card: GiftCard): string {
-    const lines = [
-      `Gift card code: ${card.code}`,
-      card.personalMessage ? `Message: ${card.personalMessage}` : null,
-    ];
-
-    if (card.cardType === 'monetary') {
-      lines.push(`Balance: ${card.currency} ${Number(card.balance).toFixed(2)}`);
-    } else {
-      for (const credit of card.serviceCredits ?? []) {
-        lines.push(`${credit.serviceName} × ${credit.quantityRemaining}`);
-      }
-    }
-
-    if (card.expiresAt) {
-      lines.push(`Expires: ${card.expiresAt.toISOString().slice(0, 10)}`);
-    }
-
-    return lines.filter(Boolean).join('\n');
   }
 }

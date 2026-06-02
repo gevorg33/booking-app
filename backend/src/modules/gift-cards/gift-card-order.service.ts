@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { GiftCard } from './entities/gift-card.entity.js';
 import {
   GiftCardChangeRequest,
@@ -18,17 +18,22 @@ import {
 } from './gift-card-expiration.util.js';
 import type {
   GiftCardChangeRequestResolution,
+  GiftCardChangeRequestListItem,
+  GiftCardCustomerAccountView,
   GiftCardCustomerOrderView,
+  GiftCardCustomerRedeemedView,
   GiftCardModifyPayload,
+  GiftCardRefundStatus,
   SubmitGiftCardModifyInput,
 } from './gift-card-order.types.js';
+import { IsNull, Not } from 'typeorm';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import { EmailService } from '../notifications/email.service.js';
 import { WhatsAppService } from '../notifications/whatsapp.service.js';
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
-import { StripeService } from '../billing/stripe.service.js';
-import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { Business } from '../business/entities/business.entity.js';
+import { GiftCardRefundService } from './gift-card-refund.service.js';
+import { deactivateCancelledGiftCard } from './gift-card-refund.util.js';
 
 const OPEN_REQUEST_STATUSES: GiftCardChangeRequestStatus[] = [
   'pending',
@@ -53,9 +58,36 @@ export class GiftCardOrderService {
     private emailService: EmailService,
     private whatsappService: WhatsAppService,
     private whatsappIntegrationService: WhatsAppIntegrationService,
-    private stripeService: StripeService,
-    private stripeIntegrationService: StripeIntegrationService,
+    private refundService: GiftCardRefundService,
   ) {}
+
+  async listCustomerGiftCardAccount(
+    businessId: string,
+    customerId: string,
+  ): Promise<GiftCardCustomerAccountView> {
+    const [orders, redeemed] = await Promise.all([
+      this.listCustomerOrders(businessId, customerId),
+      this.listCustomerRedeemedGiftCards(businessId, customerId),
+    ]);
+    return { orders, redeemed };
+  }
+
+  async listCustomerRedeemedGiftCards(
+    businessId: string,
+    customerId: string,
+  ): Promise<GiftCardCustomerRedeemedView[]> {
+    await this.findBusiness(businessId);
+    const cards = await this.giftCardRepo.find({
+      where: {
+        businessId,
+        claimedByCustomerId: customerId,
+        claimedAt: Not(IsNull()),
+      },
+      order: { claimedAt: 'DESC' },
+      relations: { serviceCredits: true },
+    });
+    return cards.map((card) => this.toRedeemedView(card));
+  }
 
   async listCustomerOrders(
     businessId: string,
@@ -94,7 +126,7 @@ export class GiftCardOrderService {
     const business = await this.findBusiness(businessId);
     const settings = readBusinessGiftCardSettings(business.settings);
     const openRequest = await this.findOpenRequest(giftCardId);
-    const policy = evaluateGiftCardOrderPolicy(card, settings, openRequest);
+    const policy = this.evaluateOrderPolicy(card, settings, openRequest);
     if (!policy.canCancel) {
       throw new BadRequestException(policy.blockReason ?? 'Cancel is not available');
     }
@@ -110,55 +142,53 @@ export class GiftCardOrderService {
       }),
     );
 
-    await this.attachZendeskTicket(business, card, request);
-    await this.notifyCustomer(card, business.name, 'received', request);
+    deactivateCancelledGiftCard(card);
+    await this.giftCardRepo.save(card);
+    const refundStatus = await this.refundService.refundPurchase(business, card);
 
-    return { request, order: await this.getCustomerOrder(businessId, customerId, giftCardId) };
+    request.status = 'completed';
+    request.resolvedAt = new Date();
+    await this.changeRequestRepo.save(request);
+    await this.notifyCustomer(card, business.name, 'completed', request, refundStatus);
+
+    return {
+      request,
+      order: await this.getCustomerOrder(businessId, customerId, giftCardId),
+      refundStatus,
+    };
   }
 
   async submitModifyRequest(
     businessId: string,
     customerId: string,
     giftCardId: string,
-    input: SubmitGiftCardModifyInput,
+    _input: SubmitGiftCardModifyInput,
   ) {
-    const card = await this.requireCustomerCard(businessId, customerId, giftCardId);
-    const business = await this.findBusiness(businessId);
-    const settings = readBusinessGiftCardSettings(business.settings);
-    const openRequest = await this.findOpenRequest(giftCardId);
-    const policy = evaluateGiftCardOrderPolicy(card, settings, openRequest);
-    if (!policy.canModify) {
-      throw new BadRequestException(policy.blockReason ?? 'Modify is not available');
-    }
-    if (!input.modifyPayload || !Object.keys(input.modifyPayload).length) {
-      throw new BadRequestException('Describe the changes you want in modifyPayload');
-    }
-
-    const request = await this.changeRequestRepo.save(
-      this.changeRequestRepo.create({
-        giftCardId: card.id,
-        businessId,
-        customerId,
-        requestType: 'modify',
-        status: 'pending',
-        modifyPayload: input.modifyPayload,
-        customerNotes: input.customerNotes?.trim() || null,
-      }),
+    await this.requireCustomerCard(businessId, customerId, giftCardId);
+    throw new BadRequestException(
+      'Gift card orders cannot be modified. You can cancel within the policy window if no value has been used.',
     );
-
-    await this.attachZendeskTicket(business, card, request);
-    await this.notifyCustomer(card, business.name, 'received', request);
-
-    return { request, order: await this.getCustomerOrder(businessId, customerId, giftCardId) };
   }
 
-  async listChangeRequests(businessId: string, status?: string) {
+  async listChangeRequests(
+    businessId: string,
+    status?: string,
+  ): Promise<GiftCardChangeRequestListItem[]> {
     const where: Record<string, unknown> = { businessId };
     if (status) where.status = status;
-    return this.changeRequestRepo.find({
+    const requests = await this.changeRequestRepo.find({
       where,
       order: { createdAt: 'DESC' },
     });
+    if (requests.length === 0) return [];
+
+    const cardIds = [...new Set(requests.map((r) => r.giftCardId))];
+    const cards = await this.giftCardRepo.find({
+      where: { id: In(cardIds), businessId },
+    });
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+
+    return requests.map((request) => this.toChangeRequestListItem(request, cardById.get(request.giftCardId)));
   }
 
   async resolveChangeRequest(
@@ -199,11 +229,12 @@ export class GiftCardOrderService {
       return { request, card };
     }
 
+    let refundStatus: GiftCardRefundStatus | null = null;
+
     if (request.requestType === 'cancel') {
-      card.fulfillmentStatus = 'cancelled';
-      card.isActive = false;
+      deactivateCancelledGiftCard(card);
       await this.giftCardRepo.save(card);
-      await this.refundIfPossible(business, card);
+      refundStatus = await this.refundService.refundPurchase(business, card);
     } else {
       this.applyApprovedModifications(card, request.modifyPayload);
       await this.giftCardRepo.save(card);
@@ -212,9 +243,9 @@ export class GiftCardOrderService {
     request.status = 'completed';
     request.resolvedAt = new Date();
     await this.changeRequestRepo.save(request);
-    await this.notifyCustomer(card, business.name, 'completed', request);
+    await this.notifyCustomer(card, business.name, 'completed', request, refundStatus);
 
-    return { request, card };
+    return { request, card, refundStatus };
   }
 
   applyApprovedModifications(card: GiftCard, payload: GiftCardModifyPayload | null) {
@@ -247,70 +278,55 @@ export class GiftCardOrderService {
     }
   }
 
-  private async refundIfPossible(business: Business, card: GiftCard) {
-    if (!card.stripeSessionId || !this.stripeService.isConfigured) return;
-    try {
-      const connectAccountId = this.stripeIntegrationService.resolveConnectAccountId(
-        business.settings,
-      );
-      const opts = connectAccountId
-        ? this.stripeService.connectRequestOptions(connectAccountId, business.settings)
-        : undefined;
-      const session = await this.stripeService.client.checkout.sessions.retrieve(
-        card.stripeSessionId,
-        {},
-        opts,
-      );
-      const paymentIntent =
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id;
-      if (!paymentIntent) return;
-      await this.stripeService.client.refunds.create({ payment_intent: paymentIntent }, opts);
-    } catch (err) {
-      this.logger.warn(
-        `Gift card refund failed for ${card.id}: ${err instanceof Error ? err.message : err}`,
-      );
-    }
+  private toChangeRequestListItem(
+    request: GiftCardChangeRequest,
+    card?: GiftCard,
+  ): GiftCardChangeRequestListItem {
+    return {
+      id: request.id,
+      requestType: request.requestType,
+      status: request.status,
+      displayStatus: this.displayChangeRequestStatus(request),
+      giftCardId: request.giftCardId,
+      giftCardCode: card?.code ?? '—',
+      giftCardStatus: card?.fulfillmentStatus ?? null,
+      customerNotes: request.customerNotes,
+      specialistNotes: request.specialistNotes,
+      refundStatus: this.resolveRefundStatus(card, request),
+      createdAt: toIso(request.createdAt),
+      resolvedAt: request.resolvedAt ? toIso(request.resolvedAt) : null,
+    };
   }
 
-  private async attachZendeskTicket(
-    business: Business,
-    card: GiftCard,
-    request: GiftCardChangeRequest,
-  ) {
-    try {
-      const ticket = await this.zendeskService.createGiftCardChangeTicket(
-        business.id,
-        card,
-        request,
-      );
-      if (ticket?.ticketId) {
-        request.zendeskTicketId = String(ticket.ticketId);
-        request.status = 'in_review';
-        await this.changeRequestRepo.save(request);
-        if (!card.zendeskTicketId) {
-          card.zendeskTicketId = request.zendeskTicketId;
-          await this.giftCardRepo.save(card);
-        }
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Zendesk ticket creation failed for gift card ${card.id}: ${err instanceof Error ? err.message : err}`,
-      );
+  private displayChangeRequestStatus(request: GiftCardChangeRequest): string {
+    if (request.status === 'completed' && request.requestType === 'cancel') {
+      return 'cancelled';
     }
+    return request.status;
+  }
+
+  private resolveRefundStatus(
+    card: GiftCard | undefined,
+    request: GiftCardChangeRequest,
+  ): GiftCardRefundStatus | null {
+    if (request.requestType !== 'cancel') return null;
+    if (request.status !== 'completed') return null;
+    if (card?.stripeRefundId) return 'refunded';
+    if (!card?.stripeSessionId) return 'skipped';
+    return 'failed';
   }
 
   private async notifyCustomer(
     card: GiftCard,
     businessName: string,
-    kind: 'received' | 'needs_info' | 'denied' | 'completed',
+    kind: 'needs_info' | 'denied' | 'completed',
     request: GiftCardChangeRequest,
+    refundStatus?: GiftCardRefundStatus | null,
   ) {
     const email = card.purchaserEmail?.trim();
     const phone = card.recipientPhone?.trim() || null;
     const subject = this.notificationSubject(kind, request.requestType);
-    const body = this.notificationBody(businessName, kind, request);
+    const body = this.notificationBody(businessName, kind, request, refundStatus);
 
     if (email) {
       await this.emailService.send({
@@ -330,7 +346,7 @@ export class GiftCardOrderService {
           {
             toPhone: phone,
             recipientName: card.recipientName ?? 'Customer',
-            businessName,
+            senderName: businessName,
             giftCardCode: card.codeRevealed ? card.code : '****',
             summary: body,
           },
@@ -341,13 +357,11 @@ export class GiftCardOrderService {
   }
 
   private notificationSubject(
-    kind: 'received' | 'needs_info' | 'denied' | 'completed',
+    kind: 'needs_info' | 'denied' | 'completed',
     requestType: string,
   ): string {
     const action = requestType === 'cancel' ? 'cancellation' : 'modification';
     switch (kind) {
-      case 'received':
-        return `We received your gift card ${action} request`;
       case 'needs_info':
         return `More information needed for your gift card ${action} request`;
       case 'denied':
@@ -359,13 +373,12 @@ export class GiftCardOrderService {
 
   private notificationBody(
     businessName: string,
-    kind: 'received' | 'needs_info' | 'denied' | 'completed',
+    kind: 'needs_info' | 'denied' | 'completed',
     request: GiftCardChangeRequest,
+    refundStatus?: GiftCardRefundStatus | null,
   ): string {
     const lines = [`${businessName} gift card update`];
-    if (kind === 'received') {
-      lines.push('Our sales team is reviewing your request and will follow up soon.');
-    } else if (kind === 'needs_info') {
+    if (kind === 'needs_info') {
       lines.push(
         request.specialistNotes?.trim() ||
           'Please reply with any additional details we requested.',
@@ -376,14 +389,42 @@ export class GiftCardOrderService {
           'We were unable to approve this request. Contact us if you have questions.',
       );
     } else {
-      lines.push(
-        request.requestType === 'cancel'
-          ? 'Your gift card order has been cancelled.'
-          : 'Your requested changes have been applied.',
-      );
+      if (request.requestType === 'cancel') {
+        lines.push('Your gift card order has been cancelled.');
+        if (refundStatus === 'refunded' || refundStatus === 'already_refunded') {
+          lines.push('A refund has been issued to your original payment method.');
+        } else if (refundStatus === 'failed') {
+          lines.push(
+            'We could not process your refund automatically. Please contact the business for assistance.',
+          );
+        } else if (refundStatus === 'skipped') {
+          lines.push('No online payment was found for this order.');
+        }
+      } else {
+        lines.push('Your requested changes have been applied.');
+      }
       if (request.specialistNotes?.trim()) lines.push(request.specialistNotes.trim());
     }
     return lines.join('\n\n');
+  }
+
+  private toRedeemedView(card: GiftCard): GiftCardCustomerRedeemedView {
+    return {
+      id: card.id,
+      code: card.code,
+      cardType: card.cardType,
+      currency: card.currency,
+      claimedAt: toIso(card.claimedAt!),
+      purchaseAmount: card.purchaseAmount != null ? Number(card.purchaseAmount) : null,
+      packageId: card.packageId ?? null,
+      subscriptionPlanId: card.subscriptionPlanId ?? null,
+      serviceCredits: (card.serviceCredits ?? []).map((credit) => ({
+        serviceId: credit.serviceId,
+        serviceName: credit.serviceName,
+        quantityRemaining: credit.quantityRemaining,
+        quantityTotal: credit.quantityTotal,
+      })),
+    };
   }
 
   private toCustomerView(
@@ -391,7 +432,7 @@ export class GiftCardOrderService {
     settings: ReturnType<typeof readBusinessGiftCardSettings>,
     openRequest?: GiftCardChangeRequest | null,
   ): GiftCardCustomerOrderView {
-    const policy = evaluateGiftCardOrderPolicy(card, settings, openRequest);
+    const policy = this.evaluateOrderPolicy(card, settings, openRequest);
     return {
       id: card.id,
       code: card.codeRevealed ? card.code : '****',
@@ -424,6 +465,31 @@ export class GiftCardOrderService {
           }
         : null,
     };
+  }
+
+  private evaluateOrderPolicy(
+    card: GiftCard,
+    settings: ReturnType<typeof readBusinessGiftCardSettings>,
+    openRequest?: GiftCardChangeRequest | null,
+  ) {
+    return evaluateGiftCardOrderPolicy(
+      {
+        createdAt: card.createdAt,
+        deliveryMethod: card.deliveryMethod,
+        fulfillmentStatus: card.fulfillmentStatus,
+        cardType: card.cardType,
+        balance: Number(card.balance),
+        initialBalance: Number(card.initialBalance),
+        isActive: card.isActive,
+        claimedAt: card.claimedAt,
+        serviceCredits: (card.serviceCredits ?? []).map((credit) => ({
+          quantityRemaining: credit.quantityRemaining,
+          quantityTotal: credit.quantityTotal,
+        })),
+      },
+      settings,
+      openRequest,
+    );
   }
 
   private async requireCustomerCard(

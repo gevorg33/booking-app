@@ -30,6 +30,7 @@ describe('PublicBookingService multi-service profile', () => {
     {} as any,
     {} as any,
     multiServiceBookingsService,
+    {} as any,
     config as unknown as ConfigService,
     {} as any,
     {} as any,

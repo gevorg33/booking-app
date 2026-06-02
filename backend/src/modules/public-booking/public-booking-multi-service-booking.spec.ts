@@ -22,6 +22,9 @@ describe('PublicBookingService bookMultiService same_visit', () => {
   const checkoutPricingService = {
     applyRedemptions: jest.fn(),
   };
+  const notificationsService = {
+    sendMultiAppointmentConfirmation: jest.fn().mockResolvedValue(undefined),
+  };
   const stripeIntegrationService = {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
@@ -46,6 +49,7 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     {} as any,
     {} as any,
     multiServiceBookingsService as any,
+    notificationsService as any,
     config as unknown as ConfigService,
     { find: jest.fn() } as any,
     { findOne: jest.fn(), find: jest.fn() } as any,
@@ -173,6 +177,10 @@ describe('PublicBookingService bookMultiService same_visit', () => {
       { paymentStatus: PaymentStatus.PAID, sameVisitMultiService: true },
     );
     expect(result.bookings).toHaveLength(2);
+    expect(notificationsService.sendMultiAppointmentConfirmation).toHaveBeenCalledWith([
+      'booking-1',
+      'booking-2',
+    ]);
   });
 
   it('does not set sameVisitMultiService for per_service scheduling', async () => {

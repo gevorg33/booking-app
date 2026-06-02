@@ -4,10 +4,13 @@ import { GiftCardFulfillmentService } from './gift-card-fulfillment.service.js';
 import { GiftCardDeliveryService } from './gift-card-delivery.service.js';
 import { GiftCardsService } from './gift-cards.service.js';
 import { GiftCardOrderService } from './gift-card-order.service.js';
+import { GiftCardRefundService } from './gift-card-refund.service.js';
 
 describe('Gift card end-to-end integration', () => {
   const business = {
     id: 'biz-1',
+    slug: 'glow-salon',
+    name: 'Glow Salon',
     settings: {
       currency: 'EUR',
       giftCards: {
@@ -60,6 +63,7 @@ describe('Gift card end-to-end integration', () => {
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
   const creditRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
@@ -157,6 +161,11 @@ describe('Gift card end-to-end integration', () => {
     connectRequestOptions: jest.fn(),
   };
   const stripeIntegrationService = { resolveConnectAccountId: jest.fn() };
+  const refundService = new GiftCardRefundService(
+    giftCardRepo as any,
+    stripeService as any,
+    stripeIntegrationService as any,
+  );
   const employeeRepo = { findOne: jest.fn(), find: jest.fn() };
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
   const whatsappService = { sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }) };
@@ -170,11 +179,33 @@ describe('Gift card end-to-end integration', () => {
   const purchaseEvents = { emit: jest.fn() };
   const fulfillmentEvents = { emit: jest.fn() };
 
+  const packagesService = {
+    assertPackageBookable: jest.fn(),
+    previewFromPackage: jest.fn(),
+    getPublicPackage: jest.fn().mockResolvedValue(undefined),
+    listPublicPackages: jest.fn().mockResolvedValue([]),
+  };
+  const subscriptionsService = {
+    previewPlanPricing: jest.fn(),
+    listPlans: jest.fn().mockResolvedValue([]),
+  };
+  const claimService = { claimCard: jest.fn() };
+  const customerService = {
+    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
+      customer: { id: 'cust-linked', name: dto.name, email: dto.email },
+      created: true,
+    })),
+  };
+
   const purchaseService = new GiftCardPurchaseService(
     businessRepo as any,
     serviceRepo as any,
     giftCardRepo as any,
     creditRepo as any,
+    packagesService as any,
+    subscriptionsService as any,
+    claimService as any,
+    customerService as any,
     purchaseEvents as unknown as EventEmitter2,
   );
   const fulfillmentService = new GiftCardFulfillmentService(
@@ -182,11 +213,15 @@ describe('Gift card end-to-end integration', () => {
     employeeRepo as any,
     fulfillmentEvents as unknown as EventEmitter2,
   );
+  const deliveryConfigService = {
+    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'http://localhost:3000' : undefined)),
+  };
   const deliveryService = new GiftCardDeliveryService(
     giftCardRepo as any,
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
+    deliveryConfigService as any,
   );
   const giftCardsService = new GiftCardsService(
     giftCardRepo as any,
@@ -202,8 +237,7 @@ describe('Gift card end-to-end integration', () => {
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
-    stripeService as any,
-    stripeIntegrationService as any,
+    refundService,
   );
 
   function attachCredits(cardId: string) {
@@ -280,6 +314,32 @@ describe('Gift card end-to-end integration', () => {
           return true;
         })
         .map((c) => ({ ...c, serviceCredits: attachCredits(c.id as string) }));
+    });
+
+    giftCardRepo.createQueryBuilder.mockImplementation(() => {
+      const state: { businessId: string; status?: string } = { businessId: '' };
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn((_sql: string, params: { businessId: string }) => {
+          state.businessId = params.businessId;
+          return qb;
+        }),
+        andWhere: jest.fn((_sql: string, params?: { status?: string }) => {
+          if (params?.status) state.status = params.status;
+          return qb;
+        }),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn(async () => {
+          const list = [...cards.values()]
+            .filter((c) => c.businessId === state.businessId)
+            .filter((c) => (state.status ? c.fulfillmentStatus === state.status : true))
+            .map((c) => ({ ...c, serviceCredits: attachCredits(c.id as string) }));
+          return [list, list.length];
+        }),
+      };
+      return qb;
     });
 
     creditRepo.save.mockImplementation(async (raw: Record<string, unknown>) => {
@@ -452,8 +512,10 @@ describe('Gift card end-to-end integration', () => {
     const awaiting = await fulfillmentService.listCardCreationQueue('biz-1');
     expect(awaiting).toHaveLength(1);
 
-    const dashboard = await fulfillmentService.listDashboardOrders('biz-1', 'awaiting_card_creation');
-    expect(dashboard).toHaveLength(1);
+    const dashboard = await fulfillmentService.listDashboardOrders('biz-1', {
+      status: 'awaiting_card_creation',
+    });
+    expect(dashboard.orders).toHaveLength(1);
 
     await expect(
       fulfillmentService.resolveStaffUserIds(['emp-creator', 'emp-driver']),
@@ -548,7 +610,7 @@ describe('Gift card end-to-end integration', () => {
     expect(audit[2]).toMatchObject({ adminUserId: 'admin-1', note: 'Backdated for test' });
   });
 
-  it('lists customer orders, submits cancel/modify requests, and resolves via specialist', async () => {
+  it('lists customer orders, blocks modify, cancels with immediate deactivation, and blocks partial use cancel', async () => {
     const purchased = await purchaseService.fulfillPurchase(
       'biz-1',
       {
@@ -565,24 +627,15 @@ describe('Gift card end-to-end integration', () => {
     const listed = await orderService.listCustomerOrders('biz-1', 'cust-1');
     expect(listed).toHaveLength(1);
     expect(listed[0].policy.canCancel).toBe(true);
+    expect(listed[0].policy.canModify).toBe(false);
 
-    const modifyResult = await orderService.submitModifyRequest('biz-1', 'cust-1', purchased.id as string, {
-      modifyPayload: { recipientName: 'Updated Name', personalMessage: 'New note' },
-      customerNotes: 'Please update recipient details',
-    });
-    expect(zendeskService.createGiftCardChangeTicket).toHaveBeenCalled();
-    expect(emailService.send).toHaveBeenCalled();
-    expect(modifyResult.request.status).toBe('in_review');
-
-    const requestId = (modifyResult.request as { id: string }).id;
-    const resolved = await orderService.resolveChangeRequest(
-      'biz-1',
-      requestId,
-      'approve',
-      'Applied changes',
-    );
-    expect(resolved.request.status).toBe('completed');
-    expect(cards.get(purchased.id as string)?.recipientName).toBe('Updated Name');
+    await expect(
+      orderService.submitModifyRequest('biz-1', 'cust-1', purchased.id as string, {
+        modifyPayload: { recipientName: 'Updated Name', personalMessage: 'New note' },
+        customerNotes: 'Please update recipient details',
+      }),
+    ).rejects.toThrow('cannot be modified');
+    expect(zendeskService.createGiftCardChangeTicket).not.toHaveBeenCalled();
 
     const purchased2 = await purchaseService.fulfillPurchase(
       'biz-1',
@@ -601,9 +654,73 @@ describe('Gift card end-to-end integration', () => {
       purchased2.id as string,
       'Please cancel',
     );
-    const cancelId = (cancelResult.request as { id: string }).id;
-    const cancelled = await orderService.resolveChangeRequest('biz-1', cancelId, 'approve');
-    expect(cancelled.card.fulfillmentStatus).toBe('cancelled');
-    expect(cancelled.card.isActive).toBe(false);
+    expect(cancelResult.request.status).toBe('completed');
+    expect(cancelResult.refundStatus).toBe('skipped');
+    expect(cards.get(purchased2.id as string)?.fulfillmentStatus).toBe('cancelled');
+    expect(cards.get(purchased2.id as string)?.isActive).toBe(false);
+
+    const purchased3 = await purchaseService.fulfillPurchase(
+      'biz-1',
+      {
+        cardType: 'monetary',
+        amount: 60,
+        deliveryMethod: 'digital',
+        purchaserEmail: 'buyer@test.com',
+        purchaserCustomerId: 'cust-1',
+      },
+      'sess_gc_partial',
+    );
+    const partialCard = cards.get(purchased3.id as string)!;
+    partialCard.balance = 45;
+    cards.set(purchased3.id as string, partialCard);
+
+    await expect(
+      orderService.submitCancelRequest('biz-1', 'cust-1', purchased3.id as string),
+    ).rejects.toThrow('already been used');
+  });
+
+  it('fulfills cash physical gift card purchase with shipping fee', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        publicBooking: { acceptCashPayments: true },
+        giftCards: {
+          ...business.settings.giftCards,
+          cancelModifyEnabled: true,
+        },
+      },
+    });
+
+    const catalog = await purchaseService.getPublicCatalog('biz-1');
+    expect(catalog.settings?.acceptCashPayments).toBe(true);
+
+    const card = await purchaseService.fulfillPurchase('biz-1', {
+      cardType: 'monetary',
+      amount: 100,
+      deliveryMethod: 'physical',
+      shippingMethodId: 'standard',
+      purchaserEmail: 'buyer@test.com',
+      purchaserCustomerId: 'cust-1',
+      paymentMethod: 'cash',
+      shippingAddress: {
+        recipientName: 'Alex',
+        line1: '1 Main',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'DE',
+      },
+    });
+
+    expect(card.stripeSessionId).toBeNull();
+    expect(card.purchaseAmount).toBe(108);
+    expect(card.shippingFee).toBe(8);
+    expect(card.fulfillmentStatus).toBe('awaiting_card_creation');
+    expect(purchaseEvents.emit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        payload: expect.objectContaining({ paymentMethod: 'cash' }),
+      }),
+    );
   });
 });

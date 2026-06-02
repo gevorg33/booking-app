@@ -94,6 +94,15 @@ export class GiftCardsService {
       return card;
     }
 
+    if (card.cardType === 'package' || card.cardType === 'subscription') {
+      if (card.claimedAt) {
+        throw new BadRequestException('Gift card has already been claimed');
+      }
+      throw new BadRequestException(
+        'Claim this gift card from your account to add the package or subscription',
+      );
+    }
+
     const credits = card.serviceCredits ?? [];
     if (serviceId) {
       const match = credits.find((c) => c.serviceId === serviceId && c.quantityRemaining > 0);
