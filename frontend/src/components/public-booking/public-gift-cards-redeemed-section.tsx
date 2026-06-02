@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { CheckCircle2, Package } from 'lucide-react';
 import { formatPrice, type PublicGiftCardRedeemed } from '@/lib/public-api';
+import { canBookWithRedeemedGift } from '@/lib/gift-card-redeemed';
 import { formatDateDisplay } from '@/lib/date-format';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
@@ -71,12 +72,14 @@ export function PublicGiftCardsRedeemedSection({
               )}
             </div>
           </div>
-          <Link
-            href={bookPath(slug)}
-            className="inline-block mt-3 text-sm font-medium text-violet-700 hover:text-violet-900"
-          >
-            {t('public.giftCards.bookToUse')}
-          </Link>
+          {canBookWithRedeemedGift(item) && (
+            <Link
+              href={bookPath(slug)}
+              className="inline-block mt-3 text-sm font-medium text-violet-700 hover:text-violet-900"
+            >
+              {t('public.giftCards.bookToUse')}
+            </Link>
+          )}
         </article>
       ))}
     </div>
