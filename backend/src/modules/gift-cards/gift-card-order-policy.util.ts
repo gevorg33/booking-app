@@ -7,8 +7,10 @@ export interface GiftCardPolicyInput {
   fulfillmentStatus?: string | null;
   cardType?: string;
   balance?: number;
+  initialBalance?: number;
   isActive?: boolean;
-  serviceCredits?: Array<{ quantityRemaining: number }>;
+  claimedAt?: Date | string | null;
+  serviceCredits?: Array<{ quantityRemaining: number; quantityTotal?: number }>;
 }
 
 const OPEN_REQUEST_STATUSES = new Set(['pending', 'in_review', 'needs_info']);
@@ -21,13 +23,40 @@ const PHYSICAL_BLOCKED_STATUSES = new Set([
 ]);
 
 export function isGiftCardFullyRedeemed(card: GiftCardPolicyInput): boolean {
-  if (card.isActive === false) return true;
+  if (card.cardType === 'package' || card.cardType === 'subscription') {
+    return Boolean(card.claimedAt);
+  }
   if (card.cardType === 'monetary') {
     return Number(card.balance ?? 0) <= 0;
   }
   const credits = card.serviceCredits ?? [];
-  if (!credits.length) return false;
-  return credits.every((c) => Number(c.quantityRemaining) <= 0);
+  if (credits.length) {
+    return credits.every((c) => Number(c.quantityRemaining) <= 0);
+  }
+  if (card.isActive === false) return true;
+  return false;
+}
+
+/** True when any monetary balance or service credit has been consumed. */
+export function hasGiftCardValueBeenUsed(card: GiftCardPolicyInput): boolean {
+  if (card.fulfillmentStatus === 'cancelled') return false;
+
+  if (card.cardType === 'package' || card.cardType === 'subscription') {
+    return Boolean(card.claimedAt);
+  }
+
+  if (card.cardType === 'monetary') {
+    const initial = Number(card.initialBalance ?? card.balance ?? 0);
+    const balance = Number(card.balance ?? 0);
+    return initial > 0 && balance < initial;
+  }
+
+  const credits = card.serviceCredits ?? [];
+  return credits.some((credit) => {
+    const total = Number(credit.quantityTotal ?? credit.quantityRemaining ?? 0);
+    const remaining = Number(credit.quantityRemaining ?? 0);
+    return total > 0 && remaining < total;
+  });
 }
 
 export function evaluateGiftCardOrderPolicy(
@@ -56,7 +85,7 @@ export function evaluateGiftCardOrderPolicy(
       cancelModifyEnabled: false,
       windowExpiresAt: windowExpiresAt?.toISOString() ?? null,
       windowRemainingMs,
-      blockReason: 'Cancel and modify requests are disabled for this business',
+      blockReason: 'Cancel requests are disabled for this business',
     };
   }
 
@@ -68,7 +97,7 @@ export function evaluateGiftCardOrderPolicy(
     return blocked(
       windowExpiresAt,
       windowRemainingMs,
-      'A cancel or modify request is already in progress',
+      'A cancel request is already in progress',
     );
   }
 
@@ -76,11 +105,19 @@ export function evaluateGiftCardOrderPolicy(
     return blocked(windowExpiresAt, windowRemainingMs, 'This gift card has been fully redeemed');
   }
 
+  if (hasGiftCardValueBeenUsed(card)) {
+    return blocked(
+      windowExpiresAt,
+      windowRemainingMs,
+      'This gift card cannot be cancelled because part of it has already been used',
+    );
+  }
+
   if (windowMs > 0 && windowRemainingMs <= 0) {
     return blocked(
       windowExpiresAt,
       windowRemainingMs,
-      'The cancel/modify window has expired',
+      'The cancel window has expired',
     );
   }
 
@@ -93,13 +130,13 @@ export function evaluateGiftCardOrderPolicy(
     return blocked(
       windowExpiresAt,
       windowRemainingMs,
-      'Physical gift card orders cannot be changed after card creation',
+      'Physical gift card orders cannot be cancelled after card creation',
     );
   }
 
   return {
     canCancel: true,
-    canModify: true,
+    canModify: false,
     cancelModifyEnabled: true,
     windowExpiresAt: windowExpiresAt?.toISOString() ?? null,
     windowRemainingMs,

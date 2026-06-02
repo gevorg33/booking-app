@@ -23,7 +23,11 @@ describe('gift-card.types', () => {
   });
 
   it('falls back to defaults for invalid array fields', () => {
-    expect(mergeGiftCardSettings()).toMatchObject({ purchaseEnabled: false });
+    expect(mergeGiftCardSettings()).toMatchObject({
+      purchaseEnabled: false,
+      purchasablePackages: [],
+      purchasableSubscriptionPlans: [],
+    });
     expect(mergeGiftCardSettings({ presetAmounts: 'bad' as unknown as number[] })).toMatchObject({
       presetAmounts: [25, 50, 100],
     });
@@ -35,11 +39,15 @@ describe('gift-card.types', () => {
     });
   });
 
-  it('falls back to defaults for cancel/modify settings', () => {
-    expect(mergeGiftCardSettings({ cancelModifyEnabled: false, cancelModifyWindowHours: 12 })).toMatchObject({
-      cancelModifyEnabled: false,
-      cancelModifyWindowHours: 12,
-      physicalCancelBeforeReady: true,
+  it('preserves purchasable package and subscription plan settings', () => {
+    expect(
+      mergeGiftCardSettings({
+        purchasablePackages: [{ packageId: 'pkg-1', price: 99 }],
+        purchasableSubscriptionPlans: [{ planId: 'plan-1' }],
+      }),
+    ).toMatchObject({
+      purchasablePackages: [{ packageId: 'pkg-1', price: 99 }],
+      purchasableSubscriptionPlans: [{ planId: 'plan-1' }],
     });
   });
 });

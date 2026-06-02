@@ -1,4 +1,4 @@
-export type GiftCardType = 'monetary' | 'service' | 'bundle';
+export type GiftCardType = 'monetary' | 'service' | 'bundle' | 'package' | 'subscription';
 export type GiftCardDeliveryMethod = 'digital' | 'physical';
 
 export type GiftCardFulfillmentStatus =
@@ -43,12 +43,24 @@ export interface GiftCardProductService {
   expiresInMonths?: number | null;
 }
 
+export interface GiftCardProductPackage {
+  packageId: string;
+  price?: number | null;
+}
+
+export interface GiftCardProductSubscriptionPlan {
+  planId: string;
+  price?: number | null;
+}
+
 export interface GiftCardBusinessSettings {
   purchaseEnabled: boolean;
   digitalDeliveryEnabled: boolean;
   physicalDeliveryEnabled: boolean;
   presetAmounts: number[];
   purchasableServices: GiftCardProductService[];
+  purchasablePackages: GiftCardProductPackage[];
+  purchasableSubscriptionPlans: GiftCardProductSubscriptionPlan[];
   bundles: GiftCardProductBundle[];
   defaultExpiryMonths: number | null;
   shippingMethods: Array<{
@@ -70,6 +82,8 @@ export const DEFAULT_GIFT_CARD_SETTINGS: GiftCardBusinessSettings = {
   physicalDeliveryEnabled: false,
   presetAmounts: [25, 50, 100],
   purchasableServices: [],
+  purchasablePackages: [],
+  purchasableSubscriptionPlans: [],
   bundles: [],
   defaultExpiryMonths: 12,
   shippingMethods: [
@@ -94,6 +108,12 @@ export function mergeGiftCardSettings(raw?: Record<string, unknown>): GiftCardBu
     purchasableServices: Array.isArray(partial.purchasableServices)
       ? partial.purchasableServices
       : DEFAULT_GIFT_CARD_SETTINGS.purchasableServices,
+    purchasablePackages: Array.isArray(partial.purchasablePackages)
+      ? partial.purchasablePackages
+      : DEFAULT_GIFT_CARD_SETTINGS.purchasablePackages,
+    purchasableSubscriptionPlans: Array.isArray(partial.purchasableSubscriptionPlans)
+      ? partial.purchasableSubscriptionPlans
+      : DEFAULT_GIFT_CARD_SETTINGS.purchasableSubscriptionPlans,
     bundles: Array.isArray(partial.bundles) ? partial.bundles : DEFAULT_GIFT_CARD_SETTINGS.bundles,
     shippingMethods: Array.isArray(partial.shippingMethods)
       ? partial.shippingMethods

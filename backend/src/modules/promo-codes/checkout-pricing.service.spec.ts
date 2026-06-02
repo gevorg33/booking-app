@@ -19,6 +19,7 @@ describe('CheckoutPricingService loyalty earn', () => {
   const giftCardsService = {
     validate: jest.fn(),
     redeem: jest.fn(),
+    redeemServiceCredit: jest.fn(),
   };
 
   const service = new CheckoutPricingService(
@@ -65,6 +66,7 @@ describe('CheckoutPricingService loyalty earn', () => {
     giftCardsService.validate.mockResolvedValue({
       id: 'gc-1',
       code: 'GC-ABCD1234',
+      cardType: 'monetary',
       balance: 75,
       currency: 'USD',
     });
@@ -132,6 +134,7 @@ describe('CheckoutPricingService loyalty earn', () => {
     giftCardsService.validate.mockResolvedValue({
       id: 'gc-1',
       code: 'GC-TEST1234',
+      cardType: 'monetary',
       balance: 100,
       currency: 'USD',
     });
@@ -180,6 +183,7 @@ describe('CheckoutPricingService loyalty earn', () => {
     giftCardsService.validate.mockResolvedValue({
       id: 'gc-1',
       code: 'GC-ABCD1234',
+      cardType: 'monetary',
       balance: 50,
       currency: 'EUR',
     });
@@ -207,25 +211,77 @@ describe('CheckoutPricingService loyalty earn', () => {
     ).rejects.toThrow('Sign in to use loyalty points');
   });
 
-  it('ignores zero-balance gift cards on subscription checkout', async () => {
+  it('rejects zero-balance monetary gift cards', async () => {
     giftCardsService.validate.mockResolvedValue({
       id: 'gc-1',
       code: 'GC-ABCD1234',
+      cardType: 'monetary',
       balance: 0,
       currency: 'USD',
     });
 
-    const result = await service.calculate({
-      businessId: 'biz-1',
-      servicePrice: 684,
-      prepaymentAmount: 684,
+    await expect(
+      service.calculate({
+        businessId: 'biz-1',
+        servicePrice: 684,
+        prepaymentAmount: 684,
+        currency: 'USD',
+        promoCode: 'GC-ABCD1234',
+      }),
+    ).rejects.toThrow('no remaining balance');
+  });
+
+  it('applies service gift card credits against matching cart lines', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-svc',
+      code: 'GCS-BABY1',
+      cardType: 'service',
+      balance: 0,
       currency: 'USD',
-      promoCode: 'GC-ABCD1234',
+      serviceCredits: [{ serviceId: 'svc-baby', serviceName: 'Baby haircut', quantityRemaining: 1, quantityTotal: 1 }],
     });
 
-    expect(result.giftCardDiscount).toBe(0);
-    expect(result.amountDue).toBe(684);
-    expect(result.adjustments).toHaveLength(0);
+    const result = await service.calculate({
+      businessId: 'biz-1',
+      servicePrice: 95,
+      prepaymentAmount: 95,
+      currency: 'USD',
+      promoCode: 'GCS-BABY1',
+      serviceLineItems: [
+        { serviceId: 'svc-girls', amount: 50 },
+        { serviceId: 'svc-baby', amount: 25 },
+        { serviceId: 'svc-mens', amount: 20 },
+      ],
+    });
+
+    expect(result.giftCardDiscount).toBe(25);
+    expect(result.amountDue).toBe(70);
+    expect(result.giftCardServiceRedemptions).toEqual([{ serviceId: 'svc-baby', units: 1 }]);
+  });
+
+  it('rejects service gift cards with no matching services in cart', async () => {
+    giftCardsService.validate.mockResolvedValue({
+      id: 'gc-svc',
+      code: 'GCS-BABY1',
+      cardType: 'service',
+      balance: 0,
+      currency: 'USD',
+      serviceCredits: [{ serviceId: 'svc-baby', serviceName: 'Baby haircut', quantityRemaining: 1, quantityTotal: 1 }],
+    });
+
+    await expect(
+      service.calculate({
+        businessId: 'biz-1',
+        servicePrice: 70,
+        prepaymentAmount: 70,
+        currency: 'USD',
+        promoCode: 'GCS-BABY1',
+        serviceLineItems: [
+          { serviceId: 'svc-girls', amount: 50 },
+          { serviceId: 'svc-mens', amount: 20 },
+        ],
+      }),
+    ).rejects.toThrow('no matching service credits');
   });
 });
 
@@ -244,6 +300,7 @@ describe('CheckoutPricingService.applyRedemptions', () => {
   const giftCardsService = {
     validate: jest.fn(),
     redeem: jest.fn(),
+    redeemServiceCredit: jest.fn(),
   };
 
   const service = new CheckoutPricingService(
@@ -271,7 +328,28 @@ describe('CheckoutPricingService.applyRedemptions', () => {
 
     expect(loyaltyService.redeem).toHaveBeenCalledWith('biz-1', 'cust-1', 20, 'booking-1');
     expect(promoCodesService.recordUse).toHaveBeenCalledWith('promo-1');
-    expect(giftCardsService.redeem).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234', 15);
+    expect(giftCardsService.redeem).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234', 15, 'booking-1');
+  });
+
+  it('redeems service gift card credits after checkout', async () => {
+    await service.applyRedemptions(
+      'biz-1',
+      'cust-1',
+      {
+        giftCardCode: 'GCS-BABY1',
+        giftCardDiscount: 25,
+        giftCardServiceRedemptions: [{ serviceId: 'svc-baby', units: 1 }],
+      } as any,
+      'booking-1',
+    );
+
+    expect(giftCardsService.redeemServiceCredit).toHaveBeenCalledWith(
+      'biz-1',
+      'GCS-BABY1',
+      'svc-baby',
+      'booking-1',
+    );
+    expect(giftCardsService.redeem).not.toHaveBeenCalled();
   });
 
   it('skips empty redemptions', async () => {

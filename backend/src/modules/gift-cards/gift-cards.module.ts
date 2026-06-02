@@ -10,6 +10,7 @@ import { GiftCardPurchaseService } from './gift-card-purchase.service.js';
 import { GiftCardFulfillmentService } from './gift-card-fulfillment.service.js';
 import { GiftCardDeliveryService } from './gift-card-delivery.service.js';
 import { GiftCardOrderService } from './gift-card-order.service.js';
+import { GiftCardRefundService } from './gift-card-refund.service.js';
 import { GiftCardsController, GiftCardProviderController } from './gift-cards.controller.js';
 import { GiftCardPublicController } from './gift-card-public.controller.js';
 import { BusinessModule } from '../business/business.module.js';
@@ -21,6 +22,10 @@ import { BookingModule } from '../booking/booking.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { BillingModule } from '../billing/billing.module.js';
+import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
+import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
+import { CustomerModule } from '../customer/customer.module.js';
+import { GiftCardClaimService } from './gift-card-claim.service.js';
 
 @Module({
   imports: [
@@ -35,8 +40,11 @@ import { BillingModule } from '../billing/billing.module.js';
       Employee,
     ]),
     BusinessModule,
+    CustomerModule,
     NotificationsModule,
     ZendeskModule,
+    ServicePackagesModule,
+    ServiceSubscriptionsModule,
     forwardRef(() => BillingModule),
     forwardRef(() => PublicBookingModule),
     forwardRef(() => BookingModule),
@@ -48,6 +56,8 @@ import { BillingModule } from '../billing/billing.module.js';
     GiftCardFulfillmentService,
     GiftCardDeliveryService,
     GiftCardOrderService,
+    GiftCardRefundService,
+    GiftCardClaimService,
   ],
   exports: [
     GiftCardsService,
@@ -55,6 +65,8 @@ import { BillingModule } from '../billing/billing.module.js';
     GiftCardFulfillmentService,
     GiftCardDeliveryService,
     GiftCardOrderService,
+    GiftCardRefundService,
+    GiftCardClaimService,
   ],
 })
 export class GiftCardsModule {}

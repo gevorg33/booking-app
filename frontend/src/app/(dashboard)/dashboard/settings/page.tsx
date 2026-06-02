@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings, Bell, MessageCircle, KeyRound } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { PublicBookingSelfServiceSettings } from '@/components/settings/public-booking-self-service-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
 import { useI18n } from '@/i18n';
@@ -24,6 +25,7 @@ interface NotificationSettings {
   reminder24hWhatsapp: boolean;
   reminder1hWhatsapp: boolean;
   reminderImmediateWhatsapp: boolean;
+  notifyBusinessOnCustomerBookingChange: boolean;
 }
 
 interface WhatsAppIntegrationSettings {
@@ -102,6 +104,7 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   reminder24hWhatsapp: true,
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
+  notifyBusinessOnCustomerBookingChange: false,
 };
 
 const DEFAULT_WHATSAPP_FORM: WhatsAppIntegrationForm = {
@@ -142,6 +145,9 @@ function normalizeNotificationSettings(
       raw?.reminder1hWhatsapp ?? DEFAULT_NOTIFICATION_SETTINGS.reminder1hWhatsapp,
     reminderImmediateWhatsapp:
       raw?.reminderImmediateWhatsapp ?? DEFAULT_NOTIFICATION_SETTINGS.reminderImmediateWhatsapp,
+    notifyBusinessOnCustomerBookingChange:
+      raw?.notifyBusinessOnCustomerBookingChange ??
+      DEFAULT_NOTIFICATION_SETTINGS.notifyBusinessOnCustomerBookingChange,
   };
 }
 
@@ -473,6 +479,11 @@ export default function SettingsPage() {
               <ToggleRow label={t('settings.reminder1hWhatsapp')} checked={notif.reminder1hWhatsapp} onChange={(v) => setNotif({ ...notif, reminder1hWhatsapp: v })} />
               <ToggleRow label={t('settings.reminder24hSms')} checked={notif.reminder24hSms} onChange={(v) => setNotif({ ...notif, reminder24hSms: v })} />
               <ToggleRow label={t('settings.reminder1hSms')} checked={notif.reminder1hSms} onChange={(v) => setNotif({ ...notif, reminder1hSms: v })} />
+              <ToggleRow
+                label={t('settings.notifyBusinessOnCustomerBookingChange')}
+                checked={notif.notifyBusinessOnCustomerBookingChange}
+                onChange={(v) => setNotif({ ...notif, notifyBusinessOnCustomerBookingChange: v })}
+              />
             </div>
           )}
           <button
@@ -744,6 +755,12 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <PublicBookingSelfServiceSettings businessId={business.id} />
+          </div>
+        )}
 
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{t('settings.languageSection')}</h2>

@@ -11,7 +11,7 @@ export function roundMoney(value: number): number {
 
 export function isGiftCardCode(code: string): boolean {
   const normalized = code.trim().toUpperCase();
-  return normalized.startsWith('GC-') || /^GC[MSB]-/.test(normalized);
+  return normalized.startsWith('GC-') || /^GC[MSBPU]-/.test(normalized);
 }
 
 /** Promo first, then gift card, then loyalty. */
@@ -27,6 +27,37 @@ export function resolveGiftCardRedemption(balance: number, amountDue: number): n
   const due = roundMoney(Math.max(0, amountDue));
   if (due <= 0 || balance <= 0) return 0;
   return roundMoney(Math.min(balance, due));
+}
+
+/** Applies one service credit per matching cart line (same serviceId). */
+export function resolveServiceGiftCardDiscount(
+  credits: Array<{ serviceId: string; quantityRemaining: number }>,
+  lineItems: Array<{ serviceId: string; amount: number }>,
+): { discount: number; redemptions: Array<{ serviceId: string; units: number }> } {
+  const available = new Map<string, number>();
+  for (const credit of credits) {
+    if (credit.quantityRemaining <= 0) continue;
+    available.set(
+      credit.serviceId,
+      (available.get(credit.serviceId) ?? 0) + credit.quantityRemaining,
+    );
+  }
+
+  const used = new Map<string, number>();
+  let discount = 0;
+
+  for (const line of lineItems) {
+    const remaining = (available.get(line.serviceId) ?? 0) - (used.get(line.serviceId) ?? 0);
+    if (remaining <= 0 || line.amount <= 0) continue;
+    discount = roundMoney(discount + line.amount);
+    used.set(line.serviceId, (used.get(line.serviceId) ?? 0) + 1);
+  }
+
+  const redemptions = [...used.entries()]
+    .filter(([, units]) => units > 0)
+    .map(([serviceId, units]) => ({ serviceId, units }));
+
+  return { discount, redemptions };
 }
 
 export function resolveLoyaltyRedemption(

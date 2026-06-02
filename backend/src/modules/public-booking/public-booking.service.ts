@@ -13,6 +13,8 @@ import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
+import { Booking } from '../booking/entities/booking.entity.js';
+import { ensureBookingManageToken } from '../../common/utils/booking-manage-token.util.js';
 import { resolveCheckoutPaymentStatus } from '../booking/booking-payment-status.util.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
@@ -25,6 +27,10 @@ import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { Business } from '../business/entities/business.entity.js';
+import {
+  resolveCustomerSelfServiceSettings,
+  resolvePublicPaymentSettings,
+} from '../../common/utils/customer-self-service.util.js';
 import { readBusinessGiftCardSettings } from '../gift-cards/gift-card.types.js';
 import {
   addDaysToDateKey,
@@ -56,6 +62,7 @@ import {
   validatePerServiceLines,
 } from '../../common/utils/multi-service-booking.util.js';
 import type { MultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -112,6 +119,14 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode: string;
   onlinePaymentsEnabled: boolean;
+  acceptCashPayments: boolean;
+  customerSelfService: {
+    allowCancel: boolean;
+    allowReschedule: boolean;
+    minimumNoticeHours: number;
+    maxReschedulesPerBooking: number;
+    allowProviderChangeOnReschedule: boolean;
+  };
   giftCardsPurchaseEnabled: boolean;
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
@@ -209,11 +224,13 @@ export class PublicBookingService {
     private subscriptionsService: ServiceSubscriptionsService,
     private packagesService: ServicePackagesService,
     private multiServiceBookingsService: MultiServiceBookingsService,
+    private notificationsService: NotificationsService,
     private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
     @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
   ) {}
 
   async resolveBusiness(slug: string): Promise<Business> {
@@ -277,6 +294,8 @@ export class PublicBookingService {
       publicBookingEnabled: publicBooking.enabled !== false,
       defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
       onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
+      acceptCashPayments: resolvePublicPaymentSettings(settings).acceptCashPayments,
+      customerSelfService: resolveCustomerSelfServiceSettings(settings),
       giftCardsPurchaseEnabled: readBusinessGiftCardSettings(settings).purchaseEnabled,
       ...(zendeskWidgetKey ? { support: { zendeskWidgetKey } } : {}),
       ...(dist.metaBooking?.enabled
@@ -1234,6 +1253,10 @@ export class PublicBookingService {
       bookings[0]?.id,
     );
 
+    await this.notificationsService.sendMultiAppointmentConfirmation(
+      bookings.map((b) => b.id),
+    );
+
     return {
       packagePurchase: purchase,
       bookings,
@@ -1650,6 +1673,10 @@ export class PublicBookingService {
       bookings[0]?.id,
     );
 
+    await this.notificationsService.sendMultiAppointmentConfirmation(
+      bookings.map((b) => b.id),
+    );
+
     return {
       multiServiceGroup: group,
       bookings,
@@ -1867,7 +1894,13 @@ export class PublicBookingService {
     const subscriptionCoversVisit = Boolean(useSubscriptionId);
     if (subscriptionCoversVisit && prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid) {
       // Subscription credit — no service fee due
-    } else if (prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid && !dto.purchasePlanId) {
+    } else if (
+      prepaymentRequired &&
+      pricing.amountDue > 0 &&
+      !dto.markPaid &&
+      !dto.purchasePlanId &&
+      dto.paymentMethod !== 'cash'
+    ) {
       throw new BadRequestException(
         'Online payment is required for this service. Complete payment at checkout.',
       );
@@ -1914,11 +1947,29 @@ export class PublicBookingService {
       );
     }
 
+    const cashPaymentsAllowed = resolvePublicPaymentSettings(business.settings).acceptCashPayments;
+    const wantsCash = dto.paymentMethod === 'cash';
+    if (wantsCash) {
+      if (!cashPaymentsAllowed) {
+        throw new BadRequestException('Cash payments are not accepted for online booking');
+      }
+      if (dto.purchasePlanId) {
+        throw new BadRequestException('Subscription purchases require online payment');
+      }
+      if (prepaymentRequired && pricing.amountDue > 0 && !subscriptionCoversVisit) {
+        throw new BadRequestException(
+          'This service requires online prepayment; pay in cash is not available',
+        );
+      }
+    }
+
     const paymentStatus = useSubscriptionId
       ? PaymentStatus.NOT_APPLICABLE
       : dto.markPaid
         ? PaymentStatus.PAID
-        : resolveCheckoutPaymentStatus(pricing);
+        : wantsCash && pricing.amountDue > 0
+          ? PaymentStatus.PENDING
+          : resolveCheckoutPaymentStatus(pricing);
 
     const booking = await this.bookingService.create(
       business.id,
@@ -1934,6 +1985,7 @@ export class PublicBookingService {
           ...this.bookingPaymentService.pricingMetadata(pricing),
           ...(dto.metadata || {}),
           ...(dto.purchasePlanId ? { purchasePlanId: dto.purchasePlanId } : {}),
+          ...(wantsCash ? { paymentMethod: 'cash', payAtVenue: true } : {}),
         },
       },
       undefined,
@@ -1947,9 +1999,14 @@ export class PublicBookingService {
       booking.id,
     );
 
+    const manageToken = await ensureBookingManageToken(this.bookingRepo, booking.id);
+
     return {
       booking,
       customer: { id: customer.id, name: customer.name, created },
+      manageToken,
+      paymentMethod: wantsCash ? 'cash' : 'online',
+      amountDue: pricing.amountDue,
     };
   }
 

@@ -51,13 +51,29 @@ export class ProviderPushActionService {
         );
         return { success: true, summary: `Confirmed ${booking.customer?.name ?? 'appointment'}` };
 
-      case 'mark_paid':
+      case 'mark_paid': {
+        const isCashAtVenue =
+          booking.metadata?.payAtVenue === true || booking.metadata?.paymentMethod === 'cash';
         await this.bookingService.update(
           booking.id,
-          { paymentStatus: PaymentStatus.PAID, status: BookingStatus.COMPLETED },
+          {
+            paymentStatus: PaymentStatus.PAID,
+            status: BookingStatus.COMPLETED,
+            metadata: {
+              ...(booking.metadata ?? {}),
+              ...(isCashAtVenue
+                ? {
+                    paidVia: 'cash',
+                    paidAt: new Date().toISOString(),
+                    paidByUserId: userId,
+                  }
+                : {}),
+            },
+          },
           userId,
         );
         return { success: true, summary: `Marked paid — ${booking.customer?.name ?? 'appointment'}` };
+      }
 
       case 'suggest_reschedule':
         return {

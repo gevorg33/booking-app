@@ -162,6 +162,31 @@ describe('GiftCardsService', () => {
     await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow('no balance');
   });
 
+  it('routes package and subscription cards to account claim instead of checkout', async () => {
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      cardType: 'package',
+      code: 'GCP-PKG',
+      codeRevealed: true,
+      claimedAt: null,
+      serviceCredits: [],
+    });
+    await expect(service.validate('biz-1', 'GCP-PKG')).rejects.toThrow(
+      'Claim this gift card from your account',
+    );
+
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      cardType: 'subscription',
+      code: 'GCU-SUB',
+      codeRevealed: true,
+      isActive: true,
+      claimedAt: new Date(),
+      serviceCredits: [],
+    });
+    await expect(service.validate('biz-1', 'GCU-SUB')).rejects.toThrow('already been claimed');
+  });
+
   it('throws when service credit row is missing after validation', async () => {
     jest.spyOn(service, 'validate').mockResolvedValue({
       ...baseCard,

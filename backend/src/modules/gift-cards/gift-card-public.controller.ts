@@ -1,13 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, BadRequestException } from '@nestjs/common';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { GiftCardPurchaseService, type PurchaseGiftCardInput } from './gift-card-purchase.service.js';
 import { GiftCardOrderService } from './gift-card-order.service.js';
+import { GiftCardClaimService } from './gift-card-claim.service.js';
 import { OptionalPublicCustomerAuthGuard } from '../public-booking/optional-public-customer-auth.guard.js';
 import { PublicCustomerAuthGuard } from '../public-booking/public-customer-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { PublicCustomerRequestUser } from '../public-booking/public-customer-auth.decorator.js';
-import type { SubmitGiftCardModifyInput } from './gift-card-order.types.js';
+import { resolvePublicPaymentSettings } from '../../common/utils/customer-self-service.util.js';
 
 @Controller('public/:slug/gift-cards')
 export class GiftCardPublicController {
@@ -16,7 +17,19 @@ export class GiftCardPublicController {
     private purchaseService: GiftCardPurchaseService,
     private bookingPaymentService: BookingPaymentService,
     private orderService: GiftCardOrderService,
+    private claimService: GiftCardClaimService,
   ) {}
+
+  @Post('claim')
+  @UseGuards(PublicCustomerAuthGuard)
+  async claim(
+    @Param('slug') slug: string,
+    @Body() dto: { code: string },
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.publicBookingService.resolveBusiness(slug);
+    return this.claimService.claimByCode(business.id, dto.code, user.customerId);
+  }
 
   @Get('catalog')
   async getCatalog(@Param('slug') slug: string) {
@@ -44,6 +57,34 @@ export class GiftCardPublicController {
     );
   }
 
+  @Post('purchase')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  async purchase(
+    @Param('slug') slug: string,
+    @Body() dto: PurchaseGiftCardInput,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    if (dto.paymentMethod !== 'cash') {
+      throw new BadRequestException('Use the checkout endpoint for online payment');
+    }
+
+    const business = await this.publicBookingService.resolveBusiness(slug);
+    if (!resolvePublicPaymentSettings(business.settings).acceptCashPayments) {
+      throw new BadRequestException('Cash payment is not accepted for gift card purchases');
+    }
+
+    const giftCard = await this.purchaseService.fulfillPurchase(
+      business.id,
+      {
+        ...dto,
+        purchaserCustomerId: user?.customerId ?? dto.purchaserCustomerId,
+      },
+      undefined,
+    );
+
+    return { giftCard };
+  }
+
   @Get('orders')
   @UseGuards(PublicCustomerAuthGuard)
   async listMyOrders(
@@ -51,8 +92,7 @@ export class GiftCardPublicController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     const business = await this.publicBookingService.resolveBusiness(slug);
-    const orders = await this.orderService.listCustomerOrders(business.id, user.customerId);
-    return { orders };
+    return this.orderService.listCustomerGiftCardAccount(business.id, user.customerId);
   }
 
   @Get('orders/:giftCardId')
@@ -93,7 +133,7 @@ export class GiftCardPublicController {
   async modifyRequest(
     @Param('slug') slug: string,
     @Param('giftCardId') giftCardId: string,
-    @Body() dto: SubmitGiftCardModifyInput,
+    @Body() dto: { modifyPayload?: Record<string, unknown>; customerNotes?: string },
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     const business = await this.publicBookingService.resolveBusiness(slug);
@@ -101,7 +141,7 @@ export class GiftCardPublicController {
       business.id,
       user.customerId,
       giftCardId,
-      dto,
+      dto as any,
     );
   }
 }

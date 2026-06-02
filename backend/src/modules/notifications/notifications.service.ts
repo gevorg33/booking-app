@@ -18,6 +18,17 @@ import {
 } from './notification.types.js';
 import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
 import { formatDateDisplay, formatTimeRangeDisplay } from '../../common/utils/date-format.util.js';
+import {
+  buildBookingManageUrl,
+  ensureBookingManageToken,
+  formatBookingManageLinkHtml,
+  formatBookingManageLinkText,
+} from '../../common/utils/booking-manage-token.util.js';
+import {
+  canCustomerManageBookingOnline,
+  resolveBookingManageLinkLabel,
+  resolveCustomerSelfServiceSettings,
+} from '../../common/utils/customer-self-service.util.js';
 
 interface BookingNotificationContext {
   booking: Booking;
@@ -74,6 +85,70 @@ export class NotificationsService {
     };
   }
 
+  /** One confirmation for package or multi-service orders (all appointments in one email/SMS). */
+  async sendMultiAppointmentConfirmation(bookingIds: string[]): Promise<void> {
+    const ids = [...new Set(bookingIds.filter(Boolean))];
+    if (!ids.length) return;
+
+    const ctx = await this.loadContext(ids[0]);
+    if (!ctx) return;
+
+    const { booking, businessSettings } = ctx;
+    if (booking.status === BookingStatus.CANCELLED) return;
+
+    const customer = booking.customer;
+    if (!customer) return;
+
+    const groupBookings = await this.loadGroupedBookings(booking);
+    if (!groupBookings.length) return;
+
+    const lines = await this.buildGroupedAppointmentLines(groupBookings);
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    const groupLabel = this.resolveGroupedConfirmationLabel(groupBookings);
+
+    if (
+      businessSettings.sendConfirmationEmail &&
+      businessSettings.emailEnabled &&
+      prefs.emailReminders &&
+      customer.email
+    ) {
+      await this.dispatch(ctx, 'confirmation', 'email', customer.email, () =>
+        this.buildGroupedConfirmationEmail(ctx, lines, groupLabel),
+      );
+    }
+
+    if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
+      await this.dispatch(ctx, 'confirmation', 'sms', customer.phone, () =>
+        this.buildGroupedConfirmationSms(ctx, lines, groupLabel),
+      );
+    }
+
+    if (
+      businessSettings.whatsappEnabled &&
+      businessSettings.sendConfirmationWhatsapp &&
+      prefs.whatsappReminders &&
+      customer.phone
+    ) {
+      await this.dispatchGroupedWhatsApp(ctx, groupBookings, lines, groupLabel);
+    }
+
+    if (
+      businessSettings.whatsappEnabled &&
+      businessSettings.reminderImmediateWhatsapp &&
+      prefs.whatsappReminders &&
+      customer.phone &&
+      !(await this.shouldSkipImmediateWhatsApp(ctx))
+    ) {
+      const first = groupBookings[0];
+      const immediateCtx: BookingNotificationContext = {
+        booking: first,
+        business: ctx.business,
+        businessSettings: ctx.businessSettings,
+      };
+      await this.dispatchWhatsApp(immediateCtx, 'reminder_immediate', customer.phone, 0);
+    }
+  }
+
   async sendBookingConfirmation(bookingId: string): Promise<void> {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
@@ -86,9 +161,11 @@ export class NotificationsService {
 
     const prefs = getCustomerNotificationPreferences(customer.metadata);
 
+    const manageLink = await this.resolveManageLinkForBooking(ctx);
+
     if (businessSettings.sendConfirmationEmail && businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
       await this.dispatch(ctx, 'confirmation', 'email', customer.email, () =>
-        this.buildConfirmationEmail(ctx),
+        this.buildConfirmationEmail(ctx, manageLink),
       );
     }
 
@@ -146,6 +223,52 @@ export class NotificationsService {
     if (businessSettings.whatsappEnabled && prefs.whatsappReminders && customer.phone) {
       await this.dispatchWhatsApp(ctx, 'cancellation', customer.phone, undefined, cancelReason);
     }
+  }
+
+  async sendBusinessCustomerBookingChange(
+    bookingId: string,
+    change: 'cancelled' | 'rescheduled',
+    details?: { previousStartTime?: string; newStartTime?: string },
+  ): Promise<void> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return;
+
+    const { booking, business, businessSettings } = ctx;
+    if (!businessSettings.notifyBusinessOnCustomerBookingChange) return;
+    if (!businessSettings.emailEnabled) return;
+
+    const recipient = business.email?.trim();
+    if (!recipient) return;
+
+    const customerName = booking.customer?.name ?? 'A customer';
+    const serviceName = booking.service?.name ?? 'Appointment';
+    const when = formatDateDisplay(booking.startTime);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+
+    let summary: string;
+    if (change === 'cancelled') {
+      summary = `${customerName} cancelled ${serviceName} scheduled for ${when} at ${time}.`;
+    } else {
+      const fromWhen = details?.previousStartTime
+        ? `${formatDateDisplay(new Date(details.previousStartTime))} ${formatTimeRangeDisplay(new Date(details.previousStartTime), booking.endTime)}`
+        : when;
+      const toWhen = details?.newStartTime
+        ? `${formatDateDisplay(new Date(details.newStartTime))} ${formatTimeRangeDisplay(new Date(details.newStartTime), booking.endTime)}`
+        : when;
+      summary = `${customerName} rescheduled ${serviceName} from ${fromWhen} to ${toWhen}.`;
+    }
+
+    await this.dispatch(
+      ctx,
+      change === 'cancelled' ? 'business_booking_cancelled' : 'business_booking_rescheduled',
+      'email',
+      recipient,
+      () => ({
+        subject: `Customer ${change === 'cancelled' ? 'cancellation' : 'reschedule'} — ${serviceName}`,
+        text: `${business.name} booking update\n\n${summary}`,
+        html: `<p>${summary.replace(/\n/g, '<br/>')}</p>`,
+      }),
+    );
   }
 
   async sendReviewRequest(bookingId: string): Promise<void> {
@@ -428,19 +551,234 @@ export class NotificationsService {
     };
   }
 
-  private buildConfirmationEmail(ctx: BookingNotificationContext) {
+  private async loadGroupedBookings(anchor: Booking): Promise<Booking[]> {
+    const groupFilter = anchor.packagePurchaseId
+      ? { packagePurchaseId: anchor.packagePurchaseId }
+      : anchor.multiServiceGroupId
+        ? { multiServiceGroupId: anchor.multiServiceGroupId }
+        : null;
+    if (!groupFilter) return [anchor];
+
+    return this.bookingRepo.find({
+      where: { businessId: anchor.businessId, ...groupFilter },
+      relations: { customer: true, employee: true, service: true, business: true },
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  private resolveGroupedConfirmationLabel(bookings: Booking[]): string {
+    const meta = bookings[0]?.metadata ?? {};
+    const packageName =
+      typeof meta.packageName === 'string' ? meta.packageName.trim() : '';
+    if (packageName) return packageName;
+
+    const groupLabel = typeof meta.groupLabel === 'string' ? meta.groupLabel.trim() : '';
+    if (groupLabel) return groupLabel;
+
+    const names = bookings
+      .map((b) => b.service?.name)
+      .filter((name): name is string => Boolean(name));
+    return names.length ? names.join(' + ') : `${bookings.length} appointments`;
+  }
+
+  private async buildGroupedAppointmentLines(
+    bookings: Booking[],
+  ): Promise<
+    Array<{
+      serviceName: string;
+      providerName: string;
+      when: string;
+      time: string;
+      manageUrl: string | null;
+      manageLabel: string | null;
+    }>
+  > {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const slug = bookings[0]?.business?.slug ?? '';
+    const selfService = resolveCustomerSelfServiceSettings(bookings[0]?.business?.settings);
+
+    return Promise.all(
+      bookings.map(async (b) => {
+        const line = {
+          serviceName: b.service?.name ?? 'Appointment',
+          providerName: b.employee?.name ?? 'your provider',
+          when: formatDateDisplay(b.startTime),
+          time: formatTimeRangeDisplay(b.startTime, b.endTime),
+          manageUrl: null as string | null,
+          manageLabel: null as string | null,
+        };
+        if (!canCustomerManageBookingOnline(b, selfService)) {
+          return line;
+        }
+        const manageLabel = resolveBookingManageLinkLabel(b, selfService);
+        if (!manageLabel) {
+          return line;
+        }
+        const token = await ensureBookingManageToken(this.bookingRepo, b.id);
+        line.manageUrl = buildBookingManageUrl(frontendUrl, slug, b.id, token);
+        line.manageLabel = manageLabel;
+        return line;
+      }),
+    );
+  }
+
+  private buildGroupedConfirmationEmail(
+    ctx: BookingNotificationContext,
+    lines: Array<{
+      serviceName: string;
+      providerName: string;
+      when: string;
+      time: string;
+      manageUrl: string | null;
+      manageLabel: string | null;
+    }>,
+    groupLabel: string,
+  ) {
+    const { booking, business } = ctx;
+    const count = lines.length;
+    const appointmentWord = count === 1 ? 'appointment' : 'appointments';
+    const intro = `Hi ${booking.customer?.name ?? 'there'},\n\nYour ${appointmentWord} at ${business.name} are confirmed${groupLabel ? ` (${groupLabel})` : ''}.`;
+    const detailLines = lines.map((line) => {
+      const base = `• ${line.serviceName} with ${line.providerName}\n  ${line.when} · ${line.time}`;
+      return line.manageUrl && line.manageLabel
+        ? `${base}\n  ${formatBookingManageLinkText(line.manageLabel, line.manageUrl)}`
+        : base;
+    });
+    const text = `${intro}\n\n${detailLines.join('\n\n')}\n\nSee you soon!`;
+    const htmlLines = lines
+      .map((line) => {
+        const base = `<strong>${line.serviceName}</strong> with ${line.providerName}<br/>${line.when} · ${line.time}`;
+        const manage =
+          line.manageUrl && line.manageLabel
+            ? `<br/>${formatBookingManageLinkHtml(line.manageLabel, line.manageUrl)}`
+            : '';
+        return `<li>${base}${manage}</li>`;
+      })
+      .join('');
+
+    return {
+      subject: `Confirmed: ${count} ${appointmentWord} at ${business.name}`,
+      html: `<p>${intro.replace(/\n/g, '<br/>')}</p><ul>${htmlLines}</ul><p>See you soon!</p>`,
+      text,
+    };
+  }
+
+  private buildGroupedConfirmationSms(
+    ctx: BookingNotificationContext,
+    lines: Array<{ serviceName: string; when: string; time: string }>,
+    groupLabel: string,
+  ) {
+    const { business } = ctx;
+    const summary = lines
+      .map((line) => `${line.serviceName} ${line.when} ${line.time}`)
+      .join('; ');
+    const label = groupLabel ? ` (${groupLabel})` : '';
+    return {
+      text: `${business.name}: Confirmed ${lines.length} appointment${lines.length === 1 ? '' : 's'}${label}: ${summary}.`,
+    };
+  }
+
+  private async dispatchGroupedWhatsApp(
+    ctx: BookingNotificationContext,
+    bookings: Booking[],
+    lines: Array<{ serviceName: string; when: string; time: string }>,
+    groupLabel: string,
+  ): Promise<void> {
+    const first = bookings[0];
+    if (!first) return;
+
+    const dateLabel =
+      lines.length === 1
+        ? lines[0].when
+        : `${lines[0].when} (${lines.length} visits)`;
+    const timeLabel =
+      lines.length === 1 ? lines[0].time : lines.map((l) => `${l.serviceName}: ${l.time}`).join('; ');
+
+    const existing = await this.logRepo.findOne({
+      where: {
+        bookingId: ctx.booking.id,
+        kind: 'confirmation',
+        channel: 'whatsapp',
+      },
+    });
+    if (existing) return;
+
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(ctx.business.settings);
+    if (!config) return;
+
+    const customer = ctx.booking.customer;
+    if (!customer?.phone) return;
+
+    const result = await this.whatsappService.sendBookingMessage(
+      {
+        toPhone: customer.phone,
+        kind: 'confirmation',
+        customerName: customer.name ?? 'there',
+        businessName: ctx.business.name,
+        serviceName: groupLabel || lines.map((l) => l.serviceName).join(', '),
+        providerName: first.employee?.name ?? 'your provider',
+        dateLabel,
+        timeLabel,
+      },
+      config,
+    );
+
+    await this.logRepo.save(
+      this.logRepo.create({
+        businessId: ctx.booking.businessId,
+        bookingId: ctx.booking.id,
+        channel: 'whatsapp',
+        kind: 'confirmation',
+        recipient: customer.phone,
+        status: result.ok ? 'sent' : 'failed',
+        error: result.error ?? null,
+      }),
+    );
+  }
+
+  private buildConfirmationEmail(
+    ctx: BookingNotificationContext,
+    manageLink: { label: string; url: string } | null,
+  ) {
     const { booking, business } = ctx;
     const when = formatDateDisplay(booking.startTime);
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const serviceName = booking.service?.name ?? 'Appointment';
     const providerName = booking.employee?.name ?? 'your provider';
-    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nYour appointment at ${business.name} is confirmed.\n\n${serviceName} with ${providerName}\n${when} · ${time}\n\nSee you soon!`;
+    const manageSection = manageLink
+      ? `\n\n${formatBookingManageLinkText(manageLink.label, manageLink.url)}`
+      : '';
+    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nYour appointment at ${business.name} is confirmed.\n\n${serviceName} with ${providerName}\n${when} · ${time}${manageSection}\n\nSee you soon!`;
+
+    const manageHtml = manageLink
+      ? `<br/><br/>${formatBookingManageLinkHtml(manageLink.label, manageLink.url)}`
+      : '';
+    const html = `<p>Hi ${booking.customer?.name ?? 'there'},<br/><br/>Your appointment at ${business.name} is confirmed.<br/><br/>${serviceName} with ${providerName}<br/>${when} · ${time}${manageHtml}<br/><br/>See you soon!</p>`;
 
     return {
       subject: `Confirmed: ${serviceName} at ${business.name}`,
-      html: `<p>${text.replace(/\n/g, '<br/>')}</p>`,
+      html,
       text,
     };
+  }
+
+  private async resolveManageLinkForBooking(
+    ctx: BookingNotificationContext,
+  ): Promise<{ label: string; url: string } | null> {
+    const { booking, business } = ctx;
+    const selfService = resolveCustomerSelfServiceSettings(business.settings);
+    const label = resolveBookingManageLinkLabel(booking, selfService);
+    if (!label || !canCustomerManageBookingOnline(booking, selfService)) {
+      return null;
+    }
+    const token = await ensureBookingManageToken(this.bookingRepo, booking.id);
+    const url = buildBookingManageUrl(
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000',
+      business.slug,
+      booking.id,
+      token,
+    );
+    return { label, url };
   }
 
   private buildConfirmationSms(ctx: BookingNotificationContext) {

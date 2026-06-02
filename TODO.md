@@ -426,36 +426,34 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
 
-- [ ] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
-- [ ] **feature** — After a booking is completed and the customer receives the confirmation email, add a Reschedule / Cancel Booking button on the final "Booking Complete" step.
-When the user clicks this button, provide two possible flows:
-If the user does not have an account, prompt them to register using the same email address they entered during checkout. After registration, they should be able to view, reschedule, or cancel their bookings.
-If the user accesses the booking through the confirmation email, the redirect URL should include a secure token or identifier associated with the booking/email, allowing the system to recognize the customer and take them directly to the booking management page without requiring additional steps.
-The goal is to provide a seamless self-service experience for customers to manage their bookings after checkout.
-- [ ] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
-- [ ] **pay-2** — Customer **cash payment** option at booking when admin enables it (see spec below)
+**Status (web + backend):** Shipped except **gap-2.7.5** (native consumer app) and **gap-2.7.3** package/same-visit atomic customer reschedule (single-booking self-service only). Run `npm run test:sprint13` in `backend/`.
+
+- [x] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
+- [x] **feature** — After checkout, confirmation email + success step link to **Manage booking** (`/book/{slug}/manage?bookingId=&token=`). Token flow works without login; optional Google sign-in on manage page; logged-in customers use **My appointments** (`/account`). Cancel/reschedule on manage page and account (not inline on success step).
+- [x] **gap-2.8** — Booking cancelled / rescheduled → notify provider, staff & manager via app (see spec below)
+- [x] **pay-2** — Customer **cash payment** option at booking when admin enables it (see spec below)
 
 ### gap-2.7 — Customer self-service cancel & reschedule
 
 **User story:** As a registered customer, I want to cancel my appointment or pick a new date/time without calling the salon.
 
-- [ ] **gap-2.7.1** — Policy settings — admin configures: allow cancel (yes/no), allow reschedule (yes/no), minimum notice (e.g. 24h before start), max reschedules per booking
-- [ ] **gap-2.7.2** — API — `POST /public/{slug}/customer/bookings/:id/cancel` and `POST …/reschedule` (or PATCH with new slot); auth = public customer JWT; enforce policy + booking ownership
-- [ ] **gap-2.7.3** — Reschedule UX — show available slots for same service/provider (or allow provider change per policy); validate conflicts server-side; **gap-8.3** package sub-bookings reschedule independently; **gap-8.7** same-visit group reschedules atomically
-- [ ] **gap-2.7.4** — Web public booking — “My appointments” for logged-in customer: Cancel / Reschedule actions with policy messaging
-- [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time
-- [ ] **gap-2.7.6** — Side effects — emit `booking.cancelled` / `booking.rescheduled`; restore subscription credit per **sub-1.10** policy when applicable
+- [x] **gap-2.7.1** — Policy settings — `Settings → Public booking`: allow cancel/reschedule, minimum notice, max reschedules, allow provider change on reschedule
+- [x] **gap-2.7.2** — API — JWT: `POST /public/{slug}/me/bookings/:id/cancel|reschedule`; token (no login): `POST /public/{slug}/bookings/manage/cancel|reschedule` + `GET …/bookings/manage`; policy + ownership enforced
+- [ ] **gap-2.7.3** — Reschedule UX — **done (web):** single booking, slots, optional provider change. **Deferred:** **gap-8.3** package sub-bookings reschedule independently; **gap-8.7** same-visit group reschedules atomically via customer API
+- [x] **gap-2.7.4** — Web public booking — `/book/{slug}/account` “My appointments” + `/manage` token page; `PublicCustomerBookingActions` with policy messaging
+- [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time *(web parity only today)*
+- [x] **gap-2.7.6** — Side effects — `booking.cancelled` / `booking.rescheduled` events; `restoreCreditForBooking` on cancel via shared `BookingService.cancel`
 
 ### gap-2.8 — Staff push on cancel & reschedule
 
 **User story:** When a customer cancels or moves an appointment, the assigned provider and managers should get an immediate app notification.
 
-- [ ] **gap-2.8.1** — Extend **gap-2.1** `ProviderPushListener` — ensure `booking.cancelled` and `booking.rescheduled` fire for **customer-initiated** changes (not only dashboard)
-- [ ] **gap-2.8.2** — Recipients — assigned provider (linked user), mobile-enabled managers; dedupe if same user
-- [ ] **gap-2.8.3** — Push copy — “Jane cancelled Haircut at Mon 10:00” / “Jane rescheduled to Wed 14:00”; deep link to booking in provider app
-- [ ] **gap-2.8.4** — Optional email/SMS to business — settings toggle separate from marketing email (**gap-4.6**)
+- [x] **gap-2.8.1** — Extend **gap-2.1** `ProviderPushListener` — customer-initiated cancel/reschedule (`Cancelled by customer`, reschedule payload with old → new time)
+- [x] **gap-2.8.2** — Recipients — assigned provider (linked user), mobile-enabled managers; dedupe if same user
+- [x] **gap-2.8.3** — Push copy — customer-initiated cancel/reschedule messages; deep link to booking in provider app
+- [x] **gap-2.8.4** — Optional email to business — `notifyBusinessOnCustomerBookingChange` toggle in **Settings → Notifications**; `sendBusinessCustomerBookingChange` on customer cancel/reschedule
 
-*(Partial coverage exists via **gap-2.1** push listener; this sprint closes customer-initiated paths and consumer app parity.)*
+*(Customer-initiated push + business email shipped; native consumer app parity remains **gap-2.7.5**.)*
 
 ### pay-2 — Cash payment at booking (public checkout)
 
@@ -465,33 +463,32 @@ The goal is to provide a seamless self-service experience for customers to manag
 
 #### Admin settings (dashboard)
 
-- [ ] **pay-2.1** — **Accept cash payments** toggle — business setting (e.g. Monetization → Payments or Business settings): when **off**, public checkout shows online payment only (Stripe when configured); when **on**, customer may select cash
-- [ ] **pay-2.2** — **Rules** — optional: allow cash only when service prepayment is none/deposit; disallow cash when full prepayment required online; admin copy explaining when cash appears
-- [ ] **pay-2.3** — **Public API** — expose `acceptCashPayments` (and related rules) on business/public booking config so frontend can show/hide cash option without extra round-trip
+- [x] **pay-2.1** — **Accept cash payments** toggle — `PublicBookingSelfServiceSettings` (with self-service policy)
+- [x] **pay-2.2** — **Rules** — server blocks cash when prepayment due (full/deposit with amount due); settings hint explains when cash appears
+- [x] **pay-2.3** — **Public API** — `acceptCashPayments` on public business/catalog config
 
 #### Customer checkout (public booking)
 
-- [ ] **pay-2.4** — **Payment method selector** — on confirm/checkout step when admin enabled cash: **Pay online** (Stripe — existing **pay-1** flow) vs **Pay in cash at visit**; hide cash option when admin disabled or service rules block it
-- [ ] **pay-2.5** — **Cash booking flow** — selecting cash creates booking without Stripe session; `paymentStatus`: **pending** / **pay_at_venue**; amount due stored on booking metadata; confirmation copy: “Pay {amount} in cash when you arrive”
-- [ ] **pay-2.6** — **Online still default** — when both methods available, default to online if service requires prepayment/deposit; cash pre-selected only when no online charge due or admin prefers cash-first (setting)
+- [x] **pay-2.4** — **Payment method selector** — checkout **Pay online** vs **Pay in cash at visit** when enabled and rules allow
+- [x] **pay-2.5** — **Cash booking flow** — no Stripe session; `paymentStatus` pending; metadata `paymentMethod: cash`, `payAtVenue: true`; manage token issued; confirmation copy for cash due
+- [x] **pay-2.6** — **Online still default** — cash hidden/blocked when prepayment required and amount due > 0; Stripe skipped when cash selected and credits cover online portion
 
 #### Staff & reconciliation
 
-- [ ] **pay-2.7** — **Mark paid in dashboard / provider app** — staff confirms cash received → `paymentStatus` → **paid**; optional “Mark paid (cash)” action with timestamp + user id
-- [ ] **pay-2.8** — **Reports & calendar** — show unpaid / pay-at-venue bookings; filter by payment method; loyalty earn on cash when marked paid (reuse eligible cash rules)
+- [x] **pay-2.7** — **Mark paid in provider app** — push action `mark_paid` sets paid + completed; cash metadata `paidVia`, `paidAt`, `paidByUserId`
+- [x] **pay-2.8** — **Calendar** — “Pay at venue only” filter + badge; loyalty award on transition to `paymentStatus: paid` (incl. mark paid)
 
 #### Edge cases
 
-- [ ] **pay-2.9** — **Mixed checkout** — gift card / promo / loyalty + cash remainder: cash option covers **amount due** after credits; no Stripe for zero online portion
-- [ ] **pay-2.10** — **Subscriptions & packages** — define whether **sub-1** / **gap-8.3** purchases require online pay or can use cash (default: online only for prepaid products)
-- [ ] **pay-2.11** — **No-show / cancel** — cash bookings follow same cancel policy (**gap-2.7**); no automatic refund path
+- [x] **pay-2.9** — **Mixed checkout** — promo/loyalty/gift card + cash remainder; no Stripe when cash selected and online amount due is 0
+- [x] **pay-2.10** — **Subscriptions & packages** — online only (`purchasePlanId` / `bookPackage` require payment); single-service cash per prepayment rules
+- [x] **pay-2.11** — **No-show / cancel** — cash bookings use same **gap-2.7** cancel policy; no card refund path
 
 #### Example
 
 Admin enables “Accept cash payments” → customer books Haircut ($30, no prepayment) → checkout shows **Pay in cash at visit** → booking confirmed, payment pending → stylist marks **Paid (cash)** after appointment.
 
-*(Complements historical **pay-1** Stripe prepay; Stri
-pe remains required when admin disables cash or service mandates online prepayment.)*
+*(Complements **pay-1** Stripe prepay; Stripe remains required when admin disables cash or service mandates online prepayment.)*
 
 ---
 

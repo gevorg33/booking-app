@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventType } from '../../../events/event-types.js';
 import type { OperationalEvent } from '../../../events/store/event-store.entity.js';
+import { formatDateDisplay, formatTimeDisplay } from '../../../common/utils/date-format.util.js';
 import { PushService } from '../push.service.js';
 import { ProviderMobileService } from '../provider-mobile.service.js';
 import { ProviderPushActionService } from '../provider-push-action.service.js';
@@ -29,16 +30,38 @@ export class ProviderPushListener {
 
   @OnEvent(EventType.BOOKING_CANCELLED, { async: true })
   async handleCancelledBooking(event: OperationalEvent): Promise<void> {
+    const customerInitiated =
+      event.payload?.reason === 'Cancelled by customer' ||
+      (typeof event.userId === 'string' && event.userId.startsWith('customer:'));
     await this.notifyForBooking(event, 'cancelled', 'Appointment cancelled', (ctx) =>
-      `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
+      customerInitiated
+        ? `${ctx.customerName} cancelled ${ctx.serviceName} at ${ctx.whenShort}`
+        : `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
     );
   }
 
   @OnEvent(EventType.BOOKING_RESCHEDULED, { async: true })
   async handleRescheduledBooking(event: OperationalEvent): Promise<void> {
-    await this.notifyForBooking(event, 'rescheduled', 'Appointment rescheduled', (ctx) =>
-      `${ctx.customerName} — ${ctx.serviceName} now at ${ctx.when}`,
-    );
+    const newStart =
+      event.payload?.newStartTime != null
+        ? new Date(String(event.payload.newStartTime))
+        : null;
+    const oldStart =
+      event.payload?.oldStartTime != null
+        ? new Date(String(event.payload.oldStartTime))
+        : null;
+    const customerInitiated =
+      typeof event.userId === 'string' && event.userId.startsWith('customer:');
+    await this.notifyForBooking(event, 'rescheduled', 'Appointment rescheduled', (ctx) => {
+      const newLabel = newStart
+        ? `${formatDateDisplay(newStart)} ${formatTimeDisplay(newStart)}`
+        : ctx.whenShort;
+      if (customerInitiated && oldStart) {
+        const oldLabel = `${formatDateDisplay(oldStart)} ${formatTimeDisplay(oldStart)}`;
+        return `${ctx.customerName} rescheduled from ${oldLabel} to ${newLabel}`;
+      }
+      return `${ctx.customerName} rescheduled to ${newLabel}`;
+    });
   }
 
   @OnEvent(EventType.PAYMENT_RECEIVED, { async: true })
@@ -108,6 +131,7 @@ export class ProviderPushListener {
       serviceName: string;
       providerName: string;
       when: string;
+      whenShort: string;
     }) => string,
   ): Promise<void> {
     if (!this.pushService.isConfigured || !event.businessId) return;
@@ -127,10 +151,11 @@ export class ProviderPushListener {
         booking?.startTime ??
         (event.payload?.startTime ? new Date(String(event.payload.startTime)) : new Date());
       const when = startTime.toISOString().slice(0, 16).replace('T', ' ');
+      const whenShort = `${formatDateDisplay(startTime)} ${formatTimeDisplay(startTime)}`;
       const customerName = booking?.customer?.name ?? 'A customer';
       const serviceName = booking?.service?.name ?? 'Appointment';
       const providerName = booking?.employee?.name ?? 'Provider';
-      const body = bodyFn({ customerName, serviceName, providerName, when });
+      const body = bodyFn({ customerName, serviceName, providerName, when, whenShort });
       const url = `/provider/today?bookingId=${event.aggregateId}`;
 
       const notified = new Set<string>();

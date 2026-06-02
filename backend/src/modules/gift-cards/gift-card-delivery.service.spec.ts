@@ -11,13 +11,19 @@ describe('GiftCardDeliveryService integration', () => {
       giftCardBodyParamCount: 4,
     }),
   };
+  const configService = {
+    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+  };
 
   const service = new GiftCardDeliveryService(
     giftCardRepo as any,
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
+    configService as any,
   );
+
+  const business = { name: 'Glow Salon', slug: 'glow-salon', settings: {} };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,7 +47,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientEmail: 'friend@test.com',
       purchaserEmail: 'buyer@test.com',
       personalMessage: 'Enjoy!',
-      business: { name: 'Glow Salon', settings: {} },
+      business,
       serviceCredits: [],
     });
 
@@ -49,7 +55,18 @@ describe('GiftCardDeliveryService integration', () => {
 
     expect(emailService.send).toHaveBeenCalledTimes(2);
     expect(emailService.send).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'friend@test.com' }),
+      expect.objectContaining({
+        to: 'friend@test.com',
+        subject: 'Your gift card from Buyer for Glow Salon',
+        text: expect.stringContaining('https://app.test/book/glow-salon'),
+        html: expect.stringContaining('https://app.test/book/glow-salon'),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'buyer@test.com',
+        text: expect.stringContaining('/book/glow-salon/account'),
+      }),
     );
   });
 
@@ -64,7 +81,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientEmail: 'friend@test.com',
       recipientPhone: '+37499123456',
       recipientName: 'Alex',
-      business: { name: 'Glow Salon', settings: {} },
+      business,
       serviceCredits: [],
     });
 
@@ -74,6 +91,7 @@ describe('GiftCardDeliveryService integration', () => {
       expect.objectContaining({
         toPhone: '+37499123456',
         giftCardCode: 'GCM-WA123',
+        senderName: 'Someone',
       }),
       expect.any(Object),
     );
@@ -91,7 +109,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientEmail: null,
       recipientPhone: '+37499123456',
       recipientName: 'Sam',
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [{ serviceName: 'Facial', quantityRemaining: 1 }],
     });
 
@@ -111,7 +129,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientPhone: null,
       purchaserEmail: null,
       serviceCredits: [{ serviceName: 'Facial', quantityRemaining: 1 }],
-      business: { name: 'Glow' },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
     });
 
     await service.deliverDigitalGiftCard('gc-2');
@@ -141,7 +159,7 @@ describe('GiftCardDeliveryService integration', () => {
       currency: 'USD',
       recipientEmail: 'self@test.com',
       purchaserEmail: 'self@test.com',
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [],
     });
 
@@ -166,7 +184,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientEmail: 'friend@test.com',
       purchaserEmail: 'buyer@test.com',
       personalMessage: 'Happy birthday!',
-      business: { name: 'Glow Salon', settings: {} },
+      business,
       serviceCredits: [],
     });
 
@@ -187,7 +205,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientEmail: 'friend@test.com',
       purchaserEmail: 'buyer@test.com',
       expiresAt: new Date('2027-12-31T00:00:00.000Z'),
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [{ serviceName: 'Facial', quantityRemaining: 1 }],
     });
 
@@ -210,7 +228,7 @@ describe('GiftCardDeliveryService integration', () => {
       currency: 'USD',
       recipientEmail: 'friend@test.com',
       recipientPhone: '+37499123456',
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [],
     });
 
@@ -232,7 +250,7 @@ describe('GiftCardDeliveryService integration', () => {
       recipientPhone: '+37499123456',
       personalMessage: 'Enjoy',
       expiresAt: new Date('2027-12-31T00:00:00.000Z'),
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [],
     });
 
@@ -251,7 +269,7 @@ describe('GiftCardDeliveryService integration', () => {
       currency: 'USD',
       recipientEmail: 'friend@test.com',
       recipientPhone: '+37499123456',
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [],
     });
 
@@ -269,14 +287,53 @@ describe('GiftCardDeliveryService integration', () => {
       cardType: 'service',
       recipientEmail: null,
       recipientPhone: '+37499123456',
-      business: { name: 'Glow', settings: {} },
+      business: { name: 'Glow', slug: 'glow', settings: {} },
       serviceCredits: [],
     });
 
     await service.deliverDigitalGiftCard('gc-empty-credits');
     expect(whatsappService.sendGiftCardMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        summary: 'Redeem at checkout with your code.',
+        summary: expect.stringContaining('https://app.test/book/glow'),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('includes account claim instructions for package and subscription cards', async () => {
+    giftCardRepo.findOne.mockResolvedValue({
+      id: 'gc-package',
+      deliveryMethod: 'digital',
+      code: 'GCP-PKG',
+      cardType: 'package',
+      recipientEmail: 'friend@test.com',
+      business: { name: 'Glow', slug: 'glow', settings: {} },
+      serviceCredits: [],
+    });
+
+    await service.deliverDigitalGiftCard('gc-package');
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('/book/glow/account'),
+        html: expect.stringContaining('Redeem in your account'),
+      }),
+    );
+
+    giftCardRepo.findOne.mockResolvedValue({
+      id: 'gc-sub',
+      deliveryMethod: 'digital',
+      code: 'GCU-SUB',
+      cardType: 'subscription',
+      recipientPhone: '+37499123456',
+      recipientName: 'Sam',
+      business: { name: 'Glow', slug: 'glow', settings: {} },
+      serviceCredits: [],
+    });
+
+    await service.deliverDigitalGiftCard('gc-sub');
+    expect(whatsappService.sendGiftCardMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.stringContaining('https://app.test/book/glow/account'),
       }),
       expect.any(Object),
     );

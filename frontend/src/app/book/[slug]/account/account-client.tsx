@@ -17,9 +17,13 @@ import {
   type PublicCustomerLoyalty,
   type PublicCustomerSubscription,
   type PublicGiftCardOrder,
+  type PublicGiftCardRedeemed,
 } from '@/lib/public-api';
 import { PublicSubscriptionsSection } from '@/components/public-booking/public-subscriptions-section';
 import { PublicGiftCardsSection } from '@/components/public-booking/public-gift-cards-section';
+import { PublicGiftCardsRedeemedSection } from '@/components/public-booking/public-gift-cards-redeemed-section';
+import { PublicGiftCardClaimSection } from '@/components/public-booking/public-gift-card-claim-section';
+import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
@@ -45,12 +49,14 @@ function BookingRow({
   primary,
   t,
   locale,
+  onUpdated,
 }: {
   booking: PublicCustomerBookingItem;
   slug: string;
   primary: string;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   locale: string;
+  onUpdated: () => void;
 }) {
   const start = new Date(booking.startTime);
   const end = new Date(booking.endTime);
@@ -80,6 +86,13 @@ function BookingRow({
           {t('public.leaveReview')}
         </Link>
       )}
+
+      <PublicCustomerBookingActions
+        booking={booking}
+        slug={slug}
+        primary={primary}
+        onUpdated={onUpdated}
+      />
     </article>
   );
 }
@@ -96,14 +109,39 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
   const [subscriptions, setSubscriptions] = useState<PublicCustomerSubscription[]>([]);
-  const [giftCards, setGiftCards] = useState<PublicGiftCardOrder[]>([]);
+  const [giftCardOrders, setGiftCardOrders] = useState<PublicGiftCardOrder[]>([]);
+  const [redeemedGiftCards, setRedeemedGiftCards] = useState<PublicGiftCardRedeemed[]>([]);
+
+  function reloadGiftCardAccount() {
+    return getPublicCustomerGiftCards(tenant.slug)
+      .then((res) => {
+        setGiftCardOrders(res.orders);
+        setRedeemedGiftCards(res.redeemed);
+      })
+      .catch(() => {});
+  }
+
+  async function reloadBookings() {
+    if (!customer) return;
+    setBookingsLoading(true);
+    setBookingsError(null);
+    try {
+      const bookingsRes = await getPublicCustomerBookings(tenant.slug);
+      setBookings(bookingsRes.bookings);
+    } catch (err) {
+      setBookingsError(err instanceof Error ? err.message : t('public.bookingsLoadFailed'));
+    } finally {
+      setBookingsLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!customer) {
       setBookings([]);
       setLoyalty(null);
       setSubscriptions([]);
-      setGiftCards([]);
+      setGiftCardOrders([]);
+      setRedeemedGiftCards([]);
       return;
     }
 
@@ -115,14 +153,15 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
       getPublicCustomerBookings(tenant.slug),
       getPublicCustomerLoyalty(tenant.slug).catch(() => null),
       getPublicCustomerSubscriptions(tenant.slug).catch(() => []),
-      getPublicCustomerGiftCards(tenant.slug).catch(() => ({ orders: [] })),
+      getPublicCustomerGiftCards(tenant.slug).catch(() => ({ orders: [], redeemed: [] })),
     ])
       .then(([bookingsRes, loyaltyRes, subsRes, giftCardsRes]) => {
         if (!cancelled) {
           setBookings(bookingsRes.bookings);
           setLoyalty(loyaltyRes);
           setSubscriptions(subsRes);
-          setGiftCards(giftCardsRes.orders);
+          setGiftCardOrders(giftCardsRes.orders);
+          setRedeemedGiftCards(giftCardsRes.redeemed);
         }
       })
       .catch((err) => {
@@ -276,14 +315,33 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               locale={locale}
             />
 
-            <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.giftCards.myGiftCards')}</h2>
+            <PublicGiftCardClaimSection
+              slug={tenant.slug}
+              onClaimed={() => {
+                void reloadGiftCardAccount();
+              }}
+            />
+
+            <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">
+              {t('public.giftCards.myRedeemedGiftCards')}
+            </h2>
+            <PublicGiftCardsRedeemedSection
+              slug={tenant.slug}
+              redeemed={redeemedGiftCards}
+              locale={locale}
+            />
+
+            <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">
+              {t('public.giftCards.myOrderedGiftCards')}
+            </h2>
             <PublicGiftCardsSection
               slug={tenant.slug}
-              orders={giftCards}
-              primary={primary}
+              orders={giftCardOrders}
               locale={locale}
               onOrderUpdated={(order) =>
-                setGiftCards((prev) => prev.map((item) => (item.id === order.id ? order : item)))
+                setGiftCardOrders((prev) =>
+                  prev.map((item) => (item.id === order.id ? order : item)),
+                )
               }
             />
 
@@ -316,6 +374,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                     primary={primary}
                     t={t}
                     locale={locale}
+                    onUpdated={() => void reloadBookings()}
                   />
                 ))}
               </div>

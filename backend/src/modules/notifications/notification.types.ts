@@ -6,7 +6,9 @@ export type NotificationKind =
   | 'reminder_immediate'
   | 'reminder_24h'
   | 'reminder_1h'
-  | 'review_request';
+  | 'review_request'
+  | 'business_booking_cancelled'
+  | 'business_booking_rescheduled';
 
 export interface BusinessNotificationSettings {
   emailEnabled: boolean;
@@ -22,6 +24,8 @@ export interface BusinessNotificationSettings {
   reminder1hWhatsapp: boolean;
   /** Sends reminder template right after booking — for testing; disable in production. */
   reminderImmediateWhatsapp: boolean;
+  /** Email business when a customer cancels or reschedules online (separate from marketing). */
+  notifyBusinessOnCustomerBookingChange: boolean;
 }
 
 export interface CustomerNotificationPreferences {
@@ -43,6 +47,7 @@ export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSetting
   reminder24hWhatsapp: true,
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
+  notifyBusinessOnCustomerBookingChange: false,
 };
 
 export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPreferences = {

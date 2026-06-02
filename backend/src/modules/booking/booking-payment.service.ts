@@ -363,6 +363,10 @@ export class BookingPaymentService {
     const preview = await this.multiServiceBookingsService.previewTotals(businessId, serviceIds);
     const totalPrice = preview.totals!.totalPrice;
     const currency = preview.totals!.currency;
+    const serviceLineItems = preview.services.map((svc) => ({
+      serviceId: svc.serviceId,
+      amount: svc.price,
+    }));
 
     return this.checkoutPricingService.calculate({
       businessId,
@@ -373,6 +377,7 @@ export class BookingPaymentService {
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
       earnPercentCashback: resolveEarnPercentForService(business?.settings, serviceIds[0]),
+      serviceLineItems,
     });
   }
 
@@ -525,6 +530,7 @@ export class BookingPaymentService {
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
       earnPercentCashback: resolveEarnPercentForService(business?.settings, service.id),
+      serviceLineItems: [{ serviceId: service.id, amount: chargeBase }],
     });
   }
 

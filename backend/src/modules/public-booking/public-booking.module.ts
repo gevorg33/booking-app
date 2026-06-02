@@ -7,12 +7,14 @@ import { PublicBookingController } from './public-booking.controller.js';
 import { PublicBookingService } from './public-booking.service.js';
 import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
+import { PublicCustomerBookingService } from './public-customer-booking.service.js';
 import { PublicCustomerJwtStrategy } from './public-customer-jwt.strategy.js';
 import { PublicCustomerAuthGuard } from './public-customer-auth.guard.js';
 import { OptionalPublicCustomerAuthGuard } from './optional-public-customer-auth.guard.js';
 import { BusinessModule } from '../business/business.module.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
@@ -30,6 +32,7 @@ import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -55,12 +58,15 @@ import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-serv
     ServiceSubscriptionsModule,
     ServicePackagesModule,
     MultiServiceBookingsModule,
+    NotificationsModule,
+    forwardRef(() => GiftCardsModule),
   ],
   controllers: [PublicBookingController],
   providers: [
     PublicBookingService,
     PublicBookingAssistantService,
     PublicCustomerAuthService,
+    PublicCustomerBookingService,
     PublicCustomerJwtStrategy,
     PublicCustomerAuthGuard,
     OptionalPublicCustomerAuthGuard,

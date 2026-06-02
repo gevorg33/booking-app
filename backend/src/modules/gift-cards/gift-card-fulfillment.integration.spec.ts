@@ -11,11 +11,28 @@ describe('Gift card purchase + fulfillment integration', () => {
   const purchaseEvents = { emit: jest.fn() };
   const fulfillmentEvents = { emit: jest.fn() };
 
+  const packagesService = {
+    getPublicPackage: jest.fn().mockResolvedValue(undefined),
+    listPublicPackages: jest.fn().mockResolvedValue([]),
+  };
+  const subscriptionsService = { listPlans: jest.fn().mockResolvedValue([]) };
+  const claimService = { claimCard: jest.fn() };
+  const customerService = {
+    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
+      customer: { id: 'cust-linked', name: dto.name, email: dto.email },
+      created: true,
+    })),
+  };
+
   const purchaseService = new GiftCardPurchaseService(
     businessRepo as any,
     serviceRepo as any,
     giftCardRepo as any,
     creditRepo as any,
+    packagesService as any,
+    subscriptionsService as any,
+    claimService as any,
+    customerService as any,
     purchaseEvents as unknown as EventEmitter2,
   );
 

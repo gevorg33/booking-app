@@ -4,12 +4,41 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GiftCard } from './entities/gift-card.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import type { GiftCardFulfillmentStatus } from './gift-card.types.js';
 import { EventType } from '../../events/event-types.js';
+
+export type GiftCardFulfillmentSortBy = 'createdAt';
+export type GiftCardFulfillmentSortOrder = 'ASC' | 'DESC';
+
+export interface ListGiftCardFulfillmentQuery {
+  status?: GiftCardFulfillmentStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: GiftCardFulfillmentSortBy;
+  sortOrder?: GiftCardFulfillmentSortOrder;
+}
+
+export interface PaginatedGiftCardFulfillmentResult {
+  orders: GiftCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const DASHBOARD_FULFILLMENT_STATUSES: GiftCardFulfillmentStatus[] = [
+  'pending',
+  'awaiting_card_creation',
+  'ready_for_delivery',
+  'out_for_delivery',
+  'shipped',
+  'delivered',
+  'cancelled',
+];
 
 @Injectable()
 export class GiftCardFulfillmentService {
@@ -43,22 +72,56 @@ export class GiftCardFulfillmentService {
     });
   }
 
-  async listDashboardOrders(businessId: string, status?: GiftCardFulfillmentStatus): Promise<GiftCard[]> {
-    const where: Record<string, unknown> = { businessId };
-    if (status) where.fulfillmentStatus = status;
-    else where.fulfillmentStatus = In([
-      'awaiting_card_creation',
-      'ready_for_delivery',
-      'out_for_delivery',
-      'shipped',
-      'delivered',
-    ]);
+  async listDashboardOrders(
+    businessId: string,
+    query: ListGiftCardFulfillmentQuery = {},
+  ): Promise<PaginatedGiftCardFulfillmentResult> {
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.min(Math.max(query.pageSize ?? 20, 1), 100);
+    const sortOrder: 'ASC' | 'DESC' = query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
-    return this.giftCardRepo.find({
-      where,
-      order: { createdAt: 'DESC' },
-      relations: { serviceCredits: true },
+    const qb = this.giftCardRepo
+      .createQueryBuilder('card')
+      .leftJoinAndSelect('card.serviceCredits', 'serviceCredits')
+      .where('card.businessId = :businessId', { businessId });
+
+    if (query.status) {
+      qb.andWhere('card.fulfillmentStatus = :status', { status: query.status });
+    } else {
+      qb.andWhere('card.fulfillmentStatus IN (:...statuses)', {
+        statuses: DASHBOARD_FULFILLMENT_STATUSES,
+      });
+    }
+
+    const search = query.search?.trim().toLowerCase();
+    if (search) {
+      qb.andWhere(
+        new Brackets((sub) => {
+          sub
+            .where('LOWER(card.code) LIKE :search', { search: `%${search}%` })
+            .orWhere('LOWER(card.recipientName) LIKE :search', { search: `%${search}%` })
+            .orWhere('LOWER(card.recipientEmail) LIKE :search', { search: `%${search}%` })
+            .orWhere('LOWER(card.purchaserEmail) LIKE :search', { search: `%${search}%` });
+        }),
+      );
+    }
+
+    const [orders, total] = await qb
+      .orderBy('card.createdAt', sortOrder)
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return { orders, total, page, pageSize };
+  }
+
+  async getDashboardOrder(businessId: string, giftCardId: string): Promise<GiftCard> {
+    const card = await this.giftCardRepo.findOne({
+      where: { id: giftCardId, businessId },
+      relations: { serviceCredits: true, purchaser: true },
     });
+    if (!card) throw new NotFoundException('Gift card order not found');
+    return card;
   }
 
   async markCardReady(

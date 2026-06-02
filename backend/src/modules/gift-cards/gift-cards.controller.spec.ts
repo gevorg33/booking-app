@@ -4,7 +4,11 @@ import { GiftCardsController, GiftCardProviderController } from './gift-cards.co
 describe('GiftCardsController', () => {
   const giftCardsService = { list: jest.fn(), create: jest.fn(), validate: jest.fn(), redeem: jest.fn(), getBalanceView: jest.fn(), listRedemptions: jest.fn(), updateExpiration: jest.fn(), listExpirationAudit: jest.fn() };
   const purchaseService = {};
-  const fulfillmentService = { listDashboardOrders: jest.fn(), markShipped: jest.fn() };
+  const fulfillmentService = {
+    listDashboardOrders: jest.fn(),
+    getDashboardOrder: jest.fn(),
+    markShipped: jest.fn(),
+  };
   const orderService = {
     listChangeRequests: jest.fn(),
     resolveChangeRequest: jest.fn(),
@@ -28,11 +32,25 @@ describe('GiftCardsController', () => {
     businessService.ensureMember.mockResolvedValue({ role: 'owner' });
     businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: {} });
     businessRepo.save.mockImplementation(async (b) => b);
-    fulfillmentService.listDashboardOrders.mockResolvedValue([]);
+    fulfillmentService.listDashboardOrders.mockResolvedValue({
+      orders: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
   });
 
   it('returns fulfillment orders for dashboard members', async () => {
-    const result = await controller.listFulfillment('biz-1', undefined, { id: 'user-1' });
+    const result = await controller.listFulfillment(
+      'biz-1',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { id: 'user-1' },
+    );
     expect(result.orders).toEqual([]);
   });
 

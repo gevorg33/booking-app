@@ -9,7 +9,7 @@ import { In, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Business } from '../business/entities/business.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Booking } from '../booking/entities/booking.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
 import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
 import { BusinessService } from '../business/business.service.js';
@@ -19,6 +19,9 @@ import {
   PublicCustomerJwtPayload,
   PublicCustomerProfile,
 } from './public-customer-auth.types.js';
+import { PublicCustomerBookingService } from './public-customer-booking.service.js';
+import { GiftCardPurchaseService } from '../gift-cards/gift-card-purchase.service.js';
+import { resolveCustomerSelfServiceSettings } from '../../common/utils/customer-self-service.util.js';
 
 @Injectable()
 export class PublicCustomerAuthService {
@@ -26,6 +29,8 @@ export class PublicCustomerAuthService {
     private businessService: BusinessService,
     private jwtService: JwtService,
     private firebase: FirebaseAdminService,
+    private publicCustomerBookingService: PublicCustomerBookingService,
+    private giftCardPurchaseService: GiftCardPurchaseService,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
@@ -96,6 +101,12 @@ export class PublicCustomerAuthService {
       }
     }
 
+    await this.giftCardPurchaseService.linkGuestPurchasesToCustomer(
+      business.id,
+      customer.id,
+      email,
+    );
+
     const token = this.signToken(customer, business.id, email);
     return { token, customer: this.toProfile(customer) };
   }
@@ -138,19 +149,12 @@ export class PublicCustomerAuthService {
       }
     }
 
+    const settings = resolveCustomerSelfServiceSettings(business.settings);
+
     return {
-      bookings: bookings.map((booking) => ({
-        id: booking.id,
-        startTime: booking.startTime.toISOString(),
-        endTime: booking.endTime.toISOString(),
-        status: booking.status,
-        paymentStatus: booking.paymentStatus,
-        serviceName: booking.service?.name ?? 'Service',
-        employeeName: booking.employee?.name ?? 'Specialist',
-        employeeId: booking.employeeId,
-        canReview:
-          booking.status === BookingStatus.COMPLETED && !reviewBookingIds.has(booking.id),
-      })),
+      bookings: bookings.map((booking) =>
+        this.publicCustomerBookingService.enrichBookingItem(booking, settings, reviewBookingIds),
+      ),
     };
   }
 

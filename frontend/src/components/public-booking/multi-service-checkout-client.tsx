@@ -312,9 +312,10 @@ export function MultiServiceCheckoutClient({
   const requiresPayment = tenant.onlinePaymentsEnabled && amountDue > 0;
   const promoApplied =
     !!appliedPromo &&
-    (!quote ||
-      quote.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
-      quote.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+    !!quote &&
+    (quote.promoCode?.toUpperCase() === appliedPromo.toUpperCase() ||
+      (quote.giftCardCode?.toUpperCase() === appliedPromo.toUpperCase() &&
+        quote.giftCardDiscount > 0) ||
       quote.promoDiscount > 0 ||
       quote.giftCardDiscount > 0);
 

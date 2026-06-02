@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatDateDisplay, formatPrice, getPublicCustomerSubscriptionUsage, type PublicCustomerSubscription } from '@/lib/public-api';
+import { getPublicCustomerSubscriptionUsage, type PublicCustomerSubscription } from '@/lib/public-api';
+import { formatDateDisplay } from '@/lib/date-format';
 import { bookPath } from '@/lib/tenant-host';
 
 export function PublicSubscriptionsSection({

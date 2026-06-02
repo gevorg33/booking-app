@@ -26,5 +26,12 @@ export interface PublicCustomerBookingItem {
   serviceName: string;
   employeeName: string;
   employeeId: string;
+  serviceId: string;
   canReview: boolean;
+  canCancel: boolean;
+  canReschedule: boolean;
+  policyMessage: string | null;
+  rescheduleCount: number;
+  maxReschedules: number;
+  allowProviderChangeOnReschedule?: boolean;
 }
