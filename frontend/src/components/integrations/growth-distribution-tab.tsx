@@ -22,6 +22,7 @@ interface ZendeskSettings {
   configured: boolean;
   enabled: boolean;
   subdomain?: string;
+  apiUserEmail?: string;
   hasApiToken: boolean;
   apiTokenHint?: string;
   widgetKey?: string;
@@ -76,6 +77,25 @@ function CopyField({ value, label }: { value: string; label: string }) {
   );
 }
 
+function normalizeZendeskSubdomain(raw: string): string {
+  let value = raw.trim().toLowerCase();
+  value = value.replace(/^https?:\/\//, '');
+  value = value.replace(/\.zendesk\.com\/?.*$/, '');
+  value = value.split('/')[0] ?? value;
+  return value;
+}
+
+function formatSaveError(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const message = (err as { response?: { data?: { message?: string | string[] } } }).response?.data
+      ?.message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return 'Failed to save Zendesk settings';
+}
+
 export function GrowthDistributionTab() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -102,6 +122,7 @@ export function GrowthDistributionTab() {
   const [zendeskForm, setZendeskForm] = useState({
     enabled: false,
     subdomain: '',
+    apiUserEmail: '',
     apiToken: '',
     widgetKey: '',
     widgetEnabledOnDashboard: true,
@@ -111,6 +132,9 @@ export function GrowthDistributionTab() {
     reviewTicketMaxRating: '',
     defaultAssigneeEmail: '',
   });
+
+  const [zendeskError, setZendeskError] = useState<string | null>(null);
+  const [zendeskSaved, setZendeskSaved] = useState(false);
 
   const [distForm, setDistForm] = useState({
     googleReserveEnabled: false,
@@ -134,6 +158,7 @@ export function GrowthDistributionTab() {
       ...prev,
       enabled: zendesk.enabled,
       subdomain: zendesk.subdomain ?? '',
+      apiUserEmail: zendesk.apiUserEmail ?? '',
       widgetKey: zendesk.widgetKey ?? '',
       widgetEnabledOnDashboard: zendesk.widgetEnabledOnDashboard,
       widgetEnabledOnPublicBooking: zendesk.widgetEnabledOnPublicBooking,
@@ -166,9 +191,11 @@ export function GrowthDistributionTab() {
 
   const saveZendesk = useMutation({
     mutationFn: async () => {
+      const subdomain = normalizeZendeskSubdomain(zendeskForm.subdomain);
       const payload: Record<string, unknown> = {
         enabled: zendeskForm.enabled,
-        subdomain: zendeskForm.subdomain.trim() || undefined,
+        subdomain: subdomain || undefined,
+        apiUserEmail: zendeskForm.apiUserEmail.trim().toLowerCase() || undefined,
         widgetKey: zendeskForm.widgetKey.trim() || undefined,
         widgetEnabledOnDashboard: zendeskForm.widgetEnabledOnDashboard,
         widgetEnabledOnPublicBooking: zendeskForm.widgetEnabledOnPublicBooking,
@@ -183,10 +210,22 @@ export function GrowthDistributionTab() {
       const { data } = await api.put(`${base}/zendesk`, payload);
       return unwrap<ZendeskSettings>(data);
     },
-    onSuccess: () => {
-      setZendeskForm((f) => ({ ...f, apiToken: '' }));
-      void queryClient.invalidateQueries({ queryKey: ['integrations-zendesk', business?.id] });
+    onSuccess: (result) => {
+      setZendeskError(null);
+      setZendeskSaved(true);
+      setZendeskForm((f) => ({
+        ...f,
+        apiToken: '',
+        enabled: result.enabled,
+        subdomain: result.subdomain ?? f.subdomain,
+        apiUserEmail: result.apiUserEmail ?? f.apiUserEmail,
+      }));
+      queryClient.setQueryData(['integrations-zendesk', business?.id], result);
       void queryClient.invalidateQueries({ queryKey: ['integrations-zendesk-widget', business?.id] });
+    },
+    onError: (err) => {
+      setZendeskSaved(false);
+      setZendeskError(formatSaveError(err));
     },
   });
 
@@ -238,6 +277,8 @@ export function GrowthDistributionTab() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
+            setZendeskError(null);
+            setZendeskSaved(false);
             saveZendesk.mutate();
           }}
         >
@@ -262,6 +303,19 @@ export function GrowthDistributionTab() {
               <p className="text-xs text-gray-500 mt-1">yourcompany.zendesk.com</p>
             </div>
             <div>
+              <label className="label">Account email</label>
+              <input
+                type="email"
+                className="input"
+                placeholder="agent@yourcompany.com"
+                value={zendeskForm.apiUserEmail}
+                onChange={(e) => setZendeskForm({ ...zendeskForm, apiUserEmail: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Zendesk agent email paired with your API token
+              </p>
+            </div>
+            <div>
               <label className="label">API token</label>
               <input
                 type="password"
@@ -275,10 +329,13 @@ export function GrowthDistributionTab() {
               <label className="label">Web Widget key</label>
               <input
                 className="input"
-                placeholder="widget key from Zendesk admin"
+                placeholder="Snippet key from Zendesk Admin → Channels → Web Widget"
                 value={zendeskForm.widgetKey}
                 onChange={(e) => setZendeskForm({ ...zendeskForm, widgetKey: e.target.value })}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Not your API token. Copy the key from the Web Widget install snippet.
+              </p>
             </div>
             <div>
               <label className="label">Default assignee email (optional)</label>
@@ -357,6 +414,14 @@ export function GrowthDistributionTab() {
                 Leave empty for every review. Set to 3 to ticket only 1–3 star reviews.
               </p>
             </div>
+          )}
+
+          {zendeskError && (
+            <p className="text-sm text-red-400">{zendeskError}</p>
+          )}
+
+          {zendeskSaved && !zendeskError && (
+            <p className="text-sm text-green-400">Zendesk settings saved.</p>
           )}
 
           {zendesk?.configured && (

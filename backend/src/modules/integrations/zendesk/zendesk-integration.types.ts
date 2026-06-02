@@ -1,6 +1,8 @@
 export interface BusinessZendeskIntegration {
   enabled?: boolean;
   subdomain?: string;
+  /** Agent/admin email used with the API token (email/token auth) */
+  apiUserEmail?: string;
   apiTokenEnc?: string;
   /** Zendesk Web Widget key (safe to expose client-side when widget enabled) */
   widgetKey?: string;
@@ -20,6 +22,7 @@ export interface ZendeskIntegrationPublicView {
   configured: boolean;
   enabled: boolean;
   subdomain?: string;
+  apiUserEmail?: string;
   hasApiToken: boolean;
   apiTokenHint?: string;
   widgetKey?: string;
