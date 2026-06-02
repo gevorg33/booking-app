@@ -13,6 +13,7 @@ import {
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { MarketingAutomationSettingsPanel } from '@/components/integrations/marketing-automation-settings';
+import { CheckboxChoice, ToggleChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -282,14 +283,11 @@ export function GrowthDistributionTab() {
             saveZendesk.mutate();
           }}
         >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={zendeskForm.enabled}
-              onChange={(e) => setZendeskForm({ ...zendeskForm, enabled: e.target.checked })}
-            />
-            Enable Zendesk
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={zendeskForm.enabled}
+            onChange={(enabled) => setZendeskForm({ ...zendeskForm, enabled })}
+            label="Enable Zendesk"
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -350,51 +348,52 @@ export function GrowthDistributionTab() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <li>
+              <CheckboxChoice
+                className="w-full min-h-[44px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                 checked={zendeskForm.widgetEnabledOnDashboard}
-                onChange={(e) =>
-                  setZendeskForm({ ...zendeskForm, widgetEnabledOnDashboard: e.target.checked })
+                onChange={(widgetEnabledOnDashboard) =>
+                  setZendeskForm({ ...zendeskForm, widgetEnabledOnDashboard })
                 }
+                label="Widget on dashboard"
+                labelClassName="text-sm text-gray-200"
               />
-              Widget on dashboard
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            </li>
+            <li>
+              <CheckboxChoice
+                className="w-full min-h-[44px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                 checked={zendeskForm.widgetEnabledOnPublicBooking}
-                onChange={(e) =>
-                  setZendeskForm({
-                    ...zendeskForm,
-                    widgetEnabledOnPublicBooking: e.target.checked,
-                  })
+                onChange={(widgetEnabledOnPublicBooking) =>
+                  setZendeskForm({ ...zendeskForm, widgetEnabledOnPublicBooking })
                 }
+                label="Widget on public booking"
+                labelClassName="text-sm text-gray-200"
               />
-              Widget on public booking
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            </li>
+            <li>
+              <CheckboxChoice
+                className="w-full min-h-[44px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                 checked={zendeskForm.syncCustomersEnabled}
-                onChange={(e) =>
-                  setZendeskForm({ ...zendeskForm, syncCustomersEnabled: e.target.checked })
+                onChange={(syncCustomersEnabled) =>
+                  setZendeskForm({ ...zendeskForm, syncCustomersEnabled })
                 }
+                label="Sync customers to Zendesk"
+                labelClassName="text-sm text-gray-200"
               />
-              Sync customers to Zendesk
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            </li>
+            <li>
+              <CheckboxChoice
+                className="w-full min-h-[44px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                 checked={zendeskForm.createTicketOnReview}
-                onChange={(e) =>
-                  setZendeskForm({ ...zendeskForm, createTicketOnReview: e.target.checked })
+                onChange={(createTicketOnReview) =>
+                  setZendeskForm({ ...zendeskForm, createTicketOnReview })
                 }
+                label="Create ticket on new review"
+                labelClassName="text-sm text-gray-200"
               />
-              Create ticket on new review
-            </label>
-          </div>
+            </li>
+          </ul>
 
           {zendeskForm.createTicketOnReview && (
             <div>
@@ -447,16 +446,13 @@ export function GrowthDistributionTab() {
         </div>
 
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={distForm.googleReserveEnabled}
-              onChange={(e) =>
-                setDistForm({ ...distForm, googleReserveEnabled: e.target.checked })
-              }
-            />
-            Enable Google Reserve setup
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={distForm.googleReserveEnabled}
+            onChange={(googleReserveEnabled) =>
+              setDistForm({ ...distForm, googleReserveEnabled })
+            }
+            label="Enable Google Reserve setup"
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Merchant Center ID</label>
@@ -504,16 +500,13 @@ export function GrowthDistributionTab() {
         </div>
 
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={distForm.metaBookingEnabled}
-              onChange={(e) =>
-                setDistForm({ ...distForm, metaBookingEnabled: e.target.checked })
-              }
-            />
-            Show booking links on public page
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={distForm.metaBookingEnabled}
+            onChange={(metaBookingEnabled) =>
+              setDistForm({ ...distForm, metaBookingEnabled })
+            }
+            label="Show booking links on public page"
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Facebook Page URL</label>
@@ -568,16 +561,13 @@ export function GrowthDistributionTab() {
 
         <div className="space-y-4">
           <div className="border border-gray-800 rounded-lg p-4 space-y-3">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={distForm.telegramEnabled}
-                onChange={(e) =>
-                  setDistForm({ ...distForm, telegramEnabled: e.target.checked })
-                }
-              />
-              Telegram bot deep link
-            </label>
+            <ToggleChoice variant="dashboard"
+              checked={distForm.telegramEnabled}
+              onChange={(telegramEnabled) =>
+                setDistForm({ ...distForm, telegramEnabled })
+              }
+              label="Telegram bot deep link"
+            />
             <input
               className="input"
               placeholder="Bot username (without @)"
@@ -592,16 +582,13 @@ export function GrowthDistributionTab() {
           </div>
 
           <div className="border border-gray-800 rounded-lg p-4 space-y-3">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={distForm.whatsappBookingEnabled}
-                onChange={(e) =>
-                  setDistForm({ ...distForm, whatsappBookingEnabled: e.target.checked })
-                }
-              />
-              WhatsApp booking chat
-            </label>
+            <ToggleChoice variant="dashboard"
+              checked={distForm.whatsappBookingEnabled}
+              onChange={(whatsappBookingEnabled) =>
+                setDistForm({ ...distForm, whatsappBookingEnabled })
+              }
+              label="WhatsApp booking chat"
+            />
             <input
               className="input"
               placeholder="Business phone E.164 e.g. 37499123456"

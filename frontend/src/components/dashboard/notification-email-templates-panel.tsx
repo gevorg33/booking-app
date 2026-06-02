@@ -6,6 +6,7 @@ import { Mail, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 export type EmailTemplateKey =
   | 'booking_confirmation'
@@ -50,6 +51,9 @@ interface EmailTemplatesResponse {
 
 const inputClass =
   'w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm';
+
+/** Hide until custom-variable UX is clearer (footerNote, discoverability). */
+const SHOW_EMAIL_CUSTOM_VARIABLES_UI = false;
 
 export function NotificationEmailTemplatesPanel() {
   const { t } = useI18n();
@@ -178,14 +182,12 @@ export function NotificationEmailTemplatesPanel() {
                 ))}
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm mt-6 sm:mt-0 sm:pt-6">
-              <input
-                type="checkbox"
-                checked={draft.enabled}
-                onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-              />
-              {t('settings.emailTemplateEnabled')}
-            </label>
+            <ToggleChoice variant="dashboard"
+              className="mt-6 sm:mt-0 sm:pt-6"
+              checked={draft.enabled}
+              onChange={(enabled) => setDraft({ ...draft, enabled })}
+              label={t('settings.emailTemplateEnabled')}
+            />
           </div>
 
           <p className="text-xs text-gray-500">{selected.description}</p>
@@ -204,16 +206,19 @@ export function NotificationEmailTemplatesPanel() {
                   {`{{${v.key}}}`}
                 </button>
               ))}
-              {data.variables.filter((v) => v.custom).map((v) => (
-                <button
-                  key={`custom-${v.key}`}
-                  type="button"
-                  onClick={() => insertVariable('bodyHtml', v.key)}
-                  className="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-100 border border-amber-200 dark:border-amber-800"
-                >
-                  {`{{${v.key}}}`}
-                </button>
-              ))}
+              {SHOW_EMAIL_CUSTOM_VARIABLES_UI &&
+                data.variables
+                  .filter((v) => v.custom)
+                  .map((v) => (
+                    <button
+                      key={`custom-${v.key}`}
+                      type="button"
+                      onClick={() => insertVariable('bodyHtml', v.key)}
+                      className="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-100 border border-amber-200 dark:border-amber-800"
+                    >
+                      {`{{${v.key}}}`}
+                    </button>
+                  ))}
             </div>
           </div>
 
@@ -261,58 +266,76 @@ export function NotificationEmailTemplatesPanel() {
 
           {saved && <p className="text-sm text-green-600 dark:text-green-400">{t('settings.emailTemplateSaved')}</p>}
 
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('settings.emailCustomVariables')}</h3>
-            <p className="text-xs text-gray-500 mb-3">{t('settings.emailCustomVariablesHint')}</p>
-            <div className="space-y-2">
-              {customVars.map((variable, index) => (
-                <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                  <input
-                    className={inputClass}
-                    placeholder={t('settings.emailVarKey')}
-                    value={variable.key}
-                    onChange={(e) => {
-                      const next = [...customVars];
-                      next[index] = { ...variable, key: e.target.value };
-                      setCustomVars(next);
-                    }}
-                  />
-                  <input
-                    className={inputClass}
-                    placeholder={t('settings.emailVarLabel')}
-                    value={variable.label}
-                    onChange={(e) => {
-                      const next = [...customVars];
-                      next[index] = { ...variable, label: e.target.value };
-                      setCustomVars(next);
-                    }}
-                  />
-                  <input
-                    className={inputClass}
-                    placeholder={t('settings.emailVarDefault')}
-                    value={variable.defaultValue}
-                    onChange={(e) => {
-                      const next = [...customVars];
-                      next[index] = { ...variable, defaultValue: e.target.value };
-                      setCustomVars(next);
-                    }}
-                  />
-                  <button type="button" className="p-2 text-red-600" onClick={() => removeCustomVariable(index)} aria-label="Remove">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+          {SHOW_EMAIL_CUSTOM_VARIABLES_UI && (
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                {t('settings.emailCustomVariables')}
+              </h3>
+              <p className="text-xs text-gray-500 mb-3">{t('settings.emailCustomVariablesHint')}</p>
+              <div className="space-y-2">
+                {customVars.map((variable, index) => (
+                  <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                    <input
+                      className={inputClass}
+                      placeholder={t('settings.emailVarKey')}
+                      value={variable.key}
+                      onChange={(e) => {
+                        const next = [...customVars];
+                        next[index] = { ...variable, key: e.target.value };
+                        setCustomVars(next);
+                      }}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder={t('settings.emailVarLabel')}
+                      value={variable.label}
+                      onChange={(e) => {
+                        const next = [...customVars];
+                        next[index] = { ...variable, label: e.target.value };
+                        setCustomVars(next);
+                      }}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder={t('settings.emailVarDefault')}
+                      value={variable.defaultValue}
+                      onChange={(e) => {
+                        const next = [...customVars];
+                        next[index] = { ...variable, defaultValue: e.target.value };
+                        setCustomVars(next);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="p-2 text-red-600"
+                      onClick={() => removeCustomVariable(index)}
+                      aria-label="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  className="btn-secondary text-sm inline-flex items-center gap-1"
+                  onClick={addCustomVariable}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {t('settings.emailVarAdd')}
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary text-sm"
+                  disabled={saveCustomVars.isPending}
+                  onClick={() => saveCustomVars.mutate()}
+                >
+                  {t('settings.emailVarSave')}
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2 mt-3">
-              <button type="button" className="btn-secondary text-sm inline-flex items-center gap-1" onClick={addCustomVariable}>
-                <Plus className="w-3.5 h-3.5" />
-                {t('settings.emailVarAdd')}
-              </button>
-              <button type="button" className="btn-primary text-sm" disabled={saveCustomVars.isPending} onClick={() => saveCustomVars.mutate()}>
-                {t('settings.emailVarSave')}
-              </button>
-            </div>
-          </div>
+          )}
 
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>

@@ -6,6 +6,7 @@ import {
   isNetworkError,
   isOfflineMutation,
 } from '../lib/offline-queue';
+import { attachOperationFeedbackToAxios } from '../lib/operation-feedback';
 
 /** Android emulator uses 10.0.2.2; physical devices need your Mac LAN IP in VITE_API_URL. */
 function getApiBaseUrl(): string {
@@ -20,6 +21,8 @@ const api = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
+
+attachOperationFeedbackToAxios(api);
 
 type OfflineAxiosConfig = {
   __offlineReplay?: boolean;

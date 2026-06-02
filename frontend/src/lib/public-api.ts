@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '@/lib/api-base';
+import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
 
 function getServerApiBaseUrl(): string {
   return (
@@ -229,37 +230,48 @@ function formatPublicApiError(body: unknown, status: number): string {
   return `Request failed (${status})`;
 }
 
-async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> {
+  const method = init?.method ?? 'GET';
+  const { skipOperationFeedback, operationSuccessMessage, ...fetchInit } = init ?? {};
 
-  if (typeof document !== 'undefined') {
-    const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
-    if (match?.[1]) headers['Accept-Language'] = match[1];
-  }
+  return runWithOperationFeedback(
+    method,
+    path,
+    async () => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
 
-  const slugMatch = path.match(/^\/public\/([^/]+)/);
-  const slug = slugMatch?.[1];
-  const token = slug ? publicCustomerTokens.get(slug) : undefined;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+      if (typeof document !== 'undefined') {
+        const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
+        if (match?.[1]) headers['Accept-Language'] = match[1];
+      }
 
-  const res = await fetch(`${getPublicApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      ...headers,
-      ...(init?.headers as Record<string, string> | undefined),
+      const slugMatch = path.match(/^\/public\/([^/]+)/);
+      const slug = slugMatch?.[1];
+      const token = slug ? publicCustomerTokens.get(slug) : undefined;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${getPublicApiBaseUrl()}${path}`, {
+        ...fetchInit,
+        method,
+        headers: {
+          ...headers,
+          ...(fetchInit.headers as Record<string, string> | undefined),
+        },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(formatPublicApiError(body, res.status));
+      }
+      const json = await res.json();
+      return (json.data ?? json) as T;
     },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(formatPublicApiError(body, res.status));
-  }
-  const json = await res.json();
-  return (json.data ?? json) as T;
+    { skip: skipOperationFeedback, successMessage: operationSuccessMessage },
+  );
 }
 
 export function getPublicProfile(slug: string) {

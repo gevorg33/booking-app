@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { fetchBusinessSettings, unwrapBusinessApiPayload } from '@/lib/business-query';
 import { useI18n } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 interface CustomerSelfServiceSettings {
   allowCancel: boolean;
@@ -103,36 +104,27 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         </p>
       </div>
 
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.customerSelfService.allowCancel}
-          onChange={(e) =>
-            setForm((prev) => ({
-              ...prev,
-              customerSelfService: { ...prev.customerSelfService, allowCancel: e.target.checked },
-            }))
-          }
-        />
-        {t('settings.allowCustomerCancel')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.customerSelfService.allowCancel}
+        onChange={(allowCancel) =>
+          setForm((prev) => ({
+            ...prev,
+            customerSelfService: { ...prev.customerSelfService, allowCancel },
+          }))
+        }
+        label={t('settings.allowCustomerCancel')}
+      />
 
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.customerSelfService.allowReschedule}
-          onChange={(e) =>
-            setForm((prev) => ({
-              ...prev,
-              customerSelfService: {
-                ...prev.customerSelfService,
-                allowReschedule: e.target.checked,
-              },
-            }))
-          }
-        />
-        {t('settings.allowCustomerReschedule')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.customerSelfService.allowReschedule}
+        onChange={(allowReschedule) =>
+          setForm((prev) => ({
+            ...prev,
+            customerSelfService: { ...prev.customerSelfService, allowReschedule },
+          }))
+        }
+        label={t('settings.allowCustomerReschedule')}
+      />
 
       <label className="block text-sm">
         <span className="text-gray-700 dark:text-gray-300">{t('settings.minimumNoticeHours')}</span>
@@ -172,22 +164,19 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         />
       </label>
 
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.customerSelfService.allowProviderChangeOnReschedule}
-          onChange={(e) =>
-            setForm((prev) => ({
-              ...prev,
-              customerSelfService: {
-                ...prev.customerSelfService,
-                allowProviderChangeOnReschedule: e.target.checked,
-              },
-            }))
-          }
-        />
-        {t('settings.allowProviderChangeOnReschedule')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.customerSelfService.allowProviderChangeOnReschedule}
+        onChange={(allowProviderChangeOnReschedule) =>
+          setForm((prev) => ({
+            ...prev,
+            customerSelfService: {
+              ...prev.customerSelfService,
+              allowProviderChangeOnReschedule,
+            },
+          }))
+        }
+        label={t('settings.allowProviderChangeOnReschedule')}
+      />
 
       <button
         type="button"

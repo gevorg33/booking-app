@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Bot, Loader2, Save } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 import { useAuthStore } from '@/lib/store';
 
 interface AutopilotRule {
@@ -74,31 +75,25 @@ export function AiAutopilotSettings() {
         <h3 className="font-semibold">Autopilot & playbooks</h3>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={settings.autopilot.enabled}
-          onChange={(e) =>
-            setLocal({
-              ...settings,
-              autopilot: { ...settings.autopilot, enabled: e.target.checked },
-            })
-          }
-        />
-        Enable autopilot (scheduled AI rules, UTC cron)
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={settings.autopilot.enabled}
+        onChange={(enabled) =>
+          setLocal({
+            ...settings,
+            autopilot: { ...settings.autopilot, enabled },
+          })
+        }
+        label="Enable autopilot (scheduled AI rules, UTC cron)"
+      />
 
       <div className="space-y-3">
         {settings.autopilot.rules.map((rule) => (
           <div key={rule.id} className="rounded-lg border border-gray-700 p-3 space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={rule.enabled}
-                onChange={(e) => updateRule(rule.id, { enabled: e.target.checked })}
-              />
-              {rule.name}
-            </label>
+            <ToggleChoice variant="dashboard"
+              checked={rule.enabled}
+              onChange={(enabled) => updateRule(rule.id, { enabled })}
+              label={rule.name}
+            />
             <p className="text-xs text-gray-500 font-mono">{rule.cron}</p>
             <p className="text-xs text-gray-400">{rule.prompt}</p>
             {rule.lastRunAt && (

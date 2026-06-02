@@ -15,6 +15,8 @@ import api from '@/lib/api';
 import { formatDateDisplay } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import { OpenAiUsagePanel } from '@/components/billing/open-ai-usage-panel';
+import { PayAtVenueSettings } from '@/components/settings/pay-at-venue-settings';
 
 interface Plan {
   id: string;
@@ -436,6 +438,13 @@ export default function BillingPage() {
         {connectError && <p className="text-sm text-red-400 mb-2">{connectError}</p>}
         {connectNotice && <p className="text-sm text-green-400 mb-2">{connectNotice}</p>}
       </div>
+
+      {business?.id && (
+        <>
+          <OpenAiUsagePanel businessId={business.id} />
+          <PayAtVenueSettings businessId={business.id} embeddedInBilling />
+        </>
+      )}
 
       {banner === 'success' && (
         <div className="mb-6 p-4 rounded-lg border border-green-500/30 bg-green-600/10 flex items-start gap-3">

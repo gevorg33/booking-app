@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Package, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { CheckboxChoice } from '@/components/ui/radio-choice';
 
 export interface GiftCardBundleLine {
   serviceId: string;
@@ -268,14 +269,13 @@ export function GiftCardProductsPanel({
                   key={svc.id}
                   className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 px-3 py-2"
                 >
-                  <label className="flex items-center gap-2 text-sm min-w-[180px]">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(e) => toggleService(svc.id, e.target.checked)}
-                    />
-                    <span>{svc.name}</span>
-                  </label>
+                  <CheckboxChoice
+                    className="min-h-[44px] min-w-[180px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
+                    checked={enabled}
+                    onChange={(checked) => toggleService(svc.id, checked)}
+                    label={svc.name}
+                    labelClassName="text-sm text-gray-200"
+                  />
                   <span className="text-xs text-gray-500">${Number(svc.price).toFixed(2)}</span>
                   {enabled && (
                     <input
@@ -310,14 +310,13 @@ export function GiftCardProductsPanel({
                   key={pkg.id}
                   className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 px-3 py-2"
                 >
-                  <label className="flex items-center gap-2 text-sm min-w-[180px]">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(e) => togglePackage(pkg.id, e.target.checked)}
-                    />
-                    <span>{pkg.name}</span>
-                  </label>
+                  <CheckboxChoice
+                    className="min-h-[44px] min-w-[180px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
+                    checked={enabled}
+                    onChange={(checked) => togglePackage(pkg.id, checked)}
+                    label={pkg.name}
+                    labelClassName="text-sm text-gray-200"
+                  />
                   <span className="text-xs text-gray-500">
                     ${Number(pkg.packagePrice).toFixed(2)} · {pkg.itemSummary}
                   </span>
@@ -354,14 +353,13 @@ export function GiftCardProductsPanel({
                   key={plan.id}
                   className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 px-3 py-2"
                 >
-                  <label className="flex items-center gap-2 text-sm min-w-[180px]">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(e) => togglePlan(plan.id, e.target.checked)}
-                    />
-                    <span>{plan.name}</span>
-                  </label>
+                  <CheckboxChoice
+                    className="min-h-[44px] min-w-[180px] rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
+                    checked={enabled}
+                    onChange={(checked) => togglePlan(plan.id, checked)}
+                    label={plan.name}
+                    labelClassName="text-sm text-gray-200"
+                  />
                   <span className="text-xs text-gray-500">
                     {plan.serviceName} · ${Number(plan.subscriptionPrice).toFixed(2)}
                   </span>
@@ -424,17 +422,17 @@ export function GiftCardProductsPanel({
 
             <div>
               <label className="label">{t('monetization.giftCardBundleServices')}</label>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <ul className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto sm:grid-cols-2">
                 {services.map((svc) => {
                   const selected = bundleForm.selectedServiceIds.includes(svc.id);
                   return (
-                    <div key={svc.id} className="flex items-center gap-3 text-sm">
-                      <label className="flex items-center gap-2 flex-1">
-                        <input
-                          type="checkbox"
+                    <li key={svc.id} className={selected ? 'sm:col-span-2' : undefined}>
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <CheckboxChoice
+                          className="min-h-[44px] flex-1 rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                           checked={selected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onChange={(checked) => {
+                            if (checked) {
                               setBundleForm({
                                 ...bundleForm,
                                 selectedServiceIds: [...bundleForm.selectedServiceIds, svc.id],
@@ -450,30 +448,34 @@ export function GiftCardProductsPanel({
                               });
                             }
                           }}
+                          label={`${svc.name} ($${Number(svc.price).toFixed(2)})`}
+                          labelClassName="text-sm text-gray-200"
                         />
-                        {svc.name}
-                      </label>
-                      {selected && (
-                        <input
-                          type="number"
-                          min="1"
-                          className="input max-w-[80px]"
-                          value={bundleForm.quantities[svc.id] ?? 1}
-                          onChange={(e) =>
-                            setBundleForm({
-                              ...bundleForm,
-                              quantities: {
-                                ...bundleForm.quantities,
-                                [svc.id]: Math.max(1, parseInt(e.target.value, 10) || 1),
-                              },
-                            })
-                          }
-                        />
-                      )}
-                    </div>
+                        {selected && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-gray-500">{t('servicesPage.packagesQty')}</span>
+                            <input
+                              type="number"
+                              min="1"
+                              className="input max-w-[80px]"
+                              value={bundleForm.quantities[svc.id] ?? 1}
+                              onChange={(e) =>
+                                setBundleForm({
+                                  ...bundleForm,
+                                  quantities: {
+                                    ...bundleForm.quantities,
+                                    [svc.id]: Math.max(1, parseInt(e.target.value, 10) || 1),
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
 
             <div className="flex gap-2">

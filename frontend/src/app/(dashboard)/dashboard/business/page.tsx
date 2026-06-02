@@ -100,6 +100,7 @@ export default function BusinessProfilePage() {
         </div>
       ) : (
         <form
+          id="business-profile-form"
           onSubmit={(e) => {
             e.preventDefault();
             saveMutation.mutate();
@@ -291,39 +292,40 @@ export default function BusinessProfilePage() {
               </div>
             )}
           </section>
+        </form>
+      )}
 
+      {business?.slug && (
+        <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+      )}
+
+      {form && (
+        <div className="mt-6 space-y-3 border-t border-gray-800 pt-6">
           {saveMutation.isError && (
             <p className="text-sm text-red-400">
               {(saveMutation.error as any)?.response?.data?.message || 'Failed to save profile'}
             </p>
           )}
-
           <button
             type="submit"
+            form="business-profile-form"
             disabled={saveMutation.isPending}
             className="btn-primary inline-flex items-center gap-2"
           >
             {saveMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Saving…
+                {t('common.saving')}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                {saveMutation.isPending ? t('common.saving') : t('business.saveProfile')}
+                {t('business.saveProfile')}
               </>
             )}
           </button>
-
-          {saved && (
-            <p className="text-sm text-green-400">Profile saved successfully.</p>
-          )}
-        </form>
-      )}
-
-      {business?.slug && (
-        <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+          {saved && <p className="text-sm text-green-400">Profile saved successfully.</p>}
+        </div>
       )}
     </div>
   );

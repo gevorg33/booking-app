@@ -16,6 +16,7 @@ import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { isValidTime24, normalizeTime24 } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import {
   BOOKING_STATUS_LABELS,
@@ -486,11 +487,10 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 <p className="text-xs font-medium text-gray-400">Reschedule</p>
                 <div>
                   <label className="label">Date</label>
-                  <input
-                    type="date"
-                    className="input text-sm"
+                  <DatePicker
+                    className="w-full"
                     value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    onChange={setRescheduleDate}
                   />
                 </div>
                 <div>

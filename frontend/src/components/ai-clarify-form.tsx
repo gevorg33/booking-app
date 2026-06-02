@@ -1,5 +1,7 @@
 'use client';
 
+import { DatePicker } from '@/components/ui/date-picker';
+
 import { useState } from 'react';
 import { useI18n } from '@/i18n';
 
@@ -48,11 +50,11 @@ export function AiClarifyForm({ issues, onSubmit }: AiClarifyFormProps) {
           <span className="font-medium">{issue.label}</span>
           <span className="text-amber-400/70 ml-1">— {issue.message}</span>
           {issue.field === 'date' || issue.field === 'dateFrom' || issue.field === 'dateTo' ? (
-            <input
-              type="date"
-              className="mt-1 w-full rounded bg-amber-950/40 border border-amber-700/50 px-2 py-1 text-xs text-amber-50"
+            <DatePicker
+              variant="amber"
+              className="mt-1 w-full text-xs py-1.5"
               value={values[issue.field] ?? ''}
-              onChange={(e) => set(issue.field, e.target.value)}
+              onChange={(next) => set(issue.field, next)}
             />
           ) : issue.field === 'timeSlot' || issue.field === 'timeFrom' || issue.field === 'timeTo' ? (
             <input

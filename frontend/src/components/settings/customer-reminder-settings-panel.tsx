@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useI18n } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 function parseHoursInput(raw: string): number[] {
   const seen = new Set<number>();
@@ -41,20 +42,17 @@ export function CustomerReminderSettingsPanel({
 
   return (
     <div className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-2 space-y-3">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) =>
-            onChange({
-              allowCustomerReminderChoice: e.target.checked,
-              customerReminderOptionsHours: parsedHours.length ? parsedHours : optionsHours,
-              defaultCustomerReminderHours: effectiveDefault,
-            })
-          }
-        />
-        <span>{t('settings.allowCustomerReminderChoice')}</span>
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={enabled}
+        onChange={(allowCustomerReminderChoice) =>
+          onChange({
+            allowCustomerReminderChoice,
+            customerReminderOptionsHours: parsedHours.length ? parsedHours : optionsHours,
+            defaultCustomerReminderHours: effectiveDefault,
+          })
+        }
+        label={t('settings.allowCustomerReminderChoice')}
+      />
 
       {enabled && (
         <>

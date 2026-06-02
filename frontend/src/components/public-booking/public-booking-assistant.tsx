@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Send, Sparkles, X } from 'lucide-react';
+import { Send, Sparkles, X } from 'lucide-react';
 import {
   useDraggableFloatingPosition,
   useViewportSize,
@@ -313,8 +313,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2 flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: primary }} />
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2">
                   <span className="text-xs text-gray-500">{t('ai.thinking')}</span>
                 </div>
               </div>

@@ -13,6 +13,10 @@ import {
 } from '@/components/gift-cards/gift-card-expiration-editor';
 import { GiftCardOrderDetailModal } from '@/components/gift-cards/gift-card-order-detail-modal';
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
+import { ToggleChoice } from '@/components/ui/radio-choice';
+import { promptDialog } from '@/lib/app-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
+import { toast } from 'sonner';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -277,7 +281,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     onSuccess: (result) => {
       const payload = unwrap<{ refundStatus?: string }>(result);
       if (payload.refundStatus === 'failed') {
-        window.alert(t('monetization.giftCardRefundFailed'));
+        toast.error(t('monetization.giftCardRefundFailed'));
       }
       queryClient.invalidateQueries({ queryKey: ['gift-card-change-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['gift-cards', businessId] });
@@ -419,12 +423,17 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
                               <button
                                 type="button"
                                 className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1"
-                                onClick={() => {
-                                  const carrier = window.prompt('Carrier name', 'Courier') ?? '';
-                                  const trackingNumber = window.prompt('Tracking number', '') ?? '';
-                                  if (carrier && trackingNumber) {
-                                    shipMutation.mutate({ id: order.id, carrier, trackingNumber });
-                                  }
+                                onClick={async () => {
+                                  const carrier = await promptDialog({
+                                    message: t('monetization.giftCardCarrierPrompt'),
+                                    defaultValue: 'Courier',
+                                  });
+                                  if (!carrier) return;
+                                  const trackingNumber = await promptDialog({
+                                    message: t('monetization.giftCardTrackingPrompt'),
+                                  });
+                                  if (!trackingNumber) return;
+                                  shipMutation.mutate({ id: order.id, carrier, trackingNumber });
                                 }}
                               >
                                 <Truck className="w-3 h-3" />
@@ -511,8 +520,11 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
                             type="button"
                             className="text-xs text-amber-400 hover:underline"
                             disabled={resolveRequestMutation.isPending}
-                            onClick={() => {
-                              const specialistNotes = window.prompt('Message to customer') ?? '';
+                            onClick={async () => {
+                              const specialistNotes = await promptDialog({
+                                message: t('monetization.giftCardNeedsInfoPrompt'),
+                              });
+                              if (specialistNotes === null) return;
                               resolveRequestMutation.mutate({
                                 requestId: request.id,
                                 resolution: 'needs_info',
@@ -526,8 +538,11 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
                             type="button"
                             className="text-xs text-red-400 hover:underline"
                             disabled={resolveRequestMutation.isPending}
-                            onClick={() => {
-                              const specialistNotes = window.prompt('Reason for denial') ?? '';
+                            onClick={async () => {
+                              const specialistNotes = await promptDialog({
+                                message: t('monetization.giftCardDenyPrompt'),
+                              });
+                              if (specialistNotes === null) return;
                               resolveRequestMutation.mutate({
                                 requestId: request.id,
                                 resolution: 'deny',
@@ -621,30 +636,25 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
             saveSettingsMutation.mutate();
           }}
         >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settingsForm.purchaseEnabled}
-              onChange={(e) => setSettingsForm({ ...settingsForm, purchaseEnabled: e.target.checked })}
-            />
-            {t('monetization.giftCardPurchaseEnabled')}
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settingsForm.digitalDeliveryEnabled}
-              onChange={(e) => setSettingsForm({ ...settingsForm, digitalDeliveryEnabled: e.target.checked })}
-            />
-            {t('monetization.giftCardDigitalDelivery')}
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settingsForm.physicalDeliveryEnabled}
-              onChange={(e) => setSettingsForm({ ...settingsForm, physicalDeliveryEnabled: e.target.checked })}
-            />
-            {t('monetization.giftCardPhysicalDelivery')}
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={settingsForm.purchaseEnabled}
+            onChange={(purchaseEnabled) => setSettingsForm({ ...settingsForm, purchaseEnabled })}
+            label={t('monetization.giftCardPurchaseEnabled')}
+          />
+          <ToggleChoice variant="dashboard"
+            checked={settingsForm.digitalDeliveryEnabled}
+            onChange={(digitalDeliveryEnabled) =>
+              setSettingsForm({ ...settingsForm, digitalDeliveryEnabled })
+            }
+            label={t('monetization.giftCardDigitalDelivery')}
+          />
+          <ToggleChoice variant="dashboard"
+            checked={settingsForm.physicalDeliveryEnabled}
+            onChange={(physicalDeliveryEnabled) =>
+              setSettingsForm({ ...settingsForm, physicalDeliveryEnabled })
+            }
+            label={t('monetization.giftCardPhysicalDelivery')}
+          />
           <div>
             <label className="label">{t('monetization.giftCardPresetAmounts')}</label>
             <input
@@ -676,16 +686,13 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
               }
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settingsForm.cancelModifyEnabled}
-              onChange={(e) =>
-                setSettingsForm({ ...settingsForm, cancelModifyEnabled: e.target.checked })
-              }
-            />
-            {t('monetization.giftCardCancelModifyEnabled')}
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={settingsForm.cancelModifyEnabled}
+            onChange={(cancelModifyEnabled) =>
+              setSettingsForm({ ...settingsForm, cancelModifyEnabled })
+            }
+            label={t('monetization.giftCardCancelModifyEnabled')}
+          />
           <div>
             <label className="label">{t('monetization.giftCardCancelModifyWindow')}</label>
             <input
@@ -701,16 +708,13 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
               }
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settingsForm.physicalCancelBeforeReady ?? true}
-              onChange={(e) =>
-                setSettingsForm({ ...settingsForm, physicalCancelBeforeReady: e.target.checked })
-              }
-            />
-            {t('monetization.giftCardPhysicalCancelBeforeReady')}
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={settingsForm.physicalCancelBeforeReady ?? true}
+            onChange={(physicalCancelBeforeReady) =>
+              setSettingsForm({ ...settingsForm, physicalCancelBeforeReady })
+            }
+            label={t('monetization.giftCardPhysicalCancelBeforeReady')}
+          />
           <div>
             <label className="label">{t('monetization.giftCardCreators')}</label>
             <select
@@ -776,7 +780,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
             </div>
             <div>
               <label className="label">{t('monetization.expirationDate')}</label>
-              <input type="date" className="input max-w-[160px]" value={expiresAtDay} onChange={(e) => setExpiresAtDay(e.target.value)} />
+              <DatePicker className="max-w-[200px]" value={expiresAtDay} clearable onChange={setExpiresAtDay} />
             </div>
             <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
               {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}

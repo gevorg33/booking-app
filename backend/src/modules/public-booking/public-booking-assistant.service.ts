@@ -60,9 +60,9 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "serviceName": "string or null — one exact or closest catalog service name",
     "serviceCategory": "string or null — broad category when user means several services, e.g. 'massage' for all massage types; never include words like specialist/therapist/provider",
     "serviceNames": ["string"] or null — explicit list of catalog service names when user wants multiple related services,
-    "date": "DD_MM_YYYY or null",
-    "dateFrom": "DD_MM_YYYY or null",
-    "dateTo": "DD_MM_YYYY or null",
+    "date": "DD/MM/YYYY or null",
+    "dateFrom": "DD/MM/YYYY or null",
+    "dateTo": "DD/MM/YYYY or null",
     "weekdays": ["monday", "friday", etc.] or null — when user names weekdays without exact calendar dates",
     "timeSlot": "HH:MM 24h or null",
     "timeFrom": "HH:MM or null — earliest time when user says after 16:00",
@@ -77,7 +77,7 @@ Classify the user's message and extract ALL parameters needed to execute the req
   "reasoning": "one short sentence"
 }
 
-You MUST resolve relative dates yourself using Today's date from context (tomorrow, this week, Monday, next Friday → concrete DD_MM_YYYY or dateFrom/dateTo/weekdays). When the user mentions dates or weekdays in THIS message, set fresh date fields — ignore stale session dates for availability/recommend queries.
+You MUST resolve relative dates yourself using Today's date from context (tomorrow, this week, Monday, next Friday → concrete DD/MM/YYYY or dateFrom/dateTo/weekdays). When the user mentions dates or weekdays in THIS message, set fresh date fields — ignore stale session dates for availability/recommend queries.
 
 Action rules:
 - recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
@@ -98,7 +98,7 @@ Examples:
 - "best rated massage this week" → recommend_specialists, serviceCategory: "massage", dateFrom/dateTo: this week
 - "book nearest facemassage on any specialist after 16:00" → book_appointment, serviceName: facemassage, bookingFirstAvailable: true, allProviders: true, timeFrom: "16:00"
 
-Normalize all dates to DD_MM_YYYY.`;
+Normalize all dates to DD/MM/YYYY.`;
 
 @Injectable()
 export class PublicBookingAssistantService {
@@ -142,7 +142,7 @@ export class PublicBookingAssistantService {
     ]);
 
     const contextBlock = `Business: ${business.name}
-Today's date: ${todayDisplay} (DD_MM_YYYY; schedule times are shown in 24h HH:mm)
+Today's date: ${todayDisplay} (DD/MM/YYYY; schedule times are shown in 24h HH:mm)
 Providers: ${employees.map((e) => {
       const title = e.metadata?.title || e.metadata?.role;
       return title ? `${e.name} (${title})` : e.name;

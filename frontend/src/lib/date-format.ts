@@ -27,7 +27,7 @@ export function formatDateDisplay(input: Date | string, locale?: string): string
   const dd = String(d.getUTCDate()).padStart(2, '0');
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = String(d.getUTCFullYear());
-  return `${dd}_${mm}_${yyyy}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 /** User-facing time: 24-hour HH:mm (defaults to UTC). Pass timeZone for timezone-aware display. */
@@ -132,7 +132,7 @@ export function addCalendarDays(d: Date, days: number, timeZone?: string): Date 
 export function todayDisplay(timeZone?: string): string {
   const key = getTodayDateKey(timeZone);
   const [yyyy, mm, dd] = key.split('-');
-  return `${dd}_${mm}_${yyyy}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 /** End of UTC day — valid through the selected calendar day (promo codes, gift cards). */

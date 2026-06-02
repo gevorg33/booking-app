@@ -6,8 +6,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { DatePicker } from '@/components/ui/date-picker';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { formatDateDisplay } from '@/lib/date-format';
 
 interface StaffRow {
   employeeId: string;
@@ -129,25 +133,31 @@ export default function ReportsPage() {
   const loading = staffLoading || servicesLoading || heatmapLoading;
 
   return (
-    <div>
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/reports']}
-        context={{
-          route: '/dashboard/reports',
-          dateFrom: range.from.replace(/-/g, '_'),
-          dateTo: range.to.replace(/-/g, '_'),
-        }}
-      />
-
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-blue-400" />
-            {t('reports.title')}
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">{t('reports.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/reports']}
+              context={{
+                route: '/dashboard/reports',
+                dateFrom: formatDateDisplay(range.from),
+                dateTo: formatDateDisplay(range.to),
+              }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <DashboardPageToolbar
+          title={
+            <>
+              <BarChart3 className="h-6 w-6 text-blue-400" />
+              {t('reports.title')}
+            </>
+          }
+          subtitle={t('reports.subtitle')}
+          actions={
+            <>
           <button
             type="button"
             onClick={() => handleExport('csv')}
@@ -174,26 +184,26 @@ export default function ReportsPage() {
             )}
             {t('reports.exportPdf')}
           </button>
-        </div>
-      </div>
+            </>
+          }
+        />
+      </DashboardPageShell>
 
       <div className="card mb-6 flex flex-wrap gap-4 items-end">
         <div>
           <label className="label">{t('reports.dateFrom')}</label>
-          <input
-            type="date"
-            className="input max-w-[180px]"
+          <DatePicker
+            className="max-w-[180px]"
             value={range.from}
-            onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+            onChange={(from) => setRange((r) => ({ ...r, from }))}
           />
         </div>
         <div>
           <label className="label">{t('reports.dateTo')}</label>
-          <input
-            type="date"
-            className="input max-w-[180px]"
+          <DatePicker
+            className="max-w-[180px]"
             value={range.to}
-            onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+            onChange={(to) => setRange((r) => ({ ...r, to }))}
           />
         </div>
       </div>

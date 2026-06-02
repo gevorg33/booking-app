@@ -15,6 +15,8 @@ import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/lib/app-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 export function PublicCustomerBookingActions({
   booking,
@@ -85,7 +87,7 @@ export function PublicCustomerBookingActions({
   }
 
   async function handleCancel() {
-    if (!window.confirm(t('public.cancelBookingConfirm'))) return;
+    if (!(await confirmDialog({ message: t('public.cancelBookingConfirm'), destructive: true }))) return;
     setBusy('cancel');
     setError(null);
     try {
@@ -196,15 +198,16 @@ export function PublicCustomerBookingActions({
       {rescheduleOpen && (
         <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
           <p className="text-sm font-medium text-gray-900">{t('public.pickNewTime')}</p>
-          <input
-            type="date"
+          <DatePicker
+            variant="light"
+            accentColor={primary}
+            className="w-full"
             value={selectedDate}
-            onChange={(e) => {
-              setSelectedDate(e.target.value);
+            onChange={(next) => {
+              setSelectedDate(next);
               setSelectedSlot(null);
               setSelectedEmployeeId(null);
             }}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
           {slotsLoading ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">

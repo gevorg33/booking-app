@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 import {
   DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS,
   UNCATEGORIZED_CATEGORY_KEY,
@@ -148,14 +149,11 @@ export function MultiServiceSettingsTab({
         <p className="text-sm text-gray-500 mt-1">{t('servicesPage.multiServiceSubtitle')}</p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.enabled}
-          onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-        />
-        {t('servicesPage.multiServiceEnabled')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.enabled}
+        onChange={(enabled) => setForm({ ...form, enabled })}
+        label={t('servicesPage.multiServiceEnabled')}
+      />
 
       <div className="grid md:grid-cols-2 gap-4">
         <div>

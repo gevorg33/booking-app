@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import { CheckboxChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -351,14 +352,13 @@ export function StrategyEvalTab() {
           </div>
         )}
 
-        <label className="inline-flex items-center gap-2 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={directoryOptIn === true}
-            onChange={(e) => setDirectoryOptIn(e.target.checked ? true : null)}
-          />
-          {t('strategyEval.marketplace.directoryOptIn')}
-        </label>
+        <CheckboxChoice
+          className="w-full rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
+          checked={directoryOptIn === true}
+          onChange={(checked) => setDirectoryOptIn(checked ? true : null)}
+          label={t('strategyEval.marketplace.directoryOptIn')}
+          labelClassName="text-sm text-gray-200"
+        />
 
         <div>
           <label className="label">{t('strategyEval.marketplace.decisionLabel')}</label>

@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, DoorOpen } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { StylishChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -194,20 +195,20 @@ export function SchedulingResourcesPanel({ businessId }: SchedulingResourcesPane
               <label className="label">{t('operations.requiredResources')}</label>
               <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-800 rounded-lg p-3">
                 {resources.map((resource) => (
-                  <label key={resource.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={reqResourceIds.includes(resource.id)}
-                      onChange={(e) => {
-                        setReqResourceIds((current) =>
-                          e.target.checked
-                            ? [...current, resource.id]
-                            : current.filter((id) => id !== resource.id),
-                        );
-                      }}
-                    />
-                    {resource.name}
-                  </label>
+                  <StylishChoice
+                    key={resource.id}
+                    type="checkbox"
+                    checked={reqResourceIds.includes(resource.id)}
+                    onChange={(checked) => {
+                      setReqResourceIds((current) =>
+                        checked
+                          ? [...current, resource.id]
+                          : current.filter((id) => id !== resource.id),
+                      );
+                    }}
+                    label={resource.name}
+                    labelClassName="text-sm"
+                  />
                 ))}
               </div>
             </div>

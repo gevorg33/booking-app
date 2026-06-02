@@ -23,6 +23,7 @@ import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { buildBookingDayOptions } from '@/lib/booking-day-options';
 import { buildPackageLinesFromBlockStart, expandPackageServiceItems } from '@/lib/package-booking';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/lib/app-dialog';
 
 const ACTIVE_STATUSES = new Set(['confirmed', 'pending']);
 
@@ -150,7 +151,7 @@ export function PublicCustomerPackageVisitActions({
   }
 
   async function handleCancelPackage() {
-    if (!window.confirm(t('public.cancelPackageVisitConfirm'))) return;
+    if (!(await confirmDialog({ message: t('public.cancelPackageVisitConfirm'), destructive: true }))) return;
     setBusy('cancel');
     setError(null);
     try {

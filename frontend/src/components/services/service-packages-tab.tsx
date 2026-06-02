@@ -5,6 +5,9 @@ import { Copy, Loader2, Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/lib/app-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
+import { CheckboxChoice } from '@/components/ui/radio-choice';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay } from '@/lib/date-format';
 import {
   buildPackageItemsPayload,
@@ -363,11 +366,10 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
           </div>
           <div>
             <label className="label">{t('servicesPage.packagesExpiresAt')}</label>
-            <input
-              type="date"
-              className="input"
+            <DatePicker
               value={form.expiresAtDay}
-              onChange={(e) => setForm({ ...form, expiresAtDay: e.target.value })}
+              clearable
+              onChange={(expiresAtDay) => setForm({ ...form, expiresAtDay })}
             />
             <p className="text-xs text-gray-500 mt-1">{t('servicesPage.packagesExpiresOptional')}</p>
           </div>
@@ -376,43 +378,46 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
             {services.length === 0 ? (
               <p className="text-sm text-gray-500">{t('servicesPage.noServices')}</p>
             ) : (
-              services.map((svc) => {
-                const selected = form.selectedServiceIds.includes(svc.id);
-                return (
-                  <div key={svc.id} className="flex items-center gap-3 flex-wrap">
-                    <label className="flex items-center gap-2 text-sm min-w-[180px]">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleService(svc.id)}
-                      />
-                      <span>
-                        {svc.name} (${Number(svc.price).toFixed(2)})
-                      </span>
-                    </label>
-                    {selected && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">{t('servicesPage.packagesQty')}</span>
-                        <input
-                          type="number"
-                          min="1"
-                          className="input max-w-[80px]"
-                          value={form.quantities[svc.id] ?? 1}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              quantities: {
-                                ...form.quantities,
-                                [svc.id]: Math.max(1, parseInt(e.target.value, 10) || 1),
-                              },
-                            })
-                          }
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {services.map((svc) => {
+                  const selected = form.selectedServiceIds.includes(svc.id);
+                  return (
+                    <li key={svc.id} className={selected ? 'sm:col-span-2' : undefined}>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <CheckboxChoice
+                          className="min-h-[44px] flex-1 rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
+                          checked={selected}
+                          onChange={(checked) => {
+                            if (checked !== selected) toggleService(svc.id);
+                          }}
+                          label={`${svc.name} ($${Number(svc.price).toFixed(2)})`}
+                          labelClassName="text-sm text-gray-200"
                         />
+                        {selected && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-gray-500">{t('servicesPage.packagesQty')}</span>
+                            <input
+                              type="number"
+                              min="1"
+                              className="input max-w-[80px]"
+                              value={form.quantities[svc.id] ?? 1}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  quantities: {
+                                    ...form.quantities,
+                                    [svc.id]: Math.max(1, parseInt(e.target.value, 10) || 1),
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
           {selectedItems.length > 0 && (
@@ -546,8 +551,8 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
                         ) : status === 'active' ? (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(t('servicesPage.packagesDeactivateConfirm'))) {
+                            onClick={async () => {
+                              if (await confirmDialog({ message: t('servicesPage.packagesDeactivateConfirm'), destructive: true })) {
                                 deactivateMutation.mutate(pkg.id);
                               }
                             }}
@@ -559,8 +564,8 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
                         {status !== 'active' && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(t('servicesPage.packagesDeleteConfirm'))) {
+                            onClick={async () => {
+                              if (await confirmDialog({ message: t('servicesPage.packagesDeleteConfirm'), destructive: true })) {
                                 deleteMutation.mutate(pkg.id);
                               }
                             }}

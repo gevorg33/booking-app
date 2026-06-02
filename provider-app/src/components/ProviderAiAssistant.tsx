@@ -15,7 +15,6 @@ import {
   IonLabel,
   IonSpinner,
   IonText,
-  IonToast,
 } from '@ionic/react';
 import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
@@ -109,7 +108,7 @@ export default function ProviderAiAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { toast: aiToast, clearToast } = useProviderAiEvents(businessId, (type) => {
+  useProviderAiEvents(businessId, (type) => {
     if (type === 'ai.clarify' || type === 'ai.task.progress') setOpen(true);
   });
 
@@ -251,14 +250,6 @@ export default function ProviderAiAssistant({
 
   return (
     <>
-      <IonToast
-        isOpen={!!aiToast}
-        message={aiToast ?? ''}
-        duration={4000}
-        onDidDismiss={clearToast}
-        position="top"
-        color="tertiary"
-      />
       <IonCard className="ai-assistant-card ion-margin-bottom">
       <div
         role="button"
@@ -402,7 +393,7 @@ export default function ProviderAiAssistant({
             )}
             {loading && (
               <div className="ai-assistant-msg ai-assistant-msg--assistant">
-                <IonSpinner name="dots" />
+                <p className="ai-assistant-thinking">Thinking…</p>
               </div>
             )}
           </div>

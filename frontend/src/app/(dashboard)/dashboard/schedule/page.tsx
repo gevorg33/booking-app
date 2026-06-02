@@ -19,6 +19,7 @@ import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
 import { formatDateDisplay, getTodayDateKey, addCalendarDays, todayDateAnchor, toDateKey } from '@/lib/date-format';
+import { DatePicker } from '@/components/ui/date-picker';
 import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
@@ -26,8 +27,11 @@ import { BlockScheduleTab } from '@/components/scheduling/block-schedule-tab';
 import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { StylishChoice } from '@/components/ui/radio-choice';
 
 // ─── Overlap detection ────────────────────────────────────────────────────────
 
@@ -353,18 +357,27 @@ export default function SchedulePage() {
   });
 
   return (
-    <div>
-      <PageHelpHeader
-        topicId="schedule"
-        title={t('schedule.title')}
-        subtitle="Create day schedules, manage templates, or block time on existing schedules"
-      />
-
-      <AiContextualSuggestions
-        context={{ route: '/dashboard/schedule', scheduleTab: tab }}
-        title="Schedule opportunities"
-      />
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']} context={{ route: '/dashboard/schedule', scheduleTab: tab }} />
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{ route: '/dashboard/schedule', scheduleTab: tab }}
+              title="Schedule opportunities"
+            />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']}
+              context={{ route: '/dashboard/schedule', scheduleTab: tab }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <PageHelpHeader
+          topicId="schedule"
+          title={t('schedule.title')}
+          subtitle="Create day schedules, manage templates, or block time on existing schedules"
+        />
+      </DashboardPageShell>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 mb-6">
@@ -533,12 +546,10 @@ function CreateScheduleTab({
         </div>
         <div>
           <label className="label">Date</label>
-          <input
-            type="date"
-            className="input"
+          <DatePicker
             value={date}
             min={getTodayDateKey()}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
           />
         </div>
       </div>
@@ -910,20 +921,16 @@ function TemplatesTab({
             </div>
             <div>
               <label className="label">Start Date</label>
-              <input
-                type="date"
-                className="input"
+              <DatePicker
                 value={applyForm.startDate}
-                onChange={(e) => setApplyForm({ ...applyForm, startDate: e.target.value })}
+                onChange={(startDate) => setApplyForm({ ...applyForm, startDate })}
               />
             </div>
             <div>
               <label className="label">End Date</label>
-              <input
-                type="date"
-                className="input"
+              <DatePicker
                 value={applyForm.endDate}
-                onChange={(e) => setApplyForm({ ...applyForm, endDate: e.target.value })}
+                onChange={(endDate) => setApplyForm({ ...applyForm, endDate })}
               />
             </div>
           </div>
@@ -1016,11 +1023,11 @@ function TemplatesTab({
               return (
                 <div key={template.id} className="py-4 flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <input
+                    <StylishChoice
                       type="checkbox"
                       checked={selected.includes(template.id)}
                       onChange={() => toggleSelect(template.id)}
-                      className="w-4 h-4 mt-1 rounded border-gray-600 bg-gray-800"
+                      className="mt-1"
                     />
                     <div>
                       <p className="font-medium">{template.name}</p>

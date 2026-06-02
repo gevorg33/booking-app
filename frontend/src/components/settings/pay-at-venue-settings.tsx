@@ -11,6 +11,7 @@ import {
   resolveBookingsSettings,
 } from '@/lib/bookings-settings';
 import { fetchBusinessSettings, unwrapBusinessApiPayload } from '@/lib/business-query';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 interface PayAtVenueForm {
   acceptCashPayments: boolean;
@@ -26,7 +27,14 @@ function readForm(settings: Record<string, unknown> | undefined): PayAtVenueForm
   };
 }
 
-export function PayAtVenueSettings({ businessId }: { businessId: string }) {
+export function PayAtVenueSettings({
+  businessId,
+  embeddedInBilling = false,
+}: {
+  businessId: string;
+  /** When true, Stripe CTA points upward on Billing instead of linking here. */
+  embeddedInBilling?: boolean;
+}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<PayAtVenueForm>({
@@ -98,22 +106,38 @@ export function PayAtVenueSettings({ businessId }: { businessId: string }) {
 
   if (!stripeConnectReady) {
     return (
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+      <div
+        className={
+          embeddedInBilling
+            ? 'card mb-8 space-y-3'
+            : 'rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3'
+        }
+      >
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">
           {t('settings.payAtVenueTitle')}
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t('settings.payAtVenueRequiresStripeDescription')}
+          {embeddedInBilling
+            ? t('billing.payAtVenueConnectStripeFirst')
+            : t('settings.payAtVenueRequiresStripeDescription')}
         </p>
-        <Link href="/dashboard/billing" className="btn-primary text-sm inline-flex">
-          {t('settings.payAtVenueGoToBilling')}
-        </Link>
+        {!embeddedInBilling && (
+          <Link href="/dashboard/billing" className="btn-primary text-sm inline-flex">
+            {t('settings.payAtVenueGoToBilling')}
+          </Link>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
+    <div
+      className={
+        embeddedInBilling
+          ? 'card mb-8 space-y-5'
+          : 'rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5'
+      }
+    >
       <div>
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">
           {t('settings.payAtVenueTitle')}
@@ -123,33 +147,22 @@ export function PayAtVenueSettings({ businessId }: { businessId: string }) {
         </p>
       </div>
 
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.acceptCashPayments}
-          onChange={(e) =>
-            setForm((prev) => ({ ...prev, acceptCashPayments: e.target.checked }))
-          }
-        />
-        {t('settings.acceptCashPayments')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.acceptCashPayments}
+        onChange={(acceptCashPayments) => setForm((prev) => ({ ...prev, acceptCashPayments }))}
+        label={t('settings.acceptCashPayments')}
+      />
       <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
         {t('settings.acceptCashPaymentsHint')}
       </p>
 
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.calendarPayAtVenueFilterDefault}
-          onChange={(e) =>
-            setForm((prev) => ({
-              ...prev,
-              calendarPayAtVenueFilterDefault: e.target.checked,
-            }))
-          }
-        />
-        {t('settings.calendarPayAtVenueFilterDefault')}
-      </label>
+      <ToggleChoice variant="dashboard"
+        checked={form.calendarPayAtVenueFilterDefault}
+        onChange={(calendarPayAtVenueFilterDefault) =>
+          setForm((prev) => ({ ...prev, calendarPayAtVenueFilterDefault }))
+        }
+        label={t('settings.calendarPayAtVenueFilterDefault')}
+      />
       <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
         {t('settings.calendarPayAtVenueFilterDefaultHint')}
       </p>

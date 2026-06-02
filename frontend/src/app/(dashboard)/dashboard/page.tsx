@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/lib/store';
-import { Calendar, Users, Briefcase, Brain, TrendingUp, Clock, UserCircle, Loader2, DollarSign, AlertTriangle } from 'lucide-react';
+import { Brain, Calendar, Users, Briefcase, TrendingUp, Clock, UserCircle, Loader2, DollarSign, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -10,6 +10,8 @@ import type { DashboardOverview } from '@/lib/dashboard-types';
 import { AiProactiveSuggestions } from '@/components/ai-proactive-suggestions';
 import { AiMorningBriefing } from '@/components/ai-morning-briefing';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 export default function DashboardPage() {
@@ -86,25 +88,35 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">
-          {user?.firstName
-            ? t('dashboard.welcome', { name: user.firstName })
-            : t('dashboard.welcomeThere')}
-        </h1>
-        <p className="text-gray-400 mt-1">
-          {t('dashboard.overview', {
-            business: business?.name || t('dashboard.yourBusiness'),
-          })}
-        </p>
-      </div>
+      <DashboardPageShell
+        className="mb-3"
+        ai={
+          <AiSuggestionsStack>
+            <AiProactiveSuggestions />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard']}
+              context={{ route: '/dashboard' }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <div>
+          <h1 className="text-2xl font-bold">
+            {user?.firstName
+              ? t('dashboard.welcome', { name: user.firstName })
+              : t('dashboard.welcomeThere')}
+          </h1>
+          <p className="mt-1 text-gray-400">
+            {t('dashboard.overview', {
+              business: business?.name || t('dashboard.yourBusiness'),
+            })}
+          </p>
+        </div>
+      </DashboardPageShell>
 
-      <AiMorningBriefing />
-      <AiProactiveSuggestions />
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard']}
-        context={{ route: '/dashboard' }}
-      />
+      <div className="mb-6">
+        <AiMorningBriefing />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {stats.map((stat) => (
@@ -140,21 +152,6 @@ export default function DashboardPage() {
             <p className="text-sm font-medium">{action.label}</p>
           </Link>
         ))}
-      </div>
-
-      <div className="card border-blue-500/20 bg-gradient-to-r from-blue-600/5 to-purple-600/5">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Brain className="w-6 h-6 text-blue-400" />
-          </div>
-          <div>
-            <h3 className="font-semibold mb-1">{t('dashboard.aiOperator')}</h3>
-            <p className="text-gray-400 text-sm mb-3">{t('dashboard.aiOperatorBody')}</p>
-            <Link href="/dashboard/ai-ops" className="btn-primary text-sm">
-              {t('dashboard.openAiOps')}
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );

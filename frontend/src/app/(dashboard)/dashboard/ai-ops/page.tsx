@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import {
   Brain,
-  Send,
   CheckCircle,
   XCircle,
   Clock,
@@ -17,8 +16,8 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
-import { AiPagePanel } from '@/components/ai-page-panel';
-import { AI_MUTATION_QUERY_KEYS, AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { confirmDialog } from '@/lib/app-dialog';
+import { AI_MUTATION_QUERY_KEYS } from '@/lib/ai-orchestration';
 import {
   PlanDiffPreview,
   ConflictResolutionWorkspace,
@@ -32,13 +31,6 @@ function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
     queryClient.invalidateQueries({ queryKey: [key] });
   }
 }
-
-const AGENT_TYPES = [
-  { value: 'scheduling_optimization', label: 'Schedule Optimization', description: 'Optimize staff schedules and fill gaps' },
-  { value: 'cancellation_recovery', label: 'Cancellation Recovery', description: 'Recover and reassign cancelled slots' },
-  { value: 'conflict_resolution', label: 'Conflict Resolution', description: 'Detect and resolve scheduling conflicts' },
-  { value: 'utilization_optimization', label: 'Utilization Optimization', description: 'Maximize employee utilization' },
-];
 
 function getStatusConfig(status: string) {
   switch (status) {
@@ -56,8 +48,6 @@ export default function AiOpsPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
-  const [intent, setIntent] = useState('');
-  const [agentType, setAgentType] = useState('scheduling_optimization');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [applyingFixId, setApplyingFixId] = useState<string | null>(null);
   const [undoMessage, setUndoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
@@ -84,27 +74,6 @@ export default function AiOpsPage() {
     },
     enabled: !!business?.id,
     refetchInterval: 5000,
-  });
-
-  const intentMutation = useMutation({
-    mutationFn: async (data: { agentType: string; intent: string }) => {
-      const res = await api.post(`/businesses/${business!.id}/agents/intent`, {
-        agentType: data.agentType,
-        intent: data.intent,
-        dateRange: {
-          start: new Date().toISOString(),
-          end: new Date(Date.now() + 7 * 86400000).toISOString(),
-        },
-      });
-      return res.data?.data ?? res.data;
-    },
-    onSuccess: (task) => {
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending'] });
-      invalidateAiMutations(queryClient);
-      setIntent('');
-      if (task?.id) setExpandedTaskId(task.id);
-    },
   });
 
   const approveMutation = useMutation({
@@ -180,60 +149,6 @@ export default function AiOpsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('ai.opsTitle')}</h1>
-        <p className="text-gray-400 text-sm">Express intent and let AI plan optimal operations</p>
-      </div>
-
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/ai-ops']} context={{ route: '/dashboard/ai-ops' }} />
-
-      <div className="card mb-6">
-        <div className="flex items-start gap-4 mb-4">
-          <Brain className="w-6 h-6 text-blue-400 mt-1 flex-shrink-0" />
-          <div className="flex-1">
-            <h3 className="font-semibold mb-3">What would you like to optimize?</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-              {AGENT_TYPES.map((a) => (
-                <button
-                  key={a.value}
-                  onClick={() => setAgentType(a.value)}
-                  className={`text-left p-3 rounded-lg border text-sm transition-colors ${
-                    agentType === a.value
-                      ? 'border-blue-500 bg-blue-600/10 text-blue-400'
-                      : 'border-gray-700 hover:border-gray-600 text-gray-400'
-                  }`}
-                >
-                  <p className="font-medium text-gray-200">{a.label}</p>
-                  <p className="text-xs mt-0.5">{a.description}</p>
-                </button>
-              ))}
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (intent.trim()) intentMutation.mutate({ agentType, intent });
-              }}
-              className="flex gap-2"
-            >
-              <input
-                className="input flex-1"
-                placeholder="e.g., Fill all empty slots tomorrow, Optimize next week schedule..."
-                value={intent}
-                onChange={(e) => setIntent(e.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={!intent.trim() || intentMutation.isPending}
-                className="btn-primary flex items-center gap-2"
-              >
-                {intentMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Send
-              </button>
-            </form>
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -241,10 +156,10 @@ export default function AiOpsPage() {
         <div className="flex flex-col items-stretch sm:items-end gap-1">
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (!undoPreview?.undoable) return;
               const label = t('ai.undoLatestConfirm').replace('{intent}', undoPreview.intent);
-              if (!window.confirm(label)) return;
+              if (!(await confirmDialog({ message: label, destructive: true }))) return;
               setUndoMessage(null);
               undoLatestMutation.mutate();
             }}
@@ -286,7 +201,7 @@ export default function AiOpsPage() {
           <div className="card text-center py-8">
             <Brain className="w-10 h-10 text-gray-600 mx-auto mb-2" />
             <p className="text-gray-400">No agent tasks yet</p>
-            <p className="text-gray-500 text-sm">Express an intent above to get started</p>
+            <p className="text-gray-500 text-sm">Use the Orchestrix command bar to create agent tasks</p>
           </div>
         ) : (
           tasks.map((task: any) => {

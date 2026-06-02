@@ -16,6 +16,7 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   sumMultiServicePrice,
   resolveMultiServiceCartFromLocation,
@@ -207,11 +208,12 @@ export function MultiServiceConfirmClient({
               </div>
               <div>
                 <label className="label">Date</label>
-                <input
-                  type="date"
-                  className="input"
+                <DatePicker
+                  variant="light"
+                  accentColor={primary}
+                  className="w-full"
                   value={line.dateKey}
-                  onChange={(e) => void loadSlotsForLine(line, e.target.value)}
+                  onChange={(dateKey) => void loadSlotsForLine(line, dateKey)}
                 />
               </div>
               {line.startTime && (

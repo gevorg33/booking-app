@@ -31,6 +31,7 @@ import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/lib/app-dialog';
 
 function bookingStatusLabel(status: string, t: (key: string) => string) {
   switch (status) {
@@ -329,7 +330,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                   disabled={privacyLoading !== null}
                   className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
                   onClick={async () => {
-                    if (!window.confirm(t('public.dataDeleteConfirm'))) return;
+                    if (!(await confirmDialog({ message: t('public.dataDeleteConfirm'), destructive: true }))) return;
                     setPrivacyLoading('delete');
                     setPrivacyMessage(null);
                     try {

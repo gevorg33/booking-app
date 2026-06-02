@@ -9,7 +9,10 @@ import { useI18n } from '@/i18n';
 import { ServicePackagesTab } from '@/components/services/service-packages-tab';
 import { MultiServiceSettingsTab } from '@/components/services/multi-service-settings-tab';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
 
@@ -188,25 +191,23 @@ function ServiceFormFields({
         />
       </div>
       <div className="md:col-span-2 space-y-3 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-        <label className="flex items-center justify-between gap-4 text-sm">
-          <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-            <CreditCard className="w-4 h-4" />
-            {t('servicesPage.onlinePayment')}
-          </span>
-          <input
-            type="checkbox"
-            checked={form.onlinePaymentEnabled}
-            disabled={!stripeReady}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                onlinePaymentEnabled: e.target.checked,
-                prepaymentMode: e.target.checked ? form.prepaymentMode : 'full',
-              })
-            }
-            className="w-4 h-4 rounded border-gray-300"
-          />
-        </label>
+        <ToggleChoice variant="dashboard"
+          checked={form.onlinePaymentEnabled}
+          disabled={!stripeReady}
+          onChange={(onlinePaymentEnabled) =>
+            setForm({
+              ...form,
+              onlinePaymentEnabled,
+              prepaymentMode: onlinePaymentEnabled ? form.prepaymentMode : 'full',
+            })
+          }
+          label={
+            <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+              <CreditCard className="w-4 h-4" />
+              {t('servicesPage.onlinePayment')}
+            </span>
+          }
+        />
         {!stripeReady && (
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('servicesPage.stripeRequired')}</p>
         )}
@@ -473,22 +474,26 @@ function ServiceTypesTab({
         </div>
       )}
 
-      <div className="card">
-        {isLoading ? (
-          <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
-        ) : !services || services.length === 0 ? (
-          <div className="text-center py-12">
-            <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-400">{t('servicesPage.noServices')}</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800">
-            {groupedServices.map((group) => (
-              <div key={group.label} className="py-2">
-                <h3 className="text-sm font-bold text-gray-200 px-1 py-3">{group.label}</h3>
-                <div className="divide-y divide-gray-800">
-                  {group.items.map((svc) => (
-                    <div key={svc.id} className="py-4">
+      {isLoading ? (
+        <div className="card text-center py-12 text-gray-500">{t('common.loading')}</div>
+      ) : !services || services.length === 0 ? (
+        <div className="card text-center py-12">
+          <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400">{t('servicesPage.noServices')}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupedServices.map((group) => (
+            <section
+              key={group.label}
+              className="card overflow-hidden p-0 border border-gray-800"
+            >
+              <header className="px-4 py-3 border-b border-gray-800 bg-gray-900/30">
+                <h3 className="text-sm font-semibold text-gray-100">{group.label}</h3>
+              </header>
+              <div className="divide-y divide-gray-800">
+                {group.items.map((svc) => (
+                  <div key={svc.id} className="px-4 py-4">
                       {editingId === svc.id ? (
                         <form
                           onSubmit={(e) => {
@@ -549,12 +554,11 @@ function ServiceTypesTab({
                       )}
                     </div>
                   ))}
-                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -713,30 +717,41 @@ export default function ServicesPage() {
   }, [services, categories, t]);
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t('servicesPage.title')}</h1>
-        <p className="text-gray-400 text-sm mt-1">{t('servicesPage.subtitle')}</p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/services']}
+              context={{ route: '/dashboard/services' }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <DashboardPageToolbar
+          title={t('servicesPage.title')}
+          subtitle={t('servicesPage.subtitle')}
+        />
+      </DashboardPageShell>
 
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/services']} context={{ route: '/dashboard/services' }} />
-
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === item.id
-                ? 'bg-blue-600/10 text-blue-400'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <div className="card overflow-hidden p-0">
+        <div className="p-6 pt-4">
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {tabs.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  tab === item.id
+                    ? 'bg-blue-600/10 text-blue-400'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
       {tab === 'categories' && business?.id && (
         <CategoriesTab
@@ -786,6 +801,8 @@ export default function ServicesPage() {
           t={t}
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }
