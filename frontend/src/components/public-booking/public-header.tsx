@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronLeft, Loader2, LogIn, User } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Gift, Loader2, LogIn, User } from 'lucide-react';
 import type { PublicBusinessProfile } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
@@ -74,7 +74,16 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
           )}
         </div>
 
-        <div className="shrink-0 mt-1">
+        <div className="shrink-0 mt-1 flex items-center gap-2">
+          {tenant.giftCardsPurchaseEnabled && (
+            <Link
+              href={bookPath(tenant.slug, '/gift-cards')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Gift className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('public.giftCards.nav')}</span>
+            </Link>
+          )}
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
           ) : customer ? (

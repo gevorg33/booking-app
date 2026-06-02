@@ -47,7 +47,14 @@ export function GiftCardCheckoutClient({
 
   const cardType = (searchParams.get('cardType') ?? 'monetary') as PublicGiftCardType;
   const amount = searchParams.get('amount') ?? String(settings.presetAmounts[0] ?? 50);
-  const serviceId = searchParams.get('serviceId') ?? settings.purchasableServices[0]?.serviceId ?? '';
+  const serviceIdsFromUrl = useMemo(() => {
+    const raw = searchParams.get('serviceIds');
+    if (raw) {
+      return raw.split(',').map((id) => id.trim()).filter(Boolean);
+    }
+    const single = searchParams.get('serviceId') ?? settings.purchasableServices[0]?.serviceId ?? '';
+    return single ? [single] : [];
+  }, [searchParams, settings.purchasableServices]);
   const bundleId = searchParams.get('bundleId') ?? settings.bundles[0]?.id ?? '';
 
   const deliveryOptions = useMemo(() => {
@@ -113,7 +120,13 @@ export function GiftCardCheckoutClient({
       personalMessage: form.personalMessage.trim() || undefined,
     };
     if (cardType === 'monetary') payload.amount = Number(amount);
-    if (cardType === 'service') payload.serviceId = serviceId;
+    if (cardType === 'service') {
+      if (serviceIdsFromUrl.length === 1) {
+        payload.serviceId = serviceIdsFromUrl[0];
+      } else if (serviceIdsFromUrl.length > 1) {
+        payload.serviceIds = serviceIdsFromUrl;
+      }
+    }
     if (cardType === 'bundle') payload.bundleId = bundleId;
     if (!buyForSelf || deliveryMethod === 'physical') {
       payload.recipientName = form.recipientName.trim() || undefined;
@@ -145,7 +158,7 @@ export function GiftCardCheckoutClient({
     cardType,
     deliveryMethod,
     form,
-    serviceId,
+    serviceIdsFromUrl,
     shippingMethodId,
   ]);
 

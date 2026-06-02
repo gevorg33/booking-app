@@ -25,7 +25,10 @@ describe('GiftCardPurchaseService', () => {
         digitalDeliveryEnabled: true,
         physicalDeliveryEnabled: true,
         presetAmounts: [50, 100],
-        purchasableServices: [{ serviceId: 'svc-1', price: 45 }],
+        purchasableServices: [
+          { serviceId: 'svc-1', price: 45 },
+          { serviceId: 'svc-2', price: 30 },
+        ],
         bundles: [
           {
             id: 'bundle-1',
@@ -141,6 +144,30 @@ describe('GiftCardPurchaseService', () => {
     });
     expect(quote.subtotal).toBe(45);
     expect(quote.cardType).toBe('service');
+  });
+
+  it('quotes multiple services as a bundle gift card', async () => {
+    serviceRepo.findOne.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(
+        where.id === 'svc-1'
+          ? { id: 'svc-1', name: 'Facial', price: 45 }
+          : { id: 'svc-2', name: 'Massage', price: 30 },
+      ),
+    );
+
+    const quote = await service.quotePurchase('biz-1', {
+      cardType: 'service',
+      serviceIds: ['svc-1', 'svc-2'],
+      deliveryMethod: 'digital',
+      purchaserEmail: 'buyer@test.com',
+    });
+
+    expect(quote.subtotal).toBe(75);
+    expect(quote.cardType).toBe('bundle');
+    expect(quote.bundleLines).toEqual([
+      { serviceId: 'svc-1', serviceName: 'Facial', quantity: 1 },
+      { serviceId: 'svc-2', serviceName: 'Massage', quantity: 1 },
+    ]);
   });
 
   it('lists customer orders', async () => {
@@ -267,7 +294,7 @@ describe('GiftCardPurchaseService', () => {
         deliveryMethod: 'digital',
         purchaserEmail: 'buyer@test.com',
       }),
-    ).rejects.toThrow('serviceId is required');
+    ).rejects.toThrow('At least one service is required');
 
     const quote = await service.quotePurchase('biz-1', {
       cardType: 'monetary',

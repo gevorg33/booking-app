@@ -23,6 +23,7 @@ export interface PurchaseGiftCardInput {
   cardType: GiftCardType;
   amount?: number;
   serviceId?: string;
+  serviceIds?: string[];
   bundleId?: string;
   deliveryMethod: 'digital' | 'physical';
   buyForSelf?: boolean;
@@ -121,7 +122,7 @@ export class GiftCardPurchaseService {
       this.giftCardRepo.create({
         businessId,
         code,
-        cardType: input.cardType,
+        cardType: quote.cardType,
         initialBalance: input.cardType === 'monetary' ? quote.subtotal : 0,
         balance: input.cardType === 'monetary' ? quote.subtotal : 0,
         currency: quote.currency,
@@ -138,7 +139,8 @@ export class GiftCardPurchaseService {
         shippingMethod: input.shippingMethodId ?? null,
         purchaseAmount: quote.total,
         shippingFee: quote.shippingFee,
-        serviceId: input.serviceId ?? null,
+        serviceId:
+          quote.cardType === 'service' ? (this.normalizePurchasableServiceIds(input)[0] ?? null) : null,
         purchaserCustomerId: input.purchaserCustomerId ?? null,
         codeRevealed: !isPhysical,
         stripeSessionId: stripeSessionId ?? null,
@@ -147,21 +149,7 @@ export class GiftCardPurchaseService {
       }),
     );
 
-    if (input.cardType === 'service' && input.serviceId) {
-      const service = await this.serviceRepo.findOne({ where: { id: input.serviceId, businessId } });
-      if (!service) throw new NotFoundException('Service not found');
-      await this.creditRepo.save(
-        this.creditRepo.create({
-          giftCardId: card.id,
-          serviceId: service.id,
-          serviceName: service.name,
-          quantityTotal: 1,
-          quantityRemaining: 1,
-        }),
-      );
-    }
-
-    if (input.cardType === 'bundle' && quote.bundleLines?.length) {
+    if (quote.bundleLines?.length) {
       for (const line of quote.bundleLines) {
         await this.creditRepo.save(
           this.creditRepo.create({
@@ -173,6 +161,21 @@ export class GiftCardPurchaseService {
           }),
         );
       }
+    } else if (input.cardType === 'service') {
+      const serviceIds = this.normalizePurchasableServiceIds(input);
+      const service = await this.serviceRepo.findOne({
+        where: { id: serviceIds[0], businessId },
+      });
+      if (!service) throw new NotFoundException('Service not found');
+      await this.creditRepo.save(
+        this.creditRepo.create({
+          giftCardId: card.id,
+          serviceId: service.id,
+          serviceName: service.name,
+          quantityTotal: 1,
+          quantityRemaining: 1,
+        }),
+      );
     }
 
     this.eventEmitter.emit(EventType.PAYMENT_RECEIVED, {
@@ -218,17 +221,7 @@ export class GiftCardPurchaseService {
     }
 
     if (input.cardType === 'service') {
-      if (!input.serviceId) throw new BadRequestException('serviceId is required');
-      const configured = settings.purchasableServices.find((s) => s.serviceId === input.serviceId);
-      if (!configured) throw new BadRequestException('Service is not available as a gift card');
-      const service = await this.serviceRepo.findOne({ where: { id: input.serviceId, businessId } });
-      if (!service) throw new NotFoundException('Service not found');
-      const price = Number(configured.price ?? service.price);
-      return {
-        cardType: 'service',
-        subtotal: price,
-        label: `${service.name} gift card`,
-      };
+      return this.buildServiceGiftQuote(businessId, settings, this.normalizePurchasableServiceIds(input));
     }
 
     if (!input.bundleId) throw new BadRequestException('bundleId is required');
@@ -239,6 +232,54 @@ export class GiftCardPurchaseService {
       subtotal: Number(bundle.price),
       label: `${bundle.name} bundle gift card`,
       bundleLines: bundle.lines,
+    };
+  }
+
+  private normalizePurchasableServiceIds(input: PurchaseGiftCardInput): string[] {
+    const fromList = (input.serviceIds ?? []).filter(Boolean);
+    const ids = fromList.length > 0 ? fromList : input.serviceId ? [input.serviceId] : [];
+    return [...new Set(ids)];
+  }
+
+  private async buildServiceGiftQuote(
+    businessId: string,
+    settings: ReturnType<typeof readBusinessGiftCardSettings>,
+    serviceIds: string[],
+  ): Promise<Omit<GiftCardPurchaseQuote, 'shippingFee' | 'total' | 'currency'>> {
+    if (!serviceIds.length) {
+      throw new BadRequestException('At least one service is required');
+    }
+
+    const lines: GiftCardBundleLine[] = [];
+    let subtotal = 0;
+    const names: string[] = [];
+
+    for (const id of serviceIds) {
+      const configured = settings.purchasableServices.find((entry) => entry.serviceId === id);
+      if (!configured) {
+        throw new BadRequestException('Service is not available as a gift card');
+      }
+      const service = await this.serviceRepo.findOne({ where: { id, businessId } });
+      if (!service) throw new NotFoundException('Service not found');
+      const price = Number(configured.price ?? service.price);
+      subtotal += price;
+      names.push(service.name);
+      lines.push({ serviceId: service.id, serviceName: service.name, quantity: 1 });
+    }
+
+    if (serviceIds.length === 1) {
+      return {
+        cardType: 'service',
+        subtotal,
+        label: `${names[0]} gift card`,
+      };
+    }
+
+    return {
+      cardType: 'bundle',
+      subtotal,
+      label: `${names.join(' + ')} gift card`,
+      bundleLines: lines,
     };
   }
 
