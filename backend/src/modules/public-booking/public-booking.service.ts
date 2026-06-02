@@ -50,6 +50,7 @@ import {
   buildMessagingLinksForBusiness,
   getDistributionIntegrations,
 } from '../integrations/distribution/distribution-integration.types.js';
+import { resolvePublicAssetUrl } from '../../common/utils/public-asset-url.util.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { resolvePackageCheckoutGraceHours } from '../../common/utils/package-pricing.util.js';
@@ -63,6 +64,12 @@ import {
 } from '../../common/utils/multi-service-booking.util.js';
 import type { MultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  assertValidCustomerReminderHours,
+  buildBookingReminderMetadata,
+  buildPublicAppointmentReminderSettings,
+  mergeCustomerReminderChoiceSettings,
+} from '../notifications/appointment-reminder-settings.util.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -140,6 +147,11 @@ export interface PublicBusinessProfile {
     incompatiblePairMode: 'service' | 'category';
     incompatiblePairs: Array<[string, string]>;
     incompatibleCategoryPairs: Array<[string, string]>;
+  };
+  appointmentReminders?: {
+    enabled: boolean;
+    optionsHours: number[];
+    defaultHours: number | null;
   };
 }
 
@@ -241,6 +253,14 @@ export class PublicBookingService {
     return business;
   }
 
+  private publicApiBaseUrl(): string {
+    return this.configService.get<string>('PUBLIC_API_URL') || 'http://localhost:3001';
+  }
+
+  private resolvePublicMediaUrl(url: string | undefined | null): string | undefined {
+    return resolvePublicAssetUrl(url, this.publicApiBaseUrl());
+  }
+
   toPublicProfile(business: Business): PublicBusinessProfile {
     const settings = business.settings || {};
     const branding = settings.branding || {};
@@ -275,7 +295,7 @@ export class PublicBookingService {
       timezone: business.timezone,
       locale: settings.locale || 'en',
       branding: {
-        logoUrl: branding.logoUrl,
+        logoUrl: this.resolvePublicMediaUrl(branding.logoUrl),
         primaryColor: branding.primaryColor || '#7c3aed',
         tagline: branding.tagline,
       },
@@ -310,7 +330,19 @@ export class PublicBookingService {
         : {}),
       ...(hasMessaging ? { messaging: messagingLinks } : {}),
       ...this.mapPublicMultiServiceSettings(business),
+      ...(buildPublicAppointmentReminderSettings(settings)
+        ? { appointmentReminders: buildPublicAppointmentReminderSettings(settings)! }
+        : {}),
     };
+  }
+
+  private resolvePublicBookingReminderMetadata(
+    business: Business,
+    contact: CreatePublicBookingDto['customer'],
+  ): Record<string, number | null> {
+    const reminderSettings = mergeCustomerReminderChoiceSettings(business.settings?.notifications);
+    assertValidCustomerReminderHours(contact.reminderHoursBefore, reminderSettings);
+    return buildBookingReminderMetadata(contact.reminderHoursBefore, reminderSettings);
   }
 
   private mapPublicMultiServiceSettings(business: Business) {
@@ -733,7 +765,7 @@ export class PublicBookingService {
         id: employee.id,
         name: employee.name,
         role: metadata.role || metadata.title,
-        avatarUrl: metadata.avatarUrl,
+        avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
         averageRating: reviews?.averageRating ?? null,
         reviewCount: reviews?.reviewCount ?? 0,
       });
@@ -1238,6 +1270,7 @@ export class PublicBookingService {
             packageId: pkg.id,
             packageName: pkg.name,
             packagePurchaseId: purchase.id,
+            ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
           },
         },
         undefined,
@@ -1658,6 +1691,7 @@ export class PublicBookingService {
             multiServiceGroupId: group.id,
             groupLabel: serviceNames.join(' + '),
             schedulingMode: settings.schedulingMode,
+            ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
           },
         },
         undefined,
@@ -1821,7 +1855,7 @@ export class PublicBookingService {
       id: employee.id,
       name: employee.name,
       role: metadata.role || metadata.title,
-      avatarUrl: metadata.avatarUrl,
+      avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
       averageRating: summary?.averageRating ?? null,
       reviewCount: summary?.reviewCount ?? 0,
       ...(earliestStartTime ? { earliestStartTime } : {}),
@@ -1986,6 +2020,7 @@ export class PublicBookingService {
           ...(dto.metadata || {}),
           ...(dto.purchasePlanId ? { purchasePlanId: dto.purchasePlanId } : {}),
           ...(wantsCash ? { paymentMethod: 'cash', payAtVenue: true } : {}),
+          ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
         },
       },
       undefined,
@@ -2155,7 +2190,7 @@ export class PublicBookingService {
       id: employee.id,
       name: employee.name,
       role: metadata.role || metadata.title,
-      avatarUrl: metadata.avatarUrl,
+      avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
       nearestDate: nearestDateKey,
       nearestDateLabel: nearestDateKey
         ? this.formatNearestDateLabel(nearestDateKey, todayDateKey, timeZone)

@@ -205,6 +205,12 @@ describe('customer-self-service.util', () => {
     expect(
       resolveBookingManageLinkLabel(booking, {
         ...DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
+        allowReschedule: false,
+      }),
+    ).toBe('Manage your booking (cancel)');
+    expect(
+      resolveBookingManageLinkLabel(booking, {
+        ...DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
         allowCancel: false,
         allowReschedule: false,
       }),

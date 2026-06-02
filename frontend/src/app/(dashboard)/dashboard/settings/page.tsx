@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Settings, Bell, MessageCircle, KeyRound } from 'lucide-react';
+import { Settings, Bell, MessageCircle, KeyRound, Store } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { NotificationEmailTemplatesPanel } from '@/components/dashboard/notification-email-templates-panel';
+import { CustomerReminderSettingsPanel } from '@/components/settings/customer-reminder-settings-panel';
+import { PayAtVenueSettings } from '@/components/settings/pay-at-venue-settings';
 import { PublicBookingSelfServiceSettings } from '@/components/settings/public-booking-self-service-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
@@ -26,6 +30,9 @@ interface NotificationSettings {
   reminder1hWhatsapp: boolean;
   reminderImmediateWhatsapp: boolean;
   notifyBusinessOnCustomerBookingChange: boolean;
+  allowCustomerReminderChoice: boolean;
+  customerReminderOptionsHours: number[];
+  defaultCustomerReminderHours: number | null;
 }
 
 interface WhatsAppIntegrationSettings {
@@ -105,6 +112,9 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
   notifyBusinessOnCustomerBookingChange: false,
+  allowCustomerReminderChoice: false,
+  customerReminderOptionsHours: [24, 1],
+  defaultCustomerReminderHours: 24,
 };
 
 const DEFAULT_WHATSAPP_FORM: WhatsAppIntegrationForm = {
@@ -148,7 +158,27 @@ function normalizeNotificationSettings(
     notifyBusinessOnCustomerBookingChange:
       raw?.notifyBusinessOnCustomerBookingChange ??
       DEFAULT_NOTIFICATION_SETTINGS.notifyBusinessOnCustomerBookingChange,
+    allowCustomerReminderChoice:
+      raw?.allowCustomerReminderChoice ?? DEFAULT_NOTIFICATION_SETTINGS.allowCustomerReminderChoice,
+    customerReminderOptionsHours: normalizeReminderHoursList(
+      raw?.customerReminderOptionsHours ?? DEFAULT_NOTIFICATION_SETTINGS.customerReminderOptionsHours,
+    ),
+    defaultCustomerReminderHours:
+      raw?.defaultCustomerReminderHours ?? DEFAULT_NOTIFICATION_SETTINGS.defaultCustomerReminderHours,
   };
+}
+
+function normalizeReminderHoursList(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [24, 1];
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const entry of raw) {
+    const hours = Math.round(Number(entry));
+    if (!Number.isFinite(hours) || hours < 1 || hours > 168 || seen.has(hours)) continue;
+    seen.add(hours);
+    result.push(hours);
+  }
+  return result.length ? result.sort((a, b) => b - a) : [24, 1];
 }
 
 function whatsappConnectionModeFromApi(data: WhatsAppIntegrationSettings): WhatsAppConnectionMode {
@@ -443,6 +473,19 @@ export default function SettingsPage() {
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">{t('settings.subtitle')}</p>
 
       <div className="card space-y-6">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Store className="w-4 h-4 text-violet-400" />
+            {t('settings.businessProfileSection')}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            {t('settings.businessProfileSectionDescription')}
+          </p>
+          <Link href="/dashboard/business" className="btn-primary text-sm inline-flex items-center gap-2">
+            {t('settings.editBusinessProfile')}
+          </Link>
+        </div>
+
         <div>
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{t('settings.themeSection')}</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('settings.themeDescription')}</p>
@@ -486,6 +529,21 @@ export default function SettingsPage() {
               />
             </div>
           )}
+          {notif && (
+            <CustomerReminderSettingsPanel
+              enabled={notif.allowCustomerReminderChoice}
+              optionsHours={notif.customerReminderOptionsHours}
+              defaultHours={notif.defaultCustomerReminderHours}
+              onChange={(next) =>
+                setNotif({
+                  ...notif,
+                  allowCustomerReminderChoice: next.allowCustomerReminderChoice,
+                  customerReminderOptionsHours: next.customerReminderOptionsHours,
+                  defaultCustomerReminderHours: next.defaultCustomerReminderHours,
+                })
+              }
+            />
+          )}
           <button
             type="button"
             onClick={() => saveNotifications.mutate()}
@@ -498,6 +556,8 @@ export default function SettingsPage() {
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">{t('settings.notificationsSaved')}</p>
           )}
         </div>
+
+        <NotificationEmailTemplatesPanel />
 
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -757,9 +817,14 @@ export default function SettingsPage() {
         </div>
 
         {business?.id && (
-          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
-            <PublicBookingSelfServiceSettings businessId={business.id} />
-          </div>
+          <>
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+              <PayAtVenueSettings businessId={business.id} />
+            </div>
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+              <PublicBookingSelfServiceSettings businessId={business.id} />
+            </div>
+          </>
         )}
 
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">

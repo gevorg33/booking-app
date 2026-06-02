@@ -23,6 +23,8 @@ import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
+import { resolveBookingsSettings } from '@/lib/bookings-settings';
+import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
@@ -383,7 +385,6 @@ export default function BookingsPage() {
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [showPayAtVenueOnly, setShowPayAtVenueOnly] = useState(false);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
 
@@ -404,6 +405,22 @@ export default function BookingsPage() {
   const goToday = useCallback(() => setDay(todayDateAnchor()),            []);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
+
+  const { data: businessSettings = {} } = useQuery({
+    queryKey: ['business-settings', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return {};
+      const { data } = await api.get(`/businesses/${business.id}`);
+      const record = unwrapBusinessApiPayload<{ settings?: Record<string, unknown> }>(data);
+      return record.settings ?? {};
+    },
+    enabled: !!business?.id,
+  });
+
+  const calendarPayAtVenueOnly = useMemo(
+    () => resolveBookingsSettings(businessSettings).calendarPayAtVenueFilterDefault,
+    [businessSettings],
+  );
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', business?.id],
@@ -457,13 +474,13 @@ export default function BookingsPage() {
   const calPeriods: CalPeriod[] = calData?.periods || [];
   const bookings: BookingItem[] = bookingsRaw;
   const visibleBookings = useMemo(() => {
-    if (!showPayAtVenueOnly) return bookings;
+    if (!calendarPayAtVenueOnly) return bookings;
     return bookings.filter(
       (b) =>
         b.paymentStatus === 'pending' &&
         (b.metadata?.payAtVenue === true || b.metadata?.paymentMethod === 'cash'),
     );
-  }, [bookings, showPayAtVenueOnly]);
+  }, [bookings, calendarPayAtVenueOnly]);
 
   // ── Derived UI state ───────────────────────────────────────────────────────
 
@@ -667,18 +684,13 @@ export default function BookingsPage() {
               }}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={showPayAtVenueOnly}
-              onChange={(e) => setShowPayAtVenueOnly(e.target.checked)}
-            />
-            {t('bookings.payAtVenueOnly')}
-          </label>
         </div>
       </div>
 
       <p className="text-gray-300 font-medium -mt-2">{fmtDate(day)}</p>
+      {calendarPayAtVenueOnly && (
+        <p className="text-xs text-amber-400/90 -mt-1">{t('bookings.payAtVenueFilterActive')}</p>
+      )}
 
       {/* ── Main area ── */}
       <div className="flex gap-4 flex-1 min-h-0">
@@ -1099,7 +1111,9 @@ export default function BookingsPage() {
               ? `${employees.find((e: any) => e.id === employeeId)?.name ?? 'Provider'}'s Bookings`
               : 'All Bookings'} — {fmtDate(day)}
           </h2>
-          <span className="text-xs text-gray-500">{bookings.length} booking{bookings.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-gray-500">
+            {visibleBookings.length} booking{visibleBookings.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {showCancel && (
@@ -1124,11 +1138,11 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {bookings.length === 0 ? (
+        {visibleBookings.length === 0 ? (
           <p className="text-center text-gray-500 text-sm py-6">No bookings for this day</p>
         ) : (
           <div className="divide-y divide-gray-800">
-            {bookings.map((b) => (
+            {visibleBookings.map((b) => (
               <div
                 key={b.id}
                 role="button"

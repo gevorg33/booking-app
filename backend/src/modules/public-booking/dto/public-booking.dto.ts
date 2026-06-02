@@ -8,8 +8,10 @@ import {
   IsObject,
   IsNumber,
   Min,
+  Max,
   IsArray,
   ArrayMinSize,
+  ValidateIf,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -36,6 +38,15 @@ export class PublicCustomerDto {
   @IsOptional()
   @IsBoolean()
   whatsappReminders?: boolean;
+
+  /** Hours before appointment to send reminder; null = no reminder. Requires business to allow customer choice. */
+  @IsOptional()
+  @ValidateIf((_obj, value) => value !== null && value !== undefined)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(168)
+  reminderHoursBefore?: number | null;
 
   @IsOptional()
   @IsBoolean()

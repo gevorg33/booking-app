@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { fetchBusinessSettings, unwrapBusinessApiPayload } from '@/lib/business-query';
 import { useI18n } from '@/i18n';
 
 interface CustomerSelfServiceSettings {
@@ -17,7 +17,6 @@ interface CustomerSelfServiceSettings {
 
 interface PublicBookingSettings {
   customerSelfService: CustomerSelfServiceSettings;
-  acceptCashPayments: boolean;
 }
 
 const DEFAULT_SETTINGS: PublicBookingSettings = {
@@ -28,7 +27,6 @@ const DEFAULT_SETTINGS: PublicBookingSettings = {
     maxReschedulesPerBooking: 3,
     allowProviderChangeOnReschedule: false,
   },
-  acceptCashPayments: false,
 };
 
 function readSettings(raw: Record<string, unknown> | undefined): PublicBookingSettings {
@@ -42,7 +40,6 @@ function readSettings(raw: Record<string, unknown> | undefined): PublicBookingSe
       maxReschedulesPerBooking: Number(css.maxReschedulesPerBooking ?? 3) || 3,
       allowProviderChangeOnReschedule: css.allowProviderChangeOnReschedule === true,
     },
-    acceptCashPayments: publicBooking.acceptCashPayments === true,
   };
 }
 
@@ -56,7 +53,7 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
     queryKey: ['business', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}`);
-      return data as { settings?: Record<string, unknown> };
+      return unwrapBusinessApiPayload<{ settings?: Record<string, unknown> }>(data);
     },
   });
 
@@ -68,10 +65,9 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const current = businessData?.settings ?? {};
+      const current = await fetchBusinessSettings(businessId);
       const publicBooking = {
         ...((current.publicBooking as Record<string, unknown>) ?? {}),
-        acceptCashPayments: form.acceptCashPayments,
         customerSelfService: form.customerSelfService,
       };
       const { data } = await api.put(`/businesses/${businessId}`, {
@@ -81,6 +77,7 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['business-profile', businessId] });
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
     },
@@ -191,22 +188,6 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         />
         {t('settings.allowProviderChangeOnReschedule')}
       </label>
-
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={form.acceptCashPayments}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, acceptCashPayments: e.target.checked }))
-            }
-          />
-          {t('settings.acceptCashPayments')}
-        </label>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          {t('settings.acceptCashPaymentsHint')}
-        </p>
-      </div>
 
       <button
         type="button"

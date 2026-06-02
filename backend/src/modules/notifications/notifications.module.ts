@@ -12,6 +12,7 @@ import { WhatsAppIntegrationService } from './whatsapp-integration.service.js';
 import { ReminderScheduler } from './reminder.scheduler.js';
 import { BookingNotificationListener } from './listeners/booking-notification.listener.js';
 import { NotificationsController } from './notifications.controller.js';
+import { NotificationEmailTemplateService } from './notification-email-template.service.js';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { NotificationsController } from './notifications.controller.js';
     WhatsAppIntegrationService,
     ReminderScheduler,
     BookingNotificationListener,
+    NotificationEmailTemplateService,
   ],
-  exports: [NotificationsService, EmailService, SmsService, WhatsAppService, WhatsAppIntegrationService],
+  exports: [NotificationsService, EmailService, SmsService, WhatsAppService, WhatsAppIntegrationService, NotificationEmailTemplateService],
 })
 export class NotificationsModule {}

@@ -5,6 +5,7 @@ import { Calendar, Loader2, Pencil } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PhoneInput } from '@/components/public-booking/phone-input';
+import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import {
   bookPublicPackage,
   confirmPublicBookingPayment,
@@ -83,6 +84,7 @@ export function PackageCheckoutClient({
     return new Date(new Date(scheduleStart).getTime() + totalDuration * 60_000);
   }, [scheduleStart, totalDuration]);
 
+  const reminderOptions = tenant.appointmentReminders;
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -92,6 +94,7 @@ export function PackageCheckoutClient({
     marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
+    reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -208,6 +211,7 @@ export function PackageCheckoutClient({
         phone: fullPhone() || undefined,
         emailReminders: form.emailReminders,
         whatsappReminders: form.whatsappReminders,
+        ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
         privacyConsentAccepted: form.consent,
         marketingOptIn: form.marketingOptIn,
       },
@@ -671,6 +675,13 @@ export function PackageCheckoutClient({
               />
               <span>{t('public.whatsappReminders')}</span>
             </label>
+            {reminderOptions?.enabled && (
+              <AppointmentReminderPicker
+                optionsHours={reminderOptions.optionsHours}
+                value={form.reminderHoursBefore}
+                onChange={(reminderHoursBefore) => setForm({ ...form, reminderHoursBefore })}
+              />
+            )}
             <label className="flex items-start gap-3 text-sm text-gray-600">
               <input
                 type="checkbox"

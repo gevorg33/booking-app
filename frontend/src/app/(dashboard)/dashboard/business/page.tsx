@@ -12,6 +12,7 @@ import {
   profileFormToPayload,
   type BusinessProfileForm,
 } from '@/lib/business-profile';
+import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { bookPath } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
@@ -37,7 +38,7 @@ export default function BusinessProfilePage() {
     queryKey: ['business-profile', business?.id],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${business!.id}`);
-      return res.data || res;
+      return unwrapBusinessApiPayload(res);
     },
     enabled: !!business?.id,
   });
@@ -111,9 +112,21 @@ export default function BusinessProfilePage() {
               businessId={business.id}
               businessName={form.name}
               logoUrl={form.branding.logoUrl ?? ''}
-              onChange={(logoUrl) =>
-                setForm({ ...form, branding: { ...form.branding, logoUrl } })
-              }
+              onChange={(logoUrl) => {
+                setForm({ ...form, branding: { ...form.branding, logoUrl } });
+                if (logoUrl.trim()) {
+                  void api
+                    .put(`/businesses/${business.id}/profile`, {
+                      branding: { logoUrl: logoUrl.trim() },
+                    })
+                    .then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['business-profile', business.id] });
+                    })
+                    .catch(() => {
+                      /* user can still save manually */
+                    });
+                }
+              }}
               disabled={saveMutation.isPending}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

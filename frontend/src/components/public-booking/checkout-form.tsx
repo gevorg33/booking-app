@@ -35,6 +35,7 @@ import { SpecialistPickerSheet,
   type SpecialistChoice,
 } from '@/components/public-booking/specialist-picker-sheet';
 import { BookingSuccessPanel } from '@/components/public-booking/booking-success-panel';
+import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 
 interface CheckoutFormProps {
@@ -59,6 +60,7 @@ export function CheckoutForm({
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const dueNow = prepaymentDue(service);
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
+  const reminderOptions = tenant.appointmentReminders;
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -68,6 +70,7 @@ export function CheckoutForm({
     marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
+    reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,6 +252,7 @@ export function CheckoutForm({
       phone: fullPhone() || undefined,
       emailReminders: form.emailReminders,
       whatsappReminders: form.whatsappReminders,
+      ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
       privacyConsentAccepted: form.consent,
       marketingOptIn: form.marketingOptIn,
     },
@@ -830,6 +834,14 @@ export function CheckoutForm({
           />
           <span>{t('public.whatsappReminders')}</span>
         </label>
+
+        {reminderOptions?.enabled && (
+          <AppointmentReminderPicker
+            optionsHours={reminderOptions.optionsHours}
+            value={form.reminderHoursBefore}
+            onChange={(reminderHoursBefore) => setForm((f) => ({ ...f, reminderHoursBefore }))}
+          />
+        )}
 
         <label className="flex items-start gap-3 text-sm text-gray-600">
           <input

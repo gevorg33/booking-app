@@ -1,5 +1,6 @@
 import type { GiftCard } from './entities/gift-card.entity.js';
 import type { GiftCardType } from './gift-card.types.js';
+import { renderBusinessEmailTemplate } from '../notifications/notification-email-template.util.js';
 
 export interface PublicBookingLinks {
   bookingUrl: string;
@@ -106,53 +107,24 @@ export function resolveGiftCardSenderName(card: GiftCard): string {
 export function buildRecipientGiftCardEmail(
   card: GiftCard,
   links: PublicBookingLinks | null,
-): GiftCardRecipientEmailContent {
+): GiftCardRecipientEmailContent | null {
   const businessName = card.business?.name ?? 'your business';
   const recipientName = card.recipientName?.trim() || 'there';
   const senderName = resolveGiftCardSenderName(card);
-  const greeting = `Hi ${recipientName},`;
-  const intro = `You've received a gift card from ${senderName} for ${businessName} services!`;
+  const valueLines = describeGiftCardValue(card);
+  const redemptionLines = buildRedemptionInstructions(card, links);
 
-  const bodyLines = [
-    greeting,
-    '',
-    intro,
-    '',
-    ...(card.personalMessage ? [`Message from the sender:`, card.personalMessage, ''] : []),
-    `Your gift card code: ${card.code}`,
-    '',
-    ...describeGiftCardValue(card),
-    '',
-    ...buildRedemptionInstructions(card, links),
-    '',
-    ...(links
-      ? [
-          'Quick links:',
-          `Book: ${links.bookingUrl}`,
-          ...(card.cardType === 'package' || card.cardType === 'subscription'
-            ? [`Redeem in your account: ${links.accountUrl}`]
-            : []),
-        ]
-      : []),
-  ];
+  const personalMessageSection = card.personalMessage
+    ? `Message from the sender:\n${card.personalMessage}\n\n`
+    : '';
+  const personalMessageHtml = card.personalMessage
+    ? `<p><strong>Message from the sender:</strong></p><p style="margin-left:12px;border-left:3px solid #e5e7eb;padding-left:12px;">${escapeHtml(card.personalMessage)}</p>`
+    : '';
 
-  const text = bodyLines.filter((line) => line !== undefined).join('\n').trim();
+  const giftCardDetails = valueLines.join('\n');
+  const giftCardDetailsHtml = `<ul>${valueLines.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`;
 
-  const htmlParts = [
-    `<p>${escapeHtml(greeting)}</p>`,
-    `<p>${escapeHtml(intro)}</p>`,
-  ];
-  if (card.personalMessage) {
-    htmlParts.push(
-      `<p><strong>Message from the sender:</strong></p>`,
-      `<p style="margin-left:12px;border-left:3px solid #e5e7eb;padding-left:12px;">${escapeHtml(card.personalMessage)}</p>`,
-    );
-  }
-  htmlParts.push(
-    `<p><strong>Your gift card code:</strong> <code style="font-size:1.1em;letter-spacing:0.05em;">${escapeHtml(card.code)}</code></p>`,
-    `<ul>${describeGiftCardValue(card).map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`,
-  );
-
+  let redemptionInstructionsHtml = '';
   if (links) {
     const steps =
       card.cardType === 'package' || card.cardType === 'subscription'
@@ -170,55 +142,66 @@ export function buildRecipientGiftCardEmail(
     buttons.push(
       `<a href="${escapeHtml(links.bookingUrl)}" style="display:inline-block;padding:10px 16px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Book an appointment</a>`,
     );
-    htmlParts.push(
-      `<p><strong>What to do next</strong></p>`,
-      `<ul>${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ul>`,
-      `<p>${buttons.join('')}</p>`,
-    );
-  } else {
-    htmlParts.push(
-      `<p>${escapeHtml(buildRedemptionInstructions(card, links).join(' '))}</p>`,
-    );
+    redemptionInstructionsHtml = `<p><strong>What to do next</strong></p><ul>${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ul><p>${buttons.join('')}</p>`;
   }
 
-  const html = htmlParts.join('\n');
+  const redemptionInstructions = [
+    ...redemptionLines,
+    ...(links
+      ? [
+          'Quick links:',
+          `Book: ${links.bookingUrl}`,
+          ...(card.cardType === 'package' || card.cardType === 'subscription'
+            ? [`Redeem in your account: ${links.accountUrl}`]
+            : []),
+        ]
+      : []),
+  ].join('\n');
 
-  return {
-    subject: `Your gift card from ${senderName} for ${businessName}`,
-    text,
-    html,
-  };
+  const rendered = renderBusinessEmailTemplate(
+    card.business?.settings as Record<string, unknown> | undefined,
+    'gift_card_recipient',
+    {
+      recipientName,
+      senderName,
+      businessName,
+      giftCardCode: card.code,
+      personalMessageSection,
+      personalMessageHtml,
+      giftCardDetails,
+      giftCardDetailsHtml,
+      redemptionInstructions,
+      redemptionInstructionsHtml,
+    },
+  );
+  return rendered;
 }
 
 export function buildPurchaserReceiptEmail(
   card: GiftCard,
   recipientEmail: string,
   links: PublicBookingLinks | null,
-): { subject: string; text: string; html: string } {
+): { subject: string; text: string; html: string } | null {
   const businessName = card.business?.name ?? 'the business';
-  const lines = [
-    `Your gift card order from ${businessName} was sent to ${recipientEmail}.`,
-    '',
-    ...(links
-      ? [
-          `View your gift card orders: ${links.accountUrl}`,
-          `Book again or browse gifts: ${links.bookingUrl}`,
-        ]
-      : []),
-  ];
-  const text = lines.join('\n');
-  const html = [
-    `<p>Your gift card order from <strong>${escapeHtml(businessName)}</strong> was sent to ${escapeHtml(recipientEmail)}.</p>`,
-    links
-      ? `<p><a href="${escapeHtml(links.accountUrl)}">View your gift card orders</a> · <a href="${escapeHtml(links.bookingUrl)}">Book an appointment</a></p>`
-      : '',
-  ].join('\n');
+  const accountLinksText = links
+    ? [`View your gift card orders: ${links.accountUrl}`, `Book again or browse gifts: ${links.bookingUrl}`].join(
+        '\n',
+      )
+    : '';
+  const accountLinksHtml = links
+    ? `<p><a href="${escapeHtml(links.accountUrl)}">View your gift card orders</a> · <a href="${escapeHtml(links.bookingUrl)}">Book an appointment</a></p>`
+    : '';
 
-  return {
-    subject: `Gift card sent — ${businessName}`,
-    text,
-    html,
-  };
+  return renderBusinessEmailTemplate(
+    card.business?.settings as Record<string, unknown> | undefined,
+    'gift_card_purchaser_receipt',
+    {
+      businessName,
+      recipientEmail,
+      accountLinksText,
+      accountLinksHtml,
+    },
+  );
 }
 
 export function buildWhatsAppGiftCardSummary(

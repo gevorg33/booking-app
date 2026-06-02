@@ -5,6 +5,7 @@ import { PublicHeader } from '@/components/public-booking/public-header';
 import { Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { getMessages, translate } from '@/i18n';
 import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicImageUrl } from '@/lib/resolve-public-image-url';
 
 function socialHref(url: string) {
   if (!url) return '#';
@@ -26,6 +27,7 @@ export default async function TenantProfilePage({
     giftCardsEnabled = false;
   }
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const logoSrc = resolvePublicImageUrl(tenant.branding.logoUrl);
   const locale = await getServerLocale();
   const messages = getMessages(locale);
   const t = (key: string) => translate(messages, key);
@@ -45,12 +47,12 @@ export default async function TenantProfilePage({
       <PublicHeader tenant={tenant} showBack backHref={bookPath(slug)} />
       <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
         <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm text-center">
-          {tenant.branding.logoUrl ? (
+          {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={tenant.branding.logoUrl}
+              src={logoSrc}
               alt={tenant.name}
-              className="w-20 h-20 rounded-full object-cover mx-auto mb-4"
+              className="w-20 h-20 rounded-full object-contain bg-white mx-auto mb-4 border border-gray-100"
             />
           ) : (
             <div

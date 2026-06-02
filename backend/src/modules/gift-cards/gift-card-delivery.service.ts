@@ -49,22 +49,26 @@ export class GiftCardDeliveryService {
 
     if (recipientEmail) {
       const email = buildRecipientGiftCardEmail(card, links);
-      await this.emailService.send({
-        to: recipientEmail,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-      delivered = true;
+      if (email) {
+        await this.emailService.send({
+          to: recipientEmail,
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+        });
+        delivered = true;
+      }
 
       if (card.purchaserEmail && card.purchaserEmail !== recipientEmail) {
         const receipt = buildPurchaserReceiptEmail(card, recipientEmail, links);
-        await this.emailService.send({
-          to: card.purchaserEmail,
-          subject: receipt.subject,
-          html: receipt.html,
-          text: receipt.text,
-        });
+        if (receipt) {
+          await this.emailService.send({
+            to: card.purchaserEmail,
+            subject: receipt.subject,
+            html: receipt.html,
+            text: receipt.text,
+          });
+        }
       }
     }
 

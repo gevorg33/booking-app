@@ -5,6 +5,7 @@ import { Calendar, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PhoneInput } from '@/components/public-booking/phone-input';
+import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import {
   bookPublicMultiService,
   confirmPublicBookingPayment,
@@ -112,6 +113,7 @@ export function MultiServiceCheckoutClient({
     }
   }, [linesRaw]);
 
+  const reminderOptions = tenant.appointmentReminders;
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -121,6 +123,7 @@ export function MultiServiceCheckoutClient({
     marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
+    reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -336,6 +339,7 @@ export function MultiServiceCheckoutClient({
         phone: fullPhone() || undefined,
         emailReminders: form.emailReminders,
         whatsappReminders: form.whatsappReminders,
+        ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
         privacyConsentAccepted: form.consent,
         marketingOptIn: form.marketingOptIn,
       },
@@ -749,6 +753,13 @@ export function MultiServiceCheckoutClient({
               />
               <span>{t('public.whatsappReminders')}</span>
             </label>
+            {reminderOptions?.enabled && (
+              <AppointmentReminderPicker
+                optionsHours={reminderOptions.optionsHours}
+                value={form.reminderHoursBefore}
+                onChange={(reminderHoursBefore) => setForm({ ...form, reminderHoursBefore })}
+              />
+            )}
             <label className="flex items-start gap-3 text-sm text-gray-600">
               <input
                 type="checkbox"

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity.js';
 import { BusinessMember, MemberRole } from './entities/business-member.entity.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
+import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
 
 const FORBIDDEN_MAP_EMBED = /<script|javascript:/i;
 
@@ -35,7 +36,14 @@ export class BusinessService {
 
   async update(id: string, data: Partial<Business>): Promise<Business> {
     const business = await this.findOne(id);
-    Object.assign(business, data);
+    const patch: Partial<Business> = { ...data };
+    if (patch.settings !== undefined && patch.settings !== null) {
+      patch.settings = mergeBusinessSettings(
+        business.settings as Record<string, unknown> | undefined,
+        patch.settings as Record<string, unknown>,
+      ) as Business['settings'];
+    }
+    Object.assign(business, patch);
     return this.businessRepo.save(business);
   }
 

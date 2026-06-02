@@ -29,6 +29,13 @@ import {
   resolveBookingManageLinkLabel,
   resolveCustomerSelfServiceSettings,
 } from '../../common/utils/customer-self-service.util.js';
+import { renderBusinessEmailTemplate } from './notification-email-template.util.js';
+import {
+  mergeCustomerReminderChoiceSettings,
+  reminderNotificationKind,
+  resolveBookingReminderHoursBefore,
+  resolveReminderChannelFlags,
+} from './appointment-reminder-settings.util.js';
 
 interface BookingNotificationContext {
   booking: Booking;
@@ -65,10 +72,10 @@ export class NotificationsService {
     if (!business) throw new NotFoundException('Business not found');
     business.settings = {
       ...business.settings,
-      notifications: {
+      notifications: mergeBusinessNotificationSettings({
         ...mergeBusinessNotificationSettings(business.settings?.notifications),
         ...patch,
-      },
+      }),
     };
     await this.businessRepo.save(business);
     return mergeBusinessNotificationSettings(business.settings.notifications);
@@ -312,6 +319,80 @@ export class NotificationsService {
 
     sent += await this.processReminderWindow('reminder_24h', 24 * 60, now);
     sent += await this.processReminderWindow('reminder_1h', 60, now);
+    sent += await this.processCustomerChosenReminders(now);
+
+    return sent;
+  }
+
+  private isWithinReminderWindow(now: Date, startTime: Date, minutesBefore: number): boolean {
+    const windowMs = 5 * 60 * 1000;
+    const target = startTime.getTime() - minutesBefore * 60 * 1000;
+    return Math.abs(now.getTime() - target) <= windowMs;
+  }
+
+  private async processCustomerChosenReminders(now: Date): Promise<number> {
+    const maxLeadHours = 168;
+    const horizon = new Date(now.getTime() + maxLeadHours * 60 * 60 * 1000);
+
+    const bookings = await this.bookingRepo
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.employee', 'employee')
+      .leftJoinAndSelect('booking.service', 'service')
+      .leftJoinAndSelect('booking.business', 'business')
+      .where('booking.status = :status', { status: BookingStatus.CONFIRMED })
+      .andWhere('booking.startTime >= :now', { now })
+      .andWhere('booking.startTime <= :horizon', { horizon })
+      .getMany();
+
+    let sent = 0;
+    for (const booking of bookings) {
+      if (!booking.business) continue;
+      const businessSettings = mergeBusinessNotificationSettings(booking.business.settings?.notifications);
+      if (!businessSettings.allowCustomerReminderChoice) continue;
+
+      const leadHours = resolveBookingReminderHoursBefore(booking.metadata, businessSettings);
+      if (leadHours == null) continue;
+
+      const minutesBefore = leadHours * 60;
+      if (!this.isWithinReminderWindow(now, booking.startTime, minutesBefore)) continue;
+
+      const ctx: BookingNotificationContext = {
+        booking,
+        business: booking.business,
+        businessSettings,
+      };
+      const customer = booking.customer;
+      if (!customer) continue;
+
+      const prefs = getCustomerNotificationPreferences(customer.metadata);
+      const channelFlags = resolveReminderChannelFlags(businessSettings, leadHours);
+      const kind = reminderNotificationKind(leadHours) as NotificationKind;
+
+      if (businessSettings.emailEnabled && channelFlags.email && prefs.emailReminders && customer.email) {
+        const ok = await this.dispatch(ctx, kind, 'email', customer.email, () =>
+          this.buildReminderEmail(ctx, minutesBefore),
+        );
+        if (ok) sent++;
+      }
+
+      if (businessSettings.smsEnabled && channelFlags.sms && prefs.smsReminders && customer.phone) {
+        const ok = await this.dispatch(ctx, kind, 'sms', customer.phone, () =>
+          this.buildReminderSms(ctx, minutesBefore),
+        );
+        if (ok) sent++;
+      }
+
+      if (
+        businessSettings.whatsappEnabled &&
+        channelFlags.whatsapp &&
+        prefs.whatsappReminders &&
+        customer.phone
+      ) {
+        const ok = await this.dispatchWhatsApp(ctx, kind, customer.phone, minutesBefore);
+        if (ok) sent++;
+      }
+    }
 
     return sent;
   }
@@ -344,6 +425,8 @@ export class NotificationsService {
         business: booking.business,
         businessSettings: mergeBusinessNotificationSettings(booking.business?.settings?.notifications),
       };
+      if (ctx.businessSettings.allowCustomerReminderChoice) continue;
+
       const customer = booking.customer;
       if (!customer || !booking.business) continue;
 
@@ -404,7 +487,7 @@ export class NotificationsService {
     kind: NotificationKind,
     channel: NotificationChannel,
     recipient: string,
-    build: () => { subject?: string; html?: string; text: string },
+    build: () => { subject?: string; html?: string; text: string } | null,
   ): Promise<boolean> {
     const existing = await this.logRepo.findOne({
       where: {
@@ -416,6 +499,7 @@ export class NotificationsService {
     if (existing) return false;
 
     const content = build();
+    if (!content) return false;
     let ok = false;
     let error: string | undefined;
 
@@ -533,13 +617,15 @@ export class NotificationsService {
     const when = formatDateDisplay(booking.startTime);
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const serviceName = booking.service?.name ?? 'Appointment';
-    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nYour appointment at ${business.name} has been cancelled.\n\n${serviceName} on ${when} · ${time}\nReason: ${reason}\n\nContact us to rebook.`;
 
-    return {
-      subject: `Cancelled: ${serviceName} at ${business.name}`,
-      html: `<p>${text.replace(/\n/g, '<br/>')}</p>`,
-      text,
-    };
+    return renderBusinessEmailTemplate(business.settings, 'booking_cancellation', {
+      customerName: booking.customer?.name ?? 'there',
+      businessName: business.name,
+      serviceName,
+      dateLabel: when,
+      timeLabel: time,
+      cancelReason: reason,
+    });
   }
 
   private buildCancellationSms(ctx: BookingNotificationContext, reason: string) {
@@ -644,7 +730,6 @@ export class NotificationsService {
         ? `${base}\n  ${formatBookingManageLinkText(line.manageLabel, line.manageUrl)}`
         : base;
     });
-    const text = `${intro}\n\n${detailLines.join('\n\n')}\n\nSee you soon!`;
     const htmlLines = lines
       .map((line) => {
         const base = `<strong>${line.serviceName}</strong> with ${line.providerName}<br/>${line.when} · ${line.time}`;
@@ -656,11 +741,16 @@ export class NotificationsService {
       })
       .join('');
 
-    return {
-      subject: `Confirmed: ${count} ${appointmentWord} at ${business.name}`,
-      html: `<p>${intro.replace(/\n/g, '<br/>')}</p><ul>${htmlLines}</ul><p>See you soon!</p>`,
-      text,
-    };
+    return renderBusinessEmailTemplate(business.settings, 'booking_confirmation_grouped', {
+      customerName: booking.customer?.name ?? 'there',
+      businessName: business.name,
+      appointmentCount: String(count),
+      appointmentWord,
+      groupLabelSuffix: groupLabel ? ` (${groupLabel})` : '',
+      appointmentsListText: detailLines.join('\n\n'),
+      appointmentsListHtml: `<ul>${htmlLines}</ul>`,
+      footerNote: 'See you soon!',
+    });
   }
 
   private buildGroupedConfirmationSms(
@@ -745,21 +835,24 @@ export class NotificationsService {
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const serviceName = booking.service?.name ?? 'Appointment';
     const providerName = booking.employee?.name ?? 'your provider';
-    const manageSection = manageLink
+    const manageLinkText = manageLink
       ? `\n\n${formatBookingManageLinkText(manageLink.label, manageLink.url)}`
       : '';
-    const text = `Hi ${booking.customer?.name ?? 'there'},\n\nYour appointment at ${business.name} is confirmed.\n\n${serviceName} with ${providerName}\n${when} · ${time}${manageSection}\n\nSee you soon!`;
-
-    const manageHtml = manageLink
+    const manageLinkHtml = manageLink
       ? `<br/><br/>${formatBookingManageLinkHtml(manageLink.label, manageLink.url)}`
       : '';
-    const html = `<p>Hi ${booking.customer?.name ?? 'there'},<br/><br/>Your appointment at ${business.name} is confirmed.<br/><br/>${serviceName} with ${providerName}<br/>${when} · ${time}${manageHtml}<br/><br/>See you soon!</p>`;
 
-    return {
-      subject: `Confirmed: ${serviceName} at ${business.name}`,
-      html,
-      text,
-    };
+    return renderBusinessEmailTemplate(business.settings, 'booking_confirmation', {
+      customerName: booking.customer?.name ?? 'there',
+      businessName: business.name,
+      serviceName,
+      providerName,
+      dateLabel: when,
+      timeLabel: time,
+      manageLinkText,
+      manageLinkHtml,
+      footerNote: 'See you soon!',
+    });
   }
 
   private async resolveManageLinkForBooking(
@@ -795,13 +888,16 @@ export class NotificationsService {
     const when = formatDateDisplay(booking.startTime);
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const label = minutesBefore >= 60 ? `${Math.round(minutesBefore / 60)} hours` : `${minutesBefore} minutes`;
-    const text = `Reminder: your appointment at ${business.name} is in ${label}.\n\n${booking.service?.name ?? 'Appointment'} with ${booking.employee?.name ?? 'your provider'}\n${when} · ${time}`;
 
-    return {
-      subject: `Reminder: appointment in ${label} — ${business.name}`,
-      html: `<p>${text.replace(/\n/g, '<br/>')}</p>`,
-      text,
-    };
+    return renderBusinessEmailTemplate(business.settings, 'booking_reminder', {
+      customerName: booking.customer?.name ?? 'there',
+      businessName: business.name,
+      serviceName: booking.service?.name ?? 'Appointment',
+      providerName: booking.employee?.name ?? 'your provider',
+      dateLabel: when,
+      timeLabel: time,
+      reminderLabel: label,
+    });
   }
 
   private buildReminderSms(ctx: BookingNotificationContext, minutesBefore: number) {
@@ -847,22 +943,14 @@ export class NotificationsService {
     const customerName = booking.customer?.name ?? 'there';
     const providerName = booking.employee?.name ?? 'your provider';
     const starLinks = this.buildStarRatingLinks(reviewUrl);
-    const starTextLinks = [1, 2, 3, 4, 5]
-      .map((rating) => `${rating}: ${this.reviewUrlWithRating(reviewUrl, rating)}`)
-      .join('\n');
-    const text = `Hi ${customerName},\n\nThank you for visiting ${business.name}! How was your appointment with ${providerName}?\n\nTap a star to rate (1–5):\n${starTextLinks}\n\nOr leave a review: ${reviewUrl}`;
 
-    return {
-      subject: `How was your visit at ${business.name}?`,
-      html: `<div style="font-family:sans-serif;color:#111827;max-width:480px;">
-<p>Hi ${customerName},</p>
-<p>Thank you for visiting <strong>${business.name}</strong>! How was your appointment with ${providerName}?</p>
-<p style="text-align:center;font-size:15px;color:#374151;margin:8px 0 4px;">Tap a star to rate your visit</p>
-<div style="text-align:center;margin:16px 0 24px;">${starLinks}</div>
-<p style="text-align:center;font-size:14px;"><a href="${reviewUrl}" style="color:#7c3aed;">Leave a written review</a></p>
-</div>`,
-      text,
-    };
+    return renderBusinessEmailTemplate(ctx.business.settings, 'review_request', {
+      customerName,
+      businessName: business.name,
+      providerName,
+      reviewUrl,
+      starRatingHtml: `<p style="text-align:center;font-size:15px;color:#374151;margin:8px 0 4px;">Tap a star to rate your visit</p><div style="text-align:center;margin:16px 0 24px;">${starLinks}</div><p style="text-align:center;font-size:14px;"><a href="${reviewUrl}" style="color:#7c3aed;">Leave a written review</a></p>`,
+    });
   }
 
   private buildReviewRequestSms(ctx: BookingNotificationContext, reviewUrl: string) {

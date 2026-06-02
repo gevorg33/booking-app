@@ -6,6 +6,11 @@ import { PublicCustomerBookingService } from './public-customer-booking.service.
 import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, PackageBlockSlotsQueryDto, PackageBlockProvidersQueryDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
+import {
+  PublicBookingManagePackageCancelDto,
+  PublicBookingManagePackageRescheduleDto,
+  PublicCustomerReschedulePackageVisitDto,
+} from './dto/public-customer-package-visit.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -389,6 +394,32 @@ export class PublicBookingController {
     );
   }
 
+  @Post('me/bookings/:bookingId/package/cancel')
+  @UseGuards(PublicCustomerAuthGuard)
+  cancelMyPackageVisit(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.cancelPackageVisit(slug, user.customerId, bookingId);
+  }
+
+  @Post('me/bookings/:bookingId/package/reschedule')
+  @UseGuards(PublicCustomerAuthGuard)
+  rescheduleMyPackageVisit(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @Body() dto: PublicCustomerReschedulePackageVisitDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.reschedulePackageVisit(
+      slug,
+      user.customerId,
+      bookingId,
+      dto,
+    );
+  }
+
   @Get('bookings/manage')
   getBookingManageContext(
     @Param('slug') slug: string,
@@ -420,6 +451,31 @@ export class PublicBookingController {
       dto.bookingId,
       dto.token,
       { startTime: dto.startTime, employeeId: dto.employeeId },
+    );
+  }
+
+  @Post('bookings/manage/package/cancel')
+  cancelPackageVisitWithManageToken(
+    @Param('slug') slug: string,
+    @Body() dto: PublicBookingManagePackageCancelDto,
+  ) {
+    return this.publicCustomerBookingService.cancelPackageVisitWithToken(
+      slug,
+      dto.bookingId,
+      dto.token,
+    );
+  }
+
+  @Post('bookings/manage/package/reschedule')
+  reschedulePackageVisitWithManageToken(
+    @Param('slug') slug: string,
+    @Body() dto: PublicBookingManagePackageRescheduleDto,
+  ) {
+    return this.publicCustomerBookingService.reschedulePackageVisitWithToken(
+      slug,
+      dto.bookingId,
+      dto.token,
+      { lines: dto.lines },
     );
   }
 
