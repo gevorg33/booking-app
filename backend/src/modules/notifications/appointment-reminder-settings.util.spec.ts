@@ -3,6 +3,8 @@ import {
   buildBookingReminderMetadata,
   buildPublicAppointmentReminderSettings,
   mergeBusinessNotificationSettingsWithReminders,
+} from './merge-business-notification-settings.js';
+import {
   mergeCustomerReminderChoiceSettings,
   normalizeReminderOptionsHours,
   readBookingReminderHoursBefore,

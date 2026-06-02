@@ -39,13 +39,20 @@ interface StripeInvoicePayload {
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
+  private readonly businessRepo: Repository<Business>;
+  private readonly stripeService: StripeService;
+  private readonly bookingPaymentService: BookingPaymentService;
 
   constructor(
-    @InjectRepository(Business) private businessRepo: Repository<Business>,
-    private stripeService: StripeService,
+    @InjectRepository(Business) businessRepo: Repository<Business>,
+    stripeService: StripeService,
     @Inject(forwardRef(() => BookingPaymentService))
-    private bookingPaymentService: BookingPaymentService,
-  ) {}
+    bookingPaymentService: BookingPaymentService,
+  ) {
+    this.businessRepo = businessRepo;
+    this.stripeService = stripeService;
+    this.bookingPaymentService = bookingPaymentService;
+  }
 
   listPlans() {
     return getActivePlans();
@@ -73,6 +80,7 @@ export class BillingService {
     businessId: string,
     planId: string,
     userEmail: string,
+    billingInterval: 'month' | 'year' = 'month',
   ): Promise<{ url: string }> {
     if (!this.stripeService.isConfigured) {
       throw new BadRequestException('Stripe is not configured on the server');
@@ -99,6 +107,11 @@ export class BillingService {
       await this.businessRepo.save(business);
     }
 
+    const interval = billingInterval === 'year' ? 'year' : 'month';
+    const unitAmount =
+      interval === 'year' ? plan.priceAnnual * 100 : plan.priceMonthly * 100;
+    const recurringLabel = interval === 'year' ? 'yearly' : 'monthly';
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -106,20 +119,28 @@ export class BillingService {
         {
           price_data: {
             currency: plan.currency,
-            unit_amount: plan.priceMonthly * 100,
+            unit_amount: unitAmount,
             product_data: {
-              name: `${plan.name} — OptiSchedule`,
+              name: `${plan.name} — OptiSchedule (${recurringLabel})`,
               description: plan.description,
               metadata: { planId: plan.id },
             },
-            recurring: { interval: 'month' },
+            recurring: { interval },
           },
           quantity: 1,
         },
       ],
-      metadata: { businessId: business.id, planId: plan.id },
+      metadata: {
+        businessId: business.id,
+        planId: plan.id,
+        billingInterval: interval,
+      },
       subscription_data: {
-        metadata: { businessId: business.id, planId: plan.id },
+        metadata: {
+          businessId: business.id,
+          planId: plan.id,
+          billingInterval: interval,
+        },
       },
       success_url: `${frontendUrl}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/dashboard/billing?canceled=1`,
@@ -264,10 +285,9 @@ export class BillingService {
   ) {
     business.stripeSubscriptionId = subscription.id;
     business.subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
-    if (planId) {
-      business.subscriptionPlanId = planId;
-    } else if (subscription.metadata?.planId) {
-      business.subscriptionPlanId = subscription.metadata.planId;
+    const resolvedPlanId = planId ?? subscription.metadata?.planId;
+    if (resolvedPlanId) {
+      business.subscriptionPlanId = resolvedPlanId;
     }
 
     const periodEnd = subscription.current_period_end;

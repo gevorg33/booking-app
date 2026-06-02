@@ -14,6 +14,7 @@ import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import type { CommandResult } from './command-completion.types.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 export interface AiGatewayExecuteParams {
   surface: AiSurface;
@@ -44,6 +45,7 @@ export class AiGatewayService {
     private intelligence: AiIntelligenceService,
     private complexityRouter: CommandComplexityRouterService,
     private promptSecurity: AiPromptSecurityService,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   getCapabilityHints(surface: AiSurface, tier?: string): string {
@@ -63,6 +65,10 @@ export class AiGatewayService {
     const blocked = this.promptSecurity.preflightBlock(params.businessId, params.prompt, surface);
     if (blocked) {
       return this.attachGatewayMeta(blocked, surface, tier);
+    }
+
+    if (surface === 'dashboard') {
+      await this.planEntitlements.assertCanRunDashboardAiCommand(params.businessId);
     }
 
     const memoryBlock = await this.entityMemory.buildMemoryContextBlock(params.businessId);

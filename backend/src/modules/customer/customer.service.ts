@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  CUSTOMER_REGISTERED_EVENT,
+  type CustomerRegistrationSource,
+} from '../notifications/customer-registration.types.js';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
 import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
@@ -120,9 +124,21 @@ export class CustomerService {
   ) {}
 
   async create(businessId: string, dto: CreateCustomerDto): Promise<Customer> {
-    const customer = await this.customerRepo.save(this.customerRepo.create({ ...dto, businessId }));
+    const { registrationSource, ...rest } = dto;
+    const customer = await this.customerRepo.save(
+      this.customerRepo.create({ ...rest, businessId }),
+    );
     this.eventEmitter.emit('customer.upserted', { businessId, customerId: customer.id });
+    this.emitCustomerRegistered(businessId, customer.id, registrationSource ?? 'dashboard');
     return customer;
+  }
+
+  private emitCustomerRegistered(
+    businessId: string,
+    customerId: string,
+    source: CustomerRegistrationSource,
+  ): void {
+    this.eventEmitter.emit(CUSTOMER_REGISTERED_EVENT, { businessId, customerId, source });
   }
 
   async findAll(businessId: string): Promise<Customer[]> {

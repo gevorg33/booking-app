@@ -14,6 +14,7 @@ import {
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { BillingService } from './billing.service.js';
+import { PlanEntitlementsService } from './plan-entitlements.service.js';
 import { CreateCheckoutDto } from './dto/create-checkout.dto.js';
 import { ConfirmCheckoutDto } from './dto/confirm-checkout.dto.js';
 import { UpdateStripeIntegrationDto } from './dto/update-stripe-integration.dto.js';
@@ -40,9 +41,19 @@ export class BillingPlansController {
 export class BillingController {
   constructor(
     private billingService: BillingService,
+    private planEntitlements: PlanEntitlementsService,
     private businessService: BusinessService,
     private stripeIntegrationService: StripeIntegrationService,
   ) {}
+
+  @Get('entitlements')
+  async getEntitlements(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.planEntitlements.getEntitlements(businessId);
+  }
 
   @Get('subscription')
   async getSubscription(
@@ -64,6 +75,7 @@ export class BillingController {
       businessId,
       dto.planId,
       user.email,
+      dto.billingInterval ?? 'month',
     );
   }
 

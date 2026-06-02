@@ -1,0 +1,38 @@
+/** English UI copy aligned with web public booking (gap-2.7). */
+export const copy = {
+  cancelBooking: 'Cancel appointment',
+  cancelBookingConfirm: 'Cancel this appointment?',
+  cancelBookingFailed: 'Could not cancel appointment',
+  rescheduleBooking: 'Reschedule',
+  pickNewTime: 'Pick a new time',
+  loadingSlots: 'Loading times…',
+  noSlotsThisDay: 'No times available this day',
+  confirmReschedule: 'Confirm reschedule',
+  submitting: 'Saving…',
+  rescheduleBookingFailed: 'Could not reschedule',
+  rescheduleSummary: 'New time: {date} at {time}',
+  rescheduleSuccessDetail: 'Rescheduled from {from} to {to}.',
+  rescheduleCountHint: 'Rescheduled {count} of {max} times',
+  manageBookingTitle: 'Manage appointment',
+  manageBookingInvalidLink: 'This manage link is invalid or expired.',
+  manageBookingSignInHint: 'Sign in to manage from your account.',
+  signIn: 'Sign in',
+  cancelPackageVisit: 'Cancel package visit',
+  cancelPackageVisitConfirm: 'Cancel all appointments in this package visit?',
+  cancelPackageVisitFailed: 'Could not cancel package visit',
+  reschedulePackageVisit: 'Reschedule package visit',
+  reschedulePackageVisitSummary: 'New block: {date} at {time} ({count} services)',
+  reschedulePackageVisitSuccess: 'Package visit rescheduled from {from} to {to}.',
+  packageNoBlock: 'No package block available',
+  bookingStatusCancelled: 'Cancelled',
+  bookingStatusCompleted: 'Completed',
+  bookingStatusConfirmed: 'Confirmed',
+  packageVisitAppointmentCount: '{count} appointments',
+} as const;
+
+export function formatCopy(
+  template: string,
+  vars: Record<string, string | number>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? ''));
+}

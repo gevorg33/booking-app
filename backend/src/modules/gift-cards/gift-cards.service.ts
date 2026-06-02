@@ -11,6 +11,7 @@ import {
   resolveGiftCardExpirationUpdate,
   type UpdateGiftCardExpirationInput,
 } from './gift-card-expiration.util.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 export interface GiftCardBalanceView {
   id: string;
@@ -36,6 +37,7 @@ export class GiftCardsService {
     @InjectRepository(GiftCardRedemption) private redemptionRepo: Repository<GiftCardRedemption>,
     @InjectRepository(GiftCardExpirationAudit)
     private expirationAuditRepo: Repository<GiftCardExpirationAudit>,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   async list(businessId: string): Promise<GiftCard[]> {
@@ -56,6 +58,7 @@ export class GiftCardsService {
       cardType?: GiftCardType;
     },
   ): Promise<GiftCard> {
+    await this.planEntitlements.assertFeature(businessId, 'giftCards');
     const cardType = dto.cardType ?? 'monetary';
     const code = generateGiftCardCode(cardType);
     return this.giftCardRepo.save(

@@ -582,6 +582,7 @@ describe('BookingPaymentService', () => {
       publicBookingService.createBooking.mockResolvedValue({
         booking: { id: 'booking-1' },
         customer: { id: 'cust-1' },
+        customerSubscriptionId: 'sub-purchased-1',
       });
 
       const result = await service.confirmCheckoutSession('salon', 'sess_1');
@@ -607,7 +608,14 @@ describe('BookingPaymentService', () => {
         expect.objectContaining({ eventType: EventType.PAYMENT_RECEIVED }),
       );
       expect(eventStore.publish).toHaveBeenCalledWith(
-        expect.objectContaining({ eventType: EventType.SUBSCRIPTION_PURCHASED }),
+        expect.objectContaining({
+          eventType: EventType.SUBSCRIPTION_PURCHASED,
+          aggregateId: 'sub-purchased-1',
+          payload: expect.objectContaining({
+            subscriptionId: 'sub-purchased-1',
+            planId: 'plan-1',
+          }),
+        }),
       );
     });
 

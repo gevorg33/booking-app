@@ -9,6 +9,7 @@ import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { TenantMemberContactService } from '../business/tenant-member-contact.service.js';
 import { normalizeStoredPhone } from '../../common/utils/phone-country.util.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 type ProfileFields = Pick<CreateEmployeeDto, 'title' | 'avatarUrl'>;
 
@@ -20,9 +21,11 @@ export class EmployeeService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     private eventStore: EventStoreService,
     private tenantContactService: TenantMemberContactService,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   async create(businessId: string, dto: CreateEmployeeDto, userId?: string): Promise<Employee> {
+    await this.planEntitlements.assertCanAddProviderSeat(businessId);
     await this.assertServiceIdsPresent(businessId, dto.serviceIds);
     if (dto.email?.trim()) {
       await this.tenantContactService.assertEmailAvailableInTenant(businessId, dto.email);

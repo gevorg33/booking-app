@@ -22,6 +22,7 @@ import { BookingModule } from '../booking/booking.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { BillingModule } from '../billing/billing.module.js';
+import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
@@ -46,6 +47,7 @@ import { GiftCardClaimService } from './gift-card-claim.service.js';
     ServicePackagesModule,
     ServiceSubscriptionsModule,
     forwardRef(() => BillingModule),
+    PlanEntitlementsModule,
     forwardRef(() => PublicBookingModule),
     forwardRef(() => BookingModule),
   ],

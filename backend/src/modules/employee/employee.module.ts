@@ -8,6 +8,7 @@ import { EmployeeController } from './employee.controller.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { InvitationsModule } from '../invitations/invitations.module.js';
 import { BusinessModule } from '../business/business.module.js';
+import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { BusinessModule } from '../business/business.module.js';
     EventStoreModule,
     InvitationsModule,
     BusinessModule,
+    PlanEntitlementsModule,
   ],
   controllers: [EmployeeController],
   providers: [EmployeeService],

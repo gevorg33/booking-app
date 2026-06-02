@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CUSTOMER_REGISTERED_EVENT } from '../notifications/customer-registration.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
@@ -31,6 +33,7 @@ export class PublicCustomerAuthService {
     private firebase: FirebaseAdminService,
     private publicCustomerBookingService: PublicCustomerBookingService,
     private giftCardPurchaseService: GiftCardPurchaseService,
+    private eventEmitter: EventEmitter2,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
@@ -79,6 +82,15 @@ export class PublicCustomerAuthService {
           },
         }),
       );
+      this.eventEmitter.emit(CUSTOMER_REGISTERED_EVENT, {
+        businessId: business.id,
+        customerId: customer.id,
+        source: 'app',
+      });
+      this.eventEmitter.emit('customer.upserted', {
+        businessId: business.id,
+        customerId: customer.id,
+      });
     } else {
       const metadata = { ...(customer.metadata || {}) };
       let dirty = false;

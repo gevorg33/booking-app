@@ -33,6 +33,10 @@ export interface BusinessNotificationSettings {
   customerReminderOptionsHours: number[];
   /** Default hours-before selection at checkout. */
   defaultCustomerReminderHours: number | null;
+  /** Email marketing team when a new customer record is created. */
+  emailOnNewCustomerRegistration: boolean;
+  /** Recipients for new-customer marketing alerts. */
+  marketingTeamEmails: string[];
 }
 
 export interface CustomerNotificationPreferences {
@@ -58,6 +62,8 @@ export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSetting
   allowCustomerReminderChoice: false,
   customerReminderOptionsHours: [24, 1],
   defaultCustomerReminderHours: 24,
+  emailOnNewCustomerRegistration: false,
+  marketingTeamEmails: [],
 };
 
 export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPreferences = {
@@ -66,18 +72,7 @@ export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPref
   whatsappReminders: true,
 };
 
-import { mergeCustomerReminderChoiceSettings } from './appointment-reminder-settings.util.js';
-
-export function mergeBusinessNotificationSettings(
-  raw?: Record<string, unknown>,
-): BusinessNotificationSettings {
-  const reminderChoice = mergeCustomerReminderChoiceSettings(raw);
-  return {
-    ...DEFAULT_BUSINESS_NOTIFICATION_SETTINGS,
-    ...(raw as Partial<BusinessNotificationSettings>),
-    ...reminderChoice,
-  };
-}
+export { mergeBusinessNotificationSettings } from './merge-business-notification-settings.js';
 
 export function getCustomerNotificationPreferences(
   metadata?: Record<string, unknown>,

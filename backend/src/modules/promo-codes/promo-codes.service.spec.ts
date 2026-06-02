@@ -11,7 +11,11 @@ describe('PromoCodesService', () => {
     increment: jest.fn(),
   };
 
-  const service = new PromoCodesService(promoRepo as any);
+  const planEntitlements = {
+    assertFeature: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const service = new PromoCodesService(promoRepo as any, planEntitlements as any);
 
   const basePromo = {
     id: 'promo-1',

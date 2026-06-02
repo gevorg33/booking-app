@@ -19,8 +19,18 @@ import { confirmDialog } from '@/lib/app-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DashboardGiftCardsTab } from '@/components/gift-cards/dashboard-gift-cards-tab';
 import { CheckboxChoice } from '@/components/ui/radio-choice';
+import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
+import { usePlanEntitlements, canUseFeature } from '@/lib/use-plan-entitlements';
+import type { PlanFeatureFlag } from '@/lib/plan-entitlements';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
+
+const TAB_FEATURE: Record<Tab, PlanFeatureFlag> = {
+  'gift-cards': 'giftCards',
+  memberships: 'memberships',
+  loyalty: 'loyalty',
+  'promo-codes': 'promoCodes',
+};
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -29,7 +39,9 @@ function unwrap<T>(res: unknown): T {
 export default function MonetizationPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
-  const [tab, setTab] = useState<Tab>('gift-cards');
+  const [tab, setTab] = useState<Tab>('promo-codes');
+  const { data: entitlements } = usePlanEntitlements(business?.id);
+  const tabAllowed = canUseFeature(entitlements, TAB_FEATURE[tab]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'gift-cards', label: t('monetization.giftCards') },
@@ -65,10 +77,21 @@ export default function MonetizationPage() {
         ))}
       </div>
 
-      {tab === 'gift-cards' && business?.id && <DashboardGiftCardsTab businessId={business.id} />}
-      {tab === 'memberships' && business?.id && <MembershipsTab businessId={business.id} />}
-      {tab === 'loyalty' && business?.id && <LoyaltyTab businessId={business.id} />}
-      {tab === 'promo-codes' && business?.id && <PromoCodesTab businessId={business.id} />}
+      {!tabAllowed && entitlements && (
+        <UpgradePrompt feature={TAB_FEATURE[tab]} className="mb-6" />
+      )}
+      {tabAllowed && tab === 'gift-cards' && business?.id && (
+        <DashboardGiftCardsTab businessId={business.id} />
+      )}
+      {tabAllowed && tab === 'memberships' && business?.id && (
+        <MembershipsTab businessId={business.id} />
+      )}
+      {tabAllowed && tab === 'loyalty' && business?.id && (
+        <LoyaltyTab businessId={business.id} />
+      )}
+      {tabAllowed && tab === 'promo-codes' && business?.id && (
+        <PromoCodesTab businessId={business.id} />
+      )}
     </div>
   );
 }

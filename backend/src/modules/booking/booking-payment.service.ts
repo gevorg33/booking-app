@@ -888,17 +888,20 @@ export class BookingPaymentService {
     });
 
     if (dto.purchasePlanId) {
+      const subscriptionId = result.customerSubscriptionId ?? dto.purchasePlanId;
       await this.eventStore.publish({
         eventType: EventType.SUBSCRIPTION_PURCHASED,
         aggregateType: 'customer_subscription',
-        aggregateId: dto.purchasePlanId,
+        aggregateId: subscriptionId,
         businessId: business.id,
         payload: {
+          subscriptionId,
           planId: dto.purchasePlanId,
           customerId: result.customer.id,
           bookingId: result.booking.id,
           amount: Number(draft.amount),
           currency: draft.currency,
+          source: 'subscription',
         },
       });
     }

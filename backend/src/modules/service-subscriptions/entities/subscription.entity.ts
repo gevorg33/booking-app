@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
 import { Service } from '../../service/entities/service.entity.js';
+import { Customer } from '../../customer/entities/customer.entity.js';
 
 export enum SubscriptionDiscountType {
   PERCENT = 'percent',
@@ -80,6 +81,10 @@ export class CustomerSubscription {
 
   @Column({ name: 'customer_id' })
   customerId: string;
+
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'customer_id' })
+  customer: Customer;
 
   @Column({ name: 'plan_id' })
   planId: string;

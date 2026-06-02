@@ -7,6 +7,7 @@ import { Settings, Bell, MessageCircle, KeyRound, Store } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { NotificationEmailTemplatesPanel } from '@/components/dashboard/notification-email-templates-panel';
 import { CustomerReminderSettingsPanel } from '@/components/settings/customer-reminder-settings-panel';
+import { MarketingAlertsSettingsPanel } from '@/components/settings/marketing-alerts-settings-panel';
 import { PublicBookingSelfServiceSettings } from '@/components/settings/public-booking-self-service-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
@@ -30,6 +31,8 @@ interface NotificationSettings {
   reminder1hWhatsapp: boolean;
   reminderImmediateWhatsapp: boolean;
   notifyBusinessOnCustomerBookingChange: boolean;
+  emailOnNewCustomerRegistration: boolean;
+  marketingTeamEmails: string[];
   allowCustomerReminderChoice: boolean;
   customerReminderOptionsHours: number[];
   defaultCustomerReminderHours: number | null;
@@ -112,6 +115,8 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
   notifyBusinessOnCustomerBookingChange: false,
+  emailOnNewCustomerRegistration: false,
+  marketingTeamEmails: [],
   allowCustomerReminderChoice: false,
   customerReminderOptionsHours: [24, 1],
   defaultCustomerReminderHours: 24,
@@ -503,6 +508,19 @@ export default function SettingsPage() {
                 onChange={(v) => setNotif({ ...notif, notifyBusinessOnCustomerBookingChange: v })}
               />
             </div>
+          )}
+          {notif && (
+            <MarketingAlertsSettingsPanel
+              enabled={notif.emailOnNewCustomerRegistration}
+              emails={notif.marketingTeamEmails}
+              onChange={(next) =>
+                setNotif({
+                  ...notif,
+                  emailOnNewCustomerRegistration: next.emailOnNewCustomerRegistration,
+                  marketingTeamEmails: next.marketingTeamEmails,
+                })
+              }
+            />
           )}
           {notif && (
             <CustomerReminderSettingsPanel

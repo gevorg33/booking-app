@@ -16,13 +16,18 @@ import { formatDateDisplay } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { OpenAiUsagePanel } from '@/components/billing/open-ai-usage-panel';
+import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 import { PayAtVenueSettings } from '@/components/settings/pay-at-venue-settings';
+import { usePlanEntitlements } from '@/lib/use-plan-entitlements';
+
+type BillingInterval = 'month' | 'year';
 
 interface Plan {
   id: string;
   name: string;
   description: string;
   priceMonthly: number;
+  priceAnnual: number;
   currency: string;
   features: string[];
   popular?: boolean;
@@ -65,6 +70,7 @@ export default function BillingPage() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectNotice, setConnectNotice] = useState<string | null>(null);
   const [expressCountry, setExpressCountry] = useState('AM');
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('month');
   const connectCallbackHandled = useRef(false);
   const oauthCallbackHandled = useRef(false);
 
@@ -246,10 +252,13 @@ export default function BillingPage() {
     },
   });
 
+  const { data: entitlements } = usePlanEntitlements(business?.id);
+
   const checkoutMutation = useMutation({
-    mutationFn: async (planId: string) => {
+    mutationFn: async ({ planId, interval }: { planId: string; interval: BillingInterval }) => {
       const { data } = await api.post(`/businesses/${business!.id}/billing/checkout`, {
         planId,
+        billingInterval: interval,
       });
       const url = data.data?.url || data.url;
       if (!url) throw new Error('No checkout URL returned');
@@ -321,6 +330,9 @@ export default function BillingPage() {
           <Wallet className="w-4 h-4 text-violet-400" />
           {t('billing.clientPayments')}
         </h2>
+        {entitlements && !entitlements.flags.stripeConnect && (
+          <UpgradePrompt feature="stripeConnect" compact className="mb-4" />
+        )}
         <p className="text-xs mb-4">
           {stripeConnect?.configured && stripeConnect.chargesEnabled ? (
             <span className="text-green-400">{t('billing.stripeConnectConfigured')}</span>
@@ -508,10 +520,66 @@ export default function BillingPage() {
         )}
       </div>
 
+      {entitlements && (
+        <div className="card mb-6 text-sm text-gray-300 space-y-2">
+          <p>
+            <span className="text-gray-500">{t('billing.currentTier')}: </span>
+            <span className="font-medium text-gray-100">{entitlements.tierName}</span>
+          </p>
+          <p>
+            <span className="text-gray-500">{t('billing.usageSeats')}: </span>
+            {entitlements.usage.providerSeats} / {entitlements.limits.maxProviderSeats}
+          </p>
+          <p>
+            <span className="text-gray-500">{t('billing.usageAi')}: </span>
+            {entitlements.usage.aiCommandsThisMonth} / {entitlements.limits.aiCommandsPerMonth}
+          </p>
+          {entitlements.aiUsageWarning && (
+            <p className="text-amber-400 text-xs">{t('billing.aiUsageNearLimit')}</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mb-4">
+        <div className="inline-flex rounded-lg border border-gray-700 p-0.5">
+          <button
+            type="button"
+            onClick={() => setBillingInterval('month')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              billingInterval === 'month'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {t('billing.billingIntervalMonthly')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingInterval('year')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+              billingInterval === 'year'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {t('billing.billingIntervalAnnual')}
+            <span className="text-[10px] uppercase tracking-wide opacity-90">
+              {t('billing.annualSaveBadge')}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <h2 className="font-semibold mb-4">Available plans</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => {
           const isCurrent = subscription?.planId === plan.id && subscription?.isActive;
+          const displayPrice =
+            billingInterval === 'year' ? plan.priceAnnual : plan.priceMonthly;
+          const monthlyEquivalent =
+            billingInterval === 'year'
+              ? Math.round((plan.priceAnnual / 12) * 100) / 100
+              : plan.priceMonthly;
           return (
             <div
               key={plan.id}
@@ -527,8 +595,19 @@ export default function BillingPage() {
               <h3 className="text-lg font-semibold">{plan.name}</h3>
               <p className="text-sm text-gray-400 mt-1 mb-4">{plan.description}</p>
               <div className="mb-4">
-                <span className="text-3xl font-bold">${plan.priceMonthly}</span>
-                <span className="text-gray-400 text-sm"> / month</span>
+                <span className="text-3xl font-bold">${displayPrice}</span>
+                <span className="text-gray-400 text-sm">
+                  {billingInterval === 'year' ? ` ${t('billing.perYear')}` : ` ${t('billing.perMonth')}`}
+                </span>
+                {billingInterval === 'year' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t('billing.billedAnnually')} ·{' '}
+                    {t('billing.equivalentMonthly').replace(
+                      '{amount}',
+                      `$${monthlyEquivalent}`,
+                    )}
+                  </p>
+                )}
               </div>
               <ul className="space-y-2 mb-6 flex-1">
                 {plan.features.map((f) => (
@@ -544,7 +623,9 @@ export default function BillingPage() {
                 </button>
               ) : (
                 <button
-                  onClick={() => checkoutMutation.mutate(plan.id)}
+                  onClick={() =>
+                    checkoutMutation.mutate({ planId: plan.id, interval: billingInterval })
+                  }
                   disabled={checkoutMutation.isPending}
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >

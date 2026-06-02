@@ -4,6 +4,8 @@ import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { usePlanEntitlements } from '@/lib/use-plan-entitlements';
+import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 
 interface AiUsageSummary {
   periodStart: string;
@@ -63,7 +65,19 @@ export function OpenAiUsagePanel({ businessId }: { businessId: string }) {
 
   return (
     <div className="card mb-8 space-y-3">
+      {entitlements?.atLimit.aiCommands && (
+        <UpgradePrompt limit="ai_commands" compact />
+      )}
+      {entitlements?.aiUsageWarning && !entitlements.atLimit.aiCommands && (
+        <p className="text-xs text-amber-400">{t('billing.aiUsageNearLimit')}</p>
+      )}
       <h2 className="font-semibold">{t('settings.openAiUsageTitle')}</h2>
+      {entitlements && (
+        <p className="text-xs text-gray-500">
+          {t('billing.usageAi')}: {entitlements.usage.aiCommandsThisMonth} /{' '}
+          {entitlements.limits.aiCommandsPerMonth}
+        </p>
+      )}
       <p className="text-xs text-gray-500">
         {t('settings.openAiUsagePeriod')}: {usage.periodStart} → {usage.periodEnd}
       </p>

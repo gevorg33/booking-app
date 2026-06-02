@@ -6,11 +6,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PromoCode, PromoDiscountType } from './entities/promo-code.entity.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 @Injectable()
 export class PromoCodesService {
   constructor(
     @InjectRepository(PromoCode) private promoRepo: Repository<PromoCode>,
+    private planEntitlements: PlanEntitlementsService,
   ) {}
 
   list(businessId: string) {
@@ -32,6 +34,7 @@ export class PromoCodesService {
       description?: string;
     },
   ) {
+    await this.planEntitlements.assertFeature(businessId, 'promoCodes');
     const code = dto.code.trim().toUpperCase();
     if (!code) throw new BadRequestException('Promo code is required');
 

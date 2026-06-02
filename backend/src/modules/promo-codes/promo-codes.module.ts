@@ -7,9 +7,16 @@ import { CheckoutPricingService } from './checkout-pricing.service.js';
 import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { BusinessModule } from '../business/business.module.js';
+import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PromoCode]), LoyaltyModule, forwardRef(() => GiftCardsModule), BusinessModule],
+  imports: [
+    TypeOrmModule.forFeature([PromoCode]),
+    LoyaltyModule,
+    forwardRef(() => GiftCardsModule),
+    BusinessModule,
+    PlanEntitlementsModule,
+  ],
   controllers: [PromoCodesController],
   providers: [PromoCodesService, CheckoutPricingService],
   exports: [PromoCodesService, CheckoutPricingService],
