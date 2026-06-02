@@ -679,6 +679,13 @@ pe remains required when admin disables cash or service mandates online prepayme
 
 ---
 
+
+in the end when I will have many clients:
+create Full marketplace per country
+Central place where clients discover and book across tenants
+
+---
+
 ## Completed
 
 ### Phase 1 — Operations ERP (salon chains)
