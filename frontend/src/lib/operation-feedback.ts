@@ -26,6 +26,7 @@ const SKIP_URL_PATTERNS: RegExp[] = [
   /\/catalog\b/i,
   /\/onboarding\/status\b/i,
   /\/agents\/tasks\b/i,
+  /\/ai\/command/i,
   /\/notifications\/settings\b/i,
   /\/billing\/plans\b/i,
   /\/me\b/i,

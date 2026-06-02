@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { Sparkles, Send, X, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -559,11 +559,9 @@ export function AiCommandBar() {
               }
               aria-label={t('ai.undoLatest')}
             >
-              {undoLatestMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Undo2 className="w-4 h-4" />
-              )}
+              <Undo2
+                className={`w-4 h-4 ${undoLatestMutation.isPending ? 'opacity-40' : ''}`}
+              />
             </button>
             <button
               type="button"

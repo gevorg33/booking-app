@@ -447,7 +447,7 @@ export default function BookingsPage() {
   });
 
   // Provider-calendar: returns whole applied period blocks (not micro-slots)
-  const { data: calData, isLoading: calLoading } = useQuery({
+  const { data: calData, isPending: calPending } = useQuery({
     queryKey: ['provider-calendar', business?.id, employeeId, dayStr],
     queryFn: async () => {
       if (!business?.id || !employeeId) return { periods: [] };
@@ -459,6 +459,7 @@ export default function BookingsPage() {
     },
     enabled: !!business?.id && !!employeeId,
   });
+  const calInitialLoading = calPending && calData === undefined;
 
   const { data: bookingsRaw = [] } = useQuery({
     queryKey: ['bookings', business?.id, dayStr, employeeId],
@@ -752,7 +753,7 @@ export default function BookingsPage() {
                 <p className="text-gray-400">Select a service provider to view their schedule</p>
               </div>
             </div>
-          ) : calLoading ? (
+          ) : calInitialLoading ? (
             <div className="card flex-1 flex items-center justify-center">
               <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
             </div>
