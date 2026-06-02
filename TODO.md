@@ -23,6 +23,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **6** | Growth & vertical playbooks | gap-8.1, gap-8.5 |
 | **7** | Retail POS & enterprise trust | gap-8.4, gap-5.4, gap-5.5 |
 | **8** | Strategy & compliance eval | gap-5.6, gap-1.6 |
+| **—** | Postgres RLS tenant isolation | **gap-5.7** |
 | **9** | Customer gift card purchase & delivery | **gc-1** |
 | **10** | Launch — billing & provider app store | gap-7.5, gap-7.6, gap-1.5 |
 | **11** | Consumer booking app | **gap-2.5** |
@@ -250,6 +251,21 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
+## PostgreSQL RLS — tenant isolation (defense in depth)
+
+**Goal:** Complement application-level `businessId` checks with Postgres row-level security so a missed filter cannot leak cross-tenant data.
+
+Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in queries. RLS adds a second enforcement boundary at the database.
+
+- [ ] **gap-5.7** — PostgreSQL row-level security (RLS) for multi-tenant isolation
+- [ ] **gap-5.7.1** — Request middleware — resolve tenant id (`businessId`) from JWT, API key, or public-booking slug; attach to request context before handlers run
+- [ ] **gap-5.7.2** — Connection pool session — per request, set tenant on the DB connection (e.g. `SET LOCAL app.current_tenant_id = …` via TypeORM query runner / pool hook) so all queries in that request inherit the tenant context
+- [ ] **gap-5.7.3** — RLS policies on tenant-scoped tables — enable RLS + `USING (business_id = current_setting('app.current_tenant_id', true)::uuid)` on tables that carry `business_id` (bookings, customers, employees, services, schedules, gift cards, etc.); skip global tables (`users`, `businesses`)
+- [ ] **gap-5.7.4** — Migration / admin bypass — dedicated DB role with `BYPASSRLS` for migrations, cron, and background jobs that legitimately operate across tenants
+- [ ] **gap-5.7.5** — Tests — integration specs proving cross-tenant SELECT/UPDATE/DELETE fails at the database layer when RLS is enabled
+
+---
+
 ## Sprint 9 — Customer gift card purchase & delivery
 
 **Goal:** Let customers buy gift cards for themselves or others — monetary, service-specific, or bundled — with digital or physical delivery and full redemption tracking.
@@ -426,7 +442,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Goal:** Registered customers can cancel or move appointments; assigned provider, staff, and managers get app push when bookings change.
 
-**Status (web + backend):** Shipped except **gap-2.7.5** (native consumer app) and **gap-2.7.3** package/same-visit atomic customer reschedule (single-booking self-service only). Run `npm run test:sprint13` in `backend/`.
+**Status (web + backend):** Shipped except **gap-2.7.5** (native consumer app) and **gap-8.7** same-visit atomic customer reschedule for ad-hoc multi-service (package visit self-service shipped). Run `npm run test:sprint13` in `backend/`.
 
 - [x] **gap-2.7** — Registered customer cancel & reschedule (see spec below)
 - [x] **feature** — After checkout, confirmation email + success step link to **Manage booking** (`/book/{slug}/manage?bookingId=&token=`). Token flow works without login; optional Google sign-in on manage page; logged-in customers use **My appointments** (`/account`). Cancel/reschedule on manage page and account (not inline on success step).
@@ -439,7 +455,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [x] **gap-2.7.1** — Policy settings — `Settings → Public booking`: allow cancel/reschedule, minimum notice, max reschedules, allow provider change on reschedule
 - [x] **gap-2.7.2** — API — JWT: `POST /public/{slug}/me/bookings/:id/cancel|reschedule`; token (no login): `POST /public/{slug}/bookings/manage/cancel|reschedule` + `GET …/bookings/manage`; policy + ownership enforced
-- [ ] **gap-2.7.3** — Reschedule UX — **done (web):** single booking, slots, optional provider change. **Deferred:** **gap-8.3** package sub-bookings reschedule independently; **gap-8.7** same-visit group reschedules atomically via customer API
+- [x] **gap-2.7.3** — Reschedule UX — **done (web):** single booking + **package visit** cancel/reschedule (all sub-appointments in one flow). **Deferred:** **gap-8.7** same-visit multi-service group reschedules atomically via customer API
 - [x] **gap-2.7.4** — Web public booking — `/book/{slug}/account` “My appointments” + `/manage` token page; `PublicCustomerBookingActions` with policy messaging
 - [ ] **gap-2.7.5** — Consumer app (**gap-2.5**) — same flows on native app; confirmation screen with old vs new time *(web parity only today)*
 - [x] **gap-2.7.6** — Side effects — `booking.cancelled` / `booking.rescheduled` events; `restoreCreditForBooking` on cancel via shared `BookingService.cancel`

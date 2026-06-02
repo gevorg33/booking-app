@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
 import { useOperationalEvents } from './use-operational-events';
 
 type AiEventPayload = {
@@ -10,8 +11,6 @@ export function useProviderAiEvents(
   businessId: string | undefined,
   onEvent?: (type: string, payload: AiEventPayload) => void,
 ) {
-  const [toast, setToast] = useState<string | null>(null);
-
   useOperationalEvents(
     businessId,
     useCallback(
@@ -19,17 +18,14 @@ export function useProviderAiEvents(
         if (!type.startsWith('ai.')) return;
         const data = (payload ?? {}) as AiEventPayload;
         onEvent?.(type, data);
-        setToast(data.summary ?? 'AI update');
+        const message = data.summary ?? 'AI update';
+        if (type === 'ai.task.completed') {
+          sonnerToast.success(message, { duration: 4000 });
+        } else {
+          sonnerToast(message, { duration: 4000 });
+        }
       },
       [onEvent],
     ),
   );
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  return { toast, clearToast: () => setToast(null) };
 }

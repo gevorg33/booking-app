@@ -1,0 +1,81 @@
+.operation-feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.operation-feedback-spinner-card {
+  pointer-events: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 32px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.operation-feedback-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-width: 3px;
+  border-radius: 50%;
+  animation: operation-feedback-spin 0.8s linear infinite;
+}
+
+@keyframes operation-feedback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.operation-feedback-toasts {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  right: 16px;
+  z-index: 20001;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(calc(100vw - 32px), 24rem);
+  pointer-events: none;
+}
+
+.operation-feedback-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 14px;
+  line-height: 1.4;
+  border-left-width: 4px;
+}
+
+.operation-feedback-toast--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+  border-left-color: #ef4444;
+}
+
+.operation-feedback-toast-message {
+  flex: 1;
+}
+
+.operation-feedback-toast-dismiss {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: #9ca3af;
+  padding: 0;
+  cursor: pointer;
+}

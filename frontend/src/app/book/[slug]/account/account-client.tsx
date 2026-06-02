@@ -24,11 +24,14 @@ import { PublicGiftCardsSection } from '@/components/public-booking/public-gift-
 import { PublicGiftCardsRedeemedSection } from '@/components/public-booking/public-gift-cards-redeemed-section';
 import { PublicGiftCardClaimSection } from '@/components/public-booking/public-gift-card-claim-section';
 import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
+import { PublicCustomerPackageVisitActions } from '@/components/public-booking/public-customer-package-visit-actions';
+import { groupBookingsForAccount } from '@/lib/group-package-bookings';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/lib/app-dialog';
 
 function bookingStatusLabel(status: string, t: (key: string) => string) {
   switch (status) {
@@ -41,6 +44,57 @@ function bookingStatusLabel(status: string, t: (key: string) => string) {
     default:
       return status;
   }
+}
+
+function PackageVisitRow({
+  visit,
+  slug,
+  tenant,
+  primary,
+  t,
+  locale,
+  onUpdated,
+}: {
+  visit: ReturnType<typeof groupBookingsForAccount>['packageGroups'][number];
+  slug: string;
+  tenant: PublicBusinessProfile;
+  primary: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  locale: string;
+  onUpdated: () => void;
+}) {
+  const start = new Date(visit.appointments[0]?.startTime ?? Date.now());
+  const end = new Date(visit.appointments[visit.appointments.length - 1]?.endTime ?? Date.now());
+  const allCancelled = visit.appointments.every((a) => a.status === 'cancelled');
+
+  return (
+    <article className="bg-white rounded-2xl border border-gray-100 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-gray-900">{visit.packageName}</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {t('public.packageVisitAppointmentCount', { count: visit.appointments.length })}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {formatDateDisplay(start, locale)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
+          </p>
+        </div>
+        {allCancelled && (
+          <span className="text-xs font-medium text-gray-500 shrink-0">
+            {t('public.bookingStatusCancelled')}
+          </span>
+        )}
+      </div>
+      <PublicCustomerPackageVisitActions
+        slug={slug}
+        tenant={tenant}
+        primary={primary}
+        anchorBookingId={visit.anchorBookingId}
+        packageVisit={visit}
+        onUpdated={onUpdated}
+      />
+    </article>
+  );
 }
 
 function BookingRow({
@@ -276,7 +330,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                   disabled={privacyLoading !== null}
                   className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
                   onClick={async () => {
-                    if (!window.confirm(t('public.dataDeleteConfirm'))) return;
+                    if (!(await confirmDialog({ message: t('public.dataDeleteConfirm'), destructive: true }))) return;
                     setPrivacyLoading('delete');
                     setPrivacyMessage(null);
                     try {
@@ -366,17 +420,36 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {bookings.map((booking) => (
-                  <BookingRow
-                    key={booking.id}
-                    booking={booking}
-                    slug={tenant.slug}
-                    primary={primary}
-                    t={t}
-                    locale={locale}
-                    onUpdated={() => void reloadBookings()}
-                  />
-                ))}
+                {(() => {
+                  const { standalone, packageGroups } = groupBookingsForAccount(bookings);
+                  return (
+                    <>
+                      {packageGroups.map((visit) => (
+                        <PackageVisitRow
+                          key={visit.packagePurchaseId}
+                          visit={visit}
+                          slug={tenant.slug}
+                          tenant={tenant}
+                          primary={primary}
+                          t={t}
+                          locale={locale}
+                          onUpdated={() => void reloadBookings()}
+                        />
+                      ))}
+                      {standalone.map((booking) => (
+                        <BookingRow
+                          key={booking.id}
+                          booking={booking}
+                          slug={tenant.slug}
+                          primary={primary}
+                          t={t}
+                          locale={locale}
+                          onUpdated={() => void reloadBookings()}
+                        />
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </>

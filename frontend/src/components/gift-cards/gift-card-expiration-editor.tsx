@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay } from '@/lib/date-format';
+import { DatePicker } from '@/components/ui/date-picker';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -107,11 +108,11 @@ export function GiftCardExpirationEditor({
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="label">{t('monetization.expirationDate')}</label>
-            <input
-              type="date"
-              className="input max-w-[160px]"
+            <DatePicker
+              className="max-w-[200px]"
               value={expiresAtDay}
-              onChange={(e) => setExpiresAtDay(e.target.value)}
+              clearable
+              onChange={setExpiresAtDay}
             />
           </div>
           <button

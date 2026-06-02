@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle, Ban, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Ban, CheckCircle2, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, getTodayDateKey } from '@/lib/date-format';
 import { normalizeTime24 } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TablePagination } from '@/components/table/table-pagination';
+import { useI18n } from '@/i18n';
 
 const WEEKDAYS = [
   { key: 'isActiveOnMonday', label: 'Mon' },
@@ -48,6 +51,10 @@ function formatBlockSummary(item: BlockScheduleItem): string {
   return item.placeholderLabel;
 }
 
+const BLOCK_LIST_PAGE_SIZE = 10;
+
+type BlockViewTab = 'create' | 'active';
+
 export function BlockScheduleTab({
   business,
   employees,
@@ -55,6 +62,7 @@ export function BlockScheduleTab({
   business: { id: string };
   employees: Array<{ id: string; name: string }>;
 }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [employeeId, setEmployeeId] = useState('');
   const [placeholder, setPlaceholder] = useState('Blocked');
@@ -78,16 +86,40 @@ export function BlockScheduleTab({
   const [singleEndTime, setSingleEndTime] = useState('16:00');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [viewTab, setViewTab] = useState<BlockViewTab>('create');
+  const [listProviderSearch, setListProviderSearch] = useState('');
+  const [listPage, setListPage] = useState(1);
 
   const { data: blockSchedules = [], isLoading } = useQuery({
-    queryKey: ['block-schedules', business.id, employeeId],
+    queryKey: ['block-schedules', business.id],
     queryFn: async () => {
-      const params = employeeId ? { employeeId } : {};
-      const { data } = await api.get(`/businesses/${business.id}/schedules/block-schedules`, { params });
+      const { data } = await api.get(`/businesses/${business.id}/schedules/block-schedules`);
       return (data.data || data || []) as BlockScheduleItem[];
     },
     enabled: !!business.id,
   });
+
+  const filteredBlockSchedules = useMemo(() => {
+    const q = listProviderSearch.trim().toLowerCase();
+    if (!q) return blockSchedules;
+    return blockSchedules.filter((item) =>
+      (item.employee?.name ?? '').toLowerCase().includes(q),
+    );
+  }, [blockSchedules, listProviderSearch]);
+
+  const paginatedBlockSchedules = useMemo(() => {
+    const start = (listPage - 1) * BLOCK_LIST_PAGE_SIZE;
+    return filteredBlockSchedules.slice(start, start + BLOCK_LIST_PAGE_SIZE);
+  }, [filteredBlockSchedules, listPage]);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [listProviderSearch]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredBlockSchedules.length / BLOCK_LIST_PAGE_SIZE));
+    if (listPage > totalPages) setListPage(totalPages);
+  }, [filteredBlockSchedules.length, listPage]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['block-schedules'] });
@@ -126,6 +158,7 @@ export function BlockScheduleTab({
     },
     onSuccess: () => {
       setSuccess(true);
+      setViewTab('active');
       refresh();
       setTimeout(() => setSuccess(false), 3000);
     },
@@ -147,18 +180,34 @@ export function BlockScheduleTab({
 
   const canSubmit = !!employeeId && !createMutation.isPending;
 
+  const tabButtonClass = (active: boolean) =>
+    `flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+      active
+        ? 'border-blue-500 text-blue-400'
+        : 'border-transparent text-gray-400 hover:text-gray-200'
+    }`;
+
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div className="card space-y-4">
+    <div>
+      <div className="flex border-b border-gray-800 mb-6">
+        <button type="button" onClick={() => setViewTab('create')} className={tabButtonClass(viewTab === 'create')}>
+          <Plus className="w-4 h-4" />
+          {t('schedule.blockTabCreate')}
+        </button>
+        <button type="button" onClick={() => setViewTab('active')} className={tabButtonClass(viewTab === 'active')}>
+          <Ban className="w-4 h-4" />
+          {t('schedule.blockTabActive')}
+        </button>
+      </div>
+
+      {viewTab === 'create' ? (
+      <div className="card space-y-4 max-w-2xl">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Ban className="w-5 h-5 text-red-400" />
-            Create Block Schedule
+            {t('schedule.createBlockSchedule')}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
-            Block time on top of existing schedules. Service periods are split automatically
-            (e.g. 14:00–18:00 with a 15:00–16:00 block becomes 14:00–15:00 and 16:00–18:00).
-          </p>
+          <p className="text-sm text-gray-400 mt-1">{t('schedule.createBlockScheduleHint')}</p>
         </div>
 
         <div>
@@ -198,11 +247,11 @@ export function BlockScheduleTab({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">From date</label>
-                <input type="date" className="input" value={startDay} onChange={(e) => setStartDay(e.target.value)} />
+                <DatePicker value={startDay} onChange={setStartDay} />
               </div>
               <div>
                 <label className="label">To date</label>
-                <input type="date" className="input" value={endDay} onChange={(e) => setEndDay(e.target.value)} />
+                <DatePicker value={endDay} onChange={setEndDay} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -248,7 +297,7 @@ export function BlockScheduleTab({
           <>
             <div>
               <label className="label">Date</label>
-              <input type="date" className="input" value={singleDay} onChange={(e) => setSingleDay(e.target.value)} />
+              <DatePicker value={singleDay} onChange={setSingleDay} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -295,35 +344,60 @@ export function BlockScheduleTab({
           )}
         </button>
       </div>
-
-      <div className="card">
-        <h2 className="text-lg font-semibold mb-4">Active Block Schedules</h2>
+      ) : (
+      <div className="card flex flex-col max-w-3xl">
+        <h2 className="text-lg font-semibold mb-3">{t('schedule.activeBlockSchedules')}</h2>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <input
+            type="search"
+            className="input pl-9"
+            value={listProviderSearch}
+            onChange={(e) => setListProviderSearch(e.target.value)}
+            placeholder={t('schedule.searchBlockByProvider')}
+            aria-label={t('schedule.searchBlockByProvider')}
+          />
+        </div>
         {isLoading ? (
-          <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-blue-400" /></div>
+          <div className="flex justify-center py-10">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+          </div>
         ) : blockSchedules.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center">No block schedules yet.</p>
+          <p className="text-sm text-gray-500 py-8 text-center">{t('schedule.noBlockSchedules')}</p>
+        ) : filteredBlockSchedules.length === 0 ? (
+          <p className="text-sm text-gray-500 py-8 text-center">{t('schedule.noBlockSchedulesMatch')}</p>
         ) : (
-          <ul className="divide-y divide-gray-800">
-            {blockSchedules.map((item) => (
-              <li key={item.id} className="py-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm">{item.placeholderLabel}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.employee?.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{formatBlockSummary(item)}</p>
-                </div>
-                <button
-                  onClick={() => deleteMutation.mutate(item.id)}
-                  disabled={deleteMutation.isPending}
-                  className="p-2 text-red-400 hover:bg-red-600/10 rounded-lg shrink-0"
-                  title="Remove block schedule"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-gray-800 flex-1">
+              {paginatedBlockSchedules.map((item) => (
+                <li key={item.id} className="py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{item.placeholderLabel}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{item.employee?.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatBlockSummary(item)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending}
+                    className="p-2 text-red-400 hover:bg-red-600/10 rounded-lg shrink-0"
+                    title="Remove block schedule"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <TablePagination
+              page={listPage}
+              pageSize={BLOCK_LIST_PAGE_SIZE}
+              totalItems={filteredBlockSchedules.length}
+              onPageChange={setListPage}
+            />
+          </>
         )}
       </div>
+      )}
     </div>
   );
 }

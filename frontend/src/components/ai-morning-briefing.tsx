@@ -35,7 +35,7 @@ export function AiMorningBriefing() {
 
   if (isLoading) {
     return (
-      <div className="card border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-gray-900/40 mb-6 flex items-center gap-3">
+      <div className="card flex items-center gap-3 border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-gray-900/40">
         <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
         <span className="text-sm text-gray-400">Preparing morning briefing…</span>
       </div>
@@ -45,7 +45,7 @@ export function AiMorningBriefing() {
   if (!data) return null;
 
   return (
-    <div className="card border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-gray-900/50 mb-6">
+    <div className="card border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-gray-900/50">
       <div className="flex items-start gap-3 mb-4">
         <Sun className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
         <div>

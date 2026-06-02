@@ -144,10 +144,10 @@ and extract structured parameters. Return a JSON object with:
     "bufferMinutes": number or null — buffer after service in minutes (create_service), default 0,
     "price": number or null — service price (create_service), e.g. 50 or 29.99,
     "currency": "string or null — ISO currency code (create_service), default USD",
-    "date": "DD_MM_YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31_05_2026). For other actions: the date referenced.",
-    "dateFrom": "DD_MM_YYYY or null — start of range if a range is mentioned",
-    "dateTo": "DD_MM_YYYY or null — end of range",
-    "fromDate": "DD_MM_YYYY or null — for reschedule_booking only: current appointment date when identifying which booking to move",
+    "date": "DD/MM/YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31/05/2026). For other actions: the date referenced.",
+    "dateFrom": "DD/MM/YYYY or null — start of range if a range is mentioned",
+    "dateTo": "DD/MM/YYYY or null — end of range",
+    "fromDate": "DD/MM/YYYY or null — for reschedule_booking only: current appointment date when identifying which booking to move",
     "fromTimeSlot": "HH:MM or null — for reschedule_booking only: current appointment start time when identifying which booking to move",
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
@@ -203,7 +203,7 @@ Rules:
 - Do not use create_service when booking an appointment — that is create_booking.
 - "Who has a X schedule today at 9" / "which provider is working at 09:00" are READ-ONLY show_appointments — NOT create_booking. Never interpret the noun "schedule" in a question as a booking verb.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
-- Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30_06_2026", "what is Gevorg's schedule on Friday", "does Gevorg do face massage today at 9", "is Gevorg available to give facemassage at 09:00". Always set employeeName, serviceName, date, and timeSlot when mentioned. NEVER use create_booking for these questions.
+- Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30/06/2026", "what is Gevorg's schedule on Friday", "does Gevorg do face massage today at 9", "is Gevorg available to give facemassage at 09:00". Always set employeeName, serviceName, date, and timeSlot when mentioned. NEVER use create_booking for these questions.
 - lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), return only providers with an applied SERVICE_BLOCK for that service on that day AND at least one unbooked open window inside those blocks — NOT the general catalog assignment list. Use for "who is doing facemassage today", "who has a free slot for facemassage today", "who can do face massage tomorrow".
 - analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
 - summarize_bookings: READ-ONLY booking analytics — counts, revenue, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "who is the busiest provider today", "how many cancelled today". NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
@@ -235,7 +235,7 @@ Rules:
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
 - fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).
-- reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, bookingId, or employeeName — provider alone is enough to pick their next upcoming appointment). Set date/timeSlot to the NEW destination (tomorrow, Friday, 31_05_2026, 13:30). Set fromDate/fromTimeSlot only when naming the current slot (e.g. Maria's 14:00 appointment). "Move Mary's appointment to tomorrow from 13:30" → employeeName=Mary, date=tomorrow, timeSlot=13:30. Set serviceName when changing service.
+- reschedule_booking: move an existing appointment to a new time and/or change its service type. Requires identifying the booking (customerName, bookingId, or employeeName — provider alone is enough to pick their next upcoming appointment). Set date/timeSlot to the NEW destination (tomorrow, Friday, 31/05/2026, 13:30). Set fromDate/fromTimeSlot only when naming the current slot (e.g. Maria's 14:00 appointment). "Move Mary's appointment to tomorrow from 13:30" → employeeName=Mary, date=tomorrow, timeSlot=13:30. Set serviceName when changing service.
 - CRITICAL: "{Provider}'s appointment on {date}" (e.g. "Move Gevorg's appointment on June 1") refers to a slot on that provider's calendar — set employeeName=Gevorg, fromDate=June 1, customerName=null. NEVER treat the provider name as customerName.
 - "Move to June 11 nearest free time" / "earliest available slot on Friday" → reschedule_booking with fromDate for the current slot, date=destination day, employeeName when provider possessive is used, bookingFirstAvailable=true, timeSlot=null. The system picks the first open slot on that day for the same provider and service.
 - resolve_conflicts: staff/scheduling conflicts, overlapping appointments, double-booked providers.
@@ -248,9 +248,9 @@ Rules:
 - Example follow-up: after utilization summary for this week, "which exact days does Gevorg have gaps" → action list_schedule_gaps, employeeName="Gevorg Gasparyan", inherit dateFrom/dateTo from session.
 - Example follow-up: after list_schedule_gaps or summarize_utilization, "fill those gaps" / "fill them with his services" → action fill_unused_slots, inherit employeeName, dateFrom/dateTo, timeFrom/timeTo from session.
 - Example follow-up: after "how many appointments today", "who is the busiest" → action summarize_bookings, bookingMetric="busiest_provider", inherit date from session.
-- Example follow-up: after "available slots for Gevorg on 30_06_2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30_06_2026", serviceName="facemassage", timeSlot="16:00".
+- Example follow-up: after "available slots for Gevorg on 30/06/2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30/06/2026", serviceName="facemassage", timeSlot="16:00".
 - Example follow-up: after show_appointments, "change service to hot stone massage" → action reschedule_booking, inherit customerName/date/timeSlot from session, serviceName="hot stone massage".
-- Dates may appear as DD_MM_YYYY or DD/MM/YYYY — normalize to DD_MM_YYYY in params.`;
+- Use DD/MM/YYYY for all date params (legacy DD_MM_YYYY is still accepted when parsing).`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -478,7 +478,7 @@ export class AiCommandService {
   ): Promise<CommandResult> {
     const { employees, services, customers, templates } = catalog;
 
-    const contextBlock = `Current date: ${todayDisplay(timeZone)} (format DD_MM_YYYY, timezone: ${timeZone}, times in 24h HH:mm)
+    const contextBlock = `Current date: ${todayDisplay(timeZone)} (format DD/MM/YYYY, timezone: ${timeZone}, times in 24h HH:mm)
 Available employees: ${employees.map((e) => `${e.name} (id: ${e.id})`).join(', ')}
 Available services: ${services.map((s) => `${s.name} (id: ${s.id})`).join(', ')}
 Available customers: ${customers.map((c) => `${c.name} (id: ${c.id})`).join(', ')}

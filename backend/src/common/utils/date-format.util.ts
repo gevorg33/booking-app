@@ -1,9 +1,9 @@
 import { addDaysToDateKey, getDateKeyInTimezone, resolveTimezone } from './timezone.util.js';
 
-/** DD_MM_YYYY from YYYY-MM-DD calendar key. */
+/** DD/MM/YYYY from YYYY-MM-DD calendar key. */
 export function dateKeyToDisplay(dateKey: string): string {
   const [yyyy, mm, dd] = dateKey.split('-');
-  return `${dd}_${mm}_${yyyy}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 /** Calendar date key (YYYY-MM-DD) for "now" in the given timezone. */
@@ -11,14 +11,14 @@ export function getTodayDateKey(timeZone = 'UTC'): string {
   return getDateKeyInTimezone(new Date(), timeZone);
 }
 
-/** User-facing date: DD_MM_YYYY (UTC). */
+/** User-facing date: DD/MM/YYYY (UTC). */
 export function formatDateDisplay(input: Date | string): string {
   const d = typeof input === 'string' ? parseDateInput(input) : input;
   if (!d || Number.isNaN(d.getTime())) return String(input);
   const dd = String(d.getUTCDate()).padStart(2, '0');
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = String(d.getUTCFullYear());
-  return `${dd}_${mm}_${yyyy}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 /** User-facing time: 24-hour HH:mm (UTC). */
@@ -34,7 +34,7 @@ export function formatTimeRangeDisplay(start: Date | string, end: Date | string)
   return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
 }
 
-/** Parse DD_MM_YYYY, DD/MM/YYYY, or YYYY-MM-DD into a UTC midnight Date. */
+/** Parse DD/MM/YYYY, legacy DD_MM_YYYY, or YYYY-MM-DD into a UTC midnight Date. */
 export function parseDateInput(value: string): Date | null {
   const display = value.match(/^(\d{2})_(\d{2})_(\d{4})$/);
   if (display) {

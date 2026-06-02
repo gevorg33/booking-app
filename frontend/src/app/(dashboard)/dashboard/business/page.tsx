@@ -12,6 +12,7 @@ import {
   profileFormToPayload,
   type BusinessProfileForm,
 } from '@/lib/business-profile';
+import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { bookPath } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
@@ -37,7 +38,7 @@ export default function BusinessProfilePage() {
     queryKey: ['business-profile', business?.id],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${business!.id}`);
-      return res.data || res;
+      return unwrapBusinessApiPayload(res);
     },
     enabled: !!business?.id,
   });
@@ -99,6 +100,7 @@ export default function BusinessProfilePage() {
         </div>
       ) : (
         <form
+          id="business-profile-form"
           onSubmit={(e) => {
             e.preventDefault();
             saveMutation.mutate();
@@ -111,9 +113,21 @@ export default function BusinessProfilePage() {
               businessId={business.id}
               businessName={form.name}
               logoUrl={form.branding.logoUrl ?? ''}
-              onChange={(logoUrl) =>
-                setForm({ ...form, branding: { ...form.branding, logoUrl } })
-              }
+              onChange={(logoUrl) => {
+                setForm({ ...form, branding: { ...form.branding, logoUrl } });
+                if (logoUrl.trim()) {
+                  void api
+                    .put(`/businesses/${business.id}/profile`, {
+                      branding: { logoUrl: logoUrl.trim() },
+                    })
+                    .then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['business-profile', business.id] });
+                    })
+                    .catch(() => {
+                      /* user can still save manually */
+                    });
+                }
+              }}
               disabled={saveMutation.isPending}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,39 +292,40 @@ export default function BusinessProfilePage() {
               </div>
             )}
           </section>
+        </form>
+      )}
 
+      {business?.slug && (
+        <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+      )}
+
+      {form && (
+        <div className="mt-6 space-y-3 border-t border-gray-800 pt-6">
           {saveMutation.isError && (
             <p className="text-sm text-red-400">
               {(saveMutation.error as any)?.response?.data?.message || 'Failed to save profile'}
             </p>
           )}
-
           <button
             type="submit"
+            form="business-profile-form"
             disabled={saveMutation.isPending}
             className="btn-primary inline-flex items-center gap-2"
           >
             {saveMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Saving…
+                {t('common.saving')}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                {saveMutation.isPending ? t('common.saving') : t('business.saveProfile')}
+                {t('business.saveProfile')}
               </>
             )}
           </button>
-
-          {saved && (
-            <p className="text-sm text-green-400">Profile saved successfully.</p>
-          )}
-        </form>
-      )}
-
-      {business?.slug && (
-        <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+          {saved && <p className="text-sm text-green-400">Profile saved successfully.</p>}
+        </div>
       )}
     </div>
   );

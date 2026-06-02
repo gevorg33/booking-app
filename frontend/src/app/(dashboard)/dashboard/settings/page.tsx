@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Settings, Bell, MessageCircle, KeyRound } from 'lucide-react';
+import { Settings, Bell, MessageCircle, KeyRound, Store } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { NotificationEmailTemplatesPanel } from '@/components/dashboard/notification-email-templates-panel';
+import { CustomerReminderSettingsPanel } from '@/components/settings/customer-reminder-settings-panel';
 import { PublicBookingSelfServiceSettings } from '@/components/settings/public-booking-self-service-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
@@ -11,6 +14,7 @@ import { useI18n } from '@/i18n';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import type { AppLocale } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 interface NotificationSettings {
   emailEnabled: boolean;
@@ -26,6 +30,9 @@ interface NotificationSettings {
   reminder1hWhatsapp: boolean;
   reminderImmediateWhatsapp: boolean;
   notifyBusinessOnCustomerBookingChange: boolean;
+  allowCustomerReminderChoice: boolean;
+  customerReminderOptionsHours: number[];
+  defaultCustomerReminderHours: number | null;
 }
 
 interface WhatsAppIntegrationSettings {
@@ -105,6 +112,9 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
   notifyBusinessOnCustomerBookingChange: false,
+  allowCustomerReminderChoice: false,
+  customerReminderOptionsHours: [24, 1],
+  defaultCustomerReminderHours: 24,
 };
 
 const DEFAULT_WHATSAPP_FORM: WhatsAppIntegrationForm = {
@@ -148,7 +158,27 @@ function normalizeNotificationSettings(
     notifyBusinessOnCustomerBookingChange:
       raw?.notifyBusinessOnCustomerBookingChange ??
       DEFAULT_NOTIFICATION_SETTINGS.notifyBusinessOnCustomerBookingChange,
+    allowCustomerReminderChoice:
+      raw?.allowCustomerReminderChoice ?? DEFAULT_NOTIFICATION_SETTINGS.allowCustomerReminderChoice,
+    customerReminderOptionsHours: normalizeReminderHoursList(
+      raw?.customerReminderOptionsHours ?? DEFAULT_NOTIFICATION_SETTINGS.customerReminderOptionsHours,
+    ),
+    defaultCustomerReminderHours:
+      raw?.defaultCustomerReminderHours ?? DEFAULT_NOTIFICATION_SETTINGS.defaultCustomerReminderHours,
   };
+}
+
+function normalizeReminderHoursList(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [24, 1];
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const entry of raw) {
+    const hours = Math.round(Number(entry));
+    if (!Number.isFinite(hours) || hours < 1 || hours > 168 || seen.has(hours)) continue;
+    seen.add(hours);
+    result.push(hours);
+  }
+  return result.length ? result.sort((a, b) => b - a) : [24, 1];
 }
 
 function whatsappConnectionModeFromApi(data: WhatsAppIntegrationSettings): WhatsAppConnectionMode {
@@ -182,21 +212,6 @@ function openAiFormFromApi(data: OpenAiIntegrationSettings): OpenAiIntegrationFo
   };
 }
 
-function formatUsd(amount: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(amount);
-}
-
-function formatSurfaceLabel(surface: string, t: (key: string) => string): string {
-  const key = `settings.openAiSurface_${surface}`;
-  const translated = t(key);
-  return translated !== key ? translated : surface.replace(/_/g, ' ');
-}
-
 function ToggleRow({
   label,
   checked,
@@ -206,17 +221,7 @@ function ToggleRow({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
-  return (
-    <label className="flex items-center justify-between gap-4 py-2 text-sm">
-      <span className="text-gray-700 dark:text-gray-300">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 rounded border-gray-300"
-      />
-    </label>
-  );
+  return <ToggleChoice variant="dashboard" label={label} checked={checked} onChange={onChange} />;
 }
 
 function FieldRow({
@@ -443,6 +448,19 @@ export default function SettingsPage() {
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">{t('settings.subtitle')}</p>
 
       <div className="card space-y-6">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Store className="w-4 h-4 text-violet-400" />
+            {t('settings.businessProfileSection')}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            {t('settings.businessProfileSectionDescription')}
+          </p>
+          <Link href="/dashboard/business" className="btn-primary text-sm inline-flex items-center gap-2">
+            {t('settings.editBusinessProfile')}
+          </Link>
+        </div>
+
         <div>
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{t('settings.themeSection')}</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('settings.themeDescription')}</p>
@@ -486,6 +504,21 @@ export default function SettingsPage() {
               />
             </div>
           )}
+          {notif && (
+            <CustomerReminderSettingsPanel
+              enabled={notif.allowCustomerReminderChoice}
+              optionsHours={notif.customerReminderOptionsHours}
+              defaultHours={notif.defaultCustomerReminderHours}
+              onChange={(next) =>
+                setNotif({
+                  ...notif,
+                  allowCustomerReminderChoice: next.allowCustomerReminderChoice,
+                  customerReminderOptionsHours: next.customerReminderOptionsHours,
+                  defaultCustomerReminderHours: next.defaultCustomerReminderHours,
+                })
+              }
+            />
+          )}
           <button
             type="button"
             onClick={() => saveNotifications.mutate()}
@@ -498,6 +531,8 @@ export default function SettingsPage() {
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">{t('settings.notificationsSaved')}</p>
           )}
         </div>
+
+        <NotificationEmailTemplatesPanel />
 
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -687,50 +722,6 @@ export default function SettingsPage() {
                 autoComplete="off"
               />
             </FieldRow>
-          )}
-
-          {openAiMeta?.usage && (
-            <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {t('settings.openAiUsageTitle')}
-              </h3>
-              <p className="text-xs text-gray-500">
-                {t('settings.openAiUsagePeriod')}: {openAiMeta.usage.periodStart} → {openAiMeta.usage.periodEnd}
-              </p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-500 text-xs">{t('settings.openAiUsageRequests')}</p>
-                  <p className="font-medium">{openAiMeta.usage.totalRequests}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">{t('settings.openAiUsageTokens')}</p>
-                  <p className="font-medium">{openAiMeta.usage.totalTokens.toLocaleString()}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-gray-500 text-xs">{t('settings.openAiUsagePlatformCost')}</p>
-                  <p className="font-medium">{formatUsd(openAiMeta.usage.estimatedPlatformCostUsd)}</p>
-                  <p className="text-xs text-gray-500 mt-1">{t('settings.openAiUsagePlatformCostHint')}</p>
-                </div>
-              </div>
-              {openAiMeta.usage.bySurface.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    {t('settings.openAiUsageBySurface')}
-                  </p>
-                  <ul className="text-xs space-y-1 text-gray-600 dark:text-gray-400">
-                    {openAiMeta.usage.bySurface.map((row) => (
-                      <li key={row.surface} className="flex justify-between gap-2">
-                        <span>{formatSurfaceLabel(row.surface, t)}</span>
-                        <span>
-                          {row.totalTokens.toLocaleString()} {t('settings.openAiUsageTokensShort')}
-                          {row.platformCostUsd > 0 ? ` · ${formatUsd(row.platformCostUsd)}` : ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
           )}
 
           {openAiError && (

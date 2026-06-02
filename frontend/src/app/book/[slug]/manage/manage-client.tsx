@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
+import { PublicCustomerPackageVisitActions } from '@/components/public-booking/public-customer-package-visit-actions';
 import {
   getPublicBookingManageContext,
   type PublicBookingManageContext,
@@ -95,13 +96,26 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
           <p className="text-sm text-red-600 mt-6">{error ?? t('public.manageBookingInvalidLink')}</p>
         ) : (
           <article className="mt-6 bg-white rounded-2xl border border-gray-100 px-4 py-4">
-            <p className="font-medium text-gray-900">{context.serviceName}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{context.employeeName}</p>
-            <p className="text-sm text-gray-600 mt-2">
-              {formatDateDisplay(context.startTime, locale)} ·{' '}
-              {formatScheduleTime(new Date(context.startTime))} –{' '}
-              {formatScheduleTime(new Date(context.endTime))}
-            </p>
+            {context.packageVisit && context.packageVisit.appointments.length > 0 ? (
+              <>
+                <p className="font-medium text-gray-900">{context.packageVisit.packageName}</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {t('public.packageVisitAppointmentCount', {
+                    count: context.packageVisit.appointments.length,
+                  })}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-gray-900">{context.serviceName}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{context.employeeName}</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  {formatDateDisplay(context.startTime, locale)} ·{' '}
+                  {formatScheduleTime(new Date(context.startTime))} –{' '}
+                  {formatScheduleTime(new Date(context.endTime))}
+                </p>
+              </>
+            )}
 
             {!customer && context.customerEmail && (
               <div className="mt-4 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-600">
@@ -131,21 +145,43 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
               <p className="text-sm text-green-700 mt-3 rounded-lg bg-green-50 px-3 py-2">{rescheduleNotice}</p>
             )}
 
-            <PublicCustomerBookingActions
-              booking={bookingItem}
-              slug={tenant.slug}
-              primary={primary}
-              manageToken={token}
-              onUpdated={() => void reloadContext()}
-              onRescheduled={(previous, next) => {
-                setRescheduleNotice(
-                  t('public.rescheduleSuccessDetail', {
-                    from: `${formatDateDisplay(previous, locale)} ${formatScheduleTime(new Date(previous))}`,
-                    to: `${formatDateDisplay(next, locale)} ${formatScheduleTime(new Date(next))}`,
-                  }),
-                );
-              }}
-            />
+            {context.packageVisit ? (
+              <PublicCustomerPackageVisitActions
+                slug={tenant.slug}
+                tenant={tenant}
+                primary={primary}
+                anchorBookingId={context.bookingId}
+                packageVisit={context.packageVisit}
+                manageToken={token}
+                onUpdated={() => void reloadContext()}
+                onRescheduled={(previous, next) => {
+                  setRescheduleNotice(
+                    t('public.reschedulePackageVisitSuccess', {
+                      from: `${formatDateDisplay(previous, locale)} ${formatScheduleTime(new Date(previous))}`,
+                      to: `${formatDateDisplay(next, locale)} ${formatScheduleTime(new Date(next))}`,
+                    }),
+                  );
+                }}
+              />
+            ) : (
+              bookingItem && (
+                <PublicCustomerBookingActions
+                  booking={bookingItem}
+                  slug={tenant.slug}
+                  primary={primary}
+                  manageToken={token}
+                  onUpdated={() => void reloadContext()}
+                  onRescheduled={(previous, next) => {
+                    setRescheduleNotice(
+                      t('public.rescheduleSuccessDetail', {
+                        from: `${formatDateDisplay(previous, locale)} ${formatScheduleTime(new Date(previous))}`,
+                        to: `${formatDateDisplay(next, locale)} ${formatScheduleTime(new Date(next))}`,
+                      }),
+                    );
+                  }}
+                />
+              )
+            )}
           </article>
         )}
 

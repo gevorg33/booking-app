@@ -25,7 +25,7 @@ export default async function PublicBookingLayout({
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] text-gray-900">
+    <div className="min-h-screen bg-[#f5f5f7] text-gray-900 [color-scheme:light]">
       <style>{`:root { --tenant-primary: ${primary}; }`}</style>
       <PublicLocaleBootstrap businessLocale={tenant.locale} />
       <PublicBookingShell slug={slug}>{children}</PublicBookingShell>

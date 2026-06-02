@@ -34,4 +34,33 @@ export interface PublicCustomerBookingItem {
   rescheduleCount: number;
   maxReschedules: number;
   allowProviderChangeOnReschedule?: boolean;
+  packagePurchaseId?: string | null;
+  packageId?: string | null;
+  packageName?: string | null;
+}
+
+export interface PublicPackageVisitAppointment {
+  bookingId: string;
+  serviceId: string;
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  employeeName: string;
+  status: string;
+  canCancel: boolean;
+  canReschedule: boolean;
+  rescheduleCount: number;
+  maxReschedules: number;
+}
+
+export interface PublicPackageVisitSummary {
+  packagePurchaseId: string;
+  packageId: string | null;
+  packageName: string;
+  appointments: PublicPackageVisitAppointment[];
+  canCancelAll: boolean;
+  canRescheduleAll: boolean;
+  policyMessage: string | null;
+  allowProviderChangeOnReschedule: boolean;
 }

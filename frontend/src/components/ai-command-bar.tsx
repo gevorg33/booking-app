@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Send, X, Loader2, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { Sparkles, Send, X, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/ai-orchestration';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { useAiEvents } from '@/lib/use-ai-events';
+import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname } from 'next/navigation';
@@ -173,7 +174,7 @@ export function AiCommandBar() {
       estimatedSize,
     });
 
-  const { toasts, dismissToast } = useAiEvents(business?.id, {
+  useAiEvents(business?.id, {
     onClarify: () => setOpen(true),
     onTaskProgress: () => setOpen(true),
     onTaskCompleted: () => {
@@ -485,10 +486,10 @@ export function AiCommandBar() {
     setSessionContext({});
   }, []);
 
-  const handleUndoLatest = useCallback(() => {
+  const handleUndoLatest = useCallback(async () => {
     if (!undoPreview?.undoable || undoLatestMutation.isPending) return;
     const label = t('ai.undoLatestConfirm').replace('{intent}', undoPreview.intent);
-    if (!window.confirm(label)) return;
+    if (!(await confirmDialog({ message: label, destructive: true }))) return;
     undoLatestMutation.mutate();
   }, [t, undoLatestMutation, undoPreview]);
 
@@ -505,34 +506,6 @@ export function AiCommandBar() {
 
   return (
     <>
-      {toasts.length > 0 && (
-        <div className="fixed bottom-24 right-6 z-[60] flex flex-col gap-2 max-w-sm">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`rounded-lg border px-3 py-2 text-sm shadow-lg backdrop-blur ${
-                toast.type === 'ai.clarify'
-                  ? 'bg-amber-950/90 border-amber-700/50 text-amber-100'
-                  : toast.type === 'ai.task.progress'
-                    ? 'bg-violet-950/90 border-violet-700/50 text-violet-100'
-                    : 'bg-green-950/90 border-green-700/50 text-green-100'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs leading-relaxed">{toast.message}</p>
-                <button
-                  type="button"
-                  onClick={() => dismissToast(toast.id)}
-                  className="text-gray-400 hover:text-white shrink-0"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Floating button */}
       {!open && (
         <button
@@ -586,11 +559,9 @@ export function AiCommandBar() {
               }
               aria-label={t('ai.undoLatest')}
             >
-              {undoLatestMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Undo2 className="w-4 h-4" />
-              )}
+              <Undo2
+                className={`w-4 h-4 ${undoLatestMutation.isPending ? 'opacity-40' : ''}`}
+              />
             </button>
             <button
               type="button"
@@ -739,9 +710,8 @@ export function AiCommandBar() {
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin" />
-                  <span className="text-xs text-gray-400">Thinking...</span>
+                <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                  <span className="text-xs text-gray-400">Thinking…</span>
                 </div>
               </div>
             )}

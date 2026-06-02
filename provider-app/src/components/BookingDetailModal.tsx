@@ -18,6 +18,7 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '../lib/date-format';
+import { DatePicker } from './DatePicker';
 import {
   type BookingDetail,
   type BookingStatus,
@@ -437,12 +438,7 @@ export default function BookingDetailModal({
                 <h3>Reschedule</h3>
                 <IonItem lines="full">
                   <IonLabel position="stacked">Date</IonLabel>
-                  <input
-                    type="date"
-                    className="native-date-input"
-                    value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
-                  />
+                  <DatePicker value={rescheduleDate} onChange={setRescheduleDate} />
                 </IonItem>
                 <IonItem lines="full">
                   <IonLabel position="stacked">Start time (24h)</IonLabel>

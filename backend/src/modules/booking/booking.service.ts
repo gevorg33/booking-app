@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In, DataSource } from 'typeorm';
+import { Repository, Between, Not, In, DataSource, EntityManager } from 'typeorm';
 import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
 import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
@@ -44,6 +44,14 @@ export interface AppointmentsSearchResult {
   page: number;
   pageSize: number;
   appointments: AppointmentListItem[];
+}
+
+export interface SameVisitBlockRescheduleSegment {
+  bookingId: string;
+  startTime: string;
+  employeeId: string;
+  metadata?: Record<string, unknown>;
+  expectedUpdatedAt?: string;
 }
 
 @Injectable()
@@ -343,7 +351,18 @@ export class BookingService {
     return this.findOne(booking.id);
   }
 
-  async update(bookingId: string, dto: UpdateBookingDto, userId?: string, internal?: { skipGroupReschedule?: boolean }): Promise<Booking> {
+  async update(
+    bookingId: string,
+    dto: UpdateBookingDto,
+    userId?: string,
+    internal?: {
+      skipGroupReschedule?: boolean;
+      /** Package / same-visit block segment — skip per-segment micro-slot service checks. */
+      sameVisitBlockSegment?: boolean;
+      /** Other bookings in the visit still at old times while rescheduling segment-by-segment. */
+      excludeBookingIds?: string[];
+    },
+  ): Promise<Booking> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: { employee: true, service: true, customer: true },
@@ -435,21 +454,25 @@ export class BookingService {
         newEnd,
       );
 
-      await this.validateBookingWindow(
-        booking.businessId,
-        targetEmployeeId,
-        targetStart,
-        newEnd,
-        targetServiceId,
-        bookingId,
-      );
+      const excludeBookingIds = this.mergeExcludeBookingIds(bookingId, internal?.excludeBookingIds);
+
+      if (!internal?.sameVisitBlockSegment) {
+        await this.validateBookingWindow(
+          booking.businessId,
+          targetEmployeeId,
+          targetStart,
+          newEnd,
+          targetServiceId,
+          excludeBookingIds,
+        );
+      }
 
       const newSlots = await this.findSlotsInWindow(
         booking.businessId,
         targetEmployeeId,
         targetStart,
         newEnd,
-        targetServiceId,
+        internal?.sameVisitBlockSegment ? undefined : targetServiceId,
       );
 
       if (newSlots.length === 0) {
@@ -458,7 +481,7 @@ export class BookingService {
           targetEmployeeId,
           targetStart,
           newEnd,
-          bookingId,
+          excludeBookingIds,
         );
         if (conflicts.length > 0) {
           throw new ConflictException('Time slot is already booked');
@@ -886,7 +909,7 @@ export class BookingService {
       booking.startTime,
       booking.endTime,
       booking.serviceId,
-      booking.id,
+      [booking.id],
     );
 
     const slotsToLock = await this.findSlotsInWindow(
@@ -903,7 +926,7 @@ export class BookingService {
         booking.employeeId,
         booking.startTime,
         booking.endTime,
-        booking.id,
+        [booking.id],
       );
       if (conflicts.length > 0) {
         throw new ConflictException('Cannot restore: time slot is already booked');
@@ -1074,7 +1097,7 @@ export class BookingService {
     blockStart: Date,
     blockEnd: Date,
     serviceIds: string[],
-    excludeBookingId?: string,
+    excludeBookingIds?: string[],
   ): Promise<void> {
     const periodCheck = await this.checkServicePeriodsForMultiService(
       businessId,
@@ -1103,7 +1126,7 @@ export class BookingService {
         employeeId,
         blockStart,
         blockEnd,
-        excludeBookingId,
+        excludeBookingIds,
       );
       if (hasActiveBooking) {
         throw new ConflictException(
@@ -1140,7 +1163,7 @@ export class BookingService {
           employeeId,
           blockStart,
           blockEnd,
-          excludeBookingId,
+          excludeBookingIds,
         );
         if (hasActiveBooking) {
           throw new ConflictException(
@@ -1173,7 +1196,7 @@ export class BookingService {
       employeeId,
       blockStart,
       blockEnd,
-      excludeBookingId,
+      excludeBookingIds,
     );
     if (hasActiveBooking) {
       throw new ConflictException(
@@ -1461,7 +1484,7 @@ export class BookingService {
     startTime: Date,
     endTime: Date,
     serviceId: string,
-    excludeBookingId?: string,
+    excludeBookingIds?: string[],
   ): Promise<void> {
     await this.validateAgainstServicePeriods(businessId, employeeId, startTime, endTime, serviceId);
 
@@ -1512,7 +1535,7 @@ export class BookingService {
           employeeId,
           startTime,
           endTime,
-          excludeBookingId,
+          excludeBookingIds,
         );
         if (hasActiveBooking) {
           throw new ConflictException(
@@ -1755,12 +1778,28 @@ export class BookingService {
     return qb.getMany();
   }
 
+  private mergeExcludeBookingIds(
+    bookingId: string,
+    extra?: string[],
+  ): string[] {
+    return [...new Set([bookingId, ...(extra ?? [])])];
+  }
+
+  private applyBookingIdExclusions(
+    qb: { andWhere: (clause: string, params: Record<string, unknown>) => unknown },
+    excludeBookingIds?: string[],
+  ): void {
+    if (excludeBookingIds?.length) {
+      qb.andWhere('booking.id NOT IN (:...excludeBookingIds)', { excludeBookingIds });
+    }
+  }
+
   private async hasActiveBookingOverlap(
     businessId: string,
     employeeId: string,
     startTime: Date,
     endTime: Date,
-    excludeBookingId?: string,
+    excludeBookingIds?: string[],
   ): Promise<boolean> {
     const qb = this.bookingRepo
       .createQueryBuilder('booking')
@@ -1770,9 +1809,7 @@ export class BookingService {
       .andWhere('booking.startTime < :endTime', { endTime })
       .andWhere('booking.endTime > :startTime', { startTime });
 
-    if (excludeBookingId) {
-      qb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
-    }
+    this.applyBookingIdExclusions(qb, excludeBookingIds);
 
     const count = await qb.getCount();
     return count > 0;
@@ -1783,7 +1820,7 @@ export class BookingService {
     employeeId: string,
     startTime: Date,
     endTime: Date,
-    excludeBookingId?: string,
+    excludeBookingIds?: string[],
   ): Promise<Booking[]> {
     const qb = this.bookingRepo
       .createQueryBuilder('booking')
@@ -1795,9 +1832,7 @@ export class BookingService {
       .andWhere('booking.startTime < :endTime', { endTime })
       .andWhere('booking.endTime > :startTime', { startTime });
 
-    if (excludeBookingId) {
-      qb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
-    }
+    this.applyBookingIdExclusions(qb, excludeBookingIds);
 
     return qb.getMany();
   }
@@ -1857,7 +1892,17 @@ export class BookingService {
     startTime: Date,
     endTime: Date,
   ): Promise<void> {
-    const slots = await this.slotRepo
+    await this.releaseSlotsByWindowInRepo(this.slotRepo, employeeId, businessId, startTime, endTime);
+  }
+
+  private async releaseSlotsByWindowInRepo(
+    slotRepo: Repository<SchedulingSlot>,
+    employeeId: string,
+    businessId: string,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<void> {
+    const slots = await slotRepo
       .createQueryBuilder('slot')
       .where('slot.business_id = :businessId', { businessId })
       .andWhere('slot.employee_id = :employeeId', { employeeId })
@@ -1873,8 +1918,216 @@ export class BookingService {
       if (slot.appointmentCount < slot.maxAppointmentCount) {
         slot.status = SlotStatus.AVAILABLE;
       }
-      await this.slotRepo.save(slot);
+      await slotRepo.save(slot);
     }
+  }
+
+  private findSlotsInRepo(
+    slotRepo: Repository<SchedulingSlot>,
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId?: string,
+  ): Promise<SchedulingSlot[]> {
+    const qb = slotRepo
+      .createQueryBuilder('slot')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
+      .andWhere('slot.appointmentCount < slot.maxAppointmentCount')
+      .orderBy('slot.startTime', 'ASC');
+
+    if (serviceId) {
+      qb.andWhere(this.serviceMatchClause(), { serviceId });
+    }
+
+    return qb.getMany();
+  }
+
+  private findOverlappingInRepo(
+    bookingRepo: Repository<Booking>,
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingIds?: string[],
+  ): Promise<Booking[]> {
+    const qb = bookingRepo
+      .createQueryBuilder('booking')
+      .where('booking.business_id = :businessId', { businessId })
+      .andWhere('booking.employee_id = :employeeId', { employeeId })
+      .andWhere('booking.status NOT IN (:...excluded)', {
+        excluded: [BookingStatus.CANCELLED],
+      })
+      .andWhere('booking.startTime < :endTime', { endTime })
+      .andWhere('booking.endTime > :startTime', { startTime });
+
+    this.applyBookingIdExclusions(qb, excludeBookingIds);
+    return qb.getMany();
+  }
+
+  /**
+   * Reschedule every segment in one transaction — all succeed or none are persisted.
+   * Caller must run validateMultiServiceBlockFits before this when using block scheduling.
+   */
+  async rescheduleSameVisitBlock(
+    segments: SameVisitBlockRescheduleSegment[],
+    userId?: string,
+  ): Promise<Booking[]> {
+    if (!segments.length) {
+      throw new BadRequestException('No bookings to reschedule');
+    }
+
+    const excludeBookingIds = [...new Set(segments.map((segment) => segment.bookingId))];
+    const pendingEvents: Array<{
+      bookingId: string;
+      businessId: string;
+      employeeId: string;
+      serviceId: string;
+      oldStart: Date;
+      oldEnd: Date;
+      newStart: Date;
+      newEnd: Date;
+    }> = [];
+
+    const saved = await this.dataSource.transaction(async (manager: EntityManager) => {
+      const bookingRepo = manager.getRepository(Booking);
+      const slotRepo = manager.getRepository(SchedulingSlot);
+      const serviceRepo = manager.getRepository(Service);
+
+      const loaded = await Promise.all(
+        segments.map((segment) =>
+          bookingRepo.findOne({
+            where: { id: segment.bookingId },
+            relations: { service: true },
+          }),
+        ),
+      );
+
+      for (let i = 0; i < loaded.length; i++) {
+        if (!loaded[i]) {
+          throw new NotFoundException(`Booking not found: ${segments[i].bookingId}`);
+        }
+        if (loaded[i]!.status === BookingStatus.CANCELLED) {
+          throw new BadRequestException('Cancelled appointments cannot be rescheduled');
+        }
+      }
+
+      for (const booking of loaded) {
+        await this.releaseSlotsByWindowInRepo(
+          slotRepo,
+          booking!.employeeId,
+          booking!.businessId,
+          booking!.startTime,
+          booking!.endTime,
+        );
+      }
+
+      const updated: Booking[] = [];
+
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const booking = (await bookingRepo.findOne({
+          where: { id: segment.bookingId },
+          relations: { service: true },
+        }))!;
+
+        this.assertExpectedUpdatedAt(booking, segment.expectedUpdatedAt);
+
+        const targetStart = new Date(segment.startTime);
+        const targetEmployeeId = segment.employeeId;
+        if (targetStart <= new Date()) {
+          throw new ConflictException('Cannot reschedule to a time in the past');
+        }
+
+        const service =
+          booking.service ??
+          (await serviceRepo.findOneOrFail({ where: { id: booking.serviceId } }));
+        const totalDuration = service.durationMinutes + service.bufferMinutes;
+        const newEnd = new Date(targetStart.getTime() + totalDuration * 60000);
+        const oldStart = booking.startTime;
+        const oldEnd = booking.endTime;
+
+        const newSlots = await this.findSlotsInRepo(
+          slotRepo,
+          booking.businessId,
+          targetEmployeeId,
+          targetStart,
+          newEnd,
+        );
+
+        if (newSlots.length === 0) {
+          const conflicts = await this.findOverlappingInRepo(
+            bookingRepo,
+            booking.businessId,
+            targetEmployeeId,
+            targetStart,
+            newEnd,
+            excludeBookingIds,
+          );
+          if (conflicts.length > 0) {
+            throw new ConflictException('Time slot is already booked');
+          }
+        } else {
+          for (const slot of newSlots) {
+            slot.appointmentCount += 1;
+            if (slot.appointmentCount >= slot.maxAppointmentCount) {
+              slot.status = SlotStatus.BOOKED;
+            }
+            await slotRepo.save(slot);
+          }
+        }
+
+        booking.startTime = targetStart;
+        booking.endTime = newEnd;
+        booking.employeeId = targetEmployeeId;
+        booking.service = service;
+        booking.slotId = newSlots[0]?.id ?? null;
+        if (segment.metadata) {
+          booking.metadata = { ...booking.metadata, ...segment.metadata };
+        }
+
+        await bookingRepo.save(booking);
+        updated.push(booking);
+
+        pendingEvents.push({
+          bookingId: booking.id,
+          businessId: booking.businessId,
+          employeeId: targetEmployeeId,
+          serviceId: booking.serviceId,
+          oldStart,
+          oldEnd,
+          newStart: targetStart,
+          newEnd,
+        });
+      }
+
+      return updated;
+    });
+
+    for (const event of pendingEvents) {
+      await this.eventStore.publish({
+        eventType: EventType.BOOKING_RESCHEDULED,
+        aggregateType: 'booking',
+        aggregateId: event.bookingId,
+        businessId: event.businessId,
+        payload: {
+          bookingId: event.bookingId,
+          employeeId: event.employeeId,
+          serviceId: event.serviceId,
+          oldStartTime: event.oldStart.toISOString(),
+          oldEndTime: event.oldEnd.toISOString(),
+          newStartTime: event.newStart.toISOString(),
+          newEndTime: event.newEnd.toISOString(),
+        },
+        userId,
+      });
+    }
+
+    return Promise.all(saved.map((booking) => this.findOne(booking.id)));
   }
 
   private async maybeRescheduleMultiServiceGroup(
@@ -1910,21 +2163,28 @@ export class BookingService {
     }));
 
     const sequential = buildSequentialAppointments(serviceLines, targetStart, turnover);
+    const excludeBookingIds = siblings.map((entry) => entry.id);
+    const blockEnd = sequential[sequential.length - 1].endTime;
+    const serviceIds = serviceLines.map((line) => line.serviceId);
 
-    for (let i = 0; i < siblings.length; i++) {
-      const sibling = siblings[i];
-      const slot = sequential[i];
-      await this.update(
-        sibling.id,
-        {
-          startTime: slot.startTime.toISOString(),
-          employeeId: targetEmployeeId,
-          ...(sibling.id === booking.id ? { expectedUpdatedAt } : {}),
-        },
-        userId,
-        { skipGroupReschedule: true },
-      );
-    }
+    await this.validateMultiServiceBlockFits(
+      booking.businessId,
+      targetEmployeeId,
+      sequential[0].startTime,
+      blockEnd,
+      serviceIds,
+      excludeBookingIds,
+    );
+
+    await this.rescheduleSameVisitBlock(
+      siblings.map((sibling, i) => ({
+        bookingId: sibling.id,
+        startTime: sequential[i].startTime.toISOString(),
+        employeeId: targetEmployeeId,
+        ...(sibling.id === booking.id ? { expectedUpdatedAt } : {}),
+      })),
+      userId,
+    );
 
     return true;
   }

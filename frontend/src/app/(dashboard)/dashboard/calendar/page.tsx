@@ -15,8 +15,9 @@ import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, getTodayDateKey, toDateKey, todayDateAnchor } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
-import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { AiCalendarSelectionBar, type CalendarSelection } from '@/components/ai-calendar-selection-bar';
 
@@ -277,82 +278,98 @@ export default function CalendarPage() {
   const totalHours = HOUR_END - HOUR_START;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <PageHelpHeader
-        topicId="calendar"
-        title={
-          <>
-            <CalendarDays className="w-6 h-6 text-blue-400" />
-            Provider Calendar
-          </>
+    <div className="flex h-full flex-col gap-4">
+      <DashboardPageShell
+        className="shrink-0"
+        ai={
+          <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{
+                route: '/dashboard/calendar',
+                employeeName: employees.find((e: { id: string; name: string }) => e.id === employeeId)?.name ?? null,
+                viewMode: 'week',
+              }}
+              title="Calendar opportunities"
+            />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']}
+              context={{
+                route: '/dashboard/calendar',
+                employeeName: selectedEmployee?.name ?? null,
+                dateFrom: formatDateDisplay(weekDates[0]),
+                dateTo: formatDateDisplay(weekDates[6]),
+                viewMode: 'week',
+                ...(dragSelection
+                  ? {
+                      selectionDate: dragSelection.date,
+                      selectionTimeFrom: dragSelection.timeFrom,
+                      selectionTimeTo: dragSelection.timeTo,
+                      selectionEmployeeId: dragSelection.employeeId,
+                      date: dragSelection.date,
+                      timeFrom: dragSelection.timeFrom,
+                      timeTo: dragSelection.timeTo,
+                    }
+                  : {}),
+              }}
+            />
+          </AiSuggestionsStack>
         }
-        subtitle="View a service provider's weekly schedule — slots are color-coded by service"
-      />
-
-      <AiContextualSuggestions
-        context={{
-          route: '/dashboard/calendar',
-          employeeName: employees.find((e: { id: string; name: string }) => e.id === employeeId)?.name ?? null,
-          viewMode: 'week',
-        }}
-        title="Calendar opportunities"
-      />
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']}
-        context={{
-          route: '/dashboard/calendar',
-          employeeName: selectedEmployee?.name ?? null,
-          dateFrom: formatDateDisplay(weekDates[0]),
-          dateTo: formatDateDisplay(weekDates[6]),
-          viewMode: 'week',
-          ...(dragSelection
-            ? {
-                selectionDate: dragSelection.date,
-                selectionTimeFrom: dragSelection.timeFrom,
-                selectionTimeTo: dragSelection.timeTo,
-                selectionEmployeeId: dragSelection.employeeId,
-                date: dragSelection.date,
-                timeFrom: dragSelection.timeFrom,
-                timeTo: dragSelection.timeTo,
-              }
-            : {}),
-        }}
-      />
-
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-1">
-          <button onClick={prevWeek} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button onClick={goToday} className="px-3 py-1.5 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors">
-            Today
-          </button>
-          <button onClick={nextWeek} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-gray-300 ml-2 font-medium">
-            {formatDateDisplay(weekDates[0])}
-            {' – '}
-            {formatDateDisplay(weekDates[6])}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 ml-auto">
-          <User className="w-4 h-4 text-gray-400" />
-          <select
-            className="input max-w-xs"
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-          >
-            <option value="">Select service provider...</option>
-            {employees.map((emp: any) => (
-              <option key={emp.id} value={emp.id}>{emp.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      >
+        <DashboardPageToolbar
+          helpTopicId="calendar"
+          title={
+            <>
+              <CalendarDays className="h-6 w-6 text-blue-400" />
+              Provider Calendar
+            </>
+          }
+          subtitle="View a service provider's weekly schedule — slots are color-coded by service"
+          actions={
+            <>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevWeek}
+                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={goToday}
+                  className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-gray-200 transition-colors hover:bg-gray-700"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={nextWeek}
+                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <span className="ml-2 text-sm font-medium text-gray-300">
+                  {formatDateDisplay(weekDates[0])}
+                  {' – '}
+                  {formatDateDisplay(weekDates[6])}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-400" />
+                <select
+                  className="input max-w-xs"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                >
+                  <option value="">Select service provider...</option>
+                  {employees.map((emp: any) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          }
+        />
+      </DashboardPageShell>
 
       {/* Legend */}
       {servicesInView.length > 0 && (

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { CircleHelp, X } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import {
   getHelpTopicGuidePath,
   helpTopicTranslationPrefix,
@@ -106,15 +107,11 @@ export function PageHelpHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold flex items-center gap-2">{title}</h1>
-          <ContextualHelpButton topicId={topicId} />
-        </div>
-        {subtitle ? <p className="text-gray-400 text-sm mt-1">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-    </div>
+    <DashboardPageToolbar
+      title={title}
+      subtitle={subtitle}
+      actions={actions}
+      helpTopicId={topicId}
+    />
   );
 }

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, Check, Download, Zap, Calculator } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -162,14 +163,11 @@ export function PlatformMaturityTab() {
             saveZapier.mutate();
           }}
         >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={zapierForm.enabled}
-              onChange={(e) => setZapierForm({ ...zapierForm, enabled: e.target.checked })}
-            />
-            Enable automation connector
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={zapierForm.enabled}
+            onChange={(enabled) => setZapierForm({ ...zapierForm, enabled })}
+            label="Enable automation connector"
+          />
           <input
             className="input text-sm"
             placeholder="Hook description (optional)"
@@ -228,14 +226,11 @@ export function PlatformMaturityTab() {
             saveAccounting.mutate();
           }}
         >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={acctForm.enabled}
-              onChange={(e) => setAcctForm({ ...acctForm, enabled: e.target.checked })}
-            />
-            Enable accounting export
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={acctForm.enabled}
+            onChange={(enabled) => setAcctForm({ ...acctForm, enabled })}
+            label="Enable accounting export"
+          />
           <select
             className="input text-sm"
             value={acctForm.provider}
@@ -263,22 +258,16 @@ export function PlatformMaturityTab() {
               onChange={(e) => setAcctForm({ ...acctForm, accountCode: e.target.value })}
             />
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={acctForm.includeExpenses}
-              onChange={(e) => setAcctForm({ ...acctForm, includeExpenses: e.target.checked })}
-            />
-            Include expenses
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={acctForm.includeCommissions}
-              onChange={(e) => setAcctForm({ ...acctForm, includeCommissions: e.target.checked })}
-            />
-            Include commissions
-          </label>
+          <ToggleChoice variant="dashboard"
+            checked={acctForm.includeExpenses}
+            onChange={(includeExpenses) => setAcctForm({ ...acctForm, includeExpenses })}
+            label="Include expenses"
+          />
+          <ToggleChoice variant="dashboard"
+            checked={acctForm.includeCommissions}
+            onChange={(includeCommissions) => setAcctForm({ ...acctForm, includeCommissions })}
+            label="Include commissions"
+          />
           <button type="submit" disabled={saveAccounting.isPending} className="btn-primary text-sm">
             {saveAccounting.isPending ? 'Saving…' : 'Save accounting settings'}
           </button>

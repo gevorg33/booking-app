@@ -9,6 +9,8 @@ import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 
 interface BusinessTypeOption {
   id: string;
@@ -196,7 +198,22 @@ export default function OnboardingPage() {
   if (!business?.id) return null;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiPagePanel
+              title="Quick setup with AI"
+              suggestions={[
+                "Set up this week's schedule for my team",
+                'Apply weekday template to all providers this week',
+              ]}
+              context={{ route: '/dashboard/onboarding' }}
+            />
+          </AiSuggestionsStack>
+        }
+      />
+
       <div className="mb-8 text-center">
         <div className="w-12 h-12 bg-violet-600/15 rounded-xl flex items-center justify-center mx-auto mb-4">
           <Sparkles className="w-6 h-6 text-violet-400" />
@@ -218,12 +235,6 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
-
-      <AiPagePanel
-        title="Quick setup with AI"
-        suggestions={['Set up this week\'s schedule for my team', 'Apply weekday template to all providers this week']}
-        context={{ route: '/dashboard/onboarding' }}
-      />
 
       {error && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-3 text-sm">

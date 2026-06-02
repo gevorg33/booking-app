@@ -21,6 +21,7 @@ import { defaultCountryFromCallingCode, formatPhoneForApi } from '@/lib/phone-fo
 import type { Country } from 'react-phone-number-input';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 
 interface GiftCardCheckoutClientProps {
@@ -414,15 +415,13 @@ export function GiftCardCheckoutClient({
         )}
         {quoteError && <p className="text-sm text-red-600 mb-4">{quoteError}</p>}
 
-        <label className="flex items-start gap-3 text-sm text-gray-600 mb-4">
-          <input
-            type="checkbox"
-            checked={form.consent}
-            onChange={(e) => setForm({ ...form, consent: e.target.checked })}
-            className="mt-1 rounded border-gray-300"
-          />
-          <span>{t('public.privacyConsent')}</span>
-        </label>
+        <ToggleChoice
+          className="mb-4"
+          checked={form.consent}
+          onChange={(consent) => setForm({ ...form, consent })}
+          primaryColor={primary}
+          label={t('public.privacyConsent')}
+        />
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
         {showCashOption && (

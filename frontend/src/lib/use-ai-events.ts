@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 
 type AiEventPayload = {
@@ -17,6 +18,14 @@ export interface AiEventToast {
   message: string;
 }
 
+function showAiEvent(event: AiEventToast) {
+  if (event.type === 'ai.task.completed') {
+    sonnerToast.success(event.message, { duration: 5000 });
+    return;
+  }
+  sonnerToast(event.message, { duration: 5000 });
+}
+
 /** Subscribe to live AI WebSocket events for a business. */
 export function useAiEvents(
   businessId: string | undefined,
@@ -27,12 +36,10 @@ export function useAiEvents(
     onToast?: (toast: AiEventToast) => void;
   },
 ) {
-  const [toasts, setToasts] = useState<AiEventToast[]>([]);
-
   const pushToast = useCallback(
-    (toast: AiEventToast) => {
-      setToasts((prev) => [...prev.slice(-2), toast]);
-      handlers?.onToast?.(toast);
+    (next: AiEventToast) => {
+      showAiEvent(next);
+      handlers?.onToast?.(next);
     },
     [handlers],
   );
@@ -76,15 +83,5 @@ export function useAiEvents(
     ),
   );
 
-  useEffect(() => {
-    if (toasts.length === 0) return;
-    const timer = setTimeout(() => setToasts((prev) => prev.slice(1)), 5000);
-    return () => clearTimeout(timer);
-  }, [toasts]);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  return { toasts, dismissToast };
+  return { toasts: [] as AiEventToast[], dismissToast: () => {} };
 }

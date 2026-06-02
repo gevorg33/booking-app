@@ -10,6 +10,7 @@ import { GrowthDistributionTab } from '@/components/integrations/growth-distribu
 import { PlatformMaturityTab } from '@/components/integrations/platform-maturity-tab';
 import { EnterpriseTrustTab } from '@/components/enterprise-trust/enterprise-trust-tab';
 import { StrategyEvalTab } from '@/components/strategy-eval/strategy-eval-tab';
+import { CheckboxChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -238,22 +239,23 @@ export default function IntegrationsPage() {
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
             />
-            <div className="flex flex-wrap gap-2">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {webhookEventOptions.map((ev) => (
-                <label key={ev} className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <li key={ev}>
+                  <CheckboxChoice
+                    className="w-full rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                     checked={webhookEvents.includes(ev)}
-                    onChange={(e) => {
+                    onChange={(checked) => {
                       setWebhookEvents((prev) =>
-                        e.target.checked ? [...prev, ev] : prev.filter((x) => x !== ev),
+                        checked ? [...prev, ev] : prev.filter((x) => x !== ev),
                       );
                     }}
+                    label={ev}
+                    labelClassName="font-mono text-xs text-gray-200"
                   />
-                  <span className="font-mono text-xs">{ev}</span>
-                </label>
+                </li>
               ))}
-            </div>
+            </ul>
             <button
               type="button"
               className="btn-primary"

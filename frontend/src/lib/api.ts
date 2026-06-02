@@ -1,11 +1,16 @@
 import axios from 'axios';
 import { LOCALE_COOKIE } from '@/i18n';
 import { getApiBaseUrl } from '@/lib/api-base';
+import { attachOperationFeedbackToAxios } from '@/lib/operation-feedback';
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
+
+if (typeof window !== 'undefined') {
+  attachOperationFeedbackToAxios(api);
+}
 
 function readLocaleFromCookie(): string | null {
   if (typeof document === 'undefined') return null;

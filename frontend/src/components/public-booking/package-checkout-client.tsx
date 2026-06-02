@@ -5,6 +5,7 @@ import { Calendar, Loader2, Pencil } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PhoneInput } from '@/components/public-booking/phone-input';
+import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import {
   bookPublicPackage,
   confirmPublicBookingPayment,
@@ -22,6 +23,7 @@ import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
+import { ToggleChoice } from '@/components/ui/radio-choice';
 import { expandPackageServiceItems } from '@/lib/package-booking';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { bookPath } from '@/lib/tenant-host';
@@ -83,6 +85,7 @@ export function PackageCheckoutClient({
     return new Date(new Date(scheduleStart).getTime() + totalDuration * 60_000);
   }, [scheduleStart, totalDuration]);
 
+  const reminderOptions = tenant.appointmentReminders;
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -92,6 +95,7 @@ export function PackageCheckoutClient({
     marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
+    reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -208,6 +212,7 @@ export function PackageCheckoutClient({
         phone: fullPhone() || undefined,
         emailReminders: form.emailReminders,
         whatsappReminders: form.whatsappReminders,
+        ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
         privacyConsentAccepted: form.consent,
         marketingOptIn: form.marketingOptIn,
       },
@@ -386,7 +391,7 @@ export function PackageCheckoutClient({
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <main className="max-w-lg mx-auto px-4 py-6">
-        <form onSubmit={onSubmit} className="pb-36">
+        <form onSubmit={onSubmit} className="pb-44">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('public.checkoutTitle')}</h1>
 
           {employeeName && (
@@ -653,47 +658,44 @@ export function PackageCheckoutClient({
               />
             </div>
 
-            <label className="flex items-start gap-3 text-sm text-gray-600">
-              <input
-                type="checkbox"
+            <div className="mt-2 space-y-1 border-t border-gray-100 pt-4 mb-2">
+              {reminderOptions?.enabled && (
+                <AppointmentReminderPicker
+                  optionsHours={reminderOptions.optionsHours}
+                  value={form.reminderHoursBefore}
+                  onChange={(reminderHoursBefore) => setForm({ ...form, reminderHoursBefore })}
+                />
+              )}
+              <ToggleChoice
                 checked={form.emailReminders}
-                onChange={(e) => setForm({ ...form, emailReminders: e.target.checked })}
-                className="mt-1 rounded border-gray-300"
+                onChange={(emailReminders) => setForm({ ...form, emailReminders })}
+                primaryColor={primary}
+                label="Send me email reminders about this appointment"
               />
-              <span>Send me email reminders about this appointment</span>
-            </label>
-            <label className="flex items-start gap-3 text-sm text-gray-600">
-              <input
-                type="checkbox"
+              <ToggleChoice
                 checked={form.whatsappReminders}
-                onChange={(e) => setForm({ ...form, whatsappReminders: e.target.checked })}
-                className="mt-1 rounded border-gray-300"
+                onChange={(whatsappReminders) => setForm({ ...form, whatsappReminders })}
+                primaryColor={primary}
+                label={t('public.whatsappReminders')}
               />
-              <span>{t('public.whatsappReminders')}</span>
-            </label>
-            <label className="flex items-start gap-3 text-sm text-gray-600">
-              <input
-                type="checkbox"
+              <ToggleChoice
                 checked={form.consent}
-                onChange={(e) => setForm({ ...form, consent: e.target.checked })}
-                className="mt-1 rounded border-gray-300"
+                onChange={(consent) => setForm({ ...form, consent })}
+                primaryColor={primary}
+                label={t('public.privacyConsent')}
               />
-              <span>{t('public.privacyConsent')}</span>
-            </label>
-            <label className="flex items-start gap-3 text-sm text-gray-600">
-              <input
-                type="checkbox"
+              <ToggleChoice
                 checked={form.marketingOptIn}
-                onChange={(e) => setForm({ ...form, marketingOptIn: e.target.checked })}
-                className="mt-1 rounded border-gray-300"
+                onChange={(marketingOptIn) => setForm({ ...form, marketingOptIn })}
+                primaryColor={primary}
+                label={t('public.marketingOptIn')}
               />
-              <span>{t('public.marketingOptIn')}</span>
-            </label>
+            </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
-          <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
+          <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
             <div className="max-w-lg mx-auto">
               <div className="flex justify-between text-sm mb-3">
                 <span className="text-gray-500">

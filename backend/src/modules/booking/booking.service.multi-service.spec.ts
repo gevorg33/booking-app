@@ -6,13 +6,17 @@ describe('BookingService same-visit multi-service create', () => {
   const bookingRepo = {
     findOne: jest.fn(),
     createQueryBuilder: jest.fn(),
+    save: jest.fn(async (booking) => booking),
+    manager: { findOne: jest.fn() },
   };
   const slotRepo = {
     createQueryBuilder: jest.fn(),
+    save: jest.fn(async (slot) => slot),
   };
   const schedulingPeriodRepo = { find: jest.fn() };
   const serviceRepo = {
     findOne: jest.fn(),
+    findOneOrFail: jest.fn(),
   };
   const customerRepo = {
     findOne: jest.fn(),
@@ -112,12 +116,14 @@ describe('BookingService same-visit multi-service create', () => {
     ]);
     jest.spyOn(service, 'findOne').mockResolvedValue(savedBooking as any);
 
-    serviceRepo.findOne.mockResolvedValue({
+    const defaultService = {
       id: 'svc-2',
       durationMinutes: 60,
       bufferMinutes: 0,
       prepaymentMode: 'none',
-    });
+    };
+    serviceRepo.findOne.mockResolvedValue(defaultService);
+    serviceRepo.findOneOrFail.mockResolvedValue(defaultService);
     businessRepo.findOne.mockResolvedValue({ timezone: 'UTC' });
     customerRepo.findOne.mockResolvedValue({ id: 'cust-1' });
     bookingRepo.findOne.mockResolvedValue(null);
@@ -188,5 +194,40 @@ describe('BookingService same-visit multi-service create', () => {
         { sameVisitMultiService: false },
       ),
     ).rejects.toThrow('does not offer this service');
+  });
+
+  it('skips per-segment schedule validation when rescheduling a same-visit block segment', async () => {
+    validateBookingWindow.mockResolvedValue(undefined);
+    jest.spyOn(service as any, 'releaseSlotsByWindow').mockResolvedValue(undefined);
+    const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const segmentStart = new Date(futureStart.getTime() + 65 * 60 * 1000);
+    const segmentEnd = new Date(segmentStart.getTime() + 30 * 60 * 1000);
+    bookingRepo.findOne.mockResolvedValue({
+      ...savedBooking,
+      id: 'booking-2',
+      startTime: futureStart,
+      endTime: new Date(futureStart.getTime() + 30 * 60 * 1000),
+      status: BookingStatus.CONFIRMED,
+      packagePurchaseId: 'purchase-1',
+    });
+
+    await service.update(
+      'booking-2',
+      {
+        startTime: segmentStart.toISOString(),
+        employeeId: 'emp-1',
+      },
+      'user-1',
+      { sameVisitBlockSegment: true, excludeBookingIds: ['booking-1', 'booking-2'] },
+    );
+
+    expect(validateBookingWindow).not.toHaveBeenCalled();
+    expect(findSlotsInWindow).toHaveBeenCalledWith(
+      'biz-1',
+      'emp-1',
+      expect.any(Date),
+      expect.any(Date),
+      undefined,
+    );
   });
 });

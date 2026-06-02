@@ -34,7 +34,12 @@ describe('NotificationsService grouped confirmations', () => {
     id: 'biz-1',
     name: 'Pollin Clinic',
     slug: 'pollin',
-    settings: { notifications: { sendConfirmationEmail: true, emailEnabled: true } },
+    settings: {
+      notifications: { sendConfirmationEmail: true, emailEnabled: true },
+      publicBooking: {
+        customerSelfService: { allowCancel: true, allowReschedule: true },
+      },
+    },
   };
 
   const customer = {
@@ -50,6 +55,9 @@ describe('NotificationsService grouped confirmations', () => {
   });
 
   it('sends one email listing all appointments in a multi-service group', async () => {
+    const start1 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const start2 = new Date(start1.getTime() + 35 * 60 * 1000);
+    const start3 = new Date(start2.getTime() + 35 * 60 * 1000);
     const bookings = [
       {
         id: 'b-1',
@@ -57,8 +65,8 @@ describe('NotificationsService grouped confirmations', () => {
         multiServiceGroupId: 'group-1',
         packagePurchaseId: null,
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-03T14:00:00Z'),
-        endTime: new Date('2026-06-03T14:30:00Z'),
+        startTime: start1,
+        endTime: new Date(start1.getTime() + 30 * 60 * 1000),
         customer,
         employee: { name: 'Margarita Simonyan' },
         service: { name: "girl's haircut" },
@@ -71,8 +79,8 @@ describe('NotificationsService grouped confirmations', () => {
         multiServiceGroupId: 'group-1',
         packagePurchaseId: null,
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-03T14:35:00Z'),
-        endTime: new Date('2026-06-03T15:05:00Z'),
+        startTime: start2,
+        endTime: new Date(start2.getTime() + 30 * 60 * 1000),
         customer,
         employee: { name: 'Margarita Simonyan' },
         service: { name: "men's haircut" },
@@ -85,8 +93,8 @@ describe('NotificationsService grouped confirmations', () => {
         multiServiceGroupId: 'group-1',
         packagePurchaseId: null,
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-03T15:10:00Z'),
-        endTime: new Date('2026-06-03T15:40:00Z'),
+        startTime: start3,
+        endTime: new Date(start3.getTime() + 30 * 60 * 1000),
         customer,
         employee: { name: 'Margarita Simonyan' },
         service: { name: 'Baby haircut' },
@@ -95,7 +103,9 @@ describe('NotificationsService grouped confirmations', () => {
       },
     ];
 
-    bookingRepo.findOne.mockResolvedValue(bookings[0]);
+    bookingRepo.findOne.mockImplementation(async ({ where }: { where: { id: string } }) =>
+      bookings.find((b) => b.id === where.id) ?? bookings[0],
+    );
     bookingRepo.find.mockResolvedValue(bookings);
 
     await service.sendMultiAppointmentConfirmation(['b-1', 'b-2', 'b-3']);
@@ -185,12 +195,13 @@ describe('NotificationsService grouped confirmations', () => {
   });
 
   it('uses here link in single confirmation HTML instead of raw URL', async () => {
+    const startTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const booking = {
       id: 'b-single',
       businessId: 'biz-1',
       status: BookingStatus.CONFIRMED,
-      startTime: new Date('2026-06-05T10:00:00Z'),
-      endTime: new Date('2026-06-05T10:30:00Z'),
+      startTime,
+      endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
       customer,
       employee: { name: 'Margarita Simonyan' },
       service: { name: "girl's haircut" },

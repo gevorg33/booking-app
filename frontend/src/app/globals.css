@@ -41,6 +41,21 @@
   .label {
     @apply block text-sm font-medium text-gray-600 mb-1 dark:text-gray-400;
   }
+
+  /* Dashboard shell: pointer on all clickable controls */
+  .dashboard-app button:not(:disabled),
+  .dashboard-app [role='button']:not([aria-disabled='true']),
+  .dashboard-app a[href]:not([aria-disabled='true']),
+  .dashboard-app label[for]:not(:has(input:disabled)),
+  .dashboard-app .btn-primary:not(:disabled),
+  .dashboard-app .btn-secondary:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .dashboard-app button:disabled,
+  .dashboard-app [role='button'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
 }
 
 body {

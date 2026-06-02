@@ -35,7 +35,9 @@ import { SpecialistPickerSheet,
   type SpecialistChoice,
 } from '@/components/public-booking/specialist-picker-sheet';
 import { BookingSuccessPanel } from '@/components/public-booking/booking-success-panel';
+import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
+import { RadioCard, ToggleChoice } from '@/components/ui/radio-choice';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
@@ -59,6 +61,7 @@ export function CheckoutForm({
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const dueNow = prepaymentDue(service);
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
+  const reminderOptions = tenant.appointmentReminders;
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -68,6 +71,7 @@ export function CheckoutForm({
     marketingOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
+    reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,6 +253,7 @@ export function CheckoutForm({
       phone: fullPhone() || undefined,
       emailReminders: form.emailReminders,
       whatsappReminders: form.whatsappReminders,
+      ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
       privacyConsentAccepted: form.consent,
       marketingOptIn: form.marketingOptIn,
     },
@@ -435,7 +440,7 @@ export function CheckoutForm({
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="pb-36">
+    <form onSubmit={handleSubmit} className="pb-44">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('public.checkoutTitle')}</h1>
 
       <section className="border-b border-gray-100 pb-4 mb-4">
@@ -594,88 +599,80 @@ export function CheckoutForm({
         <section className="border-b border-gray-100 pb-4 mb-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">{t('public.howToBook')}</h2>
           {activeSubscription && activeSubscription.appointmentsRemaining > 0 && (
-            <label className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer">
-              <input
-                type="radio"
-                name="purchaseOption"
-                checked={usingSubscriptionCredit}
-                onChange={selectUseExistingSubscription}
-              />
-              <div>
-                <p className="font-medium text-gray-900">{t('public.useSubscription')}</p>
-                <p className="text-sm text-gray-600">
-                  {activeSubscription.appointmentsRemaining} of {activeSubscription.appointmentsIncluded}{' '}
-                  {t('public.appointmentsLeft')} · {t('public.expiresOn')}{' '}
-                  {new Date(activeSubscription.expiresAt).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-emerald-700 mt-1">{t('public.freeThisVisit')}</p>
-              </div>
-            </label>
-          )}
-          <label className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
-            <input
-              type="radio"
+            <RadioCard
               name="purchaseOption"
-              checked={purchaseType === 'one-time' && !usingSubscriptionCredit}
-              onChange={selectOneTimeVisit}
-            />
+              value="subscription-credit"
+              checked={usingSubscriptionCredit}
+              onSelect={selectUseExistingSubscription}
+              primaryColor={primary}
+              className="border-emerald-200 bg-emerald-50/50"
+            >
+              <p className="font-medium text-gray-900">{t('public.useSubscription')}</p>
+              <p className="text-sm text-gray-600">
+                {activeSubscription.appointmentsRemaining} of {activeSubscription.appointmentsIncluded}{' '}
+                {t('public.appointmentsLeft')} · {t('public.expiresOn')}{' '}
+                {new Date(activeSubscription.expiresAt).toLocaleDateString()}
+              </p>
+              <p className="text-sm text-emerald-700 mt-1">{t('public.freeThisVisit')}</p>
+            </RadioCard>
+          )}
+          <RadioCard
+            name="purchaseOption"
+            value="one-time"
+            checked={purchaseType === 'one-time' && !usingSubscriptionCredit}
+            onSelect={selectOneTimeVisit}
+            primaryColor={primary}
+          >
             <span className="font-medium text-gray-900">{t('public.oneTimeAppointment')}</span>
-          </label>
+          </RadioCard>
           {service.hasSubscriptionPlans && subscriptionPlans.length > 0 && (
             <>
               {subscriptionPlans.length === 1 ? (
-                <label className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="purchaseOption"
-                    checked={purchaseType === 'subscription' && selectedPlanId === subscriptionPlans[0].id}
-                    onChange={() => selectSubscriptionPlan(subscriptionPlans[0].id)}
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900">{t('public.subscribeAndSave')}</p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {subscriptionPlans[0].name} · {subscriptionPlans[0].includedAppointments} visits /{' '}
-                      {subscriptionPlans[0].durationMonths} mo ·{' '}
-                      {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, service.currency)}
-                      <span className="text-emerald-600 ml-1">
-                        ({t('public.saveAmount', {
-                          amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, service.currency),
-                        })})
-                      </span>
-                    </p>
-                  </div>
-                </label>
+                <RadioCard
+                  name="purchaseOption"
+                  value={`plan-${subscriptionPlans[0].id}`}
+                  checked={purchaseType === 'subscription' && selectedPlanId === subscriptionPlans[0].id}
+                  onSelect={() => selectSubscriptionPlan(subscriptionPlans[0].id)}
+                  primaryColor={primary}
+                >
+                  <p className="font-medium text-gray-900">{t('public.subscribeAndSave')}</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {subscriptionPlans[0].name} · {subscriptionPlans[0].includedAppointments} visits /{' '}
+                    {subscriptionPlans[0].durationMonths} mo ·{' '}
+                    {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, service.currency)}
+                    <span className="text-emerald-600 ml-1">
+                      ({t('public.saveAmount', {
+                        amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, service.currency),
+                      })})
+                    </span>
+                  </p>
+                </RadioCard>
               ) : (
                 <>
                   <p className="text-sm font-medium text-gray-700 px-1">{t('public.chooseSubscriptionPlan')}</p>
                   {subscriptionPlans.map((plan) => (
-                    <label
+                    <RadioCard
                       key={plan.id}
-                      className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer ${
-                        purchaseType === 'subscription' && selectedPlanId === plan.id
-                          ? 'border-violet-400 bg-violet-50'
-                          : 'border-gray-200'
-                      }`}
+                      name="purchaseOption"
+                      value={`plan-${plan.id}`}
+                      checked={purchaseType === 'subscription' && selectedPlanId === plan.id}
+                      onSelect={() => selectSubscriptionPlan(plan.id)}
+                      primaryColor={primary}
+                      className={
+                        purchaseType === 'subscription' && selectedPlanId === plan.id ? 'bg-violet-50' : ''
+                      }
                     >
-                      <input
-                        type="radio"
-                        name="purchaseOption"
-                        checked={purchaseType === 'subscription' && selectedPlanId === plan.id}
-                        onChange={() => selectSubscriptionPlan(plan.id)}
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">{plan.name}</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
-                          {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
-                          <span className="text-emerald-600 ml-1">
-                            ({t('public.saveAmount', {
-                              amount: formatPrice(plan.preview.pricing.savings, service.currency),
-                            })})
-                          </span>
-                        </p>
-                      </div>
-                    </label>
+                      <p className="font-medium text-gray-900">{plan.name}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
+                        {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
+                        <span className="text-emerald-600 ml-1">
+                          ({t('public.saveAmount', {
+                            amount: formatPrice(plan.preview.pricing.savings, service.currency),
+                          })})
+                        </span>
+                      </p>
+                    </RadioCard>
                   ))}
                 </>
               )}
@@ -812,43 +809,41 @@ export function CheckoutForm({
           />
         </div>
 
-        <label className="flex items-start gap-3 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={form.emailReminders}
-            onChange={(e) => setForm((f) => ({ ...f, emailReminders: e.target.checked }))}
-            className="mt-1 rounded border-gray-300"
-          />
-          <span>Send me email reminders about this appointment</span>
-        </label>
-        <label className="flex items-start gap-3 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={form.whatsappReminders}
-            onChange={(e) => setForm((f) => ({ ...f, whatsappReminders: e.target.checked }))}
-            className="mt-1 rounded border-gray-300"
-          />
-          <span>{t('public.whatsappReminders')}</span>
-        </label>
+        <div className="mt-2 space-y-1 border-t border-gray-100 pt-4 mb-2">
+          {reminderOptions?.enabled && (
+            <AppointmentReminderPicker
+              optionsHours={reminderOptions.optionsHours}
+              value={form.reminderHoursBefore}
+              onChange={(reminderHoursBefore) => setForm((f) => ({ ...f, reminderHoursBefore }))}
+            />
+          )}
 
-        <label className="flex items-start gap-3 text-sm text-gray-600">
-          <input
-            type="checkbox"
+          <ToggleChoice
+            checked={form.emailReminders}
+            onChange={(emailReminders) => setForm((f) => ({ ...f, emailReminders }))}
+            primaryColor={primary}
+            label="Send me email reminders about this appointment"
+          />
+          <ToggleChoice
+            checked={form.whatsappReminders}
+            onChange={(whatsappReminders) => setForm((f) => ({ ...f, whatsappReminders }))}
+            primaryColor={primary}
+            label={t('public.whatsappReminders')}
+          />
+
+          <ToggleChoice
             checked={form.consent}
-            onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
-            className="mt-1 rounded border-gray-300"
+            onChange={(consent) => setForm((f) => ({ ...f, consent }))}
+            primaryColor={primary}
+            label={t('public.privacyConsent')}
           />
-          <span>{t('public.privacyConsent')}</span>
-        </label>
-        <label className="flex items-start gap-3 text-sm text-gray-600">
-          <input
-            type="checkbox"
+          <ToggleChoice
             checked={form.marketingOptIn}
-            onChange={(e) => setForm((f) => ({ ...f, marketingOptIn: e.target.checked }))}
-            className="mt-1 rounded border-gray-300"
+            onChange={(marketingOptIn) => setForm((f) => ({ ...f, marketingOptIn }))}
+            primaryColor={primary}
+            label={t('public.marketingOptIn')}
           />
-          <span>{t('public.marketingOptIn')}</span>
-        </label>
+        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
@@ -885,7 +880,7 @@ export function CheckoutForm({
         </section>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between text-sm mb-3">
             <span className="text-gray-500">

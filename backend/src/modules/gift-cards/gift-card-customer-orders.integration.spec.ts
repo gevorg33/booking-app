@@ -5,6 +5,7 @@ import { GiftCardOrderService } from './gift-card-order.service.js';
 import { GiftCardFulfillmentService } from './gift-card-fulfillment.service.js';
 import { GiftCardClaimService } from './gift-card-claim.service.js';
 import { GiftCardRefundService } from './gift-card-refund.service.js';
+import { GiftCardsService } from './gift-cards.service.js';
 import { DEFAULT_GIFT_CARD_SETTINGS } from './gift-card.types.js';
 
 /**
@@ -37,9 +38,17 @@ describe('Gift card customer orders integration', () => {
   };
 
   const businessRepo = { findOne: jest.fn() };
+  const servicesById: Record<
+    string,
+    { id: string; name: string; price: number; businessId: string }
+  > = {
+    'svc-1': { id: 'svc-1', name: 'Baby haircut', price: 25, businessId: 'biz-1' },
+    'svc-2': { id: 'svc-2', name: "men's haircut", price: 35, businessId: 'biz-1' },
+    'svc-3': { id: 'svc-3', name: "girl's haircut", price: 35, businessId: 'biz-1' },
+  };
   const serviceRepo = {
     findOne: jest.fn(async ({ where }: { where: { id: string; businessId?: string } }) =>
-      where.id === 'svc-1' ? { id: 'svc-1', name: 'Baby haircut', price: 25, businessId: 'biz-1' } : null,
+      servicesById[where.id] ?? null,
     ),
   };
   const giftCardRepo = {
@@ -51,6 +60,16 @@ describe('Gift card customer orders integration', () => {
   const creditRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
     save: jest.fn(),
+  };
+  const redemptionRepo = {
+    create: jest.fn((v: Record<string, unknown>) => v),
+    save: jest.fn(async (v: Record<string, unknown>) => v),
+    find: jest.fn().mockResolvedValue([]),
+  };
+  const expirationAuditRepo = {
+    create: jest.fn((v: Record<string, unknown>) => v),
+    save: jest.fn(async (v: Record<string, unknown>) => v),
+    find: jest.fn().mockResolvedValue([]),
   };
   const changeRequestRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
@@ -149,6 +168,35 @@ describe('Gift card customer orders integration', () => {
     refundService,
   );
 
+  const giftCardsService = new GiftCardsService(
+    giftCardRepo as any,
+    creditRepo as any,
+    redemptionRepo as any,
+    expirationAuditRepo as any,
+  );
+
+  const bundleBusiness = {
+    ...business,
+    settings: {
+      ...business.settings,
+      giftCards: {
+        ...business.settings.giftCards,
+        bundles: [
+          {
+            id: 'bundle-1',
+            name: 'Hair trio',
+            price: 95,
+            lines: [
+              { serviceId: 'svc-1', serviceName: 'Baby haircut', quantity: 1 },
+              { serviceId: 'svc-2', serviceName: "men's haircut", quantity: 1 },
+              { serviceId: 'svc-3', serviceName: "girl's haircut", quantity: 1 },
+            ],
+          },
+        ],
+      },
+    },
+  };
+
   let cardSeq = 0;
   const cards = new Map<string, Record<string, unknown>>();
 
@@ -190,9 +238,17 @@ describe('Gift card customer orders integration', () => {
     creditRepo.save.mockImplementation(async (raw: Record<string, unknown>) => {
       const card = cards.get(raw.giftCardId as string);
       if (card) {
+        const existing = ((card.serviceCredits as Array<Record<string, unknown>>) ?? []).find(
+          (credit) => credit.serviceId === raw.serviceId,
+        );
+        if (existing) {
+          Object.assign(existing, raw);
+          return existing;
+        }
         const credit = { ...raw, id: raw.id ?? `credit-${String(raw.serviceId)}` };
         card.serviceCredits = [...((card.serviceCredits as unknown[]) ?? []), credit];
         cards.set(card.id as string, card);
+        return credit;
       }
       return raw;
     });
@@ -548,6 +604,88 @@ describe('Gift card customer orders integration', () => {
       );
       const stored = cards.get(purchased.id as string);
       expect(stored?.isActive).toBe(true);
+    });
+
+    it('reflects zero remaining credits on redeemed bundle after all services are used', async () => {
+      businessRepo.findOne.mockResolvedValue(bundleBusiness);
+
+      const purchased = await purchaseService.fulfillPurchase('biz-1', {
+        cardType: 'bundle',
+        bundleId: 'bundle-1',
+        deliveryMethod: 'digital',
+        purchaserEmail: 'buyer@test.com',
+        purchaserCustomerId: 'cust-buyer',
+        recipientEmail: 'friend@test.com',
+      });
+
+      await claimService.claimByCode('biz-1', purchased.code as string, 'cust-friend');
+
+      await giftCardsService.redeemServiceCredit('biz-1', purchased.code as string, 'svc-1', 'b-1');
+      await giftCardsService.redeemServiceCredit('biz-1', purchased.code as string, 'svc-2', 'b-2');
+      await giftCardsService.redeemServiceCredit('biz-1', purchased.code as string, 'svc-3', 'b-3');
+
+      const friendAccount = await orderService.listCustomerGiftCardAccount('biz-1', 'cust-friend');
+      expect(friendAccount.redeemed).toHaveLength(1);
+      expect(friendAccount.redeemed[0]).toMatchObject({ cardType: 'bundle', code: purchased.code });
+      expect(friendAccount.redeemed[0].serviceCredits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ serviceId: 'svc-1', quantityRemaining: 0, quantityTotal: 1 }),
+          expect.objectContaining({ serviceId: 'svc-2', quantityRemaining: 0, quantityTotal: 1 }),
+          expect.objectContaining({ serviceId: 'svc-3', quantityRemaining: 0, quantityTotal: 1 }),
+        ]),
+      );
+      expect(
+        friendAccount.redeemed[0].serviceCredits.every((credit) => credit.quantityRemaining === 0),
+      ).toBe(true);
+
+      businessRepo.findOne.mockResolvedValue(business);
+    });
+
+    it('reflects partial remaining credits on redeemed bundle after some services are used', async () => {
+      businessRepo.findOne.mockResolvedValue(bundleBusiness);
+
+      const purchased = await purchaseService.fulfillPurchase('biz-1', {
+        cardType: 'bundle',
+        bundleId: 'bundle-1',
+        deliveryMethod: 'digital',
+        purchaserEmail: 'buyer@test.com',
+        purchaserCustomerId: 'cust-buyer',
+        recipientEmail: 'friend@test.com',
+      });
+
+      await claimService.claimByCode('biz-1', purchased.code as string, 'cust-friend');
+      await giftCardsService.redeemServiceCredit('biz-1', purchased.code as string, 'svc-1', 'b-1');
+
+      const friendAccount = await orderService.listCustomerGiftCardAccount('biz-1', 'cust-friend');
+      const credits = friendAccount.redeemed[0].serviceCredits;
+      expect(credits.find((credit) => credit.serviceId === 'svc-1')?.quantityRemaining).toBe(0);
+      expect(credits.find((credit) => credit.serviceId === 'svc-2')?.quantityRemaining).toBe(1);
+      expect(credits.find((credit) => credit.serviceId === 'svc-3')?.quantityRemaining).toBe(1);
+
+      businessRepo.findOne.mockResolvedValue(business);
+    });
+
+    it('reflects zero remaining credits on redeemed service gift after checkout redemption', async () => {
+      const purchased = await purchaseService.fulfillPurchase('biz-1', {
+        cardType: 'service',
+        serviceId: 'svc-1',
+        deliveryMethod: 'digital',
+        purchaserEmail: 'buyer@test.com',
+        purchaserCustomerId: 'cust-buyer',
+        recipientEmail: 'friend@test.com',
+      });
+
+      await claimService.claimByCode('biz-1', purchased.code as string, 'cust-friend');
+      await giftCardsService.redeemServiceCredit('biz-1', purchased.code as string, 'svc-1', 'b-1');
+
+      const friendAccount = await orderService.listCustomerGiftCardAccount('biz-1', 'cust-friend');
+      expect(friendAccount.redeemed[0].serviceCredits).toEqual([
+        expect.objectContaining({
+          serviceId: 'svc-1',
+          quantityRemaining: 0,
+          quantityTotal: 1,
+        }),
+      ]);
     });
 
     it('lists buy-for-self package in both orders and redeemed after auto-claim', async () => {

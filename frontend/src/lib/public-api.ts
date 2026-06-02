@@ -1,4 +1,18 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { getApiBaseUrl } from '@/lib/api-base';
+import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
+
+function getServerApiBaseUrl(): string {
+  return (
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://127.0.0.1:3001'
+  ).replace(/\/$/, '');
+}
+
+function getPublicApiBaseUrl(): string {
+  if (typeof window !== 'undefined') return getApiBaseUrl();
+  return getServerApiBaseUrl();
+}
 
 const publicCustomerTokens = new Map<string, string>();
 
@@ -39,6 +53,35 @@ export interface PublicCustomerBookingItem {
   rescheduleCount: number;
   maxReschedules: number;
   allowProviderChangeOnReschedule?: boolean;
+  packagePurchaseId?: string | null;
+  packageId?: string | null;
+  packageName?: string | null;
+}
+
+export interface PublicPackageVisitAppointment {
+  bookingId: string;
+  serviceId: string;
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  employeeName: string;
+  status: string;
+  canCancel: boolean;
+  canReschedule: boolean;
+  rescheduleCount: number;
+  maxReschedules: number;
+}
+
+export interface PublicPackageVisitSummary {
+  packagePurchaseId: string;
+  packageId: string | null;
+  packageName: string;
+  appointments: PublicPackageVisitAppointment[];
+  canCancelAll: boolean;
+  canRescheduleAll: boolean;
+  policyMessage: string | null;
+  allowProviderChangeOnReschedule: boolean;
 }
 
 export interface PublicBranding {
@@ -105,6 +148,11 @@ export interface PublicBusinessProfile {
     allowProviderChangeOnReschedule?: boolean;
   };
   giftCardsPurchaseEnabled?: boolean;
+  appointmentReminders?: {
+    enabled: boolean;
+    optionsHours: number[];
+    defaultHours: number | null;
+  };
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
   messaging?: PublicMessagingLinks;
@@ -182,37 +230,48 @@ function formatPublicApiError(body: unknown, status: number): string {
   return `Request failed (${status})`;
 }
 
-async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> {
+  const method = init?.method ?? 'GET';
+  const { skipOperationFeedback, operationSuccessMessage, ...fetchInit } = init ?? {};
 
-  if (typeof document !== 'undefined') {
-    const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
-    if (match?.[1]) headers['Accept-Language'] = match[1];
-  }
+  return runWithOperationFeedback(
+    method,
+    path,
+    async () => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
 
-  const slugMatch = path.match(/^\/public\/([^/]+)/);
-  const slug = slugMatch?.[1];
-  const token = slug ? publicCustomerTokens.get(slug) : undefined;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+      if (typeof document !== 'undefined') {
+        const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
+        if (match?.[1]) headers['Accept-Language'] = match[1];
+      }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...headers,
-      ...(init?.headers as Record<string, string> | undefined),
+      const slugMatch = path.match(/^\/public\/([^/]+)/);
+      const slug = slugMatch?.[1];
+      const token = slug ? publicCustomerTokens.get(slug) : undefined;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${getPublicApiBaseUrl()}${path}`, {
+        ...fetchInit,
+        method,
+        headers: {
+          ...headers,
+          ...(fetchInit.headers as Record<string, string> | undefined),
+        },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(formatPublicApiError(body, res.status));
+      }
+      const json = await res.json();
+      return (json.data ?? json) as T;
     },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(formatPublicApiError(body, res.status));
-  }
-  const json = await res.json();
-  return (json.data ?? json) as T;
+    { skip: skipOperationFeedback, successMessage: operationSuccessMessage },
+  );
 }
 
 export function getPublicProfile(slug: string) {
@@ -581,6 +640,7 @@ export type CreatePublicBookingBody = {
     emailReminders?: boolean;
     smsReminders?: boolean;
     whatsappReminders?: boolean;
+    reminderHoursBefore?: number | null;
   };
 };
 
@@ -1053,6 +1113,50 @@ export interface PublicBookingManageContext {
   allowProviderChangeOnReschedule: boolean;
   rescheduleCount: number;
   maxReschedules: number;
+  packageVisit?: PublicPackageVisitSummary;
+}
+
+export type PackageVisitRescheduleLine = {
+  bookingId: string;
+  startTime: string;
+  employeeId?: string;
+};
+
+export function cancelPublicCustomerPackageVisit(slug: string, bookingId: string) {
+  return publicFetch<{ bookings: Array<{ id: string; status: string }> }>(
+    `/public/${slug}/me/bookings/${bookingId}/package/cancel`,
+    { method: 'POST' },
+  );
+}
+
+export function cancelPublicPackageVisitWithToken(slug: string, bookingId: string, token: string) {
+  return publicFetch<{ bookings: Array<{ id: string; status: string }> }>(
+    `/public/${slug}/bookings/manage/package/cancel`,
+    { method: 'POST', body: JSON.stringify({ bookingId, token }) },
+  );
+}
+
+export function reschedulePublicCustomerPackageVisit(
+  slug: string,
+  bookingId: string,
+  lines: PackageVisitRescheduleLine[],
+) {
+  return publicFetch<{ bookings: Array<{ id: string; startTime: string }>; previousStartTime: string }>(
+    `/public/${slug}/me/bookings/${bookingId}/package/reschedule`,
+    { method: 'POST', body: JSON.stringify({ lines }) },
+  );
+}
+
+export function reschedulePublicPackageVisitWithToken(
+  slug: string,
+  bookingId: string,
+  token: string,
+  lines: PackageVisitRescheduleLine[],
+) {
+  return publicFetch<{ bookings: Array<{ id: string; startTime: string }>; previousStartTime: string }>(
+    `/public/${slug}/bookings/manage/package/reschedule`,
+    { method: 'POST', body: JSON.stringify({ bookingId, token, lines }) },
+  );
 }
 
 export function getPublicBookingManageContext(slug: string, bookingId: string, token: string) {

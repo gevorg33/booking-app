@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import type { AiPageContext } from '@/lib/ai-orchestration';
+import { AiCollapsiblePanel } from '@/components/ai-suggestion-collapsible';
 
 export interface AiSuggestion {
   id: string;
@@ -51,19 +52,19 @@ function fireOrchestrixPrompt(prompt: string) {
   window.dispatchEvent(new CustomEvent('orchestrix:open'));
 }
 
-function SuggestionGrid({ suggestions }: { suggestions: AiSuggestion[] }) {
+function OpportunityCards({ suggestions }: { suggestions: AiSuggestion[] }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:items-start">
       {suggestions.map((s) => (
         <button
           key={s.id}
           type="button"
           onClick={() => fireOrchestrixPrompt(s.prompt)}
-          className={`text-left p-3 rounded-lg border transition-colors hover:border-violet-500/50 ${PRIORITY_COLOR[s.priority]}`}
+          className={`cursor-pointer rounded-md border px-2.5 py-2 text-left transition-colors hover:border-violet-500/50 ${PRIORITY_COLOR[s.priority]}`}
         >
-          <p className="text-sm font-medium text-gray-200">{s.title}</p>
-          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
+          <p className="text-sm font-medium leading-snug text-gray-200">{s.title}</p>
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-none text-gray-500">
+            <Sparkles className="h-3 w-3 shrink-0" />
             Run with Orchestrix AI
           </p>
         </button>
@@ -90,13 +91,14 @@ export function AiProactiveSuggestions() {
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="card mb-6 border-violet-500/25">
-      <div className="flex items-center gap-2 mb-4">
-        <Zap className="w-5 h-5 text-violet-400" />
-        <h2 className="font-semibold text-gray-100">AI detected opportunities</h2>
-      </div>
-      <SuggestionGrid suggestions={suggestions} />
-    </div>
+    <AiCollapsiblePanel
+      title="AI detected opportunities"
+      icon={<Zap className="w-4 h-4 text-violet-400 shrink-0" />}
+      className="border-violet-500/25"
+      defaultOpen={false}
+    >
+      <OpportunityCards suggestions={suggestions} />
+    </AiCollapsiblePanel>
   );
 }
 
@@ -135,13 +137,14 @@ export function AiContextualSuggestions({
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="card border-violet-500/20 bg-gradient-to-br from-violet-950/15 to-gray-900/30 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Zap className="w-4 h-4 text-violet-400" />
-        <h3 className="text-sm font-semibold text-violet-200">{title}</h3>
-      </div>
-      <SuggestionGrid suggestions={suggestions} />
-    </div>
+    <AiCollapsiblePanel
+      title={title}
+      icon={<Zap className="w-4 h-4 text-violet-400 shrink-0" />}
+      className="border-violet-500/20 bg-gradient-to-br from-violet-950/15 to-gray-900/30"
+      defaultOpen={false}
+    >
+      <OpportunityCards suggestions={suggestions} />
+    </AiCollapsiblePanel>
   );
 }
 

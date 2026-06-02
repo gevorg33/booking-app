@@ -8,7 +8,8 @@ export type NotificationKind =
   | 'reminder_1h'
   | 'review_request'
   | 'business_booking_cancelled'
-  | 'business_booking_rescheduled';
+  | 'business_booking_rescheduled'
+  | `reminder_${number}h`;
 
 export interface BusinessNotificationSettings {
   emailEnabled: boolean;
@@ -26,6 +27,12 @@ export interface BusinessNotificationSettings {
   reminderImmediateWhatsapp: boolean;
   /** Email business when a customer cancels or reschedules online (separate from marketing). */
   notifyBusinessOnCustomerBookingChange: boolean;
+  /** When true, customers pick reminder lead time at checkout. */
+  allowCustomerReminderChoice: boolean;
+  /** Hours-before options offered at checkout (e.g. 24, 12, 1). */
+  customerReminderOptionsHours: number[];
+  /** Default hours-before selection at checkout. */
+  defaultCustomerReminderHours: number | null;
 }
 
 export interface CustomerNotificationPreferences {
@@ -48,6 +55,9 @@ export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSetting
   reminder1hWhatsapp: true,
   reminderImmediateWhatsapp: false,
   notifyBusinessOnCustomerBookingChange: false,
+  allowCustomerReminderChoice: false,
+  customerReminderOptionsHours: [24, 1],
+  defaultCustomerReminderHours: 24,
 };
 
 export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPreferences = {
@@ -56,12 +66,16 @@ export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPref
   whatsappReminders: true,
 };
 
+import { mergeCustomerReminderChoiceSettings } from './appointment-reminder-settings.util.js';
+
 export function mergeBusinessNotificationSettings(
   raw?: Record<string, unknown>,
 ): BusinessNotificationSettings {
+  const reminderChoice = mergeCustomerReminderChoiceSettings(raw);
   return {
     ...DEFAULT_BUSINESS_NOTIFICATION_SETTINGS,
     ...(raw as Partial<BusinessNotificationSettings>),
+    ...reminderChoice,
   };
 }
 

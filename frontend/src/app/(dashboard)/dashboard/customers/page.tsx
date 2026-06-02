@@ -23,6 +23,8 @@ import { SortableColumnHeader } from '@/components/table/sortable-column-header'
 import { DEFAULT_PAGE_SIZE, TablePagination } from '@/components/table/table-pagination';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const defaultParams: CustomerSearchParams = {
@@ -89,31 +91,39 @@ export default function CustomersPage() {
   };
 
   return (
-    <div>
-      <AiContextualSuggestions
-        context={{
-          route: '/dashboard/customers',
-          search: debouncedSearch.trim() || null,
-          segmentFilter: params.segment ?? null,
-        }}
-        title="Customer insights"
-      />
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/customers']}
-        context={{
-          route: '/dashboard/customers',
-          search: debouncedSearch.trim() || null,
-          segmentFilter: params.segment ?? null,
-        }}
-      />
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <UserCircle className="w-6 h-6 text-blue-400" />
-          {t('customers.title')}
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">{t('customers.subtitle')}</p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{
+                route: '/dashboard/customers',
+                search: debouncedSearch.trim() || null,
+                segmentFilter: params.segment ?? null,
+              }}
+              title="Customer insights"
+            />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/customers']}
+              context={{
+                route: '/dashboard/customers',
+                search: debouncedSearch.trim() || null,
+                segmentFilter: params.segment ?? null,
+              }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <DashboardPageToolbar
+          title={
+            <>
+              <UserCircle className="h-6 w-6 text-blue-400" />
+              {t('customers.title')}
+            </>
+          }
+          subtitle={t('customers.subtitle')}
+        />
+      </DashboardPageShell>
 
       {totalCustomers != null && (
         <div className="card flex items-center gap-3 mb-6 w-fit">

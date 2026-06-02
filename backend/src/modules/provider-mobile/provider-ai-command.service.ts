@@ -57,9 +57,9 @@ Classify the user's command and extract parameters. Return JSON:
   "params": {
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
     "serviceName": "string or null — service type filter",
-    "date": "DD_MM_YYYY or null — resolve relative dates from today",
-    "dateFrom": "DD_MM_YYYY or null",
-    "dateTo": "DD_MM_YYYY or null",
+    "date": "DD/MM/YYYY or null — resolve relative dates from today",
+    "dateFrom": "DD/MM/YYYY or null",
+    "dateTo": "DD/MM/YYYY or null",
     "timeSlot": "HH:MM 24h or null — appointment start time (e.g. 13:00)",
     "timeFrom": "HH:MM or null — gap fill window start",
     "timeTo": "HH:MM or null — gap fill window end",
@@ -361,7 +361,7 @@ export class ProviderAiCommandService {
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, unknown>,
   ): Promise<ParsedIntent | null> {
-    const contextBlock = `Current date: ${todayDisplay()} (DD_MM_YYYY, times 24h HH:mm)
+    const contextBlock = `Current date: ${todayDisplay()} (DD/MM/YYYY, times 24h HH:mm)
 Logged-in user: ${providerName}
 View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appointments' : ' — own appointments only'}`;
 

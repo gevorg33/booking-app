@@ -15,7 +15,10 @@ import {
 } from '@/lib/subscription-plans';
 import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
+import { confirmDialog } from '@/lib/app-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { DashboardGiftCardsTab } from '@/components/gift-cards/dashboard-gift-cards-tab';
+import { CheckboxChoice } from '@/components/ui/radio-choice';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -433,8 +436,8 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                       <button
                         type="button"
                         className="text-xs text-red-400"
-                        onClick={() => {
-                          if (!window.confirm(t('monetization.subscriptionPlanDeactivateConfirm'))) return;
+                        onClick={async () => {
+                          if (!(await confirmDialog({ message: t('monetization.subscriptionPlanDeactivateConfirm'), destructive: true }))) return;
                           deactivateMutation.mutate(plan.id);
                         }}
                       >
@@ -446,8 +449,8 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                           type="button"
                           className="text-xs text-emerald-400"
                           disabled={activateMutation.isPending}
-                          onClick={() => {
-                            if (!window.confirm(t('monetization.subscriptionPlanActivateConfirm'))) return;
+                          onClick={async () => {
+                            if (!(await confirmDialog({ message: t('monetization.subscriptionPlanActivateConfirm') }))) return;
                             activateMutation.mutate(plan.id);
                           }}
                         >
@@ -457,8 +460,8 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                           type="button"
                           className="text-xs text-red-400"
                           disabled={deleteMutation.isPending}
-                          onClick={() => {
-                            if (!window.confirm(t('monetization.subscriptionPlanDeleteConfirm'))) return;
+                          onClick={async () => {
+                            if (!(await confirmDialog({ message: t('monetization.subscriptionPlanDeleteConfirm'), destructive: true }))) return;
                             deleteMutation.mutate(plan.id);
                           }}
                         >
@@ -621,76 +624,81 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-6">
       <form
-        className="card space-y-4 max-w-lg"
+        className="card w-full space-y-6"
         onSubmit={(e) => {
           e.preventDefault();
           settingsMutation.mutate();
         }}
       >
-        <div>
-          <h3 className="font-semibold text-gray-100">{t('monetization.loyaltyEarnRate')}</h3>
-          <p className="text-sm text-gray-500 mt-1">{t('monetization.loyaltyEarnRateHint')}</p>
-        </div>
-        <div className="flex flex-wrap gap-4 items-end">
+        <div className="space-y-4">
           <div>
-            <label className="label">{t('monetization.loyaltyEarnPercent')}</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              className="input max-w-[120px]"
-              value={settings ? earnPercent : ''}
-              onChange={(e) => setEarnPercent(e.target.value)}
-              disabled={settingsLoading || !settings}
-              required
-            />
+            <h3 className="font-semibold text-gray-100">{t('monetization.loyaltyEarnRate')}</h3>
+            <p className="mt-1 text-sm text-gray-500">{t('monetization.loyaltyEarnRateHint')}</p>
           </div>
-          <button
-            type="submit"
-            disabled={settingsMutation.isPending || settingsLoading || !settings}
-            className="btn-primary"
-          >
-            {settingsMutation.isPending ? t('monetization.saving') : t('monetization.saveSettings')}
-          </button>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[140px]">
+              <label className="label">{t('monetization.loyaltyEarnPercent')}</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                className="input max-w-[140px]"
+                value={settings ? earnPercent : ''}
+                onChange={(e) => setEarnPercent(e.target.value)}
+                disabled={settingsLoading || !settings}
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={settingsMutation.isPending || settingsLoading || !settings}
+              className="btn-primary shrink-0"
+            >
+              {settingsMutation.isPending ? t('monetization.saving') : t('monetization.saveSettings')}
+            </button>
+          </div>
+          {settings && (
+            <p className="text-xs text-gray-500">
+              Example: $10.00 paid at {settings.earnPercentCashback}% → $
+              {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
+            </p>
+          )}
         </div>
-        {settings && (
-          <p className="text-xs text-gray-500">
-            Example: $10.00 paid at {settings.earnPercentCashback}% → $
-            {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
-          </p>
-        )}
-        <div>
-          <label className="label">{t('monetization.loyaltyExcludedServices')}</label>
-          <p className="text-sm text-gray-500 mb-2">{t('monetization.loyaltyExcludedServicesHint')}</p>
+
+        <div className="space-y-3 border-t border-gray-800 pt-6">
+          <div>
+            <label className="label">{t('monetization.loyaltyExcludedServices')}</label>
+            <p className="mt-1 text-sm text-gray-500">{t('monetization.loyaltyExcludedServicesHint')}</p>
+          </div>
           {services.length === 0 ? (
             <p className="text-sm text-gray-500">{t('monetization.loyaltyNoServices')}</p>
           ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-gray-800 p-3">
+            <ul className="grid max-h-[min(20rem,50vh)] grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-gray-800 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {services.map((service) => (
-                <label key={service.id} className="flex items-center gap-2 text-sm text-gray-300">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-600"
+                <li key={service.id}>
+                  <CheckboxChoice
+                    className="w-full rounded-lg border border-gray-800/80 px-3 py-2.5 transition-colors hover:bg-gray-800/30"
                     checked={excludedServiceIds.includes(service.id)}
-                    onChange={(e) => {
+                    onChange={(checked) => {
                       setExcludedServiceIds((prev) =>
-                        e.target.checked
-                          ? [...prev, service.id]
-                          : prev.filter((id) => id !== service.id),
+                        checked ? [...prev, service.id] : prev.filter((id) => id !== service.id),
                       );
                     }}
                     disabled={settingsLoading || !settings}
+                    label={
+                      <>
+                        {service.name}
+                        {service.isActive === false && (
+                          <span className="ml-2 text-xs text-gray-500">(Inactive)</span>
+                        )}
+                      </>
+                    }
+                    labelClassName="text-sm text-gray-200"
                   />
-                  <span>
-                    {service.name}
-                    {service.isActive === false && (
-                      <span className="ml-2 text-xs text-gray-500">(Inactive)</span>
-                    )}
-                  </span>
-                </label>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
       </form>
@@ -892,11 +900,11 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
         </div>
         <div>
           <label className="label">{t('monetization.expirationDate')}</label>
-          <input
-            type="date"
-            className="input max-w-[160px]"
+          <DatePicker
+            className="max-w-[200px]"
             value={expiresAtDay}
-            onChange={(e) => setExpiresAtDay(e.target.value)}
+            clearable
+            onChange={setExpiresAtDay}
           />
           <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
         </div>

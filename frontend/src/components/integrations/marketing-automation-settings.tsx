@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import { ToggleChoice, StylishChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -95,29 +96,21 @@ export function MarketingAutomationSettingsPanel() {
 
       <section className="card space-y-4">
         <h3 className="font-semibold text-gray-100">{t('marketingAutomation.postVisitTitle')}</h3>
-        <label className="flex items-start gap-3 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={form.postVisitReviewEnabled}
-            onChange={(e) => setForm({ ...form, postVisitReviewEnabled: e.target.checked })}
-            className="mt-1"
-          />
-          <span>{t('marketingAutomation.postVisitReview')}</span>
-        </label>
+        <ToggleChoice variant="dashboard"
+          checked={form.postVisitReviewEnabled}
+          onChange={(postVisitReviewEnabled) => setForm({ ...form, postVisitReviewEnabled })}
+          label={t('marketingAutomation.postVisitReview')}
+        />
       </section>
 
       <section className="card space-y-4">
         <h3 className="font-semibold text-gray-100">{t('marketingAutomation.reEngagementTitle')}</h3>
         <p className="text-sm text-gray-400">{t('marketingAutomation.reEngagementHint')}</p>
-        <label className="flex items-start gap-3 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={form.reEngagementEnabled}
-            onChange={(e) => setForm({ ...form, reEngagementEnabled: e.target.checked })}
-            className="mt-1"
-          />
-          <span>{t('marketingAutomation.reEngagementEnabled')}</span>
-        </label>
+        <ToggleChoice variant="dashboard"
+          checked={form.reEngagementEnabled}
+          onChange={(reEngagementEnabled) => setForm({ ...form, reEngagementEnabled })}
+          label={t('marketingAutomation.reEngagementEnabled')}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -152,22 +145,22 @@ export function MarketingAutomationSettingsPanel() {
         </div>
 
         <div className="flex flex-wrap gap-6">
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={form.reEngagementEmailEnabled}
-              onChange={(e) => setForm({ ...form, reEngagementEmailEnabled: e.target.checked })}
-            />
-            {t('marketingAutomation.channelEmail')}
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={form.reEngagementSmsEnabled}
-              onChange={(e) => setForm({ ...form, reEngagementSmsEnabled: e.target.checked })}
-            />
-            {t('marketingAutomation.channelSms')}
-          </label>
+          <StylishChoice
+            type="checkbox"
+            checked={form.reEngagementEmailEnabled}
+            onChange={(reEngagementEmailEnabled) =>
+              setForm({ ...form, reEngagementEmailEnabled })
+            }
+            label={t('marketingAutomation.channelEmail')}
+            labelClassName="text-sm text-gray-300"
+          />
+          <StylishChoice
+            type="checkbox"
+            checked={form.reEngagementSmsEnabled}
+            onChange={(reEngagementSmsEnabled) => setForm({ ...form, reEngagementSmsEnabled })}
+            label={t('marketingAutomation.channelSms')}
+            labelClassName="text-sm text-gray-300"
+          />
         </div>
 
         <div>

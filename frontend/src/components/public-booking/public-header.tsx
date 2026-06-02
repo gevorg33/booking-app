@@ -8,6 +8,7 @@ import { bookPath } from '@/lib/tenant-host';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { useI18n } from '@/i18n';
+import { resolvePublicImageUrl } from '@/lib/resolve-public-image-url';
 
 interface PublicHeaderProps {
   tenant: PublicBusinessProfile;
@@ -20,7 +21,9 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
   const { customer, loading, googleEnabled, signInWithGoogle, clearSignInError } =
     usePublicCustomerAuth();
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const logoSrc = resolvePublicImageUrl(tenant.branding.logoUrl);
   const [signingIn, setSigningIn] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   async function handleSignIn() {
     clearSignInError();
@@ -45,12 +48,13 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
           </Link>
         )}
 
-        {tenant.branding.logoUrl ? (
+        {logoSrc && !logoFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={tenant.branding.logoUrl}
+            src={logoSrc}
             alt={tenant.name}
-            className="w-11 h-11 rounded-full object-cover shrink-0"
+            className="w-11 h-11 rounded-full object-contain bg-white shrink-0 border border-gray-100"
+            onError={() => setLogoFailed(true)}
           />
         ) : (
           <div

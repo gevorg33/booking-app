@@ -21,6 +21,8 @@ import SchedulePage from './pages/SchedulePage';
 import ProfilePage from './pages/ProfilePage';
 import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
 import { isFcmBuild, ensurePushRegistered } from './services/native-push';
+import { OperationFeedbackHost } from './components/OperationFeedbackHost';
+import './components/operation-feedback.css';
 
 function AuthedTabs() {
   const business = useAuthStore((s) => s.business);
@@ -80,6 +82,7 @@ export default function App() {
 
   return (
     <IonApp>
+      <OperationFeedbackHost />
       <IonReactRouter>
         <IonRouterOutlet>
           <Route exact path="/login" component={LoginPage} />

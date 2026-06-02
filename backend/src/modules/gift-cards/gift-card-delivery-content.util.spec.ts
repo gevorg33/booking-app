@@ -4,6 +4,8 @@ import {
   buildRecipientGiftCardEmail,
   buildWhatsAppGiftCardSummary,
   describeGiftCardValue,
+  resolveFrontendBaseUrl,
+  resolveGiftCardSenderName,
 } from './gift-card-delivery-content.util.js';
 import type { GiftCard } from './entities/gift-card.entity.js';
 
@@ -20,6 +22,8 @@ describe('gift-card-delivery-content.util', () => {
   const links = buildPublicBookingLinks('glow-salon', 'https://app.example.com/')!;
 
   it('builds tenant-specific public booking URLs', () => {
+    expect(resolveFrontendBaseUrl('https://app.example.com/')).toBe('https://app.example.com');
+    expect(resolveFrontendBaseUrl(undefined)).toBe('http://localhost:3000');
     expect(links).toEqual({
       bookingUrl: 'https://app.example.com/book/glow-salon',
       accountUrl: 'https://app.example.com/book/glow-salon/account',
@@ -29,7 +33,7 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('builds recipient email with sender name and tenant in intro', () => {
-    const email = buildRecipientGiftCardEmail(
+    const result = buildRecipientGiftCardEmail(
       card({
         cardType: 'monetary',
         code: 'GCM-ABC123',
@@ -40,6 +44,8 @@ describe('gift-card-delivery-content.util', () => {
       }),
       links,
     );
+    expect(result).not.toBeNull();
+    const email = result!;
 
     expect(email.subject).toBe('Your gift card from Jane Doe for Glow Salon');
     expect(email.text).toContain('Hi Alex,');
@@ -53,7 +59,7 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('uses purchaser customer name when available', () => {
-    const email = buildRecipientGiftCardEmail(
+    const result = buildRecipientGiftCardEmail(
       card({
         cardType: 'monetary',
         code: 'GCM-XYZ',
@@ -64,6 +70,8 @@ describe('gift-card-delivery-content.util', () => {
       }),
       links,
     );
+    expect(result).not.toBeNull();
+    const email = result!;
 
     expect(email.text).toContain(
       "You've received a gift card from Gevorg Gasparyan for Glow Salon services!",
@@ -71,7 +79,7 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('uses stored purchaser name for guest buyers', () => {
-    const email = buildRecipientGiftCardEmail(
+    const result = buildRecipientGiftCardEmail(
       card({
         cardType: 'monetary',
         code: 'GCM-GUEST',
@@ -82,6 +90,8 @@ describe('gift-card-delivery-content.util', () => {
       }),
       links,
     );
+    expect(result).not.toBeNull();
+    const email = result!;
 
     expect(email.text).toContain(
       "You've received a gift card from Maria Guest for Glow Salon services!",
@@ -89,10 +99,12 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('builds recipient email with account link for package gifts', () => {
-    const email = buildRecipientGiftCardEmail(
+    const result = buildRecipientGiftCardEmail(
       card({ cardType: 'package', code: 'GCP-PKG1', serviceCredits: [] }),
       links,
     );
+    expect(result).not.toBeNull();
+    const email = result!;
 
     expect(
       describeGiftCardValue(card({ cardType: 'package', code: 'X', serviceCredits: [] })).join(' '),
@@ -102,11 +114,14 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('builds purchaser receipt with account link', () => {
-    const receipt = buildPurchaserReceiptEmail(
+    const result = buildPurchaserReceiptEmail(
       card({ cardType: 'service', code: 'GCS-1', serviceCredits: [] }),
       'friend@test.com',
       links,
     );
+    expect(result).not.toBeNull();
+    const receipt = result!;
+
     expect(receipt.text).toContain('friend@test.com');
     expect(receipt.text).toContain('/book/glow-salon/account');
   });
@@ -124,7 +139,7 @@ describe('gift-card-delivery-content.util', () => {
   });
 
   it('falls back when business slug is missing', () => {
-    const email = buildRecipientGiftCardEmail(
+    const result = buildRecipientGiftCardEmail(
       card({
         cardType: 'monetary',
         code: 'GCM-X',
@@ -133,7 +148,174 @@ describe('gift-card-delivery-content.util', () => {
       }),
       null,
     );
+    expect(result).not.toBeNull();
+    const email = result!;
+
     expect(email.text).not.toContain('/book/');
     expect(email.text).toContain('booking site');
+  });
+
+  it('returns null when tenant disables the recipient template', () => {
+    const result = buildRecipientGiftCardEmail(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-OFF',
+        business: {
+          name: 'Glow',
+          slug: 'glow',
+          settings: {
+            emailTemplates: {
+              templates: { gift_card_recipient: { enabled: false } },
+            },
+          },
+        } as GiftCard['business'],
+        serviceCredits: [],
+      }),
+      links,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when tenant disables the purchaser receipt template', () => {
+    const result = buildPurchaserReceiptEmail(
+      card({
+        cardType: 'service',
+        code: 'GCS-OFF',
+        business: {
+          name: 'Glow',
+          slug: 'glow',
+          settings: {
+            emailTemplates: {
+              templates: { gift_card_purchaser_receipt: { enabled: false } },
+            },
+          },
+        } as GiftCard['business'],
+        serviceCredits: [],
+      }),
+      'friend@test.com',
+      links,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('describes service and bundle gift values with credits and expiry', () => {
+    const lines = describeGiftCardValue(
+      card({
+        cardType: 'bundle',
+        code: 'GCB-1',
+        expiresAt: new Date('2027-06-01T00:00:00.000Z'),
+        serviceCredits: [{ serviceName: 'Massage', quantityRemaining: 2 }],
+      }),
+    );
+    expect(lines.join('\n')).toContain('Massage × 2');
+    expect(lines.join('\n')).toContain('Expires: 2027-06-01');
+  });
+
+  it('builds package redemption instructions without public links', () => {
+    const email = buildRecipientGiftCardEmail(
+      card({
+        cardType: 'package',
+        code: 'GCP-NOLINK',
+        business: { name: 'Glow' } as GiftCard['business'],
+        serviceCredits: [],
+      }),
+      null,
+    );
+    expect(email).not.toBeNull();
+    expect(email!.text).toContain('Sign in to your account on the booking site');
+  });
+
+  it('resolves sender names from purchaser metadata, stored names, email, or fallback', () => {
+    expect(
+      resolveGiftCardSenderName(
+        card({ cardType: 'monetary', code: 'A', purchaserEmail: 'buyer@test.com', serviceCredits: [] }),
+      ),
+    ).toBe('Buyer');
+    expect(
+      resolveGiftCardSenderName(
+        card({
+          cardType: 'monetary',
+          code: 'B',
+          purchaserEmail: 'jane.doe@test.com',
+          serviceCredits: [],
+        }),
+      ),
+    ).toBe('Jane Doe');
+    expect(
+      resolveGiftCardSenderName(card({ cardType: 'monetary', code: 'C', purchaserEmail: '@', serviceCredits: [] })),
+    ).toBe('Someone');
+    expect(resolveGiftCardSenderName(card({ cardType: 'monetary', code: 'D', serviceCredits: [] }))).toBe('Someone');
+  });
+
+  it('builds purchaser receipt without account links when slug is missing', () => {
+    const receipt = buildPurchaserReceiptEmail(
+      card({ cardType: 'monetary', code: 'GCM-R', business: { name: 'Glow' } as GiftCard['business'], serviceCredits: [] }),
+      'friend@test.com',
+      null,
+    );
+    expect(receipt).not.toBeNull();
+    expect(receipt!.text).not.toContain('View your gift card orders');
+    expect(receipt!.html).not.toContain('<a href=');
+  });
+
+  it('escapes personal message HTML and includes subscription redemption buttons', () => {
+    const email = buildRecipientGiftCardEmail(
+      card({
+        cardType: 'subscription',
+        code: 'GCU-HTML',
+        recipientName: 'Sam',
+        personalMessage: '<script>alert(1)</script>',
+        business: { name: 'Glow', slug: 'glow' } as GiftCard['business'],
+        serviceCredits: [],
+      }),
+      links,
+    );
+    expect(email).not.toBeNull();
+    expect(email!.html).toContain('&lt;script&gt;');
+    expect(email!.html).toContain('Redeem in your account');
+  });
+
+  it('uses generic gift card label for unknown card types', () => {
+    expect(
+      describeGiftCardValue(
+        card({ cardType: 'unknown' as GiftCard['cardType'], code: 'X', serviceCredits: [] }),
+      )[0],
+    ).toBe('Gift card');
+  });
+
+  it('includes personal message in WhatsApp summary', () => {
+    const summary = buildWhatsAppGiftCardSummary(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-MSG',
+        personalMessage: 'Enjoy your gift',
+        serviceCredits: [],
+      }),
+      null,
+    );
+    expect(summary).toContain('Enjoy your gift');
+  });
+
+  it('uses fallback business names when tenant metadata is missing', () => {
+    const email = buildRecipientGiftCardEmail(
+      {
+        ...card({ cardType: 'monetary', code: 'GCM-NOBIZ', serviceCredits: [] }),
+        business: undefined,
+      } as GiftCard,
+      links,
+    );
+    expect(email).not.toBeNull();
+    expect(email!.text).toContain('your business');
+
+    const receipt = buildPurchaserReceiptEmail(
+      {
+        ...card({ cardType: 'monetary', code: 'GCM-NOBIZ', serviceCredits: [] }),
+        business: undefined,
+      } as GiftCard,
+      'friend@test.com',
+      links,
+    );
+    expect(receipt).not.toBeNull();
+    expect(receipt!.text).toContain('the business');
   });
 });

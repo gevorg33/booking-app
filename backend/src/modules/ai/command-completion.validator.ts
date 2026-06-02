@@ -98,7 +98,7 @@ const ACTION_RULES: Record<string, Rule> = {
             field: 'date',
             label: 'Appointments',
             message: 'Specify which appointment(s) to update (date, provider, time, or all)',
-            example: 'Mark all Gevorg appointments on 01_06_2026 as done and paid',
+            example: 'Mark all Gevorg appointments on 01/06/2026 as done and paid',
           }]),
       ...(hasChange
         ? []

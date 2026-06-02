@@ -54,7 +54,7 @@ export class IntentDecompositionService {
     try {
       const result = await this.llm.completeJson<{ intents: DecomposedIntent[] }>(
         businessId,
-        `${DECOMPOSE_SCHEMA}\n\nCurrent date: ${todayDisplay(timeZone)} (DD_MM_YYYY, timezone: ${timeZone})`,
+        `${DECOMPOSE_SCHEMA}\n\nCurrent date: ${todayDisplay(timeZone)} (DD/MM/YYYY, timezone: ${timeZone})`,
         prompt,
         {
           surface: 'dashboard',

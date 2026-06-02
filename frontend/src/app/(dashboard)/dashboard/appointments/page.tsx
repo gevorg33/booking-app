@@ -21,6 +21,8 @@ import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 const defaultParams: AppointmentSearchParams = {
@@ -110,33 +112,41 @@ export default function AppointmentsPage() {
   };
 
   return (
-    <div>
-      <AiContextualSuggestions
-        context={{
-          route: '/dashboard/appointments',
-          statusFilter: statusFilter || null,
-          search: debouncedSearch.trim() || null,
-          todayOnly,
-        }}
-        title="Appointment insights"
-      />
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/appointments']}
-        context={{
-          route: '/dashboard/appointments',
-          statusFilter: statusFilter || null,
-          search: debouncedSearch.trim() || null,
-          todayOnly,
-        }}
-      />
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-blue-400" />
-          {t('appointments.title')}
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">{t('appointments.subtitle')}</p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{
+                route: '/dashboard/appointments',
+                statusFilter: statusFilter || null,
+                search: debouncedSearch.trim() || null,
+                todayOnly,
+              }}
+              title="Appointment insights"
+            />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/appointments']}
+              context={{
+                route: '/dashboard/appointments',
+                statusFilter: statusFilter || null,
+                search: debouncedSearch.trim() || null,
+                todayOnly,
+              }}
+            />
+          </AiSuggestionsStack>
+        }
+      >
+        <DashboardPageToolbar
+          title={
+            <>
+              <ClipboardList className="h-6 w-6 text-blue-400" />
+              {t('appointments.title')}
+            </>
+          }
+          subtitle={t('appointments.subtitle')}
+        />
+      </DashboardPageShell>
 
       {data != null && (
         <div className="card flex items-center gap-3 mb-6 w-fit">

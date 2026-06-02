@@ -346,6 +346,94 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
   ],
 };
 
+export type AiPageSuggestionGroup = {
+  id: string;
+  label: string;
+  items: string[];
+};
+
+/** Grouped Orchestrix prompts per page (shown in collapsible dropdowns). */
+export const AI_PAGE_SUGGESTION_GROUPS: Record<string, AiPageSuggestionGroup[]> = {
+  '/dashboard/bookings': [
+    {
+      id: 'overview',
+      label: 'Today & overview',
+      items: [
+        'How many appointments today?',
+        'Which appointment is the most expensive today?',
+        'Show all appointments for today',
+      ],
+    },
+    {
+      id: 'cancelled',
+      label: 'Cancelled & visibility',
+      items: [
+        'Show cancelled appointments today',
+        'Hide all cancelled appointments from the calendar today',
+        'Unhide hidden cancelled appointments for Gevorg today',
+        'Restore hidden appointments for all providers this week',
+      ],
+    },
+    {
+      id: 'actions',
+      label: 'Book, cancel & update',
+      items: [
+        'Book facemassage with Gevorg tomorrow at 10:00',
+        'Cancel all bookings for tomorrow',
+        'Change service to hot stone massage for Maria\'s 14:00 today',
+      ],
+    },
+  ],
+  '/dashboard/calendar': [
+    {
+      id: 'availability',
+      label: 'Availability & schedule',
+      items: [
+        'Show Gevorg\'s schedule tomorrow',
+        'Which slots are available for Gevorg tomorrow?',
+        'Who has open slots this week?',
+      ],
+    },
+    {
+      id: 'optimize',
+      label: 'Gaps & conflicts',
+      items: [
+        'Fill gaps for all providers this week',
+        'Resolve scheduling conflicts this week',
+        'Who has conflicts this week?',
+      ],
+    },
+  ],
+  '/dashboard/schedule': [
+    {
+      id: 'templates',
+      label: 'Templates & setup',
+      items: [
+        'Apply weekday template to Gevorg this week',
+        'List our schedule templates',
+        'Set up this week\'s schedule for my team',
+      ],
+    },
+    {
+      id: 'blocks',
+      label: 'Blocks & gaps',
+      items: [
+        'Block 12:00–13:00 lunch Mon–Fri for all providers',
+        'Fill schedule gaps between 9–19:00 today',
+        'Who has open slots this week?',
+      ],
+    },
+  ],
+};
+
+export function getAiPageSuggestionGroups(route: string): AiPageSuggestionGroup[] {
+  const grouped = AI_PAGE_SUGGESTION_GROUPS[route];
+  if (grouped?.length) return grouped;
+  const flat = AI_PAGE_SUGGESTIONS[route];
+  if (!flat?.length) return [];
+  return [{ id: 'commands', label: 'Quick commands', items: flat }];
+}
+
 /** Hints injected into AI session so the classifier prefers page-relevant actions */
 export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
   '/dashboard':

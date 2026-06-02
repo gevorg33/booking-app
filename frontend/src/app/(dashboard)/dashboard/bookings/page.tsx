@@ -16,6 +16,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay, getTodayDateKey, toDateKey, parseDateKey, todayDateAnchor, addCalendarDays } from '@/lib/date-format';
+import { DatePicker } from '@/components/ui/date-picker';
 import { isValidTime24, isTimeInRange, normalizeTime24, timeToMinutes } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,10 +24,15 @@ import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
+import { resolveBookingsSettings } from '@/lib/bookings-settings';
+import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { StylishChoice } from '@/components/ui/radio-choice';
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -383,7 +389,6 @@ export default function BookingsPage() {
   const [employeeId, setEmployeeId]         = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [showPayAtVenueOnly, setShowPayAtVenueOnly] = useState(false);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
 
@@ -404,6 +409,22 @@ export default function BookingsPage() {
   const goToday = useCallback(() => setDay(todayDateAnchor()),            []);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
+
+  const { data: businessSettings = {} } = useQuery({
+    queryKey: ['business-settings', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return {};
+      const { data } = await api.get(`/businesses/${business.id}`);
+      const record = unwrapBusinessApiPayload<{ settings?: Record<string, unknown> }>(data);
+      return record.settings ?? {};
+    },
+    enabled: !!business?.id,
+  });
+
+  const calendarPayAtVenueOnly = useMemo(
+    () => resolveBookingsSettings(businessSettings).calendarPayAtVenueFilterDefault,
+    [businessSettings],
+  );
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', business?.id],
@@ -426,7 +447,7 @@ export default function BookingsPage() {
   });
 
   // Provider-calendar: returns whole applied period blocks (not micro-slots)
-  const { data: calData, isLoading: calLoading } = useQuery({
+  const { data: calData, isPending: calPending } = useQuery({
     queryKey: ['provider-calendar', business?.id, employeeId, dayStr],
     queryFn: async () => {
       if (!business?.id || !employeeId) return { periods: [] };
@@ -438,6 +459,7 @@ export default function BookingsPage() {
     },
     enabled: !!business?.id && !!employeeId,
   });
+  const calInitialLoading = calPending && calData === undefined;
 
   const { data: bookingsRaw = [] } = useQuery({
     queryKey: ['bookings', business?.id, dayStr, employeeId],
@@ -457,13 +479,13 @@ export default function BookingsPage() {
   const calPeriods: CalPeriod[] = calData?.periods || [];
   const bookings: BookingItem[] = bookingsRaw;
   const visibleBookings = useMemo(() => {
-    if (!showPayAtVenueOnly) return bookings;
+    if (!calendarPayAtVenueOnly) return bookings;
     return bookings.filter(
       (b) =>
         b.paymentStatus === 'pending' &&
         (b.metadata?.payAtVenue === true || b.metadata?.paymentMethod === 'cash'),
     );
-  }, [bookings, showPayAtVenueOnly]);
+  }, [bookings, calendarPayAtVenueOnly]);
 
   // ── Derived UI state ───────────────────────────────────────────────────────
 
@@ -609,76 +631,91 @@ export default function BookingsPage() {
 
   return (
     <div className="flex flex-col h-full gap-4">
-
-      <AiContextualSuggestions
-        context={{
-          route: '/dashboard/bookings',
-          employeeName: employees.find((e: any) => e.id === employeeId)?.name,
-          date: dayStr,
-        }}
-        title="Booking opportunities"
-      />
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
-        context={{
-          route: '/dashboard/bookings',
-          employeeName: employees.find((e: any) => e.id === employeeId)?.name,
-          date: dayStr,
-        }}
-      />
-
-      {/* ── Top toolbar ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">{t('bookings.title')}</h1>
-          <p className="text-gray-400 text-sm">Select a provider and day to manage their schedule</p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-gray-400 shrink-0" />
-            <select
-              className="input max-w-[200px]"
-              value={employeeId}
-              onChange={(e) => { setEmployeeId(e.target.value); setSelectedPeriod(null); }}
-            >
-              <option value="">Select provider...</option>
-              {employees.map((emp: any) => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={prevDay} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={goToday} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isToday ? 'bg-blue-600/20 text-blue-300' : 'bg-gray-800 hover:bg-gray-700 text-gray-200'}`}>
-              Today
-            </button>
-            <button onClick={nextDay} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <input
-              type="date"
-              className="input text-sm ml-1"
-              value={dayStr}
-              onChange={(e) => {
-                const parsed = parseDateKey(e.target.value);
-                if (parsed) setDay(parsed);
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{
+                route: '/dashboard/bookings',
+                employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+                date: dayStr,
+              }}
+              title="Booking opportunities"
+            />
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
+              context={{
+                route: '/dashboard/bookings',
+                employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+                date: dayStr,
               }}
             />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={showPayAtVenueOnly}
-              onChange={(e) => setShowPayAtVenueOnly(e.target.checked)}
-            />
-            {t('bookings.payAtVenueOnly')}
-          </label>
-        </div>
-      </div>
+          </AiSuggestionsStack>
+        }
+      >
+        <DashboardPageToolbar
+          title={t('bookings.title')}
+          subtitle="Select a provider and day to manage their schedule"
+          meta={<p className="font-medium text-gray-300">{fmtDate(day)}</p>}
+          actions={
+            <>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 shrink-0 text-gray-400" />
+                <select
+                  className="input max-w-[200px]"
+                  value={employeeId}
+                  onChange={(e) => {
+                    setEmployeeId(e.target.value);
+                    setSelectedPeriod(null);
+                  }}
+                >
+                  <option value="">Select provider...</option>
+                  {employees.map((emp: any) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevDay}
+                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={goToday}
+                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                    isToday ? 'bg-blue-600/20 text-blue-300' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={nextDay}
+                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <DatePicker
+                  variant="compact"
+                  className="ml-1"
+                  value={dayStr}
+                  onChange={(next) => {
+                    const parsed = parseDateKey(next);
+                    if (parsed) setDay(parsed);
+                  }}
+                />
+              </div>
+            </>
+          }
+        />
+      </DashboardPageShell>
 
-      <p className="text-gray-300 font-medium -mt-2">{fmtDate(day)}</p>
+      {calendarPayAtVenueOnly && (
+        <p className="text-xs text-amber-400/90">{t('bookings.payAtVenueFilterActive')}</p>
+      )}
 
       {/* ── Main area ── */}
       <div className="flex gap-4 flex-1 min-h-0">
@@ -716,7 +753,7 @@ export default function BookingsPage() {
                 <p className="text-gray-400">Select a service provider to view their schedule</p>
               </div>
             </div>
-          ) : calLoading ? (
+          ) : calInitialLoading ? (
             <div className="card flex-1 flex items-center justify-center">
               <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
             </div>
@@ -992,20 +1029,20 @@ export default function BookingsPage() {
 
                 {activeSubscription && activeSubscription.appointmentsRemaining > 0 && (
                   <div className="rounded-lg border border-emerald-800/40 bg-emerald-900/10 p-3">
-                    <label className="flex items-start gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={useSubscriptionId === activeSubscription.id}
-                        onChange={(e) =>
-                          setUseSubscriptionId(e.target.checked ? activeSubscription.id : null)
-                        }
-                        className="mt-0.5"
-                      />
-                      <span>
-                        Use subscription credit ({activeSubscription.appointmentsRemaining} visits
-                        remaining) — no service charge
-                      </span>
-                    </label>
+                    <StylishChoice
+                      type="checkbox"
+                      checked={useSubscriptionId === activeSubscription.id}
+                      onChange={(checked) =>
+                        setUseSubscriptionId(checked ? activeSubscription.id : null)
+                      }
+                      label={
+                        <>
+                          Use subscription credit ({activeSubscription.appointmentsRemaining} visits
+                          remaining) — no service charge
+                        </>
+                      }
+                      labelClassName="text-sm"
+                    />
                   </div>
                 )}
 
@@ -1099,7 +1136,9 @@ export default function BookingsPage() {
               ? `${employees.find((e: any) => e.id === employeeId)?.name ?? 'Provider'}'s Bookings`
               : 'All Bookings'} — {fmtDate(day)}
           </h2>
-          <span className="text-xs text-gray-500">{bookings.length} booking{bookings.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-gray-500">
+            {visibleBookings.length} booking{visibleBookings.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {showCancel && (
@@ -1124,11 +1163,11 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {bookings.length === 0 ? (
+        {visibleBookings.length === 0 ? (
           <p className="text-center text-gray-500 text-sm py-6">No bookings for this day</p>
         ) : (
           <div className="divide-y divide-gray-800">
-            {bookings.map((b) => (
+            {visibleBookings.map((b) => (
               <div
                 key={b.id}
                 role="button"

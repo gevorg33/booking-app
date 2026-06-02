@@ -1,4 +1,5 @@
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsBoolean, IsOptional, IsArray, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateNotificationSettingsDto {
   @IsOptional()
@@ -52,4 +53,22 @@ export class UpdateNotificationSettingsDto {
   @IsOptional()
   @IsBoolean()
   notifyBusinessOnCustomerBookingChange?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowCustomerReminderChoice?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(168, { each: true })
+  customerReminderOptionsHours?: number[];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  defaultCustomerReminderHours?: number | null;
 }

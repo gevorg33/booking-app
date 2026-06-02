@@ -53,11 +53,11 @@ describe('ai-intent-heuristics', () => {
       'Move Jujos appointment on June 10 from 16-17 to june 11th nearest free time';
 
     it('parses destination date without nearest-free suffix', () => {
-      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('11_06_2026');
+      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('11/06/2026');
     });
 
     it('parses source date and time window', () => {
-      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('10_06_2026');
+      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('10/06/2026');
       expect(extractRescheduleSourceTime(prompt)).toBe('16:00');
     });
 
@@ -86,8 +86,8 @@ describe('ai-intent-heuristics', () => {
     });
 
     it('parses June 1 as source and June 2 as destination', () => {
-      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('01_06_2026');
-      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('02_06_2026');
+      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('01/06/2026');
+      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('02/06/2026');
     });
   });
 

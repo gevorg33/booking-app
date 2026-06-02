@@ -10,8 +10,7 @@ import { useI18n } from '@/i18n';
 import { InventoryServiceLinks } from '@/components/operations/inventory-service-links';
 import { SchedulingResourcesPanel } from '@/components/operations/scheduling-resources-panel';
 import { ContextualHelpButton } from '@/components/help/contextual-help';
-import { AiPagePanel } from '@/components/ai-page-panel';
-import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { DatePicker } from '@/components/ui/date-picker';
 
 type Tab = 'locations' | 'resources' | 'inventory' | 'expenses' | 'commissions' | 'pl';
 
@@ -62,11 +61,6 @@ export default function OperationsPage() {
 
   return (
     <div>
-      <AiPagePanel
-        suggestions={AI_PAGE_SUGGESTIONS['/dashboard/operations']}
-        context={{ route: '/dashboard/operations' }}
-      />
-
       <div className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -114,20 +108,18 @@ export default function OperationsPage() {
           <div className="card flex flex-wrap gap-4 items-end">
             <div>
               <label className="label">{t('reports.dateFrom')}</label>
-              <input
-                type="date"
-                className="input max-w-[180px]"
+              <DatePicker
+                className="max-w-[180px]"
                 value={plRange.from}
-                onChange={(e) => setPlRange((r) => ({ ...r, from: e.target.value }))}
+                onChange={(from) => setPlRange((r) => ({ ...r, from }))}
               />
             </div>
             <div>
               <label className="label">{t('reports.dateTo')}</label>
-              <input
-                type="date"
-                className="input max-w-[180px]"
+              <DatePicker
+                className="max-w-[180px]"
                 value={plRange.to}
-                onChange={(e) => setPlRange((r) => ({ ...r, to: e.target.value }))}
+                onChange={(to) => setPlRange((r) => ({ ...r, to }))}
               />
             </div>
           </div>
@@ -406,7 +398,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
         </div>
         <div>
           <label className="label">Date</label>
-          <input type="date" className="input" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} required />
+          <DatePicker value={form.expenseDate} onChange={(expenseDate) => setForm({ ...form, expenseDate })} required />
         </div>
         <div>
           <label className="label">Description</label>

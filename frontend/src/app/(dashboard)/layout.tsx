@@ -56,16 +56,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
       { href: '/dashboard/bookings', label: t('nav.bookings'), icon: Calendar },
       { href: '/dashboard/schedule', label: t('nav.schedule'), icon: Clock },
-      { href: '/dashboard/employees', label: t('nav.employees'), icon: Users },
-      { href: '/dashboard/customers', label: t('nav.customers'), icon: UserCircle },
       { href: '/dashboard/appointments', label: t('nav.appointments'), icon: ClipboardList },
       { href: '/dashboard/services', label: t('nav.services'), icon: Briefcase },
-      { href: '/dashboard/reports', label: t('nav.reports'), icon: BarChart3 },
-      { href: '/dashboard/monetization', label: t('nav.monetization'), icon: Wallet },
-      { href: '/dashboard/operations', label: t('nav.operations'), icon: Warehouse },
+      { href: '/dashboard/employees', label: t('nav.employees'), icon: Users },
+      { href: '/dashboard/customers', label: t('nav.customers'), icon: UserCircle },
       { href: '/dashboard/reviews', label: t('nav.reviews'), icon: Star },
+      { href: '/dashboard/monetization', label: t('nav.monetization'), icon: Wallet },
+      { href: '/dashboard/reports', label: t('nav.reports'), icon: BarChart3 },
+      { href: '/dashboard/operations', label: t('nav.operations'), icon: Warehouse },
       { href: '/dashboard/business', label: t('nav.businessProfile'), icon: Store },
-      { href: '/dashboard/integrations', label: t('nav.integrations'), icon: Plug },
+      { href: '/dashboard/integrations', label: t('nav.crmIntegrations'), icon: Plug },
       { href: '/dashboard/billing', label: t('nav.billing'), icon: CreditCard },
       { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
       { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
@@ -101,14 +101,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isOnboardingRoute) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="dashboard-app min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="max-w-7xl mx-auto p-6">{children}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+    <div className="dashboard-app min-h-screen flex bg-gray-50 dark:bg-gray-950">
       <aside className="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2">

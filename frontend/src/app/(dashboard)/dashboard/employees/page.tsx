@@ -22,6 +22,8 @@ import {
 import { useI18n } from '@/i18n';
 import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
+import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 
 export default function EmployeesPage() {
@@ -235,31 +237,42 @@ export default function EmployeesPage() {
   const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div>
-      <PageHelpHeader
-        topicId="employees"
-        title={t('employees.title')}
-        subtitle={t('teamMembers.subtitle')}
-        actions={
-          <>
-            <button
-              onClick={() => {
-                setInviteError(null);
-                setInviteSuccess(false);
-                setInviteOpen(true);
-              }}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" /> {t('invite.sendInvite')}
-            </button>
-            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Add Employee
-            </button>
-          </>
+    <div className="flex flex-col gap-4">
+      <DashboardPageShell
+        ai={
+          <AiSuggestionsStack>
+            <AiPagePanel
+              suggestions={AI_PAGE_SUGGESTIONS['/dashboard/employees']}
+              context={{ route: '/dashboard/employees' }}
+            />
+          </AiSuggestionsStack>
         }
-      />
+      >
+        <PageHelpHeader
+          topicId="employees"
+          title={t('employees.title')}
+          subtitle={t('teamMembers.subtitle')}
+          actions={
+            <>
+              <button
+                onClick={() => {
+                  setInviteError(null);
+                  setInviteSuccess(false);
+                  setInviteOpen(true);
+                }}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" /> {t('invite.sendInvite')}
+              </button>
+              <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Add Employee
+              </button>
+            </>
+          }
+        />
+      </DashboardPageShell>
 
-      <div className="card bg-blue-600/5 border-blue-500/20 flex items-start gap-3">
+      <div className="card flex items-start gap-3 border-blue-500/20 bg-blue-600/5">
         <Smartphone className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm text-gray-300">
@@ -272,16 +285,16 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-hidden p-0">
         {isLoading ? (
-          <div className="text-center py-12 text-gray-500">Loading...</div>
+          <div className="text-center py-12 px-6 text-gray-500">Loading...</div>
         ) : employees.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-6">
             <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">No employees yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-800 px-6">
             {employees.map((emp) => {
               const avatar = employeeAvatarUrl(emp);
               const title = employeeTitle(emp);
@@ -446,8 +459,6 @@ export default function EmployeesPage() {
           </div>
         )}
       </div>
-
-      <AiPagePanel suggestions={AI_PAGE_SUGGESTIONS['/dashboard/employees']} context={{ route: '/dashboard/employees' }} />
 
       <TeamMembersCard />
 
