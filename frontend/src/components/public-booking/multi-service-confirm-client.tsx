@@ -170,6 +170,7 @@ export function MultiServiceConfirmClient({
         lines.map((line) => ({
           serviceId: line.serviceId,
           employeeId: line.employeeId,
+          employeeName: line.employeeName,
           startTime: line.startTime,
         })),
       ),

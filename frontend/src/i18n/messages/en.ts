@@ -1380,6 +1380,7 @@ const en: MessageTree = {
     multiServiceConfirmTitle: 'Schedule your services',
     multiServiceBookedTitle: 'Appointments booked',
     multiServiceBookedHint: 'Your multi-service visit is confirmed.',
+    multiServiceWithProvider: 'with {name}',
     multiServicePayAndBook: 'Pay & book visit',
     multiServiceBook: 'Book visit',
     multiServicePickBlock: 'Pick a time block',

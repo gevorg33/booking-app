@@ -624,6 +624,7 @@ const ru: MessageTree = {
     multiServiceConfirmTitle: 'Запланируйте услуги',
     multiServiceBookedTitle: 'Записи подтверждены',
     multiServiceBookedHint: 'Ваш мультисервисный визит подтверждён.',
+    multiServiceWithProvider: 'с {name}',
     multiServicePayAndBook: 'Оплатить и записаться',
     multiServiceBook: 'Записаться',
     multiServicePickBlock: 'Выберите временной блок',

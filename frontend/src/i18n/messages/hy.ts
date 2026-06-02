@@ -624,6 +624,7 @@ const hy: MessageTree = {
     multiServiceConfirmTitle: 'Պլանավորեք ծառայությունները',
     multiServiceBookedTitle: 'Ամրագրումները հաստատված են',
     multiServiceBookedHint: 'Ձեր բազմածառայության այցը հաստատված է։',
+    multiServiceWithProvider: '{name}-ի հետ',
     multiServicePayAndBook: 'Վճարել և ամրագրել',
     multiServiceBook: 'Ամրագրել',
     multiServicePickBlock: 'Ընտրեք ժամանակային բլոկ',
