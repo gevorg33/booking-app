@@ -89,6 +89,7 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode?: string;
   onlinePaymentsEnabled?: boolean;
+  giftCardsPurchaseEnabled?: boolean;
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
   messaging?: PublicMessagingLinks;
@@ -797,6 +798,7 @@ export interface PurchasePublicGiftCardBody {
   cardType: PublicGiftCardType;
   amount?: number;
   serviceId?: string;
+  serviceIds?: string[];
   bundleId?: string;
   deliveryMethod: PublicGiftCardDeliveryMethod;
   buyForSelf?: boolean;

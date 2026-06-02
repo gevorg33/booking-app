@@ -31,7 +31,9 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
 
   const [cardType, setCardType] = useState<PublicGiftCardType>('monetary');
   const [amount, setAmount] = useState(String(settings.presetAmounts[0] ?? 50));
-  const [serviceId, setServiceId] = useState(settings.purchasableServices[0]?.serviceId ?? '');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() =>
+    settings.purchasableServices[0]?.serviceId ? [settings.purchasableServices[0].serviceId] : [],
+  );
   const [bundleId, setBundleId] = useState(settings.bundles[0]?.id ?? '');
 
   const selectedBundle = useMemo(
@@ -44,16 +46,43 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
     [services],
   );
 
+  const servicePriceById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of settings.purchasableServices) {
+      const catalogPrice = entry.price != null ? Number(entry.price) : null;
+      const listPrice = services.find((service) => service.id === entry.serviceId)?.price;
+      map.set(entry.serviceId, catalogPrice ?? Number(listPrice ?? 0));
+    }
+    return map;
+  }, [services, settings.purchasableServices]);
+
+  const selectedServicesTotal = useMemo(
+    () => selectedServiceIds.reduce((sum, id) => sum + (servicePriceById.get(id) ?? 0), 0),
+    [selectedServiceIds, servicePriceById],
+  );
+
+  const toggleService = (serviceId: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
+    );
+  };
+
   const canContinue = useMemo(() => {
     if (cardType === 'monetary') return Number(amount) > 0;
-    if (cardType === 'service') return !!serviceId;
+    if (cardType === 'service') return selectedServiceIds.length > 0;
     return !!bundleId;
-  }, [cardType, amount, serviceId, bundleId]);
+  }, [amount, bundleId, cardType, selectedServiceIds.length]);
 
   function onContinue() {
     const params = new URLSearchParams({ cardType });
     if (cardType === 'monetary') params.set('amount', amount);
-    if (cardType === 'service') params.set('serviceId', serviceId);
+    if (cardType === 'service') {
+      if (selectedServiceIds.length === 1) {
+        params.set('serviceId', selectedServiceIds[0]);
+      } else {
+        params.set('serviceIds', selectedServiceIds.join(','));
+      }
+    }
     if (cardType === 'bundle') params.set('bundleId', bundleId);
     router.push(`${bookPath(slug, '/gift-cards/checkout')}?${params.toString()}`);
   }
@@ -125,22 +154,53 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
           )}
 
           {cardType === 'service' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('public.giftCards.selectService')}
-              </label>
-              <select
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 bg-white"
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-              >
-                {settings.purchasableServices.map((svc) => (
-                  <option key={svc.serviceId} value={svc.serviceId}>
-                    {serviceNameById.get(svc.serviceId) ?? svc.serviceId}
-                    {svc.price != null ? ` — ${formatPrice(Number(svc.price), DEFAULT_CURRENCY)}` : ''}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500">{t('public.giftCards.selectServicesHint')}</p>
+              <ul className="space-y-2">
+                {settings.purchasableServices.map((svc) => {
+                  const selected = selectedServiceIds.includes(svc.serviceId);
+                  const price = servicePriceById.get(svc.serviceId) ?? 0;
+                  return (
+                    <li key={svc.serviceId}>
+                      <button
+                        type="button"
+                        onClick={() => toggleService(svc.serviceId)}
+                        className={`w-full flex items-start gap-3 p-4 rounded-2xl border bg-white text-left transition-colors ${
+                          selected
+                            ? 'border-violet-400 ring-2 ring-violet-100'
+                            : 'border-gray-100 hover:border-gray-200'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900">
+                            {serviceNameById.get(svc.serviceId) ?? svc.serviceId}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {formatPrice(price, DEFAULT_CURRENCY)}
+                          </p>
+                        </div>
+                        <span
+                          className="inline-block mt-1 w-5 h-5 rounded border-2 shrink-0"
+                          style={{
+                            borderColor: selected ? primary : '#d1d5db',
+                            backgroundColor: selected ? primary : 'transparent',
+                          }}
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {selectedServiceIds.length > 0 && (
+                <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm">
+                  <p className="font-medium text-gray-900">
+                    {t('public.giftCards.selectedServices', { count: selectedServiceIds.length })}
+                  </p>
+                  <p className="text-gray-600 mt-1">
+                    {formatPrice(selectedServicesTotal, DEFAULT_CURRENCY)}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

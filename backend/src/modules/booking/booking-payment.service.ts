@@ -826,7 +826,11 @@ export class BookingPaymentService {
       const purchaseDto = dto as unknown as PurchaseGiftCardInput;
       const card = await this.giftCardPurchaseService.fulfillPurchase(
         business.id,
-        purchaseDto,
+        {
+          ...purchaseDto,
+          purchaserCustomerId:
+            authenticatedCustomerId ?? purchaseDto.purchaserCustomerId,
+        },
         sessionId,
       );
 

@@ -51,6 +51,7 @@ describe('ZendeskIntegrationService', () => {
           zendesk: {
             enabled: true,
             subdomain: 'testsalon',
+            apiUserEmail: 'agent@test.com',
             apiTokenEnc: encryptSecret('zendesk-token', ENCRYPTION_KEY),
             widgetKey: 'widget-key-123',
             widgetEnabledOnDashboard: true,
@@ -135,12 +136,14 @@ describe('ZendeskIntegrationService', () => {
       const view = await service.updateSettings('biz-1', {
         enabled: true,
         subdomain: 'NewSub',
+        apiUserEmail: 'agent@test.com',
         apiToken: 'fresh-token',
         widgetKey: 'wk',
         syncCustomersEnabled: true,
       });
       expect(api.verifyCredentials).toHaveBeenCalledWith({
         subdomain: 'newsub',
+        apiUserEmail: 'agent@test.com',
         apiToken: 'fresh-token',
       });
       expect(view.configured).toBe(true);
@@ -154,9 +157,32 @@ describe('ZendeskIntegrationService', () => {
         service.updateSettings('biz-1', {
           enabled: true,
           subdomain: 'bad',
+          apiUserEmail: 'agent@test.com',
           apiToken: 'bad-token',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('requires account email when setting a new API token', async () => {
+      businessRepo.findOne.mockResolvedValue({ ...baseBusiness, settings: {} });
+      await expect(
+        service.updateSettings('biz-1', {
+          enabled: true,
+          subdomain: 'acme',
+          apiToken: 'fresh-token',
+        }),
+      ).rejects.toThrow('Zendesk account email is required');
+    });
+
+    it('normalizes subdomain URLs before saving', async () => {
+      businessRepo.findOne.mockResolvedValue({ ...baseBusiness, settings: {} });
+      const view = await service.updateSettings('biz-1', {
+        enabled: true,
+        subdomain: 'https://Acme.zendesk.com/',
+        apiUserEmail: 'agent@test.com',
+        apiToken: 'fresh-token',
+      });
+      expect(view.subdomain).toBe('acme');
     });
 
     it('updates widget flags and verifies when fully configured', async () => {

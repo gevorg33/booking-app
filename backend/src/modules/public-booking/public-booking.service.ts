@@ -25,6 +25,7 @@ import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { Business } from '../business/entities/business.entity.js';
+import { readBusinessGiftCardSettings } from '../gift-cards/gift-card.types.js';
 import {
   addDaysToDateKey,
   formatZonedDateLabel,
@@ -111,6 +112,7 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   defaultPhoneCountryCode: string;
   onlinePaymentsEnabled: boolean;
+  giftCardsPurchaseEnabled: boolean;
   support?: PublicSupportWidgets;
   metaBooking?: PublicMetaBooking;
   messaging?: PublicMessagingLinks;
@@ -275,6 +277,7 @@ export class PublicBookingService {
       publicBookingEnabled: publicBooking.enabled !== false,
       defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
       onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
+      giftCardsPurchaseEnabled: readBusinessGiftCardSettings(settings).purchaseEnabled,
       ...(zendeskWidgetKey ? { support: { zendeskWidgetKey } } : {}),
       ...(dist.metaBooking?.enabled
         ? {

@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 
 export interface ZendeskRuntimeConfig {
   subdomain: string;
+  /** Zendesk agent/admin email paired with the API token */
+  apiUserEmail: string;
   apiToken: string;
 }
 
@@ -24,15 +26,17 @@ export class ZendeskApiClient {
     return `https://${subdomain}.zendesk.com/api/v2`;
   }
 
-  private authHeader(apiToken: string): string {
-    const encoded = Buffer.from(`token:${apiToken}`).toString('base64');
+  private authHeader(config: Pick<ZendeskRuntimeConfig, 'apiUserEmail' | 'apiToken'>): string {
+    const encoded = Buffer.from(`${config.apiUserEmail}/token:${config.apiToken}`).toString(
+      'base64',
+    );
     return `Basic ${encoded}`;
   }
 
   async verifyCredentials(config: ZendeskRuntimeConfig): Promise<boolean> {
     const res = await fetch(`${this.baseUrl(config.subdomain)}/users/me.json`, {
       headers: {
-        Authorization: this.authHeader(config.apiToken),
+        Authorization: this.authHeader(config),
         'Content-Type': 'application/json',
       },
     });
@@ -62,7 +66,7 @@ export class ZendeskApiClient {
     const res = await fetch(`${this.baseUrl(config.subdomain)}/tickets.json`, {
       method: 'POST',
       headers: {
-        Authorization: this.authHeader(config.apiToken),
+        Authorization: this.authHeader(config),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -104,7 +108,7 @@ export class ZendeskApiClient {
     const res = await fetch(`${this.baseUrl(config.subdomain)}/users/create_or_update.json`, {
       method: 'POST',
       headers: {
-        Authorization: this.authHeader(config.apiToken),
+        Authorization: this.authHeader(config),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

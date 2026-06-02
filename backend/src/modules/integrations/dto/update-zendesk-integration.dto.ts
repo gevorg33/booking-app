@@ -21,6 +21,11 @@ export class UpdateZendeskIntegrationDto {
   @Matches(/^[a-z0-9-]+$/i, { message: 'subdomain must be alphanumeric' })
   subdomain?: string;
 
+  /** Zendesk agent/admin email paired with the API token */
+  @IsOptional()
+  @IsEmail()
+  apiUserEmail?: string;
+
   /** Plaintext API token — encrypted at rest. Omit to keep existing. */
   @IsOptional()
   @IsString()

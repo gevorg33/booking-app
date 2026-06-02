@@ -2,7 +2,7 @@ import { ZendeskApiClient } from './zendesk-api.client.js';
 
 describe('ZendeskApiClient', () => {
   const client = new ZendeskApiClient();
-  const config = { subdomain: 'acme', apiToken: 'secret-token' };
+  const config = { subdomain: 'acme', apiUserEmail: 'agent@test.com', apiToken: 'secret-token' };
 
   const originalFetch = global.fetch;
 
@@ -18,7 +18,7 @@ describe('ZendeskApiClient', () => {
       'https://acme.zendesk.com/api/v2/users/me.json',
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: expect.stringMatching(/^Basic /),
+          Authorization: `Basic ${Buffer.from('agent@test.com/token:secret-token').toString('base64')}`,
         }),
       }),
     );

@@ -24,7 +24,8 @@ import {
   ZendeskIntegrationPublicView,
   ZendeskPublicWidgetConfig,
 } from './zendesk-integration.types.js';
-import { ZendeskApiClient } from './zendesk-api.client.js';
+import { ZendeskApiClient, type ZendeskRuntimeConfig } from './zendesk-api.client.js';
+import { normalizeZendeskSubdomain } from './zendesk-subdomain.util.js';
 import type { GiftCardModifyPayload } from '../../gift-cards/gift-card-order.types.js';
 
 export interface ReviewTicketPayload {
@@ -59,11 +60,21 @@ export class ZendeskIntegrationService {
   }
 
   private runtimeConfig(integration: BusinessZendeskIntegration) {
-    if (!integration.subdomain?.trim() || !integration.apiTokenEnc) return null;
+    if (
+      !integration.subdomain?.trim() ||
+      !integration.apiTokenEnc ||
+      !integration.apiUserEmail?.trim()
+    ) {
+      return null;
+    }
     try {
       const apiToken = decryptSecret(integration.apiTokenEnc, this.encryptionKey());
       if (!apiToken.trim()) return null;
-      return { subdomain: integration.subdomain.trim().toLowerCase(), apiToken: apiToken.trim() };
+      return {
+        subdomain: normalizeZendeskSubdomain(integration.subdomain),
+        apiUserEmail: integration.apiUserEmail.trim().toLowerCase(),
+        apiToken: apiToken.trim(),
+      };
     } catch {
       this.logger.warn('Failed to decrypt Zendesk API token');
       return null;
@@ -90,6 +101,7 @@ export class ZendeskIntegrationService {
       configured: Boolean(runtime),
       enabled: Boolean(integration.enabled),
       subdomain: integration.subdomain,
+      apiUserEmail: integration.apiUserEmail,
       hasApiToken: Boolean(integration.apiTokenEnc),
       apiTokenHint,
       widgetKey: integration.widgetKey,
@@ -124,8 +136,18 @@ export class ZendeskIntegrationService {
     const next: BusinessZendeskIntegration = { ...current };
 
     if (dto.enabled !== undefined) next.enabled = dto.enabled;
-    if (dto.subdomain !== undefined) next.subdomain = dto.subdomain.trim().toLowerCase();
+    if (dto.subdomain !== undefined) {
+      next.subdomain = normalizeZendeskSubdomain(dto.subdomain);
+    }
+    if (dto.apiUserEmail !== undefined) {
+      next.apiUserEmail = dto.apiUserEmail.trim().toLowerCase() || undefined;
+    }
     if (dto.apiToken?.trim()) {
+      if (!next.apiUserEmail?.trim()) {
+        throw new BadRequestException(
+          'Zendesk account email is required when setting an API token',
+        );
+      }
       next.apiTokenEnc = encryptSecret(dto.apiToken.trim(), this.encryptionKey());
     }
     if (dto.widgetKey !== undefined) next.widgetKey = dto.widgetKey.trim() || undefined;
@@ -151,11 +173,15 @@ export class ZendeskIntegrationService {
     if (next.enabled && next.subdomain && next.apiTokenEnc) {
       const runtime = this.runtimeConfig(next);
       if (!runtime) {
-        throw new BadRequestException('Invalid Zendesk credentials');
+        throw new BadRequestException(
+          'Zendesk subdomain, account email, and API token are required',
+        );
       }
       const ok = await this.api.verifyCredentials(runtime);
       if (!ok) {
-        throw new BadRequestException('Could not verify Zendesk subdomain or API token');
+        throw new BadRequestException(
+          'Could not verify Zendesk credentials. Check subdomain, account email, and API token.',
+        );
       }
     }
 
@@ -434,7 +460,7 @@ export class ZendeskIntegrationService {
   private async syncCustomerRecord(
     business: Business,
     customer: Customer,
-    runtime: { subdomain: string; apiToken: string },
+    runtime: ZendeskRuntimeConfig,
   ) {
     const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const bookingCount = await this.bookingRepo.count({

@@ -1630,6 +1630,41 @@ describe('BookingPaymentService', () => {
         expect.objectContaining({ status: 'completed', stripeSessionId: 'sess_gc' }),
       );
     });
+
+    it('links gift card to authenticated customer when draft has customer id', async () => {
+      draftRepo.findOne.mockResolvedValue({
+        id: 'draft-gc',
+        businessId: 'biz-1',
+        amount: 50,
+        currency: 'USD',
+        status: 'pending',
+        payload: {
+          ...giftCardDto,
+          metadata: {
+            checkoutKind: 'gift_card_purchase',
+            authenticatedCustomerId: 'cust-auth',
+          },
+        },
+      });
+      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
+      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({ id: 'gc-1', code: 'ABCD-1234' });
+
+      await service.handleCheckoutCompleted({
+        id: 'sess_gc',
+        metadata: { type: 'booking_payment', draftId: 'draft-gc' },
+        status: 'complete',
+        payment_status: 'paid',
+      });
+
+      expect(giftCardPurchaseService.fulfillPurchase).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({
+          purchaserEmail: 'buyer@test.com',
+          purchaserCustomerId: 'cust-auth',
+        }),
+        'sess_gc',
+      );
+    });
   });
 
   // ─── confirmCheckoutSession — gift card path ──────────────────────────────────
@@ -1657,7 +1692,10 @@ describe('BookingPaymentService', () => {
         stripeConnectAccountId: 'acct_1',
         payload: {
           ...giftCardDto,
-          metadata: { checkoutKind: 'gift_card_purchase' },
+          metadata: {
+            checkoutKind: 'gift_card_purchase',
+            authenticatedCustomerId: 'cust-auth',
+          },
         },
       });
       giftCardPurchaseService.fulfillPurchase.mockResolvedValue({ id: 'gc-1', code: 'ABCD-1234' });
@@ -1670,7 +1708,10 @@ describe('BookingPaymentService', () => {
       });
       expect(giftCardPurchaseService.fulfillPurchase).toHaveBeenCalledWith(
         'biz-1',
-        expect.objectContaining({ purchaserEmail: 'buyer@test.com' }),
+        expect.objectContaining({
+          purchaserEmail: 'buyer@test.com',
+          purchaserCustomerId: 'cust-auth',
+        }),
         'sess_gc',
       );
       expect(draftRepo.save).toHaveBeenCalledWith(
