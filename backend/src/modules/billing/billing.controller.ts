@@ -17,6 +17,8 @@ import { BillingService } from './billing.service.js';
 import { CreateCheckoutDto } from './dto/create-checkout.dto.js';
 import { ConfirmCheckoutDto } from './dto/confirm-checkout.dto.js';
 import { UpdateStripeIntegrationDto } from './dto/update-stripe-integration.dto.js';
+import { StartStripeConnectDto } from './dto/start-stripe-connect.dto.js';
+import { CompleteStripeOAuthDto } from './dto/complete-stripe-oauth.dto.js';
 import { StripeIntegrationService } from './stripe-integration.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -93,6 +95,15 @@ export class BillingController {
     return this.stripeIntegrationService.getPublicSettings(businessId);
   }
 
+  @Get('stripe-connect/supported-countries')
+  async listStripeConnectCountries(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return [];
+  }
+
   @Put('stripe-connect')
   async updateStripeConnect(
     @Param('businessId') businessId: string,
@@ -101,6 +112,44 @@ export class BillingController {
   ) {
     await this.ensureMember(businessId, user.id);
     return this.stripeIntegrationService.updateSettings(businessId, dto);
+  }
+
+  @Post('stripe-connect/onboard')
+  async startStripeConnectOnboarding(
+    @Param('businessId') businessId: string,
+    @Body() dto: StartStripeConnectDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.startConnect(businessId, dto);
+  }
+
+  @Post('stripe-connect/oauth')
+  async completeStripeConnectOAuth(
+    @Param('businessId') businessId: string,
+    @Body() dto: CompleteStripeOAuthDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.completeConnectOAuth(businessId, dto.code);
+  }
+
+  @Post('stripe-connect/sync')
+  async syncStripeConnect(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.syncConnectAccount(businessId);
+  }
+
+  @Post('stripe-connect/login')
+  async stripeConnectLogin(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.ensureMember(businessId, user.id);
+    return this.stripeIntegrationService.createConnectLoginLink(businessId);
   }
 
   private async ensureMember(businessId: string, userId: string) {

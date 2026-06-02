@@ -6,6 +6,7 @@ import { Loader2, LogOut, Star } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import {
   getPublicCustomerBookings,
+  getPublicCustomerGiftCards,
   getPublicCustomerLoyalty,
   getPublicCustomerSubscriptions,
   exportPublicCustomerData,
@@ -15,8 +16,10 @@ import {
   type PublicCustomerBookingItem,
   type PublicCustomerLoyalty,
   type PublicCustomerSubscription,
+  type PublicGiftCardOrder,
 } from '@/lib/public-api';
 import { PublicSubscriptionsSection } from '@/components/public-booking/public-subscriptions-section';
+import { PublicGiftCardsSection } from '@/components/public-booking/public-gift-cards-section';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
@@ -93,12 +96,14 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [loyalty, setLoyalty] = useState<PublicCustomerLoyalty | null>(null);
   const [subscriptions, setSubscriptions] = useState<PublicCustomerSubscription[]>([]);
+  const [giftCards, setGiftCards] = useState<PublicGiftCardOrder[]>([]);
 
   useEffect(() => {
     if (!customer) {
       setBookings([]);
       setLoyalty(null);
       setSubscriptions([]);
+      setGiftCards([]);
       return;
     }
 
@@ -110,12 +115,14 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
       getPublicCustomerBookings(tenant.slug),
       getPublicCustomerLoyalty(tenant.slug).catch(() => null),
       getPublicCustomerSubscriptions(tenant.slug).catch(() => []),
+      getPublicCustomerGiftCards(tenant.slug).catch(() => ({ orders: [] })),
     ])
-      .then(([bookingsRes, loyaltyRes, subsRes]) => {
+      .then(([bookingsRes, loyaltyRes, subsRes, giftCardsRes]) => {
         if (!cancelled) {
           setBookings(bookingsRes.bookings);
           setLoyalty(loyaltyRes);
           setSubscriptions(subsRes);
+          setGiftCards(giftCardsRes.orders);
         }
       })
       .catch((err) => {
@@ -267,6 +274,17 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               subscriptions={subscriptions}
               primary={primary}
               locale={locale}
+            />
+
+            <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.giftCards.myGiftCards')}</h2>
+            <PublicGiftCardsSection
+              slug={tenant.slug}
+              orders={giftCards}
+              primary={primary}
+              locale={locale}
+              onOrderUpdated={(order) =>
+                setGiftCards((prev) => prev.map((item) => (item.id === order.id ? order : item)))
+              }
             />
 
             <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.myBookings')}</h2>

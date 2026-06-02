@@ -33,6 +33,8 @@ import {
 } from '../../common/utils/subscription-checkout.util.js';
 import { BookPublicPackageDto, BookPublicMultiServiceDto } from '../public-booking/dto/public-booking.dto.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
+import { GiftCardPurchaseService, type PurchaseGiftCardInput } from '../gift-cards/gift-card-purchase.service.js';
+import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
 
 interface StripeCheckoutSession {
   id?: string;
@@ -61,6 +63,10 @@ export class BookingPaymentService {
     private subscriptionsService: ServiceSubscriptionsService,
     private packagesService: ServicePackagesService,
     private multiServiceBookingsService: MultiServiceBookingsService,
+    @Inject(forwardRef(() => GiftCardPurchaseService))
+    private giftCardPurchaseService: GiftCardPurchaseService,
+    @Inject(forwardRef(() => GiftCardDeliveryService))
+    private giftCardDeliveryService: GiftCardDeliveryService,
   ) {}
 
   calculatePrepaymentAmount(service: Service): number {
@@ -189,14 +195,13 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       packageId: dto.packageId,
     });
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -221,9 +226,15 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind: 'package_purchase',
         },
-        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
       },
+      business.settings,
+      Math.round(pricing.amountDue * 100),
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -240,6 +251,106 @@ export class BookingPaymentService {
       amount: pricing.amountDue,
       currency: preview.currency,
     };
+  }
+
+  async createGiftCardCheckoutSession(
+    slug: string,
+    dto: PurchaseGiftCardInput,
+    authenticatedCustomerId?: string,
+  ) {
+    if (!this.stripeService.isConfigured) {
+      throw new BadRequestException('Online payments are not configured on the server');
+    }
+
+    const business = await this.businessRepo.findOne({ where: { slug } });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+      business.id,
+    );
+
+    const quote = await this.giftCardPurchaseService.quotePurchase(business.id, dto);
+    if (quote.total <= 0) {
+      throw new BadRequestException('Gift card total must be greater than zero');
+    }
+    if (!dto.purchaserEmail?.trim()) {
+      throw new BadRequestException('Purchaser email is required');
+    }
+
+    const draftPayload = {
+      ...dto,
+      metadata: {
+        checkoutKind: 'gift_card_purchase',
+        ...(authenticatedCustomerId ? { authenticatedCustomerId } : {}),
+      },
+    };
+
+    const draft = await this.draftRepo.save(
+      this.draftRepo.create({
+        businessId: business.id,
+        payload: draftPayload as unknown as Record<string, unknown>,
+        amount: quote.total,
+        currency: quote.currency,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        stripeConnectAccountId: connectAccountId,
+      }),
+    );
+
+    const frontendUrl = this.stripeService.frontendUrl;
+    const lineItems = [
+      {
+        price_data: {
+          currency: quote.currency.toLowerCase(),
+          unit_amount: Math.round(quote.subtotal * 100),
+          product_data: { name: quote.label },
+        },
+        quantity: 1,
+      },
+    ];
+    if (quote.shippingFee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: quote.currency.toLowerCase(),
+          unit_amount: Math.round(quote.shippingFee * 100),
+          product_data: { name: 'Gift card shipping' },
+        },
+        quantity: 1,
+      });
+    }
+
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
+      {
+        mode: 'payment',
+        customer_email: dto.purchaserEmail.trim(),
+        line_items: lineItems,
+        metadata: {
+          type: 'booking_payment',
+          draftId: draft.id,
+          businessId: business.id,
+          slug,
+          connectAccountId,
+          checkoutKind: 'gift_card_purchase',
+        },
+        success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
+      },
+      business.settings,
+      Math.round(quote.total * 100),
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
+      connectOpts,
+    );
+
+    if (!session.url) throw new BadRequestException('Failed to create payment session');
+
+    draft.stripeSessionId = session.id;
+    await this.draftRepo.save(draft);
+
+    return { url: session.url, sessionId: session.id, draftId: draft.id, total: quote.total };
   }
 
   async resolveMultiServiceCheckoutPricing(
@@ -325,14 +436,13 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       services: dto.serviceIds.join(','),
     });
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -357,9 +467,15 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind: 'multi_service_booking',
         },
-        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
       },
+      business.settings,
+      Math.round(pricing.amountDue * 100),
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -504,10 +620,8 @@ export class BookingPaymentService {
     );
 
     const frontendUrl = this.stripeService.frontendUrl;
-    const connectOpts = this.stripeService.connectRequestOptions(connectAccountId);
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       serviceId: dto.serviceId,
       startTime: dto.startTime,
     });
@@ -516,7 +630,9 @@ export class BookingPaymentService {
     } else {
       checkoutQuery.set('autoAssign', '1');
     }
-    const session = await this.stripeService.client.checkout.sessions.create(
+
+    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
+      connectAccountId,
       {
         mode: 'payment',
         customer_email: dto.customer.email || undefined,
@@ -541,9 +657,15 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind,
         },
-        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
       },
+      business.settings,
+      Math.round(amount * 100),
+    );
+
+    const session = await this.stripeService.client.checkout.sessions.create(
+      sessionParams,
       connectOpts,
     );
 
@@ -580,7 +702,7 @@ export class BookingPaymentService {
     const session = await this.stripeService.client.checkout.sessions.retrieve(
       sessionId,
       {},
-      this.stripeService.connectRequestOptions(connectAccountId),
+      this.stripeService.connectRequestOptions(connectAccountId, business.settings),
     );
     if (session.metadata?.type !== 'booking_payment' || session.metadata.slug !== slug) {
       throw new BadRequestException('Invalid payment session');
@@ -697,6 +819,24 @@ export class BookingPaymentService {
         multiServiceGroup: result.multiServiceGroup,
         bookings: result.bookings,
         customer: result.customer,
+      };
+    }
+
+    if (checkoutKind === 'gift_card_purchase') {
+      const purchaseDto = dto as unknown as PurchaseGiftCardInput;
+      const card = await this.giftCardPurchaseService.fulfillPurchase(
+        business.id,
+        purchaseDto,
+        sessionId,
+      );
+
+      draft.status = 'completed';
+      draft.stripeSessionId = sessionId;
+      await this.draftRepo.save(draft);
+
+      return {
+        alreadyCompleted: false,
+        giftCard: card,
       };
     }
 

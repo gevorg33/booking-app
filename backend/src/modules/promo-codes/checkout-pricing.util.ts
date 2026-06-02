@@ -10,7 +10,8 @@ export function roundMoney(value: number): number {
 }
 
 export function isGiftCardCode(code: string): boolean {
-  return code.trim().toUpperCase().startsWith('GC-');
+  const normalized = code.trim().toUpperCase();
+  return normalized.startsWith('GC-') || /^GC[MSB]-/.test(normalized);
 }
 
 /** Promo first, then gift card, then loyalty. */

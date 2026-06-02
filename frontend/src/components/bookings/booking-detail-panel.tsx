@@ -451,10 +451,10 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
           <p className="text-red-400 text-sm py-6 text-center">Could not load appointment details.</p>
         ) : (
           <>
-            <div className="mb-4">
+            <div className="mb-4 flex items-center justify-between gap-2">
               <p className="font-medium text-base">{booking.service?.name ?? 'Appointment'}</p>
               <span
-                className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${
+                className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
                   STATUS_BADGE[booking.status] ?? 'bg-gray-600/10 text-gray-400'
                 }`}
               >
@@ -572,6 +572,26 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               </select>
             </div>
 
+            {editable && (
+              <div className="mb-5">
+                <label className="label">Status</label>
+                <select
+                  className="input"
+                  value={status}
+                  onChange={(e) => applyStatusChange(e.target.value as BookingStatus)}
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {BOOKING_STATUS_LABELS[option]}
+                    </option>
+                  ))}
+                  {!statusOptions.includes('cancelled') && (
+                    <option value="cancelled">{BOOKING_STATUS_LABELS.cancelled}</option>
+                  )}
+                </select>
+              </div>
+            )}
+
             {bookingId && (
               <div className="mb-5">
                 <BookingRetailPosPanel
@@ -666,26 +686,6 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 </div>
               )}
             </div>
-
-            {editable && (
-              <div className="mb-4">
-                <label className="label">Status</label>
-                <select
-                  className="input"
-                  value={status}
-                  onChange={(e) => applyStatusChange(e.target.value as BookingStatus)}
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {BOOKING_STATUS_LABELS[option]}
-                    </option>
-                  ))}
-                  {!statusOptions.includes('cancelled') && (
-                    <option value="cancelled">{BOOKING_STATUS_LABELS.cancelled}</option>
-                  )}
-                </select>
-              </div>
-            )}
 
             {pendingStatus && (
               <div className="mb-4 p-3 bg-amber-600/10 border border-amber-500/30 rounded-lg">

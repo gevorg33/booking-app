@@ -256,13 +256,17 @@ export function MultiServiceAvailabilityClient({
 
   const onContinue = useCallback(() => {
     if (!selectedStart || !employeeId) return;
+    const provider = providers.find((entry) => entry.id === employeeId);
     const q = new URLSearchParams({
       services: uniqueMultiServiceIds(serviceIds).join(','),
       startTime: selectedStart,
       employeeId,
     });
+    if (provider?.name) {
+      q.set('employeeName', provider.name);
+    }
     router.push(`${bookPath(slug, '/multi/checkout')}?${q.toString()}`);
-  }, [employeeId, router, selectedStart, serviceIds, slug]);
+  }, [employeeId, providers, router, selectedStart, serviceIds, slug]);
 
   return (
     <>

@@ -1,0 +1,192 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Gift } from 'lucide-react';
+import { PublicHeader } from '@/components/public-booking/public-header';
+import {
+  formatPrice,
+  type PublicBusinessProfile,
+  type PublicGiftCardCatalog,
+  type PublicGiftCardType,
+  type PublicService,
+} from '@/lib/public-api';
+import { bookPath } from '@/lib/tenant-host';
+import { useI18n } from '@/i18n';
+
+interface GiftCardCatalogClientProps {
+  slug: string;
+  tenant: PublicBusinessProfile;
+  catalog: PublicGiftCardCatalog;
+  services?: PublicService[];
+}
+
+const DEFAULT_CURRENCY = 'USD';
+
+export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: GiftCardCatalogClientProps) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const primary = tenant.branding.primaryColor || '#7c3aed';
+  const settings = catalog.settings!;
+
+  const [cardType, setCardType] = useState<PublicGiftCardType>('monetary');
+  const [amount, setAmount] = useState(String(settings.presetAmounts[0] ?? 50));
+  const [serviceId, setServiceId] = useState(settings.purchasableServices[0]?.serviceId ?? '');
+  const [bundleId, setBundleId] = useState(settings.bundles[0]?.id ?? '');
+
+  const selectedBundle = useMemo(
+    () => settings.bundles.find((b) => b.id === bundleId),
+    [settings.bundles, bundleId],
+  );
+
+  const serviceNameById = useMemo(
+    () => new Map(services.map((s) => [s.id, s.name])),
+    [services],
+  );
+
+  const canContinue = useMemo(() => {
+    if (cardType === 'monetary') return Number(amount) > 0;
+    if (cardType === 'service') return !!serviceId;
+    return !!bundleId;
+  }, [cardType, amount, serviceId, bundleId]);
+
+  function onContinue() {
+    const params = new URLSearchParams({ cardType });
+    if (cardType === 'monetary') params.set('amount', amount);
+    if (cardType === 'service') params.set('serviceId', serviceId);
+    if (cardType === 'bundle') params.set('bundleId', bundleId);
+    router.push(`${bookPath(slug, '/gift-cards/checkout')}?${params.toString()}`);
+  }
+
+  return (
+    <>
+      <PublicHeader tenant={tenant} showBack backHref={bookPath(slug)} />
+      <main className="max-w-lg mx-auto px-4 py-6 pb-28">
+        <div className="flex items-center gap-3 mb-6">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white"
+            style={{ backgroundColor: primary }}
+          >
+            <Gift className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{t('public.giftCards.title')}</h1>
+            <p className="text-sm text-gray-500">{t('public.giftCards.subtitle')}</p>
+          </div>
+        </div>
+
+        <section className="bg-white rounded-3xl border border-gray-100 p-5 mb-5 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900">{t('public.giftCards.chooseType')}</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {(['monetary', 'service', 'bundle'] as PublicGiftCardType[]).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setCardType(type)}
+                className={`rounded-xl border px-2 py-3 text-xs font-medium transition-colors ${
+                  cardType === type
+                    ? 'border-violet-400 bg-violet-50 text-violet-800'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {t(`public.giftCards.type.${type}`)}
+              </button>
+            ))}
+          </div>
+
+          {cardType === 'monetary' && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">{t('public.giftCards.amountHint')}</p>
+              <div className="flex flex-wrap gap-2">
+                {settings.presetAmounts.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAmount(String(preset))}
+                    className={`rounded-full px-4 py-2 text-sm border ${
+                      amount === String(preset)
+                        ? 'border-violet-400 bg-violet-50 text-violet-800'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {formatPrice(preset, DEFAULT_CURRENCY)}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+          )}
+
+          {cardType === 'service' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('public.giftCards.selectService')}
+              </label>
+              <select
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 bg-white"
+                value={serviceId}
+                onChange={(e) => setServiceId(e.target.value)}
+              >
+                {settings.purchasableServices.map((svc) => (
+                  <option key={svc.serviceId} value={svc.serviceId}>
+                    {serviceNameById.get(svc.serviceId) ?? svc.serviceId}
+                    {svc.price != null ? ` — ${formatPrice(Number(svc.price), DEFAULT_CURRENCY)}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {cardType === 'bundle' && (
+            <div className="space-y-2">
+              {settings.bundles.map((bundle) => (
+                <button
+                  key={bundle.id}
+                  type="button"
+                  onClick={() => setBundleId(bundle.id)}
+                  className={`w-full text-left rounded-xl border p-4 ${
+                    bundleId === bundle.id
+                      ? 'border-violet-400 bg-violet-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <p className="font-medium text-gray-900">{bundle.name}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {bundle.lines.map((l) => `${l.serviceName} × ${l.quantity}`).join(' · ')}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 mt-2">
+                    {formatPrice(bundle.price, DEFAULT_CURRENCY)}
+                  </p>
+                </button>
+              ))}
+              {selectedBundle && (
+                <p className="text-xs text-gray-500">{t('public.giftCards.bundleSelected')}</p>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
+        <div className="max-w-lg mx-auto">
+          <button
+            type="button"
+            disabled={!canContinue}
+            onClick={onContinue}
+            className="w-full py-3.5 rounded-2xl font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: primary }}
+          >
+            {t('public.giftCards.continueCheckout')}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}

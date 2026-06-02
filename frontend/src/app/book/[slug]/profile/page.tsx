@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getPublicProfile } from '@/lib/public-api';
+import { getPublicGiftCardCatalog, getPublicProfile } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { Globe, Mail, MapPin, Phone } from 'lucide-react';
@@ -18,6 +18,13 @@ export default async function TenantProfilePage({
 }) {
   const { slug } = await params;
   const tenant = await getPublicProfile(slug);
+  let giftCardsEnabled = false;
+  try {
+    const catalog = await getPublicGiftCardCatalog(slug);
+    giftCardsEnabled = catalog.purchaseEnabled;
+  } catch {
+    giftCardsEnabled = false;
+  }
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const locale = await getServerLocale();
   const messages = getMessages(locale);
@@ -109,6 +116,15 @@ export default async function TenantProfilePage({
           >
             {t('public.bookAppointment')}
           </Link>
+          {giftCardsEnabled && (
+            <Link
+              href={bookPath(slug, '/gift-cards')}
+              className="inline-block mt-3 w-full py-3.5 rounded-2xl font-semibold text-center border-2"
+              style={{ borderColor: primary, color: primary }}
+            >
+              {t('public.giftCards.buyGiftCard')}
+            </Link>
+          )}
         </div>
 
         {tenant.location?.mapEmbedHtml && (

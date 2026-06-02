@@ -11,8 +11,11 @@ const base = { giftCardDiscount: 0 };
 
 describe('checkout-pricing.util', () => {
   describe('isGiftCardCode', () => {
-    it('detects GC- prefix', () => {
+    it('detects legacy and typed gift card prefixes', () => {
       expect(isGiftCardCode('GC-ABCD1234')).toBe(true);
+      expect(isGiftCardCode('GCM-ABCD1234')).toBe(true);
+      expect(isGiftCardCode('GCS-SERVICE1')).toBe(true);
+      expect(isGiftCardCode('GCB-BUNDLE1')).toBe(true);
       expect(isGiftCardCode('SAVE20')).toBe(false);
     });
   });

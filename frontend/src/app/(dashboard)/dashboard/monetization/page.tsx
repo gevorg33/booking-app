@@ -15,6 +15,7 @@ import {
 } from '@/lib/subscription-plans';
 import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
+import { DashboardGiftCardsTab } from '@/components/gift-cards/dashboard-gift-cards-tab';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -61,147 +62,10 @@ export default function MonetizationPage() {
         ))}
       </div>
 
-      {tab === 'gift-cards' && business?.id && <GiftCardsTab businessId={business.id} />}
+      {tab === 'gift-cards' && business?.id && <DashboardGiftCardsTab businessId={business.id} />}
       {tab === 'memberships' && business?.id && <MembershipsTab businessId={business.id} />}
       {tab === 'loyalty' && business?.id && <LoyaltyTab businessId={business.id} />}
       {tab === 'promo-codes' && business?.id && <PromoCodesTab businessId={business.id} />}
-    </div>
-  );
-}
-
-function GiftCardsTab({ businessId }: { businessId: string }) {
-  const { t, locale } = useI18n();
-  const queryClient = useQueryClient();
-  const [amount, setAmount] = useState('50');
-  const [currency, setCurrency] = useState('USD');
-  const [expiresAtDay, setExpiresAtDay] = useState('');
-
-  const { data: cards = [], isLoading } = useQuery({
-    queryKey: ['gift-cards', businessId],
-    queryFn: async () => {
-      const { data } = await api.get(`/businesses/${businessId}/gift-cards`);
-      return unwrap<any[]>(data);
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const expiresAt = expiresAtDay ? dateKeyToExpiresAtEndOfDay(expiresAtDay) : undefined;
-      const { data } = await api.post(`/businesses/${businessId}/gift-cards`, {
-        amount: parseFloat(amount),
-        currency,
-        ...(expiresAt ? { expiresAt } : {}),
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gift-cards', businessId] });
-      setAmount('50');
-      setExpiresAtDay('');
-    },
-  });
-
-  return (
-    <div className="space-y-6">
-      <form
-        className="card flex flex-wrap gap-4 items-end"
-        onSubmit={(e) => {
-          e.preventDefault();
-          createMutation.mutate();
-        }}
-      >
-        <div>
-          <label className="label">Amount</label>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            className="input max-w-[140px]"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="label">Currency</label>
-          <input
-            className="input max-w-[100px]"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-          />
-        </div>
-        <div>
-          <label className="label">{t('monetization.expirationDate')}</label>
-          <input
-            type="date"
-            className="input max-w-[160px]"
-            value={expiresAtDay}
-            onChange={(e) => setExpiresAtDay(e.target.value)}
-          />
-          <p className="text-xs text-gray-500 mt-1">{t('monetization.expirationOptional')}</p>
-        </div>
-        <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
-          {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Create gift card
-        </button>
-      </form>
-
-      <div className="card overflow-hidden p-0">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-          </div>
-        ) : cards.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No gift cards yet</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Code</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Balance</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Initial</th>
-                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cards.map((card) => (
-                <tr key={card.id} className="border-b border-gray-800/80">
-                  <td className="px-4 py-3 font-mono">{card.code}</td>
-                  <td className="px-4 py-3">
-                    {Number(card.balance).toFixed(2)} {card.currency}
-                  </td>
-                  <td className="px-4 py-3">
-                    {Number(card.initialBalance).toFixed(2)} {card.currency}
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">
-                    {card.expiresAt
-                      ? formatDateDisplay(card.expiresAt, locale)
-                      : t('monetization.noExpiration')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        !card.isActive
-                          ? 'bg-gray-600/10 text-gray-400'
-                          : isExpiredAt(card.expiresAt)
-                            ? 'bg-amber-600/10 text-amber-400'
-                            : 'bg-green-600/10 text-green-400'
-                      }`}
-                    >
-                      {!card.isActive
-                        ? 'Inactive'
-                        : isExpiredAt(card.expiresAt)
-                          ? t('monetization.expired')
-                          : 'Active'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
   );
 }

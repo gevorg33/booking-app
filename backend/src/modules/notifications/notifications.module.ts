@@ -28,6 +28,6 @@ import { NotificationsController } from './notifications.controller.js';
     ReminderScheduler,
     BookingNotificationListener,
   ],
-  exports: [NotificationsService, EmailService, SmsService],
+  exports: [NotificationsService, EmailService, SmsService, WhatsAppService, WhatsAppIntegrationService],
 })
 export class NotificationsModule {}

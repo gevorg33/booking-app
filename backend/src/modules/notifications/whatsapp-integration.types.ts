@@ -4,9 +4,11 @@ export interface BusinessWhatsAppIntegration {
   accessTokenEnc?: string;
   templateConfirmation?: string;
   templateReminder?: string;
+  templateGiftCard?: string;
   templateLanguage?: string;
   templateBodyParams?: number;
   templateReminderBodyParams?: number;
+  templateGiftCardBodyParams?: number;
   fallbackTemplate?: string;
   fallbackLanguage?: string;
   fallbackBodyParams?: number;
@@ -20,10 +22,12 @@ export interface WhatsAppRuntimeConfig {
   apiVersion: string;
   templateConfirmation: string;
   templateReminder: string;
+  templateGiftCard: string;
   templateCancellation?: string;
   templateLanguage: string;
   templateBodyParamCount: number;
   reminderBodyParamCount: number;
+  giftCardBodyParamCount: number;
   cancellationBodyParamCount?: number;
   fallbackTemplate: string;
   fallbackLanguage: string;
@@ -53,9 +57,11 @@ export const DEFAULT_WHATSAPP_INTEGRATION: Required<
     BusinessWhatsAppIntegration,
     | 'templateConfirmation'
     | 'templateReminder'
+    | 'templateGiftCard'
     | 'templateLanguage'
     | 'templateBodyParams'
     | 'templateReminderBodyParams'
+    | 'templateGiftCardBodyParams'
     | 'fallbackTemplate'
     | 'fallbackLanguage'
     | 'fallbackBodyParams'
@@ -63,9 +69,11 @@ export const DEFAULT_WHATSAPP_INTEGRATION: Required<
 > = {
   templateConfirmation: 'appointment_confirmation',
   templateReminder: 'appointment_reminder',
+  templateGiftCard: 'gift_card_delivery',
   templateLanguage: 'en',
   templateBodyParams: 4,
   templateReminderBodyParams: 3,
+  templateGiftCardBodyParams: 4,
   fallbackTemplate: 'hello_world',
   fallbackLanguage: 'en_US',
   fallbackBodyParams: 0,
