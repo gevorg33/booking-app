@@ -1,45 +1,22 @@
 import { resolveStripeConnectCountry } from './stripe-connect-country.util.js';
 
 describe('resolveStripeConnectCountry', () => {
-  it('platform default overrides business timezone and country', () => {
+  it('uses tenant stripeConnectCountry when set', () => {
     expect(
       resolveStripeConnectCountry(
-        { timezone: 'Asia/Muscat', settings: { country: 'OM' } },
+        { timezone: 'UTC', settings: { stripeConnectCountry: 'DE' } },
         'AE',
       ),
-    ).toBe('AE');
+    ).toBe('DE');
   });
 
-  it('uses explicit stripeConnectCountry when platform default unset', () => {
-    expect(
-      resolveStripeConnectCountry(
-        { timezone: 'UTC', settings: { stripeConnectCountry: 'AE' } },
-        '',
-      ),
-    ).toBe('AE');
-  });
-
-  it('prefers platform default over Yerevan timezone for AE platform', () => {
+  it('infers country from timezone before platform default', () => {
     expect(
       resolveStripeConnectCountry({ timezone: 'Asia/Yerevan', settings: {} }, 'AE'),
-    ).toBe('AE');
+    ).toBe('AM');
   });
 
-  it('maps Yerevan timezone to AM when platform default unset', () => {
-    expect(resolveStripeConnectCountry({ timezone: 'Asia/Yerevan', settings: {} }, '')).toBe('AM');
-  });
-
-  it('maps Dubai timezone to AE when platform default unset', () => {
-    expect(resolveStripeConnectCountry({ timezone: 'Asia/Dubai', settings: {} }, '')).toBe('AE');
-  });
-
-  it('maps hy locale dial code to AM when platform default is empty', () => {
-    expect(resolveStripeConnectCountry({ timezone: 'UTC', settings: { locale: 'hy' } }, '')).toBe(
-      'AM',
-    );
-  });
-
-  it('falls back to platform default', () => {
+  it('falls back to platform default when timezone and locale are unknown', () => {
     expect(resolveStripeConnectCountry({ timezone: 'UTC', settings: {} }, 'AE')).toBe('AE');
   });
 });

@@ -197,7 +197,6 @@ export class BookingPaymentService {
     const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       packageId: dto.packageId,
     });
 
@@ -227,9 +226,11 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind: 'package_purchase',
         },
-        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
       },
+      business.settings,
+      Math.round(pricing.amountDue * 100),
     );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -335,6 +336,8 @@ export class BookingPaymentService {
         success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
       },
+      business.settings,
+      Math.round(quote.total * 100),
     );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -435,7 +438,6 @@ export class BookingPaymentService {
     const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       services: dto.serviceIds.join(','),
     });
 
@@ -465,9 +467,11 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind: 'multi_service_booking',
         },
-        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
       },
+      business.settings,
+      Math.round(pricing.amountDue * 100),
     );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -618,7 +622,6 @@ export class BookingPaymentService {
     const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
-      session_id: '{CHECKOUT_SESSION_ID}',
       serviceId: dto.serviceId,
       startTime: dto.startTime,
     });
@@ -654,9 +657,11 @@ export class BookingPaymentService {
           connectAccountId,
           checkoutKind,
         },
-        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}`,
+        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
       },
+      business.settings,
+      Math.round(amount * 100),
     );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -697,7 +702,7 @@ export class BookingPaymentService {
     const session = await this.stripeService.client.checkout.sessions.retrieve(
       sessionId,
       {},
-      this.stripeService.connectRequestOptions(connectAccountId),
+      this.stripeService.connectRequestOptions(connectAccountId, business.settings),
     );
     if (session.metadata?.type !== 'booking_payment' || session.metadata.slug !== slug) {
       throw new BadRequestException('Invalid payment session');

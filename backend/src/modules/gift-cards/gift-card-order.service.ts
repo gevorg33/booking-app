@@ -254,7 +254,7 @@ export class GiftCardOrderService {
         business.settings,
       );
       const opts = connectAccountId
-        ? this.stripeService.connectRequestOptions(connectAccountId)
+        ? this.stripeService.connectRequestOptions(connectAccountId, business.settings)
         : undefined;
       const session = await this.stripeService.client.checkout.sessions.retrieve(
         card.stripeSessionId,
