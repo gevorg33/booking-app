@@ -65,6 +65,17 @@ const en: MessageTree = {
     invalidCredentials: 'Invalid credentials',
     emailRegistered: 'Email already registered',
   },
+  email: {
+    appointment: 'appointment',
+    appointments: 'appointments',
+    defaultServiceName: 'Appointment',
+    defaultProviderName: 'your provider',
+    defaultCustomerName: 'there',
+    footerNote: 'See you soon!',
+    reminderHours: '{count} hours',
+    reminderMinutes: '{count} minutes',
+    reminderNow: 'now',
+  },
 };
 
 const hy: MessageTree = {
@@ -101,6 +112,17 @@ const hy: MessageTree = {
     emailOrPhoneRequired: 'Էլ. փոստ կամ հեռախոսահամար պարտադիր է',
     invalidCredentials: 'Սխալ մուտքի տվյալներ',
     emailRegistered: 'Էլ. փոստը արդեն գրանցված է',
+  },
+  email: {
+    appointment: 'հանդիպում',
+    appointments: 'հանդիպումներ',
+    defaultServiceName: 'Հանդիպում',
+    defaultProviderName: 'ձեր մասնագետը',
+    defaultCustomerName: 'հարգելի',
+    footerNote: 'Մինչ հանդիպումը!',
+    reminderHours: '{count} ժամ',
+    reminderMinutes: '{count} րոպե',
+    reminderNow: 'հիմա',
   },
 };
 
@@ -139,6 +161,17 @@ const ru: MessageTree = {
     invalidCredentials: 'Неверные учётные данные',
     emailRegistered: 'Email уже зарегистрирован',
   },
+  email: {
+    appointment: 'запись',
+    appointments: 'записи',
+    defaultServiceName: 'Запись',
+    defaultProviderName: 'ваш специалист',
+    defaultCustomerName: 'здравствуйте',
+    footerNote: 'До встречи!',
+    reminderHours: '{count} ч',
+    reminderMinutes: '{count} мин',
+    reminderNow: 'сейчас',
+  },
 };
 
 const catalogs: Record<AppLocale, MessageTree> = { en, hy, ru };
@@ -155,6 +188,9 @@ function translate(messages: MessageTree, key: string): string {
 
 export function t(locale: AppLocale, key: string, vars?: Record<string, string | number>): string {
   let text = translate(catalogs[locale] ?? catalogs.en, key);
+  if (text === key && locale !== 'en') {
+    text = translate(catalogs.en, key);
+  }
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (_, name: string) =>
     vars[name] !== undefined ? String(vars[name]) : `{${name}}`,

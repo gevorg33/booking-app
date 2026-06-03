@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Calendar, Pencil, Loader2, Users } from 'lucide-react';
-import { formatScheduleTime, formatDateDisplay } from '@/lib/date-format';
+import { formatBookingDateTimeRange, formatScheduleTime } from '@/lib/date-format';
 import {
   createPublicBooking,
   createPublicBookingCheckout,
@@ -414,7 +414,7 @@ export function CheckoutForm({
         </div>
         <h2 className="text-xl font-semibold text-gray-900">{t('public.appointmentBooked')}</h2>
         <p className="text-gray-500 mt-2 text-sm">
-          {formatDateDisplay(start)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
+          {formatBookingDateTimeRange(start, end, locale)}
         </p>
         <p className="text-gray-500 mt-3 text-sm max-w-sm mx-auto">{t('public.reviewAfterVisitHint')}</p>
         <BookingSuccessPanel
@@ -512,7 +512,7 @@ export function CheckoutForm({
                   timeZone: tenant.timezone || 'UTC',
                 })}
               </p>
-              <p className="text-sm text-gray-500">{formatScheduleTime(start)}</p>
+              <p className="text-sm text-gray-500">{formatScheduleTime(start, locale)}</p>
             </div>
           </div>
           <a href={timeEditHref} className="text-gray-400 hover:text-gray-600">
@@ -524,7 +524,7 @@ export function CheckoutForm({
       <section className="border-b border-gray-100 pb-4 mb-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Services</p>
+            <p className="text-sm font-medium text-gray-500 mb-1">{t('public.servicesSection')}</p>
             <p className="font-medium text-gray-900">{service.name}</p>
             <p className="text-sm text-gray-500 mt-1">{formatPrice(service.price, service.currency)}</p>
           </div>
@@ -766,14 +766,14 @@ export function CheckoutForm({
         )}
       </section>
 
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal information</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('public.personalInformation')}</h2>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.nameLabel')}</label>
           <input
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
-            placeholder="Enter name"
+            placeholder={t('public.enterNamePlaceholder')}
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             required
@@ -790,11 +790,11 @@ export function CheckoutForm({
           onChange={(phone) => setForm((f) => ({ ...f, phone }))}
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.emailLabel')}</label>
           <input
             type="email"
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
-            placeholder="Enter email"
+            placeholder={t('public.enterEmailPlaceholder')}
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
@@ -822,7 +822,7 @@ export function CheckoutForm({
             checked={form.emailReminders}
             onChange={(emailReminders) => setForm((f) => ({ ...f, emailReminders }))}
             primaryColor={primary}
-            label="Send me email reminders about this appointment"
+            label={t('public.emailRemindersCheckout')}
           />
           <ToggleChoice
             checked={form.whatsappReminders}

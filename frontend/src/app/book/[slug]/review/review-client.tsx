@@ -13,7 +13,7 @@ import {
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
-import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
+import { formatBookingDateTimeRange } from '@/lib/date-format';
 
 function StarPicker({
   value,
@@ -50,7 +50,7 @@ function StarPicker({
 }
 
 export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId') ?? '';
   const token = searchParams.get('token') ?? '';
@@ -136,7 +136,7 @@ export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
             {ctx.serviceName}
           </p>
           <p>
-            {formatDateDisplay(when)} · {formatScheduleTime(when)}
+            {formatBookingDateTimeRange(when, when, locale)}
           </p>
         </div>
 

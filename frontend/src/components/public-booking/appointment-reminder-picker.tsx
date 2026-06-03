@@ -1,21 +1,27 @@
 'use client';
 
+import { toIntlLocale } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
 
 export function formatReminderHoursLabel(hours: number, locale: string): string {
+  const intlLocale = toIntlLocale(locale) ?? 'en-GB';
   if (hours === 1) {
-    return new Intl.NumberFormat(locale, { style: 'unit', unit: 'hour', unitDisplay: 'long' }).format(1);
+    return new Intl.NumberFormat(intlLocale, { style: 'unit', unit: 'hour', unitDisplay: 'long' }).format(1);
   }
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(intlLocale, {
     style: 'unit',
     unit: 'hour',
     unitDisplay: 'long',
   }).format(hours);
 }
 
-export function formatReminderBeforeLabel(hours: number, locale: string): string {
+export function formatReminderBeforeLabel(
+  hours: number,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale: string,
+): string {
   const unit = formatReminderHoursLabel(hours, locale);
-  return `${unit} before`;
+  return t('public.reminderBeforeOption', { unit });
 }
 
 interface AppointmentReminderPickerProps {
@@ -53,7 +59,7 @@ export function AppointmentReminderPicker({
       >
         {sorted.map((hours) => (
           <option key={hours} value={hours}>
-            {formatReminderBeforeLabel(hours, locale)}
+            {formatReminderBeforeLabel(hours, t, locale)}
           </option>
         ))}
         <option value="none">{t('public.reminderTimingNone')}</option>

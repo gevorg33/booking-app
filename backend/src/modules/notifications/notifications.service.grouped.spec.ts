@@ -8,6 +8,7 @@ describe('NotificationsService grouped confirmations', () => {
     save: jest.fn(),
   };
   const businessRepo = { findOne: jest.fn() };
+  const customerRepo = { findOne: jest.fn() };
   const logRepo = {
     findOne: jest.fn().mockResolvedValue(null),
     save: jest.fn(),
@@ -22,6 +23,7 @@ describe('NotificationsService grouped confirmations', () => {
   const service = new NotificationsService(
     bookingRepo as any,
     businessRepo as any,
+    customerRepo as any,
     logRepo as any,
     emailService as any,
     smsService as any,

@@ -694,13 +694,13 @@ export function MultiServiceCheckoutClient({
             {quoteLoading && <p className="text-xs text-gray-400">{t('public.submitting')}</p>}
           </section>
 
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('public.personalInformation')}</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.nameLabel')}</label>
               <input
                 className={inputClassName}
-                placeholder="Enter name"
+                placeholder={t('public.enterNamePlaceholder')}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
@@ -717,20 +717,20 @@ export function MultiServiceCheckoutClient({
               onChange={(phone) => setForm({ ...form, phone })}
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.emailLabel')}</label>
               <input
                 type="email"
                 className={inputClassName}
-                placeholder="Enter email"
+                placeholder={t('public.enterEmailPlaceholder')}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('public.commentLabel')}</label>
               <textarea
                 className={`${inputClassName} min-h-[80px]`}
-                placeholder="Comment"
+                placeholder={t('public.commentPlaceholder')}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
@@ -748,7 +748,7 @@ export function MultiServiceCheckoutClient({
                 checked={form.emailReminders}
                 onChange={(emailReminders) => setForm({ ...form, emailReminders })}
                 primaryColor={primary}
-                label="Send me email reminders about this appointment"
+                label={t('public.emailRemindersCheckout')}
               />
               <ToggleChoice
                 checked={form.whatsappReminders}

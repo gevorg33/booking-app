@@ -15,7 +15,7 @@ import {
 } from '@/lib/public-api';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { bookPath } from '@/lib/tenant-host';
-import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
+import { formatBookingDateTimeRange, formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
 
 export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile }) {
@@ -110,9 +110,7 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
                 <p className="font-medium text-gray-900">{context.serviceName}</p>
                 <p className="text-sm text-gray-500 mt-0.5">{context.employeeName}</p>
                 <p className="text-sm text-gray-600 mt-2">
-                  {formatDateDisplay(context.startTime, locale)} ·{' '}
-                  {formatScheduleTime(new Date(context.startTime))} –{' '}
-                  {formatScheduleTime(new Date(context.endTime))}
+                  {formatBookingDateTimeRange(context.startTime, context.endTime, locale)}
                 </p>
               </>
             )}
@@ -157,8 +155,8 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
                 onRescheduled={(previous, next) => {
                   setRescheduleNotice(
                     t('public.reschedulePackageVisitSuccess', {
-                      from: `${formatDateDisplay(previous, locale)} ${formatScheduleTime(new Date(previous))}`,
-                      to: `${formatDateDisplay(next, locale)} ${formatScheduleTime(new Date(next))}`,
+                      from: `${formatDateDisplay(previous, locale)} ${formatScheduleTime(new Date(previous), locale)}`,
+                      to: `${formatDateDisplay(next, locale)} ${formatScheduleTime(new Date(next), locale)}`,
                     }),
                   );
                 }}

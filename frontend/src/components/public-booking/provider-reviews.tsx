@@ -118,6 +118,7 @@ export function ProviderReviewCard({
   review: PublicProviderReview;
   primaryColor?: string;
 }) {
+  const { locale } = useI18n();
   const displayName = review.customerName?.trim() || 'Guest';
   const avatarColor = reviewerAvatarColor(displayName);
 
@@ -135,7 +136,7 @@ export function ProviderReviewCard({
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <StarRatingDisplay rating={review.rating} primaryColor={primaryColor} />
             <span className="text-xs text-gray-400">
-              {formatPublicReviewDate(review.createdAt)}
+              {formatPublicReviewDate(review.createdAt, locale)}
             </span>
           </div>
           {review.comment && (
