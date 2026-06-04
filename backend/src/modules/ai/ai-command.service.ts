@@ -83,7 +83,11 @@ import {
   type ServiceInsightMetric,
   type StaffInsightMetric,
 } from './ai-intent-heuristics.js';
-import { normalizeMultilingualPrompt, multilingualHint } from './ai-prompt-i18n.js';
+import { CLASSIFIER_MULTILINGUAL_RULES } from './ai-prompt-i18n.js';
+import {
+  AiPromptNormalizationService,
+  type PromptNormalizationResult,
+} from './ai-prompt-normalization.service.js';
 import { BookingCommandGraphService } from './booking-command-graph.service.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
@@ -286,6 +290,7 @@ export class AiCommandService {
     private complexityRouter: CommandComplexityRouterService,
     private intentRescue: AiIntentRescueService,
     private promptSecurity: AiPromptSecurityService,
+    private promptNormalization: AiPromptNormalizationService,
   ) {}
 
   async approveTask(taskId: string, userId: string, businessId?: string): Promise<CommandResult> {
@@ -348,9 +353,15 @@ export class AiCommandService {
 
     const playbook = this.aiSettings.matchPlaybook(aiConfig, prompt);
     const effectivePrompt = playbook ? playbook.prompt : prompt;
+    const promptNorm = await this.promptNormalization.normalizeForClassifier(
+      businessId,
+      userId,
+      effectivePrompt,
+    );
+    const classifierPrompt = promptNorm.normalized;
 
     const deterministicRoute = this.complexityRouter.routeDeterministic(
-      effectivePrompt,
+      classifierPrompt,
       employees.map((e) => ({ id: e.id, name: e.name })),
     );
     const sessionWithRoute: CommandSessionOptions = {
@@ -388,6 +399,7 @@ export class AiCommandService {
               timeZone,
               aiConfig,
               playbook,
+              promptNorm,
             ),
           buildCompoundPlan: (action, params, employeeId, pendingCancelBookingIds) =>
             this.buildPlanForResolvedIntent(
@@ -405,7 +417,7 @@ export class AiCommandService {
             const subIntents = await this.decomposition.decompose(
               businessId,
               userId,
-              effectivePrompt,
+              classifierPrompt,
               timeZone,
             );
             return this.executeCompoundIntents(
@@ -433,8 +445,8 @@ export class AiCommandService {
       });
     }
 
-    if (this.decomposition.isCompoundPrompt(effectivePrompt)) {
-      const subIntents = await this.decomposition.decompose(businessId, userId, effectivePrompt, timeZone);
+    if (this.decomposition.isCompoundPrompt(classifierPrompt)) {
+      const subIntents = await this.decomposition.decompose(businessId, userId, classifierPrompt, timeZone);
       if (subIntents.length > 1) {
         return this.executeCompoundIntents(
           businessId,
@@ -458,6 +470,7 @@ export class AiCommandService {
       timeZone,
       aiConfig,
       playbook,
+      promptNorm,
     );
   }
 
@@ -475,6 +488,7 @@ export class AiCommandService {
     timeZone: string,
     aiConfig: Awaited<ReturnType<AiSettingsService['getSettings']>>,
     playbook: ReturnType<AiSettingsService['matchPlaybook']>,
+    promptNorm?: PromptNormalizationResult,
   ): Promise<CommandResult> {
     const { employees, services, customers, templates } = catalog;
 
@@ -486,9 +500,13 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
 
     const sessionContext = { ...session?.context, timeZone };
 
-    const normalizedPrompt = normalizeMultilingualPrompt(effectivePrompt);
-    const i18nHint = multilingualHint(effectivePrompt, normalizedPrompt);
-    const contextWithI18n = i18nHint ? `${contextBlock}\n${i18nHint}` : contextBlock;
+    const norm =
+      promptNorm ??
+      (await this.promptNormalization.normalizeForClassifier(businessId, userId, effectivePrompt));
+    const normalizedPrompt = norm.normalized;
+    const contextWithI18n = norm.classifierContext
+      ? `${contextBlock}\n${norm.classifierContext}`
+      : contextBlock;
 
     const parsed = await this.classifyIntent(
       businessId,
@@ -1355,7 +1373,7 @@ Schedule templates: ${templates.map((t) => t.name).join(', ') || 'none'}`;
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       { role: 'user', content: this.promptSecurity.prepareUserPromptForClassifier(prompt) },

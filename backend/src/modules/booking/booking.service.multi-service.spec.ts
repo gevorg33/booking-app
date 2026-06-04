@@ -2,6 +2,13 @@ import { BookingStatus, PaymentStatus } from './entities/booking.entity.js';
 import { SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
 import { BookingService } from './booking.service.js';
 
+function futureBookingIso(daysAhead = 14): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + daysAhead);
+  d.setUTCHours(10, 50, 0, 0);
+  return d.toISOString();
+}
+
 describe('BookingService same-visit multi-service create', () => {
   const bookingRepo = {
     findOne: jest.fn(),
@@ -39,8 +46,8 @@ describe('BookingService same-visit multi-service create', () => {
     businessId: 'biz-1',
     employeeId: 'emp-1',
     serviceId: 'svc-2',
-    startTime: new Date('2026-06-02T10:50:00.000Z'),
-    endTime: new Date('2026-06-02T11:50:00.000Z'),
+    startTime: new Date(futureBookingIso()),
+    endTime: new Date(new Date(futureBookingIso()).getTime() + 60 * 60 * 1000),
     status: BookingStatus.CONFIRMED,
     paymentStatus: PaymentStatus.NOT_APPLICABLE,
   };
@@ -136,7 +143,7 @@ describe('BookingService same-visit multi-service create', () => {
         employeeId: 'emp-1',
         serviceId: 'svc-2',
         customerId: 'cust-1',
-        startTime: '2026-06-02T10:50:00.000Z',
+        startTime: futureBookingIso(),
         multiServiceGroupId: 'group-1',
       },
       undefined,
@@ -163,7 +170,7 @@ describe('BookingService same-visit multi-service create', () => {
         employeeId: 'emp-1',
         serviceId: 'svc-2',
         customerId: 'cust-1',
-        startTime: '2026-06-02T10:50:00.000Z',
+        startTime: futureBookingIso(),
       },
       undefined,
       { sameVisitMultiService: false },
@@ -187,7 +194,7 @@ describe('BookingService same-visit multi-service create', () => {
           employeeId: 'emp-1',
           serviceId: 'svc-2',
           customerId: 'cust-1',
-          startTime: '2026-06-02T10:50:00.000Z',
+          startTime: futureBookingIso(),
           multiServiceGroupId: 'group-1',
         },
         undefined,

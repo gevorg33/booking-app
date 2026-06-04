@@ -41,6 +41,7 @@ import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
+import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.js';
 import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 
@@ -93,6 +94,7 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandComplexityRouterService,
     AiIntentRescueService,
     AiPromptSecurityService,
+    AiPromptNormalizationService,
   ],
   exports: [
     CommandCompletionPipelineService,
@@ -107,6 +109,7 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandComplexityRouterService,
     AiIntentRescueService,
     AiPromptSecurityService,
+    AiPromptNormalizationService,
   ],
 })
 export class AiModule {}
