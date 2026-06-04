@@ -36,7 +36,7 @@ const ru: MessageTree = {
     minutes: 'мин',
     today: 'Сегодня',
     errorGeneric: 'Что-то пошло не так. Попробуйте снова.',
-    poweredBy: 'Работает на OptiSchedule',
+    poweredBy: 'Разработан на OptiSchedule',
     duplicate: 'Дублировать',
     remove: 'Удалить',
     default: 'По умолчанию',
@@ -146,6 +146,7 @@ const ru: MessageTree = {
     guide: 'Руководство',
     integrations: 'Интеграции',
     crmIntegrations: 'CRM-интеграции',
+    resizeSidebar: 'Изменить ширину боковой панели',
     signOut: 'Выйти',
     signIn: 'Войти',
     register: 'Регистрация',
@@ -748,6 +749,19 @@ const ru: MessageTree = {
     saveSuccess: 'Профиль успешно сохранён.',
     placeholderTagline: 'Короткий слоган бизнеса',
     placeholderDescription: 'Опишите бизнес для клиентов…',
+    internalName: 'Название в панели',
+    internalNameHint:
+      'Используется в админке и письмах. Название для клиентов задаётся ниже для каждого языка.',
+    publicContentTitle: 'Контент публичной записи по языкам',
+    publicContentSectionHint:
+      'Как у категорий услуг: укажите, как бизнес выглядит на публичной странице записи для каждого языка.',
+    publicContentHint:
+      'Отображаемое название, слоган, описание и адрес для клиентов на этом языке.',
+    publicContentLocaleEn: 'Английский',
+    publicContentLocaleHy: 'Армянский',
+    publicContentLocaleRu: 'Русский',
+    publicContentName: 'Отображаемое название',
+    publicContentOptional: 'Необязательно',
   },
   billing: {
     title: 'Оплата',

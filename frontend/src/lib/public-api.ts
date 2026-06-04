@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '@/lib/api-base';
 import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
+import { readClientLocaleForPublicApi } from '@/lib/public-locale-cookie';
 
 function getServerApiBaseUrl(): string {
   return (
@@ -243,8 +244,8 @@ async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> 
       };
 
       if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
-        if (match?.[1]) headers['Accept-Language'] = match[1];
+        const lang = readClientLocaleForPublicApi();
+        if (lang) headers['Accept-Language'] = lang;
       }
 
       const slugMatch = path.match(/^\/public\/([^/]+)/);
@@ -274,8 +275,9 @@ async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> 
   );
 }
 
-export function getPublicProfile(slug: string) {
-  return publicFetch<PublicBusinessProfile>(`/public/${slug}`);
+export function getPublicProfile(slug: string, locale?: string) {
+  const q = locale ? `?locale=${encodeURIComponent(locale)}` : '';
+  return publicFetch<PublicBusinessProfile>(`/public/${slug}${q}`);
 }
 
 export function getPublicProviders(slug: string, date?: string, locale?: string) {

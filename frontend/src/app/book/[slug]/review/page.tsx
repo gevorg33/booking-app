@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';;
 import { ReviewClient } from './review-client';
 
 export default async function ReviewPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -8,7 +8,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ slug: s
 
   let tenant;
   try {
-    tenant = await getPublicProfile(slug);
+    tenant = await getPublicProfileResolved(slug);
   } catch {
     notFound();
   }

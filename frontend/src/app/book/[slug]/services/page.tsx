@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getPublicProfile, getPublicProviders, getPublicServicesForSlot } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicProviders, getPublicServicesForSlot } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
-import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { ServicesClient } from './services-client';
 
 function pickParam(value: string | string[] | undefined): string | undefined {
@@ -25,9 +26,9 @@ export default async function ServicesPage({
     redirect(bookPath(slug, '/professionals'));
   }
 
-  const locale = await getServerLocale();
-  const [tenant, { providers }, { services }] = await Promise.all([
-    getPublicProfile(slug),
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
+  const [{ providers }, { services }] = await Promise.all([
     getPublicProviders(slug, undefined, locale),
     getPublicServicesForSlot(slug, employeeId, startTime, locale),
   ]);

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';;
 import { AccountClient } from './account-client';
 
 export default async function AccountPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -8,7 +8,7 @@ export default async function AccountPage({ params }: { params: Promise<{ slug: 
 
   let tenant;
   try {
-    tenant = await getPublicProfile(slug);
+    tenant = await getPublicProfileResolved(slug);
   } catch {
     notFound();
   }

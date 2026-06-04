@@ -9,6 +9,18 @@ import {
   translate,
 } from '@/i18n';
 import { readCookieLocale, writeCookieLocale } from '@/lib/locale-cookie';
+import { readPublicCookieLocale, writePublicCookieLocale } from '@/lib/public-locale-cookie';
+
+export type LocaleCookieScope = 'app' | 'public';
+
+function readScopedCookie(scope: LocaleCookieScope): AppLocale | null {
+  return scope === 'public' ? readPublicCookieLocale() : readCookieLocale();
+}
+
+function writeScopedCookie(scope: LocaleCookieScope, locale: AppLocale): void {
+  if (scope === 'public') writePublicCookieLocale(locale);
+  else writeCookieLocale(locale);
+}
 
 interface I18nContextValue {
   locale: AppLocale;
@@ -23,23 +35,29 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 export function I18nProvider({
   children,
   initialLocale = 'en',
+  localeCookie = 'app',
 }: {
   children: ReactNode;
   initialLocale?: AppLocale;
+  /** Which cookie stores the visitor override (`public` on booking pages). */
+  localeCookie?: LocaleCookieScope;
 }) {
   const [locale, setLocaleState] = useState<AppLocale>(() => {
     if (typeof window === 'undefined') return initialLocale;
-    return readCookieLocale() ?? initialLocale;
+    return readScopedCookie(localeCookie) ?? initialLocale;
   });
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = useCallback((next: AppLocale, options?: { persist?: boolean }) => {
-    setLocaleState(next);
-    if (options?.persist !== false) writeCookieLocale(next);
-  }, []);
+  const setLocale = useCallback(
+    (next: AppLocale, options?: { persist?: boolean }) => {
+      setLocaleState(next);
+      if (options?.persist !== false) writeScopedCookie(localeCookie, next);
+    },
+    [localeCookie],
+  );
 
   const catalog = useMemo(() => getMessages(locale), [locale]);
 

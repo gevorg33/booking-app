@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { Calendar } from 'lucide-react';
-import { getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';;
 import { bookPath } from '@/lib/tenant-host';
 import { getMessages, translate } from '@/i18n';
-import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 
 export default async function EmbedBookingPage({
   params,
@@ -11,9 +11,9 @@ export default async function EmbedBookingPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const tenant = await getPublicProfile(slug);
+  const tenant = await getPublicProfileResolved(slug);
   const primary = tenant.branding.primaryColor || '#2563eb';
-  const locale = await getServerLocale();
+  const locale = await resolvePublicBookingLocale(tenant.locale);
   const messages = getMessages(locale);
   const t = (key: string) => translate(messages, key);
   const servicesUrl = bookPath(slug, '/services');

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { applyTheme, getStoredTheme, storeTheme, type Theme } from '@/lib/theme';
+import { getStoredTheme, storeTheme, type Theme } from '@/lib/theme';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -10,16 +10,20 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() =>
-    typeof window !== 'undefined' ? getStoredTheme() : 'dark',
-  );
+export function ThemeProvider({
+  children,
+  initialTheme = 'dark',
+}: {
+  children: ReactNode;
+  initialTheme?: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const stored = getStoredTheme();
     setThemeState(stored);
-    applyTheme(stored);
-  }, []);
+    storeTheme(stored);
+  }, [initialTheme]);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);

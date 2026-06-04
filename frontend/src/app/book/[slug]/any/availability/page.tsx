@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getPublicProfile, getPublicServices } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicServices } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
-import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { AnyAvailabilityClient } from './any-availability-client';
 
 export default async function AnyAvailabilityPage({
@@ -18,11 +19,9 @@ export default async function AnyAvailabilityPage({
     redirect(bookPath(slug, '/any'));
   }
 
-  const locale = await getServerLocale();
-  const [tenant, { services }] = await Promise.all([
-    getPublicProfile(slug),
-    getPublicServices(slug, { locale }),
-  ]);
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
+  const { services } = await getPublicServices(slug, { locale });
 
   const service = services.find((s) => s.id === serviceId);
   if (!service) {

@@ -36,8 +36,8 @@ export class PublicBookingController {
   ) {}
 
   @Get()
-  getProfile(@Param('slug') slug: string) {
-    return this.publicBookingService.getProfile(slug);
+  getProfile(@Param('slug') slug: string, @Query('locale') locale?: string) {
+    return this.publicBookingService.getProfile(slug, locale);
   }
 
   @Get('providers')

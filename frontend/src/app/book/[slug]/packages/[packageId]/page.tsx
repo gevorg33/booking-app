@@ -1,4 +1,5 @@
-import { getPublicPackage, getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicPackage } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PackageConfirmClient } from '@/components/public-booking/package-confirm-client';
 
@@ -9,7 +10,7 @@ export default async function PackageConfirmPage({
 }) {
   const { slug, packageId } = await params;
   const [tenant, { package: pkg }] = await Promise.all([
-    getPublicProfile(slug),
+    getPublicProfileResolved(slug),
     getPublicPackage(slug, packageId),
   ]);
 

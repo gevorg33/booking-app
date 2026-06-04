@@ -32,6 +32,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { BusinessSwitcher } from '@/components/business-switcher';
 import { DashboardZendeskWidget } from '@/components/integrations/dashboard-zendesk-widget';
 import { SupportTicketButton } from '@/components/integrations/support-ticket-button';
+import { ResizableDashboardSidebar } from '@/components/dashboard/resizable-dashboard-sidebar';
 import { useI18n } from '@/i18n';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -109,54 +110,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="dashboard-app min-h-screen flex bg-gray-50 dark:bg-gray-950">
-      <aside className="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+      <ResizableDashboardSidebar>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-gray-200 p-4 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+                <Zap className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-bold text-gray-900 dark:text-gray-100">OptiSchedule</span>
             </div>
-            <span className="font-bold text-gray-900 dark:text-gray-100">OptiSchedule</span>
+            {business && <BusinessSwitcher />}
           </div>
-          {business && <BusinessSwitcher />}
+
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={item.label}
+                  className={`flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
+                  }`}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="shrink-0 space-y-3 border-t border-gray-200 p-3 dark:border-gray-800">
+            <SupportTicketButton />
+            <LanguageSwitcher />
+            <button
+              onClick={() => {
+                logout();
+                router.push('/login');
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+              {t('nav.signOut')}
+            </button>
+          </div>
         </div>
+      </ResizableDashboardSidebar>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-3">
-          <SupportTicketButton />
-          <LanguageSwitcher />
-          <button
-            onClick={() => {
-              logout();
-              router.push('/login');
-            }}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 w-full"
-          >
-            <LogOut className="w-4 h-4" />
-            {t('nav.signOut')}
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-7xl mx-auto p-6">{children}</div>
       </main>
 

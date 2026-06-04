@@ -5,6 +5,7 @@ import { Business } from './entities/business.entity.js';
 import { BusinessMember, MemberRole } from './entities/business-member.entity.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
+import { applyPublicProfileLocalesToSettings } from '../../common/i18n/business-public-profile-locales.util.js';
 
 const FORBIDDEN_MAP_EMBED = /<script|javascript:/i;
 
@@ -98,7 +99,15 @@ export class BusinessService {
       settings.locale = dto.locale;
     }
 
-    business.settings = settings;
+    const mergedSettings =
+      dto.publicProfileLocales !== undefined
+        ? applyPublicProfileLocalesToSettings(
+            settings as Record<string, unknown>,
+            dto.publicProfileLocales,
+          )
+        : settings;
+
+    business.settings = mergedSettings as Business['settings'];
     return this.businessRepo.save(business);
   }
 

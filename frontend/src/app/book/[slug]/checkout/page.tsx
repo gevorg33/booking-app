@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getPublicProfile, getPublicProviders, getPublicServices, getPublicServicesForSlot } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicProviders, getPublicServices, getPublicServicesForSlot } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
-import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { CheckoutClient } from './checkout-client';
 
 export default async function CheckoutPage({
@@ -30,8 +31,8 @@ export default async function CheckoutPage({
     redirect(bookPath(slug, '/professionals'));
   }
 
-  const locale = await getServerLocale();
-  const tenant = await getPublicProfile(slug);
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
 
   if (isAutoAssign) {
     const { services } = await getPublicServices(slug, { locale });

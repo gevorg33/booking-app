@@ -41,6 +41,10 @@ import {
 } from '../../common/utils/timezone.util.js';
 import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  extractPublicProfileLocalesFromSettings,
+  resolvePublicProfileField,
+} from '../../common/i18n/business-public-profile-locales.util.js';
 import { formatNearestSlotDateLabel } from '../../common/i18n/locale-date.util.js';
 import {
   extractLocalizedNamesFromMetadata,
@@ -275,8 +279,13 @@ export class PublicBookingService {
     return resolvePublicAssetUrl(url, this.publicApiBaseUrl());
   }
 
-  toPublicProfile(business: Business): PublicBusinessProfile {
+  toPublicProfile(business: Business, displayLocale?: AppLocale): PublicBusinessProfile {
     const settings = business.settings || {};
+    const locale =
+      displayLocale ?? this.resolvePublicDisplayLocale(business, null);
+    const profileLocales = extractPublicProfileLocalesFromSettings(
+      settings as Record<string, unknown>,
+    );
     const branding = settings.branding || {};
     const publicBooking = settings.publicBooking || {};
     const social = settings.social || {};
@@ -300,18 +309,23 @@ export class PublicBookingService {
 
     return {
       id: business.id,
-      name: business.name,
+      name: resolvePublicProfileField(business.name, profileLocales, locale, 'name') ?? business.name,
       slug: business.slug,
-      description: business.description ?? undefined,
+      description: resolvePublicProfileField(
+        business.description,
+        profileLocales,
+        locale,
+        'description',
+      ),
       phone: business.phone ?? undefined,
       email: business.email ?? undefined,
-      address: business.address ?? undefined,
+      address: resolvePublicProfileField(business.address, profileLocales, locale, 'address'),
       timezone: business.timezone,
       locale: settings.locale || 'en',
       branding: {
         logoUrl: this.resolvePublicMediaUrl(branding.logoUrl),
         primaryColor: branding.primaryColor || '#7c3aed',
-        tagline: branding.tagline,
+        tagline: resolvePublicProfileField(branding.tagline, profileLocales, locale, 'tagline'),
       },
       social: {
         website: social.website,
@@ -436,9 +450,10 @@ export class PublicBookingService {
     return resolveLocale(preferred, resolveLocale(settings.locale, 'en'));
   }
 
-  async getProfile(slug: string): Promise<PublicBusinessProfile> {
+  async getProfile(slug: string, preferredLocale?: string | null): Promise<PublicBusinessProfile> {
     const business = await this.resolveBusiness(slug);
-    return this.toPublicProfile(business);
+    const displayLocale = this.resolvePublicDisplayLocale(business, preferredLocale);
+    return this.toPublicProfile(business, displayLocale);
   }
 
   async getProviders(

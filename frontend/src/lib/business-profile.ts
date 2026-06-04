@@ -1,3 +1,13 @@
+import {
+  emptyPublicProfileLocalesForm,
+  publicProfileLocalesFromApi,
+  publicProfileLocalesToPayload,
+  resolveDefaultPublicLocale,
+  seedPublicProfileLocalesFromLegacy,
+  type PublicProfileLocalesFormState,
+} from '@/lib/business-public-profile-locales';
+import type { AppLocale } from '@/i18n';
+
 export interface BusinessBranding {
   logoUrl?: string;
   primaryColor?: string;
@@ -19,25 +29,23 @@ export interface BusinessLocationSettings {
 }
 
 export interface BusinessProfileForm {
+  /** Internal / dashboard name (not shown on public page unless copied into a locale column). */
   name: string;
-  description: string;
   phone: string;
   email: string;
-  address: string;
   locale: string;
   branding: BusinessBranding;
   social: BusinessSocialLinks;
   location: BusinessLocationSettings;
+  publicProfileLocales: PublicProfileLocalesFormState;
 }
 
 export const emptyBusinessProfileForm = (): BusinessProfileForm => ({
   name: '',
-  description: '',
   phone: '',
   email: '',
-  address: '',
   locale: 'en',
-  branding: { logoUrl: '', primaryColor: '#7c3aed', tagline: '' },
+  branding: { logoUrl: '', primaryColor: '#7c3aed' },
   social: {
     website: '',
     instagram: '',
@@ -48,24 +56,34 @@ export const emptyBusinessProfileForm = (): BusinessProfileForm => ({
     youtube: '',
   },
   location: { mapEmbedHtml: '' },
+  publicProfileLocales: emptyPublicProfileLocalesForm(),
 });
 
 export function businessToProfileForm(business: any): BusinessProfileForm {
   const branding = business.settings?.branding || {};
   const social = business.settings?.social || {};
   const location = business.settings?.location || {};
+  const defaultLocale = resolveDefaultPublicLocale(business.settings?.locale);
+
+  const publicProfileLocales = seedPublicProfileLocalesFromLegacy(
+    publicProfileLocalesFromApi(business.settings?.publicProfileLocales),
+    {
+      defaultLocale,
+      name: business.name,
+      description: business.description,
+      tagline: branding.tagline,
+      address: business.address,
+    },
+  );
 
   return {
     name: business.name ?? '',
-    description: business.description ?? '',
     phone: business.phone ?? '',
     email: business.email ?? '',
-    address: business.address ?? '',
-    locale: business.settings?.locale ?? 'en',
+    locale: defaultLocale,
     branding: {
       logoUrl: branding.logoUrl ?? '',
       primaryColor: branding.primaryColor ?? '#7c3aed',
-      tagline: branding.tagline ?? '',
     },
     social: {
       website: social.website ?? '',
@@ -79,21 +97,29 @@ export function businessToProfileForm(business: any): BusinessProfileForm {
     location: {
       mapEmbedHtml: location.mapEmbedHtml ?? '',
     },
+    publicProfileLocales,
   };
 }
 
+function primaryLocaleFields(form: BusinessProfileForm): PublicProfileLocalesFormState[AppLocale] {
+  const locale = resolveDefaultPublicLocale(form.locale);
+  return form.publicProfileLocales[locale];
+}
+
 export function profileFormToPayload(form: BusinessProfileForm) {
+  const primary = primaryLocaleFields(form);
+
   return {
-    name: form.name.trim(),
-    description: form.description.trim() || undefined,
+    name: form.name.trim() || primary.name.trim(),
+    description: primary.description.trim() || undefined,
     phone: form.phone.trim() || undefined,
     email: form.email.trim() || undefined,
-    address: form.address.trim() || undefined,
+    address: primary.address.trim() || undefined,
     locale: form.locale || undefined,
     branding: {
       logoUrl: (form.branding.logoUrl ?? '').trim() || undefined,
       primaryColor: (form.branding.primaryColor ?? '').trim() || undefined,
-      tagline: (form.branding.tagline ?? '').trim() || undefined,
+      tagline: primary.tagline.trim() || undefined,
     },
     social: {
       website: (form.social.website ?? '').trim() || undefined,
@@ -107,5 +133,6 @@ export function profileFormToPayload(form: BusinessProfileForm) {
     location: {
       mapEmbedHtml: (form.location.mapEmbedHtml ?? '').trim() || undefined,
     },
+    publicProfileLocales: publicProfileLocalesToPayload(form.publicProfileLocales),
   };
 }

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
-import { getPublicProfile, getPublicProviders } from '@/lib/public-api';
-import { getServerLocale } from '@/lib/server-locale';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicProviders } from '@/lib/public-api';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { bookPath } from '@/lib/tenant-host';
 import { ProfessionalsClient } from './professionals-client';
 
@@ -10,11 +11,9 @@ export default async function ProfessionalsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const locale = await getServerLocale();
-  const [tenant, { providers }] = await Promise.all([
-    getPublicProfile(slug),
-    getPublicProviders(slug, undefined, locale),
-  ]);
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
+  const { providers } = await getPublicProviders(slug, undefined, locale);
 
   return (
     <Suspense
