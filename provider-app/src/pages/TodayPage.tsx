@@ -22,8 +22,10 @@ import ProviderAiAssistant from '../components/ProviderAiAssistant';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
+import { useI18n } from '../i18n';
 
 export default function TodayPage() {
+  const { t } = useI18n();
   const { business, user } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -73,7 +75,9 @@ export default function TodayPage() {
       <IonHeader>
         <IonToolbar>
           <IonTitle>
-            {user?.firstName ? `Hello, ${user.firstName}` : 'Today'}
+            {user?.firstName
+              ? t('provider.helloName', { name: user.firstName })
+              : t('provider.today')}
           </IonTitle>
         </IonToolbar>
       </IonHeader>
@@ -99,7 +103,7 @@ export default function TodayPage() {
         )}
 
         {isTeamView(data?.viewMode) ? (
-          <p className="booking-meta">All providers — today</p>
+          <p className="booking-meta">{t('provider.teamTodayLabel')}</p>
         ) : (
           data?.employee && <p className="booking-meta">{data.employee.name}</p>
         )}
@@ -107,19 +111,21 @@ export default function TodayPage() {
         {isLoading ? (
           <div className="empty-state"><IonSpinner /></div>
         ) : !data?.bookings?.length ? (
-          <p className="empty-state">No appointments scheduled for today.</p>
+          <p className="empty-state">{t('provider.noAppointmentsToday')}</p>
         ) : (
           data.bookings.map((b) => (
             <IonCard key={b.id} button onClick={() => setSelectedId(b.id)}>
               <IonCardHeader>
                 <IonCardTitle className="appointment-block-title">
-                  {formatBookingBlockHeadline(b)}
+                  {formatBookingBlockHeadline(b, t)}
                 </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>
                 <p className="booking-meta">{formatDateDisplay(b.startTime)}</p>
                 {b.employee && isTeamView(data?.viewMode) && (
-                  <p className="booking-meta">Provider: {b.employee.name}</p>
+                  <p className="booking-meta">
+                    {t('common.provider')}: {b.employee.name}
+                  </p>
                 )}
                 {b.service && <p><strong>{b.service.name}</strong></p>}
                 {b.customer && (
@@ -134,7 +140,7 @@ export default function TodayPage() {
                   </>
                 )}
                 {b.notes && <p className="booking-meta">{b.notes}</p>}
-                <p className="booking-meta">Tap to manage</p>
+                <p className="booking-meta">{t('provider.tapToManage')}</p>
               </IonCardContent>
             </IonCard>
           ))

@@ -15,7 +15,8 @@
     "cap:build:ios": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios && cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/provider-app-ios build",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
-    "test:locale-dates": "vitest run src/lib/date-format.spec.ts"
+    "test:locale-dates": "vitest run src/lib/date-format.spec.ts",
+    "test:provider-i18n": "vitest run --config vitest.provider-i18n.config.ts"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
@@ -48,6 +49,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "happy-dom": "^15.11.7",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vitest": "^3.2.4"

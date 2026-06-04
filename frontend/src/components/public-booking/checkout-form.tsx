@@ -387,7 +387,7 @@ export function CheckoutForm({
 
     setSubmitting(true);
     try {
-      if (requiresOnlinePayment && paymentMethod !== 'cash') {
+      if (requiresOnlinePayment) {
         const { url } = await createPublicBookingCheckout(tenant.slug, payload());
         window.location.href = url;
         return;

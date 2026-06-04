@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { uploadBusinessLogo } from '@/lib/upload';
+import { useI18n } from '@/i18n';
 
 interface BusinessLogoFieldProps {
   businessId: string;
@@ -19,6 +20,7 @@ export function BusinessLogoField({
   onChange,
   disabled,
 }: BusinessLogoFieldProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function BusinessLogoField({
       const url = await uploadBusinessLogo(businessId, file);
       onChange(url);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to upload logo');
+      setError(err?.response?.data?.message || t('errors.uploadLogoFailed'));
     } finally {
       setUploading(false);
     }
@@ -39,7 +41,7 @@ export function BusinessLogoField({
 
   return (
     <div>
-      <label className="label">Logo</label>
+      <label className="label">{t('business.logo')}</label>
       <div className="flex items-center gap-4">
         <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 shrink-0 border border-gray-700">
           {logoUrl ? (
@@ -75,7 +77,7 @@ export function BusinessLogoField({
             className="btn-secondary text-sm inline-flex items-center gap-2 w-fit"
           >
             <Camera className="w-4 h-4" />
-            {uploading ? 'Uploading…' : 'Upload logo'}
+            {uploading ? t('business.uploadingLogo') : t('business.uploadLogo')}
           </button>
           {logoUrl && !disabled && (
             <button
@@ -84,7 +86,7 @@ export function BusinessLogoField({
               className="text-xs text-gray-400 hover:text-red-400 inline-flex items-center gap-1 w-fit"
             >
               <X className="w-3 h-3" />
-              Remove logo
+              {t('business.removeLogo')}
             </button>
           )}
         </div>

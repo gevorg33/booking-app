@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 import { MarketingAutomationSettingsPanel } from '@/components/integrations/marketing-automation-settings';
 import { CheckboxChoice, ToggleChoice } from '@/components/ui/radio-choice';
 
@@ -86,7 +87,7 @@ function normalizeZendeskSubdomain(raw: string): string {
   return value;
 }
 
-function formatSaveError(err: unknown): string {
+function formatSaveError(err: unknown, fallback: string): string {
   if (err && typeof err === 'object' && 'response' in err) {
     const message = (err as { response?: { data?: { message?: string | string[] } } }).response?.data
       ?.message;
@@ -94,10 +95,11 @@ function formatSaveError(err: unknown): string {
     if (typeof message === 'string' && message.trim()) return message;
   }
   if (err instanceof Error && err.message) return err.message;
-  return 'Failed to save Zendesk settings';
+  return fallback;
 }
 
 export function GrowthDistributionTab() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const base = `/businesses/${business!.id}/integrations`;
@@ -226,7 +228,7 @@ export function GrowthDistributionTab() {
     },
     onError: (err) => {
       setZendeskSaved(false);
-      setZendeskError(formatSaveError(err));
+      setZendeskError(formatSaveError(err, t('errors.zendeskSaveFailed')));
     },
   });
 
@@ -428,7 +430,7 @@ export function GrowthDistributionTab() {
           )}
 
           <button type="submit" disabled={saveZendesk.isPending} className="btn-primary text-sm">
-            {saveZendesk.isPending ? 'Saving…' : 'Save Zendesk'}
+            {saveZendesk.isPending ? t('common.saving') : t('integrations.saveZendesk')}
           </button>
         </form>
       </div>
@@ -621,7 +623,7 @@ export function GrowthDistributionTab() {
           disabled={saveDistribution.isPending}
           className="btn-primary text-sm"
         >
-          {saveDistribution.isPending ? 'Saving…' : 'Save distribution settings'}
+          {saveDistribution.isPending ? t('common.saving') : t('integrations.saveDistribution')}
         </button>
       </div>
 

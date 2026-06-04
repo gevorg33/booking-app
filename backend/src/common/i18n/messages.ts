@@ -76,6 +76,19 @@ const en: MessageTree = {
     reminderMinutes: '{count} minutes',
     reminderNow: 'now',
   },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} appointment(s) need confirmation',
+    confirmPendingPrompt: 'Show my appointments today that still need confirmation',
+    unpaidTodayTitle: '{count} unpaid appointment(s) today',
+    unpaidTodayPrompt: 'Mark all completed appointments today as paid',
+    gapsTodayTitle: '{count} open slot(s) this afternoon',
+    gapsTodayPrompt: "What's on my schedule this afternoon? Any gaps?",
+    nextUpTitle: 'Next: {customer} at {time}',
+    nextUpPrompt: "Mark {customer}'s appointment at {time} as done and paid",
+    emptyTodayTitle: 'No appointments today',
+    emptyTodayPrompt: 'Summarize my schedule for {date}',
+    defaultClient: 'client',
+  },
 };
 
 const hy: MessageTree = {
@@ -124,6 +137,19 @@ const hy: MessageTree = {
     reminderMinutes: '{count} րոպե',
     reminderNow: 'հիմա',
   },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} ամրագրում պետք է հաստատվի',
+    confirmPendingPrompt: 'Ցույց տուր այսօրվա ամրագրումները, որոնք դեռ սպասում են հաստատման',
+    unpaidTodayTitle: 'Այսօր {count} չվճարված ամրագրում',
+    unpaidTodayPrompt: 'Նշել այսօրվա բոլոր ավարտված ամրագրումները որպես վճարված',
+    gapsTodayTitle: 'Այսօր կեսօրից հետո {count} ազատ slot',
+    gapsTodayPrompt: 'Ինչ կա իմ գրաֆիկում այսօր կեսօրից հետո։ Կա՞ն ազատ slot-եր',
+    nextUpTitle: 'Հաջորդը՝ {customer} {time}-ին',
+    nextUpPrompt: 'Նշել {customer}-ի ամրագրումը {time}-ին որպես ավարտված և վճարված',
+    emptyTodayTitle: 'Այսօր ամրագրումներ չկան',
+    emptyTodayPrompt: 'Ամփոփիր իմ գրաֆիկը {date} ամսաթվի համար',
+    defaultClient: 'հաճախորդ',
+  },
 };
 
 const ru: MessageTree = {
@@ -171,6 +197,19 @@ const ru: MessageTree = {
     reminderHours: '{count} ч',
     reminderMinutes: '{count} мин',
     reminderNow: 'сейчас',
+  },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} записей ждут подтверждения',
+    confirmPendingPrompt: 'Покажи записи на сегодня, которые ещё нужно подтвердить',
+    unpaidTodayTitle: '{count} неоплаченных записей сегодня',
+    unpaidTodayPrompt: 'Отметить все завершённые записи сегодня как оплаченные',
+    gapsTodayTitle: '{count} свободных слотов сегодня днём',
+    gapsTodayPrompt: 'Что у меня в расписании сегодня днём? Есть свободные слоты?',
+    nextUpTitle: 'Далее: {customer} в {time}',
+    nextUpPrompt: 'Отметить запись {customer} в {time} как завершённую и оплаченную',
+    emptyTodayTitle: 'На сегодня записей нет',
+    emptyTodayPrompt: 'Кратко опиши моё расписание на {date}',
+    defaultClient: 'клиент',
   },
 };
 

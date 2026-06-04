@@ -271,8 +271,8 @@ export function AiCommandBar() {
   });
 
   const examples = useMemo(
-    () => buildAiCommandBarExamples({ employees, services }),
-    [employees, services],
+    () => buildAiCommandBarExamples({ employees, services }, t),
+    [employees, services, t],
   );
 
   useEffect(() => {
@@ -328,7 +328,7 @@ export function AiCommandBar() {
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: err?.response?.data?.message || 'Failed to approve plan',
+            text: err?.response?.data?.message || t('ai.approvePlanFailed'),
             success: false,
             action: 'error',
             timestamp: new Date(),
@@ -338,7 +338,7 @@ export function AiCommandBar() {
         setApprovingId(null);
       }
     },
-    [approvingId, business?.id, queryClient],
+    [approvingId, business?.id, queryClient, t],
   );
 
   const confirmExecution = useCallback(
@@ -385,7 +385,7 @@ export function AiCommandBar() {
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: err?.response?.data?.message || 'Failed to confirm action',
+            text: err?.response?.data?.message || t('ai.confirmActionFailed'),
             success: false,
             action: 'error',
             timestamp: new Date(),
@@ -395,7 +395,7 @@ export function AiCommandBar() {
         setConfirmingId(null);
       }
     },
-    [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext],
+    [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext, t],
   );
 
   const handleVoiceError = useCallback(
@@ -467,7 +467,7 @@ export function AiCommandBar() {
           text:
             limitMsg ??
             (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            'Something went wrong. Please try again.',
+            t('common.errorGeneric'),
           success: false,
           action: isPlanLimitError(err) ? 'plan_limit' : 'error',
           timestamp: new Date(),
@@ -476,7 +476,7 @@ export function AiCommandBar() {
     } finally {
       setLoading(false);
     }
-  }, [input, business?.id, loading, queryClient, messages, sessionContext, pathname]);
+  }, [input, business?.id, loading, queryClient, messages, sessionContext, pathname, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -521,7 +521,7 @@ export function AiCommandBar() {
           className={`w-12 h-12 bg-gradient-to-br from-violet-600 to-blue-600 rounded-full shadow-lg shadow-violet-600/30 flex items-center justify-center text-white transition-transform ${
             isDragging ? 'scale-100 cursor-grabbing' : 'hover:scale-105 cursor-grab'
           }`}
-          title="AI Command (drag to move)"
+          title={t('ai.commandBarDragTitle')}
         >
           <Sparkles className="w-5 h-5" />
           {pendingTasks.length > 0 && (
@@ -547,7 +547,7 @@ export function AiCommandBar() {
             >
               <Sparkles className="w-4 h-4 text-violet-400 shrink-0 pointer-events-none" />
               <span className="text-sm font-semibold text-gray-200 truncate pointer-events-none">
-                Orchestrix AI
+                {t('ai.assistantTitle')}
               </span>
             </div>
             <button
@@ -574,7 +574,7 @@ export function AiCommandBar() {
               onMouseDown={(e) => e.stopPropagation()}
               onClick={closeAssistant}
               className="shrink-0 ml-1 p-1 text-gray-500 hover:text-white transition-colors cursor-pointer"
-              aria-label="Close AI assistant"
+              aria-label={t('ai.closeAssistant')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -585,9 +585,7 @@ export function AiCommandBar() {
             {messages.length === 0 && (
               <div className="text-center py-6">
                 <Sparkles className="w-8 h-8 text-violet-500/50 mx-auto mb-3" />
-                <p className="text-sm text-gray-400 mb-4">
-                  Express operational intent — AI plans, policy validates, workflows execute
-                </p>
+                <p className="text-sm text-gray-400 mb-4">{t('ai.emptyHint')}</p>
                 <div className="space-y-2">
                   {examples.map((ex) => (
                     <button
@@ -658,7 +656,7 @@ export function AiCommandBar() {
                       className="mt-2 text-[11px] text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors"
                     >
                       {expandedId === msg.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      {expandedId === msg.id ? 'Hide' : 'Show'} details
+                      {expandedId === msg.id ? t('ai.hideDetails') : t('ai.showDetails')}
                     </button>
                   )}
                   {expandedId === msg.id && msg.details && (
@@ -674,7 +672,7 @@ export function AiCommandBar() {
                       disabled={confirmingId === msg.id}
                       className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
                     >
-                      {confirmingId === msg.id ? 'Executing…' : 'Confirm & execute'}
+                      {confirmingId === msg.id ? t('ai.executing') : t('ai.confirmExecute')}
                     </button>
                   )}
 
@@ -688,7 +686,9 @@ export function AiCommandBar() {
                         disabled={approvingId === msg.details.taskId}
                         className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
                       >
-                        {approvingId === msg.details.taskId ? 'Executing…' : 'Approve & execute plan'}
+                        {approvingId === msg.details.taskId
+                          ? t('ai.executing')
+                          : t('ai.approveExecutePlan')}
                       </button>
                     </>
                   )}
@@ -705,7 +705,9 @@ export function AiCommandBar() {
                               : 'bg-gray-500'
                       }`} />
                       <span className="text-[10px] text-gray-500">
-                        {msg.details?.needsClarification ? 'needs info' : msg.action.replace(/_/g, ' ')}
+                        {msg.details?.needsClarification
+                          ? t('ai.needsInfo')
+                          : msg.action.replace(/_/g, ' ')}
                       </span>
                     </div>
                   )}
@@ -713,10 +715,10 @@ export function AiCommandBar() {
               </div>
             ))}
 
-            {loading && (
+            {(loading || confirmingId || approvingId) && (
               <div className="flex justify-start">
                 <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <span className="text-xs text-gray-400">Thinking…</span>
+                  <span className="text-xs text-gray-400">{t('ai.thinking')}</span>
                 </div>
               </div>
             )}
@@ -744,7 +746,9 @@ export function AiCommandBar() {
                 ref={inputRef}
                 type="text"
                 className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
-                placeholder="e.g. Cancel all bookings for Gevorg tomorrow..."
+                placeholder={t('ai.inputPlaceholderExample', {
+                  provider: employees[0]?.name?.trim() || t('ai.fallbackProvider'),
+                })}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -762,7 +766,7 @@ export function AiCommandBar() {
               {undoPreview?.undoable
                 ? `${t('ai.undoLatestHint')}: ${undoPreview.intent}`
                 : t('ai.voiceHint')}
-              , Esc to close
+              {`, ${t('ai.escToClose')}`}
             </p>
           </div>
         </div>

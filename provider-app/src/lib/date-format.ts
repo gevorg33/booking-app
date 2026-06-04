@@ -6,7 +6,14 @@ export function getBrowserTimeZone(): string {
   }
 }
 
+import { resolveProviderAppLocale } from '../i18n/resolve-locale';
+import { useAuthStore } from '../services/auth-store';
+
 function resolveAppLocale(): string | undefined {
+  const { user, business } = useAuthStore.getState();
+  if (user?.locale || business?.locale) {
+    return resolveProviderAppLocale(user?.locale, business?.locale);
+  }
   if (typeof navigator === 'undefined') return undefined;
   const lang = navigator.language?.slice(0, 2).toLowerCase();
   if (lang === 'hy' || lang === 'ru' || lang === 'en') return lang;

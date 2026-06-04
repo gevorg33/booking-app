@@ -19,6 +19,8 @@ import {
 import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
 import { useProviderAiEvents } from '../lib/use-ai-events';
+import { useI18n } from '../i18n';
+import { buildProviderAiExamples } from '../lib/provider-ai-examples';
 
 interface PreviewItem {
   id: string;
@@ -77,13 +79,6 @@ interface ProviderAiAssistantProps {
   onSeedPromptConsumed?: () => void;
 }
 
-const EXAMPLES = [
-  "Cancel all my today's appointments — I'm sick",
-  "Mark John's appointment at 13:00 as done and paid",
-  "Mark all today's appointments as done with payment paid",
-  "What's on my schedule today?",
-];
-
 function mergeSession(prev: SessionContext, next: SessionContext): SessionContext {
   return {
     customerName: next.customerName ?? prev.customerName,
@@ -100,6 +95,8 @@ export default function ProviderAiAssistant({
   seedPrompt,
   onSeedPromptConsumed,
 }: ProviderAiAssistantProps) {
+  const { t } = useI18n();
+  const examples = buildProviderAiExamples(t);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -169,7 +166,7 @@ export default function ProviderAiAssistant({
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: ax.response?.data?.message ?? 'Something went wrong. Try again.',
+            text: ax.response?.data?.message ?? t('provider.assistantErrorGeneric'),
             success: false,
           },
         ]);
@@ -180,7 +177,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages, screenContext, sessionContext],
+    [businessId, invalidateBookings, loading, messages, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -219,7 +216,7 @@ export default function ProviderAiAssistant({
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: ax.response?.data?.message ?? 'Could not confirm action.',
+            text: ax.response?.data?.message ?? t('provider.assistantConfirmFailed'),
             success: false,
           },
         ]);
@@ -227,7 +224,7 @@ export default function ProviderAiAssistant({
         setConfirmingId(null);
       }
     },
-    [businessId, confirmingId, invalidateBookings],
+    [businessId, confirmingId, invalidateBookings, t],
   );
 
   useEffect(() => {
@@ -263,7 +260,7 @@ export default function ProviderAiAssistant({
         <IonCardHeader>
           <IonCardTitle className="ai-assistant-card__title">
             <IonIcon icon={sparklesOutline} className="ai-assistant-card__icon" />
-            AI Assistant
+            {t('provider.assistantTitle')}
           </IonCardTitle>
         </IonCardHeader>
         <IonIcon icon={open ? chevronUpOutline : chevronDownOutline} />
@@ -272,7 +269,7 @@ export default function ProviderAiAssistant({
       {open && (
         <IonCardContent>
           <div className="ai-assistant-examples">
-            {EXAMPLES.map((example) => (
+            {examples.map((example) => (
               <button
                 key={example}
                 type="button"
@@ -289,7 +286,7 @@ export default function ProviderAiAssistant({
             {messages.length === 0 ? (
               <IonText color="medium">
                 <p className="booking-meta">
-                  Ask in plain language to cancel, mark done, update payment, or view your schedule.
+                  {t('provider.assistantEmptyHint')}
                 </p>
               </IonText>
             ) : (
@@ -319,7 +316,9 @@ export default function ProviderAiAssistant({
                             }}
                           >
                             {issue.label}: {issue.message}
-                            <span>Try: &ldquo;{issue.example}&rdquo;</span>
+                            <span>
+                              {t('provider.assistantClarifyTry')} &ldquo;{issue.example}&rdquo;
+                            </span>
                           </button>
                         ) : (
                           <p key={`${issue.field}-${issue.label}`} className="ai-assistant-clarify-line">
@@ -351,7 +350,11 @@ export default function ProviderAiAssistant({
                           <li key={line}>{line}</li>
                         ))}
                         {msg.details.preview.length > 5 && (
-                          <li>…and {msg.details.preview.length - 5} more</li>
+                          <li>
+                            {t('provider.assistantPreviewMore', {
+                              count: msg.details.preview.length - 5,
+                            })}
+                          </li>
                         )}
                       </ul>
                     )
@@ -359,12 +362,21 @@ export default function ProviderAiAssistant({
 
                   {msg.details?.requiresConfirmation && msg.details.pendingAction && (
                     <>
-                      <p className="ai-assistant-swipe-hint booking-meta">Swipe a row left to confirm</p>
+                      <p className="ai-assistant-swipe-hint booking-meta">
+                        {t('provider.assistantSwipeHint')}
+                      </p>
                       <IonItemSliding className="ai-assistant-confirm-slide">
                         <IonItem lines="none" className="ai-assistant-confirm-item">
                           <IonLabel>
-                            <h3>Confirm {msg.details.previewItems?.length ?? msg.details.bookingIds?.length ?? ''} change(s)</h3>
-                            <p>Swipe left → Confirm</p>
+                            <h3>
+                              {t('provider.assistantConfirmChanges', {
+                                count:
+                                  msg.details.previewItems?.length ??
+                                  msg.details.bookingIds?.length ??
+                                  0,
+                              })}
+                            </h3>
+                            <p>{t('provider.assistantSwipeConfirm')}</p>
                           </IonLabel>
                         </IonItem>
                         <IonItemOptions side="end">
@@ -373,7 +385,9 @@ export default function ProviderAiAssistant({
                             onClick={() => void confirmAction(msg)}
                             disabled={confirmingId === msg.id}
                           >
-                            {confirmingId === msg.id ? 'Working…' : 'Confirm'}
+                            {confirmingId === msg.id
+                              ? t('provider.assistantWorking')
+                              : t('provider.assistantConfirm')}
                           </IonItemOption>
                         </IonItemOptions>
                       </IonItemSliding>
@@ -384,7 +398,11 @@ export default function ProviderAiAssistant({
                         onClick={() => void confirmAction(msg)}
                         disabled={confirmingId === msg.id}
                       >
-                        {confirmingId === msg.id ? <IonSpinner name="crescent" /> : 'Confirm all'}
+                        {confirmingId === msg.id ? (
+                          <IonSpinner name="crescent" />
+                        ) : (
+                          t('provider.assistantConfirmAll')
+                        )}
                       </IonButton>
                     </>
                   )}
@@ -393,7 +411,7 @@ export default function ProviderAiAssistant({
             )}
             {loading && (
               <div className="ai-assistant-msg ai-assistant-msg--assistant">
-                <p className="ai-assistant-thinking">Thinking…</p>
+                <p className="ai-assistant-thinking">{t('ai.thinking')}</p>
               </div>
             )}
           </div>
@@ -407,12 +425,12 @@ export default function ProviderAiAssistant({
           >
             <IonInput
               value={input}
-              placeholder="Tell me what to do…"
+              placeholder={t('provider.assistantInputPlaceholder')}
               onIonInput={(e) => setInput(e.detail.value ?? '')}
               disabled={loading}
             />
             <IonButton type="submit" disabled={loading || !input.trim()}>
-              Send
+              {t('ai.send')}
             </IonButton>
           </form>
         </IonCardContent>

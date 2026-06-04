@@ -271,7 +271,7 @@ export function PackageCheckoutClient({
       return;
     }
     if (lines.length === 0) {
-      setError('Missing appointment schedule');
+      setError(t('public.missingAppointmentSchedule'));
       return;
     }
 

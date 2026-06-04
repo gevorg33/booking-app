@@ -106,7 +106,7 @@ export function SchedulingResourcesPanel({ businessId }: SchedulingResourcesPane
             className="input min-w-[200px]"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Room A"
+            placeholder={t('operations.resourceNamePlaceholder')}
             required
           />
         </div>
@@ -157,7 +157,7 @@ export function SchedulingResourcesPanel({ businessId }: SchedulingResourcesPane
                       type="button"
                       onClick={() => deactivateMutation.mutate(resource.id)}
                       className="text-red-400 hover:text-red-300"
-                      aria-label="Remove resource"
+                      aria-label={t('operations.removeResourceAria')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

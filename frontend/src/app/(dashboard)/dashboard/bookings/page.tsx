@@ -24,7 +24,6 @@ import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
-import { resolveBookingsSettings } from '@/lib/bookings-settings';
 import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { useI18n } from '@/i18n';
 import { AiPagePanel } from '@/components/ai-page-panel';
@@ -391,7 +390,6 @@ export default function BookingsPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
-
   const [form, setForm] = useState({
     startTime: '',  // HH:mm within the period
     serviceId: '',
@@ -401,29 +399,41 @@ export default function BookingsPage() {
   });
   const [useSubscriptionId, setUseSubscriptionId] = useState<string | null>(null);
 
-  const dayStr  = toDateKey(day);
-  const isToday = dayStr === getTodayDateKey();
-
-  const prevDay = useCallback(() => setDay((d) => addCalendarDays(d, -1)), []);
-  const nextDay = useCallback(() => setDay((d) => addCalendarDays(d, 1)),  []);
-  const goToday = useCallback(() => setDay(todayDateAnchor()),            []);
-
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  const { data: businessSettings = {} } = useQuery({
+  const { data: businessProfile } = useQuery({
     queryKey: ['business-settings', business?.id],
     queryFn: async () => {
-      if (!business?.id) return {};
+      if (!business?.id) return { settings: {}, timezone: undefined as string | undefined };
       const { data } = await api.get(`/businesses/${business.id}`);
-      const record = unwrapBusinessApiPayload<{ settings?: Record<string, unknown> }>(data);
-      return record.settings ?? {};
+      const record = unwrapBusinessApiPayload<{
+        settings?: Record<string, unknown>;
+        timezone?: string;
+      }>(data);
+      return {
+        settings: record.settings ?? {},
+        timezone: record.timezone ?? (business as { timezone?: string }).timezone,
+      };
     },
     enabled: !!business?.id,
   });
 
-  const calendarPayAtVenueOnly = useMemo(
-    () => resolveBookingsSettings(businessSettings).calendarPayAtVenueFilterDefault,
-    [businessSettings],
+  const scheduleTimeZone = businessProfile?.timezone;
+
+  const dayStr = toDateKey(day, scheduleTimeZone);
+  const isToday = dayStr === getTodayDateKey(scheduleTimeZone);
+
+  const prevDay = useCallback(
+    () => setDay((d) => addCalendarDays(d, -1, scheduleTimeZone)),
+    [scheduleTimeZone],
+  );
+  const nextDay = useCallback(
+    () => setDay((d) => addCalendarDays(d, 1, scheduleTimeZone)),
+    [scheduleTimeZone],
+  );
+  const goToday = useCallback(
+    () => setDay(todayDateAnchor(scheduleTimeZone)),
+    [scheduleTimeZone],
   );
 
   const { data: employees = [] } = useQuery({
@@ -445,6 +455,12 @@ export default function BookingsPage() {
     },
     enabled: !!business?.id,
   });
+
+  useEffect(() => {
+    if (employeeId || employees.length === 0) return;
+    const first = employees[0] as { id: string };
+    if (first?.id) setEmployeeId(first.id);
+  }, [employees, employeeId]);
 
   // Provider-calendar: returns whole applied period blocks (not micro-slots)
   const { data: calData, isPending: calPending } = useQuery({
@@ -468,24 +484,13 @@ export default function BookingsPage() {
       const params: any = { date: dayStr };
       if (employeeId) params.employeeId = employeeId;
       const { data } = await api.get(`/businesses/${business.id}/bookings`, { params });
-      const list = data.data || data || [];
-      return employeeId
-        ? list.filter((b: any) => b.employee?.id === employeeId || b.employeeId === employeeId)
-        : list;
+      return (data.data || data || []) as BookingItem[];
     },
     enabled: !!business?.id,
   });
 
   const calPeriods: CalPeriod[] = calData?.periods || [];
   const bookings: BookingItem[] = bookingsRaw;
-  const visibleBookings = useMemo(() => {
-    if (!calendarPayAtVenueOnly) return bookings;
-    return bookings.filter(
-      (b) =>
-        b.paymentStatus === 'pending' &&
-        (b.metadata?.payAtVenue === true || b.metadata?.paymentMethod === 'cash'),
-    );
-  }, [bookings, calendarPayAtVenueOnly]);
 
   // ── Derived UI state ───────────────────────────────────────────────────────
 
@@ -713,10 +718,6 @@ export default function BookingsPage() {
         />
       </DashboardPageShell>
 
-      {calendarPayAtVenueOnly && (
-        <p className="text-xs text-amber-400/90">{t('bookings.payAtVenueFilterActive')}</p>
-      )}
-
       {/* ── Main area ── */}
       <div className="flex gap-4 flex-1 min-h-0">
 
@@ -875,11 +876,11 @@ export default function BookingsPage() {
 
                   {/* Booking overlays — side-by-side when overlapping; cancelled blocks are click-through */}
                   {(() => {
-                    const layout = computeLayout(visibleBookings.map((b) => ({
+                    const layout = computeLayout(bookings.map((b) => ({
                       id: b.id, startISO: b.startTime, endISO: b.endTime,
                     })));
 
-                    const cancelledNodes = visibleBookings
+                    const cancelledNodes = bookings
                       .filter((b) => b.status === 'cancelled')
                       .map((b) => {
                         const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
@@ -901,7 +902,7 @@ export default function BookingsPage() {
                         );
                       });
 
-                    const activeNodes = visibleBookings
+                    const activeNodes = bookings
                       .filter((b) => b.status !== 'cancelled')
                       .map((b) => {
                         const lay = layout.get(b.id) ?? { col: 0, totalCols: 1 };
@@ -930,7 +931,7 @@ export default function BookingsPage() {
                     );
                   })()}
 
-                  {calPeriods.length === 0 && visibleBookings.length === 0 && (
+                  {calPeriods.length === 0 && bookings.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <p className="text-gray-600 text-sm">{t('bookings.noScheduleDay')}</p>
                     </div>
@@ -1008,7 +1009,7 @@ export default function BookingsPage() {
                     </select>
                   )}
                   {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
-                    <p className="text-[10px] text-gray-500 mt-1">Only services offered in this period are shown</p>
+                    <p className="text-[10px] text-gray-500 mt-1">{t('bookings.servicesInPeriodHint')}</p>
                   )}
                 </div>
 
@@ -1141,7 +1142,7 @@ export default function BookingsPage() {
             — {fmtDate(day)}
           </h2>
           <span className="text-xs text-gray-500">
-            {t('bookings.bookingsCount').replace('{count}', String(visibleBookings.length))}
+            {t('bookings.bookingsCount').replace('{count}', String(bookings.length))}
           </span>
         </div>
 
@@ -1167,11 +1168,11 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {visibleBookings.length === 0 ? (
+        {bookings.length === 0 ? (
           <p className="text-center text-gray-500 text-sm py-6">{t('bookings.emptyDay')}</p>
         ) : (
           <div className="divide-y divide-gray-800">
-            {visibleBookings.map((b) => (
+            {bookings.map((b) => (
               <div
                 key={b.id}
                 role="button"

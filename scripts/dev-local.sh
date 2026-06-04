@@ -11,12 +11,12 @@ fi
 
 print_banner "Booking — local dev (localhost only)"
 echo "  Dashboard: http://localhost:${FRONTEND_PORT}"
-echo "  API:       http://localhost:${BACKEND_PORT}"
+echo "  API:       http://127.0.0.1:${BACKEND_PORT}"
 echo ""
 
 start_dev_pair \
   "127.0.0.1" \
   "http://localhost:${FRONTEND_PORT}" \
   "" \
-  "http://localhost:${BACKEND_PORT}" \
+  "http://127.0.0.1:${BACKEND_PORT}" \
   ""

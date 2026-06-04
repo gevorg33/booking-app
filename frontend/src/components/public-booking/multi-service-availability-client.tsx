@@ -159,7 +159,7 @@ export function MultiServiceAvailabilityClient({
           selectedStartRef.current = null;
           setSelectedStart(null);
           setEmployeeId(null);
-          setError((err as Error)?.message || 'Could not load available times');
+          setError((err as Error)?.message || t('public.loadAvailableTimesFailed'));
         }
       } finally {
         if (slotsRequestRef.current === requestId) {
@@ -226,7 +226,7 @@ export function MultiServiceAvailabilityClient({
         }
       } catch (err: unknown) {
         if (suggestRequestRef.current !== requestId) return;
-        setError((err as Error)?.message || 'Could not find an available block');
+        setError((err as Error)?.message || t('public.findAvailableBlockFailed'));
         const today = new Date().toISOString().slice(0, 10);
         if (!userPickedDateRef.current) {
           setDateKey(today);

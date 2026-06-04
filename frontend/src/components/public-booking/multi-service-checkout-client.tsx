@@ -399,7 +399,7 @@ export function MultiServiceCheckoutClient({
       return;
     }
     if (!blockStartTime && !lines?.length) {
-      setError('Missing appointment schedule');
+      setError(t('public.missingAppointmentSchedule'));
       return;
     }
 

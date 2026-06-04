@@ -7,7 +7,12 @@ export type PublicProfileLocaleFields = {
   address: string;
 };
 
-export type PublicProfileLocalesMap = Partial<Record<AppLocale, PublicProfileLocaleFields>>;
+/** API payload may omit empty fields per locale (aligned with backend). */
+export type PublicProfileLocaleFieldsPayload = Partial<PublicProfileLocaleFields>;
+
+export type PublicProfileLocalesMap = Partial<
+  Record<AppLocale, PublicProfileLocaleFieldsPayload>
+>;
 
 export type PublicProfileLocalesFormState = Record<AppLocale, PublicProfileLocaleFields>;
 

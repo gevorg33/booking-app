@@ -16,6 +16,11 @@
     "test:localized-names": "vitest run --config vitest.localized-names.config.ts --coverage src/lib/localized-names.spec.ts",
     "test:locale-dates": "vitest run --config vitest.locale-dates.config.ts --coverage",
     "test:public-locale": "vitest run --config vitest.public-locale.config.ts --coverage",
+    "test:appointment-modal": "vitest run --config vitest.appointment-modal.config.ts --coverage",
+    "test:dashboard-modals": "vitest run --config vitest.dashboard-modals.config.ts --coverage",
+    "test:toasts-errors": "vitest run --config vitest.toasts-errors.config.ts --coverage",
+    "test:ai-assistant": "vitest run --config vitest.ai-assistant.config.ts --coverage",
+    "test:dashboard-surfaces": "vitest run --config vitest.dashboard-surfaces.config.ts --coverage",
     "test:date-format": "vitest run src/lib/date-format.spec.ts",
     "sync:firebase": "bash scripts/sync-firebase-from-provider.sh",
     "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"

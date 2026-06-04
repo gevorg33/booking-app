@@ -18,8 +18,8 @@ export function getLoginTenantHint(): { businessSlug?: string } {
 }
 
 export interface AuthResult {
-  user: { id: string; email: string; firstName?: string; lastName?: string };
-  business: { id: string; name: string; slug?: string; membershipRole?: string };
+  user: { id: string; email: string; firstName?: string; lastName?: string; locale?: string };
+  business: { id: string; name: string; slug?: string; membershipRole?: string; locale?: string };
   employee: { id: string; name: string } | null;
   businesses: Array<{
     id: string;

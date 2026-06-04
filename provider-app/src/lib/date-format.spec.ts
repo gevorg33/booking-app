@@ -33,7 +33,7 @@ describe('provider-app date-format', () => {
     expect(getTodayDateKey('UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     const anchor = parseDateKey(getTodayDateKey('UTC'))!;
     expect(addCalendarDays(anchor, 1, 'UTC')).toBeInstanceOf(Date);
-    expect(todayDisplay('UTC')).toMatch(/\d{2}[./]\d{2}[./]\d{4}/);
+    expect(todayDisplay()).toMatch(/\d{2}[./]\d{2}[./]\d{4}/);
   });
 
   it('getBrowserTimeZone falls back on error', () => {

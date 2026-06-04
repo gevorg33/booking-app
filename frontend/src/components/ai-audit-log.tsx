@@ -4,6 +4,7 @@ import { ScrollText, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 
 interface AuditEntry {
   id: string;
@@ -15,6 +16,7 @@ interface AuditEntry {
 }
 
 export function AiAuditLog() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
 
   const { data = [], isLoading } = useQuery({
@@ -33,15 +35,15 @@ export function AiAuditLog() {
     <div className="card">
       <div className="flex items-center gap-2 mb-4">
         <ScrollText className="w-5 h-5 text-gray-400" />
-        <h3 className="font-semibold">AI audit log</h3>
+        <h3 className="font-semibold">{t('ai.auditTitle')}</h3>
       </div>
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
         </div>
       ) : data.length === 0 ? (
-        <p className="text-sm text-gray-500">No AI mutations recorded yet.</p>
+        <p className="text-sm text-gray-500">{t('ai.auditEmpty')}</p>
       ) : (
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {data.map((entry) => (
@@ -54,7 +56,9 @@ export function AiAuditLog() {
               </div>
               <p className="text-sm text-gray-200 mt-1">{entry.summary}</p>
               {entry.approvedBy && (
-                <p className="text-xs text-gray-500 mt-0.5">Approved by user {entry.approvedBy.slice(0, 8)}…</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {t('ai.auditApprovedBy', { id: entry.approvedBy.slice(0, 8) })}
+                </p>
               )}
               {entry.planDiff && entry.planDiff.length > 0 && (
                 <ul className="mt-1 text-xs text-gray-500 list-disc list-inside">

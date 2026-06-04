@@ -321,7 +321,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         </div>
         {form.durationMonths === 'custom' && (
           <div>
-            <label className="label">Custom months</label>
+            <label className="label">{t('monetization.customMonths')}</label>
             <input
               type="number"
               min="1"
@@ -333,7 +333,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           </div>
         )}
         <div>
-          <label className="label">Included appointments</label>
+          <label className="label">{t('monetization.includedAppointments')}</label>
           <input
             type="number"
             min="1"
@@ -344,7 +344,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Discount type</label>
+          <label className="label">{t('monetization.discountType')}</label>
           <select
             className="input"
             value={form.discountType}
@@ -352,12 +352,12 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               setForm({ ...form, discountType: e.target.value as 'percent' | 'fixed' })
             }
           >
-            <option value="percent">Percent off</option>
-            <option value="fixed">Fixed amount off</option>
+            <option value="percent">{t('monetization.percentOff')}</option>
+            <option value="fixed">{t('monetization.fixedAmountOff')}</option>
           </select>
         </div>
         <div>
-          <label className="label">Discount value</label>
+          <label className="label">{t('monetization.discountValue')}</label>
           <input
             type="number"
             min="0"
@@ -370,10 +370,12 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         {form.serviceId && (
           <div className="md:col-span-2 rounded-lg bg-gray-800/50 p-4 text-sm space-y-1">
             <p>
-              Regular total: <strong>${preview.regularTotal.toFixed(2)}</strong>
+              {t('monetization.regularTotal', { amount: preview.regularTotal.toFixed(2) })}
             </p>
             <p>
-              Subscription price: <strong>${preview.subscriptionPrice.toFixed(2)}</strong>
+              {t('monetization.subscriptionPriceLabel', {
+                amount: preview.subscriptionPrice.toFixed(2),
+              })}
             </p>
             <p className="text-emerald-400">
               {t('monetization.customerSaves', { amount: preview.savings.toFixed(2) })}
@@ -383,7 +385,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {editingPlanId ? 'Update subscription plan' : 'Create subscription plan'}
+            {editingPlanId ? t('monetization.updatePlan') : t('monetization.createPlan')}
           </button>
           {editingPlanId && (
             <button
@@ -402,7 +404,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                 });
               }}
             >
-              Cancel edit
+              {t('monetization.cancelEdit')}
             </button>
           )}
         </div>
@@ -414,18 +416,18 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : plans.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No subscription plans yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">{t('monetization.plansEmpty')}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Service</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Duration</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Appointments</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Price</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Savings</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('common.name')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableService')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableDuration')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableAppointments')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tablePrice')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableSavings')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableStatus')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
@@ -434,7 +436,9 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                 <tr key={plan.id} className="border-b border-gray-800/80">
                   <td className="px-4 py-3 font-medium">{plan.name}</td>
                   <td className="px-4 py-3">{plan.service?.name ?? '—'}</td>
-                  <td className="px-4 py-3">{plan.durationMonths} mo</td>
+                  <td className="px-4 py-3">
+                    {t('monetization.durationMonthsShort', { count: plan.durationMonths })}
+                  </td>
                   <td className="px-4 py-3">{plan.includedAppointments}</td>
                   <td className="px-4 py-3">
                     ${Number(plan.preview?.pricing?.subscriptionPrice ?? 0).toFixed(2)}
@@ -453,7 +457,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                       className="text-xs text-blue-400"
                       onClick={() => startEditingPlan(plan)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     {plan.isActive !== false ? (
                       <button
@@ -530,7 +534,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             </select>
           </div>
           <div>
-            <label className="label">Plan</label>
+            <label className="label">{t('monetization.planLabel')}</label>
             <select
               className="input max-w-md"
               value={assignPlanId}
@@ -541,9 +545,9 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               <option value="">
                 {assignServiceId
                   ? plansForAssignService.length > 0
-                    ? 'Select plan…'
-                    : 'No plans for this service'
-                  : 'Select a service first…'}
+                    ? t('monetization.assignSelectPlan')
+                    : t('monetization.assignNoPlansForService')
+                  : t('monetization.assignSelectServiceFirst')}
               </option>
               {plansForAssignService.map((plan) => (
                 <option key={plan.id} value={plan.id}>
@@ -553,12 +557,12 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             </select>
             {assignServiceId && plansForAssignService.length > 1 && (
               <p className="text-xs text-gray-500 mt-1">
-                This service has {plansForAssignService.length} subscription plans — pick the one to assign.
+                {t('monetization.assignMultiPlanHint', { count: plansForAssignService.length })}
               </p>
             )}
           </div>
           <button type="submit" disabled={assignMutation.isPending} className="btn-primary">
-            Assign subscription
+            {t('monetization.assignAction')}
           </button>
         </form>
       )}
@@ -683,8 +687,10 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
           </div>
           {settings && (
             <p className="text-xs text-gray-500">
-              Example: $10.00 paid at {settings.earnPercentCashback}% → $
-              {(10 * settings.earnPercentCashback / 100).toFixed(2)} bonus credit
+              {t('monetization.loyaltyEarnExample', {
+                percent: settings.earnPercentCashback,
+                amount: (10 * settings.earnPercentCashback / 100).toFixed(2),
+              })}
             </p>
           )}
         </div>
@@ -713,7 +719,9 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
                       <>
                         {service.name}
                         {service.isActive === false && (
-                          <span className="ml-2 text-xs text-gray-500">(Inactive)</span>
+                          <span className="ml-2 text-xs text-gray-500">
+                            {t('monetization.inactiveService')}
+                          </span>
                         )}
                       </>
                     }
@@ -727,12 +735,12 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
       </form>
 
       <div className="card space-y-4">
-        <label className="label">Customer</label>
+        <label className="label">{t('common.customer')}</label>
         <CustomerSelect businessId={businessId} value={customerId} onChange={setCustomerId} />
       </div>
 
       {!customerId ? (
-        <p className="text-gray-500 text-sm">Select a customer to view loyalty balance.</p>
+        <p className="text-gray-500 text-sm">{t('monetization.loyaltyBalanceHint')}</p>
       ) : isLoading || isFetching ? (
         <div className="card flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
@@ -769,11 +777,11 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
               />
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="label">Note</label>
+              <label className="label">{t('monetization.loyaltyNote')}</label>
               <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
             <button type="submit" disabled={adjustMutation.isPending} className="btn-primary">
-              Adjust points
+              {t('monetization.adjustPoints')}
             </button>
           </form>
 
@@ -782,9 +790,9 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-800 text-left">
-                    <th className="px-4 py-3 font-medium text-gray-400">Type</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Points</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Note</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.loyaltyTableType')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.loyaltyTablePoints')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.loyaltyNote')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -865,7 +873,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Code</label>
+          <label className="label">{t('monetization.promoTableCode')}</label>
           <input
             className="input max-w-[160px] uppercase"
             value={code}
@@ -874,18 +882,18 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Type</label>
+          <label className="label">{t('monetization.promoType')}</label>
           <select
             className="input max-w-[120px]"
             value={discountType}
             onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
           >
-            <option value="percent">Percent</option>
-            <option value="fixed">Fixed amount</option>
+            <option value="percent">{t('monetization.promoPercent')}</option>
+            <option value="fixed">{t('monetization.promoFixedAmount')}</option>
           </select>
         </div>
         <div>
-          <label className="label">Value</label>
+          <label className="label">{t('monetization.promoValue')}</label>
           <input
             type="number"
             min="0.01"
@@ -897,7 +905,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Min order</label>
+          <label className="label">{t('monetization.promoMinOrder')}</label>
           <input
             type="number"
             min="0"
@@ -908,7 +916,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Max uses</label>
+          <label className="label">{t('monetization.promoMaxUses')}</label>
           <input
             type="number"
             min="1"
@@ -918,7 +926,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div className="flex-1 min-w-[180px]">
-          <label className="label">Description</label>
+          <label className="label">{t('monetization.promoDescription')}</label>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div>
@@ -948,11 +956,11 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Code</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Discount</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Uses</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.promoTableCode')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.promoTableDiscount')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.promoTableUses')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.expirationDate')}</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('monetization.tableStatus')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
@@ -976,10 +984,10 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                   </td>
                   <td className="px-4 py-3">
                     {!promo.isActive
-                      ? 'Inactive'
+                      ? t('monetization.promoStatusInactive')
                       : isExpiredAt(promo.expiresAt)
                         ? t('monetization.expired')
-                        : 'Active'}
+                        : t('monetization.promoStatusActive')}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {promo.isActive && (

@@ -60,3 +60,26 @@ export const TRUST_SECTION_IDS = [
 ] as const;
 
 export type MarketingNavId = 'home' | 'pricing' | 'trust' | 'testimonials';
+
+export const MARKETING_STAT_IDS = ['businesses', 'bookings', 'aiCommands', 'languages'] as const;
+export type MarketingStatId = (typeof MARKETING_STAT_IDS)[number];
+
+export const ORCHESTRIX_FEATURE_IDS = ['intent', 'agents', 'approve', 'audit'] as const;
+export type OrchestrixFeatureId = (typeof ORCHESTRIX_FEATURE_IDS)[number];
+
+export const COMPARISON_ROW_IDS = [
+  'aiNative',
+  'multiProvider',
+  'mobileApp',
+  'integrations',
+  'transparentPricing',
+] as const;
+export type ComparisonRowId = (typeof COMPARISON_ROW_IDS)[number];
+
+export const WORKFLOW_PILL_IDS = [
+  'fillGaps',
+  'confirmToday',
+  'cancelSick',
+  'teamSchedule',
+] as const;
+export type WorkflowPillId = (typeof WORKFLOW_PILL_IDS)[number];

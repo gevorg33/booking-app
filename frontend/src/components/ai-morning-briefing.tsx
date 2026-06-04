@@ -4,6 +4,7 @@ import { Sun, Sparkles, AlertTriangle, Calendar, ChevronRight, Loader2 } from 'l
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 
 export interface MorningBriefing {
   date: string;
@@ -21,6 +22,7 @@ function firePrompt(prompt: string) {
 }
 
 export function AiMorningBriefing() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
 
   const { data, isLoading } = useQuery({
@@ -37,7 +39,7 @@ export function AiMorningBriefing() {
     return (
       <div className="card flex items-center gap-3 border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-gray-900/40">
         <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-        <span className="text-sm text-gray-400">Preparing morning briefing…</span>
+        <span className="text-sm text-gray-400">{t('ai.briefingPreparing')}</span>
       </div>
     );
   }
@@ -49,19 +51,33 @@ export function AiMorningBriefing() {
       <div className="flex items-start gap-3 mb-4">
         <Sun className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
         <div>
-          <h3 className="font-semibold text-amber-100">Morning briefing · {data.date}</h3>
+          <h3 className="font-semibold text-amber-100">
+            {t('ai.briefingTitle', { date: data.date })}
+          </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {data.todaysBookings} appointments · {data.utilizationPercent}% utilization
-            {data.conflictsToday > 0 && ` · ${data.conflictsToday} conflict(s)`}
+            {t('ai.briefingSummary', {
+              bookings: data.todaysBookings,
+              utilization: data.utilizationPercent,
+            })}
+            {data.conflictsToday > 0 &&
+              t('ai.briefingConflicts', { count: data.conflictsToday })}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        <Stat label="Bookings" value={data.todaysBookings} />
-        <Stat label="Utilization" value={`${data.utilizationPercent}%`} />
-        <Stat label="Cancellations" value={data.cancellationsToday} warn={data.cancellationsToday > 0} />
-        <Stat label="Unpaid done" value={data.unpaidToday} warn={data.unpaidToday > 0} />
+        <Stat label={t('ai.briefingStatBookings')} value={data.todaysBookings} />
+        <Stat label={t('ai.briefingStatUtilization')} value={`${data.utilizationPercent}%`} />
+        <Stat
+          label={t('ai.briefingStatCancellations')}
+          value={data.cancellationsToday}
+          warn={data.cancellationsToday > 0}
+        />
+        <Stat
+          label={t('ai.briefingStatUnpaidDone')}
+          value={data.unpaidToday}
+          warn={data.unpaidToday > 0}
+        />
       </div>
 
       <ul className="space-y-1 mb-4">
@@ -77,7 +93,7 @@ export function AiMorningBriefing() {
         <div>
           <p className="text-xs font-semibold text-violet-300 mb-2 flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5" />
-            Suggested actions
+            {t('ai.briefingSuggestedActions')}
           </p>
           <div className="flex flex-wrap gap-2">
             {data.suggestedActions.map((a) => (

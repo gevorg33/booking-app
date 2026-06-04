@@ -55,7 +55,7 @@ function AcceptInviteForm() {
         }
       })
       .catch((err) => {
-        setLoadError(err.response?.data?.message || 'Invitation not found');
+        setLoadError(err.response?.data?.message || t('errors.invitationNotFound'));
       })
       .finally(() => setLoading(false));
   }, [token]);

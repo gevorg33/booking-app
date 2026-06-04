@@ -4,6 +4,7 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { BusinessMember } from '../business/entities/business-member.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { User } from '../user/entities/user.entity.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
@@ -27,7 +28,7 @@ import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, BusinessMember, Booking, Business, GiftCard, SchedulingSlot, SchedulingPeriod, PushSubscription, NativePushToken, Service]),
+    TypeOrmModule.forFeature([Employee, BusinessMember, Booking, Business, User, GiftCard, SchedulingSlot, SchedulingPeriod, PushSubscription, NativePushToken, Service]),
     BusinessModule,
     BookingModule,
     forwardRef(() => GiftCardsModule),

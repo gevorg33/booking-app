@@ -25,8 +25,10 @@ import ProviderAiAssistant from '../components/ProviderAiAssistant';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
+import { useI18n } from '../i18n';
 
 export default function SchedulePage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -83,7 +85,9 @@ export default function SchedulePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>{isManagerView ? 'All appointments' : 'My schedule'}</IonTitle>
+          <IonTitle>
+            {isManagerView ? t('provider.scheduleAllAppointments') : t('provider.scheduleTitle')}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
@@ -114,7 +118,7 @@ export default function SchedulePage() {
             {summary?.days?.length ? (
               <IonCard>
                 <IonCardHeader>
-                  <IonCardTitle>Availability (next 2 weeks)</IonCardTitle>
+                  <IonCardTitle>{t('provider.availability')}</IonCardTitle>
                 </IonCardHeader>
                 <IonCardContent>
                   <IonList lines="none">
@@ -122,7 +126,9 @@ export default function SchedulePage() {
                       <IonItem key={d.date}>
                         <IonLabel>
                           <h3>{formatDateDisplay(d.date)}</h3>
-                          <p>{d.booked} booked · {d.available} open</p>
+                          <p>
+                            {d.booked} {t('provider.booked')} · {d.available} {t('provider.open')}
+                          </p>
                         </IonLabel>
                       </IonItem>
                     ))}
@@ -131,20 +137,24 @@ export default function SchedulePage() {
               </IonCard>
             ) : null}
 
-            <h2 className="ion-padding-start">Upcoming appointments</h2>
+            <h2 className="ion-padding-start">{t('provider.upcomingAppointments')}</h2>
             {!upcoming?.bookings?.length ? (
-              <p className="empty-state">No upcoming appointments.</p>
+              <p className="empty-state">{t('provider.noUpcoming')}</p>
             ) : (
               upcoming.bookings.map((b) => (
                 <IonCard key={b.id} button onClick={() => setSelectedId(b.id)}>
                   <IonCardContent>
                     <p className="booking-meta">{formatDateDisplay(b.startTime)}</p>
-                    <p><strong>{formatBookingBlockHeadline(b)}</strong></p>
+                    <p>
+                      <strong>{formatBookingBlockHeadline(b, t)}</strong>
+                    </p>
                     <p>{b.service?.name} — {b.customer?.name}</p>
                     {b.employee && isTeamView(upcoming?.viewMode) && (
-                      <p className="booking-meta">Provider: {b.employee.name}</p>
+                      <p className="booking-meta">
+                        {t('common.provider')}: {b.employee.name}
+                      </p>
                     )}
-                    <p className="booking-meta">Tap to manage</p>
+                    <p className="booking-meta">{t('provider.tapToManage')}</p>
                   </IonCardContent>
                 </IonCard>
               ))

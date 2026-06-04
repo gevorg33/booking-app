@@ -14,8 +14,10 @@ import { useHistory } from 'react-router-dom';
 import { useAuthStore } from '../services/auth-store';
 import { isMobileManagerRole, managerRoleLabel } from '../lib/provider-access';
 import PushToggle from '../components/PushToggle';
+import { useI18n } from '../i18n';
 
 export default function ProfilePage() {
+  const { t } = useI18n();
   const history = useHistory();
   const { user, business, logout } = useAuthStore();
   const isManager = isMobileManagerRole(business?.membershipRole);
@@ -25,7 +27,7 @@ export default function ProfilePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Profile</IonTitle>
+          <IonTitle>{t('provider.profileTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
@@ -46,14 +48,12 @@ export default function ProfilePage() {
 
         <IonCard>
           <IonCardHeader>
-            <IonCardTitle>Alerts</IonCardTitle>
+            <IonCardTitle>{t('provider.alertsTitle')}</IonCardTitle>
           </IonCardHeader>
           <IonCardContent>
             <PushToggle />
             <p className="booking-meta">
-              {isManager
-                ? 'Get notified when any provider receives a new booking.'
-                : 'Get notified when a new appointment is booked for you.'}
+              {isManager ? t('provider.pushHintTeam') : t('provider.pushHint')}
             </p>
           </IonCardContent>
         </IonCard>
@@ -68,7 +68,7 @@ export default function ProfilePage() {
             history.replace('/login');
           }}
         >
-          Sign out
+          {t('provider.signOut')}
         </IonButton>
       </IonContent>
     </IonPage>

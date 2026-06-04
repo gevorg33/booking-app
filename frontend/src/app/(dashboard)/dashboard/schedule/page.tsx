@@ -261,12 +261,12 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
               />
             </div>
             <div>
-              <label className="label">Label</label>
+              <label className="label">{t('common.label')}</label>
               <input
                 className="input"
                 value={period.placeholderLabel || ''}
                 onChange={(e) => onUpdate(i, 'placeholderLabel', e.target.value)}
-                placeholder="e.g. Morning Shift"
+                placeholder={t('schedule.placeholderShiftLabel')}
               />
             </div>
           </div>

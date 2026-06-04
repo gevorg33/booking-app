@@ -2,6 +2,7 @@
 
 import { Ban, CalendarPlus, Sparkles, X } from 'lucide-react';
 import { setAiPageContext } from '@/lib/ai-orchestration';
+import { useI18n } from '@/i18n';
 
 export interface CalendarSelection {
   date: string;
@@ -22,6 +23,7 @@ export function AiCalendarSelectionBar({
   selection: CalendarSelection;
   onClear: () => void;
 }) {
+  const { t } = useI18n();
   const { date, timeFrom, timeTo, employeeName, employeeId } = selection;
 
   const runAction = (action: 'block' | 'fill' | 'apply') => {
@@ -37,10 +39,11 @@ export function AiCalendarSelectionBar({
       timeTo,
     });
 
+    const vars = { employeeName, date, timeFrom, timeTo };
     const prompts = {
-      block: `Block ${employeeName} on ${date} from ${timeFrom} to ${timeTo}`,
-      fill: `Fill gaps for ${employeeName} on ${date} between ${timeFrom} and ${timeTo}`,
-      apply: `Apply weekday template to ${employeeName} on ${date}`,
+      block: t('ai.calendarPromptBlock', vars),
+      fill: t('ai.calendarPromptFill', vars),
+      apply: t('ai.calendarPromptApply', vars),
     };
     firePrompt(prompts[action]);
   };
@@ -51,7 +54,7 @@ export function AiCalendarSelectionBar({
         <div>
           <p className="text-xs font-semibold text-violet-200 flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5" />
-            Selection · {employeeName}
+            {t('ai.calendarSelectionLabel', { employeeName })}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {date} · {timeFrom} – {timeTo}
@@ -61,7 +64,7 @@ export function AiCalendarSelectionBar({
           type="button"
           onClick={onClear}
           className="p-1 rounded-md text-gray-500 hover:text-gray-200 hover:bg-gray-800"
-          aria-label="Clear selection"
+          aria-label={t('ai.calendarClearSelection')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -73,7 +76,7 @@ export function AiCalendarSelectionBar({
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-red-950/40 border border-gray-700 hover:border-red-500/40 text-gray-200"
         >
           <Ban className="w-3.5 h-3.5" />
-          Block
+          {t('ai.calendarBlock')}
         </button>
         <button
           type="button"
@@ -81,7 +84,7 @@ export function AiCalendarSelectionBar({
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-emerald-950/40 border border-gray-700 hover:border-emerald-500/40 text-gray-200"
         >
           <CalendarPlus className="w-3.5 h-3.5" />
-          Fill gaps
+          {t('ai.calendarFillGaps')}
         </button>
         <button
           type="button"
@@ -89,7 +92,7 @@ export function AiCalendarSelectionBar({
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-900/40 hover:bg-violet-800/50 border border-violet-500/30 text-violet-100"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          Apply template
+          {t('ai.calendarApplyTemplate')}
         </button>
       </div>
     </div>

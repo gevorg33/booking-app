@@ -314,7 +314,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2">
-                  <span className="text-xs text-gray-500">{t('ai.thinking')}</span>
+                  <span className="text-xs text-gray-500">{t('public.thinking')}</span>
                 </div>
               </div>
             )}

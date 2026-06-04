@@ -14,6 +14,7 @@ import {
 import { IonReactRouter } from '@ionic/react-router';
 import { calendarOutline, giftOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
+import { useI18n } from './i18n';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import TodayPage from './pages/TodayPage';
@@ -25,6 +26,7 @@ import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import './components/operation-feedback.css';
 
 function AuthedTabs() {
+  const { t } = useI18n();
   const business = useAuthStore((s) => s.business);
 
   useEffect(() => {
@@ -58,19 +60,19 @@ function AuthedTabs() {
       <IonTabBar slot="bottom">
         <IonTabButton tab="today" href="/tabs/today">
           <IonIcon icon={todayOutline} />
-          <IonLabel>Today</IonLabel>
+          <IonLabel>{t('provider.navToday')}</IonLabel>
         </IonTabButton>
         <IonTabButton tab="gift-cards" href="/tabs/gift-cards">
           <IonIcon icon={giftOutline} />
-          <IonLabel>Gift cards</IonLabel>
+          <IonLabel>{t('provider.navGiftCards')}</IonLabel>
         </IonTabButton>
         <IonTabButton tab="schedule" href="/tabs/schedule">
           <IonIcon icon={calendarOutline} />
-          <IonLabel>Schedule</IonLabel>
+          <IonLabel>{t('provider.navSchedule')}</IonLabel>
         </IonTabButton>
         <IonTabButton tab="profile" href="/tabs/profile">
           <IonIcon icon={personOutline} />
-          <IonLabel>Profile</IonLabel>
+          <IonLabel>{t('provider.navProfile')}</IonLabel>
         </IonTabButton>
       </IonTabBar>
     </IonTabs>

@@ -62,7 +62,7 @@ export class PlanEntitlementsService {
     return {
       tierId,
       tierName: limits.tierName,
-      isPaid: tierId === 'starter',
+      isPaid: tierId !== 'solo',
       subscriptionPlanId: business.subscriptionPlanId,
       limits,
       usage: {

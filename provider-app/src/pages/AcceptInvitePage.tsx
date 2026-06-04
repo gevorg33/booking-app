@@ -21,6 +21,7 @@ import {
   formatPhoneForApi,
   isValidPhone,
 } from '../lib/phone-format';
+import { useI18n } from '../i18n';
 
 interface InviteInfo {
   email: string;
@@ -33,6 +34,7 @@ interface InviteInfo {
 }
 
 export default function AcceptInvitePage() {
+  const { t } = useI18n();
   const history = useHistory();
   const location = useLocation();
   const token = new URLSearchParams(location.search).get('token') ?? '';
@@ -48,7 +50,7 @@ export default function AcceptInvitePage() {
 
   useEffect(() => {
     if (!token) {
-      setLoadError('Invalid invitation link');
+      setLoadError(t('provider.inviteInvalidLink'));
       setLoading(false);
       return;
     }
@@ -68,7 +70,7 @@ export default function AcceptInvitePage() {
       })
       .catch((err: unknown) => {
         const ax = err as { response?: { data?: { message?: string } } };
-        setLoadError(ax.response?.data?.message || 'Invitation not found');
+        setLoadError(ax.response?.data?.message || t('provider.inviteNotFound'));
       })
       .finally(() => setLoading(false));
   }, [token]);
@@ -81,7 +83,7 @@ export default function AcceptInvitePage() {
     let phone: string | undefined;
     if (form.phone.trim()) {
       if (!isValidPhone(form.phone)) {
-        setPhoneError('Enter a valid phone number with country code');
+        setPhoneError(t('provider.invitePhoneInvalid'));
         setSubmitting(false);
         return;
       }
@@ -99,7 +101,7 @@ export default function AcceptInvitePage() {
       setTimeout(() => history.replace('/login'), 2000);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string } } };
-      setSubmitError(ax.response?.data?.message || 'Could not complete setup');
+      setSubmitError(ax.response?.data?.message || t('provider.inviteSetupFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -109,7 +111,7 @@ export default function AcceptInvitePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Set up account</IonTitle>
+          <IonTitle>{t('provider.inviteSetupTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
@@ -123,12 +125,15 @@ export default function AcceptInvitePage() {
           </IonText>
         ) : success ? (
           <IonText color="success">
-            <p>Account ready. Redirecting to sign in…</p>
+            <p>{t('provider.inviteSuccessRedirect')}</p>
           </IonText>
         ) : invite ? (
           <>
             <p className="booking-meta">
-              Join <strong>{invite.businessName}</strong> as {invite.role}
+              {t('provider.inviteJoinBusiness', {
+                business: invite.businessName,
+                role: invite.role,
+              })}
             </p>
             <p className="booking-meta">{invite.email}</p>
 
@@ -140,7 +145,7 @@ export default function AcceptInvitePage() {
 
             <IonList inset>
               <IonItem>
-                <IonLabel position="stacked">First name</IonLabel>
+                <IonLabel position="stacked">{t('auth.firstName')}</IonLabel>
                 <IonInput
                   value={form.firstName}
                   onIonInput={(e) => setForm({ ...form, firstName: e.detail.value ?? '' })}
@@ -156,7 +161,7 @@ export default function AcceptInvitePage() {
             </IonList>
 
             <ProviderPhoneInput
-              label="Mobile phone"
+              label={t('provider.inviteMobilePhone')}
               value={form.phone || undefined}
               onChange={(phone) => {
                 setPhoneError('');
@@ -169,12 +174,12 @@ export default function AcceptInvitePage() {
                 <p>{phoneError}</p>
               </IonText>
             )}
-            <p className="booking-meta">Include country code for team contact and notifications.</p>
+            <p className="booking-meta">{t('provider.invitePhoneHint')}</p>
 
             {!invite.hasExistingAccount && (
               <IonList inset>
                 <IonItem>
-                  <IonLabel position="stacked">Password</IonLabel>
+                  <IonLabel position="stacked">{t('provider.passwordLabel')}</IonLabel>
                   <IonInput
                     type="password"
                     value={form.password}
@@ -185,11 +190,11 @@ export default function AcceptInvitePage() {
             )}
 
             {invite.hasExistingAccount && (
-              <p className="booking-meta">Use your existing password when you sign in.</p>
+              <p className="booking-meta">{t('provider.inviteExistingPasswordHint')}</p>
             )}
 
             <IonButton expand="block" className="ion-margin-top" onClick={() => void handleSubmit()} disabled={submitting}>
-              {submitting ? <IonSpinner name="crescent" /> : 'Complete setup'}
+              {submitting ? <IonSpinner name="crescent" /> : t('provider.inviteCompleteSetup')}
             </IonButton>
           </>
         ) : null}

@@ -515,10 +515,7 @@ export default function EmployeesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="font-semibold text-lg mb-2">{t('invite.sendInvite')}</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Invite someone to your dashboard. Choose their role — admins and managers can see all
-              appointments in the mobile app.
-            </p>
+            <p className="text-sm text-gray-400 mb-4">{t('invite.sendInviteModalBody')}</p>
             {inviteSuccess ? (
               <p className="text-green-400 text-sm">{t('invite.inviteSent')}</p>
             ) : (

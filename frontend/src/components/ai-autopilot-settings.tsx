@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 import { useAuthStore } from '@/lib/store';
+import { useI18n } from '@/i18n';
 
 interface AutopilotRule {
   id: string;
@@ -23,6 +24,7 @@ interface AiSettings {
 }
 
 export function AiAutopilotSettings() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
@@ -53,7 +55,7 @@ export function AiAutopilotSettings() {
   if (isLoading || !settings) {
     return (
       <div className="card flex items-center gap-2 text-gray-400">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading AI settings…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('ai.autopilotLoading')}
       </div>
     );
   }
@@ -72,7 +74,7 @@ export function AiAutopilotSettings() {
     <div className="card space-y-4">
       <div className="flex items-center gap-2">
         <Bot className="w-5 h-5 text-violet-400" />
-        <h3 className="font-semibold">Autopilot & playbooks</h3>
+        <h3 className="font-semibold">{t('ai.autopilotTitle')}</h3>
       </div>
 
       <ToggleChoice variant="dashboard"
@@ -83,7 +85,7 @@ export function AiAutopilotSettings() {
             autopilot: { ...settings.autopilot, enabled },
           })
         }
-        label="Enable autopilot (scheduled AI rules, UTC cron)"
+        label={t('ai.autopilotEnable')}
       />
 
       <div className="space-y-3">
@@ -97,14 +99,16 @@ export function AiAutopilotSettings() {
             <p className="text-xs text-gray-500 font-mono">{rule.cron}</p>
             <p className="text-xs text-gray-400">{rule.prompt}</p>
             {rule.lastRunAt && (
-              <p className="text-[10px] text-gray-600">Last run: {new Date(rule.lastRunAt).toLocaleString()}</p>
+              <p className="text-[10px] text-gray-600">
+                {t('ai.autopilotLastRun', { at: new Date(rule.lastRunAt).toLocaleString() })}
+              </p>
             )}
           </div>
         ))}
       </div>
 
       <div>
-        <p className="text-xs font-semibold text-gray-400 mb-2">Playbooks (NL triggers)</p>
+        <p className="text-xs font-semibold text-gray-400 mb-2">{t('ai.autopilotPlaybooks')}</p>
         <ul className="space-y-1">
           {settings.playbooks.filter((p) => p.enabled).map((p) => (
             <li key={p.id} className="text-xs text-gray-400">
@@ -125,7 +129,7 @@ export function AiAutopilotSettings() {
         className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50"
       >
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Save autopilot settings
+        {t('ai.autopilotSave')}
       </button>
     </div>
   );

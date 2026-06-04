@@ -13,18 +13,26 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
-import { isValidTime24, normalizeTime24 } from '@/lib/time-format';
+import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
+import { isValidTime24 } from '@/lib/time-format';
+import {
+  appointmentStartTimeLabel,
+  bookingDayISO,
+  bookingStatusLabel,
+  bookingTimeHHmm,
+  buildBookingUpdatePayload,
+  canSaveBookingDetail,
+  computeBookingDirtyFlags,
+  paymentStatusLabel,
+  readBookingError,
+  type BookingDetailSnapshot,
+  type BookingFormState,
+} from '@/lib/booking-detail-panel.util';
 import { TimeInput } from '@/components/time-input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import {
-  BOOKING_STATUS_LABELS,
-  buildStatusUpdatePayload,
-  formatStatusLabel,
   getStatusVariations,
-  isBookingEditable,
-  PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_OPTIONS,
   statusRequiresConfirmation,
   STATUS_BADGE,
@@ -57,41 +65,6 @@ export interface BookingDetail {
   paymentSummary?: BookingPaymentSummary | null;
 }
 
-function bookingDayISO(iso: string): string {
-  return iso.split('T')[0];
-}
-
-function bookingTimeHHmm(iso: string): string {
-  return formatTimeDisplay(iso);
-}
-
-function toRescheduleISO(dayISO: string, timeHHmm: string): string {
-  return `${dayISO}T${normalizeTime24(timeHHmm)}:00.000Z`;
-}
-
-function readBookingError(err: unknown): {
-  message: string;
-  code?: string;
-  updatedAt?: string;
-} {
-  const ax = err as {
-    response?: {
-      data?: {
-        message?: string | { message?: string; code?: string; updatedAt?: string };
-      };
-    };
-  };
-  const msg = ax.response?.data?.message;
-  if (typeof msg === 'object' && msg) {
-    return {
-      message: msg.message ?? 'Failed to save changes',
-      code: msg.code,
-      updatedAt: msg.updatedAt,
-    };
-  }
-  return { message: typeof msg === 'string' ? msg : 'Failed to save changes' };
-}
-
 interface BookingDetailPanelProps {
   businessId: string;
   bookingId: string | null;
@@ -109,6 +82,9 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 
 export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDetailPanelProps) {
   const { t } = useI18n();
+  const statusLabel = (status: BookingStatus) => bookingStatusLabel(t, status);
+  const payLabel = (status: PaymentStatus) => paymentStatusLabel(t, status);
+  const startTimeLabel = appointmentStartTimeLabel(t);
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<BookingStatus>('confirmed');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -256,7 +232,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       refreshBookings();
     },
     onError: (err) => {
-      const parsed = readBookingError(err);
+      const parsed = readBookingError(err, t('appointments.saveFailed'));
       if (parsed.code === 'BOOKING_VERSION_CONFLICT') {
         setVersionConflict(true);
         void refetch();
@@ -267,7 +243,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const cancelMutation = useMutation({
     mutationFn: async () => {
       const { data } = await api.put(`/businesses/${businessId}/bookings/${bookingId}/cancel`, {
-        reason: cancelReason || 'Cancelled',
+        reason: cancelReason || t('bookings.statusCancelled'),
         expectedUpdatedAt: booking?.updatedAt,
       });
       return data;
@@ -277,7 +253,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
       onClose();
     },
     onError: (err) => {
-      const parsed = readBookingError(err);
+      const parsed = readBookingError(err, t('appointments.saveFailed'));
       if (parsed.code === 'BOOKING_VERSION_CONFLICT') {
         setVersionConflict(true);
         void refetch();
@@ -287,95 +263,35 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
 
   if (!bookingId) return null;
 
-  const editable = booking ? isBookingEditable(booking.status) : false;
-  const canEditCustomer = booking ? booking.status !== 'cancelled' : false;
   const statusOptions = booking ? getStatusVariations(booking.status) : [];
-  const statusChanged = booking ? status !== booking.status : false;
-  const paymentChanged = booking
-    ? paymentStatus !== ((booking.paymentStatus as PaymentStatus) ?? 'pending')
-    : false;
-  const detailsChanged = booking
-    ? notes !== (booking.notes ?? '') || description !== (booking.description ?? '')
-    : false;
-  const serviceChanged = booking
-    ? rescheduleServiceId !== (booking.service?.id ?? '')
-    : false;
-  const scheduleChanged = booking
-    ? rescheduleDate !== bookingDayISO(booking.startTime) ||
-      rescheduleTime !== bookingTimeHHmm(booking.startTime) ||
-      rescheduleEmployeeId !== (booking.employee?.id ?? '')
-    : false;
-  const rescheduleChanged = serviceChanged || scheduleChanged;
+  const formState: BookingFormState = {
+    status,
+    paymentStatus,
+    notes,
+    description,
+    rescheduleDate,
+    rescheduleTime,
+    rescheduleEmployeeId,
+    rescheduleServiceId,
+    customerId,
+  };
   const rescheduleValid =
     !!rescheduleDate &&
     isValidTime24(rescheduleTime) &&
     !!rescheduleEmployeeId &&
     !!rescheduleServiceId;
-  const customerChanged = booking
-    ? customerId !== (booking.customer?.id ?? '')
-    : false;
-  const scheduleFieldsUnchanged = booking
-    ? rescheduleDate === bookingDayISO(booking.startTime) &&
-      rescheduleTime === bookingTimeHHmm(booking.startTime) &&
-      rescheduleEmployeeId === (booking.employee?.id ?? '')
-    : true;
-  const customerOnlyDirty =
-    customerChanged &&
-    scheduleFieldsUnchanged &&
-    !statusChanged &&
-    !detailsChanged &&
-    !paymentChanged;
-  const dirty = statusChanged || detailsChanged || paymentChanged || rescheduleChanged || customerChanged;
+  const flags = booking
+    ? computeBookingDirtyFlags(booking as BookingDetailSnapshot, formState, rescheduleValid)
+    : null;
 
   const buildUpdatePayload = (statusOverride?: BookingStatus) => {
-    if (!booking) return null;
-
-    const nextStatus = statusOverride ?? status;
-    const nextStatusChanged = statusOverride
-      ? statusOverride !== booking.status
-      : statusChanged;
-
-    const payload: {
-      status?: BookingStatus;
-      notes?: string;
-      description?: string;
-      paymentStatus?: PaymentStatus;
-      startTime?: string;
-      employeeId?: string;
-      serviceId?: string;
-      customerId?: string;
-      expectedUpdatedAt?: string;
-    } = { expectedUpdatedAt: booking.updatedAt };
-
-    if (nextStatusChanged) {
-      Object.assign(
-        payload,
-        buildStatusUpdatePayload(nextStatus, {
-          paymentStatus: paymentChanged ? paymentStatus : undefined,
-        }),
-      );
-    }
-    if (detailsChanged) {
-      payload.notes = notes;
-      payload.description = description;
-    }
-    if (paymentChanged) {
-      payload.paymentStatus = paymentStatus;
-    }
-    if ((serviceChanged || scheduleChanged) && rescheduleValid) {
-      if (scheduleChanged) {
-        payload.startTime = toRescheduleISO(rescheduleDate, rescheduleTime);
-        payload.employeeId = rescheduleEmployeeId;
-      }
-      if (serviceChanged) {
-        payload.serviceId = rescheduleServiceId;
-      }
-    }
-    if (customerChanged) {
-      payload.customerId = customerId || undefined;
-    }
-
-    return payload;
+    if (!booking || !flags) return null;
+    return buildBookingUpdatePayload(
+      booking as BookingDetailSnapshot,
+      formState,
+      flags,
+      statusOverride,
+    );
   };
 
   const applyStatusChange = (next: BookingStatus) => {
@@ -391,7 +307,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   };
 
   const save = () => {
-    if (!booking || !dirty) return;
+    if (!booking || !flags?.dirty) return;
     const statusToApply = pendingStatus ?? undefined;
     const payload = buildUpdatePayload(statusToApply);
     if (!payload) return;
@@ -418,12 +334,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     updateMutation.mutate(payload, { onSuccess: () => onClose() });
   };
 
-  const canSave =
-    dirty &&
-    !showCancelConfirm &&
-    (customerOnlyDirty ||
-      ((editable || paymentChanged || (customerChanged && canEditCustomer)) &&
-        (!rescheduleChanged || rescheduleValid)));
+  const canSave = flags
+    ? canSaveBookingDetail(flags, showCancelConfirm)
+    : false;
 
   return (
     <div
@@ -437,7 +350,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
         <div className="flex items-start justify-between mb-4">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <Info className="w-5 h-5 text-blue-400 shrink-0" />
-            Appointment Details
+            {t('appointments.detailTitle')}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -449,44 +362,46 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
             <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
           </div>
         ) : isError || !booking ? (
-          <p className="text-red-400 text-sm py-6 text-center">Could not load appointment details.</p>
+          <p className="text-red-400 text-sm py-6 text-center">{t('appointments.detailLoadFailed')}</p>
         ) : (
           <>
             <div className="mb-4 flex items-center justify-between gap-2">
-              <p className="font-medium text-base">{booking.service?.name ?? 'Appointment'}</p>
+              <p className="font-medium text-base">
+                {booking.service?.name ?? t('appointments.detailFallbackTitle')}
+              </p>
               <span
                 className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
                   STATUS_BADGE[booking.status] ?? 'bg-gray-600/10 text-gray-400'
                 }`}
               >
-                {formatStatusLabel(booking.status)}
+                {statusLabel(booking.status as BookingStatus)}
               </span>
             </div>
 
             <dl className="space-y-2.5 mb-5">
-              {!editable && (
+              {flags && !flags.editable && (
                 <>
-                  <DetailRow label="Date">
+                  <DetailRow label={t('common.date')}>
                     {formatDateDisplay(new Date(booking.startTime))}
                   </DetailRow>
-                  <DetailRow label="Time">
+                  <DetailRow label={t('bookings.time')}>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-gray-500" />
                       {formatTimeRangeDisplay(booking.startTime, booking.endTime)}
                     </span>
                   </DetailRow>
                   {booking.employee?.name && (
-                    <DetailRow label="Provider">{booking.employee.name}</DetailRow>
+                    <DetailRow label={t('common.provider')}>{booking.employee.name}</DetailRow>
                   )}
                 </>
               )}
             </dl>
 
-            {editable && (
+            {flags?.editable && (
               <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80 space-y-3">
-                <p className="text-xs font-medium text-gray-400">Reschedule</p>
+                <p className="text-xs font-medium text-gray-400">{t('appointments.reschedule')}</p>
                 <div>
-                  <label className="label">Date</label>
+                  <label className="label">{t('common.date')}</label>
                   <DatePicker
                     className="w-full"
                     value={rescheduleDate}
@@ -494,20 +409,20 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                   />
                 </div>
                 <div>
-                  <label className="label">Start time (24h)</label>
+                  <label className="label">{startTimeLabel}</label>
                   <TimeInput
                     value={rescheduleTime}
                     onChange={setRescheduleTime}
                   />
                 </div>
                 <div>
-                  <label className="label">Provider</label>
+                  <label className="label">{t('common.provider')}</label>
                   <select
                     className="input text-sm"
                     value={rescheduleEmployeeId}
                     onChange={(e) => setRescheduleEmployeeId(e.target.value)}
                   >
-                    <option value="">Select provider...</option>
+                    <option value="">{t('common.selectProvider')}</option>
                     {employees.map((emp: { id: string; name: string }) => (
                       <option key={emp.id} value={emp.id}>
                         {emp.name}
@@ -516,7 +431,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                   </select>
                 </div>
                 <div>
-                  <label className="label">Service</label>
+                  <label className="label">{t('bookings.service')}</label>
                   <select
                     className="input text-sm"
                     value={rescheduleServiceId}
@@ -525,19 +440,21 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                   >
                     <option value="">
                       {availableServices.length === 0
-                        ? 'No services for this time block'
-                        : 'Select service...'}
+                        ? t('appointments.noServicesForBlock')
+                        : t('bookings.selectService')}
                     </option>
                     {availableServices.map((svc) => (
                       <option key={svc.id} value={svc.id}>
                         {svc.name}
-                        {svc.durationMinutes != null ? ` (${svc.durationMinutes} min)` : ''}
+                        {svc.durationMinutes != null
+                          ? ` ${t('appointments.serviceDurationMin', { minutes: svc.durationMinutes })}`
+                          : ''}
                       </option>
                     ))}
                   </select>
                   {servicesFilteredByPeriod && (
                     <p className="text-[10px] text-gray-500 mt-1">
-                      Showing services offered in this schedule block only.
+                      {t('appointments.servicesInBlockHint')}
                     </p>
                   )}
                   {rescheduleEmployeeId &&
@@ -545,20 +462,20 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     !activePeriod &&
                     availableServices.length === 0 && (
                       <p className="text-[10px] text-amber-400/90 mt-1">
-                        No service block covers this time — pick another slot or provider.
+                        {t('appointments.noServiceBlockHint')}
                       </p>
                     )}
                 </div>
-                {rescheduleChanged && (
+                {flags.rescheduleChanged && (
                   <p className="text-[10px] text-gray-500">
-                    Availability, service period, and conflicts are validated when you save.
+                    {t('appointments.rescheduleSaveHint')}
                   </p>
                 )}
               </div>
             )}
 
             <div className="mb-5">
-              <label className="label">Payment status</label>
+              <label className="label">{t('appointments.paymentStatus')}</label>
               <select
                 className="input"
                 value={paymentStatus}
@@ -566,15 +483,15 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               >
                 {PAYMENT_STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {PAYMENT_STATUS_LABELS[option]}
+                    {payLabel(option)}
                   </option>
                 ))}
               </select>
             </div>
 
-            {editable && (
+            {flags?.editable && (
               <div className="mb-5">
-                <label className="label">Status</label>
+                <label className="label">{t('appointments.status')}</label>
                 <select
                   className="input"
                   value={status}
@@ -582,11 +499,11 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 >
                   {statusOptions.map((option) => (
                     <option key={option} value={option}>
-                      {BOOKING_STATUS_LABELS[option]}
+                      {statusLabel(option)}
                     </option>
                   ))}
                   {!statusOptions.includes('cancelled') && (
-                    <option value="cancelled">{BOOKING_STATUS_LABELS.cancelled}</option>
+                    <option value="cancelled">{statusLabel('cancelled')}</option>
                   )}
                 </select>
               </div>
@@ -614,6 +531,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     servicePrice: t('appointments.paymentServicePrice'),
                     chargedAmount: t('appointments.paymentChargedAmount'),
                     promoDiscount: t('appointments.paymentPromoDiscount'),
+                    giftCardDiscount: t('public.discountGiftCard'),
                     loyaltyDiscount: t('appointments.paymentLoyaltyDiscount'),
                     cashPaid: t('appointments.paymentCashPaid'),
                     fullyCovered: t('appointments.paymentFullyCovered'),
@@ -628,14 +546,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
             <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80">
               <p className="text-xs font-medium text-gray-400 mb-2 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5" />
-                Customer
+                {t('appointments.customer')}
               </p>
-              {canEditCustomer ? (
+              {flags?.canEditCustomer ? (
                 <CustomerSelect
                   businessId={businessId}
                   value={customerId}
                   onChange={setCustomerId}
-                  searchPlaceholder="Search customer or assign walk-in..."
+                  searchPlaceholder={t('appointments.searchCustomerOrWalkIn')}
                 />
               ) : booking.customer ? (
                 <div className="space-y-1 text-sm">
@@ -654,34 +572,34 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">Walk-in</p>
+                <p className="text-sm text-gray-500">{t('appointments.walkIn')}</p>
               )}
             </div>
 
             <div className="space-y-3 mb-5">
               <div>
-                <label className="label">Description</label>
+                <label className="label">{t('common.description')}</label>
                 <textarea
                   className="input text-sm min-h-[72px] resize-y"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Appointment description..."
-                  disabled={!editable}
+                  placeholder={t('appointments.descriptionPlaceholder')}
+                  disabled={!flags?.editable}
                 />
               </div>
               <div>
-                <label className="label">Notes</label>
+                <label className="label">{t('common.notes')}</label>
                 <textarea
                   className="input text-sm min-h-[72px] resize-y"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Internal notes..."
-                  disabled={!editable}
+                  placeholder={t('appointments.internalNotesPlaceholder')}
+                  disabled={!flags?.editable}
                 />
               </div>
               {booking.cancellationReason && (
                 <div>
-                  <label className="label">Cancellation reason</label>
+                  <label className="label">{t('appointments.cancellationReason')}</label>
                   <p className="text-sm text-red-300/90">{booking.cancellationReason}</p>
                 </div>
               )}
@@ -690,21 +608,22 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
             {pendingStatus && (
               <div className="mb-4 p-3 bg-amber-600/10 border border-amber-500/30 rounded-lg">
                 <p className="text-sm text-amber-200 mb-2">
-                  Mark this appointment as{' '}
-                  <span className="font-medium">{BOOKING_STATUS_LABELS[pendingStatus]}</span>?
+                  {t('appointments.markStatusConfirm', {
+                    status: statusLabel(pendingStatus),
+                  })}
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={confirmPendingStatus}
                     className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm"
                   >
-                    Confirm
+                    {t('appointments.confirmAction')}
                   </button>
                   <button
                     onClick={() => setPendingStatus(null)}
                     className="btn-secondary text-sm"
                   >
-                    Back
+                    {t('common.back')}
                   </button>
                 </div>
               </div>
@@ -712,10 +631,12 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
 
             {showCancelConfirm && (
               <div className="mb-4 p-3 bg-red-600/10 border border-red-500/30 rounded-lg">
-                <p className="text-sm font-medium text-red-400 mb-2">Cancel this appointment?</p>
+                <p className="text-sm font-medium text-red-400 mb-2">
+                  {t('appointments.cancelConfirmTitle')}
+                </p>
                 <input
                   className="input mb-2 text-sm"
-                  placeholder="Cancellation reason (optional)"
+                  placeholder={t('appointments.cancelReasonPlaceholder')}
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                 />
@@ -725,7 +646,9 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     disabled={cancelMutation.isPending}
                     className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm"
                   >
-                    {cancelMutation.isPending ? 'Cancelling…' : 'Confirm cancel'}
+                    {cancelMutation.isPending
+                      ? t('common.confirmingCancel')
+                      : t('appointments.confirmCancel')}
                   </button>
                   <button
                     onClick={() => {
@@ -734,7 +657,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     }}
                     className="btn-secondary text-sm"
                   >
-                    Keep
+                    {t('common.keep')}
                   </button>
                 </div>
               </div>
@@ -745,8 +668,11 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>
                   {versionConflict
-                    ? 'This appointment was updated elsewhere. Details were refreshed — review and save again.'
-                    : readBookingError(updateMutation.error ?? cancelMutation.error).message}
+                    ? t('appointments.versionConflict')
+                    : readBookingError(
+                        updateMutation.error ?? cancelMutation.error,
+                        t('appointments.saveFailed'),
+                      ).message}
                 </span>
               </div>
             )}
@@ -759,10 +685,10 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
               {updateMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
+                  {t('common.saving')}
                 </>
               ) : (
-                'Save changes'
+                t('common.saveChanges')
               )}
             </button>
           </>

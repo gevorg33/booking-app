@@ -10,7 +10,7 @@ export type PlanFeatureFlag =
 export type PlanLimitKind = 'provider_seats' | 'ai_commands' | PlanFeatureFlag;
 
 export interface PlanEntitlements {
-  tierId: 'solo' | 'starter';
+  tierId: 'solo' | 'starter' | 'business';
   tierName: string;
   isPaid: boolean;
   subscriptionPlanId: string | null;
@@ -39,7 +39,8 @@ export function isPlanLimitError(error: unknown): boolean {
 }
 
 export function planLimitMessage(error: unknown): string | null {
-  const data = (error as { response?: { data?: { message?: string } } })?.response?.data;
+  const data = (error as { response?: { data?: { code?: string; message?: string } } })?.response
+    ?.data;
   if (data?.code !== PLAN_LIMIT_ERROR_CODE) return null;
   const msg = data.message;
   return typeof msg === 'string' ? msg : null;

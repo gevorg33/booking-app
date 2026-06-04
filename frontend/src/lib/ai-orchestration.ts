@@ -14,44 +14,48 @@ export const AI_MUTATION_QUERY_KEYS = [
 export const AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE =
   'Apply schedule for all employees for their services this week between 9–19:00; make 12:00–13:00 unavailable';
 
-export interface AiExampleTenantContext {
-  employees: Array<{ id: string; name: string; serviceIds?: string[]; isActive?: boolean }>;
-  services: Array<{ id: string; name: string; isActive?: boolean }>;
-}
+export type { AiExampleTenantContext } from './ai-assistant-i18n';
+export {
+  buildAiCommandBarExamples,
+  getLocalizedPageSuggestions,
+  getLocalizedAiPageSuggestionGroups,
+  type LocalizedAiPageSuggestionGroup,
+  type AiTranslateFn,
+} from './ai-assistant-i18n';
 
-function pickExampleEmployee(ctx: AiExampleTenantContext) {
-  return ctx.employees.find((e) => e.isActive !== false && e.name?.trim()) ?? null;
-}
+import {
+  buildAiCommandBarExamples as buildLocalizedCommandBarExamples,
+  getLocalizedPageSuggestions,
+  getLocalizedAiPageSuggestionGroups,
+  type AiTranslateFn,
+} from './ai-assistant-i18n';
 
-function pickExampleService(ctx: AiExampleTenantContext, employee: { serviceIds?: string[] } | null) {
-  const services = ctx.services.filter((s) => s.isActive !== false && s.name?.trim());
-  if (employee?.serviceIds?.length) {
-    const assigned = services.find((s) => employee.serviceIds!.includes(s.id));
-    if (assigned) return assigned;
+function englishCommandBarFallback(key: string, vars?: Record<string, string | number>): string {
+  const fallbacks: Record<string, string> = {
+    'ai.fallbackProvider': 'your provider',
+    'ai.fallbackService': 'a service',
+    'ai.prompts.weekdayTemplateAll': 'Apply weekday template to all providers this week',
+    'ai.prompts.blockLunchWeek': 'Block lunch 12:00–13:00 for everyone Mon–Fri this week',
+    'ai.prompts.fillGapsProviderWeek': 'Fill gaps between 9–19:00 for {provider} this week',
+    'ai.prompts.howManyToday': 'How many appointments today?',
+    'ai.prompts.weeklyTeamSchedule': AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE,
+    'ai.prompts.cancelBookingSlotProvider': 'Cancel booking today for {provider} from 13:00–14:00',
+    'ai.prompts.bookNearestSlot': 'Book {service} today for {provider} at the nearest available time',
+  };
+  let text = fallbacks[key] ?? key;
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      text = text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value));
+    }
   }
-  return services[0] ?? null;
+  return text;
 }
 
-/** Command-bar suggestions using the tenant's real providers and services. */
-export function buildAiCommandBarExamples(ctx?: AiExampleTenantContext | null): string[] {
-  const employee = ctx ? pickExampleEmployee(ctx) : null;
-  const service = ctx ? pickExampleService(ctx, employee) : null;
-  const provider = employee?.name?.trim() || 'your provider';
-  const serviceName = service?.name?.trim() || 'a service';
-
-  return [
-    'Apply weekday template to all providers this week',
-    'Block lunch 12:00–13:00 for everyone Mon–Fri this week',
-    `Fill gaps between 9–19:00 for ${provider} this week`,
-    'How many appointments today?',
-    AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE,
-    `Cancel booking today for ${provider} from 13:00–14:00`,
-    `Book ${serviceName} today for ${provider} at the nearest available time`,
-  ];
-}
-
-/** Static fallback when tenant catalog is not loaded yet. */
-export const AI_COMMAND_BAR_EXAMPLES = buildAiCommandBarExamples();
+/** Static English fallback when locale is unavailable (tests, SSR). */
+export const AI_COMMAND_BAR_EXAMPLES = buildLocalizedCommandBarExamples(
+  null,
+  englishCommandBarFallback,
+);
 
 export const AI_SCHEDULE_EXAMPLES = [
   'Apply weekday template to all providers this week',
@@ -426,7 +430,13 @@ export const AI_PAGE_SUGGESTION_GROUPS: Record<string, AiPageSuggestionGroup[]> 
   ],
 };
 
-export function getAiPageSuggestionGroups(route: string): AiPageSuggestionGroup[] {
+export function getAiPageSuggestionGroups(
+  route: string,
+  t?: AiTranslateFn,
+): AiPageSuggestionGroup[] {
+  if (t) {
+    return getLocalizedAiPageSuggestionGroups(route, t);
+  }
   const grouped = AI_PAGE_SUGGESTION_GROUPS[route];
   if (grouped?.length) return grouped;
   const flat = AI_PAGE_SUGGESTIONS[route];
@@ -540,7 +550,8 @@ export function getBrowserTimeZone(): string {
   }
 }
 
-export function getSuggestionsForRoute(route: string): string[] {
+export function getSuggestionsForRoute(route: string, t?: AiTranslateFn): string[] {
+  if (t) return getLocalizedPageSuggestions(route, t);
   return AI_PAGE_SUGGESTIONS[route] ?? AI_BOOKING_EXAMPLES.slice(0, 4);
 }
 
