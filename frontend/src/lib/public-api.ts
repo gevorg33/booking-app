@@ -309,8 +309,14 @@ export function getPublicProviderReviews(slug: string, employeeId: string, page 
   );
 }
 
-export function getPublicServices(slug: string, employeeId?: string) {
-  const q = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+export function getPublicServices(
+  slug: string,
+  opts?: { employeeId?: string; locale?: string },
+) {
+  const params = new URLSearchParams();
+  if (opts?.employeeId) params.set('employeeId', opts.employeeId);
+  if (opts?.locale) params.set('locale', opts.locale);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return publicFetch<{ services: PublicService[] }>(`/public/${slug}/services${q}`);
 }
 
@@ -581,9 +587,19 @@ export function getPublicServiceSlotProviders(slug: string, serviceId: string, s
   );
 }
 
-export function getPublicServicesForSlot(slug: string, employeeId: string, startTime: string) {
+export function getPublicServicesForSlot(
+  slug: string,
+  employeeId: string,
+  startTime: string,
+  locale?: string,
+) {
+  const params = new URLSearchParams({
+    employeeId,
+    startTime,
+  });
+  if (locale) params.set('locale', locale);
   return publicFetch<{ services: PublicService[] }>(
-    `/public/${slug}/services/for-slot?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`,
+    `/public/${slug}/services/for-slot?${params.toString()}`,
   );
 }
 

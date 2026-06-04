@@ -5,6 +5,10 @@ import { Service, PrepaymentMode } from './entities/service.entity.js';
 import { ServiceCategory } from './entities/service-category.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { CreateServiceDto, UpdateServiceDto } from './dto/create-service.dto.js';
+import {
+  applyLocalizedNamesToMetadata,
+  extractLocalizedNamesFromMetadata,
+} from '../../common/i18n/service-localized-names.util.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
@@ -35,6 +39,17 @@ export class ServiceService {
     }
   }
 
+  private enrichService(service: Service): Service & { localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata> } {
+    const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
+    const enriched = Object.assign(service, { localizedNames });
+    if (enriched.category) {
+      Object.assign(enriched.category, {
+        localizedNames: extractLocalizedNamesFromMetadata(enriched.category.metadata),
+      });
+    }
+    return enriched;
+  }
+
   private async resolveCategoryId(
     businessId: string,
     categoryId?: string | null,
@@ -51,7 +66,7 @@ export class ServiceService {
   async create(businessId: string, dto: CreateServiceDto, userId?: string): Promise<Service> {
     await this.assertOnlinePaymentAllowed(businessId, dto.prepaymentMode);
     const categoryId = await this.resolveCategoryId(businessId, dto.categoryId);
-    const { categoryId: _inputCategoryId, ...serviceData } = dto;
+    const { categoryId: _inputCategoryId, localizedNames, ...serviceData } = dto;
 
     const service = await this.serviceRepo.save(
       this.serviceRepo.create({
@@ -60,6 +75,7 @@ export class ServiceService {
         categoryId: categoryId ?? null,
         bufferMinutes: dto.bufferMinutes || 0,
         currency: dto.currency || 'USD',
+        metadata: applyLocalizedNamesToMetadata({}, localizedNames),
       }),
     );
     await this.eventStore.publish({
@@ -70,24 +86,25 @@ export class ServiceService {
       payload: { name: service.name, duration: service.durationMinutes },
       userId,
     });
-    return service;
+    return this.enrichService(service);
   }
 
-  async findAll(businessId: string): Promise<Service[]> {
-    return this.serviceRepo.find({
+  async findAll(businessId: string) {
+    const services = await this.serviceRepo.find({
       where: { businessId, isActive: true },
       relations: { category: true },
       order: { name: 'ASC' },
     });
+    return services.map((service) => this.enrichService(service));
   }
 
-  async findOne(id: string): Promise<Service> {
+  async findOne(id: string) {
     const service = await this.serviceRepo.findOne({
       where: { id },
       relations: { category: true },
     });
     if (!service) throw new NotFoundException('Service not found');
-    return service;
+    return this.enrichService(service);
   }
 
   async update(id: string, dto: UpdateServiceDto, userId?: string): Promise<Service> {
@@ -98,7 +115,13 @@ export class ServiceService {
     const categoryId = await this.resolveCategoryId(service.businessId, dto.categoryId);
     if (categoryId !== undefined) service.categoryId = categoryId;
 
-    const { categoryId: _omit, ...rest } = dto;
+    const { categoryId: _omit, localizedNames, ...rest } = dto;
+    if (localizedNames !== undefined) {
+      service.metadata = applyLocalizedNamesToMetadata(
+        (service.metadata ?? {}) as Record<string, unknown>,
+        localizedNames,
+      );
+    }
     Object.assign(service, rest);
     const updated = await this.serviceRepo.save(service);
     await this.eventStore.publish({
@@ -109,7 +132,7 @@ export class ServiceService {
       payload: dto,
       userId,
     });
-    return updated;
+    return this.enrichService(updated);
   }
 
   async remove(id: string): Promise<void> {

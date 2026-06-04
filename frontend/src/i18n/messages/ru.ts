@@ -470,6 +470,16 @@ const ru: MessageTree = {
     serviceTypesSubtitle: 'Отдельные услуги для записи, привязанные к категории',
     serviceTypesCount: 'Типы услуг',
     createCategoryFirst: 'Сначала создайте категории, затем добавьте типы услуг.',
+    localizedNamesTitle: 'Локализованные названия',
+    localizedNamesHint:
+      'Дополнительные названия для каждого языка (до 3). На публичной записи используются при совпадении языка посетителя; основное название выше — запасной вариант.',
+    localizedNamesLocaleEn: 'Английский',
+    localizedNamesLocaleHy: 'Армянский',
+    localizedNamesLocaleRu: 'Русский',
+    localizedNamesSlot: 'Название {n}',
+    localizedNamesOptional: 'Необязательно',
+    editCategory: 'Редактировать категорию',
+    saveCategory: 'Сохранить категорию',
   },
   schedule: {
     title: 'Расписание',

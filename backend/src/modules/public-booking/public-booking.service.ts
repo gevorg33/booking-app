@@ -41,6 +41,11 @@ import {
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
+import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  extractLocalizedNamesFromMetadata,
+  resolveLocalizedDisplayName,
+} from '../../common/i18n/service-localized-names.util.js';
 import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -375,11 +380,17 @@ export class PublicBookingService {
     service: Service,
     onlinePaymentsEnabled: boolean,
     hasSubscriptionPlans = false,
+    displayLocale: AppLocale = 'en',
   ) {
     const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
+    const serviceNames = extractLocalizedNamesFromMetadata(service.metadata);
+    const categoryNames = service.category
+      ? extractLocalizedNamesFromMetadata(service.category.metadata)
+      : undefined;
+
     return {
       id: service.id,
-      name: service.name,
+      name: resolveLocalizedDisplayName(service.name, serviceNames, displayLocale),
       description: service.description,
       durationMinutes: service.durationMinutes,
       bufferMinutes: service.bufferMinutes,
@@ -392,7 +403,11 @@ export class PublicBookingService {
       category: service.category
         ? {
             id: service.category.id,
-            name: service.category.name,
+            name: resolveLocalizedDisplayName(
+              service.category.name,
+              categoryNames,
+              displayLocale,
+            ),
             sortOrder: service.category.sortOrder,
           }
         : null,
@@ -411,6 +426,14 @@ export class PublicBookingService {
       if (aCat !== bCat) return aCat.localeCompare(bCat);
       return a.name.localeCompare(b.name);
     });
+  }
+
+  private resolvePublicDisplayLocale(
+    business: Business,
+    preferred?: string | null,
+  ): AppLocale {
+    const settings = (business.settings ?? {}) as { locale?: string };
+    return resolveLocale(preferred, resolveLocale(settings.locale, 'en'));
   }
 
   async getProfile(slug: string): Promise<PublicBusinessProfile> {
@@ -783,9 +806,10 @@ export class PublicBookingService {
     return { providers };
   }
 
-  async getServices(slug: string, employeeId?: string) {
+  async getServices(slug: string, employeeId?: string, locale?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
 
     let services = await this.serviceRepo.find({
       where: { businessId: business.id, isActive: true },
@@ -810,7 +834,7 @@ export class PublicBookingService {
     return {
       services: this.sortPublicServices(
         services.map((s) =>
-          this.mapPublicService(s, paymentsReady, planSet.has(s.id)),
+          this.mapPublicService(s, paymentsReady, planSet.has(s.id), displayLocale),
         ),
       ),
     };
@@ -847,11 +871,16 @@ export class PublicBookingService {
     return { subscription: sub };
   }
 
-  async getServicesForSlot(slug: string, employeeId: string, startTime: string) {
+  async getServicesForSlot(
+    slug: string,
+    employeeId: string,
+    startTime: string,
+    locale?: string,
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
-    let { services } = await this.getServices(slug, employeeId);
+    let { services } = await this.getServices(slug, employeeId, locale);
     const start = new Date(startTime);
 
     const allowedIds = await this.bookingService.getAllowedServiceIdsAtInstant(

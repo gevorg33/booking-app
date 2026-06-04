@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getPublicProfile, getPublicProviders, getPublicServices, getPublicServicesForSlot } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { getServerLocale } from '@/lib/server-locale';
 import { CheckoutClient } from './checkout-client';
 
 export default async function CheckoutPage({
@@ -54,7 +55,7 @@ export default async function CheckoutPage({
 
   const [{ providers }, { services }] = await Promise.all([
     getPublicProviders(slug),
-    getPublicServicesForSlot(slug, employeeId!, startTime),
+    getPublicServicesForSlot(slug, employeeId!, startTime, locale),
   ]);
 
   const provider = providers.find((p) => p.id === employeeId);

@@ -1,5 +1,6 @@
 import { getPublicProfile, getPublicServices } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { getServerLocale } from '@/lib/server-locale';
 import { parseMultiServiceIds } from '@/lib/multi-service-booking';
 import { MultiServiceCheckoutClient } from '@/components/public-booking/multi-service-checkout-client';
 
@@ -28,9 +29,10 @@ export default async function MultiServiceCheckoutPage({
   const servicesParam = pickParam(raw.services);
   const sessionId = pickParam(raw.session_id);
 
+  const locale = await getServerLocale();
   const [tenant, { services }] = await Promise.all([
     getPublicProfile(slug),
-    getPublicServices(slug),
+    getPublicServices(slug, { locale }),
   ]);
 
   const serviceIds = servicesParam ? parseMultiServiceIds(servicesParam) : [];

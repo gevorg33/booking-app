@@ -65,8 +65,12 @@ export class PublicBookingController {
   }
 
   @Get('services')
-  getServices(@Param('slug') slug: string, @Query('employeeId') employeeId?: string) {
-    return this.publicBookingService.getServices(slug, employeeId);
+  getServices(
+    @Param('slug') slug: string,
+    @Query('employeeId') employeeId?: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.publicBookingService.getServices(slug, employeeId, locale);
   }
 
   @Get('services/for-slot')
@@ -74,8 +78,9 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @Query('employeeId') employeeId: string,
     @Query('startTime') startTime: string,
+    @Query('locale') locale?: string,
   ) {
-    return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime);
+    return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime, locale);
   }
 
   @Get('services/:serviceId/subscription-plans')

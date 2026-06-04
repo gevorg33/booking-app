@@ -1269,6 +1269,16 @@ const hy: MessageTree = {
     serviceTypesCount: 'Ծառայությունների տեսակներ',
   
     createCategoryFirst: 'Խորհուրդ․ նախ ստեղծեք կատեգորիաներ, հետո ավելացրեք ծառայությունները',
+    localizedNamesTitle: 'Տեղայնացված ցուցադրման անուններ',
+    localizedNamesHint:
+      'Լրացուցիչ անուններ յուրաքանչյուր լեզվով (մինչև 3)։ Հանրային ամրագրումը դրանք օգտագործում է, երբ այցելուի լեզուն համընկնում է․ վերևի հիմնական անունը պահես է պահուստային։',
+    localizedNamesLocaleEn: 'Անգլերեն',
+    localizedNamesLocaleHy: 'Հայերեն',
+    localizedNamesLocaleRu: 'Ռուսերեն',
+    localizedNamesSlot: 'Անուն {n}',
+    localizedNamesOptional: 'Ընտրովի',
+    editCategory: 'Խմբագրել կատեգորիան',
+    saveCategory: 'Պահպանել կատեգորիան',
   
     tabPackages: 'Փաթեթներ',
   

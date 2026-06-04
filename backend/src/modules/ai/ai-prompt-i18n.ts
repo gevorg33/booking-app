@@ -33,6 +33,71 @@ export function needsMultilingualNormalization(prompt: string): boolean {
   );
 }
 
+export type RecognizedServiceTermLocale = 'hy' | 'ru' | 'latin';
+
+export interface RecognizedServiceTypeTerm {
+  term: string;
+  locale: RecognizedServiceTermLocale;
+}
+
+/** Common Armenian service-type words in dashboard commands. */
+const ARMENIAN_SERVICE_TERMS =
+  /(?:կտրում|մասաժ|դիմահարդարում|հարդարման|մանիկյուր|պեդիկյուր|օրաթերթապատում|գունավորում)/giu;
+
+/** Common Russian service-type words in dashboard commands. */
+const RUSSIAN_SERVICE_TERMS =
+  /(?:стрижк(?:а|и|у|е|ой)?|массаж(?:а|у|е|и)?|маникюр(?:а|у|е)?|педикюр(?:а|у|е)?|окрашивание|окрашивания|укладк(?:а|и|у|е)?|бров(?:и|ей)?|ресниц)/giu;
+
+/** Latin catalog names often embedded in hy/ru prompts. */
+const LATIN_CATALOG_SERVICE_TERMS =
+  /\b(?:facemassage|haircut|manicure|pedicure|massage|hot\s+stone\s+massage)\b/gi;
+
+function collectServiceTermMatches(
+  text: string,
+  pattern: RegExp,
+  locale: RecognizedServiceTermLocale,
+): RecognizedServiceTypeTerm[] {
+  const matches: RecognizedServiceTypeTerm[] = [];
+  const re = new RegExp(pattern.source, pattern.flags);
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const term = match[0]?.trim();
+    if (term) matches.push({ term, locale });
+  }
+  return matches;
+}
+
+/** Extract Armenian, Russian, or Latin service-type tokens mentioned in a command. */
+export function recognizeServiceTypeTerms(prompt: string): RecognizedServiceTypeTerm[] {
+  const trimmed = prompt.trim();
+  if (!trimmed) return [];
+
+  const seen = new Set<string>();
+  const results: RecognizedServiceTypeTerm[] = [];
+  for (const entry of [
+    ...collectServiceTermMatches(trimmed, ARMENIAN_SERVICE_TERMS, 'hy'),
+    ...collectServiceTermMatches(trimmed, RUSSIAN_SERVICE_TERMS, 'ru'),
+    ...collectServiceTermMatches(trimmed, LATIN_CATALOG_SERVICE_TERMS, 'latin'),
+  ]) {
+    const key = `${entry.locale}:${entry.term.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(entry);
+  }
+  return results;
+}
+
+export function promptMentionsServiceType(prompt: string): boolean {
+  return recognizeServiceTypeTerms(prompt).length > 0;
+}
+
+/** True when the prompt names a service in Armenian or Russian (not only Latin catalog names). */
+export function promptMentionsNativeServiceType(prompt: string): boolean {
+  return recognizeServiceTypeTerms(prompt).some(
+    (entry) => entry.locale === 'hy' || entry.locale === 'ru',
+  );
+}
+
 export const CLASSIFIER_MULTILINGUAL_RULES = `Multilingual commands: Users may write in Armenian, Russian, English, or Latin transliteration. Interpret the same operational intents (book, cancel, show appointments, fill slots, reschedule, utilization, waitlist, etc.). Extract employeeName, customerName, and serviceName exactly as written in the user message (fuzzy-match to Available lists). Use DD/MM/YYYY for dates and HH:mm 24h for times.`;
 
 /** Context block for classify_intent when the prompt was normalized or is non-English. */

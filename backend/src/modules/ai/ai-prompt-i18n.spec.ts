@@ -4,6 +4,9 @@ import {
   containsNonEnglishScript,
   looksLikeTransliteration,
   needsMultilingualNormalization,
+  promptMentionsNativeServiceType,
+  promptMentionsServiceType,
+  recognizeServiceTypeTerms,
 } from './ai-prompt-i18n.js';
 
 /** Realistic dashboard commands (hy / ru / translit) used in production-like scenarios. */
@@ -48,6 +51,22 @@ const COMPLEX_COMMANDS = {
     book:
       'amsagrum facemassage Gevorg 10:00 vagh@ esli zanyat Mary',
     gaps: 'zapolni azat sloty na etoy nedele dlya Gevorg i Mary',
+  },
+} as const;
+
+/** Commands that name a service type in Armenian or Russian (not only English catalog slugs). */
+const SERVICE_TYPE_COMMANDS = {
+  hy: {
+    haircut: 'Ամրագրիր կտրում Գևորգի հետ վաղը 14:00',
+    massage: 'Ցույց տուր բոլոր մասաժ ամրագրումները այս շաբաթ',
+    facial: 'Փոխել ծառայությունը դիմահարդարում հաջորդ երկուշաբթի',
+    manicure: 'Լրացրու ազատ slot-երը մանիկյուրի համար ուրբաթ',
+  },
+  ru: {
+    haircut: 'Запиши стрижку на Геворга завтра в 11:00',
+    massage: 'Покажи все записи на массаж на эту неделю',
+    manicure: 'Заполни свободные слоты для маникюра в пятницу днём',
+    coloring: 'Перенеси окрашивание Марии на следующий четверг 15:00',
   },
 } as const;
 
@@ -147,6 +166,97 @@ describe('ai-prompt-i18n detection', () => {
     it('detects long multi-clause Armenian compound intent', () => {
       const prompt = `${COMPLEX_COMMANDS.hy.bulkCancelRange} — ապա լրացրու սպասացանկից`;
       expect(needsMultilingualNormalization(prompt)).toBe(true);
+    });
+  });
+
+  describe('service type term recognition', () => {
+    describe('Armenian service words', () => {
+      it.each([
+        ['haircut', SERVICE_TYPE_COMMANDS.hy.haircut, 'կտրում'],
+        ['massage', SERVICE_TYPE_COMMANDS.hy.massage, 'մասաժ'],
+        ['facial', SERVICE_TYPE_COMMANDS.hy.facial, 'դիմահարդարում'],
+        ['manicure', SERVICE_TYPE_COMMANDS.hy.manicure, 'մանիկյուր'],
+      ])('recognizes %s (%s)', (_label, prompt, expectedTerm) => {
+        const terms = recognizeServiceTypeTerms(prompt);
+        expect(terms.some((t) => t.locale === 'hy' && t.term === expectedTerm)).toBe(true);
+        expect(promptMentionsNativeServiceType(prompt)).toBe(true);
+        expect(promptMentionsServiceType(prompt)).toBe(true);
+        expect(needsMultilingualNormalization(prompt)).toBe(true);
+      });
+
+      it('recognizes Latin catalog name inside Armenian command', () => {
+        const prompt = COMPLEX_COMMANDS.hy.conditionalBook;
+        const terms = recognizeServiceTypeTerms(prompt);
+        expect(terms).toEqual(
+          expect.arrayContaining([
+            { term: 'facemassage', locale: 'latin' },
+          ]),
+        );
+        expect(promptMentionsNativeServiceType(prompt)).toBe(false);
+        expect(promptMentionsServiceType(prompt)).toBe(true);
+      });
+
+      it('preserves Armenian service term in classifier fallback context', () => {
+        const prompt = SERVICE_TYPE_COMMANDS.hy.massage;
+        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'fallback');
+        expect(ctx).toContain('մասաժ');
+      });
+    });
+
+    describe('Russian service words', () => {
+      it.each([
+        ['haircut', SERVICE_TYPE_COMMANDS.ru.haircut, 'стрижк'],
+        ['massage', SERVICE_TYPE_COMMANDS.ru.massage, 'массаж'],
+        ['manicure', SERVICE_TYPE_COMMANDS.ru.manicure, 'маникюр'],
+        ['coloring', SERVICE_TYPE_COMMANDS.ru.coloring, 'окрашиван'],
+      ])('recognizes %s (%s)', (_label, prompt, expectedRoot) => {
+        const terms = recognizeServiceTypeTerms(prompt);
+        expect(
+          terms.some(
+            (t) =>
+              t.locale === 'ru' &&
+              t.term.toLowerCase().includes(expectedRoot.toLowerCase()),
+          ),
+        ).toBe(true);
+        expect(promptMentionsNativeServiceType(prompt)).toBe(true);
+        expect(needsMultilingualNormalization(prompt)).toBe(true);
+      });
+
+      it('recognizes стрижка in complex show-tomorrow command', () => {
+        const prompt = COMPLEX_COMMANDS.ru.showTomorrow;
+        const terms = recognizeServiceTypeTerms(prompt);
+        expect(terms).toEqual(
+          expect.arrayContaining([{ term: 'стрижка', locale: 'ru' }]),
+        );
+        expect(promptMentionsNativeServiceType(prompt)).toBe(true);
+      });
+
+      it('recognizes массаж in book-fallback command', () => {
+        const prompt = COMPLEX_COMMANDS.ru.bookFallback;
+        expect(recognizeServiceTypeTerms(prompt)).toEqual(
+          expect.arrayContaining([{ term: 'массаж', locale: 'ru' }]),
+        );
+      });
+
+      it('preserves Russian service term in classifier fallback context', () => {
+        const prompt = SERVICE_TYPE_COMMANDS.ru.haircut;
+        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'fallback');
+        expect(ctx).toMatch(/стрижк/i);
+      });
+    });
+
+    it('returns no native service terms for plain English scheduling', () => {
+      const prompt = 'Show Gevorg appointments tomorrow for facemassage';
+      expect(recognizeServiceTypeTerms(prompt)).toEqual([
+        { term: 'facemassage', locale: 'latin' },
+      ]);
+      expect(promptMentionsNativeServiceType(prompt)).toBe(false);
+      expect(needsMultilingualNormalization(prompt)).toBe(false);
+    });
+
+    it('returns empty list for prompts without service vocabulary', () => {
+      expect(recognizeServiceTypeTerms('Show all appointments today')).toEqual([]);
+      expect(promptMentionsServiceType('Show all appointments today')).toBe(false);
     });
   });
 

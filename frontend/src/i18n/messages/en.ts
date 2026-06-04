@@ -999,6 +999,16 @@ const en: MessageTree = {
     serviceTypesSubtitle: 'Individual bookable services assigned to a category',
     serviceTypesCount: 'Service types',
     createCategoryFirst: 'Tip: create categories first, then add service types under them.',
+    localizedNamesTitle: 'Localized display names',
+    localizedNamesHint:
+      'Optional alternate names per language (up to 3). Public booking uses these when the visitor’s language matches; the primary name above is the fallback.',
+    localizedNamesLocaleEn: 'English',
+    localizedNamesLocaleHy: 'Armenian',
+    localizedNamesLocaleRu: 'Russian',
+    localizedNamesSlot: 'Name {n}',
+    localizedNamesOptional: 'Optional',
+    editCategory: 'Edit category',
+    saveCategory: 'Save category',
     tabPackages: 'Packages',
     packagesTitle: 'Service packages',
     packagesSubtitle: 'Bundle multiple services at a discounted price for the public Services tab',
@@ -1375,6 +1385,7 @@ const en: MessageTree = {
     speakReply: 'Listen',
     voiceHint: 'Tap mic to start, tap again when done, Enter to send',
   },
+
   public: {
     chooseSpecialist: 'Choose a specialist',
     specialistAiHint: 'Or use the AI assistant below to find your desired service and time.',
@@ -1951,6 +1962,7 @@ const en: MessageTree = {
     dashboardLanguage: 'Dashboard language',
     saveSettings: 'Save settings',
   },
+  
   consumerApp: {
     bannerAria: 'Mobile app',
     bannerTitle: 'Book faster in the OptiSchedule app',
