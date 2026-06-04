@@ -640,7 +640,7 @@ export default function BookingsPage() {
                 employeeName: employees.find((e: any) => e.id === employeeId)?.name,
                 date: dayStr,
               }}
-              title="Booking opportunities"
+              title={t('bookings.aiInsightsTitle')}
             />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
@@ -655,7 +655,7 @@ export default function BookingsPage() {
       >
         <DashboardPageToolbar
           title={t('bookings.title')}
-          subtitle="Select a provider and day to manage their schedule"
+          subtitle={t('bookings.subtitle')}
           meta={<p className="font-medium text-gray-300">{fmtDate(day)}</p>}
           actions={
             <>
@@ -669,7 +669,7 @@ export default function BookingsPage() {
                     setSelectedPeriod(null);
                   }}
                 >
-                  <option value="">Select provider...</option>
+                  <option value="">{t('bookings.selectProvider')}</option>
                   {employees.map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
@@ -690,7 +690,7 @@ export default function BookingsPage() {
                     isToday ? 'bg-blue-600/20 text-blue-300' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
                   }`}
                 >
-                  Today
+                  {t('common.today')}
                 </button>
                 <button
                   onClick={nextDay}
@@ -736,12 +736,12 @@ export default function BookingsPage() {
               })}
               {legendServices.length === 0 && calPeriods.some((p) => p.type === 'service_block') && (
                 <span className="px-2 py-0.5 text-xs rounded-full border bg-blue-600/20 border-blue-500/40 text-blue-300">
-                  Available (any service)
+                  {t('common.available')} ({t('bookings.anyService')})
                 </span>
               )}
-              <span className="px-2 py-0.5 text-xs rounded-full border bg-orange-600/20 border-orange-500/50 text-orange-300">Booked</span>
-              <span className="px-2 py-0.5 text-xs rounded-full border bg-gray-700/60 border-gray-500/70 text-gray-300">Blocked</span>
-              <span className="px-2 py-0.5 text-xs rounded-full border bg-red-900/50 border-red-700/70 text-red-300">Unavailable</span>
+              <span className="px-2 py-0.5 text-xs rounded-full border bg-orange-600/20 border-orange-500/50 text-orange-300">{t('bookings.legendBooked')}</span>
+              <span className="px-2 py-0.5 text-xs rounded-full border bg-gray-700/60 border-gray-500/70 text-gray-300">{t('bookings.legendBlocked')}</span>
+              <span className="px-2 py-0.5 text-xs rounded-full border bg-red-900/50 border-red-700/70 text-red-300">{t('bookings.legendUnavailable')}</span>
             </div>
           )}
 
@@ -750,7 +750,7 @@ export default function BookingsPage() {
             <div className="card flex-1 flex items-center justify-center">
               <div className="text-center py-12">
                 <Calendar className="w-14 h-14 text-gray-700 mx-auto mb-3" />
-                <p className="text-gray-400">Select a service provider to view their schedule</p>
+                <p className="text-gray-400">{t('bookings.selectProviderEmpty')}</p>
               </div>
             </div>
           ) : calInitialLoading ? (
@@ -843,12 +843,12 @@ export default function BookingsPage() {
                         .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
                         .filter(Boolean);
 
-                      const typeLabel = period.type === 'unavailable_block' ? 'Unavailable' : 'Blocked';
+                      const typeLabel = period.type === 'unavailable_block' ? t('common.unavailable') : t('common.blocked');
                       const label = isBlocked
                         ? (period.placeholderLabel || typeLabel)
                         : svcNames.length > 0
                           ? svcNames.join(' · ')
-                          : period.placeholderLabel || 'Available';
+                          : period.placeholderLabel || t('common.available');
                       const sublabel = `${fmtUTC(new Date(period.startTime))} – ${fmtUTC(new Date(period.endTime))}`;
 
                       return (
@@ -932,7 +932,7 @@ export default function BookingsPage() {
 
                   {calPeriods.length === 0 && visibleBookings.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-600 text-sm">No schedule applied for this day</p>
+                      <p className="text-gray-600 text-sm">{t('bookings.noScheduleDay')}</p>
                     </div>
                   )}
                 </div>
@@ -947,7 +947,7 @@ export default function BookingsPage() {
             <div className="card h-full flex flex-col border border-blue-500/30 w-80">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="font-semibold text-base">New Booking</h3>
+                  <h3 className="font-semibold text-base">{t('bookings.newBookingTitle')}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
                     Period: {fmtUTC(new Date(selectedPeriod.startTime))} – {fmtUTC(new Date(selectedPeriod.endTime))}
                   </p>
@@ -966,11 +966,11 @@ export default function BookingsPage() {
                 const svcNames = (selectedPeriod.serviceIds ?? [])
                   .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
                   .filter(Boolean);
-                const label = svcNames.length > 0 ? svcNames.join(', ') : 'Any service';
+                const label = svcNames.length > 0 ? svcNames.join(', ') : t('bookings.anyService');
                 return (
                   <div className={`px-3 py-2 rounded-lg text-xs mb-4 border ${panelColor}`}>
                     <p className="font-medium">{label}</p>
-                    <p className="opacity-70 mt-0.5">Slot available</p>
+                    <p className="opacity-70 mt-0.5">{t('bookings.slotAvailable')}</p>
                     {selectedPeriod.placeholderLabel && (
                       <p className="opacity-60 mt-0.5">{selectedPeriod.placeholderLabel}</p>
                     )}
@@ -992,14 +992,14 @@ export default function BookingsPage() {
                 <div>
                   <label className="label">{t('bookings.service')}</label>
                   {periodServices.length === 0 ? (
-                    <p className="text-xs text-red-400 mt-1">No matching services found</p>
+                    <p className="text-xs text-red-400 mt-1">{t('bookings.noMatchingServices')}</p>
                   ) : (
                     <select
                       className="input"
                       value={form.serviceId}
                       onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
                     >
-                      <option value="">Select service...</option>
+                      <option value="">{t('bookings.selectService')}</option>
                       {periodServices.map((s: any) => (
                         <option key={s.id} value={s.id}>
                           {s.name} ({s.durationMinutes}min)
@@ -1080,23 +1080,23 @@ export default function BookingsPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="label">Notes</label>
+                  <label className="label">{t('common.notes')}</label>
                   <input
                     className="input text-sm"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Internal notes..."
+                    placeholder={t('bookings.internalNotesPlaceholder')}
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="label">Description</label>
+                  <label className="label">{t('common.description')}</label>
                   <input
                     className="input text-sm"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Booking description..."
+                    placeholder={t('bookings.bookingDescriptionPlaceholder')}
                   />
                 </div>
               </div>
@@ -1104,12 +1104,12 @@ export default function BookingsPage() {
               {createMutation.isError && (
                 <div className="mt-3 p-2.5 bg-red-600/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{(createMutation.error as any)?.response?.data?.message || 'Failed to create booking'}</span>
+                  <span>{(createMutation.error as any)?.response?.data?.message || t('bookings.createFailed')}</span>
                 </div>
               )}
               {createMutation.isSuccess && (
                 <div className="mt-3 p-2.5 bg-green-600/10 border border-green-500/30 rounded-lg flex items-center gap-2 text-green-400 text-xs">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Booking created
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {t('bookings.bookingCreated')}
                 </div>
               )}
 
@@ -1119,8 +1119,8 @@ export default function BookingsPage() {
                 className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
               >
                 {createMutation.isPending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Booking...</>
-                  : 'Confirm Booking'}
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('bookings.bookingCreating')}</>
+                  : t('bookings.confirmBookingAction')}
               </button>
             </div>
           )}
@@ -1133,20 +1133,24 @@ export default function BookingsPage() {
           <h2 className="font-semibold flex items-center gap-2">
             <Clock className="w-4 h-4 text-gray-400" />
             {employeeId
-              ? `${employees.find((e: any) => e.id === employeeId)?.name ?? 'Provider'}'s Bookings`
-              : 'All Bookings'} — {fmtDate(day)}
+              ? t('bookings.providerBookings').replace(
+                  '{name}',
+                  employees.find((e: any) => e.id === employeeId)?.name ?? t('common.provider'),
+                )
+              : t('bookings.allBookings')}{' '}
+            — {fmtDate(day)}
           </h2>
           <span className="text-xs text-gray-500">
-            {visibleBookings.length} booking{visibleBookings.length !== 1 ? 's' : ''}
+            {t('bookings.bookingsCount').replace('{count}', String(visibleBookings.length))}
           </span>
         </div>
 
         {showCancel && (
           <div className="mb-4 p-3 bg-red-600/10 border border-red-500/30 rounded-lg">
-            <p className="text-sm font-medium text-red-400 mb-2">Cancel this booking?</p>
+            <p className="text-sm font-medium text-red-400 mb-2">{t('bookings.cancelDialogTitle')}</p>
             <input
               className="input mb-2 text-sm"
-              placeholder="Cancellation reason (optional)"
+              placeholder={t('bookings.cancellationReasonPlaceholder')}
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
             />
@@ -1156,15 +1160,15 @@ export default function BookingsPage() {
                 disabled={cancelMutation.isPending}
                 className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm transition-colors"
               >
-                {cancelMutation.isPending ? 'Cancelling…' : 'Confirm Cancel'}
+                {cancelMutation.isPending ? t('common.confirmingCancel') : t('common.confirmCancel')}
               </button>
-              <button onClick={() => setShowCancel(null)} className="btn-secondary text-sm">Keep</button>
+              <button onClick={() => setShowCancel(null)} className="btn-secondary text-sm">{t('common.keep')}</button>
             </div>
           </div>
         )}
 
         {visibleBookings.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm py-6">No bookings for this day</p>
+          <p className="text-center text-gray-500 text-sm py-6">{t('bookings.emptyDay')}</p>
         ) : (
           <div className="divide-y divide-gray-800">
             {visibleBookings.map((b) => (
@@ -1205,7 +1209,7 @@ export default function BookingsPage() {
                         setShowCancel(b.id);
                       }}
                       className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
-                      title="Cancel"
+                      title={t('bookings.cancelBooking')}
                     >
                       <XCircle className="w-4 h-4" />
                     </button>

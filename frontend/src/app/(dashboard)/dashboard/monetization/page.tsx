@@ -278,7 +278,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Plan name</label>
+          <label className="label">{t('monetization.planName')}</label>
           <input
             className="input"
             value={form.name}
@@ -287,7 +287,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           />
         </div>
         <div>
-          <label className="label">Service</label>
+          <label className="label">{t('bookings.service')}</label>
           <select
             className="input"
             value={form.serviceId}
@@ -298,7 +298,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             }}
             required
           >
-            <option value="">Select service…</option>
+            <option value="">{t('monetization.selectService')}</option>
             {services.map((svc) => (
               <option key={svc.id} value={svc.id}>
                 {svc.name}
@@ -307,16 +307,16 @@ function MembershipsTab({ businessId }: { businessId: string }) {
           </select>
         </div>
         <div>
-          <label className="label">Duration (months)</label>
+          <label className="label">{t('operations.durationMonths')}</label>
           <select
             className="input"
             value={form.durationMonths}
             onChange={(e) => setForm({ ...form, durationMonths: e.target.value })}
           >
-            <option value="3">3 months</option>
-            <option value="6">6 months</option>
-            <option value="12">12 months</option>
-            <option value="custom">Custom</option>
+            <option value="3">{t('operations.months3')}</option>
+            <option value="6">{t('operations.months6')}</option>
+            <option value="12">{t('operations.months12')}</option>
+            <option value="custom">{t('monetization.discountCustom')}</option>
           </select>
         </div>
         {form.durationMonths === 'custom' && (
@@ -376,7 +376,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               Subscription price: <strong>${preview.subscriptionPrice.toFixed(2)}</strong>
             </p>
             <p className="text-emerald-400">
-              Customer saves: ${preview.savings.toFixed(2)}
+              {t('monetization.customerSaves', { amount: preview.savings.toFixed(2) })}
             </p>
           </div>
         )}
@@ -508,10 +508,10 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             assignMutation.mutate();
           }}
         >
-          <h3 className="font-semibold">Assign subscription to customer</h3>
+          <h3 className="font-semibold">{t('monetization.assignTitle')}</h3>
           <CustomerSelect businessId={businessId} value={assignCustomerId} onChange={setAssignCustomerId} required />
           <div>
-            <label className="label">Service</label>
+            <label className="label">{t('bookings.service')}</label>
             <select
               className="input max-w-md"
               value={assignServiceId}
@@ -521,7 +521,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
               }}
               required
             >
-              <option value="">Select service…</option>
+              <option value="">{t('monetization.selectService')}</option>
               {assignableServices.map((service) => (
                 <option key={service.id} value={service.id}>
                   {service.name}
@@ -933,7 +933,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
         </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Create promo
+          {t('monetization.promoCreate')}
         </button>
       </form>
 
@@ -942,7 +942,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       ) : promos.length === 0 ? (
-        <p className="text-gray-400 text-sm">No promo codes yet.</p>
+        <p className="text-gray-400 text-sm">{t('monetization.promoEmpty')}</p>
       ) : (
         <div className="card overflow-hidden p-0">
           <table className="w-full text-sm">
@@ -988,7 +988,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                         className="text-red-400 hover:text-red-300 text-xs"
                         onClick={() => deactivateMutation.mutate(promo.id)}
                       >
-                        Deactivate
+                        {t('monetization.promoDeactivate')}
                       </button>
                     )}
                   </td>

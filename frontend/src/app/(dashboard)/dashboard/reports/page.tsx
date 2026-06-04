@@ -224,12 +224,12 @@ export default function ReportsPage() {
                 <thead>
                   <tr className="border-b border-gray-800 text-left">
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.name')}</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Bookings</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Completed</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">No-shows</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Revenue</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Hours</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Utilization</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnBookings')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnCompleted')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnNoShows')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnRevenue')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnHours')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnUtilization')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,8 +264,8 @@ export default function ReportsPage() {
                 <thead>
                   <tr className="border-b border-gray-800 text-left">
                     <th className="px-4 py-3 font-medium text-gray-400">{t('bookings.service')}</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Bookings</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">Revenue</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnBookings')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnRevenue')}</th>
                   </tr>
                 </thead>
                 <tbody>

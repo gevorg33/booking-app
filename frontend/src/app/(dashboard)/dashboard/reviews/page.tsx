@@ -69,7 +69,7 @@ export default function ReviewsPage() {
           <section className="card">
             <h2 className="font-semibold mb-4">{t('reviewsPage.providerSummary')}</h2>
             {summary.length === 0 ? (
-              <p className="text-gray-500 text-sm">No provider ratings yet</p>
+              <p className="text-gray-500 text-sm">{t('reviewsPage.noRatings')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {summary.map((row) => (
@@ -97,10 +97,10 @@ export default function ReviewsPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-medium">
-                          {review.employee?.name ?? 'Provider'}
+                          {review.employee?.name ?? t('reviewsPage.providerFallback')}
                           <span className="text-gray-500 font-normal">
                             {' '}
-                            · {review.customer?.name ?? review.customerName ?? 'Anonymous'}
+                            · {review.customer?.name ?? review.customerName ?? t('reviewsPage.anonymous')}
                           </span>
                         </p>
                         <div className="mt-1">

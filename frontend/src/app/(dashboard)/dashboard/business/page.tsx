@@ -108,7 +108,7 @@ export default function BusinessProfilePage() {
           className="space-y-6"
         >
           <section className="card space-y-4">
-            <h2 className="font-semibold text-lg">Branding</h2>
+            <h2 className="font-semibold text-lg">{t('business.branding')}</h2>
             <BusinessLogoField
               businessId={business.id}
               businessName={form.name}
@@ -132,7 +132,7 @@ export default function BusinessProfilePage() {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">Business name</label>
+                <label className="label">{t('business.businessName')}</label>
                 <input
                   className="input"
                   value={form.name}
@@ -141,7 +141,7 @@ export default function BusinessProfilePage() {
                 />
               </div>
               <div>
-                <label className="label">Tagline</label>
+                <label className="label">{t('business.tagline')}</label>
                 <input
                   className="input"
                   value={form.branding.tagline ?? ''}
@@ -151,12 +151,12 @@ export default function BusinessProfilePage() {
                       branding: { ...form.branding, tagline: e.target.value },
                     })
                   }
-                  placeholder="Short subtitle under your name"
+                  placeholder={t('business.placeholderTagline')}
                 />
               </div>
             </div>
             <div>
-              <label className="label">Primary color</label>
+              <label className="label">{t('business.primaryColor')}</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -182,20 +182,20 @@ export default function BusinessProfilePage() {
               </div>
             </div>
             <div>
-              <label className="label">Description</label>
+              <label className="label">{t('common.description')}</label>
               <textarea
                 className="input min-h-[120px] resize-y"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Tell customers about your business…"
+                placeholder={t('business.placeholderDescription')}
               />
             </div>
           </section>
 
           <section className="card space-y-4">
-            <h2 className="font-semibold text-lg">Contact</h2>
+            <h2 className="font-semibold text-lg">{t('business.contact')}</h2>
             <div>
-              <label className="label">Address</label>
+              <label className="label">{t('common.address')}</label>
               <input
                 className="input"
                 value={form.address}
@@ -204,7 +204,7 @@ export default function BusinessProfilePage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">Phone</label>
+                <label className="label">{t('common.phone')}</label>
                 <input
                   className="input"
                   value={form.phone}
@@ -212,7 +212,7 @@ export default function BusinessProfilePage() {
                 />
               </div>
               <div>
-                <label className="label">Email</label>
+                <label className="label">{t('common.email')}</label>
                 <input
                   type="email"
                   className="input"
@@ -241,9 +241,7 @@ export default function BusinessProfilePage() {
 
           <section className="card space-y-4">
             <h2 className="font-semibold text-lg">{t('business.socialLinks')}</h2>
-            <p className="text-sm text-gray-500 -mt-2">
-              Shown on your public profile page. Use full URLs.
-            </p>
+            <p className="text-sm text-gray-500 -mt-2">{t('business.socialHint')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {SOCIAL_FIELDS.map(({ key, label, placeholder }) => (
                 <div key={key}>
@@ -267,11 +265,9 @@ export default function BusinessProfilePage() {
           <section className="card space-y-4">
             <h2 className="font-semibold text-lg flex items-center gap-2">
               <MapPin className="w-5 h-5 text-gray-400" />
-              Google Maps
+              {t('business.mapsTitle')}
             </h2>
-            <p className="text-sm text-gray-500 -mt-2">
-              Paste the embed code from Google Maps → Share → Embed a map.
-            </p>
+            <p className="text-sm text-gray-500 -mt-2">{t('business.mapsEmbedInstructions')}</p>
             <textarea
               className="input min-h-[100px] font-mono text-xs resize-y"
               value={form.location.mapEmbedHtml ?? ''}
@@ -303,7 +299,7 @@ export default function BusinessProfilePage() {
         <div className="mt-6 space-y-3 border-t border-gray-800 pt-6">
           {saveMutation.isError && (
             <p className="text-sm text-red-400">
-              {(saveMutation.error as any)?.response?.data?.message || 'Failed to save profile'}
+              {(saveMutation.error as any)?.response?.data?.message || t('business.saveFailed')}
             </p>
           )}
           <button
@@ -324,7 +320,7 @@ export default function BusinessProfilePage() {
               </>
             )}
           </button>
-          {saved && <p className="text-sm text-green-400">Profile saved successfully.</p>}
+          {saved && <p className="text-sm text-green-400">{t('business.saveSuccess')}</p>}
         </div>
       )}
     </div>

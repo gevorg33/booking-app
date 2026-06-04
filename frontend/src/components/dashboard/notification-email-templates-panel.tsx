@@ -317,7 +317,7 @@ export function NotificationEmailTemplatesPanel() {
                       type="button"
                       className="p-2 text-red-600"
                       onClick={() => removeCustomVariable(index)}
-                      aria-label="Remove"
+                      aria-label={t('common.remove')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
