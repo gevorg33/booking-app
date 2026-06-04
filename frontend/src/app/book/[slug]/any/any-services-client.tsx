@@ -137,7 +137,7 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
     void previewPublicMultiService(slug, selectedServiceIds)
       .then((preview) => setCartErrors(preview.valid ? [] : preview.errors))
       .catch((err: unknown) =>
-        setCartErrors([(err as Error)?.message || 'Could not validate service selection']),
+        setCartErrors([(err as Error)?.message || t('public.validateServiceSelectionFailed')]),
       );
   }, [multiEnabled, selectedServiceIds, slug]);
 

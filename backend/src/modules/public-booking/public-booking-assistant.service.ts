@@ -19,6 +19,7 @@ import {
 } from '../../common/utils/timezone.util.js';
 import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
 import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../../common/i18n/messages.js';
+import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
 import {
   fuzzyMatchServiceByName,
@@ -134,7 +135,7 @@ export class PublicBookingAssistantService {
     }
     const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
-    const todayDisplay = formatDateDisplay(todayKey);
+    const todayDisplay = formatDateDisplay(todayKey, locale);
 
     const [employees, services] = await Promise.all([
       this.employeeRepo.find({ where: { businessId: business.id, isActive: true }, order: { name: 'ASC' } }),
@@ -202,11 +203,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
     }
 
-    return this.attachSession(result, parsed.params, employees);
+    return this.attachSession(result, parsed.params, employees, locale);
   }
 
   private async handleListProviders(slug: string, params: any, locale: AppLocale): Promise<PublicAssistantResult> {
-    const { providers } = await this.publicBookingService.getProviders(slug, params.date);
+    const { providers } = await this.publicBookingService.getProviders(slug, params.date, locale);
     if (providers.length === 0) {
       return {
         success: true,
@@ -325,7 +326,6 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     type DayReport = {
       dateKey: string;
       providers: Array<{ employee: Employee; times: string[]; firstSlot: string }>;
@@ -398,7 +398,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         summary: t(locale, 'assistant.availabilityNoSlots', {
           service: serviceLabel,
           provider: providerLabel,
-          days: dayCount === 1 ? formatDateDisplay(dateKeys[0]) : String(dayCount),
+          days: dayCount === 1 ? formatDateDisplay(dateKeys[0], locale) : String(dayCount),
         }),
         navigate: targets.length === 1
           ? { path: 'professionals', query: { employeeId: targets[0].id } }
@@ -409,15 +409,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const lines: string[] = [
       t(locale, 'assistant.availabilityHeader', {
         service: serviceLabel,
-        days: dayCount === 1 ? formatDateDisplay(dateKeys[0]) : String(dayReports.length),
+        days: dayCount === 1 ? formatDateDisplay(dateKeys[0], locale) : String(dayReports.length),
       }),
       '',
     ];
 
     for (const day of dayReports) {
       const dayDate = dayjs.tz(day.dateKey, tz);
-      const weekday = weekdayLabels[dayDate.day()];
-      const displayDay = formatDateDisplay(day.dateKey);
+      const weekday = formatWeekdayShortByDayIndex(dayDate.day(), locale);
+      const displayDay = formatDateDisplay(day.dateKey, locale);
 
       if (targets.length === 1) {
         const times = day.providers[0]?.times ?? [];
@@ -512,7 +512,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     const periodLabel =
       dateKeys.length === 1
-        ? formatDateDisplay(dateKeys[0])
+        ? formatDateDisplay(dateKeys[0], locale)
         : t(locale, 'assistant.recommendPeriodDays', { count: dateKeys.length });
 
     if (providers.length === 0) {
@@ -535,7 +535,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     providers.forEach((provider, index) => {
       const ratingLabel = this.formatProviderRating(provider.averageRating, provider.reviewCount, locale);
       const role = provider.role ? ` (${provider.role})` : '';
-      const dayLabel = formatDateDisplay(provider.earliestDateKey);
+      const dayLabel = formatDateDisplay(provider.earliestDateKey, locale);
       const times = provider.previewTimes.join(', ');
       const serviceNote =
         multiService && provider.matchedServiceName
@@ -819,7 +819,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         return {
           success: false,
           action: 'book_appointment',
-          summary: `Sorry — no one is available for ${service.name} at ${this.snapTo10min(params.timeSlot)} on ${formatDateDisplay(isoDay)}. We tried: ${tried}${
+          summary: `Sorry — no one is available for ${service.name} at ${this.snapTo10min(params.timeSlot)} on ${formatDateDisplay(isoDay, locale)}. We tried: ${tried}${
             params.fallbackAnyProvider ? ' and other specialists' : ''
           }.`,
         };
@@ -930,6 +930,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         snappedTime,
         slotServices,
         fit,
+        locale,
       );
       return {
         success: false,
@@ -947,7 +948,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: true,
         action: 'book_appointment',
-        summary: `Great — ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
+        summary: `Great — ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
         navigate: {
           path: 'checkout',
           query: {
@@ -985,7 +986,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: true,
         action: 'book_appointment',
-        summary: `You're booked! ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date)} (${range}).`,
+        summary: `You're booked! ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} (${range}).`,
         bookingId,
       };
     } catch (err: any) {
@@ -1100,8 +1101,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       failureReason?: string;
       message?: string;
     },
+    locale: AppLocale,
   ): string {
-    const dateStr = formatDateDisplay(date);
+    const dateStr = formatDateDisplay(date, locale);
     const lines: string[] = [`${service.name} isn't available at ${time} on ${dateStr}.`];
 
     const required = fit.requiredMinutes ?? service.durationMinutes + service.bufferMinutes;
@@ -1158,6 +1160,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     result: PublicAssistantResult,
     params: Record<string, any>,
     employees: Employee[],
+    locale: AppLocale,
   ): PublicAssistantResult {
     const employee = params.employeeName
       ? this.fuzzyMatchByName(employees, params.employeeName)
@@ -1167,7 +1170,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       ...result,
       sessionContext: {
         employeeName: employee?.name ?? params.employeeName ?? null,
-        date: params.date ? formatDateDisplay(params.date) : null,
+        date: params.date ? formatDateDisplay(params.date, locale) : null,
         serviceName: params.serviceName ?? null,
         serviceCategory: params.serviceCategory ?? null,
         timeSlot: params.timeSlot ?? null,

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearStoredLocale } from '../i18n/locale-storage';
 
 export interface BusinessSummary {
   id: string;
@@ -10,8 +11,20 @@ export interface BusinessSummary {
 }
 
 interface AuthState {
-  user: { id: string; email: string; firstName?: string; lastName?: string } | null;
-  business: { id: string; name: string; slug?: string; membershipRole?: string } | null;
+  user: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    locale?: string;
+  } | null;
+  business: {
+    id: string;
+    name: string;
+    slug?: string;
+    membershipRole?: string;
+    locale?: string;
+  } | null;
   employee: { id: string; name: string } | null;
   businesses: BusinessSummary[];
   token: string | null;
@@ -47,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         localStorage.removeItem('token');
+        clearStoredLocale();
         set({
           user: null,
           business: null,

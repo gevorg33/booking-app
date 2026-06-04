@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Clock,
   Plus,
@@ -18,7 +18,15 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
-import { formatDateDisplay, getTodayDateKey, addCalendarDays, todayDateAnchor, toDateKey } from '@/lib/date-format';
+import {
+  formatDateDisplay,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
+  addCalendarDays,
+  todayDateAnchor,
+  toDateKey,
+} from '@/lib/date-format';
+import type { AppLocale } from '@/i18n/types';
 import { DatePicker } from '@/components/ui/date-picker';
 import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
@@ -73,20 +81,22 @@ function getDirectOverlappingIndexes(
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAYS_OF_WEEK = [
-  { label: 'Sun', value: 0, key: 'isActiveOnSunday' },
-  { label: 'Mon', value: 1, key: 'isActiveOnMonday' },
-  { label: 'Tue', value: 2, key: 'isActiveOnTuesday' },
-  { label: 'Wed', value: 3, key: 'isActiveOnWednesday' },
-  { label: 'Thu', value: 4, key: 'isActiveOnThursday' },
-  { label: 'Fri', value: 5, key: 'isActiveOnFriday' },
-  { label: 'Sat', value: 6, key: 'isActiveOnSaturday' },
+const DAYS_OF_WEEK_CONFIG = [
+  { value: 0, key: 'isActiveOnSunday' as const },
+  { value: 1, key: 'isActiveOnMonday' as const },
+  { value: 2, key: 'isActiveOnTuesday' as const },
+  { value: 3, key: 'isActiveOnWednesday' as const },
+  { value: 4, key: 'isActiveOnThursday' as const },
+  { value: 5, key: 'isActiveOnFriday' as const },
+  { value: 6, key: 'isActiveOnSaturday' as const },
 ];
 
-const PERIOD_TYPES = [
-  { value: 'service_block', label: 'Available' },
-  { value: 'unavailable_block', label: 'Unavailable' },
-];
+function buildDaysOfWeek(locale?: AppLocale) {
+  return DAYS_OF_WEEK_CONFIG.map((day) => ({
+    ...day,
+    label: formatWeekdayShortByDayIndex(day.value, locale),
+  }));
+}
 
 function mapPeriodsForSave(
   periods: (TimePeriod & { serviceIds?: string[] })[],
@@ -177,6 +187,16 @@ interface PeriodEditorProps {
 }
 
 function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActiveDays = true, overlapIndexes }: PeriodEditorProps) {
+  const { t, locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
+  const periodTypes = useMemo(
+    () => [
+      { value: 'service_block', label: t('schedule.periodAvailable') },
+      { value: 'unavailable_block', label: t('schedule.periodUnavailable') },
+    ],
+    [t],
+  );
+
   const toggleService = (periodIdx: number, serviceId: string) => {
     const current: string[] = (periods[periodIdx] as any).serviceIds || [];
     const next = current.includes(serviceId)
@@ -188,9 +208,9 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">Time Periods</h4>
+        <h4 className="text-sm font-medium text-gray-300">{t('schedule.timePeriods')}</h4>
         <button onClick={onAdd} className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1">
-          <Plus className="w-3 h-3" /> Add Period
+          <Plus className="w-3 h-3" /> {t('common.addPeriod')}
         </button>
       </div>
 
@@ -199,7 +219,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
         return (
         <div key={i} className={`border rounded-lg p-4 space-y-3 ${hasOverlap ? 'border-red-500/60 bg-red-950/10' : 'border-gray-700'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">Period {i + 1}</span>
+            <span className="text-sm font-medium text-gray-300">{t('schedule.periodNumber', { n: i + 1 })}</span>
             {periods.length > 1 && (
               <button onClick={() => onRemove(i)} className="text-red-400 hover:text-red-300">
                 <X className="w-4 h-4" />
@@ -209,44 +229,44 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
           {hasOverlap && (
             <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 border border-red-700/40 rounded px-3 py-1.5">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              This period overlaps with another. Periods must be completely independent time blocks.
+              {t('schedule.overlapWarning')}
             </div>
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
-              <label className="label">Type</label>
+              <label className="label">{t('common.type')}</label>
               <select
                 className="input"
                 value={period.type}
                 onChange={(e) => onUpdate(i, 'type', e.target.value)}
               >
-                {PERIOD_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {periodTypes.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Start Time <span className="text-gray-500 text-[10px]">(24h)</span></label>
+              <label className="label">{t('common.startTime')} <span className="text-gray-500 text-[10px]">{t('common.timeFormat24h')}</span></label>
               <TimeInput
                 value={period.startTime}
                 onChange={(v) => onUpdate(i, 'startTime', v)}
               />
             </div>
             <div>
-              <label className="label">End Time <span className="text-gray-500 text-[10px]">(24h)</span></label>
+              <label className="label">{t('common.endTime')} <span className="text-gray-500 text-[10px]">{t('common.timeFormat24h')}</span></label>
               <TimeInput
                 value={period.endTime}
                 onChange={(v) => onUpdate(i, 'endTime', v)}
               />
             </div>
             <div>
-              <label className="label">Label</label>
+              <label className="label">{t('common.label')}</label>
               <input
                 className="input"
                 value={period.placeholderLabel || ''}
                 onChange={(e) => onUpdate(i, 'placeholderLabel', e.target.value)}
-                placeholder="e.g. Morning Shift"
+                placeholder={t('schedule.placeholderShiftLabel')}
               />
             </div>
           </div>
@@ -255,9 +275,9 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
           {period.type === 'service_block' && (
             <>
               <div>
-                <label className="label mb-2">Services</label>
+                <label className="label mb-2">{t('nav.services')}</label>
                 {services.length === 0 ? (
-                  <p className="text-xs text-gray-500">No services found. Add services first.</p>
+                  <p className="text-xs text-gray-500">{t('schedule.noServicesHint')}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {services.map((svc: any) => {
@@ -282,7 +302,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
                 )}
               </div>
               <div>
-                <label className="label">Max Appointments per Slot</label>
+                <label className="label">{t('schedule.maxAppointmentsPerSlot')}</label>
                 <input
                   type="number"
                   className="input max-w-[120px]"
@@ -297,9 +317,9 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
           {/* Active days — only for templates */}
           {showActiveDays && (
             <div>
-              <label className="label mb-2">Active Days</label>
+              <label className="label mb-2">{t('schedule.activeDays')}</label>
               <div className="flex gap-2">
-                {DAYS_OF_WEEK.map((day) => (
+                {daysOfWeek.map((day) => (
                   <button
                     key={day.key}
                     type="button"
@@ -328,7 +348,8 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
 type Tab = 'create' | 'templates' | 'blocks';
 
 export default function SchedulePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
   const { business } = useAuthStore();
   const { setTemplates, setApplyResult } = useSchedulingStore();
   const queryClient = useQueryClient();
@@ -363,7 +384,7 @@ export default function SchedulePage() {
           <AiSuggestionsStack>
             <AiContextualSuggestions
               context={{ route: '/dashboard/schedule', scheduleTab: tab }}
-              title="Schedule opportunities"
+              title={t('schedule.aiInsightsTitle')}
             />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/schedule']}
@@ -375,7 +396,7 @@ export default function SchedulePage() {
         <PageHelpHeader
           topicId="schedule"
           title={t('schedule.title')}
-          subtitle="Create day schedules, manage templates, or block time on existing schedules"
+          subtitle={t('schedule.subtitle')}
         />
       </DashboardPageShell>
 
@@ -390,7 +411,7 @@ export default function SchedulePage() {
           }`}
         >
           <CalendarDays className="w-4 h-4" />
-          Create Schedule
+          {t('schedule.tabCreate')}
         </button>
         <button
           onClick={() => setTab('templates')}
@@ -401,7 +422,7 @@ export default function SchedulePage() {
           }`}
         >
           <LayoutTemplate className="w-4 h-4" />
-          Schedule Templates
+          {t('schedule.tabTemplates')}
         </button>
         <button
           onClick={() => setTab('blocks')}
@@ -412,7 +433,7 @@ export default function SchedulePage() {
           }`}
         >
           <Ban className="w-4 h-4" />
-          Block Schedule
+          {t('schedule.tabBlock')}
         </button>
       </div>
 
@@ -452,6 +473,7 @@ function CreateScheduleTab({
   services: any[];
   queryClient: any;
 }) {
+  const { t, locale } = useI18n();
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState(getTodayDateKey());
   const [periods, setPeriods] = useState<(TimePeriod & { serviceIds?: string[] })[]>([
@@ -485,7 +507,7 @@ function CreateScheduleTab({
       queryClient.invalidateQueries({ queryKey: ['slots'] });
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || 'Failed to create schedule');
+      setError(err?.response?.data?.message || t('schedule.createFailed'));
     },
   });
 
@@ -503,9 +525,17 @@ function CreateScheduleTab({
         <div className="flex items-center gap-3 mb-4">
           <CheckCircle2 className="w-8 h-8 text-green-400 shrink-0" />
           <div>
-            <p className="font-semibold text-green-300">Schedule Created</p>
+            <p className="font-semibold text-green-300">{t('schedule.createdTitle')}</p>
             <p className="text-sm text-gray-400">
-              {successInfo.slotsCreated} slot{successInfo.slotsCreated !== 1 ? 's' : ''} generated for {formatDateDisplay(date)}
+              {successInfo.slotsCreated === 1
+                ? t('schedule.slotsGeneratedOne', {
+                    count: successInfo.slotsCreated,
+                    date: formatDateDisplay(date, locale),
+                  })
+                : t('schedule.slotsGeneratedMany', {
+                    count: successInfo.slotsCreated,
+                    date: formatDateDisplay(date, locale),
+                  })}
             </p>
           </div>
         </div>
@@ -514,7 +544,7 @@ function CreateScheduleTab({
             AI: {successInfo.optimization.reasoning}
           </p>
         )}
-        <button onClick={handleReset} className="btn-primary">Create Another</button>
+        <button onClick={handleReset} className="btn-primary">{t('schedule.createAnother')}</button>
       </div>
     );
   }
@@ -523,29 +553,28 @@ function CreateScheduleTab({
     <div className="card max-w-3xl">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <CalendarDays className="w-5 h-5 text-blue-400" />
-        Create Schedule for a Day
+        {t('schedule.createForDayTitle')}
       </h2>
       <p className="text-sm text-gray-400 mb-5">
-        Define time periods directly for an employee on a specific date — no template needed.
-        Each period can be assigned different services.
+        {t('schedule.createForDayDesc')}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div>
-          <label className="label">Employee</label>
+          <label className="label">{t('common.employee')}</label>
           <select
             className="input"
             value={employeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
           >
-            <option value="">Select employee...</option>
+            <option value="">{t('common.selectEmployee')}</option>
             {employees.map((emp: any) => (
               <option key={emp.id} value={emp.id}>{emp.name}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="label">Date</label>
+          <label className="label">{t('common.date')}</label>
           <DatePicker
             value={date}
             min={getTodayDateKey()}
@@ -581,13 +610,13 @@ function CreateScheduleTab({
                 onClick={() => createMutation.mutate()}
                 className="btn-primary"
                 disabled={!employeeId || !date || periods.length === 0 || hasAnyOverlap || createMutation.isPending}
-                title={hasAnyOverlap ? 'Fix overlapping periods before saving' : undefined}
+                title={hasAnyOverlap ? t('schedule.overlapSaveTitle') : undefined}
               >
-                {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
+                {createMutation.isPending ? t('common.creating') : t('schedule.createSchedule')}
               </button>
               {hasAnyOverlap && (
                 <p className="text-xs text-red-400 self-center">
-                  Fix overlapping periods first
+                  {t('schedule.overlapFixFirst')}
                 </p>
               )}
             </div>
@@ -615,7 +644,8 @@ function TemplatesTab({
   setTemplates: (templates: any[], total: number) => void;
   setApplyResult: (result: any) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showApply, setShowApply] = useState<string | null>(null);
@@ -768,7 +798,7 @@ function TemplatesTab({
         <div className="flex items-center gap-3 flex-1 max-w-sm">
           <input
             className="input"
-            placeholder="Search templates..."
+            placeholder={t('schedule.searchTemplates')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -779,7 +809,7 @@ function TemplatesTab({
               onClick={() => deleteMutation.mutate(selected)}
               className="flex items-center gap-2 px-4 py-2 bg-red-600/10 text-red-400 rounded-lg text-sm hover:bg-red-600/20 transition-colors"
             >
-              <Trash2 className="w-4 h-4" /> Delete ({selected.length})
+              <Trash2 className="w-4 h-4" /> {t('schedule.deleteSelected', { count: selected.length })}
             </button>
           )}
           <button
@@ -811,20 +841,19 @@ function TemplatesTab({
           )}
 
           <div className="mb-5">
-            <label className="label">Template Name</label>
+            <label className="label">{t('schedule.templateName')}</label>
             <input
               className="input max-w-md"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value.slice(0, 50))}
-              placeholder="e.g. Morning Schedule"
+              placeholder={t('schedule.placeholderTemplateName')}
               maxLength={50}
             />
             <p className="text-xs text-gray-500 mt-1">{templateName.length}/50</p>
           </div>
 
           <p className="text-xs text-gray-400 mb-4">
-            Define time periods below. Each period specifies which days it is active and which services it covers.
-            When you apply this template, slots are generated only on the matching weekdays.
+            {t('schedule.templatePeriodsHelp')}
           </p>
 
           {(() => {
@@ -860,7 +889,7 @@ function TemplatesTab({
                     onClick={() => (editingId ? updateMutation.mutate() : createMutation.mutate())}
                     className="btn-primary"
                     disabled={!templateName || periods.length === 0 || hasTemplateOverlap || isSaving}
-                    title={hasTemplateOverlap ? 'Fix overlapping periods before saving' : undefined}
+                    title={hasTemplateOverlap ? t('schedule.overlapSaveTitle') : undefined}
                   >
                     {isSaving
                       ? t('schedule.saving')
@@ -872,7 +901,7 @@ function TemplatesTab({
                     {t('common.cancel')}
                   </button>
                   {hasTemplateOverlap && (
-                    <p className="text-xs text-red-400">Fix overlapping periods first</p>
+                    <p className="text-xs text-red-400">{t('schedule.overlapFixFirst')}</p>
                   )}
                 </div>
               </>
@@ -887,7 +916,7 @@ function TemplatesTab({
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Play className="w-5 h-5 text-green-400" />
-              Apply Template
+              {t('schedule.applyTemplateTitle')}
             </h3>
             <button onClick={() => setShowApply(null)} className="text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
@@ -896,20 +925,20 @@ function TemplatesTab({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="label">Employee</label>
+              <label className="label">{t('common.employee')}</label>
               <select
                 className="input"
                 value={applyForm.employeeId}
                 onChange={(e) => setApplyForm({ ...applyForm, employeeId: e.target.value })}
               >
-                <option value="">Select employee...</option>
+                <option value="">{t('common.selectEmployee')}</option>
                 {employees.map((emp: any) => (
                   <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Repeat Weeks</label>
+              <label className="label">{t('common.repeatWeeks')}</label>
               <input
                 type="number"
                 className="input"
@@ -920,14 +949,14 @@ function TemplatesTab({
               />
             </div>
             <div>
-              <label className="label">Start Date</label>
+              <label className="label">{t('common.startDate')}</label>
               <DatePicker
                 value={applyForm.startDate}
                 onChange={(startDate) => setApplyForm({ ...applyForm, startDate })}
               />
             </div>
             <div>
-              <label className="label">End Date</label>
+              <label className="label">{t('common.endDate')}</label>
               <DatePicker
                 value={applyForm.endDate}
                 onChange={(endDate) => setApplyForm({ ...applyForm, endDate })}
@@ -936,9 +965,9 @@ function TemplatesTab({
           </div>
 
           <div className="mb-4">
-            <label className="label mb-2">Apply on Days</label>
+            <label className="label mb-2">{t('schedule.applyOnDays')}</label>
             <div className="flex gap-2">
-              {DAYS_OF_WEEK.map((day) => (
+              {daysOfWeek.map((day) => (
                 <button
                   key={day.value}
                   type="button"
@@ -962,9 +991,9 @@ function TemplatesTab({
               disabled={!applyForm.employeeId || applyForm.applyDays.length === 0 || applyMutation.isPending}
             >
               <Play className="w-4 h-4" />
-              {applyMutation.isPending ? 'Applying...' : 'Apply Template'}
+              {applyMutation.isPending ? t('common.applying') : t('schedule.applyTemplateTitle')}
             </button>
-            <button onClick={() => setShowApply(null)} className="btn-secondary">Cancel</button>
+            <button onClick={() => setShowApply(null)} className="btn-secondary">{t('common.cancel')}</button>
           </div>
 
           {applyMutation.isSuccess && (
@@ -972,11 +1001,12 @@ function TemplatesTab({
               <div className="flex items-center gap-2 text-green-400 text-sm">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>
-                  Template applied —{' '}
-                  {(applyMutation.data as any)?.data?.slotsCreated ??
-                    (applyMutation.data as any)?.slotsCreated ??
-                    'N/A'}{' '}
-                  slots created
+                  {t('schedule.applySuccess', {
+                    slots:
+                      (applyMutation.data as any)?.data?.slotsCreated ??
+                      (applyMutation.data as any)?.slotsCreated ??
+                      t('common.notApplicable'),
+                  })}
                 </span>
               </div>
               {((applyMutation.data as any)?.data?.optimization?.reasoning ||
@@ -995,15 +1025,15 @@ function TemplatesTab({
       {/* Templates Table */}
       <div className="card">
         {isLoading ? (
-          <div className="text-center py-12 text-gray-500">Loading templates...</div>
+          <div className="text-center py-12 text-gray-500">{t('schedule.loadingTemplates')}</div>
         ) : templates.length === 0 ? (
           <div className="text-center py-12">
             <LayoutTemplate className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">
-              {search ? `No templates matching "${search}"` : 'No schedule templates yet'}
+              {search ? t('schedule.templatesNoMatch', { search }) : t('schedule.templatesEmpty')}
             </p>
             <p className="text-gray-500 text-sm mt-1">
-              Create a template with time periods, then apply it to an employee over a date range
+              {t('schedule.templatesEmptyHint')}
             </p>
           </div>
         ) : (
@@ -1034,7 +1064,7 @@ function TemplatesTab({
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         {periodsArr.length > 0 ? (
                           <span className="text-xs text-gray-400">
-                            {periodsArr.length} period{periodsArr.length > 1 ? 's' : ''} &middot;{' '}
+                            {t('schedule.periodsCount', { count: periodsArr.length })} &middot;{' '}
                             {periodsArr.map((p: any) => `${p.startTime}–${p.endTime}`).join(', ')}
                           </span>
                         ) : template.workingHours ? (
@@ -1052,7 +1082,7 @@ function TemplatesTab({
                         ))}
                         {template.countDaysComplete > 0 && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-green-600/10 text-green-400">
-                            {template.countDaysComplete} days
+                            {t('schedule.daysCount', { count: template.countDaysComplete })}
                           </span>
                         )}
                       </div>
@@ -1077,14 +1107,14 @@ function TemplatesTab({
                     <button
                       onClick={() => duplicateMutation.mutate(template.id)}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                      title="Duplicate"
+                      title={t('common.duplicate')}
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => deleteMutation.mutate([template.id])}
                       className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
-                      title="Delete"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

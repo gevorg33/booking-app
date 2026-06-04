@@ -55,10 +55,18 @@ export function buildCalendarMonth(monthKey: string): CalendarDayCell[] {
   return cells;
 }
 
+function resolveIntlLocale(): string {
+  if (typeof navigator === 'undefined') return 'en-GB';
+  const lang = navigator.language?.slice(0, 2).toLowerCase();
+  if (lang === 'hy') return 'hy-AM';
+  if (lang === 'ru') return 'ru-RU';
+  return 'en-GB';
+}
+
 export function formatMonthYearLabel(monthKey: string): string {
   const anchor = parseDateKey(monthKey);
   if (!anchor) return monthKey;
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(resolveIntlLocale(), {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',

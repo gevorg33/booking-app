@@ -11,10 +11,31 @@ export function getTodayDateKey(timeZone = 'UTC'): string {
   return getDateKeyInTimezone(new Date(), timeZone);
 }
 
-/** User-facing date: DD/MM/YYYY (UTC). */
-export function formatDateDisplay(input: Date | string): string {
-  const d = typeof input === 'string' ? parseDateInput(input) : input;
+function intlLocale(locale?: string): string | undefined {
+  if (locale === 'hy') return 'hy-AM';
+  if (locale === 'ru') return 'ru-RU';
+  if (locale === 'en') return 'en-GB';
+  return undefined;
+}
+
+/** User-facing date: locale-aware when locale is en/hy/ru, else DD/MM/YYYY (UTC). */
+export function formatDateDisplay(input: Date | string, locale?: string): string {
+  const d =
+    typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
+      ? new Date(`${input}T12:00:00.000Z`)
+      : typeof input === 'string'
+        ? parseDateInput(input)
+        : input;
   if (!d || Number.isNaN(d.getTime())) return String(input);
+  const intl = intlLocale(locale);
+  if (intl) {
+    return new Intl.DateTimeFormat(intl, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(d);
+  }
   const dd = String(d.getUTCDate()).padStart(2, '0');
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = String(d.getUTCFullYear());
@@ -30,7 +51,24 @@ export function formatTimeDisplay(input: Date | string): string {
   return `${hh}:${min}`;
 }
 
-export function formatTimeRangeDisplay(start: Date | string, end: Date | string): string {
+export function formatTimeRangeDisplay(
+  start: Date | string,
+  end: Date | string,
+  locale?: string,
+): string {
+  const s = typeof start === 'string' ? new Date(start) : start;
+  const e = typeof end === 'string' ? new Date(end) : end;
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) {
+    return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
+  }
+  const intl = intlLocale(locale);
+  if (intl && typeof Intl.DateTimeFormat.prototype.formatRange === 'function') {
+    return new Intl.DateTimeFormat(intl, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatRange(s, e);
+  }
   return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
 }
 

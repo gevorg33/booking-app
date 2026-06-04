@@ -1,8 +1,45 @@
+export { resolveDisplayLocale, toIntlLocale } from '@/lib/app-locale';
+export {
+  addCalendarDays,
+  getBrowserTimeZone,
+  getTodayDateKey,
+  parseDateInput,
+  parseDateKey,
+  parseDisplayDate,
+  todayDateAnchor,
+  toDateKey,
+} from '@/lib/calendar-date.util';
+export {
+  formatAppointmentDateLabel,
+  formatDateKeyPublicLabel,
+  formatDateKeyStripParts,
+  formatNearestSlotDateLabel,
+  formatWeekdayShortByDayIndex,
+  resolveNearestSlotDateLabel,
+} from '@/lib/locale-date-format';
+
+import { resolveDisplayLocale, toIntlLocale } from '@/lib/app-locale';
+import {
+  addCalendarDays,
+  getBrowserTimeZone,
+  getTodayDateKey,
+  parseDateInput,
+  parseDateKey,
+  parseDisplayDate,
+  todayDateAnchor,
+  toDateKey,
+} from '@/lib/calendar-date.util';
+
 /** Review date for public profile cards: "29 May 2026". */
-export function formatPublicReviewDate(input: Date | string, timeZone = 'UTC'): string {
+export function formatPublicReviewDate(
+  input: Date | string,
+  locale?: string,
+  timeZone = 'UTC',
+): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
-  return new Intl.DateTimeFormat('en-GB', {
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale)) ?? 'en-GB';
+  return new Intl.DateTimeFormat(intlLocale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -12,10 +49,9 @@ export function formatPublicReviewDate(input: Date | string, timeZone = 'UTC'): 
 
 /** User-facing date: locale-aware short format. */
 export function formatDateDisplay(input: Date | string, locale?: string): string {
-  const d = typeof input === 'string' ? parseDateInput(input) : input;
+  const d = parseDisplayDate(input);
   if (!d || Number.isNaN(d.getTime())) return String(input);
-  const intlLocale =
-    locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale));
   if (intlLocale) {
     return new Intl.DateTimeFormat(intlLocale, {
       day: '2-digit',
@@ -30,54 +66,102 @@ export function formatDateDisplay(input: Date | string, locale?: string): string
   return `${dd}/${mm}/${yyyy}`;
 }
 
-/** User-facing time: 24-hour HH:mm (defaults to UTC). Pass timeZone for timezone-aware display. */
-export function formatTimeDisplay(input: Date | string, timeZone = 'UTC'): string {
+/** User-facing time: 24-hour HH:mm. Schedule slots use UTC wall-clock via formatScheduleTime. */
+export function formatTimeDisplay(
+  input: Date | string,
+  locale?: string,
+  timeZone = 'UTC',
+): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone,
-  }).format(d);
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale));
+  if (intlLocale) {
+    return new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone,
+    }).format(d);
+  }
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const min = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${min}`;
 }
 
 /**
  * Schedule/booking times are stored with UTC hour/minute matching business wall clock
  * (e.g. 10:00 in the dashboard = 10:00 UTC). Use this for public booking slot labels.
  */
-export function formatScheduleTime(input: Date | string): string {
+export function formatScheduleTime(input: Date | string, locale?: string): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale));
+  if (intlLocale) {
+    return new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }).format(d);
+  }
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const min = String(d.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${min}`;
 }
 
+export function formatScheduleTimeRange(
+  start: Date | string,
+  end: Date | string,
+  locale?: string,
+): string {
+  const s = typeof start === 'string' ? new Date(start) : start;
+  const e = typeof end === 'string' ? new Date(end) : end;
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) {
+    return `${formatScheduleTime(start, locale)}–${formatScheduleTime(end, locale)}`;
+  }
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale));
+  if (intlLocale && typeof Intl.DateTimeFormat.prototype.formatRange === 'function') {
+    return new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }).formatRange(s, e);
+  }
+  return `${formatScheduleTime(start, locale)}–${formatScheduleTime(end, locale)}`;
+}
+
 export function formatTimeRangeDisplay(
   start: Date | string,
   end: Date | string,
+  locale?: string,
   timeZone = 'UTC',
 ): string {
-  return `${formatTimeDisplay(start, timeZone)}–${formatTimeDisplay(end, timeZone)}`;
+  const s = typeof start === 'string' ? new Date(start) : start;
+  const e = typeof end === 'string' ? new Date(end) : end;
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) {
+    return `${formatTimeDisplay(start, locale, timeZone)}–${formatTimeDisplay(end, locale, timeZone)}`;
+  }
+  const intlLocale = toIntlLocale(resolveDisplayLocale(locale));
+  if (intlLocale && typeof Intl.DateTimeFormat.prototype.formatRange === 'function') {
+    return new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone,
+    }).formatRange(s, e);
+  }
+  return `${formatTimeDisplay(start, locale, timeZone)}–${formatTimeDisplay(end, locale, timeZone)}`;
 }
 
-/** Parse DD_MM_YYYY, DD/MM/YYYY, or YYYY-MM-DD into a UTC midnight Date. */
-export function parseDateInput(value: string): Date | null {
-  const display = value.match(/^(\d{2})_(\d{2})_(\d{4})$/);
-  if (display) {
-    return new Date(`${display[3]}-${display[2]}-${display[1]}T00:00:00.000Z`);
-  }
-  const slash = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (slash) {
-    return new Date(`${slash[3]}-${slash[2]}-${slash[1]}T00:00:00.000Z`);
-  }
-  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) {
-    return new Date(`${value}T00:00:00.000Z`);
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+/** Date + schedule time range for booking summaries. */
+export function formatBookingDateTimeRange(
+  start: Date | string,
+  end: Date | string,
+  locale?: string,
+): string {
+  const startDate = typeof start === 'string' ? new Date(start) : start;
+  return `${formatDateDisplay(startDate, locale)} · ${formatScheduleTimeRange(start, end, locale)}`;
 }
 
 /** Normalize user/LLM date to ISO day for APIs and date inputs. */
@@ -85,48 +169,6 @@ export function toIsoDay(value: string): string {
   const d = parseDateInput(value);
   if (!d) return value;
   return d.toISOString().split('T')[0];
-}
-
-export function getTodayDateKey(timeZone?: string): string {
-  const tz = timeZone ?? getBrowserTimeZone();
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
-}
-
-export function getBrowserTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
-
-/** YYYY-MM-DD for HTML date inputs and API day filters (browser timezone). */
-export function toDateKey(d: Date, timeZone?: string): string {
-  const tz = timeZone ?? getBrowserTimeZone();
-  if (Number.isNaN(d.getTime())) return getTodayDateKey(tz);
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
-}
-
-/** Stable Date anchor for a calendar day key (UTC noon on that day). */
-export function parseDateKey(value: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const d = new Date(`${value}T12:00:00.000Z`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-/** Today as a stable Date anchor in the user's timezone. */
-export function todayDateAnchor(timeZone?: string): Date {
-  return parseDateKey(getTodayDateKey(timeZone)) ?? new Date();
-}
-
-/** Add calendar days without UTC day-boundary drift. */
-export function addCalendarDays(d: Date, days: number, timeZone?: string): Date {
-  const key = toDateKey(d, timeZone);
-  const [y, m, day] = key.split('-').map((n) => parseInt(n, 10));
-  const shifted = new Date(Date.UTC(y, m - 1, day));
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  const iso = `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`;
-  return parseDateKey(iso) ?? shifted;
 }
 
 export function todayDisplay(timeZone?: string): string {
@@ -146,3 +188,4 @@ export function isExpiredAt(expiresAt: string | Date | null | undefined): boolea
   const d = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
   return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
 }
+

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { I18nProvider, type AppLocale } from '@/i18n';
+import type { Theme } from '@/lib/theme';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AppDialogHost } from '@/components/app-dialog-host';
 import { AppToaster } from '@/components/ui/app-toaster';
@@ -11,9 +12,11 @@ import { OperationFeedbackHost } from '@/components/operation-feedback/operation
 export function Providers({
   children,
   initialLocale = 'en',
+  initialTheme = 'dark',
 }: {
   children: ReactNode;
   initialLocale?: AppLocale;
+  initialTheme?: Theme;
 }) {
   const [queryClient] = useState(
     () =>
@@ -25,7 +28,7 @@ export function Providers({
   );
 
   return (
-    <ThemeProvider>
+    <ThemeProvider initialTheme={initialTheme}>
       <I18nProvider initialLocale={initialLocale}>
         <QueryClientProvider client={queryClient}>
           {children}

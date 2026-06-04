@@ -18,6 +18,7 @@ import {
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { useI18n } from '../i18n';
 
 type GiftCardOrder = {
   id: string;
@@ -33,6 +34,7 @@ type GiftCardOrder = {
 };
 
 export default function GiftCardQueuesPage() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [queue, setQueue] = useState<'creation' | 'delivery'>('creation');
@@ -102,15 +104,15 @@ export default function GiftCardQueuesPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Gift cards</IonTitle>
+          <IonTitle>{t('provider.navGiftCards')}</IonTitle>
         </IonToolbar>
         <IonToolbar>
           <IonSegment value={queue} onIonChange={(e) => setQueue(e.detail.value as 'creation' | 'delivery')}>
             <IonSegmentButton value="creation">
-              <span>Card creation</span>
+              <span>{t('provider.giftCardCreationTab')}</span>
             </IonSegmentButton>
             <IonSegmentButton value="delivery">
-              <span>Delivery</span>
+              <span>{t('provider.giftCardDeliveryTab')}</span>
             </IonSegmentButton>
           </IonSegment>
         </IonToolbar>
@@ -121,12 +123,14 @@ export default function GiftCardQueuesPage() {
             <IonSpinner />
           </div>
         ) : orders.length === 0 ? (
-          <p className="ion-text-center ion-padding">No orders in this queue.</p>
+          <p className="ion-text-center ion-padding">{t('provider.giftCardQueueEmpty')}</p>
         ) : (
           orders.map((order) => (
             <IonCard key={order.id}>
               <IonCardHeader>
-                <IonCardTitle>{order.recipientName ?? 'Gift card order'}</IonCardTitle>
+                <IonCardTitle>
+                  {order.recipientName ?? t('provider.giftCardOrderFallback')}
+                </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>
                 <p>Type: {order.cardType}</p>
@@ -149,7 +153,7 @@ export default function GiftCardQueuesPage() {
                     disabled={markReadyMutation.isPending}
                     onClick={() => markReadyMutation.mutate(order.id)}
                   >
-                    Mark card ready
+                    {t('provider.giftCardMarkReady')}
                   </IonButton>
                 )}
                 {queue === 'delivery' && order.fulfillmentStatus === 'ready_for_delivery' && (
@@ -159,7 +163,7 @@ export default function GiftCardQueuesPage() {
                     disabled={outForDeliveryMutation.isPending}
                     onClick={() => outForDeliveryMutation.mutate(order.id)}
                   >
-                    Accept pickup
+                    {t('provider.giftCardAcceptPickup')}
                   </IonButton>
                 )}
                 {queue === 'delivery' && order.fulfillmentStatus === 'out_for_delivery' && (
@@ -170,7 +174,7 @@ export default function GiftCardQueuesPage() {
                     disabled={deliveredMutation.isPending}
                     onClick={() => deliveredMutation.mutate(order.id)}
                   >
-                    Mark delivered
+                    {t('provider.giftCardMarkDelivered')}
                   </IonButton>
                 )}
               </IonCardContent>

@@ -8,12 +8,12 @@ describe('mergeBusinessSettings', () => {
     };
     const patch = {
       publicBooking: { acceptCashPayments: true },
-      bookings: { calendarPayAtVenueFilterDefault: true },
+      reports: { weeklyDigest: true },
     };
     expect(mergeBusinessSettings(existing, patch)).toEqual({
       branding: { logoUrl: 'https://cdn/logo.png' },
       publicBooking: { enabled: true, acceptCashPayments: true },
-      bookings: { calendarPayAtVenueFilterDefault: true },
+      reports: { weeklyDigest: true },
     });
   });
 

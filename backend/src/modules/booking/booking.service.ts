@@ -638,11 +638,11 @@ export class BookingService {
       where.hiddenFromCalendar = false;
     }
     if (date) {
-      const dayStart = new Date(date);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(dayStart, dayEnd);
+      const dayStart = new Date(`${date}T00:00:00.000Z`);
+      const dayEnd = new Date(`${date}T23:59:59.999Z`);
+      if (!Number.isNaN(dayStart.getTime())) {
+        where.startTime = Between(dayStart, dayEnd);
+      }
     }
     if (employeeId) {
       where.employeeId = employeeId;

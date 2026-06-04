@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsInt, Min, IsBoolean } from 'class-validator';
+import { LocalizedNamesDto } from './localized-names.dto.js';
 
-export class CreateServiceCategoryDto {
+export class CreateServiceCategoryDto extends LocalizedNamesDto {
   @IsString()
   name: string;
 
@@ -14,7 +15,7 @@ export class CreateServiceCategoryDto {
   sortOrder?: number;
 }
 
-export class UpdateServiceCategoryDto {
+export class UpdateServiceCategoryDto extends LocalizedNamesDto {
   @IsOptional()
   @IsString()
   name?: string;

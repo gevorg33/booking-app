@@ -76,7 +76,7 @@ describe('ai-intent-heuristics', () => {
       { id: 'c2', name: 'Jujo' },
     ];
     const prompt =
-      "Move Gevorg's appointment on June 1 to June 2nd nearest free time";
+      "Move Gevorg's appointment on June 15 to June 16th nearest free time";
 
     it('treats Gevorg as provider, not customer', () => {
       expect(extractProviderPossessiveFromReschedulePrompt(prompt, employees)?.name).toBe(
@@ -85,9 +85,9 @@ describe('ai-intent-heuristics', () => {
       expect(extractCustomerFromReschedulePrompt(prompt, customers, employees)).toBeUndefined();
     });
 
-    it('parses June 1 as source and June 2 as destination', () => {
-      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('01/06/2026');
-      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('02/06/2026');
+    it('parses source and destination month-day dates', () => {
+      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('15/06/2026');
+      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('16/06/2026');
     });
   });
 

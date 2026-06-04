@@ -101,7 +101,7 @@ export default function CustomersPage() {
                 search: debouncedSearch.trim() || null,
                 segmentFilter: params.segment ?? null,
               }}
-              title="Customer insights"
+              title={t('customers.aiInsightsTitle')}
             />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/customers']}
@@ -235,7 +235,7 @@ export default function CustomersPage() {
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.email')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('common.phone')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.appointments')}</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">No-shows</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">{t('customers.columnNoShows')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.upcoming')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('customers.lastVisit')}</th>
                     <SortableColumnHeader

@@ -3,12 +3,24 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   type AppLocale,
-  LOCALE_COOKIE,
   LOCALE_LABELS,
   SUPPORTED_LOCALES,
   getMessages,
   translate,
 } from '@/i18n';
+import { readCookieLocale, writeCookieLocale } from '@/lib/locale-cookie';
+import { readPublicCookieLocale, writePublicCookieLocale } from '@/lib/public-locale-cookie';
+
+export type LocaleCookieScope = 'app' | 'public';
+
+function readScopedCookie(scope: LocaleCookieScope): AppLocale | null {
+  return scope === 'public' ? readPublicCookieLocale() : readCookieLocale();
+}
+
+function writeScopedCookie(scope: LocaleCookieScope, locale: AppLocale): void {
+  if (scope === 'public') writePublicCookieLocale(locale);
+  else writeCookieLocale(locale);
+}
 
 interface I18nContextValue {
   locale: AppLocale;
@@ -20,40 +32,32 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-function readCookieLocale(): AppLocale | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]+)`));
-  const value = match?.[1];
-  return SUPPORTED_LOCALES.includes(value as AppLocale) ? (value as AppLocale) : null;
-}
-
-function writeCookieLocale(locale: AppLocale) {
-  if (typeof document === 'undefined') return;
-  document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=31536000;samesite=lax`;
-}
-
 export function I18nProvider({
   children,
   initialLocale = 'en',
+  localeCookie = 'app',
 }: {
   children: ReactNode;
   initialLocale?: AppLocale;
+  /** Which cookie stores the visitor override (`public` on booking pages). */
+  localeCookie?: LocaleCookieScope;
 }) {
-  const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
-
-  useEffect(() => {
-    const stored = readCookieLocale();
-    if (stored) setLocaleState(stored);
-  }, []);
+  const [locale, setLocaleState] = useState<AppLocale>(() => {
+    if (typeof window === 'undefined') return initialLocale;
+    return readScopedCookie(localeCookie) ?? initialLocale;
+  });
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = useCallback((next: AppLocale, options?: { persist?: boolean }) => {
-    setLocaleState(next);
-    if (options?.persist !== false) writeCookieLocale(next);
-  }, []);
+  const setLocale = useCallback(
+    (next: AppLocale, options?: { persist?: boolean }) => {
+      setLocaleState(next);
+      if (options?.persist !== false) writeScopedCookie(localeCookie, next);
+    },
+    [localeCookie],
+  );
 
   const catalog = useMemo(() => getMessages(locale), [locale]);
 

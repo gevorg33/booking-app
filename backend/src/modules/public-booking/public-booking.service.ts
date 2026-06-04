@@ -34,13 +34,22 @@ import {
 import { readBusinessGiftCardSettings } from '../gift-cards/gift-card.types.js';
 import {
   addDaysToDateKey,
-  formatZonedDateLabel,
   getDateKeyInTimezone,
   getUtcBoundsForDateKey,
   isWallClockSlotBookable,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
+import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  extractPublicProfileLocalesFromSettings,
+  resolvePublicProfileField,
+} from '../../common/i18n/business-public-profile-locales.util.js';
+import { formatNearestSlotDateLabel } from '../../common/i18n/locale-date.util.js';
+import {
+  extractLocalizedNamesFromMetadata,
+  resolveLocalizedDisplayName,
+} from '../../common/i18n/service-localized-names.util.js';
 import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -270,8 +279,13 @@ export class PublicBookingService {
     return resolvePublicAssetUrl(url, this.publicApiBaseUrl());
   }
 
-  toPublicProfile(business: Business): PublicBusinessProfile {
+  toPublicProfile(business: Business, displayLocale?: AppLocale): PublicBusinessProfile {
     const settings = business.settings || {};
+    const locale =
+      displayLocale ?? this.resolvePublicDisplayLocale(business, null);
+    const profileLocales = extractPublicProfileLocalesFromSettings(
+      settings as Record<string, unknown>,
+    );
     const branding = settings.branding || {};
     const publicBooking = settings.publicBooking || {};
     const social = settings.social || {};
@@ -295,18 +309,23 @@ export class PublicBookingService {
 
     return {
       id: business.id,
-      name: business.name,
+      name: resolvePublicProfileField(business.name, profileLocales, locale, 'name') ?? business.name,
       slug: business.slug,
-      description: business.description ?? undefined,
+      description: resolvePublicProfileField(
+        business.description,
+        profileLocales,
+        locale,
+        'description',
+      ),
       phone: business.phone ?? undefined,
       email: business.email ?? undefined,
-      address: business.address ?? undefined,
+      address: resolvePublicProfileField(business.address, profileLocales, locale, 'address'),
       timezone: business.timezone,
       locale: settings.locale || 'en',
       branding: {
         logoUrl: this.resolvePublicMediaUrl(branding.logoUrl),
         primaryColor: branding.primaryColor || '#7c3aed',
-        tagline: branding.tagline,
+        tagline: resolvePublicProfileField(branding.tagline, profileLocales, locale, 'tagline'),
       },
       social: {
         website: social.website,
@@ -375,11 +394,17 @@ export class PublicBookingService {
     service: Service,
     onlinePaymentsEnabled: boolean,
     hasSubscriptionPlans = false,
+    displayLocale: AppLocale = 'en',
   ) {
     const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
+    const serviceNames = extractLocalizedNamesFromMetadata(service.metadata);
+    const categoryNames = service.category
+      ? extractLocalizedNamesFromMetadata(service.category.metadata)
+      : undefined;
+
     return {
       id: service.id,
-      name: service.name,
+      name: resolveLocalizedDisplayName(service.name, serviceNames, displayLocale),
       description: service.description,
       durationMinutes: service.durationMinutes,
       bufferMinutes: service.bufferMinutes,
@@ -392,7 +417,11 @@ export class PublicBookingService {
       category: service.category
         ? {
             id: service.category.id,
-            name: service.category.name,
+            name: resolveLocalizedDisplayName(
+              service.category.name,
+              categoryNames,
+              displayLocale,
+            ),
             sortOrder: service.category.sortOrder,
           }
         : null,
@@ -413,14 +442,28 @@ export class PublicBookingService {
     });
   }
 
-  async getProfile(slug: string): Promise<PublicBusinessProfile> {
-    const business = await this.resolveBusiness(slug);
-    return this.toPublicProfile(business);
+  private resolvePublicDisplayLocale(
+    business: Business,
+    preferred?: string | null,
+  ): AppLocale {
+    const settings = (business.settings ?? {}) as { locale?: string };
+    return resolveLocale(preferred, resolveLocale(settings.locale, 'en'));
   }
 
-  async getProviders(slug: string, date?: string): Promise<{ providers: PublicProvider[] }> {
+  async getProfile(slug: string, preferredLocale?: string | null): Promise<PublicBusinessProfile> {
+    const business = await this.resolveBusiness(slug);
+    const displayLocale = this.resolvePublicDisplayLocale(business, preferredLocale);
+    return this.toPublicProfile(business, displayLocale);
+  }
+
+  async getProviders(
+    slug: string,
+    date?: string,
+    locale?: string,
+  ): Promise<{ providers: PublicProvider[] }> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
 
     const employees = await this.employeeRepo.find({
       where: { businessId: business.id, isActive: true },
@@ -445,6 +488,7 @@ export class PublicBookingService {
           startDateKey,
           todayKey,
           tz,
+          displayLocale,
         );
         const reviews = reviewSummaries.get(employee.id);
         return {
@@ -783,9 +827,10 @@ export class PublicBookingService {
     return { providers };
   }
 
-  async getServices(slug: string, employeeId?: string) {
+  async getServices(slug: string, employeeId?: string, locale?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
 
     let services = await this.serviceRepo.find({
       where: { businessId: business.id, isActive: true },
@@ -810,7 +855,7 @@ export class PublicBookingService {
     return {
       services: this.sortPublicServices(
         services.map((s) =>
-          this.mapPublicService(s, paymentsReady, planSet.has(s.id)),
+          this.mapPublicService(s, paymentsReady, planSet.has(s.id), displayLocale),
         ),
       ),
     };
@@ -847,11 +892,16 @@ export class PublicBookingService {
     return { subscription: sub };
   }
 
-  async getServicesForSlot(slug: string, employeeId: string, startTime: string) {
+  async getServicesForSlot(
+    slug: string,
+    employeeId: string,
+    startTime: string,
+    locale?: string,
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
-    let { services } = await this.getServices(slug, employeeId);
+    let { services } = await this.getServices(slug, employeeId, locale);
     const start = new Date(startTime);
 
     const allowedIds = await this.bookingService.getAllowedServiceIdsAtInstant(
@@ -2180,6 +2230,7 @@ export class PublicBookingService {
     fromDateKey: string,
     todayDateKey: string,
     timeZone: string,
+    displayLocale: AppLocale,
   ): Promise<Omit<PublicProvider, 'averageRating' | 'reviewCount' | 'recentReviews'>> {
     const metadata = employee.metadata || {};
     let nearestDateKey: string | null = null;
@@ -2210,19 +2261,13 @@ export class PublicBookingService {
       avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
       nearestDate: nearestDateKey,
       nearestDateLabel: nearestDateKey
-        ? this.formatNearestDateLabel(nearestDateKey, todayDateKey, timeZone)
+        ? formatNearestSlotDateLabel(nearestDateKey, todayDateKey, timeZone, displayLocale)
         : null,
       slots: slots.map((startTime) => ({
         startTime: startTime.toISOString(),
         endTime: new Date(startTime.getTime() + SLOT_STEP_MINUTES * 60000).toISOString(),
       })),
     };
-  }
-
-  private formatNearestDateLabel(dateKey: string, todayDateKey: string, timeZone: string): string {
-    const formatted = formatZonedDateLabel(dateKey, timeZone);
-    if (dateKey === todayDateKey) return `today, ${formatted}`;
-    return formatted;
   }
 
   private async getMultiServiceBlockStartCandidates(

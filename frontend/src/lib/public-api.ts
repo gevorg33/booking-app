@@ -1,17 +1,42 @@
-import { getApiBaseUrl } from '@/lib/api-base';
+import { getApiBaseUrl, getServerApiBaseUrl } from '@/lib/api-base';
 import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
-
-function getServerApiBaseUrl(): string {
-  return (
-    process.env.INTERNAL_API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    'http://127.0.0.1:3001'
-  ).replace(/\/$/, '');
-}
+import { readClientLocaleForPublicApi } from '@/lib/public-locale-cookie';
 
 function getPublicApiBaseUrl(): string {
   if (typeof window !== 'undefined') return getApiBaseUrl();
   return getServerApiBaseUrl();
+}
+
+function isConnectionRefused(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as {
+    code?: string;
+    cause?: { code?: string; errors?: Array<{ code?: string }> };
+  };
+  if (err.code === 'ECONNREFUSED') return true;
+  if (err.cause?.code === 'ECONNREFUSED') return true;
+  return err.cause?.errors?.some((e) => e.code === 'ECONNREFUSED') ?? false;
+}
+
+/** Retry SSR fetches while the API restarts (nest watch / dev-backend). */
+async function fetchPublicApi(url: string, init: RequestInit): Promise<Response> {
+  const isServer = typeof window === 'undefined';
+  const maxAttempts = isServer ? 5 : 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (!isServer || !isConnectionRefused(error) || attempt === maxAttempts - 1) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
 }
 
 const publicCustomerTokens = new Map<string, string>();
@@ -243,8 +268,8 @@ async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> 
       };
 
       if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )app-locale=([^;]+)/);
-        if (match?.[1]) headers['Accept-Language'] = match[1];
+        const lang = readClientLocaleForPublicApi();
+        if (lang) headers['Accept-Language'] = lang;
       }
 
       const slugMatch = path.match(/^\/public\/([^/]+)/);
@@ -254,7 +279,7 @@ async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> 
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const res = await fetch(`${getPublicApiBaseUrl()}${path}`, {
+      const res = await fetchPublicApi(`${getPublicApiBaseUrl()}${path}`, {
         ...fetchInit,
         method,
         headers: {
@@ -274,12 +299,16 @@ async function publicFetch<T>(path: string, init?: PublicFetchInit): Promise<T> 
   );
 }
 
-export function getPublicProfile(slug: string) {
-  return publicFetch<PublicBusinessProfile>(`/public/${slug}`);
+export function getPublicProfile(slug: string, locale?: string) {
+  const q = locale ? `?locale=${encodeURIComponent(locale)}` : '';
+  return publicFetch<PublicBusinessProfile>(`/public/${slug}${q}`);
 }
 
-export function getPublicProviders(slug: string, date?: string) {
-  const q = date ? `?date=${encodeURIComponent(date)}` : '';
+export function getPublicProviders(slug: string, date?: string, locale?: string) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (locale) params.set('locale', locale);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return publicFetch<{ providers: PublicProvider[] }>(`/public/${slug}/providers${q}`);
 }
 
@@ -309,8 +338,14 @@ export function getPublicProviderReviews(slug: string, employeeId: string, page 
   );
 }
 
-export function getPublicServices(slug: string, employeeId?: string) {
-  const q = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+export function getPublicServices(
+  slug: string,
+  opts?: { employeeId?: string; locale?: string },
+) {
+  const params = new URLSearchParams();
+  if (opts?.employeeId) params.set('employeeId', opts.employeeId);
+  if (opts?.locale) params.set('locale', opts.locale);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return publicFetch<{ services: PublicService[] }>(`/public/${slug}/services${q}`);
 }
 
@@ -581,9 +616,19 @@ export function getPublicServiceSlotProviders(slug: string, serviceId: string, s
   );
 }
 
-export function getPublicServicesForSlot(slug: string, employeeId: string, startTime: string) {
+export function getPublicServicesForSlot(
+  slug: string,
+  employeeId: string,
+  startTime: string,
+  locale?: string,
+) {
+  const params = new URLSearchParams({
+    employeeId,
+    startTime,
+  });
+  if (locale) params.set('locale', locale);
   return publicFetch<{ services: PublicService[] }>(
-    `/public/${slug}/services/for-slot?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`,
+    `/public/${slug}/services/for-slot?${params.toString()}`,
   );
 }
 

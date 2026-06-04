@@ -8,8 +8,10 @@ import {
   isFcmBuild,
   syncNativePushToken,
 } from '../services/native-push';
+import { useI18n } from '../i18n';
 
 export default function PushToggle() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function PushToggle() {
         if (!cancelled) {
           setEnabled(status.registered);
           if (status.permission === 'denied') {
-            setError('Notifications are blocked in system settings.');
+            setError(t('provider.pushBlockedInSettings'));
           }
         }
 
@@ -44,7 +46,7 @@ export default function PushToggle() {
           // Keep previous enabled state when server is temporarily unavailable.
         }
       } catch {
-        if (!cancelled) setError('Could not load alert status.');
+        if (!cancelled) setError(t('provider.pushStatusLoadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -105,7 +107,13 @@ export default function PushToggle() {
   return (
     <div>
       <IonButton expand="block" onClick={() => void subscribe()} disabled={busy || enabled}>
-        {busy ? <IonSpinner name="crescent" /> : enabled ? 'Alerts enabled' : 'Enable booking alerts'}
+        {busy ? (
+          <IonSpinner name="crescent" />
+        ) : enabled ? (
+          t('provider.pushEnabled')
+        ) : (
+          t('provider.enablePush')
+        )}
       </IonButton>
       {error && (
         <IonText color="warning">

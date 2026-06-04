@@ -123,7 +123,7 @@ export default function AppointmentsPage() {
                 search: debouncedSearch.trim() || null,
                 todayOnly,
               }}
-              title="Appointment insights"
+              title={t('appointments.aiInsightsTitle')}
             />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/appointments']}

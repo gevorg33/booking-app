@@ -6,24 +6,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
-import {
-  DEFAULT_BOOKINGS_SETTINGS,
-  resolveBookingsSettings,
-} from '@/lib/bookings-settings';
 import { fetchBusinessSettings, unwrapBusinessApiPayload } from '@/lib/business-query';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 
 interface PayAtVenueForm {
   acceptCashPayments: boolean;
-  calendarPayAtVenueFilterDefault: boolean;
 }
 
 function readForm(settings: Record<string, unknown> | undefined): PayAtVenueForm {
   const publicBooking = (settings?.publicBooking as Record<string, unknown> | undefined) ?? {};
-  const bookings = resolveBookingsSettings(settings);
   return {
     acceptCashPayments: publicBooking.acceptCashPayments === true,
-    calendarPayAtVenueFilterDefault: bookings.calendarPayAtVenueFilterDefault,
   };
 }
 
@@ -37,10 +30,7 @@ export function PayAtVenueSettings({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<PayAtVenueForm>({
-    acceptCashPayments: false,
-    calendarPayAtVenueFilterDefault: DEFAULT_BOOKINGS_SETTINGS.calendarPayAtVenueFilterDefault,
-  });
+  const [form, setForm] = useState<PayAtVenueForm>({ acceptCashPayments: false });
   const [saved, setSaved] = useState(false);
 
   const { data: businessData, isLoading: businessLoading } = useQuery({
@@ -76,12 +66,8 @@ export function PayAtVenueSettings({
         ...((current.publicBooking as Record<string, unknown>) ?? {}),
         acceptCashPayments: form.acceptCashPayments,
       };
-      const bookings = {
-        ...((current.bookings as Record<string, unknown>) ?? {}),
-        calendarPayAtVenueFilterDefault: form.calendarPayAtVenueFilterDefault,
-      };
       const { data } = await api.put(`/businesses/${businessId}`, {
-        settings: { ...current, publicBooking, bookings },
+        settings: { ...current, publicBooking },
       });
       return data;
     },
@@ -147,24 +133,14 @@ export function PayAtVenueSettings({
         </p>
       </div>
 
-      <ToggleChoice variant="dashboard"
+      <ToggleChoice
+        variant="dashboard"
         checked={form.acceptCashPayments}
         onChange={(acceptCashPayments) => setForm((prev) => ({ ...prev, acceptCashPayments }))}
         label={t('settings.acceptCashPayments')}
       />
       <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
         {t('settings.acceptCashPaymentsHint')}
-      </p>
-
-      <ToggleChoice variant="dashboard"
-        checked={form.calendarPayAtVenueFilterDefault}
-        onChange={(calendarPayAtVenueFilterDefault) =>
-          setForm((prev) => ({ ...prev, calendarPayAtVenueFilterDefault }))
-        }
-        label={t('settings.calendarPayAtVenueFilterDefault')}
-      />
-      <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
-        {t('settings.calendarPayAtVenueFilterDefaultHint')}
       </p>
 
       <button

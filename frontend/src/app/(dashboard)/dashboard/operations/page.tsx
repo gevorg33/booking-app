@@ -130,19 +130,19 @@ export default function OperationsPage() {
           ) : pl ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="card">
-                <p className="text-xs text-gray-500">Revenue</p>
+                <p className="text-xs text-gray-500">{t('common.revenue')}</p>
                 <p className="text-2xl font-bold text-emerald-400">${pl.revenue.toFixed(2)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">Expenses</p>
+                <p className="text-xs text-gray-500">{t('common.expenses')}</p>
                 <p className="text-2xl font-bold text-orange-400">${pl.expenses.toFixed(2)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">Commissions</p>
+                <p className="text-xs text-gray-500">{t('common.commissions')}</p>
                 <p className="text-2xl font-bold text-violet-400">${pl.commissions.toFixed(2)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">Net profit</p>
+                <p className="text-xs text-gray-500">{t('common.netProfit')}</p>
                 <p className={`text-2xl font-bold ${pl.netProfit >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                   ${pl.netProfit.toFixed(2)}
                 </p>
@@ -156,6 +156,7 @@ export default function OperationsPage() {
 }
 
 function LocationsTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: '', address: '', phone: '' });
 
@@ -188,21 +189,21 @@ function LocationsTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Name</label>
+          <label className="label">{t('common.name')}</label>
           <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </div>
         <div>
-          <label className="label">Address</label>
+          <label className="label">{t('common.address')}</label>
           <input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
         <div>
-          <label className="label">Phone</label>
+          <label className="label">{t('common.phone')}</label>
           <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div className="md:col-span-3">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Add location
+            {t('operations.addLocation')}
           </button>
         </div>
       </form>
@@ -213,7 +214,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : locations.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-8">No locations yet</p>
+          <p className="text-gray-500 text-sm text-center py-8">{t('operations.locationsEmpty')}</p>
         ) : (
           <ul className="divide-y divide-gray-800">
             {locations.map((loc) => (
@@ -224,7 +225,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
                   {loc.phone && <p className="text-sm text-gray-500">{loc.phone}</p>}
                 </div>
                 {loc.isDefault && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-400 h-fit">Default</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-400 h-fit">{t('common.default')}</span>
                 )}
               </li>
             ))}
@@ -236,6 +237,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
 }
 
 function InventoryTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: '', sku: '', quantityOnHand: '0', unitCost: '0', retailPrice: '0' });
 
@@ -274,7 +276,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Product name</label>
+          <label className="label">{t('operations.fieldProductName')}</label>
           <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </div>
         <div>
@@ -282,21 +284,21 @@ function InventoryTab({ businessId }: { businessId: string }) {
           <input className="input" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
         </div>
         <div>
-          <label className="label">Quantity on hand</label>
+          <label className="label">{t('operations.fieldQuantityOnHand')}</label>
           <input type="number" className="input" value={form.quantityOnHand} onChange={(e) => setForm({ ...form, quantityOnHand: e.target.value })} />
         </div>
         <div>
-          <label className="label">Unit cost</label>
+          <label className="label">{t('operations.fieldUnitCost')}</label>
           <input type="number" step="0.01" className="input" value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} />
         </div>
         <div>
-          <label className="label">Retail price</label>
+          <label className="label">{t('operations.fieldRetailPrice')}</label>
           <input type="number" step="0.01" className="input" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} />
         </div>
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Add product
+            {t('operations.addProduct')}
           </button>
         </div>
       </form>
@@ -307,16 +309,16 @@ function InventoryTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : products.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No products yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">{t('operations.inventoryEmpty')}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Name</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('common.name')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">SKU</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Qty</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Retail</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Unit cost</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableQty')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableRetail')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableUnitCost')}</th>
               </tr>
             </thead>
             <tbody>
@@ -340,6 +342,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
 }
 
 function ExpensesTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     category: '',
@@ -389,25 +392,25 @@ function ExpensesTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Category</label>
+          <label className="label">{t('operations.tableCategory')}</label>
           <input className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required />
         </div>
         <div>
-          <label className="label">Amount</label>
+          <label className="label">{t('operations.fieldAmount')}</label>
           <input type="number" step="0.01" className="input" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
         </div>
         <div>
-          <label className="label">Date</label>
+          <label className="label">{t('common.date')}</label>
           <DatePicker value={form.expenseDate} onChange={(expenseDate) => setForm({ ...form, expenseDate })} required />
         </div>
         <div>
-          <label className="label">Description</label>
+          <label className="label">{t('common.description')}</label>
           <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Add expense
+            {t('operations.addExpense')}
           </button>
         </div>
       </form>
@@ -418,14 +421,14 @@ function ExpensesTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : expenses.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No expenses yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">{t('operations.expensesEmpty')}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Date</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Category</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Amount</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('common.date')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableCategory')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableAmount')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
@@ -458,6 +461,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
 }
 
 function CommissionsTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ type: 'percent', value: '10' });
 
@@ -500,19 +504,19 @@ function CommissionsTab({ businessId }: { businessId: string }) {
         }}
       >
         <div>
-          <label className="label">Type</label>
+          <label className="label">{t('common.type')}</label>
           <select className="input max-w-[140px]" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            <option value="percent">Percent</option>
-            <option value="flat">Flat</option>
+            <option value="percent">{t('common.percent')}</option>
+            <option value="flat">{t('common.flat')}</option>
           </select>
         </div>
         <div>
-          <label className="label">Value</label>
+          <label className="label">{t('operations.fieldValue')}</label>
           <input type="number" step="0.01" className="input max-w-[140px]" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} required />
         </div>
         <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
           {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Add rule
+          {t('operations.addCommissionRule')}
         </button>
       </form>
 
@@ -522,13 +526,13 @@ function CommissionsTab({ businessId }: { businessId: string }) {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : rules.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-12">No commission rules yet</p>
+          <p className="text-gray-500 text-sm text-center py-12">{t('operations.commissionsEmpty')}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 font-medium text-gray-400">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Value</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('common.type')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{t('operations.fieldValue')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>

@@ -79,11 +79,9 @@ export function EmployeeFormModal({
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-semibold text-lg">
-              {mode === 'create' ? 'Add employee' : 'Edit employee'}
+              {mode === 'create' ? t('employees.addEmployee') : t('employees.editEmployee')}
             </h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Profile details appear on the public booking page.
-            </p>
+            <p className="text-sm text-gray-400 mt-0.5">{t('employees.formSubtitle')}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -103,7 +101,7 @@ export function EmployeeFormModal({
               onSubmit(formToPayload(form));
             } catch (err) {
               if (err instanceof Error && err.message === 'INVALID_PHONE') {
-                setPhoneError('Enter a valid phone number with country code');
+                setPhoneError(t('employees.invalidPhone'));
                 return;
               }
               throw err;
@@ -120,7 +118,7 @@ export function EmployeeFormModal({
           />
 
           <div>
-            <label className="label">Name</label>
+            <label className="label">{t('common.name')}</label>
             <input
               className="input"
               value={form.name}
@@ -130,18 +128,18 @@ export function EmployeeFormModal({
           </div>
 
           <div>
-            <label className="label">Title</label>
+            <label className="label">{t('employees.role')}</label>
             <input
               className="input"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. Massage specialist"
+              placeholder={t('employees.titlePlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="label">Email</label>
+              <label className="label">{t('common.email')}</label>
               <input
                 type="email"
                 className="input"
@@ -150,7 +148,7 @@ export function EmployeeFormModal({
               />
             </div>
             <DashboardPhoneInput
-              label="Phone"
+              label={t('common.phone')}
               value={form.phone || undefined}
               onChange={(phone) => {
                 setPhoneError(null);
@@ -163,7 +161,7 @@ export function EmployeeFormModal({
 
           {services.length > 0 && (
             <div>
-              <label className="label">Services offered</label>
+              <label className="label">{t('employees.servicesOffered')}</label>
               <p className="text-[11px] text-gray-500 mb-2">
                 {t('employees.servicesOfferedHint')}
               </p>
@@ -199,16 +197,16 @@ export function EmployeeFormModal({
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
+                  {t('common.saving')}
                 </>
               ) : mode === 'create' ? (
-                'Create employee'
+                t('employees.createEmployee')
               ) : (
-                'Save changes'
+                t('common.saveChanges')
               )}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary" disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </form>

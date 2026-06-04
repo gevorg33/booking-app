@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { getPublicGiftCardCatalog, getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicGiftCardCatalog } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { getMessages, translate } from '@/i18n';
-import { getServerLocale } from '@/lib/server-locale';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { resolvePublicImageUrl } from '@/lib/resolve-public-image-url';
 
 function socialHref(url: string) {
@@ -18,7 +19,7 @@ export default async function TenantProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const tenant = await getPublicProfile(slug);
+  const tenant = await getPublicProfileResolved(slug);
   let giftCardsEnabled = false;
   try {
     const catalog = await getPublicGiftCardCatalog(slug);
@@ -28,7 +29,7 @@ export default async function TenantProfilePage({
   }
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const logoSrc = resolvePublicImageUrl(tenant.branding.logoUrl);
-  const locale = await getServerLocale();
+  const locale = await resolvePublicBookingLocale(tenant.locale);
   const messages = getMessages(locale);
   const t = (key: string) => translate(messages, key);
   const social = tenant.social ?? {};

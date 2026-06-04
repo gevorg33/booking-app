@@ -35,6 +35,9 @@ export class ServiceCategory {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'jsonb', default: {} })
+  metadata: Record<string, unknown>;
+
   @OneToMany(() => Service, (service) => service.category)
   services: Service[];
 

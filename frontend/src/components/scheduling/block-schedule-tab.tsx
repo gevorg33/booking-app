@@ -4,34 +4,32 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Ban, CheckCircle2, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, getTodayDateKey } from '@/lib/date-format';
+import { formatWeekdayShortByDayIndex, getTodayDateKey } from '@/lib/date-format';
+import type { AppLocale } from '@/i18n/types';
 import { normalizeTime24 } from '@/lib/time-format';
+import {
+  blockScheduleTimeLabel,
+  formatBlockScheduleSummary,
+  type BlockScheduleListItem,
+} from '@/lib/block-schedule.util';
 import { TimeInput } from '@/components/time-input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TablePagination } from '@/components/table/table-pagination';
 import { useI18n } from '@/i18n';
 
-const WEEKDAYS = [
-  { key: 'isActiveOnMonday', label: 'Mon' },
-  { key: 'isActiveOnTuesday', label: 'Tue' },
-  { key: 'isActiveOnWednesday', label: 'Wed' },
-  { key: 'isActiveOnThursday', label: 'Thu' },
-  { key: 'isActiveOnFriday', label: 'Fri' },
-  { key: 'isActiveOnSaturday', label: 'Sat' },
-  { key: 'isActiveOnSunday', label: 'Sun' },
-] as const;
+const WEEKDAY_CONFIG = [
+  { key: 'isActiveOnMonday' as const, dayIndex: 1 },
+  { key: 'isActiveOnTuesday' as const, dayIndex: 2 },
+  { key: 'isActiveOnWednesday' as const, dayIndex: 3 },
+  { key: 'isActiveOnThursday' as const, dayIndex: 4 },
+  { key: 'isActiveOnFriday' as const, dayIndex: 5 },
+  { key: 'isActiveOnSaturday' as const, dayIndex: 6 },
+  { key: 'isActiveOnSunday' as const, dayIndex: 0 },
+];
 
-interface BlockScheduleItem {
+interface BlockScheduleItem extends BlockScheduleListItem {
   id: string;
-  placeholderLabel: string;
-  isRepetitive: boolean;
-  startDay: string | null;
-  endDay: string | null;
-  blockStartTime: string | null;
-  blockEndTime: string | null;
   repeatWeeksCount: number;
-  singleStartTime: string | null;
-  singleEndTime: string | null;
   updatedAt: string;
   employee: { id: string; name: string } | null;
   weekdays: Record<string, boolean>;
@@ -39,16 +37,6 @@ interface BlockScheduleItem {
 
 function toIso(day: string, time: string): string {
   return `${day}T${normalizeTime24(time)}:00.000Z`;
-}
-
-function formatBlockSummary(item: BlockScheduleItem): string {
-  if (item.isRepetitive && item.startDay && item.endDay && item.blockStartTime && item.blockEndTime) {
-    return `${formatDateDisplay(item.startDay)} – ${formatDateDisplay(item.endDay)} · ${item.blockStartTime}–${item.blockEndTime} daily`;
-  }
-  if (item.singleStartTime && item.singleEndTime) {
-    return `${formatDateDisplay(item.singleStartTime)} ${formatTimeDisplay(item.singleStartTime)}–${formatTimeDisplay(item.singleEndTime)}`;
-  }
-  return item.placeholderLabel;
 }
 
 const BLOCK_LIST_PAGE_SIZE = 10;
@@ -62,10 +50,20 @@ export function BlockScheduleTab({
   business: { id: string };
   employees: Array<{ id: string; name: string }>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const weekdayButtons = useMemo(
+    () =>
+      WEEKDAY_CONFIG.map(({ key, dayIndex }) => ({
+        key,
+        label: formatWeekdayShortByDayIndex(dayIndex, locale),
+      })),
+    [locale],
+  );
   const queryClient = useQueryClient();
+  const defaultPlaceholder = t('schedule.blocked');
+  const blockTimeLabel = (key: 'blockStartTime' | 'blockEndTime') => blockScheduleTimeLabel(t, key);
   const [employeeId, setEmployeeId] = useState('');
-  const [placeholder, setPlaceholder] = useState('Blocked');
+  const [placeholder, setPlaceholder] = useState(defaultPlaceholder);
   const [isRepetitive, setIsRepetitive] = useState(true);
   const [startDay, setStartDay] = useState(getTodayDateKey());
   const [endDay, setEndDay] = useState(getTodayDateKey());
@@ -163,7 +161,7 @@ export function BlockScheduleTab({
       setTimeout(() => setSuccess(false), 3000);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || 'Failed to create block schedule');
+      setError(err?.response?.data?.message || t('schedule.blockCreateFailed'));
     },
   });
 
@@ -211,9 +209,9 @@ export function BlockScheduleTab({
         </div>
 
         <div>
-          <label className="label">Provider</label>
+          <label className="label">{t('common.provider')}</label>
           <select className="input" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-            <option value="">Select provider...</option>
+            <option value="">{t('common.selectProvider')}</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>{emp.name}</option>
             ))}
@@ -221,8 +219,13 @@ export function BlockScheduleTab({
         </div>
 
         <div>
-          <label className="label">Label</label>
-          <input className="input" value={placeholder} onChange={(e) => setPlaceholder(e.target.value)} placeholder="Blocked" />
+          <label className="label">{t('common.label')}</label>
+          <input
+            className="input"
+            value={placeholder}
+            onChange={(e) => setPlaceholder(e.target.value)}
+            placeholder={defaultPlaceholder}
+          />
         </div>
 
         <div className="flex gap-2">
@@ -231,14 +234,14 @@ export function BlockScheduleTab({
             onClick={() => setIsRepetitive(true)}
             className={`px-3 py-1.5 rounded-lg text-sm ${isRepetitive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'}`}
           >
-            Repetitive
+            {t('schedule.blockRepetitive')}
           </button>
           <button
             type="button"
             onClick={() => setIsRepetitive(false)}
             className={`px-3 py-1.5 rounded-lg text-sm ${!isRepetitive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'}`}
           >
-            One-time
+            {t('schedule.blockOneTime')}
           </button>
         </div>
 
@@ -246,26 +249,26 @@ export function BlockScheduleTab({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">From date</label>
+                <label className="label">{t('schedule.blockFromDate')}</label>
                 <DatePicker value={startDay} onChange={setStartDay} />
               </div>
               <div>
-                <label className="label">To date</label>
+                <label className="label">{t('schedule.blockToDate')}</label>
                 <DatePicker value={endDay} onChange={setEndDay} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Block start (24h)</label>
+                <label className="label">{blockTimeLabel('blockStartTime')}</label>
                 <TimeInput value={blockStartTime} onChange={setBlockStartTime} />
               </div>
               <div>
-                <label className="label">Block end (24h)</label>
+                <label className="label">{blockTimeLabel('blockEndTime')}</label>
                 <TimeInput value={blockEndTime} onChange={setBlockEndTime} />
               </div>
             </div>
             <div>
-              <label className="label">Repeat weeks</label>
+              <label className="label">{t('common.repeatWeeks')}</label>
               <input
                 type="number"
                 min={1}
@@ -276,9 +279,9 @@ export function BlockScheduleTab({
               />
             </div>
             <div>
-              <label className="label">Active days</label>
+              <label className="label">{t('schedule.activeDays')}</label>
               <div className="flex flex-wrap gap-2">
-                {WEEKDAYS.map(({ key, label }) => (
+                {weekdayButtons.map(({ key, label }) => (
                   <button
                     key={key}
                     type="button"
@@ -296,16 +299,16 @@ export function BlockScheduleTab({
         ) : (
           <>
             <div>
-              <label className="label">Date</label>
+              <label className="label">{t('common.date')}</label>
               <DatePicker value={singleDay} onChange={setSingleDay} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Block start (24h)</label>
+                <label className="label">{blockTimeLabel('blockStartTime')}</label>
                 <TimeInput value={singleStartTime} onChange={setSingleStartTime} />
               </div>
               <div>
-                <label className="label">Block end (24h)</label>
+                <label className="label">{blockTimeLabel('blockEndTime')}</label>
                 <TimeInput value={singleEndTime} onChange={setSingleEndTime} />
               </div>
             </div>
@@ -315,14 +318,14 @@ export function BlockScheduleTab({
         {error && (
           <div className="p-3 rounded-lg bg-red-600/10 border border-red-500/30 text-red-400 text-sm flex gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            {typeof error === 'string' ? error : 'Failed to save block schedule'}
+            {typeof error === 'string' ? error : t('schedule.blockSaveFailed')}
           </div>
         )}
 
         {success && (
           <div className="p-3 rounded-lg bg-green-600/10 border border-green-500/30 text-green-400 text-sm flex gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
-            Block schedule applied
+            {t('schedule.blockAppliedSuccess')}
           </div>
         )}
 
@@ -334,12 +337,12 @@ export function BlockScheduleTab({
           {createMutation.isPending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Applying block...
+              {t('schedule.blockApplying')}
             </>
           ) : (
             <>
               <Plus className="w-4 h-4" />
-              Apply Block Schedule
+              {t('schedule.applyBlockSchedule')}
             </>
           )}
         </button>
@@ -374,14 +377,17 @@ export function BlockScheduleTab({
                   <div className="min-w-0">
                     <p className="font-medium text-sm">{item.placeholderLabel}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{item.employee?.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">{formatBlockSummary(item)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatBlockScheduleSummary(item, locale, t('schedule.blockSummaryDaily'))}
+                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => deleteMutation.mutate(item.id)}
                     disabled={deleteMutation.isPending}
                     className="p-2 text-red-400 hover:bg-red-600/10 rounded-lg shrink-0"
-                    title="Remove block schedule"
+                    title={t('schedule.removeBlockSchedule')}
+                    aria-label={t('schedule.removeBlockSchedule')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

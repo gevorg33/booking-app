@@ -126,11 +126,12 @@ run_backend() {
 
 run_frontend() {
   local bind_host="${1:-}"
-  local api_url="${2:-http://localhost:${BACKEND_PORT}}"
+  local api_url="${2:-http://127.0.0.1:${BACKEND_PORT}}"
   local lan_host="${3:-}"
   (
     cd "$FRONTEND_DIR"
     export NEXT_PUBLIC_API_URL="$api_url"
+    export INTERNAL_API_URL="$api_url"
     export LAN_HOST="$lan_host"
     if [[ -n "$bind_host" ]]; then
       npm run dev -- -H "$bind_host" -p "$FRONTEND_PORT" 2>&1 | log_pipe "frontend"

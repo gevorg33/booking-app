@@ -15,6 +15,7 @@ import {
 import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { bookPath } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
+import { BusinessPublicProfileLocaleFields } from '@/components/business/business-public-profile-locale-fields';
 import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
 
 export default function BusinessProfilePage() {
@@ -73,7 +74,7 @@ export default function BusinessProfilePage() {
     : null;
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -107,104 +108,84 @@ export default function BusinessProfilePage() {
           }}
           className="space-y-6"
         >
-          <section className="card space-y-4">
-            <h2 className="font-semibold text-lg">Branding</h2>
-            <BusinessLogoField
-              businessId={business.id}
-              businessName={form.name}
-              logoUrl={form.branding.logoUrl ?? ''}
-              onChange={(logoUrl) => {
-                setForm({ ...form, branding: { ...form.branding, logoUrl } });
-                if (logoUrl.trim()) {
-                  void api
-                    .put(`/businesses/${business.id}/profile`, {
-                      branding: { logoUrl: logoUrl.trim() },
-                    })
-                    .then(() => {
-                      queryClient.invalidateQueries({ queryKey: ['business-profile', business.id] });
-                    })
-                    .catch(() => {
-                      /* user can still save manually */
-                    });
-                }
-              }}
-              disabled={saveMutation.isPending}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <section className="card w-full space-y-4">
+            <h2 className="font-semibold text-lg">{t('business.branding')}</h2>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr_1fr] lg:items-start">
+              <BusinessLogoField
+                businessId={business.id}
+                businessName={form.name}
+                logoUrl={form.branding.logoUrl ?? ''}
+                onChange={(logoUrl) => {
+                  setForm({ ...form, branding: { ...form.branding, logoUrl } });
+                  if (logoUrl.trim()) {
+                    void api
+                      .put(`/businesses/${business.id}/profile`, {
+                        branding: { logoUrl: logoUrl.trim() },
+                      })
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['business-profile', business.id] });
+                      })
+                      .catch(() => {
+                        /* user can still save manually */
+                      });
+                  }
+                }}
+                disabled={saveMutation.isPending}
+              />
               <div>
-                <label className="label">Business name</label>
+                <label className="label">{t('business.internalName')}</label>
+                <p className="text-xs text-gray-500 mb-1">{t('business.internalNameHint')}</p>
                 <input
-                  className="input"
+                  className="input w-full"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
                 />
               </div>
               <div>
-                <label className="label">Tagline</label>
-                <input
-                  className="input"
-                  value={form.branding.tagline ?? ''}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      branding: { ...form.branding, tagline: e.target.value },
-                    })
-                  }
-                  placeholder="Short subtitle under your name"
-                />
+                <label className="label">{t('business.primaryColor')}</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.branding.primaryColor ?? '#7c3aed'}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        branding: { ...form.branding, primaryColor: e.target.value },
+                      })
+                    }
+                    className="w-12 h-10 shrink-0 rounded cursor-pointer border border-gray-700 bg-transparent"
+                  />
+                  <input
+                    className="input w-full min-w-0"
+                    value={form.branding.primaryColor ?? ''}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        branding: { ...form.branding, primaryColor: e.target.value },
+                      })
+                    }
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="label">Primary color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={form.branding.primaryColor ?? '#7c3aed'}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      branding: { ...form.branding, primaryColor: e.target.value },
-                    })
-                  }
-                  className="w-12 h-10 rounded cursor-pointer border border-gray-700 bg-transparent"
-                />
-                <input
-                  className="input flex-1"
-                  value={form.branding.primaryColor ?? ''}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      branding: { ...form.branding, primaryColor: e.target.value },
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <label className="label">Description</label>
-              <textarea
-                className="input min-h-[120px] resize-y"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Tell customers about your business…"
-              />
             </div>
           </section>
 
-          <section className="card space-y-4">
-            <h2 className="font-semibold text-lg">Contact</h2>
-            <div>
-              <label className="label">Address</label>
-              <input
-                className="input"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <section className="card w-full space-y-4">
+            <h2 className="font-semibold text-lg">{t('business.publicContentTitle')}</h2>
+            <p className="text-sm text-gray-500 -mt-2">{t('business.publicContentSectionHint')}</p>
+            <BusinessPublicProfileLocaleFields
+              value={form.publicProfileLocales}
+              onChange={(publicProfileLocales) => setForm({ ...form, publicProfileLocales })}
+              t={t}
+            />
+          </section>
+
+          <section className="card w-full space-y-4">
+            <h2 className="font-semibold text-lg">{t('business.contact')}</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="label">Phone</label>
+                <label className="label">{t('common.phone')}</label>
                 <input
                   className="input"
                   value={form.phone}
@@ -212,7 +193,7 @@ export default function BusinessProfilePage() {
                 />
               </div>
               <div>
-                <label className="label">Email</label>
+                <label className="label">{t('common.email')}</label>
                 <input
                   type="email"
                   className="input"
@@ -223,11 +204,11 @@ export default function BusinessProfilePage() {
             </div>
           </section>
 
-          <section className="card space-y-4">
+          <section className="card w-full space-y-4">
             <h2 className="font-semibold text-lg">{t('business.publicLanguage')}</h2>
             <p className="text-sm text-gray-500 -mt-2">{t('languages.publicDescription')}</p>
             <select
-              className="input max-w-xs"
+              className="input w-full sm:max-w-xs"
               value={form.locale}
               onChange={(e) => setForm({ ...form, locale: e.target.value as AppLocale })}
             >
@@ -239,12 +220,10 @@ export default function BusinessProfilePage() {
             </select>
           </section>
 
-          <section className="card space-y-4">
+          <section className="card w-full space-y-4">
             <h2 className="font-semibold text-lg">{t('business.socialLinks')}</h2>
-            <p className="text-sm text-gray-500 -mt-2">
-              Shown on your public profile page. Use full URLs.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p className="text-sm text-gray-500 -mt-2">{t('business.socialHint')}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {SOCIAL_FIELDS.map(({ key, label, placeholder }) => (
                 <div key={key}>
                   <label className="label">{label}</label>
@@ -264,14 +243,12 @@ export default function BusinessProfilePage() {
             </div>
           </section>
 
-          <section className="card space-y-4">
+          <section className="card w-full space-y-4">
             <h2 className="font-semibold text-lg flex items-center gap-2">
               <MapPin className="w-5 h-5 text-gray-400" />
-              Google Maps
+              {t('business.mapsTitle')}
             </h2>
-            <p className="text-sm text-gray-500 -mt-2">
-              Paste the embed code from Google Maps → Share → Embed a map.
-            </p>
+            <p className="text-sm text-gray-500 -mt-2">{t('business.mapsEmbedInstructions')}</p>
             <textarea
               className="input min-h-[100px] font-mono text-xs resize-y"
               value={form.location.mapEmbedHtml ?? ''}
@@ -296,14 +273,16 @@ export default function BusinessProfilePage() {
       )}
 
       {business?.slug && (
-        <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+        <div className="mt-6 w-full">
+          <EmbedWidgetSection slug={business.slug} businessName={business.name} />
+        </div>
       )}
 
       {form && (
         <div className="mt-6 space-y-3 border-t border-gray-800 pt-6">
           {saveMutation.isError && (
             <p className="text-sm text-red-400">
-              {(saveMutation.error as any)?.response?.data?.message || 'Failed to save profile'}
+              {(saveMutation.error as any)?.response?.data?.message || t('business.saveFailed')}
             </p>
           )}
           <button
@@ -324,7 +303,7 @@ export default function BusinessProfilePage() {
               </>
             )}
           </button>
-          {saved && <p className="text-sm text-green-400">Profile saved successfully.</p>}
+          {saved && <p className="text-sm text-green-400">{t('business.saveSuccess')}</p>}
         </div>
       )}
     </div>

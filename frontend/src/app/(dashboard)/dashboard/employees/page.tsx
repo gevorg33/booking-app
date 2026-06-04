@@ -113,7 +113,7 @@ export default function EmployeesPage() {
       }
       setFormError(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'Failed to create employee',
+          t('employees.errorsSaveFailed'),
       );
     },
   });
@@ -134,7 +134,7 @@ export default function EmployeesPage() {
       closeModal();
     },
     onError: (err: any) => {
-      setFormError(err?.response?.data?.message || 'Failed to update employee');
+      setFormError(err?.response?.data?.message || t('employees.errorsSaveFailed'));
     },
   });
 
@@ -168,7 +168,7 @@ export default function EmployeesPage() {
       }, 2000);
     },
     onError: (err: any) => {
-      setInviteError(err?.response?.data?.message || 'Failed to send invitation');
+      setInviteError(err?.response?.data?.message || t('employees.errorsInviteFailed'));
     },
   });
 
@@ -194,7 +194,7 @@ export default function EmployeesPage() {
     onError: (err: any, { employeeId }) => {
       setAccessSentId(null);
       setAccessError(
-        `${employeeId}:${err?.response?.data?.message || 'Failed to send app access email'}`,
+        `${employeeId}:${err?.response?.data?.message || t('employees.errorsInviteFailed')}`,
       );
     },
   });
@@ -278,7 +278,7 @@ export default function EmployeesPage() {
                 <UserPlus className="w-4 h-4" /> {t('invite.sendInvite')}
               </button>
               <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Add Employee
+                <Plus className="w-4 h-4" /> {t('employees.addEmployee')}
               </button>
             </>
           }
@@ -292,23 +292,20 @@ export default function EmployeesPage() {
       <div className="card flex items-start gap-3 border-blue-500/20 bg-blue-600/5">
         <Smartphone className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm text-gray-300">
-            Providers need app access before they can sign in on mobile. Add employees here, then use{' '}
-            <span className="text-white">Send app access</span> to email them a password setup link.
-          </p>
+          <p className="text-sm text-gray-300">{t('employees.appAccessCardBody')}</p>
           <Link href="/provider/login" className="text-sm text-blue-400 hover:underline mt-1 inline-block">
-            Open provider app →
+            {t('employees.openProviderApp')}
           </Link>
         </div>
       </div>
 
       <div className="card overflow-hidden p-0">
         {isLoading ? (
-          <div className="text-center py-12 px-6 text-gray-500">Loading...</div>
+          <div className="text-center py-12 px-6 text-gray-500">{t('employees.loading')}</div>
         ) : employees.length === 0 ? (
           <div className="text-center py-12 px-6">
             <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-400">No employees yet</p>
+            <p className="text-gray-400">{t('employees.noEmployees')}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-800 px-6">
@@ -452,19 +449,19 @@ export default function EmployeesPage() {
                     )}
                     <div className="flex items-center gap-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-green-600/10 text-green-400 whitespace-nowrap hidden sm:inline">
-                      Active
+                      {t('employees.active')}
                     </span>
                     <button
                       onClick={() => openEdit(emp)}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                      title="Edit"
+                      title={t('common.edit')}
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setDeleteTarget(emp)}
                       className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors"
-                      title="Deactivate"
+                      title={t('employees.deactivate')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -488,10 +485,9 @@ export default function EmployeesPage() {
             className="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="font-semibold text-lg mb-2">Deactivate employee?</h3>
+            <h3 className="font-semibold text-lg mb-2">{t('employees.deactivateModalTitle')}</h3>
             <p className="text-sm text-gray-400 mb-4">
-              {deleteTarget.name} will be hidden from scheduling and public booking. Existing
-              bookings are kept.
+              {t('employees.deactivateModalBody').replace('{name}', deleteTarget.name)}
             </p>
             <div className="flex gap-2">
               <button
@@ -499,10 +495,10 @@ export default function EmployeesPage() {
                 disabled={deleteMutation.isPending}
                 className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm"
               >
-                {deleteMutation.isPending ? 'Deactivating…' : 'Deactivate'}
+                {deleteMutation.isPending ? t('common.deactivating') : t('employees.deactivate')}
               </button>
               <button onClick={() => setDeleteTarget(null)} className="btn-secondary text-sm">
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -519,10 +515,7 @@ export default function EmployeesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="font-semibold text-lg mb-2">{t('invite.sendInvite')}</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Invite someone to your dashboard. Choose their role — admins and managers can see all
-              appointments in the mobile app.
-            </p>
+            <p className="text-sm text-gray-400 mb-4">{t('invite.sendInviteModalBody')}</p>
             {inviteSuccess ? (
               <p className="text-green-400 text-sm">{t('invite.inviteSent')}</p>
             ) : (
@@ -549,7 +542,7 @@ export default function EmployeesPage() {
                     className="input"
                     value={inviteForm.employeeName}
                     onChange={(e) => setInviteForm({ ...inviteForm, employeeName: e.target.value })}
-                    placeholder="Optional display name"
+                    placeholder={t('employees.namePlaceholderOptional')}
                   />
                 </div>
                 {isOwner ? (

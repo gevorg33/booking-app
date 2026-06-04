@@ -3,22 +3,40 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { User } from '../user/entities/user.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { todayDisplay } from '../../common/utils/date-format.util.js';
 import type { AiSuggestion } from '../ai/ai-suggestions.service.js';
+import {
+  providerSuggestionText,
+  resolveProviderSuggestionsLocale,
+} from './provider-ai-suggestions.i18n.js';
 
 @Injectable()
 export class ProviderAiSuggestionsService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     private providerMobile: ProviderMobileService,
   ) {}
 
   async getSuggestions(businessId: string, userId: string): Promise<AiSuggestion[]> {
     const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    const [user, business] = await Promise.all([
+      this.userRepo.findOne({ where: { id: userId }, select: { locale: true } }),
+      this.businessRepo.findOne({ where: { id: businessId }, select: { settings: true } }),
+    ]);
+    const settings = business?.settings as { locale?: string } | undefined;
+    const locale = resolveProviderSuggestionsLocale(user?.locale, settings?.locale);
+    const ts = (key: string, vars?: Record<string, string | number>) =>
+      providerSuggestionText(locale, key, vars);
+
     const suggestions: AiSuggestion[] = [];
 
     const today = new Date();
@@ -44,8 +62,8 @@ export class ProviderAiSuggestionsService {
       suggestions.push({
         id: 'confirm-pending',
         priority: 'high',
-        title: `${pendingConfirm.length} appointment${pendingConfirm.length === 1 ? '' : 's'} need confirmation`,
-        prompt: 'Show my appointments today that still need confirmation',
+        title: ts('confirmPendingTitle', { count: pendingConfirm.length }),
+        prompt: ts('confirmPendingPrompt'),
         category: 'booking',
       });
     }
@@ -59,8 +77,8 @@ export class ProviderAiSuggestionsService {
       suggestions.push({
         id: 'unpaid-today',
         priority: 'high',
-        title: `${unpaid.length} unpaid appointment${unpaid.length === 1 ? '' : 's'} today`,
-        prompt: 'Mark all completed appointments today as paid',
+        title: ts('unpaidTodayTitle', { count: unpaid.length }),
+        prompt: ts('unpaidTodayPrompt'),
         category: 'booking',
       });
     }
@@ -78,8 +96,8 @@ export class ProviderAiSuggestionsService {
         suggestions.push({
           id: 'gaps-today',
           priority: 'medium',
-          title: `${gaps.length} open slot${gaps.length === 1 ? '' : 's'} this afternoon`,
-          prompt: "What's on my schedule this afternoon? Any gaps?",
+          title: ts('gapsTodayTitle', { count: gaps.length }),
+          prompt: ts('gapsTodayPrompt'),
           category: 'schedule',
         });
       }
@@ -90,13 +108,13 @@ export class ProviderAiSuggestionsService {
     );
     if (upcoming.length > 0) {
       const next = upcoming[0];
-      const customer = next.customer?.name ?? 'client';
+      const customer = next.customer?.name ?? ts('defaultClient');
       const time = next.startTime.toISOString().slice(11, 16);
       suggestions.push({
         id: 'next-up',
         priority: 'low',
-        title: `Next: ${customer} at ${time}`,
-        prompt: `Mark ${customer}'s appointment at ${time} as done and paid`,
+        title: ts('nextUpTitle', { customer, time }),
+        prompt: ts('nextUpPrompt', { customer, time }),
         category: 'booking',
       });
     }
@@ -105,8 +123,8 @@ export class ProviderAiSuggestionsService {
       suggestions.push({
         id: 'empty-today',
         priority: 'low',
-        title: 'No appointments today',
-        prompt: `Summarize my schedule for ${todayDisplay()}`,
+        title: ts('emptyTodayTitle'),
+        prompt: ts('emptyTodayPrompt', { date: todayDisplay() }),
         category: 'booking',
       });
     }

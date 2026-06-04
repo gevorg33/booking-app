@@ -1,4 +1,6 @@
-import { getPublicProfile, getPublicServices } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicServices } from '@/lib/public-api';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { buildMultiServicePickerHref, parseMultiServiceIds } from '@/lib/multi-service-booking';
 import { MultiServiceConfirmClient } from '@/components/public-booking/multi-service-confirm-client';
 
@@ -19,10 +21,9 @@ export default async function MultiServiceConfirmPage({
   const servicesParam = pickParam(raw.services);
   const serviceIds = servicesParam ? parseMultiServiceIds(servicesParam) : [];
 
-  const [tenant, { services }] = await Promise.all([
-    getPublicProfile(slug),
-    getPublicServices(slug),
-  ]);
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
+  const { services } = await getPublicServices(slug, { locale });
 
   return (
     <MultiServiceConfirmClient

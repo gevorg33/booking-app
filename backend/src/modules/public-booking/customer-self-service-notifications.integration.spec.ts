@@ -4,6 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 describe('Customer self-service business notifications integration', () => {
   const bookingRepo = { findOne: jest.fn() };
   const businessRepo = { findOne: jest.fn() };
+  const customerRepo = { findOne: jest.fn() };
   const notificationLogRepo = { save: jest.fn(), create: jest.fn(), findOne: jest.fn() };
   const emailService = { send: jest.fn() };
   const smsService = { send: jest.fn() };
@@ -14,6 +15,7 @@ describe('Customer self-service business notifications integration', () => {
   const notifications = new NotificationsService(
     bookingRepo as any,
     businessRepo as any,
+    customerRepo as any,
     notificationLogRepo as any,
     emailService as any,
     smsService as any,

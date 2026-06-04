@@ -41,6 +41,7 @@ function formatSurfaceLabel(surface: string, t: (key: string) => string): string
 
 export function OpenAiUsagePanel({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { data: entitlements } = usePlanEntitlements(businessId);
 
   const { data, isLoading } = useQuery({
     queryKey: ['openai-integration', businessId],

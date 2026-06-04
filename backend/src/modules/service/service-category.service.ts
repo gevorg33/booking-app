@@ -6,6 +6,10 @@ import {
   CreateServiceCategoryDto,
   UpdateServiceCategoryDto,
 } from './dto/service-category.dto.js';
+import {
+  applyLocalizedNamesToMetadata,
+  extractLocalizedNamesFromMetadata,
+} from '../../common/i18n/service-localized-names.util.js';
 
 @Injectable()
 export class ServiceCategoryService {
@@ -13,38 +17,57 @@ export class ServiceCategoryService {
     @InjectRepository(ServiceCategory) private categoryRepo: Repository<ServiceCategory>,
   ) {}
 
-  async findAll(businessId: string): Promise<ServiceCategory[]> {
-    return this.categoryRepo.find({
+  private enrichCategory(category: ServiceCategory) {
+    const localizedNames = extractLocalizedNamesFromMetadata(category.metadata);
+    return Object.assign(category, { localizedNames });
+  }
+
+  async findAll(businessId: string) {
+    const categories = await this.categoryRepo.find({
       where: { businessId, isActive: true },
       order: { sortOrder: 'ASC', name: 'ASC' },
     });
+    return categories.map((category) => this.enrichCategory(category));
   }
 
-  async findOne(id: string, businessId: string): Promise<ServiceCategory> {
+  async findOne(id: string, businessId: string) {
     const category = await this.categoryRepo.findOne({ where: { id, businessId } });
     if (!category) throw new NotFoundException('Service category not found');
-    return category;
+    return this.enrichCategory(category);
   }
 
-  async create(businessId: string, dto: CreateServiceCategoryDto): Promise<ServiceCategory> {
-    return this.categoryRepo.save(
+  async create(businessId: string, dto: CreateServiceCategoryDto) {
+    const { localizedNames, ...rest } = dto;
+    const saved = await this.categoryRepo.save(
       this.categoryRepo.create({
         businessId,
-        name: dto.name,
-        description: dto.description,
-        sortOrder: dto.sortOrder ?? 0,
+        name: rest.name,
+        description: rest.description,
+        sortOrder: rest.sortOrder ?? 0,
+        metadata: applyLocalizedNamesToMetadata({}, localizedNames),
       }),
     );
+    return this.enrichCategory(saved);
   }
 
   async update(
     id: string,
     businessId: string,
     dto: UpdateServiceCategoryDto,
-  ): Promise<ServiceCategory> {
-    const category = await this.findOne(id, businessId);
-    Object.assign(category, dto);
-    return this.categoryRepo.save(category);
+  ) {
+    const category = await this.categoryRepo.findOne({ where: { id, businessId } });
+    if (!category) throw new NotFoundException('Service category not found');
+
+    const { localizedNames, ...rest } = dto;
+    if (localizedNames !== undefined) {
+      category.metadata = applyLocalizedNamesToMetadata(
+        (category.metadata ?? {}) as Record<string, unknown>,
+        localizedNames,
+      );
+    }
+    Object.assign(category, rest);
+    const saved = await this.categoryRepo.save(category);
+    return this.enrichCategory(saved);
   }
 
   async remove(id: string, businessId: string): Promise<void> {

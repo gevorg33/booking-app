@@ -184,6 +184,44 @@ describe('notification-email-template.util', () => {
     expect(email?.text).not.toContain('Default footer');
   });
 
+  it('uses Armenian localized defaults when business locale is hy', () => {
+    const templates = listResolvedEmailTemplates({ locale: 'hy' });
+    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+    expect(confirmation?.subject).toContain('Հաստատված');
+    expect(confirmation?.bodyText).toContain('Բարև {{customerName}}');
+  });
+
+  it('prefers tenant subject override over locale defaults', () => {
+    const templates = listResolvedEmailTemplates({
+      locale: 'ru',
+      emailTemplates: {
+        templates: {
+          booking_reminder: { subject: 'Tenant RU {{customerName}}' },
+        },
+      },
+    });
+    expect(templates.find((t) => t.key === 'booking_reminder')?.subject).toBe(
+      'Tenant RU {{customerName}}',
+    );
+  });
+
+  it('renders Russian default booking_cancellation from locale', () => {
+    const email = renderBusinessEmailTemplate(
+      { locale: 'ru' },
+      'booking_cancellation',
+      {
+        customerName: 'Alex',
+        businessName: 'Glow',
+        serviceName: 'Facial',
+        dateLabel: '05.06.2026',
+        timeLabel: '10:00–10:30',
+        cancelReason: 'Customer request',
+      },
+    );
+    expect(email?.subject).toContain('Отменено');
+    expect(email?.text).toContain('отменена');
+  });
+
   it('lists resolved templates with customization flag', () => {
     const templates = listResolvedEmailTemplates({
       emailTemplates: {

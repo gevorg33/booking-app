@@ -22,7 +22,7 @@ export function EmbedWidgetSection({ slug, businessName }: { slug: string; busin
 </script>`;
 
   return (
-    <section className="card space-y-4">
+    <section className="card w-full space-y-4">
       <div>
         <h2 className="font-semibold text-lg">{t('embed.title')}</h2>
         <p className="text-sm text-gray-500 mt-1">{t('embed.subtitle')}</p>

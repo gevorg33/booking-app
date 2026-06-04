@@ -11,7 +11,7 @@ interface LanguageSwitcherProps {
 }
 
 export function LanguageSwitcher({ variant = 'dark', compact = false, onChange }: LanguageSwitcherProps) {
-  const { locale, setLocale, locales, localeLabels } = useI18n();
+  const { locale, setLocale, locales, localeLabels, t } = useI18n();
 
   const selectClass =
     variant === 'light'
@@ -33,7 +33,7 @@ export function LanguageSwitcher({ variant = 'dark', compact = false, onChange }
           onChange?.(next);
         }}
         className={`text-sm rounded-lg border px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${selectClass} ${compact ? '' : 'flex-1'}`}
-        aria-label="Language"
+        aria-label={t('languages.title')}
       >
         {locales.map((code) => (
           <option key={code} value={code}>

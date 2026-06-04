@@ -29,7 +29,7 @@ import { groupBookingsForAccount } from '@/lib/group-package-bookings';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
-import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
+import { formatBookingDateTimeRange } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
 import { confirmDialog } from '@/lib/app-dialog';
 
@@ -76,7 +76,7 @@ function PackageVisitRow({
             {t('public.packageVisitAppointmentCount', { count: visit.appointments.length })}
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            {formatDateDisplay(start, locale)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
+            {formatBookingDateTimeRange(start, end, locale)}
           </p>
         </div>
         {allCancelled && (
@@ -122,7 +122,7 @@ function BookingRow({
           <p className="font-medium text-gray-900">{booking.serviceName}</p>
           <p className="text-sm text-gray-500 mt-0.5">{booking.employeeName}</p>
           <p className="text-sm text-gray-600 mt-2">
-            {formatDateDisplay(start, locale)} · {formatScheduleTime(start)} – {formatScheduleTime(end)}
+            {formatBookingDateTimeRange(start, end, locale)}
           </p>
         </div>
         <span className="text-xs font-medium text-gray-500 shrink-0">

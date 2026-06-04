@@ -543,7 +543,7 @@ export default function SettingsPage() {
             disabled={!notif || saveNotifications.isPending}
             className="btn-primary mt-4 text-sm"
           >
-            {saveNotifications.isPending ? 'Saving…' : t('settings.saveNotifications')}
+            {saveNotifications.isPending ? t('common.saving') : t('settings.saveNotifications')}
           </button>
           {saveNotifications.isSuccess && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">{t('settings.notificationsSaved')}</p>
@@ -671,7 +671,7 @@ export default function SettingsPage() {
               disabled={saveWhatsApp.isPending}
               className="btn-primary mt-4 text-sm"
             >
-              {saveWhatsApp.isPending ? 'Saving…' : t('settings.saveWhatsAppIntegration')}
+              {saveWhatsApp.isPending ? t('common.saving') : t('settings.saveWhatsAppIntegration')}
             </button>
           )}
           {saveWhatsApp.isSuccess && (
@@ -755,7 +755,7 @@ export default function SettingsPage() {
               disabled={saveOpenAi.isPending}
               className="btn-primary mt-4 text-sm"
             >
-              {saveOpenAi.isPending ? 'Saving…' : t('settings.saveOpenAiIntegration')}
+              {saveOpenAi.isPending ? t('common.saving') : t('settings.saveOpenAiIntegration')}
             </button>
           )}
           {saveOpenAi.isSuccess && (

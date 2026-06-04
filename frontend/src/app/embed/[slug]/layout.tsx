@@ -1,3 +1,33 @@
-export default function EmbedLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-white">{children}</div>;
+import { notFound } from 'next/navigation';
+import { I18nProvider } from '@/i18n';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';;
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
+
+export const dynamic = 'force-dynamic';
+
+export default async function EmbedLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  let tenant;
+  try {
+    tenant = await getPublicProfileResolved(slug);
+  } catch {
+    notFound();
+  }
+
+  const visitorLocale = await resolvePublicBookingLocale(tenant.locale);
+
+  return (
+    <I18nProvider initialLocale={visitorLocale} localeCookie="public">
+      <div className="min-h-screen bg-white" lang={visitorLocale}>
+        {children}
+      </div>
+    </I18nProvider>
+  );
 }

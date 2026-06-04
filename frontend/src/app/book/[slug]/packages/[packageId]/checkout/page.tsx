@@ -1,4 +1,5 @@
-import { getPublicPackage, getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicPackage } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PackageCheckoutClient } from '@/components/public-booking/package-checkout-client';
 
@@ -19,7 +20,7 @@ export default async function PackageCheckoutPage({
   const sessionId = pickParam(raw.session_id);
 
   const [tenant, { package: pkg }] = await Promise.all([
-    getPublicProfile(slug),
+    getPublicProfileResolved(slug),
     getPublicPackage(slug, packageId),
   ]);
 

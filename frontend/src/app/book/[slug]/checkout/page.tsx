@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getPublicProfile, getPublicProviders, getPublicServices, getPublicServicesForSlot } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicProviders, getPublicServices, getPublicServicesForSlot } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { CheckoutClient } from './checkout-client';
 
 export default async function CheckoutPage({
@@ -29,10 +31,11 @@ export default async function CheckoutPage({
     redirect(bookPath(slug, '/professionals'));
   }
 
-  const tenant = await getPublicProfile(slug);
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
 
   if (isAutoAssign) {
-    const { services } = await getPublicServices(slug);
+    const { services } = await getPublicServices(slug, { locale });
     const service = services.find((s) => s.id === serviceId);
     if (!service) {
       redirect(bookPath(slug, '/any'));
@@ -53,8 +56,8 @@ export default async function CheckoutPage({
   }
 
   const [{ providers }, { services }] = await Promise.all([
-    getPublicProviders(slug),
-    getPublicServicesForSlot(slug, employeeId!, startTime),
+    getPublicProviders(slug, undefined, locale),
+    getPublicServicesForSlot(slug, employeeId!, startTime, locale),
   ]);
 
   const provider = providers.find((p) => p.id === employeeId);

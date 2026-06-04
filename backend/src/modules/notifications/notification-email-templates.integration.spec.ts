@@ -2,13 +2,17 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
 import { NotificationEmailTemplateService } from './notification-email-template.service.js';
 import { NotificationsService } from './notifications.service.js';
-import { renderBusinessEmailTemplate } from './notification-email-template.util.js';
+import {
+  listResolvedEmailTemplates,
+  renderBusinessEmailTemplate,
+} from './notification-email-template.util.js';
 
 describe('Notification email templates integration', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
   const templateService = new NotificationEmailTemplateService(businessRepo as any);
 
   const bookingRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
+  const customerRepo = { findOne: jest.fn() };
   const logRepo = {
     findOne: jest.fn().mockResolvedValue(null),
     save: jest.fn(),
@@ -22,6 +26,7 @@ describe('Notification email templates integration', () => {
   const notifications = new NotificationsService(
     bookingRepo as any,
     businessRepo as any,
+    customerRepo as any,
     logRepo as any,
     emailService as any,
     smsService as any,
@@ -250,5 +255,130 @@ describe('Notification email templates integration', () => {
     expect(giftCardRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ fulfillmentStatus: 'delivered' }),
     );
+  });
+
+  it('lists Armenian default templates when business locale is hy', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Glow Salon',
+      settings: { locale: 'hy' },
+    });
+
+    const { templates } = await templateService.listTemplates('biz-1');
+    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+
+    expect(confirmation?.subject).toContain('Հաստատված');
+    expect(confirmation?.bodyText).toContain('Բարև {{customerName}}');
+    expect(confirmation?.isCustomized).toBe(false);
+  });
+
+  it('prefers tenant override over locale-specific defaults', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Glow Salon',
+      settings: {
+        locale: 'ru',
+        emailTemplates: {
+          templates: {
+            booking_confirmation: {
+              subject: 'Custom RU subject {{customerName}}',
+            },
+          },
+        },
+      },
+    });
+
+    const { templates } = await templateService.listTemplates('biz-1');
+    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+
+    expect(confirmation?.subject).toBe('Custom RU subject {{customerName}}');
+    expect(confirmation?.isCustomized).toBe(true);
+  });
+
+  it('renders Russian default reminder copy from business locale', () => {
+    const rendered = renderBusinessEmailTemplate(
+      { locale: 'ru' },
+      'booking_reminder',
+      {
+        customerName: 'Alex',
+        businessName: 'Glow Salon',
+        serviceName: 'Facial',
+        providerName: 'Jane',
+        dateLabel: '05.06.2026',
+        timeLabel: '14:00–14:30',
+        reminderLabel: '24 ч',
+      },
+    );
+
+    expect(rendered?.subject).toContain('Напоминание');
+    expect(rendered?.text).toContain('Glow Salon');
+    expect(rendered?.text).toContain('24 ч');
+  });
+
+  it('sends localized confirmation email when business locale is ru', async () => {
+    const business = {
+      id: 'biz-1',
+      name: 'Glow Salon',
+      slug: 'glow',
+      settings: {
+        locale: 'ru',
+        notifications: { sendConfirmationEmail: true, emailEnabled: true },
+      },
+    };
+    const booking = {
+      id: 'b-ru',
+      businessId: 'biz-1',
+      status: BookingStatus.CONFIRMED,
+      startTime: new Date('2026-06-05T10:00:00Z'),
+      endTime: new Date('2026-06-05T10:30:00Z'),
+      customer,
+      employee: { name: 'Jane' },
+      service: { name: 'Facial' },
+      business,
+      metadata: {},
+    };
+
+    bookingRepo.findOne.mockResolvedValue(booking);
+
+    await notifications.sendBookingConfirmation('b-ru');
+
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: expect.stringContaining('Подтверждено'),
+        text: expect.stringContaining('До встречи'),
+      }),
+    );
+  });
+
+  it('resets template to localized default after reset when locale is hy', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Glow Salon',
+      settings: {
+        locale: 'hy',
+        emailTemplates: {
+          templates: {
+            booking_confirmation: { subject: 'Custom HY only' },
+          },
+        },
+      },
+    });
+
+    const reset = await templateService.resetTemplate('biz-1', 'booking_confirmation');
+    expect(reset.subject).toContain('Հաստատված');
+    expect(reset.isCustomized).toBe(false);
+    expect(businessRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          emailTemplates: expect.objectContaining({ templates: {} }),
+        }),
+      }),
+    );
+  });
+
+  it('listResolvedEmailTemplates uses hy defaults without API round-trip', () => {
+    const templates = listResolvedEmailTemplates({ locale: 'hy' });
+    const reminder = templates.find((t) => t.key === 'booking_reminder');
+    expect(reminder?.subject).toContain('Հիշեցում');
   });
 });

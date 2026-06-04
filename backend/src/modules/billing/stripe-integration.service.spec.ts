@@ -70,9 +70,13 @@ describe('StripeIntegrationService', () => {
         },
       },
     };
+    const planEntitlements = {
+      assertFeature: jest.fn().mockResolvedValue(undefined),
+    };
     service = new StripeIntegrationService(
       businessRepo as never,
       stripeService as unknown as StripeService,
+      planEntitlements as never,
     );
   });
 

@@ -1,17 +1,11 @@
 import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import type { AppLocale } from '@shared-i18n/types';
+import { getMessages } from '../i18n/catalog';
+import { resolveProviderAppLocale } from '../i18n/resolve-locale';
+import { useAuthStore } from '../services/auth-store';
 import { operationFeedbackStore } from './operation-feedback-store';
 
 export type OperationKind = 'create' | 'update' | 'delete';
-
-const MESSAGES = {
-  created: 'Created successfully.',
-  updated: 'Saved successfully.',
-  deleted: 'Deleted successfully.',
-  failed: 'Something went wrong. Please try again.',
-  failedCreate: 'Could not create.',
-  failedUpdate: 'Could not save.',
-  failedDelete: 'Could not delete.',
-};
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
@@ -29,7 +23,48 @@ const SKIP_URL_PATTERNS: RegExp[] = [
   /\/providers\b/i,
   /\/me\b/i,
   /\/status\b/i,
+  /\/provider\/ai\//i,
 ];
+
+function currentLocale(): AppLocale {
+  const { user, business } = useAuthStore.getState();
+  return resolveProviderAppLocale(user?.locale, business?.locale);
+}
+
+type FeedbackMessages = {
+  creating: string;
+  updating: string;
+  deleting: string;
+  created: string;
+  updated: string;
+  deleted: string;
+  failed: string;
+  failedCreate: string;
+  failedUpdate: string;
+  failedDelete: string;
+  bookingCreated: string;
+  bookingCancelled: string;
+  purchaseCompleted: string;
+};
+
+function feedbackMessages(): FeedbackMessages {
+  const fb = getMessages(currentLocale()).feedback as FeedbackMessages;
+  return {
+    creating: fb.creating,
+    updating: fb.updating,
+    deleting: fb.deleting,
+    created: fb.created,
+    updated: fb.updated,
+    deleted: fb.deleted,
+    failed: fb.failed,
+    failedCreate: fb.failedCreate,
+    failedUpdate: fb.failedUpdate,
+    failedDelete: fb.failedDelete,
+    bookingCreated: fb.bookingCreated,
+    bookingCancelled: fb.bookingCancelled,
+    purchaseCompleted: fb.purchaseCompleted,
+  };
+}
 
 export function inferOperationKind(method?: string): OperationKind | null {
   const m = (method ?? 'get').toLowerCase();
@@ -51,21 +86,23 @@ export function shouldShowOperationFeedback(
   return !SKIP_URL_PATTERNS.some((pattern) => pattern.test(path));
 }
 
-function successMessageForKind(kind: OperationKind, custom?: string): string {
+export function successMessageForKind(kind: OperationKind, custom?: string): string {
   if (custom?.trim()) return custom.trim();
-  if (kind === 'create') return MESSAGES.created;
-  if (kind === 'delete') return MESSAGES.deleted;
-  return MESSAGES.updated;
+  const m = feedbackMessages();
+  if (kind === 'create') return m.created;
+  if (kind === 'delete') return m.deleted;
+  return m.updated;
 }
 
-function failureMessageForKind(kind: OperationKind, error: unknown): string {
+export function failureMessageForKind(kind: OperationKind, error: unknown): string {
   const detail = extractErrorMessage(error);
+  const m = feedbackMessages();
   const prefix =
-    kind === 'create' ? MESSAGES.failedCreate : kind === 'delete' ? MESSAGES.failedDelete : MESSAGES.failedUpdate;
-  return detail ? `${prefix} ${detail}` : MESSAGES.failed;
+    kind === 'create' ? m.failedCreate : kind === 'delete' ? m.failedDelete : m.failedUpdate;
+  return detail ? `${prefix} ${detail}` : m.failed;
 }
 
-function extractErrorMessage(error: unknown): string | null {
+export function extractErrorMessage(error: unknown): string | null {
   if (!error) return null;
   if (typeof error === 'string' && error.trim()) return error.trim();
   if (error instanceof Error && error.message.trim()) return error.message.trim();

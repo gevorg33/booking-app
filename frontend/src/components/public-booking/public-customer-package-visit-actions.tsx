@@ -50,7 +50,7 @@ export function PublicCustomerPackageVisitActions({
   const { customer } = usePublicCustomerAuth();
   const tz = tenant.timezone || 'UTC';
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
-  const dayOptions = useMemo(() => buildBookingDayOptions(tz), [tz]);
+  const dayOptions = useMemo(() => buildBookingDayOptions(tz, undefined, locale), [tz, locale]);
 
   const [busy, setBusy] = useState<'cancel' | 'reschedule' | null>(null);
   const [error, setError] = useState<string | null>(null);

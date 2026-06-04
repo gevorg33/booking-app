@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const WS_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const WS_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001').replace(/\/$/, '');
 
 let sharedSocket: Socket | null = null;
 

@@ -31,9 +31,9 @@ import {
   PAYMENT_STATUS_OPTIONS,
   statusRequiresConfirmation,
   STATUS_COLOR,
-  STATUS_LABELS,
 } from '../lib/booking-types';
 import BookingPaymentBreakdown from './BookingPaymentBreakdown';
+import { useI18n } from '../i18n';
 
 interface BookingDetailModalProps {
   businessId: string;
@@ -42,7 +42,7 @@ interface BookingDetailModalProps {
   onAiPrompt?: (prompt: string) => void;
 }
 
-function readError(err: unknown): string {
+function readError(err: unknown, fallback: string): string {
   const ax = err as {
     response?: {
       data?: {
@@ -52,7 +52,7 @@ function readError(err: unknown): string {
   };
   const msg = ax.response?.data?.message;
   if (typeof msg === 'object' && msg?.message) return msg.message;
-  return typeof msg === 'string' ? msg : 'Something went wrong. Please try again.';
+  return typeof msg === 'string' ? msg : fallback;
 }
 
 function readErrorCode(err: unknown): string | undefined {
@@ -105,6 +105,7 @@ export default function BookingDetailModal({
   onClose,
   onAiPrompt,
 }: BookingDetailModalProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [presentActionSheet] = useIonActionSheet();
   const [status, setStatus] = useState<BookingStatus>('confirmed');
@@ -186,7 +187,7 @@ export default function BookingDetailModal({
       const { data: res } = await api.put(
         `/businesses/${businessId}/provider/bookings/${bookingId}/cancel`,
         {
-          reason: cancelReason.trim() || 'Cancelled by provider',
+          reason: cancelReason.trim() || t('provider.cancelledByProvider'),
           expectedUpdatedAt: booking?.updatedAt,
         },
       );
@@ -267,18 +268,18 @@ export default function BookingDetailModal({
 
   const openPaymentPicker = () => {
     presentActionSheet({
-      header: 'Payment status',
+      header: t('appointments.paymentStatus'),
       cssClass: 'provider-picker-sheet',
       buttons: [
         ...PAYMENT_STATUS_OPTIONS.map((option) => ({
           text:
             paymentStatus === option
-              ? `${formatPaymentLabel(option)} ✓`
-              : formatPaymentLabel(option),
+              ? `${formatPaymentLabel(option, t)} ✓`
+              : formatPaymentLabel(option, t),
           cssClass: paymentStatus === option ? 'provider-sheet-selected' : undefined,
           handler: () => applyPaymentChange(option),
         })),
-        { text: 'Dismiss', role: 'cancel' as const },
+        { text: t('provider.dismiss'), role: 'cancel' as const },
       ],
     });
   };
@@ -288,18 +289,18 @@ export default function BookingDetailModal({
     if (!options.includes('cancelled')) options.push('cancelled');
 
     presentActionSheet({
-      header: 'Appointment status',
+      header: t('appointments.status'),
       cssClass: 'provider-picker-sheet',
       buttons: [
         ...options.map((option) => ({
           text:
             displayStatus === option
-              ? `${STATUS_LABELS[option]} ✓`
-              : STATUS_LABELS[option],
+              ? `${formatStatusLabel(option, t)} ✓`
+              : formatStatusLabel(option, t),
           cssClass: displayStatus === option ? 'provider-sheet-selected' : undefined,
           handler: () => applyStatusChange(option),
         })),
-        { text: 'Dismiss', role: 'cancel' as const },
+        { text: t('provider.dismiss'), role: 'cancel' as const },
       ],
     });
   };
@@ -356,9 +357,9 @@ export default function BookingDetailModal({
     <IonModal isOpen={!!bookingId} onDidDismiss={onClose}>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Appointment</IonTitle>
+          <IonTitle>{t('appointments.detailTitle')}</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={onClose}>Close</IonButton>
+            <IonButton onClick={onClose}>{t('provider.close')}</IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
@@ -370,17 +371,17 @@ export default function BookingDetailModal({
         ) : (
           <>
             <div className="ion-margin-bottom">
-              <h2>{booking.service?.name ?? 'Appointment'}</h2>
+              <h2>{booking.service?.name ?? t('appointments.detailFallbackTitle')}</h2>
               <p className="booking-meta">{formatDateDisplay(booking.startTime)}</p>
               <p>{formatTimeRangeDisplay(booking.startTime, booking.endTime)}</p>
               <IonBadge color={STATUS_COLOR[displayStatus] ?? 'medium'}>
-                {formatStatusLabel(displayStatus)}
+                {formatStatusLabel(displayStatus, t)}
               </IonBadge>
             </div>
 
             {booking.customer && (
               <div className="ion-margin-bottom">
-                <h3>Customer</h3>
+                <h3>{t('common.customer')}</h3>
                 <p>{booking.customer.name}</p>
                 {booking.customer.phone && (
                   <a className="contact-link" href={`tel:${booking.customer.phone}`}>
@@ -397,7 +398,7 @@ export default function BookingDetailModal({
 
             {editable && onAiPrompt && (
               <div className="ion-margin-bottom ai-booking-actions">
-                <h3>AI actions</h3>
+                <h3>{t('provider.aiActionsTitle')}</h3>
                 <div className="ai-booking-actions__chips">
                   <button
                     type="button"
@@ -407,7 +408,7 @@ export default function BookingDetailModal({
                       onClose();
                     }}
                   >
-                    Cancel — I&apos;m sick
+                    {t('provider.aiCancelSickChip')}
                   </button>
                   <button
                     type="button"
@@ -417,7 +418,7 @@ export default function BookingDetailModal({
                       onClose();
                     }}
                   >
-                    Mark done + paid
+                    {t('provider.aiMarkDonePaidChip')}
                   </button>
                   <button
                     type="button"
@@ -427,7 +428,7 @@ export default function BookingDetailModal({
                       onClose();
                     }}
                   >
-                    Reschedule to 4pm
+                    {t('provider.aiReschedule4pmChip')}
                   </button>
                 </div>
               </div>
@@ -435,13 +436,13 @@ export default function BookingDetailModal({
 
             {editable && (
               <div className="ion-margin-bottom">
-                <h3>Reschedule</h3>
+                <h3>{t('appointments.reschedule')}</h3>
                 <IonItem lines="full">
-                  <IonLabel position="stacked">Date</IonLabel>
+                  <IonLabel position="stacked">{t('common.date')}</IonLabel>
                   <DatePicker value={rescheduleDate} onChange={setRescheduleDate} />
                 </IonItem>
                 <IonItem lines="full">
-                  <IonLabel position="stacked">Start time (24h)</IonLabel>
+                  <IonLabel position="stacked">{t('appointments.startTime24h')}</IonLabel>
                   <input
                     type="time"
                     className="native-date-input"
@@ -456,15 +457,19 @@ export default function BookingDetailModal({
                     onClick={saveReschedule}
                     disabled={updateMutation.isPending}
                   >
-                    {updateMutation.isPending ? <IonSpinner name="crescent" /> : 'Save new time'}
+                    {updateMutation.isPending ? (
+                      <IonSpinner name="crescent" />
+                    ) : (
+                      t('provider.saveNewTime')
+                    )}
                   </IonButton>
                 )}
               </div>
             )}
 
             <PickerField
-              label="Payment status"
-              valueLabel={formatPaymentLabel(paymentStatus)}
+              label={t('appointments.paymentStatus')}
+              valueLabel={formatPaymentLabel(paymentStatus, t)}
               disabled={booking.status === 'cancelled' || updateMutation.isPending}
               onPress={openPaymentPicker}
             />
@@ -475,40 +480,46 @@ export default function BookingDetailModal({
 
             {editable && (
               <PickerField
-                label="Status"
-                valueLabel={formatStatusLabel(displayStatus)}
+                label={t('appointments.status')}
+                valueLabel={formatStatusLabel(displayStatus, t)}
                 disabled={updateMutation.isPending}
                 onPress={openStatusPicker}
               />
             )}
 
             <IonItem lines="none" className="ion-margin-bottom">
-              <IonLabel position="stacked">Notes</IonLabel>
+              <IonLabel position="stacked">{t('common.note')}</IonLabel>
               <IonTextarea
                 value={notes}
                 onIonInput={(e) => setNotes(e.detail.value ?? '')}
                 rows={3}
                 disabled={!editable}
-                placeholder="Internal notes..."
+                placeholder={t('appointments.internalNotesPlaceholder')}
               />
             </IonItem>
 
             {booking.cancellationReason && (
               <IonText color="danger">
-                <p className="booking-meta">Cancelled: {booking.cancellationReason}</p>
+                <p className="booking-meta">
+                  {t('provider.cancelledPrefix')} {booking.cancellationReason}
+                </p>
               </IonText>
             )}
 
             {showCancel ? (
               <div className="ion-margin-vertical">
-                <IonText color="danger"><p><strong>Cancel this appointment?</strong></p></IonText>
+                <IonText color="danger">
+                  <p>
+                    <strong>{t('appointments.cancelConfirmTitle')}</strong>
+                  </p>
+                </IonText>
                 <IonItem lines="none">
-                  <IonLabel position="stacked">Cancellation note</IonLabel>
+                  <IonLabel position="stacked">{t('provider.cancellationNote')}</IonLabel>
                   <IonTextarea
                     value={cancelReason}
                     onIonInput={(e) => setCancelReason(e.detail.value ?? '')}
                     rows={3}
-                    placeholder="Reason for cancellation..."
+                    placeholder={t('appointments.cancelReasonPlaceholder')}
                   />
                 </IonItem>
                 <IonButton
@@ -518,7 +529,11 @@ export default function BookingDetailModal({
                   onClick={() => void suggestMutation.mutate()}
                   disabled={suggestMutation.isPending}
                 >
-                  {suggestMutation.isPending ? <IonSpinner name="crescent" /> : 'Help me write the note'}
+                  {suggestMutation.isPending ? (
+                    <IonSpinner name="crescent" />
+                  ) : (
+                    t('provider.helpWriteCancelNote')
+                  )}
                 </IonButton>
                 <IonButton
                   expand="block"
@@ -527,24 +542,30 @@ export default function BookingDetailModal({
                   onClick={() => void cancelMutation.mutate()}
                   disabled={cancelMutation.isPending}
                 >
-                  {cancelMutation.isPending ? <IonSpinner name="crescent" /> : 'Confirm cancel'}
+                  {cancelMutation.isPending ? (
+                    <IonSpinner name="crescent" />
+                  ) : (
+                    t('appointments.confirmCancel')
+                  )}
                 </IonButton>
                 <IonButton expand="block" fill="clear" onClick={resetStatusDraft}>
-                  Keep appointment
+                  {t('provider.keepAppointment')}
                 </IonButton>
               </div>
             ) : pendingStatus ? (
               <div className="ion-margin-vertical">
                 <IonText color="warning">
                   <p>
-                    Mark as <strong>{STATUS_LABELS[pendingStatus]}</strong>?
+                    {t('appointments.markStatusConfirm', {
+                      status: formatStatusLabel(pendingStatus, t),
+                    })}
                   </p>
                 </IonText>
                 <IonButton expand="block" onClick={confirmPendingStatus} disabled={updateMutation.isPending}>
-                  Confirm
+                  {t('appointments.confirmAction')}
                 </IonButton>
                 <IonButton expand="block" fill="clear" onClick={resetStatusDraft}>
-                  Back
+                  {t('provider.back')}
                 </IonButton>
               </div>
             ) : null}
@@ -553,8 +574,11 @@ export default function BookingDetailModal({
               <IonText color="warning">
                 <p className="booking-meta">
                   {versionConflict
-                    ? 'This appointment was updated elsewhere. Details refreshed — review and try again.'
-                    : readError(updateMutation.error ?? cancelMutation.error ?? suggestMutation.error)}
+                    ? t('provider.versionConflictHint')
+                    : readError(
+                        updateMutation.error ?? cancelMutation.error ?? suggestMutation.error,
+                        t('feedback.failed'),
+                      )}
                 </p>
               </IonText>
             )}
@@ -566,7 +590,11 @@ export default function BookingDetailModal({
                 onClick={saveNotes}
                 disabled={updateMutation.isPending}
               >
-                {updateMutation.isPending ? <IonSpinner name="crescent" /> : 'Save notes'}
+                {updateMutation.isPending ? (
+                  <IonSpinner name="crescent" />
+                ) : (
+                  t('provider.saveNotes')
+                )}
               </IonButton>
             )}
           </>

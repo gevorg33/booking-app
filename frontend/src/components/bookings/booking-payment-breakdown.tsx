@@ -11,6 +11,7 @@ interface BookingPaymentBreakdownProps {
     servicePrice: string;
     chargedAmount: string;
     promoDiscount: string;
+    giftCardDiscount: string;
     loyaltyDiscount: string;
     cashPaid: string;
     fullyCovered: string;
@@ -56,7 +57,7 @@ export function BookingPaymentBreakdown({ summary, labels }: BookingPaymentBreak
                 {item.type === 'promo'
                   ? labels.promoDiscount
                   : item.type === 'gift_card'
-                    ? 'Gift card'
+                    ? labels.giftCardDiscount
                     : item.type === 'retail'
                       ? item.label
                       : labels.loyaltyDiscount}

@@ -9,8 +9,7 @@ import {
 } from '../lib/date-picker-calendar.util';
 import { formatDateDisplay, getTodayDateKey, parseDateKey } from '../lib/date-format';
 import './date-picker.css';
-
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+import { useI18n } from '../i18n';
 
 export type DatePickerProps = {
   value: string;
@@ -35,10 +34,21 @@ export function DatePicker({
   required = false,
   id: idProp,
   className = '',
-  placeholder = 'Select date',
+  placeholder,
   clearable = false,
   'aria-label': ariaLabel,
 }: DatePickerProps) {
+  const { t } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t('datePicker.selectDate');
+  const weekdays = [
+    t('datePicker.weekdays.mon'),
+    t('datePicker.weekdays.tue'),
+    t('datePicker.weekdays.wed'),
+    t('datePicker.weekdays.thu'),
+    t('datePicker.weekdays.fri'),
+    t('datePicker.weekdays.sat'),
+    t('datePicker.weekdays.sun'),
+  ];
   const autoId = useId();
   const id = idProp ?? autoId;
   const todayKey = getTodayDateKey();
@@ -53,7 +63,7 @@ export function DatePicker({
 
   const monthCells = useMemo(() => buildCalendarMonth(viewMonthKey), [viewMonthKey]);
   const monthLabel = formatMonthYearLabel(viewMonthKey);
-  const displayValue = value ? formatDateDisplay(value) : placeholder;
+  const displayValue = value ? formatDateDisplay(value) : resolvedPlaceholder;
 
   const updatePopoverPosition = useCallback(() => {
     const el = triggerRef.current;
@@ -128,7 +138,7 @@ export function DatePicker({
               <button
                 type="button"
                 className="date-picker-popover__nav"
-                aria-label="Previous month"
+                aria-label={t('datePicker.prevMonth')}
                 onClick={() => setViewMonthKey((m) => shiftMonthKey(m, -1))}
               >
                 ‹
@@ -137,7 +147,7 @@ export function DatePicker({
               <button
                 type="button"
                 className="date-picker-popover__nav"
-                aria-label="Next month"
+                aria-label={t('datePicker.nextMonth')}
                 onClick={() => setViewMonthKey((m) => shiftMonthKey(m, 1))}
               >
                 ›
@@ -145,7 +155,7 @@ export function DatePicker({
             </div>
 
             <div className="date-picker-weekdays">
-              {WEEKDAYS.map((label) => (
+              {weekdays.map((label) => (
                 <span key={label} className="date-picker-weekday">
                   {label}
                 </span>
@@ -194,7 +204,7 @@ export function DatePicker({
                 }}
                 disabled={!isDateKeyInRange(todayKey, min, max)}
               >
-                Today
+                {t('datePicker.today')}
               </button>
               {clearable && (
                 <button
@@ -204,7 +214,7 @@ export function DatePicker({
                     setOpen(false);
                   }}
                 >
-                  Clear
+                  {t('datePicker.clear')}
                 </button>
               )}
             </div>

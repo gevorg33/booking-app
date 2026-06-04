@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CreditCard,
   Check,
@@ -53,16 +53,21 @@ interface StripeConnectInfo {
   displayName?: string;
 }
 
-const STATUS_LABEL: Record<string, { label: string; className: string }> = {
-  active: { label: 'Active', className: 'bg-green-600/15 text-green-400' },
-  trialing: { label: 'Trial', className: 'bg-blue-600/15 text-blue-400' },
-  past_due: { label: 'Past due', className: 'bg-red-600/15 text-red-400' },
-  canceled: { label: 'Canceled', className: 'bg-gray-600/15 text-gray-400' },
-  inactive: { label: 'Not subscribed', className: 'bg-yellow-600/15 text-yellow-400' },
-};
+function getStatusLabel(
+  t: (key: string) => string,
+): Record<string, { label: string; className: string }> {
+  return {
+    active: { label: t('billing.statusActive'), className: 'bg-green-600/15 text-green-400' },
+    trialing: { label: t('billing.statusTrial'), className: 'bg-blue-600/15 text-blue-400' },
+    past_due: { label: t('billing.statusPastDue'), className: 'bg-red-600/15 text-red-400' },
+    canceled: { label: t('billing.statusCanceled'), className: 'bg-gray-600/15 text-gray-400' },
+    inactive: { label: t('billing.statusNotSubscribed'), className: 'bg-yellow-600/15 text-yellow-400' },
+  };
+}
 
 export default function BillingPage() {
   const { t } = useI18n();
+  const statusLabels = useMemo(() => getStatusLabel(t), [t]);
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
@@ -305,7 +310,7 @@ export default function BillingPage() {
     queryClient.invalidateQueries({ queryKey: ['billing-subscription'] });
   };
 
-  const statusInfo = STATUS_LABEL[subscription?.status ?? 'inactive'] ?? STATUS_LABEL.inactive;
+  const statusInfo = statusLabels[subscription?.status ?? 'inactive'] ?? statusLabels.inactive;
   const loading = plansLoading || subLoading || confirming || connectLoading;
   const connectBusy =
     oauthConnectMutation.isPending ||
@@ -462,12 +467,9 @@ export default function BillingPage() {
         <div className="mb-6 p-4 rounded-lg border border-green-500/30 bg-green-600/10 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-green-300 font-medium">Payment successful</p>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Your subscription is being activated. If status doesn&apos;t update, click Refresh below.
-            </p>
+            <p className="text-green-300 font-medium">{t('billing.checkoutSuccess')}</p>
             <button onClick={refresh} className="text-sm text-green-400 underline mt-2">
-              Refresh status
+              {t('common.refreshStatus')}
             </button>
           </div>
         </div>
@@ -476,12 +478,12 @@ export default function BillingPage() {
       {banner === 'canceled' && (
         <div className="mb-6 p-4 rounded-lg border border-yellow-500/30 bg-yellow-600/10 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0" />
-          <p className="text-yellow-200 text-sm">Checkout was canceled. You can subscribe anytime below.</p>
+          <p className="text-yellow-200 text-sm">{t('billing.checkoutCanceled')}</p>
         </div>
       )}
 
       <div className="card mb-8">
-        <h2 className="font-semibold mb-4">Current plan</h2>
+        <h2 className="font-semibold mb-4">{t('billing.currentPlanSection')}</h2>
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
         ) : (
@@ -489,7 +491,7 @@ export default function BillingPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg font-medium">
-                  {subscription?.plan?.name ?? 'No plan'}
+                  {subscription?.plan?.name ?? t('common.noPlan')}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${statusInfo.className}`}>
                   {statusInfo.label}
@@ -497,7 +499,7 @@ export default function BillingPage() {
               </div>
               {subscription?.currentPeriodEnd && subscription.isActive && (
                 <p className="text-sm text-gray-400">
-                  Renews{' '}
+                  {t('common.renews')}{' '}
                   {formatDateDisplay(subscription.currentPeriodEnd)}
                 </p>
               )}
@@ -513,7 +515,7 @@ export default function BillingPage() {
                 ) : (
                   <ExternalLink className="w-4 h-4" />
                 )}
-                Manage subscription
+                {t('billing.manage')}
               </button>
             )}
           </div>
@@ -570,7 +572,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <h2 className="font-semibold mb-4">Available plans</h2>
+      <h2 className="font-semibold mb-4">{t('common.availablePlans')}</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => {
           const isCurrent = subscription?.planId === plan.id && subscription?.isActive;
@@ -589,7 +591,7 @@ export default function BillingPage() {
             >
               {plan.popular && (
                 <span className="absolute -top-2.5 left-4 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-600 text-white font-medium">
-                  Popular
+                  {t('common.popular')}
                 </span>
               )}
               <h3 className="text-lg font-semibold">{plan.name}</h3>
@@ -619,7 +621,7 @@ export default function BillingPage() {
               </ul>
               {isCurrent ? (
                 <button disabled className="btn-secondary w-full opacity-60 cursor-default">
-                  Current plan
+                  {t('billing.planButtonCurrent')}
                 </button>
               ) : (
                 <button
@@ -632,7 +634,7 @@ export default function BillingPage() {
                   {checkoutMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>Subscribe</>
+                    <>{t('billing.subscribe')}</>
                   )}
                 </button>
               )}
@@ -644,12 +646,12 @@ export default function BillingPage() {
       {checkoutMutation.isError && (
         <p className="mt-4 text-sm text-red-400">
           {(checkoutMutation.error as any)?.response?.data?.message ||
-            'Failed to start checkout'}
+            t('billing.checkoutFailed')}
         </p>
       )}
 
       <p className="text-xs text-gray-500 mt-8">
-        Test mode — use Stripe test card 4242 4242 4242 4242, any future expiry, any CVC.
+        {t('billing.testModeHint')}
       </p>
     </div>
   );

@@ -18,6 +18,7 @@ import {
   type NotificationKind,
 } from './notification.types.js';
 import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
+import { resolveLocale, t, type AppLocale } from '../../common/i18n/messages.js';
 import { formatDateDisplay, formatTimeRangeDisplay } from '../../common/utils/date-format.util.js';
 import {
   buildBookingManageUrl,
@@ -253,20 +254,21 @@ export class NotificationsService {
     const recipient = business.email?.trim();
     if (!recipient) return;
 
+    const locale = this.businessLocale(business.settings);
     const customerName = booking.customer?.name ?? 'A customer';
-    const serviceName = booking.service?.name ?? 'Appointment';
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
 
     let summary: string;
     if (change === 'cancelled') {
       summary = `${customerName} cancelled ${serviceName} scheduled for ${when} at ${time}.`;
     } else {
       const fromWhen = details?.previousStartTime
-        ? `${formatDateDisplay(new Date(details.previousStartTime))} ${formatTimeRangeDisplay(new Date(details.previousStartTime), booking.endTime)}`
+        ? `${formatDateDisplay(new Date(details.previousStartTime), locale)} ${formatTimeRangeDisplay(new Date(details.previousStartTime), booking.endTime, locale)}`
         : when;
       const toWhen = details?.newStartTime
-        ? `${formatDateDisplay(new Date(details.newStartTime))} ${formatTimeRangeDisplay(new Date(details.newStartTime), booking.endTime)}`
+        ? `${formatDateDisplay(new Date(details.newStartTime), locale)} ${formatTimeRangeDisplay(new Date(details.newStartTime), booking.endTime, locale)}`
         : when;
       summary = `${customerName} rescheduled ${serviceName} from ${fromWhen} to ${toWhen}.`;
     }
@@ -629,25 +631,24 @@ export class NotificationsService {
     }
 
     const { booking, business } = ctx;
-    const dateLabel = formatDateDisplay(booking.startTime);
-    const timeLabel = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const locale = this.businessLocale(business.settings);
+    const dateLabel = formatDateDisplay(booking.startTime, locale);
+    const timeLabel = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
     const reminderLabel =
       kind === 'reminder_immediate'
-        ? 'now'
+        ? t(locale, 'email.reminderNow')
         : minutesBefore !== undefined
-          ? minutesBefore >= 60
-            ? `${Math.round(minutesBefore / 60)} hours`
-            : `${minutesBefore} minutes`
+          ? this.reminderLabel(locale, minutesBefore)
           : undefined;
 
     const result = await this.whatsappService.sendBookingMessage(
       {
         toPhone: phone,
         kind,
-        customerName: booking.customer?.name ?? 'there',
+        customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
         businessName: business.name,
-        serviceName: booking.service?.name ?? 'Appointment',
-        providerName: booking.employee?.name ?? 'your provider',
+        serviceName: booking.service?.name ?? t(locale, 'email.defaultServiceName'),
+        providerName: booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
         dateLabel,
         timeLabel,
         reminderLabel,
@@ -677,12 +678,13 @@ export class NotificationsService {
 
   private buildCancellationEmail(ctx: BookingNotificationContext, reason: string) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
-    const serviceName = booking.service?.name ?? 'Appointment';
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
 
     return renderBusinessEmailTemplate(business.settings, 'booking_cancellation', {
-      customerName: booking.customer?.name ?? 'there',
+      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
       businessName: business.name,
       serviceName,
       dateLabel: when,
@@ -693,8 +695,9 @@ export class NotificationsService {
 
   private buildCancellationSms(ctx: BookingNotificationContext, reason: string) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
     return {
       text: `${business.name}: Your ${booking.service?.name ?? 'appointment'} on ${when} at ${time} was cancelled. ${reason}`,
     };
@@ -745,13 +748,14 @@ export class NotificationsService {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const slug = bookings[0]?.business?.slug ?? '';
     const selfService = resolveCustomerSelfServiceSettings(bookings[0]?.business?.settings);
+    const locale = this.businessLocale(bookings[0]?.business?.settings);
 
     return Promise.all(
       bookings.map(async (b) => {
         const line = {
-          serviceName: b.service?.name ?? 'Appointment',
-          providerName: b.employee?.name ?? 'your provider',
-          when: formatDateDisplay(b.startTime),
+          serviceName: b.service?.name ?? t(locale, 'email.defaultServiceName'),
+          providerName: b.employee?.name ?? t(locale, 'email.defaultProviderName'),
+          when: formatDateDisplay(b.startTime, locale),
           time: formatTimeRangeDisplay(b.startTime, b.endTime),
           manageUrl: null as string | null,
           manageLabel: null as string | null,
@@ -784,9 +788,10 @@ export class NotificationsService {
     groupLabel: string,
   ) {
     const { booking, business } = ctx;
+    const locale = this.businessLocale(business.settings);
     const count = lines.length;
-    const appointmentWord = count === 1 ? 'appointment' : 'appointments';
-    const intro = `Hi ${booking.customer?.name ?? 'there'},\n\nYour ${appointmentWord} at ${business.name} are confirmed${groupLabel ? ` (${groupLabel})` : ''}.`;
+    const appointmentWord = t(locale, count === 1 ? 'email.appointment' : 'email.appointments');
+    const intro = `Hi ${booking.customer?.name ?? t(locale, 'email.defaultCustomerName')},\n\nYour ${appointmentWord} at ${business.name} are confirmed${groupLabel ? ` (${groupLabel})` : ''}.`;
     const detailLines = lines.map((line) => {
       const base = `• ${line.serviceName} with ${line.providerName}\n  ${line.when} · ${line.time}`;
       return line.manageUrl && line.manageLabel
@@ -805,14 +810,14 @@ export class NotificationsService {
       .join('');
 
     return renderBusinessEmailTemplate(business.settings, 'booking_confirmation_grouped', {
-      customerName: booking.customer?.name ?? 'there',
+      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
       businessName: business.name,
       appointmentCount: String(count),
       appointmentWord,
       groupLabelSuffix: groupLabel ? ` (${groupLabel})` : '',
       appointmentsListText: detailLines.join('\n\n'),
       appointmentsListHtml: `<ul>${htmlLines}</ul>`,
-      footerNote: 'See you soon!',
+      footerNote: t(locale, 'email.footerNote'),
     });
   }
 
@@ -866,10 +871,10 @@ export class NotificationsService {
       {
         toPhone: customer.phone,
         kind: 'confirmation',
-        customerName: customer.name ?? 'there',
+        customerName: customer.name ?? t(this.businessLocale(ctx.business.settings), 'email.defaultCustomerName'),
         businessName: ctx.business.name,
         serviceName: groupLabel || lines.map((l) => l.serviceName).join(', '),
-        providerName: first.employee?.name ?? 'your provider',
+        providerName: first.employee?.name ?? t(this.businessLocale(ctx.business.settings), 'email.defaultProviderName'),
         dateLabel,
         timeLabel,
       },
@@ -894,10 +899,11 @@ export class NotificationsService {
     manageLink: { label: string; url: string } | null,
   ) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
-    const serviceName = booking.service?.name ?? 'Appointment';
-    const providerName = booking.employee?.name ?? 'your provider';
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const providerName = booking.employee?.name ?? t(locale, 'email.defaultProviderName');
     const manageLinkText = manageLink
       ? `\n\n${formatBookingManageLinkText(manageLink.label, manageLink.url)}`
       : '';
@@ -906,7 +912,7 @@ export class NotificationsService {
       : '';
 
     return renderBusinessEmailTemplate(business.settings, 'booking_confirmation', {
-      customerName: booking.customer?.name ?? 'there',
+      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
       businessName: business.name,
       serviceName,
       providerName,
@@ -914,7 +920,7 @@ export class NotificationsService {
       timeLabel: time,
       manageLinkText,
       manageLinkHtml,
-      footerNote: 'See you soon!',
+      footerNote: t(locale, 'email.footerNote'),
     });
   }
 
@@ -939,8 +945,9 @@ export class NotificationsService {
 
   private buildConfirmationSms(ctx: BookingNotificationContext) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
     return {
       text: `${business.name}: Confirmed ${booking.service?.name ?? 'appointment'} on ${when} at ${time}.`,
     };
@@ -948,26 +955,27 @@ export class NotificationsService {
 
   private buildReminderEmail(ctx: BookingNotificationContext, minutesBefore: number) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
-    const label = minutesBefore >= 60 ? `${Math.round(minutesBefore / 60)} hours` : `${minutesBefore} minutes`;
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
 
     return renderBusinessEmailTemplate(business.settings, 'booking_reminder', {
-      customerName: booking.customer?.name ?? 'there',
+      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
       businessName: business.name,
-      serviceName: booking.service?.name ?? 'Appointment',
-      providerName: booking.employee?.name ?? 'your provider',
+      serviceName: booking.service?.name ?? t(locale, 'email.defaultServiceName'),
+      providerName: booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
       dateLabel: when,
       timeLabel: time,
-      reminderLabel: label,
+      reminderLabel: this.reminderLabel(locale, minutesBefore),
     });
   }
 
   private buildReminderSms(ctx: BookingNotificationContext, minutesBefore: number) {
     const { booking, business } = ctx;
-    const when = formatDateDisplay(booking.startTime);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
-    const label = minutesBefore >= 60 ? `${Math.round(minutesBefore / 60)}h` : `${minutesBefore}m`;
+    const locale = this.businessLocale(business.settings);
+    const when = formatDateDisplay(booking.startTime, locale);
+    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const label = this.reminderLabel(locale, minutesBefore);
     return {
       text: `${business.name}: Reminder — ${booking.service?.name ?? 'appointment'} in ${label} (${when} ${time}).`,
     };
@@ -991,6 +999,18 @@ export class NotificationsService {
     return url.toString();
   }
 
+  private businessLocale(settings?: Record<string, unknown>): AppLocale {
+    const raw = settings?.locale;
+    return resolveLocale(typeof raw === 'string' ? raw : null);
+  }
+
+  private reminderLabel(locale: AppLocale, minutesBefore: number): string {
+    if (minutesBefore >= 60) {
+      return t(locale, 'email.reminderHours', { count: Math.round(minutesBefore / 60) });
+    }
+    return t(locale, 'email.reminderMinutes', { count: minutesBefore });
+  }
+
   private buildStarRatingLinks(reviewUrl: string): string {
     return [1, 2, 3, 4, 5]
       .map((rating) => {
@@ -1003,8 +1023,9 @@ export class NotificationsService {
 
   private buildReviewRequestEmail(ctx: BookingNotificationContext, reviewUrl: string) {
     const { booking, business } = ctx;
-    const customerName = booking.customer?.name ?? 'there';
-    const providerName = booking.employee?.name ?? 'your provider';
+    const locale = this.businessLocale(business.settings);
+    const customerName = booking.customer?.name ?? t(locale, 'email.defaultCustomerName');
+    const providerName = booking.employee?.name ?? t(locale, 'email.defaultProviderName');
     const starLinks = this.buildStarRatingLinks(reviewUrl);
 
     return renderBusinessEmailTemplate(ctx.business.settings, 'review_request', {

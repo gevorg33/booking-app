@@ -2,6 +2,7 @@ import { IonLabel } from '@ionic/react';
 import PhoneInputWithCountry, { type Country } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import './phone-input.css';
+import { useI18n } from '../i18n';
 
 interface ProviderPhoneInputProps {
   value?: string;
@@ -16,6 +17,7 @@ export function ProviderPhoneInput({
   defaultCountry,
   label,
 }: ProviderPhoneInputProps) {
+  const { t } = useI18n();
   return (
     <div className="provider-phone-field">
       {label && <IonLabel className="provider-phone-label">{label}</IonLabel>}
@@ -26,7 +28,7 @@ export function ProviderPhoneInput({
         countryCallingCodeEditable={false}
         value={value}
         onChange={(next) => onChange(next)}
-        placeholder="Phone number"
+        placeholder={t('provider.phonePlaceholder')}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import type { AiPageContext } from '@/lib/ai-orchestration';
 import { AiCollapsiblePanel } from '@/components/ai-suggestion-collapsible';
+import { useI18n } from '@/i18n';
 
 export interface AiSuggestion {
   id: string;
@@ -52,7 +53,13 @@ function fireOrchestrixPrompt(prompt: string) {
   window.dispatchEvent(new CustomEvent('orchestrix:open'));
 }
 
-function OpportunityCards({ suggestions }: { suggestions: AiSuggestion[] }) {
+function OpportunityCards({
+  suggestions,
+  runLabel,
+}: {
+  suggestions: AiSuggestion[];
+  runLabel: string;
+}) {
   return (
     <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:items-start">
       {suggestions.map((s) => (
@@ -65,7 +72,7 @@ function OpportunityCards({ suggestions }: { suggestions: AiSuggestion[] }) {
           <p className="text-sm font-medium leading-snug text-gray-200">{s.title}</p>
           <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-none text-gray-500">
             <Sparkles className="h-3 w-3 shrink-0" />
-            Run with Orchestrix AI
+            {runLabel}
           </p>
         </button>
       ))}
@@ -74,6 +81,7 @@ function OpportunityCards({ suggestions }: { suggestions: AiSuggestion[] }) {
 }
 
 export function AiProactiveSuggestions() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
 
   const { data: suggestions = [] } = useQuery({
@@ -92,12 +100,12 @@ export function AiProactiveSuggestions() {
 
   return (
     <AiCollapsiblePanel
-      title="AI detected opportunities"
+      title={t('ai.opportunitiesTitle')}
       icon={<Zap className="w-4 h-4 text-violet-400 shrink-0" />}
       className="border-violet-500/25"
       defaultOpen={false}
     >
-      <OpportunityCards suggestions={suggestions} />
+      <OpportunityCards suggestions={suggestions} runLabel={t('ai.runWithAi')} />
     </AiCollapsiblePanel>
   );
 }
@@ -110,8 +118,9 @@ interface AiContextualSuggestionsProps {
 /** Live suggestions filtered by page context (schedule gaps, conflicts, etc.) */
 export function AiContextualSuggestions({
   context,
-  title = 'AI opportunities on this page',
+  title,
 }: AiContextualSuggestionsProps) {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const route = context.route ?? '';
 
@@ -138,12 +147,12 @@ export function AiContextualSuggestions({
 
   return (
     <AiCollapsiblePanel
-      title={title}
+      title={title ?? t('ai.opportunitiesOnPage')}
       icon={<Zap className="w-4 h-4 text-violet-400 shrink-0" />}
       className="border-violet-500/20 bg-gradient-to-br from-violet-950/15 to-gray-900/30"
       defaultOpen={false}
     >
-      <OpportunityCards suggestions={suggestions} />
+      <OpportunityCards suggestions={suggestions} runLabel={t('ai.runWithAi')} />
     </AiCollapsiblePanel>
   );
 }

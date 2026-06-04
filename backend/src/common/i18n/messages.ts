@@ -65,6 +65,30 @@ const en: MessageTree = {
     invalidCredentials: 'Invalid credentials',
     emailRegistered: 'Email already registered',
   },
+  email: {
+    appointment: 'appointment',
+    appointments: 'appointments',
+    defaultServiceName: 'Appointment',
+    defaultProviderName: 'your provider',
+    defaultCustomerName: 'there',
+    footerNote: 'See you soon!',
+    reminderHours: '{count} hours',
+    reminderMinutes: '{count} minutes',
+    reminderNow: 'now',
+  },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} appointment(s) need confirmation',
+    confirmPendingPrompt: 'Show my appointments today that still need confirmation',
+    unpaidTodayTitle: '{count} unpaid appointment(s) today',
+    unpaidTodayPrompt: 'Mark all completed appointments today as paid',
+    gapsTodayTitle: '{count} open slot(s) this afternoon',
+    gapsTodayPrompt: "What's on my schedule this afternoon? Any gaps?",
+    nextUpTitle: 'Next: {customer} at {time}',
+    nextUpPrompt: "Mark {customer}'s appointment at {time} as done and paid",
+    emptyTodayTitle: 'No appointments today',
+    emptyTodayPrompt: 'Summarize my schedule for {date}',
+    defaultClient: 'client',
+  },
 };
 
 const hy: MessageTree = {
@@ -101,6 +125,30 @@ const hy: MessageTree = {
     emailOrPhoneRequired: 'Էլ. փոստ կամ հեռախոսահամար պարտադիր է',
     invalidCredentials: 'Սխալ մուտքի տվյալներ',
     emailRegistered: 'Էլ. փոստը արդեն գրանցված է',
+  },
+  email: {
+    appointment: 'հանդիպում',
+    appointments: 'հանդիպումներ',
+    defaultServiceName: 'Հանդիպում',
+    defaultProviderName: 'ձեր մասնագետը',
+    defaultCustomerName: 'հարգելի',
+    footerNote: 'Մինչ հանդիպումը!',
+    reminderHours: '{count} ժամ',
+    reminderMinutes: '{count} րոպե',
+    reminderNow: 'հիմա',
+  },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} ամրագրում պետք է հաստատվի',
+    confirmPendingPrompt: 'Ցույց տուր այսօրվա ամրագրումները, որոնք դեռ սպասում են հաստատման',
+    unpaidTodayTitle: 'Այսօր {count} չվճարված ամրագրում',
+    unpaidTodayPrompt: 'Նշել այսօրվա բոլոր ավարտված ամրագրումները որպես վճարված',
+    gapsTodayTitle: 'Այսօր կեսօրից հետո {count} ազատ slot',
+    gapsTodayPrompt: 'Ինչ կա իմ գրաֆիկում այսօր կեսօրից հետո։ Կա՞ն ազատ slot-եր',
+    nextUpTitle: 'Հաջորդը՝ {customer} {time}-ին',
+    nextUpPrompt: 'Նշել {customer}-ի ամրագրումը {time}-ին որպես ավարտված և վճարված',
+    emptyTodayTitle: 'Այսօր ամրագրումներ չկան',
+    emptyTodayPrompt: 'Ամփոփիր իմ գրաֆիկը {date} ամսաթվի համար',
+    defaultClient: 'հաճախորդ',
   },
 };
 
@@ -139,6 +187,30 @@ const ru: MessageTree = {
     invalidCredentials: 'Неверные учётные данные',
     emailRegistered: 'Email уже зарегистрирован',
   },
+  email: {
+    appointment: 'запись',
+    appointments: 'записи',
+    defaultServiceName: 'Запись',
+    defaultProviderName: 'ваш специалист',
+    defaultCustomerName: 'здравствуйте',
+    footerNote: 'До встречи!',
+    reminderHours: '{count} ч',
+    reminderMinutes: '{count} мин',
+    reminderNow: 'сейчас',
+  },
+  providerSuggestions: {
+    confirmPendingTitle: '{count} записей ждут подтверждения',
+    confirmPendingPrompt: 'Покажи записи на сегодня, которые ещё нужно подтвердить',
+    unpaidTodayTitle: '{count} неоплаченных записей сегодня',
+    unpaidTodayPrompt: 'Отметить все завершённые записи сегодня как оплаченные',
+    gapsTodayTitle: '{count} свободных слотов сегодня днём',
+    gapsTodayPrompt: 'Что у меня в расписании сегодня днём? Есть свободные слоты?',
+    nextUpTitle: 'Далее: {customer} в {time}',
+    nextUpPrompt: 'Отметить запись {customer} в {time} как завершённую и оплаченную',
+    emptyTodayTitle: 'На сегодня записей нет',
+    emptyTodayPrompt: 'Кратко опиши моё расписание на {date}',
+    defaultClient: 'клиент',
+  },
 };
 
 const catalogs: Record<AppLocale, MessageTree> = { en, hy, ru };
@@ -155,6 +227,9 @@ function translate(messages: MessageTree, key: string): string {
 
 export function t(locale: AppLocale, key: string, vars?: Record<string, string | number>): string {
   let text = translate(catalogs[locale] ?? catalogs.en, key);
+  if (text === key && locale !== 'en') {
+    text = translate(catalogs.en, key);
+  }
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (_, name: string) =>
     vars[name] !== undefined ? String(vars[name]) : `{${name}}`,

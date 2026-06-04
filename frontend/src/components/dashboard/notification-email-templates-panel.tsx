@@ -6,6 +6,12 @@ import { Mail, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import {
+  emailTemplateDescription,
+  emailTemplateLabel,
+  emailTemplateVarDescription,
+  emailTemplateVarLabel,
+} from '@/lib/email-template-i18n';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 
 export type EmailTemplateKey =
@@ -176,7 +182,7 @@ export function NotificationEmailTemplatesPanel() {
               >
                 {data.templates.map((tpl) => (
                   <option key={tpl.key} value={tpl.key}>
-                    {tpl.label}
+                    {emailTemplateLabel(t, tpl.key, tpl.label)}
                     {tpl.isCustomized ? ' *' : ''}
                   </option>
                 ))}
@@ -190,7 +196,9 @@ export function NotificationEmailTemplatesPanel() {
             />
           </div>
 
-          <p className="text-xs text-gray-500">{selected.description}</p>
+          <p className="text-xs text-gray-500">
+            {emailTemplateDescription(t, selected.key, selected.description)}
+          </p>
 
           <div>
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{t('settings.emailTemplateVariables')}</p>
@@ -199,7 +207,7 @@ export function NotificationEmailTemplatesPanel() {
                 <button
                   key={v.key}
                   type="button"
-                  title={v.description}
+                  title={emailTemplateVarDescription(t, v.key, v.description)}
                   onClick={() => insertVariable('bodyHtml', v.key)}
                   className="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-950 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-800"
                 >
@@ -309,7 +317,7 @@ export function NotificationEmailTemplatesPanel() {
                       type="button"
                       className="p-2 text-red-600"
                       onClick={() => removeCustomVariable(index)}
-                      aria-label="Remove"
+                      aria-label={t('common.remove')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

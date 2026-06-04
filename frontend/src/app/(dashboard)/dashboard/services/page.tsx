@@ -13,6 +13,14 @@ import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { ToggleChoice } from '@/components/ui/radio-choice';
+import { LocalizedNamesFields } from '@/components/services/localized-names-fields';
+import {
+  emptyLocalizedNamesForm,
+  localizedNamesFromApi,
+  localizedNamesToPayload,
+  type LocalizedNamesFormState,
+  type LocalizedNamesMap,
+} from '@/lib/localized-names';
 
 type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
 
@@ -20,6 +28,7 @@ interface ServiceCategoryRecord {
   id: string;
   name: string;
   sortOrder: number;
+  localizedNames?: LocalizedNamesMap;
 }
 
 interface ServiceRecord {
@@ -34,6 +43,7 @@ interface ServiceRecord {
   depositAmount?: number | null;
   categoryId?: string | null;
   category?: ServiceCategoryRecord | null;
+  localizedNames?: LocalizedNamesMap;
 }
 
 interface ServiceFormState {
@@ -46,6 +56,13 @@ interface ServiceFormState {
   onlinePaymentEnabled: boolean;
   prepaymentMode: 'full' | 'deposit';
   depositAmount: string;
+  localizedNames: LocalizedNamesFormState;
+}
+
+interface CategoryFormState {
+  name: string;
+  sortOrder: string;
+  localizedNames: LocalizedNamesFormState;
 }
 
 const defaultForm = (): ServiceFormState => ({
@@ -58,6 +75,13 @@ const defaultForm = (): ServiceFormState => ({
   onlinePaymentEnabled: false,
   prepaymentMode: 'full',
   depositAmount: '',
+  localizedNames: emptyLocalizedNamesForm(),
+});
+
+const defaultCategoryForm = (): CategoryFormState => ({
+  name: '',
+  sortOrder: '0',
+  localizedNames: emptyLocalizedNamesForm(),
 });
 
 function parseIntField(value: string, fallback = 0): number {
@@ -84,10 +108,29 @@ function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'crea
         ? depositAmount
         : undefined,
   };
+  const localizedNames = localizedNamesToPayload(form.localizedNames);
+  const withNames =
+    mode === 'update'
+      ? { ...base, localizedNames: localizedNames ?? {} }
+      : localizedNames
+        ? { ...base, localizedNames }
+        : base;
   if (mode === 'update') {
-    return { ...base, categoryId: form.categoryId || null };
+    return { ...withNames, categoryId: form.categoryId || null };
   }
-  return { ...base, ...(form.categoryId ? { categoryId: form.categoryId } : {}) };
+  return { ...withNames, ...(form.categoryId ? { categoryId: form.categoryId } : {}) };
+}
+
+function categoryFormToPayload(form: CategoryFormState, mode: 'create' | 'update' = 'create') {
+  const localizedNames = localizedNamesToPayload(form.localizedNames);
+  const base = {
+    name: form.name,
+    sortOrder: parseIntField(form.sortOrder),
+  };
+  if (mode === 'update') {
+    return { ...base, localizedNames: localizedNames ?? {} };
+  }
+  return localizedNames ? { ...base, localizedNames } : base;
 }
 
 function serviceToForm(svc: ServiceRecord): ServiceFormState {
@@ -102,6 +145,15 @@ function serviceToForm(svc: ServiceRecord): ServiceFormState {
     onlinePaymentEnabled: Boolean(online),
     prepaymentMode: svc.prepaymentMode === 'deposit' ? 'deposit' : 'full',
     depositAmount: svc.depositAmount != null ? String(Number(svc.depositAmount)) : '',
+    localizedNames: localizedNamesFromApi(svc.localizedNames),
+  };
+}
+
+function categoryToForm(cat: ServiceCategoryRecord): CategoryFormState {
+  return {
+    name: cat.name,
+    sortOrder: String(cat.sortOrder ?? 0),
+    localizedNames: localizedNamesFromApi(cat.localizedNames),
   };
 }
 
@@ -144,6 +196,11 @@ function ServiceFormFields({
           required
         />
       </div>
+      <LocalizedNamesFields
+        value={form.localizedNames}
+        onChange={(localizedNames) => setForm({ ...form, localizedNames })}
+        t={t}
+      />
       <div>
         <label className="label">{t('servicesPage.description')}</label>
         <input
@@ -253,26 +310,31 @@ function CategoriesTab({
   businessId,
   categories,
   services,
-  categoryName,
-  setCategoryName,
-  categorySortOrder,
-  setCategorySortOrder,
+  categoryForm,
+  setCategoryForm,
+  editingCategoryId,
+  setEditingCategoryId,
   showCategoryForm,
   setShowCategoryForm,
   createCategoryMutation,
+  updateCategoryMutation,
   deleteCategoryMutation,
   t,
 }: {
   businessId: string;
   categories: ServiceCategoryRecord[];
   services: ServiceRecord[];
-  categoryName: string;
-  setCategoryName: (v: string) => void;
-  categorySortOrder: string;
-  setCategorySortOrder: (v: string) => void;
+  categoryForm: CategoryFormState;
+  setCategoryForm: (f: CategoryFormState) => void;
+  editingCategoryId: string | null;
+  setEditingCategoryId: (v: string | null) => void;
   showCategoryForm: boolean;
   setShowCategoryForm: (v: boolean) => void;
   createCategoryMutation: { mutate: () => void; isPending: boolean };
+  updateCategoryMutation: {
+    mutate: (args: { id: string; data: ReturnType<typeof categoryFormToPayload> }) => void;
+    isPending: boolean;
+  };
   deleteCategoryMutation: { mutate: (id: string) => void; isPending: boolean };
   t: (key: string) => string;
 }) {
@@ -297,7 +359,11 @@ function CategoriesTab({
         </div>
         <button
           type="button"
-          onClick={() => setShowCategoryForm(!showCategoryForm)}
+          onClick={() => {
+            setShowCategoryForm(!showCategoryForm);
+            setEditingCategoryId(null);
+            setCategoryForm(defaultCategoryForm());
+          }}
           className="btn-primary inline-flex items-center gap-2 shrink-0"
         >
           <Plus className="w-4 h-4" />
@@ -307,7 +373,7 @@ function CategoriesTab({
 
       {showCategoryForm && (
         <form
-          className="card grid grid-cols-1 md:grid-cols-3 gap-4 items-end"
+          className="card grid grid-cols-1 md:grid-cols-2 gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             createCategoryMutation.mutate();
@@ -317,8 +383,8 @@ function CategoriesTab({
             <label className="label">{t('servicesPage.categoryName')}</label>
             <input
               className="input"
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
+              value={categoryForm.name}
+              onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
               required
             />
           </div>
@@ -328,12 +394,22 @@ function CategoriesTab({
               type="text"
               inputMode="numeric"
               className="input"
-              value={categorySortOrder}
-              onChange={(e) => setCategorySortOrder(e.target.value.replace(/\D/g, ''))}
+              value={categoryForm.sortOrder}
+              onChange={(e) =>
+                setCategoryForm({
+                  ...categoryForm,
+                  sortOrder: e.target.value.replace(/\D/g, ''),
+                })
+              }
               onFocus={(e) => e.target.select()}
             />
           </div>
-          <div className="flex gap-2">
+          <LocalizedNamesFields
+            value={categoryForm.localizedNames}
+            onChange={(localizedNames) => setCategoryForm({ ...categoryForm, localizedNames })}
+            t={t}
+          />
+          <div className="md:col-span-2 flex gap-2">
             <button type="submit" disabled={createCategoryMutation.isPending} className="btn-primary inline-flex items-center gap-2">
               {createCategoryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {t('servicesPage.create')}
@@ -360,21 +436,111 @@ function CategoriesTab({
             </thead>
             <tbody>
               {categories.map((cat) => (
-                <tr key={cat.id} className="border-b border-gray-800/80">
-                  <td className="px-4 py-3 font-medium">{cat.name}</td>
-                  <td className="px-4 py-3 text-gray-400">{cat.sortOrder}</td>
-                  <td className="px-4 py-3 text-gray-400">{serviceCountByCategory.get(cat.id) ?? 0}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => deleteCategoryMutation.mutate(cat.id)}
-                      disabled={deleteCategoryMutation.isPending}
-                      className="p-2 text-gray-400 hover:text-red-400 rounded-lg"
-                      aria-label={t('common.delete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
+                <tr key={cat.id} className="border-b border-gray-800/80 align-top">
+                  {editingCategoryId === cat.id ? (
+                    <td colSpan={4} className="px-4 py-4">
+                      <form
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          updateCategoryMutation.mutate({
+                            id: cat.id,
+                            data: categoryFormToPayload(categoryForm, 'update'),
+                          });
+                        }}
+                      >
+                        <div>
+                          <label className="label">{t('servicesPage.categoryName')}</label>
+                          <input
+                            className="input"
+                            value={categoryForm.name}
+                            onChange={(e) =>
+                              setCategoryForm({ ...categoryForm, name: e.target.value })
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="label">{t('servicesPage.categorySortOrder')}</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="input"
+                            value={categoryForm.sortOrder}
+                            onChange={(e) =>
+                              setCategoryForm({
+                                ...categoryForm,
+                                sortOrder: e.target.value.replace(/\D/g, ''),
+                              })
+                            }
+                            onFocus={(e) => e.target.select()}
+                          />
+                        </div>
+                        <LocalizedNamesFields
+                          value={categoryForm.localizedNames}
+                          onChange={(localizedNames) =>
+                            setCategoryForm({ ...categoryForm, localizedNames })
+                          }
+                          t={t}
+                        />
+                        <div className="md:col-span-2 flex gap-2">
+                          <button
+                            type="submit"
+                            className="btn-primary inline-flex items-center gap-2"
+                            disabled={updateCategoryMutation.isPending}
+                          >
+                            {updateCategoryMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : null}
+                            {t('servicesPage.saveCategory')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              setEditingCategoryId(null);
+                              setCategoryForm(defaultCategoryForm());
+                            }}
+                          >
+                            {t('common.cancel')}
+                          </button>
+                        </div>
+                      </form>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 font-medium">{cat.name}</td>
+                      <td className="px-4 py-3 text-gray-400">{cat.sortOrder}</td>
+                      <td className="px-4 py-3 text-gray-400">
+                        {serviceCountByCategory.get(cat.id) ?? 0}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCategoryId(cat.id);
+                              setShowCategoryForm(false);
+                              setCategoryForm(categoryToForm(cat));
+                            }}
+                            className="p-2 text-gray-400 hover:text-gray-200 rounded-lg"
+                            aria-label={t('servicesPage.editCategory')}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                            disabled={deleteCategoryMutation.isPending}
+                            className="p-2 text-gray-400 hover:text-red-400 rounded-lg"
+                            aria-label={t('common.delete')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -573,8 +739,8 @@ export default function ServicesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceFormState>(defaultForm());
   const [formError, setFormError] = useState<string | null>(null);
-  const [categoryName, setCategoryName] = useState('');
-  const [categorySortOrder, setCategorySortOrder] = useState('0');
+  const [categoryForm, setCategoryForm] = useState<CategoryFormState>(defaultCategoryForm());
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   const tabs: { id: ServicesTab; label: string }[] = [
     { id: 'types', label: t('servicesPage.tabServiceTypes') },
@@ -606,17 +772,35 @@ export default function ServicesPage() {
 
   const createCategoryMutation = useMutation({
     mutationFn: async () => {
-      const res = await api.post(`/businesses/${business!.id}/service-categories`, {
-        name: categoryName,
-        sortOrder: parseIntField(categorySortOrder),
-      });
+      const res = await api.post(
+        `/businesses/${business!.id}/service-categories`,
+        categoryFormToPayload(categoryForm),
+      );
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service-categories'] });
-      setCategoryName('');
-      setCategorySortOrder('0');
+      setCategoryForm(defaultCategoryForm());
       setShowCategoryForm(false);
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: ReturnType<typeof categoryFormToPayload>;
+    }) => {
+      const res = await api.put(`/businesses/${business!.id}/service-categories/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      setEditingCategoryId(null);
+      setCategoryForm(defaultCategoryForm());
     },
   });
 
@@ -758,13 +942,14 @@ export default function ServicesPage() {
           businessId={business.id}
           categories={categories}
           services={services ?? []}
-          categoryName={categoryName}
-          setCategoryName={setCategoryName}
-          categorySortOrder={categorySortOrder}
-          setCategorySortOrder={setCategorySortOrder}
+          categoryForm={categoryForm}
+          setCategoryForm={setCategoryForm}
+          editingCategoryId={editingCategoryId}
+          setEditingCategoryId={setEditingCategoryId}
           showCategoryForm={showCategoryForm}
           setShowCategoryForm={setShowCategoryForm}
           createCategoryMutation={createCategoryMutation}
+          updateCategoryMutation={updateCategoryMutation}
           deleteCategoryMutation={deleteCategoryMutation}
           t={t}
         />

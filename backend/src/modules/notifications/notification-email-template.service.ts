@@ -14,9 +14,9 @@ import {
   listResolvedEmailTemplates,
   normalizeCustomVariables,
   readTenantEmailTemplatesSettings,
-  resolveEmailTemplate,
 } from './notification-email-template.util.js';
-import { getEmailTemplateDefinition } from './notification-email-template.defaults.js';
+import { resolveLocale } from '../../common/i18n/messages.js';
+import { getEmailTemplateDefinition, resolveEmailTemplate } from './notification-email-template.defaults.js';
 
 @Injectable()
 export class NotificationEmailTemplateService {
@@ -60,7 +60,7 @@ export class NotificationEmailTemplateService {
       },
     };
     await this.businessRepo.save(business);
-    return resolveEmailTemplate(key, next);
+    return resolveEmailTemplate(key, next, this.businessLocale(business.settings));
   }
 
   async resetTemplate(
@@ -80,7 +80,7 @@ export class NotificationEmailTemplateService {
       },
     };
     await this.businessRepo.save(business);
-    return resolveEmailTemplate(key);
+    return resolveEmailTemplate(key, undefined, this.businessLocale(business.settings));
   }
 
   async replaceCustomVariables(
@@ -102,6 +102,11 @@ export class NotificationEmailTemplateService {
     };
     await this.businessRepo.save(business);
     return normalized;
+  }
+
+  private businessLocale(settings: Record<string, unknown>): ReturnType<typeof resolveLocale> {
+    const raw = settings.locale;
+    return resolveLocale(typeof raw === 'string' ? raw : null);
   }
 
   private async findBusiness(businessId: string): Promise<Business> {

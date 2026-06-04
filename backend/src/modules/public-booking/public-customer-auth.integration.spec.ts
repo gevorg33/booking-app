@@ -123,12 +123,17 @@ describe('Public customer auth integration', () => {
     linkGuestPurchasesToCustomer: jest.fn().mockResolvedValue(undefined),
   };
 
+  const eventEmitter = {
+    emit: jest.fn(),
+  };
+
   const service = new PublicCustomerAuthService(
     businessService as any,
     jwtService,
     firebase as any,
     publicCustomerBookingService as unknown as PublicCustomerBookingService,
     giftCardPurchaseService as any,
+    eventEmitter as any,
     customerRepo as any,
     bookingRepo as any,
     reviewRepo as any,

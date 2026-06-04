@@ -216,12 +216,15 @@ describe('Public customer booking self-service integration', () => {
     linkGuestPurchasesToCustomer: jest.fn().mockResolvedValue(undefined),
   };
 
+  const eventEmitter = { emit: jest.fn() };
+
   const publicCustomerAuthService = new PublicCustomerAuthService(
     businessService as any,
     jwtService,
     { isReady: false } as any,
     publicCustomerBookingService,
     giftCardPurchaseService as any,
+    eventEmitter as any,
     customerRepo as any,
     bookingRepo as any,
     reviewRepo as any,

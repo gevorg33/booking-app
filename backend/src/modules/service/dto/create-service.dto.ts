@@ -1,7 +1,8 @@
 import { IsString, IsNumber, IsOptional, Min, IsBoolean, IsEnum, IsUUID } from 'class-validator';
 import { PrepaymentMode } from '../entities/service.entity.js';
+import { LocalizedNamesDto } from './localized-names.dto.js';
 
-export class CreateServiceDto {
+export class CreateServiceDto extends LocalizedNamesDto {
   @IsString()
   name: string;
 
@@ -40,7 +41,7 @@ export class CreateServiceDto {
   depositAmount?: number;
 }
 
-export class UpdateServiceDto {
+export class UpdateServiceDto extends LocalizedNamesDto {
   @IsOptional()
   @IsString()
   name?: string;

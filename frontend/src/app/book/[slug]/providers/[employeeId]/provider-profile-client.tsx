@@ -17,7 +17,7 @@ import type {
   PublicProviderReview,
   PublicProviderReviewsPage,
 } from '@/lib/public-api';
-import { formatScheduleTime } from '@/lib/date-format';
+import { formatScheduleTime, resolveNearestSlotDateLabel } from '@/lib/date-format';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -37,7 +37,8 @@ export function ProviderProfileClient({
   backHref,
 }: ProviderProfileClientProps) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const timeZone = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     provider.slots[0]?.startTime ?? null,
@@ -48,6 +49,12 @@ export function ProviderProfileClient({
 
   const hasReviews = reviewCount > 0 && averageRating != null;
   const reviewsPageHref = bookPath(slug, `/providers/${provider.id}/reviews`);
+  const nearestDateText = resolveNearestSlotDateLabel(
+    provider,
+    locale,
+    timeZone,
+    t('public.todayInline'),
+  );
 
   const chooseDisabled = useMemo(() => {
     if (provider.slots.length === 0) return true;
@@ -98,8 +105,8 @@ export function ProviderProfileClient({
         {provider.slots.length > 0 && (
           <section className="mt-5">
             <p className="text-xs text-gray-500 mb-2 px-1">
-              {provider.nearestDateLabel
-                ? t('public.nearestSlots', { date: provider.nearestDateLabel })
+              {nearestDateText
+                ? t('public.nearestSlots', { date: nearestDateText })
                 : t('public.availableSlots')}
             </p>
             <div className="flex flex-wrap gap-2">

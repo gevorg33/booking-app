@@ -1,133 +1,116 @@
 /**
- * Normalizes Armenian / Russian (and common transliterations) into English
- * keywords understood by prompt resolvers. Applied before LLM classification.
+ * Detection helpers for multilingual AI commands (Armenian, Russian, transliteration).
+ * Normalization is performed by AiPromptNormalizationService (LLM), not manual phrase maps.
  */
 
-const PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
-  // ── Armenian ──
-  [/ամսագրումներ/gi, 'appointments'],
-  [/ամրագրումներ/gi, 'appointments'],
-  [/ամսագրում/gi, 'appointment'],
-  [/ամրագրում/gi, 'appointment'],
-  [/այսօր/gi, 'today'],
-  [/այսօրվա/gi, 'today'],
-  [/վաղը/gi, 'tomorrow'],
-  [/երեկ/gi, 'yesterday'],
-  [/այս\s*շաբաթ/gi, 'this week'],
-  [/հաջորդ\s*շաբաթ/gi, 'next week'],
-  [/անցած\s*շաբաթ/gi, 'last week'],
-  [/այս\s*ամիս/gi, 'this month'],
-  [/հաճախորդներ/gi, 'customers'],
-  [/հաճախորդ/gi, 'customer'],
-  [/ծառայություններ/gi, 'services'],
-  [/ծառայություն/gi, 'service'],
-  [/չեղարկ/gi, 'cancel'],
-  [/չեղարկել/gi, 'cancel'],
-  [/ազատ\s*(ժամ|slot|slots)/gi, 'available slots'],
-  [/ոգտագործում/gi, 'utilization'],
-  [/վերսորդ/gi, 'waitlist'],
-  [/սպասման\s*ցուցակ/gi, 'waitlist'],
-  [/վճար/gi, 'paid'],
-  [/դրամ/gi, 'revenue'],
-  [/ամենաթանկ/gi, 'most expensive'],
-  [/ամենաերկար/gi, 'longest'],
-  [/զբաղված/gi, 'busiest'],
-  [/ով\s*ի/gi, 'who is'],
-  [/որքան/gi, 'how many'],
-  [/ցույց\s*տուր/gi, 'show'],
-  [/ցուցադր/gi, 'show'],
-  [/լրացրու/gi, 'fill'],
-  [/բաց\s*(slot|slots|ժամ)/gi, 'open slots'],
-  [/կատարող/gi, 'provider'],
-  [/մասնագետ/gi, 'provider'],
-  [/կարգավոր/gi, 'schedule'],
-  [/գրաֆիկ/gi, 'schedule'],
-  [/փոխել/gi, 'change'],
-  [/ծառայության\s*տեսակ/gi, 'service type'],
-
-  // ── Russian ──
-  [/записи/gi, 'appointments'],
-  [/запись/gi, 'appointment'],
-  [/записей/gi, 'appointments'],
-  [/сегодня/gi, 'today'],
-  [/завтра/gi, 'tomorrow'],
-  [/вчера/gi, 'yesterday'],
-  [/на\s*этой\s*неделе/gi, 'this week'],
-  [/на\s*следующей\s*неделе/gi, 'next week'],
-  [/на\s*прошлой\s*неделе/gi, 'last week'],
-  [/в\s*этом\s*месяце/gi, 'this month'],
-  [/в\s*прошлом\s*месяце/gi, 'last month'],
-  [/клиенты/gi, 'customers'],
-  [/клиент/gi, 'customer'],
-  [/клиентов/gi, 'customers'],
-  [/услуги/gi, 'services'],
-  [/услуга/gi, 'service'],
-  [/отмен/gi, 'cancel'],
-  [/отменить/gi, 'cancel'],
-  [/отмена/gi, 'cancelled'],
-  [/свободн/gi, 'available'],
-  [/загрузк/gi, 'utilization'],
-  [/лист\s*ожидания/gi, 'waitlist'],
-  [/ожидания/gi, 'waitlist'],
-  [/оплат/gi, 'paid'],
-  [/выручк/gi, 'revenue'],
-  [/доход/gi, 'revenue'],
-  [/самый\s*дорог/gi, 'most expensive'],
-  [/самый\s*длинн/gi, 'longest'],
-  [/самый\s*занят/gi, 'busiest'],
-  [/сколько/gi, 'how many'],
-  [/покажи/gi, 'show'],
-  [/показать/gi, 'show'],
-  [/заполни/gi, 'fill'],
-  [/сотрудник/gi, 'provider'],
-  [/мастер/gi, 'provider'],
-  [/специалист/gi, 'provider'],
-  [/расписание/gi, 'schedule'],
-  [/график/gi, 'schedule'],
-  [/кто\s*(может|делает|оказывает)/gi, 'who can do'],
-  [/какие\s*услуги/gi, 'what services'],
-  [/сменить/gi, 'change'],
-  [/изменить/gi, 'change'],
-  [/тип\s*услуги/gi, 'service type'],
-
-  // ── Common transliteration (hy/ru typed in Latin) ──
-  [/\baysor\b/gi, 'today'],
-  [/\bvagh@?\b/gi, 'tomorrow'],
-  [/\berk@?\b/gi, 'yesterday'],
-  [/\bchaxord\b/gi, 'customer'],
-  [/\btsarayutyun\b/gi, 'service'],
-  [/\bamsagrum\b/gi, 'appointment'],
-  [/\bchegharke?l\b/gi, 'cancel'],
-  [/\bazat\b/gi, 'available'],
-  [/\bogtagortum\b/gi, 'utilization'],
-  [/\bsevodnya\b/gi, 'today'],
-  [/\bzavtra\b/gi, 'tomorrow'],
-  [/\bvchera\b/gi, 'yesterday'],
-  [/\bkklient\b/gi, 'customer'],
-  [/\busluga\b/gi, 'service'],
-  [/\bzapis\b/gi, 'appointment'],
-  [/\botmen/i, 'cancel'],
-  [/\bskolko\b/gi, 'how many'],
-  [/\bpokazhi\b/gi, 'show'],
-];
-
+/** Armenian or Cyrillic script. */
 export function containsNonEnglishScript(text: string): boolean {
   return /[\u0530-\u058F\u0400-\u04FF]/.test(text);
 }
 
-export function normalizeMultilingualPrompt(prompt: string): string {
-  let normalized = prompt.trim();
-  if (!normalized) return normalized;
-
-  for (const [pattern, replacement] of PHRASE_REPLACEMENTS) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-
-  return normalized.replace(/\s+/g, ' ').trim();
+/** Latin letters that are not basic ASCII (accented Latin still counts as "needs help"). */
+export function containsExtendedLatin(text: string): boolean {
+  return /[^\x00-\x7F]/.test(text) && !containsNonEnglishScript(text);
 }
 
-/** If prompt was translated, expose hint for LLM classifier. */
-export function multilingualHint(original: string, normalized: string): string | null {
-  if (original === normalized || !containsNonEnglishScript(original)) return null;
-  return `User prompt may be Armenian/Russian; normalized intent text: "${normalized}"`;
+/** Common hy/ru words typed in Latin without Armenian/Cyrillic letters. */
+const TRANSLITERATION_HINT =
+  /\b(aysor|vagh[ay]?|vax[ay]?|erek|chaxord|tsarayutyun|amsagrum|chegharke?l|azat|ogtagortum|sevodnya|zavtra|vchera|kklient|usluga|zapis|otmen|skolko|pokazhi|zapolni|grafik|raspisanie)\b/i;
+
+export function looksLikeTransliteration(text: string): boolean {
+  if (containsNonEnglishScript(text)) return false;
+  return TRANSLITERATION_HINT.test(text);
+}
+
+/** Whether to run the automated normalization pipeline before intent classification. */
+export function needsMultilingualNormalization(prompt: string): boolean {
+  const trimmed = prompt.trim();
+  if (!trimmed) return false;
+  return (
+    containsNonEnglishScript(trimmed) ||
+    containsExtendedLatin(trimmed) ||
+    looksLikeTransliteration(trimmed)
+  );
+}
+
+export type RecognizedServiceTermLocale = 'hy' | 'ru' | 'latin';
+
+export interface RecognizedServiceTypeTerm {
+  term: string;
+  locale: RecognizedServiceTermLocale;
+}
+
+/** Common Armenian service-type words in dashboard commands. */
+const ARMENIAN_SERVICE_TERMS =
+  /(?:կտրում|մասաժ|դիմահարդարում|հարդարման|մանիկյուր|պեդիկյուր|օրաթերթապատում|գունավորում)/giu;
+
+/** Common Russian service-type words in dashboard commands. */
+const RUSSIAN_SERVICE_TERMS =
+  /(?:стрижк(?:а|и|у|е|ой)?|массаж(?:а|у|е|и)?|маникюр(?:а|у|е)?|педикюр(?:а|у|е)?|окрашивание|окрашивания|укладк(?:а|и|у|е)?|бров(?:и|ей)?|ресниц)/giu;
+
+/** Latin catalog names often embedded in hy/ru prompts. */
+const LATIN_CATALOG_SERVICE_TERMS =
+  /\b(?:facemassage|haircut|manicure|pedicure|massage|hot\s+stone\s+massage)\b/gi;
+
+function collectServiceTermMatches(
+  text: string,
+  pattern: RegExp,
+  locale: RecognizedServiceTermLocale,
+): RecognizedServiceTypeTerm[] {
+  const matches: RecognizedServiceTypeTerm[] = [];
+  const re = new RegExp(pattern.source, pattern.flags);
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const term = match[0]?.trim();
+    if (term) matches.push({ term, locale });
+  }
+  return matches;
+}
+
+/** Extract Armenian, Russian, or Latin service-type tokens mentioned in a command. */
+export function recognizeServiceTypeTerms(prompt: string): RecognizedServiceTypeTerm[] {
+  const trimmed = prompt.trim();
+  if (!trimmed) return [];
+
+  const seen = new Set<string>();
+  const results: RecognizedServiceTypeTerm[] = [];
+  for (const entry of [
+    ...collectServiceTermMatches(trimmed, ARMENIAN_SERVICE_TERMS, 'hy'),
+    ...collectServiceTermMatches(trimmed, RUSSIAN_SERVICE_TERMS, 'ru'),
+    ...collectServiceTermMatches(trimmed, LATIN_CATALOG_SERVICE_TERMS, 'latin'),
+  ]) {
+    const key = `${entry.locale}:${entry.term.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(entry);
+  }
+  return results;
+}
+
+export function promptMentionsServiceType(prompt: string): boolean {
+  return recognizeServiceTypeTerms(prompt).length > 0;
+}
+
+/** True when the prompt names a service in Armenian or Russian (not only Latin catalog names). */
+export function promptMentionsNativeServiceType(prompt: string): boolean {
+  return recognizeServiceTypeTerms(prompt).some(
+    (entry) => entry.locale === 'hy' || entry.locale === 'ru',
+  );
+}
+
+export const CLASSIFIER_MULTILINGUAL_RULES = `Multilingual commands: Users may write in Armenian, Russian, English, or Latin transliteration. Interpret the same operational intents (book, cancel, show appointments, fill slots, reschedule, utilization, waitlist, etc.). Extract employeeName, customerName, and serviceName exactly as written in the user message (fuzzy-match to Available lists). Use DD/MM/YYYY for dates and HH:mm 24h for times.`;
+
+/** Context block for classify_intent when the prompt was normalized or is non-English. */
+export function buildMultilingualClassifierContext(
+  original: string,
+  normalized: string,
+  method: 'passthrough' | 'llm' | 'fallback',
+): string | null {
+  if (!needsMultilingualNormalization(original) && original === normalized) {
+    return null;
+  }
+  if (method === 'llm' && normalized !== original) {
+    return `User command (original): "${original}"\nNormalized for classification: "${normalized}"`;
+  }
+  return `User command (may be Armenian/Russian/transliteration): "${original}"`;
 }

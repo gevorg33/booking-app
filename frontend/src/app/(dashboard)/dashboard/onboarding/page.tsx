@@ -203,7 +203,7 @@ export default function OnboardingPage() {
         ai={
           <AiSuggestionsStack>
             <AiPagePanel
-              title="Quick setup with AI"
+              title={t('onboarding.aiPanelTitle')}
               suggestions={[
                 "Set up this week's schedule for my team",
                 'Apply weekday template to all providers this week',

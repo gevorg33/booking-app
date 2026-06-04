@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { uploadEmployeeAvatar } from '@/lib/upload';
+import { useI18n } from '@/i18n';
 
 interface EmployeeAvatarFieldProps {
   businessId: string;
@@ -19,6 +20,7 @@ export function EmployeeAvatarField({
   onChange,
   disabled,
 }: EmployeeAvatarFieldProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -42,7 +44,7 @@ export function EmployeeAvatarField({
       onChange(url);
     } catch (err: any) {
       setPreview(null);
-      setError(err?.response?.data?.message || 'Failed to upload image');
+      setError(err?.response?.data?.message || t('errors.uploadImageFailed'));
     } finally {
       setUploading(false);
     }
@@ -50,7 +52,7 @@ export function EmployeeAvatarField({
 
   return (
     <div>
-      <label className="label">Profile picture</label>
+      <label className="label">{t('employees.profilePicture')}</label>
       <div className="flex items-center gap-4">
         <div className="relative w-20 h-20 rounded-full overflow-hidden bg-green-600/10 shrink-0">
           {displayUrl ? (
@@ -87,7 +89,7 @@ export function EmployeeAvatarField({
             className="btn-secondary text-sm inline-flex items-center gap-2 w-fit"
           >
             <Camera className="w-4 h-4" />
-            {uploading ? 'Uploading…' : 'Upload photo'}
+            {uploading ? t('employees.uploadingPhoto') : t('employees.uploadAvatar')}
           </button>
           {avatarUrl && !disabled && (
             <button
@@ -96,10 +98,10 @@ export function EmployeeAvatarField({
               className="text-xs text-gray-400 hover:text-red-400 inline-flex items-center gap-1 w-fit"
             >
               <X className="w-3 h-3" />
-              Remove photo
+              {t('employees.removePhoto')}
             </button>
           )}
-          <p className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · max 5 MB</p>
+          <p className="text-[11px] text-gray-500">{t('employees.avatarFormatsHint')}</p>
         </div>
       </div>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}

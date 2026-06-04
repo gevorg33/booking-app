@@ -4,6 +4,7 @@ import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinn
 import { sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { useI18n } from '../i18n';
 
 interface AiSuggestion {
   id: string;
@@ -28,6 +29,7 @@ const REFRESH_TYPES = new Set([
 ]);
 
 export default function ProviderAiSuggestions({ businessId, onSelectPrompt }: ProviderAiSuggestionsProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
 
   const { data: suggestions = [], isLoading } = useQuery({
@@ -68,7 +70,7 @@ export default function ProviderAiSuggestions({ businessId, onSelectPrompt }: Pr
       <IonCardHeader>
         <IonCardTitle className="ai-suggestions-card__title">
           <IonIcon icon={sparklesOutline} />
-          AI suggestions
+          {t('provider.suggestionsTitle')}
         </IonCardTitle>
       </IonCardHeader>
       <IonCardContent>
@@ -81,7 +83,7 @@ export default function ProviderAiSuggestions({ businessId, onSelectPrompt }: Pr
               onClick={() => onSelectPrompt(s.prompt)}
             >
               <span className="ai-suggestion-chip__title">{s.title}</span>
-              <span className="ai-suggestion-chip__hint">Tap to run</span>
+              <span className="ai-suggestion-chip__hint">{t('provider.suggestionsTapToRun')}</span>
             </button>
           ))}
         </div>

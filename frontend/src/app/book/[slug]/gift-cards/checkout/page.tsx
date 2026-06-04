@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { getPublicGiftCardCatalog, getPublicProfile } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicGiftCardCatalog } from '@/lib/public-api';
 import { GiftCardCheckoutClient } from '@/components/public-booking/gift-card-checkout-client';
 
 function pickParam(value: string | string[] | undefined): string | undefined {
@@ -18,7 +19,7 @@ export default async function GiftCardCheckoutPage({
   const raw = await searchParams;
   const sessionId = pickParam(raw.session_id);
 
-  const [tenant, catalog] = await Promise.all([getPublicProfile(slug), getPublicGiftCardCatalog(slug)]);
+  const [tenant, catalog] = await Promise.all([getPublicProfileResolved(slug), getPublicGiftCardCatalog(slug)]);
 
   if (!catalog.purchaseEnabled || !catalog.settings) {
     notFound();

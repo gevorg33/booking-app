@@ -152,7 +152,7 @@ export default function AiOpsPage() {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <h2 className="text-lg font-semibold">Agent Tasks</h2>
+        <h2 className="text-lg font-semibold">{t('ai.tasksSection')}</h2>
         <div className="flex flex-col items-stretch sm:items-end gap-1">
           <button
             type="button"
@@ -196,12 +196,12 @@ export default function AiOpsPage() {
       )}
       <div className="space-y-3">
         {isLoading ? (
-          <div className="card text-center py-8 text-gray-500">Loading tasks...</div>
+          <div className="card text-center py-8 text-gray-500">{t('ai.loadingTasks')}</div>
         ) : !tasks || tasks.length === 0 ? (
           <div className="card text-center py-8">
             <Brain className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400">No agent tasks yet</p>
-            <p className="text-gray-500 text-sm">Use the Orchestrix command bar to create agent tasks</p>
+            <p className="text-gray-400">{t('ai.tasksEmptyTitle')}</p>
+            <p className="text-gray-500 text-sm">{t('ai.tasksEmptyBody')}</p>
           </div>
         ) : (
           tasks.map((task: any) => {
@@ -232,7 +232,9 @@ export default function AiOpsPage() {
                       </p>
                       {task.plan && (
                         <p className="mt-1 text-xs text-gray-500">
-                          {task.plan.steps?.length ?? 0} steps · risk {task.plan.riskAssessment?.level ?? 'unknown'}
+                          {t('ai.taskMeta')
+                            .replace('{steps}', String(task.plan.steps?.length ?? 0))
+                            .replace('{risk}', task.plan.riskAssessment?.level ?? 'unknown')}
                         </p>
                       )}
                       {task.error && <p className="text-sm text-red-400 mt-1">{task.error}</p>}
@@ -245,7 +247,7 @@ export default function AiOpsPage() {
                         disabled={approveMutation.isPending}
                         className="btn-primary text-sm flex items-center gap-1"
                       >
-                        <Play className="w-3 h-3" /> Approve
+                        <Play className="w-3 h-3" /> {t('ai.approve')}
                       </button>
                     )}
                     <button
@@ -258,7 +260,7 @@ export default function AiOpsPage() {
                       className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1"
                     >
                       <RefreshCw className={`w-3 h-3 ${previewMutation.isPending && expanded ? 'animate-spin' : ''}`} />
-                      {expanded ? 'Hide' : 'Preview'}
+                      {expanded ? t('ai.hide') : t('ai.preview')}
                     </button>
                   </div>
                 </div>

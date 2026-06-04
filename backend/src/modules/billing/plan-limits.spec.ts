@@ -24,6 +24,13 @@ describe('plan-limits', () => {
     expect(resolvePlanTier('starter', SubscriptionStatus.PAST_DUE)).toBe('solo');
   });
 
+  it('resolves business tier for growth/business plan ids', () => {
+    expect(resolvePlanTier('business', SubscriptionStatus.ACTIVE)).toBe('business');
+    expect(resolvePlanTier('growth', SubscriptionStatus.TRIALING)).toBe('business');
+    expect(getLimitsForTier('business').flags.memberships).toBe(true);
+    expect(getLimitsForTier('business').flags.giftCards).toBe(true);
+  });
+
   it('defaults to solo without paid subscription', () => {
     expect(resolvePlanTier(null, null)).toBe('solo');
     expect(resolvePlanTier('pro', SubscriptionStatus.ACTIVE)).toBe('solo');

@@ -47,10 +47,26 @@ export function addDaysToDateKey(dateKey: string, days: number, timeZone: string
   return dayjs.tz(dateKey, resolveTimezone(timeZone)).add(days, 'day').format('YYYY-MM-DD');
 }
 
-/** e.g. "27 May, Tuesday" in business timezone. */
-export function formatZonedDateLabel(dateKey: string, timeZone: string): string {
-  const d = dayjs.tz(dateKey, resolveTimezone(timeZone));
-  return `${d.format('D')} ${d.format('MMMM')}, ${d.format('dddd')}`;
+/** e.g. "27 May, Tuesday" in business timezone (localized when locale is en/hy/ru). */
+export function formatZonedDateLabel(
+  dateKey: string,
+  timeZone: string,
+  locale: 'en' | 'hy' | 'ru' = 'en',
+): string {
+  const tz = resolveTimezone(timeZone);
+  const instant = dayjs.tz(dateKey, tz).toDate();
+  const intl =
+    locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-GB';
+  const monthDay = new Intl.DateTimeFormat(intl, {
+    day: 'numeric',
+    month: 'long',
+    timeZone: tz,
+  }).format(instant);
+  const weekday = new Intl.DateTimeFormat(intl, {
+    weekday: 'long',
+    timeZone: tz,
+  }).format(instant);
+  return `${monthDay}, ${weekday}`;
 }
 
 export function formatZonedTime(instant: Date | string, timeZone: string): string {

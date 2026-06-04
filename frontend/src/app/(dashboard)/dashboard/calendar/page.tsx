@@ -12,7 +12,15 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, getTodayDateKey, toDateKey, todayDateAnchor } from '@/lib/date-format';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
+  toDateKey,
+  todayDateAnchor,
+} from '@/lib/date-format';
+import { useI18n } from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
@@ -27,12 +35,16 @@ const HOUR_START = 7;   // 07:00
 const HOUR_END = 22;    // 22:00
 const HOUR_HEIGHT = 60; // px per hour
 
-const STATUS_STYLES: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  available: { bg: 'bg-emerald-600/25', border: 'border-emerald-500/60', text: 'text-emerald-300', label: 'Available' },
-  booked:    { bg: 'bg-orange-600/25',  border: 'border-orange-500/60',  text: 'text-orange-300',  label: 'Booked'    },
-  blocked:   { bg: 'bg-gray-700/50',    border: 'border-gray-600/60',    text: 'text-gray-400',    label: 'Blocked'   },
-  unavailable: { bg: 'bg-gray-800/60', border: 'border-gray-700/60',    text: 'text-gray-500',    label: 'Unavailable' },
-};
+type StatusStyle = { bg: string; border: string; text: string; label: string };
+
+function getStatusStyles(t: (key: string) => string): Record<string, StatusStyle> {
+  return {
+    available: { bg: 'bg-emerald-600/25', border: 'border-emerald-500/60', text: 'text-emerald-300', label: t('calendarPage.statusAvailable') },
+    booked: { bg: 'bg-orange-600/25', border: 'border-orange-500/60', text: 'text-orange-300', label: t('calendarPage.statusBooked') },
+    blocked: { bg: 'bg-gray-700/50', border: 'border-gray-600/60', text: 'text-gray-400', label: t('calendarPage.statusBlocked') },
+    unavailable: { bg: 'bg-gray-800/60', border: 'border-gray-700/60', text: 'text-gray-500', label: t('calendarPage.statusUnavailable') },
+  };
+}
 
 // Distinct palette for services (cycles if >10 services)
 const SERVICE_COLORS = [
@@ -75,10 +87,6 @@ function formatTime(date: Date) {
   return formatTimeDisplay(date);
 }
 
-function formatDate(date: Date) {
-  return formatDateDisplay(date);
-}
-
 const TOTAL_MINUTES = (HOUR_END - HOUR_START) * 60;
 
 // ─── Slot Block component ─────────────────────────────────────────────────────
@@ -99,10 +107,12 @@ interface SlotInfo {
 function SlotBlock({
   slot,
   serviceColorMap,
+  statusStyles,
   onClick,
 }: {
   slot: SlotInfo;
   serviceColorMap: Record<string, string>;
+  statusStyles: Record<string, StatusStyle>;
   onClick: (s: SlotInfo) => void;
 }) {
   const start = new Date(slot.startTime);
@@ -118,7 +128,7 @@ function SlotBlock({
   if (slot.status === 'available' && slot.serviceId) {
     colorClass = serviceColorMap[slot.serviceId] || SERVICE_COLORS[0];
   } else {
-    const s = STATUS_STYLES[slot.status] || STATUS_STYLES.unavailable;
+    const s = statusStyles[slot.status] || statusStyles.unavailable;
     colorClass = `${s.bg} ${s.border} ${s.text}`;
   }
 
@@ -161,6 +171,8 @@ function yToMinutes(clientY: number, rectTop: number): number {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { t, locale } = useI18n();
+  const statusStyles = useMemo(() => getStatusStyles(t), [t]);
   const { business } = useAuthStore();
   const [anchorDate, setAnchorDate] = useState(new Date());
   const [employeeId, setEmployeeId] = useState('');
@@ -289,15 +301,15 @@ export default function CalendarPage() {
                 employeeName: employees.find((e: { id: string; name: string }) => e.id === employeeId)?.name ?? null,
                 viewMode: 'week',
               }}
-              title="Calendar opportunities"
+              title={t('calendarPage.aiInsightsTitle')}
             />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/calendar']}
               context={{
                 route: '/dashboard/calendar',
                 employeeName: selectedEmployee?.name ?? null,
-                dateFrom: formatDateDisplay(weekDates[0]),
-                dateTo: formatDateDisplay(weekDates[6]),
+                dateFrom: formatDateDisplay(weekDates[0], locale),
+                dateTo: formatDateDisplay(weekDates[6], locale),
                 viewMode: 'week',
                 ...(dragSelection
                   ? {
@@ -320,10 +332,10 @@ export default function CalendarPage() {
           title={
             <>
               <CalendarDays className="h-6 w-6 text-blue-400" />
-              Provider Calendar
+              {t('calendarPage.title')}
             </>
           }
-          subtitle="View a service provider's weekly schedule — slots are color-coded by service"
+          subtitle={t('calendarPage.subtitle')}
           actions={
             <>
               <div className="flex items-center gap-1">
@@ -337,7 +349,7 @@ export default function CalendarPage() {
                   onClick={goToday}
                   className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-gray-200 transition-colors hover:bg-gray-700"
                 >
-                  Today
+                  {t('common.today')}
                 </button>
                 <button
                   onClick={nextWeek}
@@ -346,9 +358,9 @@ export default function CalendarPage() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 <span className="ml-2 text-sm font-medium text-gray-300">
-                  {formatDateDisplay(weekDates[0])}
+                  {formatDateDisplay(weekDates[0], locale)}
                   {' – '}
-                  {formatDateDisplay(weekDates[6])}
+                  {formatDateDisplay(weekDates[6], locale)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -358,7 +370,7 @@ export default function CalendarPage() {
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                 >
-                  <option value="">Select service provider...</option>
+                  <option value="">{t('calendarPage.selectProvider')}</option>
                   {employees.map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
@@ -379,7 +391,7 @@ export default function CalendarPage() {
               {name}
             </span>
           ))}
-          {Object.entries(STATUS_STYLES).slice(1).map(([key, s]) => (
+          {Object.entries(statusStyles).slice(1).map(([key, s]) => (
             <span key={key} className={`px-2 py-1 rounded-full text-xs border ${s.bg} ${s.border} ${s.text}`}>
               {s.label}
             </span>
@@ -392,7 +404,7 @@ export default function CalendarPage() {
         <div className="flex-1 flex items-center justify-center card">
           <div className="text-center py-16">
             <CalendarDays className="w-14 h-14 text-gray-700 mx-auto mb-3" />
-            <p className="text-gray-400">Select a service provider to view their schedule</p>
+            <p className="text-gray-400">{t('calendarPage.selectProviderEmpty')}</p>
           </div>
         </div>
       )}
@@ -436,10 +448,10 @@ export default function CalendarPage() {
                       }`}
                     >
                       <p className={`text-xs font-medium ${isToday ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}
+                        {formatWeekdayShortByDayIndex(day.getUTCDay(), locale)}
                       </p>
                       <p className={`text-sm font-bold ${isToday ? 'text-blue-300' : 'text-gray-200'}`}>
-                        {formatDateDisplay(day)}
+                        {formatDateDisplay(day, locale)}
                       </p>
                     </div>
 
@@ -480,6 +492,7 @@ export default function CalendarPage() {
                           key={slot.id}
                           slot={slot}
                           serviceColorMap={serviceColorMap}
+                          statusStyles={statusStyles}
                           onClick={setSelectedSlot}
                         />
                       ))}
@@ -487,7 +500,7 @@ export default function CalendarPage() {
                       {/* "No slots" indicator */}
                       {daySlots.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-[10px] text-gray-700">No schedule</span>
+                          <span className="text-[10px] text-gray-700">{t('calendarPage.noSchedule')}</span>
                         </div>
                       )}
                     </div>
@@ -516,7 +529,7 @@ export default function CalendarPage() {
             <div className="flex items-start justify-between mb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Info className="w-5 h-5 text-blue-400" />
-                Slot Details
+                {t('calendarPage.slotDetails')}
               </h3>
               <button onClick={() => setSelectedSlot(null)} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -524,26 +537,26 @@ export default function CalendarPage() {
             </div>
 
             <dl className="space-y-2 text-sm">
-              <Row label="Date">
-                {formatDate(new Date(selectedSlot.startTime))}
+              <Row label={t('calendarPage.slotDate')}>
+                {formatDateDisplay(new Date(selectedSlot.startTime), locale)}
               </Row>
-              <Row label="Time">
+              <Row label={t('calendarPage.slotTime')}>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {formatTime(new Date(selectedSlot.startTime))} – {formatTime(new Date(selectedSlot.endTime))}
                 </span>
               </Row>
-              <Row label="Status">
+              <Row label={t('calendarPage.slotStatus')}>
                 <span className={`px-2 py-0.5 rounded-full text-xs border ${
-                  STATUS_STYLES[selectedSlot.status]
-                    ? `${STATUS_STYLES[selectedSlot.status].bg} ${STATUS_STYLES[selectedSlot.status].border} ${STATUS_STYLES[selectedSlot.status].text}`
+                  statusStyles[selectedSlot.status]
+                    ? `${statusStyles[selectedSlot.status].bg} ${statusStyles[selectedSlot.status].border} ${statusStyles[selectedSlot.status].text}`
                     : ''
                 }`}>
-                  {STATUS_STYLES[selectedSlot.status]?.label || selectedSlot.status}
+                  {statusStyles[selectedSlot.status]?.label || selectedSlot.status}
                 </span>
               </Row>
               {selectedSlot.serviceName && (
-                <Row label="Service">
+                <Row label={t('calendarPage.slotService')}>
                   <span className={`px-2 py-0.5 rounded-full text-xs border ${
                     selectedSlot.serviceId ? serviceColorMap[selectedSlot.serviceId] || '' : ''
                   }`}>
@@ -552,15 +565,16 @@ export default function CalendarPage() {
                 </Row>
               )}
               {selectedSlot.placeholderLabel && (
-                <Row label="Label">{selectedSlot.placeholderLabel}</Row>
+                <Row label={t('calendarPage.slotLabel')}>{selectedSlot.placeholderLabel}</Row>
               )}
               {selectedSlot.status === 'available' && (
-                <Row label="Capacity">
-                  {selectedSlot.appointmentCount} / {selectedSlot.maxAppointmentCount} booked
+                <Row label={t('calendarPage.slotCapacity')}>
+                  {selectedSlot.appointmentCount} / {selectedSlot.maxAppointmentCount}{' '}
+                  {t('common.booked').toLowerCase()}
                 </Row>
               )}
               {selectedSlot.employeeName && (
-                <Row label="Provider">{selectedSlot.employeeName}</Row>
+                <Row label={t('calendarPage.slotProvider')}>{selectedSlot.employeeName}</Row>
               )}
             </dl>
           </div>

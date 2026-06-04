@@ -3,7 +3,14 @@ import { isSubscriptionUsable, SubscriptionStatus } from './subscription-status.
 /** ~20% off when billed annually (2 months free). */
 export const ANNUAL_BILLING_DISCOUNT = 0.2;
 
-export type PlanTierId = 'solo' | 'starter';
+export type PlanTierId = 'solo' | 'starter' | 'business';
+
+/** Paid subscription_plan_id values mapped to entitlements tier (see PLANS.md). */
+export const PAID_SUBSCRIPTION_PLAN_TIERS: Record<string, PlanTierId> = {
+  starter: 'starter',
+  growth: 'business',
+  business: 'business',
+};
 
 export type PlanFeatureFlag =
   | 'stripeConnect'
@@ -47,9 +54,23 @@ export const PLAN_LIMITS: Record<PlanTierId, PlanLimits> = {
       giftCards: false,
     },
   },
+  business: {
+    tierId: 'business',
+    tierName: 'Business',
+    maxProviderSeats: 50,
+    aiCommandsPerMonth: 5000,
+    flags: {
+      stripeConnect: true,
+      promoCodes: true,
+      loyalty: true,
+      memberships: true,
+      giftCards: true,
+    },
+  },
 };
 
 export const UPGRADE_PLAN_ID = 'starter';
+export const TOP_SUBSCRIPTION_PLAN_ID = 'business';
 
 export function annualPriceMonthlyEquivalent(priceMonthly: number): number {
   return Math.round(priceMonthly * 12 * (1 - ANNUAL_BILLING_DISCOUNT));
@@ -59,13 +80,15 @@ export function resolvePlanTier(
   subscriptionPlanId: string | null | undefined,
   subscriptionStatus: string | null | undefined,
 ): PlanTierId {
+  if (!subscriptionPlanId) return 'solo';
   if (
-    subscriptionPlanId === 'starter' &&
-    isSubscriptionUsable((subscriptionStatus as SubscriptionStatus) ?? SubscriptionStatus.INACTIVE)
+    !isSubscriptionUsable(
+      (subscriptionStatus as SubscriptionStatus) ?? SubscriptionStatus.INACTIVE,
+    )
   ) {
-    return 'starter';
+    return 'solo';
   }
-  return 'solo';
+  return PAID_SUBSCRIPTION_PLAN_TIERS[subscriptionPlanId] ?? 'solo';
 }
 
 export function getLimitsForTier(tierId: PlanTierId): PlanLimits {

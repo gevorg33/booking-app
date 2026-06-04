@@ -7,6 +7,7 @@ import type {
   TenantCustomEmailVariable,
   TenantEmailTemplatesSettings,
 } from './notification-email-template.types.js';
+import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import {
   EMAIL_TEMPLATE_DEFINITIONS,
   resolveEmailTemplate,
@@ -28,12 +29,18 @@ export function readTenantEmailTemplatesSettings(
   };
 }
 
+function settingsLocale(settings?: Record<string, unknown>): AppLocale {
+  const raw = settings?.locale;
+  return resolveLocale(typeof raw === 'string' ? raw : null);
+}
+
 export function listResolvedEmailTemplates(
   settings?: Record<string, unknown>,
 ): ResolvedEmailTemplate[] {
   const stored = readTenantEmailTemplatesSettings(settings);
+  const locale = settingsLocale(settings);
   return EMAIL_TEMPLATE_DEFINITIONS.map((def) =>
-    resolveEmailTemplate(def.key, stored.templates?.[def.key]),
+    resolveEmailTemplate(def.key, stored.templates?.[def.key], locale),
   );
 }
 
@@ -89,7 +96,8 @@ export function renderBusinessEmailTemplate(
   runtimeVariables: Record<string, string | undefined | null>,
 ): RenderedEmail | null {
   const stored = readTenantEmailTemplatesSettings(settings);
-  const resolved = resolveEmailTemplate(key, stored.templates?.[key]);
+  const locale = settingsLocale(settings);
+  const resolved = resolveEmailTemplate(key, stored.templates?.[key], locale);
   if (!resolved.enabled) return null;
 
   const variables: Record<string, string> = {};

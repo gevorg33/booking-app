@@ -52,11 +52,38 @@ export const STATUS_COLOR: Record<string, string> = {
 
 const TERMINAL_STATUSES: BookingStatus[] = ['cancelled', 'completed', 'no_show'];
 
-export function formatStatusLabel(status: string): string {
+const STATUS_I18N_KEYS: Record<string, string> = {
+  pending: 'bookings.statusPending',
+  confirmed: 'bookings.statusConfirmed',
+  in_progress: 'bookings.statusInProgress',
+  completed: 'bookings.statusCompleted',
+  cancelled: 'bookings.statusCancelled',
+  no_show: 'bookings.statusNoShow',
+};
+
+const PAYMENT_I18N_KEYS: Record<PaymentStatus, string> = {
+  pending: 'bookings.paymentPending',
+  partially_paid: 'bookings.paymentPartiallyPaid',
+  paid: 'bookings.paymentPaid',
+  refunded: 'bookings.paymentRefunded',
+  not_applicable: 'bookings.paymentNa',
+};
+
+type TranslateFn = (key: string) => string;
+
+export function formatStatusLabel(status: string, t?: TranslateFn): string {
+  if (t) {
+    const key = STATUS_I18N_KEYS[status];
+    if (key) return t(key);
+  }
   return STATUS_LABELS[status] ?? status.replace(/_/g, ' ');
 }
 
-export function formatPaymentLabel(status: string): string {
+export function formatPaymentLabel(status: string, t?: TranslateFn): string {
+  if (t) {
+    const key = PAYMENT_I18N_KEYS[status as PaymentStatus];
+    if (key) return t(key);
+  }
   return PAYMENT_STATUS_LABELS[status as PaymentStatus] ?? status;
 }
 
@@ -156,14 +183,17 @@ export function formatServicePrice(
   }
 }
 
-export function formatBookingBlockHeadline(input: {
-  startTime: string;
-  endTime: string;
-  status: string;
-  service?: ServicePriceInfo | null;
-}): string {
+export function formatBookingBlockHeadline(
+  input: {
+    startTime: string;
+    endTime: string;
+    status: string;
+    service?: ServicePriceInfo | null;
+  },
+  t?: TranslateFn,
+): string {
   const parts = [formatTimeRangeDisplay(input.startTime, input.endTime)];
-  parts.push(formatStatusLabel(input.status));
+  parts.push(formatStatusLabel(input.status, t));
   const cost = formatServicePrice(input.service?.price, input.service?.currency ?? undefined);
   if (cost) parts.push(cost);
   return parts.join(' · ');

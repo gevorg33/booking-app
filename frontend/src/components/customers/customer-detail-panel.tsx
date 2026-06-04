@@ -5,7 +5,8 @@ import { Loader2, Save, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
-import { BOOKING_STATUS_LABELS, type BookingStatus } from '@/lib/booking-types';
+import { type BookingStatus } from '@/lib/booking-types';
+import { BOOKING_STATUS_I18N_KEYS } from '@/lib/booking-detail-panel.util';
 import {
   CUSTOMER_TAGS,
   customerTagLabelKey,
@@ -26,6 +27,7 @@ function CustomerSubscriptionsSection({
   businessId: string;
   customerId: string;
 }) {
+  const { t, locale } = useI18n();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: subscriptions = [], isLoading } = useQuery({
@@ -67,7 +69,7 @@ function CustomerSubscriptionsSection({
   }
 
   if (subscriptions.length === 0) {
-    return <p className="text-sm text-gray-500">No subscriptions</p>;
+    return <p className="text-sm text-gray-500">{t('customers.noSubscriptions')}</p>;
   }
 
   return (
@@ -78,7 +80,7 @@ function CustomerSubscriptionsSection({
           className="rounded-lg border border-gray-200 dark:border-gray-800 p-3 text-sm"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium">{sub.plan?.name ?? 'Subscription'}</span>
+            <span className="font-medium">{sub.plan?.name ?? t('customers.subscriptionFallback')}</span>
             <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 capitalize">
               {sub.status}
             </span>
@@ -87,15 +89,18 @@ function CustomerSubscriptionsSection({
             <p className="text-gray-500 mt-1">{sub.plan.service.name}</p>
           )}
           <p className="text-gray-500 mt-1">
-            {sub.appointmentsRemaining} / {sub.appointmentsIncluded} appointments left · expires{' '}
-            {formatDateDisplay(new Date(sub.expiresAt))}
+            {t('customers.subscriptionAppointmentsLeft', {
+              remaining: sub.appointmentsRemaining,
+              included: sub.appointmentsIncluded,
+              date: formatDateDisplay(new Date(sub.expiresAt), locale),
+            })}
           </p>
           <button
             type="button"
             className="text-xs text-blue-400 mt-2"
             onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
           >
-            {expandedId === sub.id ? 'Hide usage' : 'View usage history'}
+            {expandedId === sub.id ? t('customers.hideUsage') : t('customers.viewUsageHistory')}
           </button>
           {expandedId === sub.id && (
             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
@@ -107,13 +112,16 @@ function CustomerSubscriptionsSection({
                     <li key={row.id} className="flex justify-between gap-2">
                       <span className="capitalize">{row.action}</span>
                       <span>
-                        {formatDateDisplay(new Date(row.createdAt))} · {row.appointmentsRemainingAfter} left
+                        {t('customers.usageRow', {
+                          date: formatDateDisplay(new Date(row.createdAt), locale),
+                          count: row.appointmentsRemainingAfter,
+                        })}
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-gray-500">No usage yet</p>
+                <p className="text-xs text-gray-500">{t('customers.noUsageYet')}</p>
               )}
             </div>
           )}
@@ -200,10 +208,15 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        aria-label={t('common.close')}
+      />
       <aside className="relative w-full max-w-lg bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 h-full overflow-y-auto shadow-xl">
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-5 py-4 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Customer</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t('customers.detailTitle')}</h2>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-200">
             <X className="w-5 h-5" />
           </button>
@@ -214,7 +227,7 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : isError || !data ? (
-          <p className="text-red-400 text-sm p-5">Failed to load customer</p>
+          <p className="text-red-400 text-sm p-5">{t('customers.detailLoadFailed')}</p>
         ) : (
           <div className="p-5 space-y-6">
             <div>
@@ -270,31 +283,31 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-center">
                 <p className="text-lg font-bold">{data.stats.total}</p>
-                <p className="text-xs text-gray-500">Visits</p>
+                <p className="text-xs text-gray-500">{t('customers.statVisits')}</p>
               </div>
               <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-center">
                 <p className="text-lg font-bold">{data.stats.upcomingCount}</p>
-                <p className="text-xs text-gray-500">Upcoming</p>
+                <p className="text-xs text-gray-500">{t('customers.upcoming')}</p>
               </div>
               <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-center">
                 <p className="text-lg font-bold text-orange-500">{data.stats.noShowCount}</p>
-                <p className="text-xs text-gray-500">No-shows</p>
+                <p className="text-xs text-gray-500">{t('customers.columnNoShows')}</p>
               </div>
             </div>
 
             <div>
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Subscriptions
+                {t('customers.subscriptionsSection')}
               </h4>
               <CustomerSubscriptionsSection businessId={businessId} customerId={customerId} />
             </div>
 
             <div>
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Appointment history
+                {t('customers.appointmentHistorySection')}
               </h4>
               {data.appointments.length === 0 ? (
-                <p className="text-sm text-gray-500">No appointments yet</p>
+                <p className="text-sm text-gray-500">{t('customers.noAppointmentsYet')}</p>
               ) : (
                 <ul className="space-y-3">
                   {data.appointments.map((appt) => (
@@ -304,10 +317,12 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-gray-900 dark:text-gray-100">
-                          {appt.service?.name ?? 'Appointment'}
+                          {appt.service?.name ?? t('customers.appointmentFallback')}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                          {BOOKING_STATUS_LABELS[appt.status as BookingStatus] ?? appt.status}
+                          {BOOKING_STATUS_I18N_KEYS[appt.status as BookingStatus]
+                            ? t(BOOKING_STATUS_I18N_KEYS[appt.status as BookingStatus])
+                            : appt.status}
                         </span>
                       </div>
                       <p className="text-gray-500 mt-1">
@@ -315,7 +330,9 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                         {formatTimeRangeDisplay(new Date(appt.startTime), new Date(appt.endTime))}
                       </p>
                       {appt.employee && (
-                        <p className="text-gray-500 text-xs mt-0.5">with {appt.employee.name}</p>
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {t('customers.withProvider', { name: appt.employee.name })}
+                        </p>
                       )}
                     </li>
                   ))}

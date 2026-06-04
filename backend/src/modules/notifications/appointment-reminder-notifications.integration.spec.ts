@@ -19,6 +19,7 @@ describe('Customer-chosen appointment reminders integration', () => {
     createQueryBuilder: jest.fn(),
   };
   const businessRepo = { findOne: jest.fn() };
+  const customerRepo = { findOne: jest.fn() };
   const logRepo = {
     findOne: jest.fn().mockResolvedValue(null),
     save: jest.fn(),
@@ -36,6 +37,7 @@ describe('Customer-chosen appointment reminders integration', () => {
   const service = new NotificationsService(
     bookingRepo as any,
     businessRepo as any,
+    customerRepo as any,
     logRepo as any,
     emailService as any,
     smsService as any,
@@ -323,6 +325,39 @@ describe('Customer-chosen appointment reminders integration', () => {
 
     expect(sent).toBe(0);
     expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  it('uses localized reminder email subject when business locale is hy', async () => {
+    const startTime = new Date(Date.now() + 6 * 60 * 60 * 1000);
+    const hyBusiness = {
+      ...choiceEnabledBusiness,
+      settings: {
+        ...choiceEnabledBusiness.settings,
+        locale: 'hy',
+      },
+    };
+    mockReminderQueries([], [], [
+      {
+        id: 'book-hy',
+        status: BookingStatus.CONFIRMED,
+        startTime,
+        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+        customer,
+        employee: { name: 'Jane' },
+        service: { name: 'Facial' },
+        business: hyBusiness,
+        metadata: { reminderHoursBefore: 6 },
+      },
+    ]);
+
+    await service.processDueReminders();
+
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: expect.stringContaining('Հիշեցում'),
+        text: expect.stringMatching(/6 ժամ/i),
+      }),
+    );
   });
 
   it('skips customer-chosen flow when business has choice disabled', async () => {

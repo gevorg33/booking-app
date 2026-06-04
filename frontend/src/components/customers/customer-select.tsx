@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import type { CustomerListItem } from '@/lib/customer-types';
+import { useI18n } from '@/i18n';
 
 interface CustomerSelectProps {
   businessId: string;
@@ -26,6 +27,7 @@ export function CustomerSelect({
   required,
   searchPlaceholder = 'Search by name, email, or phone…',
 }: CustomerSelectProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -126,7 +128,7 @@ export function CustomerSelect({
             type="button"
             onClick={handleClear}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-            aria-label="Clear customer"
+            aria-label={t('customers.clearSelection')}
           >
             <X className="w-4 h-4" />
           </button>

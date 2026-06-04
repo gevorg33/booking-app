@@ -1,10 +1,8 @@
+import { mergeBusinessNotificationSettingsWithReminders } from './merge-business-notification-settings.js';
 import {
   assertValidCustomerReminderHours,
   buildBookingReminderMetadata,
   buildPublicAppointmentReminderSettings,
-  mergeBusinessNotificationSettingsWithReminders,
-} from './merge-business-notification-settings.js';
-import {
   mergeCustomerReminderChoiceSettings,
   normalizeReminderOptionsHours,
   readBookingReminderHoursBefore,

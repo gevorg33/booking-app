@@ -6,6 +6,7 @@ import { Copy, Check, Download, Zap, Calculator } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { ToggleChoice } from '@/components/ui/radio-choice';
+import { useI18n } from '@/i18n';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -51,6 +52,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
 }
 
 export function PlatformMaturityTab() {
+  const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const base = `/businesses/${business!.id}/integrations`;
@@ -175,7 +177,7 @@ export function PlatformMaturityTab() {
             onChange={(e) => setZapierForm({ ...zapierForm, hookDescription: e.target.value })}
           />
           <button type="submit" disabled={saveZapier.isPending} className="btn-primary text-sm">
-            {saveZapier.isPending ? 'Saving…' : 'Save Zapier settings'}
+            {saveZapier.isPending ? t('common.saving') : t('integrations.saveZapier')}
           </button>
         </form>
         {zapier && (
@@ -269,7 +271,7 @@ export function PlatformMaturityTab() {
             label="Include commissions"
           />
           <button type="submit" disabled={saveAccounting.isPending} className="btn-primary text-sm">
-            {saveAccounting.isPending ? 'Saving…' : 'Save accounting settings'}
+            {saveAccounting.isPending ? t('common.saving') : t('integrations.saveAccounting')}
           </button>
         </form>
         <button

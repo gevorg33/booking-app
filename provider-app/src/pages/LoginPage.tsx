@@ -25,8 +25,10 @@ import {
   unwrapAuthResult,
   type AuthResult,
 } from '../lib/auth-session';
+import { useI18n } from '../i18n';
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const history = useHistory();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('');
@@ -41,11 +43,11 @@ export default function LoginPage() {
 
   const finishLogin = (result: AuthResult) => {
     if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
-      setError('Your account does not have provider or manager access. Ask your business owner for an invite.');
+      setError(t('provider.accessDenied'));
       return;
     }
     if (!result.token || !result.business) {
-      setError('Login failed. Try again.');
+      setError(t('provider.loginFailedRetry'));
       return;
     }
     setAuth(result.user, result.business, result.token, {
@@ -74,7 +76,7 @@ export default function LoginPage() {
       }
       finishLogin(result);
     } catch (err: unknown) {
-      setError(readAuthError(err));
+      setError(readAuthError(err, t));
     } finally {
       setLoading(false);
     }
@@ -102,7 +104,7 @@ export default function LoginPage() {
       }
       finishLogin(result);
     } catch (err: unknown) {
-      setError(readAuthError(err, 'Google sign-in failed.'));
+      setError(readAuthError(err, t, t('provider.googleSignInFailed')));
     } finally {
       setGoogleLoading(false);
     }
@@ -113,9 +115,9 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/auth/forgot-password', { email });
       const payload = unwrap<{ message?: string }>(data);
-      setForgotMsg(payload.message || 'If an account exists, a reset link was sent.');
+      setForgotMsg(payload.message || t('auth.resetEmailSent'));
     } catch {
-      setForgotMsg('If an account exists, a reset link was sent.');
+      setForgotMsg(t('auth.resetEmailSent'));
     }
   };
 
@@ -124,11 +126,11 @@ export default function LoginPage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Choose business</IonTitle>
+            <IonTitle>{t('auth.selectBusiness')}</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
-          <p className="booking-meta">This email is linked to more than one business.</p>
+          <p className="booking-meta">{t('auth.selectBusinessHint')}</p>
           {pendingBusinesses.map((biz) => (
             <IonButton
               key={biz.id}
@@ -142,7 +144,7 @@ export default function LoginPage() {
             </IonButton>
           ))}
           <IonButton fill="clear" expand="block" onClick={() => setPendingBusinesses(null)}>
-            Back
+            {t('provider.back')}
           </IonButton>
         </IonContent>
       </IonPage>
@@ -153,11 +155,11 @@ export default function LoginPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Sign in</IonTitle>
+          <IonTitle>{t('provider.signInPageTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <p className="booking-meta">For service providers and schedule managers (owner, admin, manager).</p>
+        <p className="booking-meta">{t('provider.signInPageSubtitle')}</p>
 
         {error && (
           <IonText color="danger">
@@ -173,19 +175,21 @@ export default function LoginPage() {
               onClick={() => void handleGoogleLogin()}
               disabled={loading || googleLoading}
             >
-              {googleLoading ? <IonSpinner name="crescent" /> : 'Continue with Google'}
+              {googleLoading ? <IonSpinner name="crescent" /> : t('provider.continueWithGoogle')}
             </IonButton>
-            <p className="booking-meta ion-text-center ion-margin-vertical">or sign in with email</p>
+            <p className="booking-meta ion-text-center ion-margin-vertical">
+              {t('provider.orSignInWithEmail')}
+            </p>
           </>
         )}
 
         <IonList inset>
           <IonItem>
-            <IonLabel position="stacked">Email</IonLabel>
+            <IonLabel position="stacked">{t('provider.emailLabel')}</IonLabel>
             <IonInput type="email" value={email} onIonInput={(e) => setEmail(e.detail.value ?? '')} />
           </IonItem>
           <IonItem>
-            <IonLabel position="stacked">Password</IonLabel>
+            <IonLabel position="stacked">{t('provider.passwordLabel')}</IonLabel>
             <IonInput
               type="password"
               value={password}
@@ -194,20 +198,29 @@ export default function LoginPage() {
           </IonItem>
         </IonList>
 
-        <IonButton expand="block" className="ion-margin-top" onClick={() => void handleLogin()} disabled={loading || googleLoading}>
-          {loading ? <IonSpinner name="crescent" /> : 'Sign in'}
+        <IonButton
+          expand="block"
+          className="ion-margin-top"
+          onClick={() => void handleLogin()}
+          disabled={loading || googleLoading}
+        >
+          {loading ? <IonSpinner name="crescent" /> : t('auth.signIn')}
         </IonButton>
 
         <IonButton fill="clear" expand="block" onClick={() => setForgotOpen((v) => !v)}>
-          Forgot password?
+          {t('auth.forgotPassword')}
         </IonButton>
 
         {forgotOpen && (
           <div className="ion-padding-top">
             <IonButton expand="block" fill="outline" onClick={() => void handleForgot()}>
-              Send reset link
+              {t('auth.sendResetLink')}
             </IonButton>
-            {forgotMsg && <IonText color="success"><p>{forgotMsg}</p></IonText>}
+            {forgotMsg && (
+              <IonText color="success">
+                <p>{forgotMsg}</p>
+              </IonText>
+            )}
           </div>
         )}
       </IonContent>
@@ -215,23 +228,29 @@ export default function LoginPage() {
   );
 }
 
-function readAuthError(err: unknown, fallback = 'Login failed. Check API URL and network.'): string {
+type AuthTranslate = (key: string) => string;
+
+function readAuthError(
+  err: unknown,
+  t: AuthTranslate,
+  fallback = t('provider.loginFailedNetwork'),
+): string {
   const ax = err as {
     response?: { data?: { code?: string; message?: string } };
     message?: string;
   };
   if (!ax.response) {
-    return ax.message?.includes('cancelled') ? 'Sign-in was cancelled.' : fallback;
+    return ax.message?.includes('cancelled') ? t('provider.signInCancelled') : fallback;
   }
   const code = ax.response.data?.code;
   if (code === 'ACCOUNT_NOT_FOUND') {
-    return 'No login yet. Ask your admin to send app access from the Employees page.';
+    return t('provider.accountNotFoundHint');
   }
   if (code === 'INVALID_CREDENTIALS') {
-    return 'Incorrect password.';
+    return t('auth.invalidCredentials');
   }
   if (code === 'INVALID_GOOGLE_TOKEN') {
-    return 'Google sign-in token was invalid. Try again.';
+    return t('provider.googleTokenInvalid');
   }
   return ax.response.data?.message || fallback;
 }

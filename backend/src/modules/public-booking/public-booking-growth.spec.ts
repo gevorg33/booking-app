@@ -12,6 +12,13 @@ describe('PublicBookingService growth profile fields', () => {
     get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
   };
 
+  const multiServiceBookingsService = {
+    resolveSettingsFromBusiness: jest.fn(() => ({
+      enabled: false,
+      turnoverBufferMinutes: 5,
+    })),
+  };
+
   const service = new PublicBookingService(
     {} as any,
     {} as any,
@@ -24,7 +31,7 @@ describe('PublicBookingService growth profile fields', () => {
     {} as any,
     {} as any,
     {} as any,
-    {} as any,
+    multiServiceBookingsService as any,
     {} as any,
     config as unknown as ConfigService,
     {} as any,

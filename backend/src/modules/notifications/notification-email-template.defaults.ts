@@ -1,9 +1,11 @@
+import type { AppLocale } from '../../common/i18n/messages.js';
 import type {
   NotificationEmailTemplateKey,
   NotificationEmailTemplateVariable,
   ResolvedEmailTemplate,
   TenantEmailTemplateOverride,
 } from './notification-email-template.types.js';
+import { getLocalizedEmailTemplateContent } from './notification-email-template.defaults.i18n.js';
 
 export interface EmailTemplateDefinition {
   key: NotificationEmailTemplateKey;
@@ -152,12 +154,14 @@ export function getEmailTemplateDefinition(
 export function resolveEmailTemplate(
   key: NotificationEmailTemplateKey,
   override?: TenantEmailTemplateOverride | null,
+  locale: AppLocale = 'en',
 ): ResolvedEmailTemplate {
   const def = getEmailTemplateDefinition(key);
+  const localized = getLocalizedEmailTemplateContent(key, locale);
   const enabled = override?.enabled !== false;
-  const subject = override?.subject?.trim() || def.subject;
-  const bodyText = override?.bodyText?.trim() || def.bodyText;
-  const bodyHtml = override?.bodyHtml?.trim() || def.bodyHtml;
+  const subject = override?.subject?.trim() || localized?.subject || def.subject;
+  const bodyText = override?.bodyText?.trim() || localized?.bodyText || def.bodyText;
+  const bodyHtml = override?.bodyHtml?.trim() || localized?.bodyHtml || def.bodyHtml;
   const isCustomized = Boolean(
     override &&
       (override.subject?.trim() ||

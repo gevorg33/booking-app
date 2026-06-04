@@ -47,6 +47,7 @@ When LangGraph is off, compound prompts still decompose via `IntentDecomposition
 
 ## Pipeline stages (single intent)
 
+0. **Normalize** — `AiPromptNormalizationService` (LLM when Armenian/Russian/transliteration detected; cached per business+prompt; classifier also has multilingual rules)
 1. **Classify** — LLM JSON (`classify_intent`)
 2. **Rescue** — `AiIntentRescueService` maps `unknown`/misclassified intents via language rules
 3. **Capability** — role matrix enforcement (`ai-capability.matrix.ts`)

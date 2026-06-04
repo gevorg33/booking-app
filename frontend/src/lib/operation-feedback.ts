@@ -42,8 +42,23 @@ function readLocale(): AppLocale {
   return SUPPORTED_LOCALES.includes(value as AppLocale) ? (value as AppLocale) : 'en';
 }
 
-function feedbackMessages() {
-  const fb = getMessages(readLocale()).feedback;
+type FeedbackMessageKeys =
+  | 'creating'
+  | 'updating'
+  | 'deleting'
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'failed'
+  | 'failedCreate'
+  | 'failedUpdate'
+  | 'failedDelete'
+  | 'bookingCreated'
+  | 'bookingCancelled'
+  | 'purchaseCompleted';
+
+function feedbackMessages(): Record<FeedbackMessageKeys, string> {
+  const fb = getMessages(readLocale()).feedback as Record<FeedbackMessageKeys, string>;
   return {
     creating: fb.creating,
     updating: fb.updating,

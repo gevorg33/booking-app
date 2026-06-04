@@ -1,8 +1,19 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
   test: {
     environment: 'node',
+    environmentMatchGlobs: [
+      ['**/locale-cookie.spec.ts', 'happy-dom'],
+      ['**/public-locale-cookie.spec.ts', 'happy-dom'],
+      ['**/operation-feedback.spec.ts', 'happy-dom'],
+    ],
     include: ['src/lib/**/*.spec.ts'],
     coverage: {
       provider: 'v8',

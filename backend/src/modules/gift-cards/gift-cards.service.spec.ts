@@ -15,12 +15,16 @@ describe('GiftCardsService', () => {
     save: jest.fn(),
     create: jest.fn(),
   };
+  const planEntitlements = {
+    assertFeature: jest.fn().mockResolvedValue(undefined),
+  };
 
   const service = new GiftCardsService(
     giftCardRepo as any,
     creditRepo as any,
     redemptionRepo as any,
     expirationAuditRepo as any,
+    planEntitlements as any,
   );
 
   const baseCard = {

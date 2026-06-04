@@ -138,8 +138,8 @@ export default function IntegrationsPage() {
   const tabs: { id: Tab; label: string; icon: typeof Key }[] = [
     { id: 'keys', label: t('integrations.tabKeys'), icon: Key },
     { id: 'webhooks', label: t('integrations.tabWebhooks'), icon: Webhook },
-    { id: 'growth', label: 'Growth & distribution', icon: Share2 },
-    { id: 'platform', label: 'Platform maturity', icon: Layers },
+    { id: 'growth', label: t('integrations.tabGrowth'), icon: Share2 },
+    { id: 'platform', label: t('integrations.tabMaturity'), icon: Layers },
     { id: 'enterprise', label: t('enterpriseTrust.tabLabel'), icon: Shield },
     { id: 'strategy', label: t('strategyEval.tabLabel'), icon: Compass },
     { id: 'docs', label: t('integrations.tabDocs'), icon: BookOpen },

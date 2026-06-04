@@ -1,5 +1,7 @@
-import { getPublicProfile, getPublicServices, getPublicPackages } from '@/lib/public-api';
+import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
+import { getPublicServices, getPublicPackages } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { AnyServicesClient } from './any-services-client';
 
 export default async function AnySpecialistServicesPage({
@@ -8,9 +10,10 @@ export default async function AnySpecialistServicesPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [tenant, { services }, { packages }] = await Promise.all([
-    getPublicProfile(slug),
-    getPublicServices(slug),
+  const tenant = await getPublicProfileResolved(slug);
+  const locale = await resolvePublicBookingLocale(tenant.locale);
+  const [{ services }, { packages }] = await Promise.all([
+    getPublicServices(slug, { locale }),
     getPublicPackages(slug).catch(() => ({ packages: [] })),
   ]);
 

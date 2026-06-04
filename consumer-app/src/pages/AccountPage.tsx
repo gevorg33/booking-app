@@ -218,7 +218,7 @@ export default function AccountPage({
                     <p>
                       {s.status} · {s.appointmentsRemaining} visits left
                     </p>
-                    <p>Expires {new Date(s.expiresAt).toLocaleDateString()}</p>
+                    <p>Expires {formatDateDisplay(new Date(s.expiresAt))}</p>
                   </div>
                 ))}
                 {(subsQuery.data ?? []).length === 0 && <p>No active subscriptions.</p>}

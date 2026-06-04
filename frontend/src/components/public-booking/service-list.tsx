@@ -5,6 +5,7 @@ import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import { useRouter } from 'next/navigation';
 import { bookPath } from '@/lib/tenant-host';
 import { useCallback, useMemo } from 'react';
+import { useI18n } from '@/i18n';
 
 interface ServiceListProps {
   slug: string;
@@ -54,13 +55,15 @@ export function ServiceList({
   onSelect,
   employeeId,
   startTime,
-  uncategorizedLabel = 'Other services',
+  uncategorizedLabel,
 }: ServiceListProps) {
+  const { t } = useI18n();
   const router = useRouter();
+  const uncategorized = uncategorizedLabel ?? t('public.uncategorizedServices');
 
   const groupedServices = useMemo(
-    () => groupServicesByCategory(services, uncategorizedLabel),
-    [services, uncategorizedLabel],
+    () => groupServicesByCategory(services, uncategorized),
+    [services, uncategorized],
   );
 
   const checkoutHref = useMemo(() => {
@@ -80,12 +83,12 @@ export function ServiceList({
   if (services.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        <p>No services fit the selected time slot.</p>
+        <p>{t('public.noServicesFitSlot')}</p>
         <a
           href={`${bookPath(slug, '/professionals')}?employeeId=${encodeURIComponent(employeeId)}&startTime=${encodeURIComponent(startTime)}`}
           className="inline-block mt-4 text-violet-600 font-medium hover:underline"
         >
-          Choose another time
+          {t('public.chooseAnotherTime')}
         </a>
       </div>
     );
@@ -115,7 +118,7 @@ export function ServiceList({
                     <p className="font-medium text-gray-900">{service.name}</p>
                     {service.hasSubscriptionPlans && (
                       <span className="inline-block mt-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        Subscribe & save
+                        {t('public.subscribeAndSave')}
                       </span>
                     )}
                     {service.description && (
@@ -150,11 +153,13 @@ export function ServiceList({
               <p className="text-sm text-gray-600 mt-1">{selected.description}</p>
             )}
             <p className="text-sm text-gray-700 mt-2">
-              One-time visit: {formatPrice(selected.price, selected.currency)}
+              {t('public.oneTimeVisit', {
+                price: formatPrice(selected.price, selected.currency),
+              })}
             </p>
             {selected.hasSubscriptionPlans && (
               <p className="text-sm text-emerald-700 mt-1 font-medium">
-                Subscription plans available — choose Subscribe & save at checkout
+                {t('public.subscriptionPlansAtCheckout')}
               </p>
             )}
           </div>
@@ -164,7 +169,7 @@ export function ServiceList({
       <FixedActionBar
         primaryColor={primaryColor}
         disabled={!selectedServiceId}
-        label="Continue"
+        label={t('common.continue')}
         onClick={onContinue}
       />
     </div>
