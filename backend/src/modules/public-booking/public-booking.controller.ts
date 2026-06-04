@@ -41,8 +41,12 @@ export class PublicBookingController {
   }
 
   @Get('providers')
-  getProviders(@Param('slug') slug: string, @Query('date') date?: string) {
-    return this.publicBookingService.getProviders(slug, date);
+  getProviders(
+    @Param('slug') slug: string,
+    @Query('date') date?: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.publicBookingService.getProviders(slug, date, locale);
   }
 
   @Get('providers/:employeeId/slots')

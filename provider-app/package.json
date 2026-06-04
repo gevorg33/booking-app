@@ -14,7 +14,8 @@
     "build:ios:lan": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios && cd ios/App && pod install && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/provider-app-ios build && echo \"\\nOpen: npm run cap:ios\"",
     "cap:build:ios": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios && cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/provider-app-ios build",
     "test": "vitest run",
-    "test:cov": "vitest run --coverage"
+    "test:cov": "vitest run --coverage",
+    "test:locale-dates": "vitest run src/lib/date-format.spec.ts"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getPublicProfile, getPublicProviderReviews, getPublicProviders } from '@/lib/public-api';
+import { getServerLocale } from '@/lib/server-locale';
 import { bookPath } from '@/lib/tenant-host';
 import { ProviderProfileClient } from './provider-profile-client';
 
@@ -9,6 +10,7 @@ export default async function ProviderProfilePage({
   params: Promise<{ slug: string; employeeId: string }>;
 }) {
   const { slug, employeeId } = await params;
+  const locale = await getServerLocale();
 
   let tenant;
   let providers;
@@ -16,7 +18,7 @@ export default async function ProviderProfilePage({
   try {
     [tenant, { providers }, reviews] = await Promise.all([
       getPublicProfile(slug),
-      getPublicProviders(slug),
+      getPublicProviders(slug, undefined, locale),
       getPublicProviderReviews(slug, employeeId, 1),
     ]);
   } catch {

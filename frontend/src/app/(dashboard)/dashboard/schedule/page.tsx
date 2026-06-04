@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Clock,
   Plus,
@@ -18,7 +18,15 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
 import api from '@/lib/api';
-import { formatDateDisplay, getTodayDateKey, addCalendarDays, todayDateAnchor, toDateKey } from '@/lib/date-format';
+import {
+  formatDateDisplay,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
+  addCalendarDays,
+  todayDateAnchor,
+  toDateKey,
+} from '@/lib/date-format';
+import type { AppLocale } from '@/i18n/types';
 import { DatePicker } from '@/components/ui/date-picker';
 import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
@@ -73,15 +81,22 @@ function getDirectOverlappingIndexes(
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAYS_OF_WEEK = [
-  { label: 'Sun', value: 0, key: 'isActiveOnSunday' },
-  { label: 'Mon', value: 1, key: 'isActiveOnMonday' },
-  { label: 'Tue', value: 2, key: 'isActiveOnTuesday' },
-  { label: 'Wed', value: 3, key: 'isActiveOnWednesday' },
-  { label: 'Thu', value: 4, key: 'isActiveOnThursday' },
-  { label: 'Fri', value: 5, key: 'isActiveOnFriday' },
-  { label: 'Sat', value: 6, key: 'isActiveOnSaturday' },
+const DAYS_OF_WEEK_CONFIG = [
+  { value: 0, key: 'isActiveOnSunday' as const },
+  { value: 1, key: 'isActiveOnMonday' as const },
+  { value: 2, key: 'isActiveOnTuesday' as const },
+  { value: 3, key: 'isActiveOnWednesday' as const },
+  { value: 4, key: 'isActiveOnThursday' as const },
+  { value: 5, key: 'isActiveOnFriday' as const },
+  { value: 6, key: 'isActiveOnSaturday' as const },
 ];
+
+function buildDaysOfWeek(locale?: AppLocale) {
+  return DAYS_OF_WEEK_CONFIG.map((day) => ({
+    ...day,
+    label: formatWeekdayShortByDayIndex(day.value, locale),
+  }));
+}
 
 const PERIOD_TYPES = [
   { value: 'service_block', label: 'Available' },
@@ -177,6 +192,9 @@ interface PeriodEditorProps {
 }
 
 function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActiveDays = true, overlapIndexes }: PeriodEditorProps) {
+  const { locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
+
   const toggleService = (periodIdx: number, serviceId: string) => {
     const current: string[] = (periods[periodIdx] as any).serviceIds || [];
     const next = current.includes(serviceId)
@@ -299,7 +317,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
             <div>
               <label className="label mb-2">Active Days</label>
               <div className="flex gap-2">
-                {DAYS_OF_WEEK.map((day) => (
+                {daysOfWeek.map((day) => (
                   <button
                     key={day.key}
                     type="button"
@@ -328,7 +346,8 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
 type Tab = 'create' | 'templates' | 'blocks';
 
 export default function SchedulePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
   const { business } = useAuthStore();
   const { setTemplates, setApplyResult } = useSchedulingStore();
   const queryClient = useQueryClient();
@@ -505,7 +524,7 @@ function CreateScheduleTab({
           <div>
             <p className="font-semibold text-green-300">Schedule Created</p>
             <p className="text-sm text-gray-400">
-              {successInfo.slotsCreated} slot{successInfo.slotsCreated !== 1 ? 's' : ''} generated for {formatDateDisplay(date)}
+              {successInfo.slotsCreated} slot{successInfo.slotsCreated !== 1 ? 's' : ''} generated for {formatDateDisplay(date, locale)}
             </p>
           </div>
         </div>
@@ -938,7 +957,7 @@ function TemplatesTab({
           <div className="mb-4">
             <label className="label mb-2">Apply on Days</label>
             <div className="flex gap-2">
-              {DAYS_OF_WEEK.map((day) => (
+              {daysOfWeek.map((day) => (
                 <button
                   key={day.value}
                   type="button"

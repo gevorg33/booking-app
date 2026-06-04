@@ -2,9 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   dateKeyToExpiresAtEndOfDay,
   formatDateDisplay,
+  formatAppointmentDateLabel,
+  formatDateKeyPublicLabel,
+  formatDateKeyStripParts,
+  formatNearestSlotDateLabel,
   formatScheduleTimeRange,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
   isExpiredAt,
   resolveDisplayLocale,
+  resolveNearestSlotDateLabel,
   toIntlLocale,
 } from './date-format';
 
@@ -32,6 +39,44 @@ describe('date-format locale helpers', () => {
 
   it('resolveDisplayLocale returns explicit locale first', () => {
     expect(resolveDisplayLocale('ru')).toBe('ru');
+  });
+
+  it('formats public date keys per locale', () => {
+    const label = formatDateKeyPublicLabel('2026-06-04', 'hy', 'UTC');
+    expect(label).toMatch(/հունիս/i);
+    expect(label).toMatch(/հինգշաբթի/i);
+  });
+
+  it('formats appointment date labels with weekday and month', () => {
+    const label = formatAppointmentDateLabel('2026-06-04T12:00:00.000Z', 'hy', 'UTC');
+    expect(label).toMatch(/հունիս/i);
+    expect(label).toMatch(/հինգշաբթի|հնգ/i);
+  });
+
+  it('formats date key strip parts for day picker', () => {
+    const parts = formatDateKeyStripParts('2026-06-04', 'hy', 'UTC');
+    expect(parts.weekday).toMatch(/հնգ/i);
+    expect(parts.month).toMatch(/հնս/i);
+  });
+
+  it('formats weekday short by index', () => {
+    expect(formatWeekdayShortByDayIndex(0, 'ru')).toBeTruthy();
+  });
+
+  it('prefixes today inline for nearest-slot labels', () => {
+    const tz = 'UTC';
+    const today = getTodayDateKey(tz);
+    expect(formatNearestSlotDateLabel(today, 'en', tz, 'today')).toMatch(/^today,/);
+    expect(formatNearestSlotDateLabel(today, 'hy', tz, 'այսօր')).toMatch(/^այսօր,/);
+    expect(formatNearestSlotDateLabel('2099-01-01', 'ru', tz, 'сегодня')).not.toMatch(/^сегодня,/);
+  });
+
+  it('resolveNearestSlotDateLabel is re-exported for hydration-safe labels', () => {
+    expect(
+      resolveNearestSlotDateLabel({
+        nearestDateLabel: 'today, 4 June, Thursday',
+      }),
+    ).toBe('today, 4 June, Thursday');
   });
 });
 

@@ -1402,6 +1402,7 @@ const en: MessageTree = {
     selectSpecialist: 'Select specialist',
     noSpecialistsForSlot: 'No specialists available at this time',
     today: 'Today',
+    todayInline: 'today',
     nearestSlots: 'Nearest time slot for the appointment — {date}:',
     noSlots: 'No available slots in the next two weeks',
     selectService: 'Select service',

@@ -20,7 +20,12 @@ function intlLocale(locale?: string): string | undefined {
 
 /** User-facing date: locale-aware when locale is en/hy/ru, else DD/MM/YYYY (UTC). */
 export function formatDateDisplay(input: Date | string, locale?: string): string {
-  const d = typeof input === 'string' ? parseDateInput(input) : input;
+  const d =
+    typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
+      ? new Date(`${input}T12:00:00.000Z`)
+      : typeof input === 'string'
+        ? parseDateInput(input)
+        : input;
   if (!d || Number.isNaN(d.getTime())) return String(input);
   const intl = intlLocale(locale);
   if (intl) {

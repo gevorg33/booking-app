@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Users } from 'lucide-react';
-import { formatScheduleTime } from '@/lib/date-format';
+import { formatScheduleTime, resolveNearestSlotDateLabel } from '@/lib/date-format';
 import type { PublicProvider } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
@@ -26,9 +26,10 @@ export function ProviderList({
   selectedStartTime,
   onSelect,
   showAnySpecialistOption = true,
+  timeZone = 'UTC',
 }: ProviderListProps) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <div className="space-y-3 pb-8">
@@ -56,6 +57,10 @@ export function ProviderList({
           provider.averageRating != null ? Number(provider.averageRating) : null;
         const hasReviews = reviewCount > 0 && averageRating != null && !Number.isNaN(averageRating);
         const profileHref = bookPath(slug, `/providers/${provider.id}`);
+        const nearestDateText =
+          provider.slots.length > 0
+            ? resolveNearestSlotDateLabel(provider, locale, timeZone, t('public.todayInline'))
+            : null;
 
         return (
           <div
@@ -109,10 +114,10 @@ export function ProviderList({
               />
             </div>
 
-            {provider.nearestDateLabel && provider.slots.length > 0 && (
+            {nearestDateText && (
               <div className="px-4 pb-4">
                 <p className="text-xs text-gray-500 mb-2">
-                  {t('public.nearestSlots', { date: provider.nearestDateLabel })}
+                  {t('public.nearestSlots', { date: nearestDateText })}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {provider.slots.map((slot) => {

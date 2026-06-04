@@ -50,7 +50,7 @@ export function MultiServiceAvailabilityClient({
   const { t, locale } = useI18n();
   const tz = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
-  const dayOptions = useMemo(() => buildBookingDayOptions(tz), [tz]);
+  const dayOptions = useMemo(() => buildBookingDayOptions(tz, undefined, locale), [tz, locale]);
 
   // URL is the single source of truth — read from window location so client navigations
   // never reuse a stale server-passed service list from a previous selection.

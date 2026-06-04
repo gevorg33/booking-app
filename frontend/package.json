@@ -14,6 +14,8 @@
     "test:multi-service": "vitest run --config vitest.multi-service.config.ts --coverage src/lib/multi-service-booking.spec.ts",
     "test:packages": "vitest run --config vitest.packages.config.ts --coverage src/lib/package-booking.spec.ts",
     "test:localized-names": "vitest run --config vitest.localized-names.config.ts --coverage src/lib/localized-names.spec.ts",
+    "test:locale-dates": "vitest run --config vitest.locale-dates.config.ts --coverage",
+    "test:date-format": "vitest run src/lib/date-format.spec.ts",
     "sync:firebase": "bash scripts/sync-firebase-from-provider.sh",
     "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"
   },

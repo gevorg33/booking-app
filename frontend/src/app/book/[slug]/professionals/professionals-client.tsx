@@ -65,6 +65,7 @@ export function ProfessionalsClient({ slug, tenant, providers, backHref }: Profe
           slug={slug}
           providers={providers}
           primaryColor={primary}
+          timeZone={tenant.timezone}
           selectedEmployeeId={employeeId}
           selectedStartTime={startTime}
           onSelect={onSelect}

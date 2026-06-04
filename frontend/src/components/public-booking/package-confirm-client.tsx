@@ -36,7 +36,7 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
   const tz = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
-  const dayOptions = useMemo(() => buildBookingDayOptions(tz), [tz]);
+  const dayOptions = useMemo(() => buildBookingDayOptions(tz, undefined, locale), [tz, locale]);
 
   const expandedItems = useMemo(() => expandPackageServiceItems(pkg), [pkg]);
   const pricedItems = useMemo(() => resolvePackageItemPricing(pkg), [pkg]);

@@ -2224,6 +2224,7 @@ assignedAutomatically: 'Մասնագետը նշանակվում է ավտոմա�
 selectSpecialist: 'Ընտրել մասնագետ',
 noSpecialistsForSlot: 'Այս ժամին հասանելի մասնագետ չկա',
 today: 'Այսօր',
+todayInline: 'այսօր',
 nearestSlots: 'Ամենամոտ հասանելի ժամ՝ — {date}:',
 noSlots: 'Վերջին երկու շաբաթում հասանելի ժամեր չկան',
 selectService: 'Ընտրել ծառայություն',

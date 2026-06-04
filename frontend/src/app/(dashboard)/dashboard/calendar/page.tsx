@@ -12,7 +12,15 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, getTodayDateKey, toDateKey, todayDateAnchor } from '@/lib/date-format';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
+  toDateKey,
+  todayDateAnchor,
+} from '@/lib/date-format';
+import { useI18n } from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
@@ -73,10 +81,6 @@ function toMinutes(date: Date) {
 
 function formatTime(date: Date) {
   return formatTimeDisplay(date);
-}
-
-function formatDate(date: Date) {
-  return formatDateDisplay(date);
 }
 
 const TOTAL_MINUTES = (HOUR_END - HOUR_START) * 60;
@@ -161,6 +165,7 @@ function yToMinutes(clientY: number, rectTop: number): number {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { locale } = useI18n();
   const { business } = useAuthStore();
   const [anchorDate, setAnchorDate] = useState(new Date());
   const [employeeId, setEmployeeId] = useState('');
@@ -296,8 +301,8 @@ export default function CalendarPage() {
               context={{
                 route: '/dashboard/calendar',
                 employeeName: selectedEmployee?.name ?? null,
-                dateFrom: formatDateDisplay(weekDates[0]),
-                dateTo: formatDateDisplay(weekDates[6]),
+                dateFrom: formatDateDisplay(weekDates[0], locale),
+                dateTo: formatDateDisplay(weekDates[6], locale),
                 viewMode: 'week',
                 ...(dragSelection
                   ? {
@@ -346,9 +351,9 @@ export default function CalendarPage() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 <span className="ml-2 text-sm font-medium text-gray-300">
-                  {formatDateDisplay(weekDates[0])}
+                  {formatDateDisplay(weekDates[0], locale)}
                   {' – '}
-                  {formatDateDisplay(weekDates[6])}
+                  {formatDateDisplay(weekDates[6], locale)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -436,10 +441,10 @@ export default function CalendarPage() {
                       }`}
                     >
                       <p className={`text-xs font-medium ${isToday ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}
+                        {formatWeekdayShortByDayIndex(day.getUTCDay(), locale)}
                       </p>
                       <p className={`text-sm font-bold ${isToday ? 'text-blue-300' : 'text-gray-200'}`}>
-                        {formatDateDisplay(day)}
+                        {formatDateDisplay(day, locale)}
                       </p>
                     </div>
 
@@ -525,7 +530,7 @@ export default function CalendarPage() {
 
             <dl className="space-y-2 text-sm">
               <Row label="Date">
-                {formatDate(new Date(selectedSlot.startTime))}
+                {formatDateDisplay(new Date(selectedSlot.startTime), locale)}
               </Row>
               <Row label="Time">
                 <span className="flex items-center gap-1">

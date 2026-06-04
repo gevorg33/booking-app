@@ -4,22 +4,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Ban, CheckCircle2, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDateDisplay, formatTimeDisplay, getTodayDateKey } from '@/lib/date-format';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+  formatWeekdayShortByDayIndex,
+  getTodayDateKey,
+} from '@/lib/date-format';
+import type { AppLocale } from '@/i18n/types';
 import { normalizeTime24 } from '@/lib/time-format';
 import { TimeInput } from '@/components/time-input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TablePagination } from '@/components/table/table-pagination';
 import { useI18n } from '@/i18n';
 
-const WEEKDAYS = [
-  { key: 'isActiveOnMonday', label: 'Mon' },
-  { key: 'isActiveOnTuesday', label: 'Tue' },
-  { key: 'isActiveOnWednesday', label: 'Wed' },
-  { key: 'isActiveOnThursday', label: 'Thu' },
-  { key: 'isActiveOnFriday', label: 'Fri' },
-  { key: 'isActiveOnSaturday', label: 'Sat' },
-  { key: 'isActiveOnSunday', label: 'Sun' },
-] as const;
+const WEEKDAY_CONFIG = [
+  { key: 'isActiveOnMonday' as const, dayIndex: 1 },
+  { key: 'isActiveOnTuesday' as const, dayIndex: 2 },
+  { key: 'isActiveOnWednesday' as const, dayIndex: 3 },
+  { key: 'isActiveOnThursday' as const, dayIndex: 4 },
+  { key: 'isActiveOnFriday' as const, dayIndex: 5 },
+  { key: 'isActiveOnSaturday' as const, dayIndex: 6 },
+  { key: 'isActiveOnSunday' as const, dayIndex: 0 },
+];
 
 interface BlockScheduleItem {
   id: string;
@@ -41,12 +47,12 @@ function toIso(day: string, time: string): string {
   return `${day}T${normalizeTime24(time)}:00.000Z`;
 }
 
-function formatBlockSummary(item: BlockScheduleItem): string {
+function formatBlockSummary(item: BlockScheduleItem, locale?: AppLocale): string {
   if (item.isRepetitive && item.startDay && item.endDay && item.blockStartTime && item.blockEndTime) {
-    return `${formatDateDisplay(item.startDay)} – ${formatDateDisplay(item.endDay)} · ${item.blockStartTime}–${item.blockEndTime} daily`;
+    return `${formatDateDisplay(item.startDay, locale)} – ${formatDateDisplay(item.endDay, locale)} · ${item.blockStartTime}–${item.blockEndTime} daily`;
   }
   if (item.singleStartTime && item.singleEndTime) {
-    return `${formatDateDisplay(item.singleStartTime)} ${formatTimeDisplay(item.singleStartTime)}–${formatTimeDisplay(item.singleEndTime)}`;
+    return `${formatDateDisplay(item.singleStartTime, locale)} ${formatTimeDisplay(item.singleStartTime)}–${formatTimeDisplay(item.singleEndTime)}`;
   }
   return item.placeholderLabel;
 }
@@ -62,7 +68,15 @@ export function BlockScheduleTab({
   business: { id: string };
   employees: Array<{ id: string; name: string }>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const weekdayButtons = useMemo(
+    () =>
+      WEEKDAY_CONFIG.map(({ key, dayIndex }) => ({
+        key,
+        label: formatWeekdayShortByDayIndex(dayIndex, locale),
+      })),
+    [locale],
+  );
   const queryClient = useQueryClient();
   const [employeeId, setEmployeeId] = useState('');
   const [placeholder, setPlaceholder] = useState('Blocked');
@@ -278,7 +292,7 @@ export function BlockScheduleTab({
             <div>
               <label className="label">Active days</label>
               <div className="flex flex-wrap gap-2">
-                {WEEKDAYS.map(({ key, label }) => (
+                {weekdayButtons.map(({ key, label }) => (
                   <button
                     key={key}
                     type="button"
@@ -374,7 +388,7 @@ export function BlockScheduleTab({
                   <div className="min-w-0">
                     <p className="font-medium text-sm">{item.placeholderLabel}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{item.employee?.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">{formatBlockSummary(item)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatBlockSummary(item, locale)}</p>
                   </div>
                   <button
                     type="button"

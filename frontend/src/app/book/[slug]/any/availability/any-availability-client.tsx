@@ -28,11 +28,11 @@ const SCAN_DAYS = 14;
 
 export function AnyAvailabilityClient({ slug, tenant, service, backHref }: AnyAvailabilityClientProps) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const tz = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
-  const dayOptions = useMemo(() => buildBookingDayOptions(tz, SCAN_DAYS), [tz]);
+  const dayOptions = useMemo(() => buildBookingDayOptions(tz, SCAN_DAYS, locale), [tz, locale]);
 
   const [selectedDateKey, setSelectedDateKey] = useState(dayOptions[0]?.dateKey ?? getTodayDateKey(tz));
   const [slots, setSlots] = useState<PublicServiceDaySlot[]>([]);

@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Calendar, Pencil, Loader2, Users } from 'lucide-react';
-import { formatBookingDateTimeRange, formatScheduleTime } from '@/lib/date-format';
+import {
+  formatAppointmentDateLabel,
+  formatBookingDateTimeRange,
+  formatDateDisplay,
+  formatScheduleTime,
+} from '@/lib/date-format';
 import {
   createPublicBooking,
   createPublicBookingCheckout,
@@ -505,12 +510,7 @@ export function CheckoutForm({
             <Calendar className="w-5 h-5 text-gray-400" />
             <div>
               <p className="font-medium text-gray-900">
-                {start.toLocaleDateString('en-GB', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  timeZone: tenant.timezone || 'UTC',
-                })}
+                {formatAppointmentDateLabel(start, locale, tenant.timezone || 'UTC')}
               </p>
               <p className="text-sm text-gray-500">{formatScheduleTime(start, locale)}</p>
             </div>
@@ -611,7 +611,7 @@ export function CheckoutForm({
               <p className="text-sm text-gray-600">
                 {activeSubscription.appointmentsRemaining} of {activeSubscription.appointmentsIncluded}{' '}
                 {t('public.appointmentsLeft')} · {t('public.expiresOn')}{' '}
-                {new Date(activeSubscription.expiresAt).toLocaleDateString()}
+                {formatDateDisplay(new Date(activeSubscription.expiresAt), locale)}
               </p>
               <p className="text-sm text-emerald-700 mt-1">{t('public.freeThisVisit')}</p>
             </RadioCard>

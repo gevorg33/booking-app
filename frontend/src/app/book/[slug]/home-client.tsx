@@ -68,6 +68,7 @@ export function HomeClient({ slug, tenant, providers }: HomeClientProps) {
           slug={slug}
           providers={providers}
           primaryColor={primary}
+          timeZone={tenant.timezone}
           selectedEmployeeId={employeeId}
           selectedStartTime={startTime}
           onSelect={onSelect}

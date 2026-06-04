@@ -620,6 +620,7 @@ const ru: MessageTree = {
     selectSpecialist: 'Выберите специалиста',
     noSpecialistsForSlot: 'На это время нет свободных специалистов',
     today: 'Сегодня',
+    todayInline: 'сегодня',
     nearestSlots: 'Ближайшее время для записи — {date}:',
     noSlots: 'Нет свободных слотов в ближайшие две недели',
     selectService: 'Выбрать услугу',

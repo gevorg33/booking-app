@@ -34,7 +34,6 @@ import {
 import { readBusinessGiftCardSettings } from '../gift-cards/gift-card.types.js';
 import {
   addDaysToDateKey,
-  formatZonedDateLabel,
   getDateKeyInTimezone,
   getUtcBoundsForDateKey,
   isWallClockSlotBookable,
@@ -42,6 +41,7 @@ import {
 } from '../../common/utils/timezone.util.js';
 import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import { formatNearestSlotDateLabel } from '../../common/i18n/locale-date.util.js';
 import {
   extractLocalizedNamesFromMetadata,
   resolveLocalizedDisplayName,
@@ -441,9 +441,14 @@ export class PublicBookingService {
     return this.toPublicProfile(business);
   }
 
-  async getProviders(slug: string, date?: string): Promise<{ providers: PublicProvider[] }> {
+  async getProviders(
+    slug: string,
+    date?: string,
+    locale?: string,
+  ): Promise<{ providers: PublicProvider[] }> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
 
     const employees = await this.employeeRepo.find({
       where: { businessId: business.id, isActive: true },
@@ -468,6 +473,7 @@ export class PublicBookingService {
           startDateKey,
           todayKey,
           tz,
+          displayLocale,
         );
         const reviews = reviewSummaries.get(employee.id);
         return {
@@ -2209,6 +2215,7 @@ export class PublicBookingService {
     fromDateKey: string,
     todayDateKey: string,
     timeZone: string,
+    displayLocale: AppLocale,
   ): Promise<Omit<PublicProvider, 'averageRating' | 'reviewCount' | 'recentReviews'>> {
     const metadata = employee.metadata || {};
     let nearestDateKey: string | null = null;
@@ -2239,19 +2246,13 @@ export class PublicBookingService {
       avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
       nearestDate: nearestDateKey,
       nearestDateLabel: nearestDateKey
-        ? this.formatNearestDateLabel(nearestDateKey, todayDateKey, timeZone)
+        ? formatNearestSlotDateLabel(nearestDateKey, todayDateKey, timeZone, displayLocale)
         : null,
       slots: slots.map((startTime) => ({
         startTime: startTime.toISOString(),
         endTime: new Date(startTime.getTime() + SLOT_STEP_MINUTES * 60000).toISOString(),
       })),
     };
-  }
-
-  private formatNearestDateLabel(dateKey: string, todayDateKey: string, timeZone: string): string {
-    const formatted = formatZonedDateLabel(dateKey, timeZone);
-    if (dateKey === todayDateKey) return `today, ${formatted}`;
-    return formatted;
   }
 
   private async getMultiServiceBlockStartCandidates(

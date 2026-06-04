@@ -278,8 +278,11 @@ export function getPublicProfile(slug: string) {
   return publicFetch<PublicBusinessProfile>(`/public/${slug}`);
 }
 
-export function getPublicProviders(slug: string, date?: string) {
-  const q = date ? `?date=${encodeURIComponent(date)}` : '';
+export function getPublicProviders(slug: string, date?: string, locale?: string) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (locale) params.set('locale', locale);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return publicFetch<{ providers: PublicProvider[] }>(`/public/${slug}/providers${q}`);
 }
 

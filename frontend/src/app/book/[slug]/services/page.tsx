@@ -28,7 +28,7 @@ export default async function ServicesPage({
   const locale = await getServerLocale();
   const [tenant, { providers }, { services }] = await Promise.all([
     getPublicProfile(slug),
-    getPublicProviders(slug),
+    getPublicProviders(slug, undefined, locale),
     getPublicServicesForSlot(slug, employeeId, startTime, locale),
   ]);
 

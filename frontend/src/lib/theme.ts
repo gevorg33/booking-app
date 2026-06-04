@@ -2,7 +2,7 @@ export type Theme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'optischedule-theme';
 
-/** Inline blocking script for root layout `<head>` — must not be rendered via a React child component (React 19). */
+/** Blocking theme script — inject via `next/script` `beforeInteractive` in root layout (React 19 safe). */
 export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');if(t==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 export function applyTheme(theme: Theme) {

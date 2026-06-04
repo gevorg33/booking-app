@@ -11,7 +11,7 @@ import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
-import { formatDateDisplay } from '@/lib/date-format';
+import { formatDateDisplay, formatWeekdayShortByDayIndex } from '@/lib/date-format';
 
 interface StaffRow {
   employeeId: string;
@@ -37,8 +37,6 @@ interface HeatmapCell {
   count: number;
 }
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 function defaultDateRange() {
   const to = new Date();
   const from = new Date();
@@ -55,10 +53,15 @@ function unwrap<T>(res: unknown): T {
 }
 
 export default function ReportsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { business } = useAuthStore();
   const [range, setRange] = useState(defaultDateRange);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+
+  const dayLabels = useMemo(
+    () => [0, 1, 2, 3, 4, 5, 6].map((day) => formatWeekdayShortByDayIndex(day, locale)),
+    [locale],
+  );
 
   const params = useMemo(() => ({ from: range.from, to: range.to }), [range]);
 
@@ -141,8 +144,8 @@ export default function ReportsPage() {
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/reports']}
               context={{
                 route: '/dashboard/reports',
-                dateFrom: formatDateDisplay(range.from),
-                dateTo: formatDateDisplay(range.to),
+                dateFrom: formatDateDisplay(range.from, locale),
+                dateTo: formatDateDisplay(range.to, locale),
               }}
             />
           </AiSuggestionsStack>
@@ -294,7 +297,7 @@ export default function ReportsPage() {
                 style={{ gridTemplateColumns: '48px repeat(7, minmax(0, 1fr))' }}
               >
                 <div />
-                {DAY_LABELS.map((day) => (
+                {dayLabels.map((day) => (
                   <div key={day} className="text-xs text-center text-gray-500 pb-1">
                     {day}
                   </div>
@@ -304,13 +307,13 @@ export default function ReportsPage() {
                     <div className="text-[10px] text-gray-500 pr-2 text-right leading-5">
                       {hour.toString().padStart(2, '0')}:00
                     </div>
-                    {DAY_LABELS.map((_, day) => {
+                    {dayLabels.map((_, day) => {
                       const count = heatGrid.get(`${day}-${hour}`) ?? 0;
                       const intensity = count / maxHeat;
                       return (
                         <div
                           key={`${day}-${hour}`}
-                          title={`${DAY_LABELS[day]} ${hour}:00 — ${count} bookings`}
+                          title={`${dayLabels[day]} ${hour}:00 — ${count} bookings`}
                           className="h-5 rounded-sm border border-gray-800/50"
                           style={{
                             backgroundColor:

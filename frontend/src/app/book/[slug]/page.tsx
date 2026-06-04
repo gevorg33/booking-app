@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { getPublicProfile, getPublicProviders } from '@/lib/public-api';
+import { getServerLocale } from '@/lib/server-locale';
 import { HomeClient } from './home-client';
 
 export default async function PublicBookingHomePage({
@@ -8,9 +9,10 @@ export default async function PublicBookingHomePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const locale = await getServerLocale();
   const [tenant, { providers }] = await Promise.all([
     getPublicProfile(slug),
-    getPublicProviders(slug),
+    getPublicProviders(slug, undefined, locale),
   ]);
 
   return (

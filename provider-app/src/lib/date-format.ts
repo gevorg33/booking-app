@@ -6,6 +6,21 @@ export function getBrowserTimeZone(): string {
   }
 }
 
+function resolveAppLocale(): string | undefined {
+  if (typeof navigator === 'undefined') return undefined;
+  const lang = navigator.language?.slice(0, 2).toLowerCase();
+  if (lang === 'hy' || lang === 'ru' || lang === 'en') return lang;
+  return undefined;
+}
+
+function toIntlLocale(locale?: string): string | undefined {
+  const resolved = locale ?? resolveAppLocale();
+  if (resolved === 'hy') return 'hy-AM';
+  if (resolved === 'ru') return 'ru-RU';
+  if (resolved === 'en') return 'en-GB';
+  return undefined;
+}
+
 export function getTodayDateKey(timeZone?: string): string {
   const tz = timeZone ?? getBrowserTimeZone();
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
@@ -32,7 +47,7 @@ export function addCalendarDays(d: Date, days: number, timeZone?: string): Date 
   return parseDateKey(iso) ?? shifted;
 }
 
-export function formatDateDisplay(input: Date | string): string {
+export function formatDateDisplay(input: Date | string, locale?: string): string {
   const d =
     typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
       ? (parseDateKey(input) ?? new Date(input))
@@ -40,10 +55,13 @@ export function formatDateDisplay(input: Date | string): string {
         ? new Date(input)
         : input;
   if (Number.isNaN(d.getTime())) return String(input);
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const yyyy = String(d.getUTCFullYear());
-  return `${dd}/${mm}/${yyyy}`;
+  const intlLocale = toIntlLocale(locale) ?? 'en-GB';
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(d);
 }
 
 export function formatTimeDisplay(input: Date | string): string {

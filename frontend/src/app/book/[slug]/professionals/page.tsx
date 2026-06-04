@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { getPublicProfile, getPublicProviders } from '@/lib/public-api';
+import { getServerLocale } from '@/lib/server-locale';
 import { bookPath } from '@/lib/tenant-host';
 import { ProfessionalsClient } from './professionals-client';
 
@@ -9,9 +10,10 @@ export default async function ProfessionalsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const locale = await getServerLocale();
   const [tenant, { providers }] = await Promise.all([
     getPublicProfile(slug),
-    getPublicProviders(slug),
+    getPublicProviders(slug, undefined, locale),
   ]);
 
   return (

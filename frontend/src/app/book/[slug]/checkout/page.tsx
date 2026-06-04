@@ -30,10 +30,11 @@ export default async function CheckoutPage({
     redirect(bookPath(slug, '/professionals'));
   }
 
+  const locale = await getServerLocale();
   const tenant = await getPublicProfile(slug);
 
   if (isAutoAssign) {
-    const { services } = await getPublicServices(slug);
+    const { services } = await getPublicServices(slug, { locale });
     const service = services.find((s) => s.id === serviceId);
     if (!service) {
       redirect(bookPath(slug, '/any'));
@@ -54,7 +55,7 @@ export default async function CheckoutPage({
   }
 
   const [{ providers }, { services }] = await Promise.all([
-    getPublicProviders(slug),
+    getPublicProviders(slug, undefined, locale),
     getPublicServicesForSlot(slug, employeeId!, startTime, locale),
   ]);
 

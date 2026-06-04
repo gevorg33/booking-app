@@ -28,6 +28,9 @@ import {
   isTeamWideProviderScopePrompt,
 } from './ai-orchestration.helpers.js';
 import { formatDateDisplay, toIsoDay, parseDateInput } from '../../common/utils/date-format.util.js';
+import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
+import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import { Business } from '../business/entities/business.entity.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
@@ -37,9 +40,17 @@ export class AiScheduleHandlersService {
   constructor(
     @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
     @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
   ) {}
+
+  private async resolveBusinessLocale(businessId: string): Promise<AppLocale> {
+    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const settings = (business?.settings ?? {}) as Record<string, unknown>;
+    const raw = settings.locale;
+    return resolveLocale(typeof raw === 'string' ? raw : undefined, 'en');
+  }
 
   async handleApplySchedule(
     businessId: string,
@@ -346,7 +357,7 @@ export class AiScheduleHandlersService {
     }
 
     const window = parseTimeWindow(params, prompt);
-    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const displayLocale = await this.resolveBusinessLocale(businessId);
     const reports: Array<{
       employeeName: string;
       days: Array<{ date: string; weekday: string; gaps: Array<{ startTime: string; endTime: string }> }>;
@@ -380,8 +391,8 @@ export class AiScheduleHandlersService {
 
         if (gaps.length > 0) {
           days.push({
-            date: formatDateDisplay(isoDay),
-            weekday: weekday[day.getUTCDay()],
+            date: formatDateDisplay(isoDay, displayLocale),
+            weekday: formatWeekdayShortByDayIndex(day.getUTCDay(), displayLocale),
             gaps,
           });
         }
@@ -390,7 +401,7 @@ export class AiScheduleHandlersService {
       reports.push({ employeeName: employee.name, days });
     }
 
-    const rangeLabel = `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
+    const rangeLabel = `${formatDateDisplay(range.start, displayLocale)} → ${formatDateDisplay(range.end, displayLocale)}`;
     const windowLabel = `${window.timeFrom}–${window.timeTo}`;
     const lines: string[] = [];
 

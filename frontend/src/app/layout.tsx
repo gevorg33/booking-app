@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { getServerLocale } from '@/lib/server-locale';
@@ -17,12 +18,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={initialLocale} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body
         className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen`}
       >
+        <Script id="optischedule-theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
         <Providers initialLocale={initialLocale}>{children}</Providers>
       </body>
     </html>
