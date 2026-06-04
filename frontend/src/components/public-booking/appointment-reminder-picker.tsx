@@ -3,11 +3,22 @@
 import { toIntlLocale } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
 
+/** Hour count phrase for reminder options (Intl unit style is unreliable in hy-AM in many browsers). */
 export function formatReminderHoursLabel(hours: number, locale: string): string {
-  const intlLocale = toIntlLocale(locale) ?? 'en-GB';
-  if (hours === 1) {
-    return new Intl.NumberFormat(intlLocale, { style: 'unit', unit: 'hour', unitDisplay: 'long' }).format(1);
+  if (locale === 'hy') {
+    return hours === 1 ? '1 ժամ' : `${hours} ժամ`;
   }
+  if (locale === 'ru') {
+    const mod10 = hours % 10;
+    const mod100 = hours % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${hours} час`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${hours} часа`;
+    return `${hours} часов`;
+  }
+  if (locale === 'en') {
+    return hours === 1 ? '1 hour' : `${hours} hours`;
+  }
+  const intlLocale = toIntlLocale(locale) ?? 'en-GB';
   return new Intl.NumberFormat(intlLocale, {
     style: 'unit',
     unit: 'hour',

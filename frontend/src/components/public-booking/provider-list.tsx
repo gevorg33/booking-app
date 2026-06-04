@@ -16,6 +16,7 @@ interface ProviderListProps {
   selectedStartTime: string | null;
   onSelect: (employeeId: string, startTime: string) => void;
   showAnySpecialistOption?: boolean;
+  timeZone?: string;
 }
 
 export function ProviderList({
@@ -114,11 +115,13 @@ export function ProviderList({
               />
             </div>
 
-            {nearestDateText && (
+            {provider.slots.length > 0 && (
               <div className="px-4 pb-4">
-                <p className="text-xs text-gray-500 mb-2">
-                  {t('public.nearestSlots', { date: nearestDateText })}
-                </p>
+                {nearestDateText ? (
+                  <p className="text-xs text-gray-500 mb-2">
+                    {t('public.nearestSlots', { date: nearestDateText })}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   {provider.slots.map((slot) => {
                     const active = isSelected && selectedStartTime === slot.startTime;
