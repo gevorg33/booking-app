@@ -1078,7 +1078,7 @@ const hy: MessageTree = {
       readyTitle: 'Պատրա՞ստ եք փորձել',
       readyBody: 'Բացեք AI Operations կամ command bar',
     },
-  }
+  },
   reviewsPage: {
     title: 'Կարծիքներ',
     subtitle: 'Հաճախորդների գնահատականներ և մասնագետների ամփոփումներ։',
