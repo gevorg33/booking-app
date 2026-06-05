@@ -84,7 +84,10 @@ describe('CustomerPrivacyService', () => {
     expect(result.deleted).toBe(true);
     expect(customerRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: 'Deleted customer',
+        name: expect.stringMatching(/^Deleted customer \([a-f0-9]{12}\)$/),
+        email: expect.stringMatching(
+          /^deleted-[a-f0-9]{12}@anonymized\.local$/,
+        ),
         isActive: false,
         metadata: expect.objectContaining({
           gdpr: expect.objectContaining({ deletionRequested: true }),

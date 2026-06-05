@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/date-format';
-import { formatDuration, formatPrice, type PublicServicePackage } from '@/lib/public-api';
+import { formatDuration, formatPublicMoney, type PublicServicePackage } from '@/lib/public-api';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n';
 interface PackageServiceCardsProps {
   slug: string;
   packages: PublicServicePackage[];
+  businessCurrency: string;
   primaryColor: string;
   selectedPackageId: string | null;
   onSelect: (packageId: string) => void;
@@ -19,11 +20,14 @@ interface PackageServiceCardsProps {
 export function PackageServiceCards({
   slug,
   packages,
+  businessCurrency,
   primaryColor,
   selectedPackageId,
   onSelect,
 }: PackageServiceCardsProps) {
   const { t, locale } = useI18n();
+  const money = (amount: number, entityCurrency?: string | null) =>
+    formatPublicMoney(amount, entityCurrency, businessCurrency, locale);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (packages.length === 0) return null;
@@ -72,10 +76,10 @@ export function PackageServiceCards({
               </div>
               <div className="text-right shrink-0">
                 <p className="font-semibold text-gray-900">
-                  {formatPrice(pkg.pricing.packagePrice, pkg.currency)}
+                  {money(pkg.pricing.packagePrice, pkg.currency)}
                 </p>
                 <p className="text-xs text-gray-400 line-through">
-                  {formatPrice(pkg.pricing.regularTotal, pkg.currency)}
+                  {money(pkg.pricing.regularTotal, pkg.currency)}
                 </p>
                 <span
                   className="inline-block mt-2 w-5 h-5 rounded border-2"
@@ -108,16 +112,16 @@ export function PackageServiceCards({
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-medium text-gray-900">
-                          {formatPrice(item.discountedLineTotal, pkg.currency)}
+                          {money(item.discountedLineTotal, pkg.currency)}
                         </p>
                         {item.lineSavings > 0 && (
                           <>
                             <p className="text-gray-400 line-through text-xs">
-                              {formatPrice(item.lineTotal, pkg.currency)}
+                              {money(item.lineTotal, pkg.currency)}
                             </p>
                             <p className="text-emerald-700 text-xs font-medium">
                               {t('public.packageItemSave', {
-                                amount: formatPrice(item.lineSavings, pkg.currency),
+                                amount: money(item.lineSavings, pkg.currency),
                               })}
                             </p>
                           </>

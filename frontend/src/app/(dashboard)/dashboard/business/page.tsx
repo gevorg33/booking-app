@@ -16,12 +16,14 @@ import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { bookPath } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { BusinessPublicProfileLocaleFields } from '@/components/business/business-public-profile-locale-fields';
-import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
+import { useI18n, LOCALE_LABELS, type AppLocale } from '@/i18n';
+import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
 import { getErrorMessage } from '@/lib/error-message';
 
 export default function BusinessProfilePage() {
   const { t } = useI18n();
   const { business, setAuth, user, token } = useAuthStore();
+  const { enabledLocales } = useBusinessEnabledLocales();
 
   const SOCIAL_FIELDS: Array<{ key: keyof BusinessProfileForm['social']; label: string; placeholder: string }> = [
     { key: 'website', label: t('business.website'), placeholder: 'https://yourbusiness.com' },
@@ -178,6 +180,7 @@ export default function BusinessProfilePage() {
             <BusinessPublicProfileLocaleFields
               value={form.publicProfileLocales}
               onChange={(publicProfileLocales) => setForm({ ...form, publicProfileLocales })}
+              enabledLocales={enabledLocales}
               t={t}
             />
           </section>
@@ -213,7 +216,7 @@ export default function BusinessProfilePage() {
               value={form.locale}
               onChange={(e) => setForm({ ...form, locale: e.target.value as AppLocale })}
             >
-              {SUPPORTED_LOCALES.map((code) => (
+              {enabledLocales.map((code) => (
                 <option key={code} value={code}>
                   {LOCALE_LABELS[code]}
                 </option>

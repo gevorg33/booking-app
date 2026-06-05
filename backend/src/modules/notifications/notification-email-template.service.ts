@@ -15,7 +15,11 @@ import {
   normalizeCustomVariables,
   readTenantEmailTemplatesSettings,
 } from './notification-email-template.util.js';
-import { resolveLocale } from '../../common/i18n/messages.js';
+import {
+  filterTranslationLocaleKeys,
+  getBusinessDefaultLocale,
+  getBusinessEnabledLocales,
+} from '../../common/utils/business-locale.util.js';
 import {
   getEmailTemplateDefinition,
   resolveEmailTemplate,
@@ -50,9 +54,26 @@ export class NotificationEmailTemplateService {
     const business = await this.findBusiness(businessId);
     const stored = readTenantEmailTemplatesSettings(business.settings);
     const current = stored.templates?.[key] ?? {};
+    const enabledLocales = getBusinessEnabledLocales(business.settings);
+    const patchLocales =
+      patch.locales === undefined
+        ? undefined
+        : (filterTranslationLocaleKeys(
+            patch.locales as Record<string, unknown>,
+            enabledLocales,
+            { strict: true },
+          ) as TenantEmailTemplateOverride['locales']);
     const next: TenantEmailTemplateOverride = {
       ...current,
       ...patch,
+      ...(patchLocales !== undefined
+        ? {
+            locales: {
+              ...(current.locales ?? {}),
+              ...patchLocales,
+            },
+          }
+        : {}),
     };
     business.settings = {
       ...business.settings,
@@ -117,11 +138,8 @@ export class NotificationEmailTemplateService {
     return normalized;
   }
 
-  private businessLocale(
-    settings: Record<string, unknown>,
-  ): ReturnType<typeof resolveLocale> {
-    const raw = settings.locale;
-    return resolveLocale(typeof raw === 'string' ? raw : null);
+  private businessLocale(settings: Record<string, unknown>) {
+    return getBusinessDefaultLocale(settings);
   }
 
   private async findBusiness(businessId: string): Promise<Business> {

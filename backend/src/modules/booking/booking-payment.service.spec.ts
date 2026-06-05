@@ -361,6 +361,65 @@ describe('BookingPaymentService', () => {
         }),
       );
     });
+
+    it('uses service currency when set', async () => {
+      await service.resolveCheckoutPricing(
+        'biz-1',
+        { ...baseService, currency: 'EUR' } as any,
+        {
+          serviceId: 'svc-1',
+          startTime: new Date().toISOString(),
+          customer: { name: 'Jane' },
+        },
+      );
+
+      expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'EUR' }),
+      );
+    });
+
+    it('falls back to business default currency when service currency is missing', async () => {
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: { currency: 'AMD' },
+      });
+
+      await service.resolveCheckoutPricing(
+        'biz-1',
+        { ...baseService, currency: null } as any,
+        {
+          serviceId: 'svc-1',
+          startTime: new Date().toISOString(),
+          customer: { name: 'Jane' },
+        },
+      );
+
+      expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'AMD' }),
+      );
+    });
+
+    it('falls back to business default when service currency is invalid', async () => {
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        settings: { currency: 'GEL' },
+      });
+
+      await service.resolveCheckoutPricing(
+        'biz-1',
+        { ...baseService, currency: 'NOTREAL' } as any,
+        {
+          serviceId: 'svc-1',
+          startTime: new Date().toISOString(),
+          customer: { name: 'Jane' },
+        },
+      );
+
+      expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'GEL' }),
+      );
+    });
   });
 
   describe('createCheckoutSession', () => {
@@ -433,6 +492,36 @@ describe('BookingPaymentService', () => {
             }),
           }),
         }),
+      );
+    });
+
+    it('uses business default currency in checkout session when service currency is absent', async () => {
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: { currency: 'AMD' },
+      });
+      serviceRepo.findOne.mockResolvedValue({
+        ...baseService,
+        currency: null,
+      });
+      checkoutPricingService.calculate.mockResolvedValue({
+        ...pricingWithPromo,
+        amountDue: 672,
+      });
+
+      const result = await service.createCheckoutSession('salon', baseDto);
+
+      expect(result.currency).toBe('AMD');
+      expect(stripeSessionsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          line_items: [
+            expect.objectContaining({
+              price_data: expect.objectContaining({ currency: 'amd' }),
+            }),
+          ],
+        }),
+        expect.any(Object),
       );
     });
 

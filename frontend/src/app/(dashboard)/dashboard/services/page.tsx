@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Briefcase, Plus, Clock, DollarSign, CreditCard, Pencil, Loader2, Trash2 } from 'lucide-react';
+import { Briefcase, Plus, Clock, CreditCard, Pencil, Loader2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useI18n } from '@/i18n';
+import { useI18n, type AppLocale } from '@/i18n';
+import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 import { ServicePackagesTab } from '@/components/services/service-packages-tab';
 import { MultiServiceSettingsTab } from '@/components/services/multi-service-settings-tab';
 import { AiPagePanel } from '@/components/ai-page-panel';
@@ -14,6 +16,7 @@ import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 import { LocalizedNamesFields } from '@/components/services/localized-names-fields';
+import { RecommendedProductsField } from '@/components/operations/recommended-products-field';
 import {
   emptyLocalizedNamesForm,
   localizedNamesFromApi,
@@ -44,6 +47,21 @@ interface ServiceRecord {
   categoryId?: string | null;
   category?: ServiceCategoryRecord | null;
   localizedNames?: LocalizedNamesMap;
+  tour?: {
+    serviceType?: 'tour';
+    coverImage?: string;
+    maxGroupSize?: number;
+    difficulty?: 'easy' | 'moderate' | 'challenging';
+    meetingPoint?: string;
+    includedItems?: string;
+    durationDays?: number;
+  } | null;
+  clinic?: {
+    serviceType?: 'consultation' | 'lab_test' | 'procedure';
+    requiresFasting?: boolean;
+    preparationNotes?: string;
+  } | null;
+  taxRatePercent?: number | null;
 }
 
 interface ServiceFormState {
@@ -57,6 +75,18 @@ interface ServiceFormState {
   prepaymentMode: 'full' | 'deposit';
   depositAmount: string;
   localizedNames: LocalizedNamesFormState;
+  isTour: boolean;
+  coverImage: string;
+  maxGroupSize: string;
+  difficulty: '' | 'easy' | 'moderate' | 'challenging';
+  meetingPoint: string;
+  includedItems: string;
+  durationDays: string;
+  isClinic: boolean;
+  clinicServiceType: '' | 'consultation' | 'lab_test' | 'procedure';
+  requiresFasting: boolean;
+  preparationNotes: string;
+  taxRatePercent: string;
 }
 
 interface CategoryFormState {
@@ -76,6 +106,18 @@ const defaultForm = (): ServiceFormState => ({
   prepaymentMode: 'full',
   depositAmount: '',
   localizedNames: emptyLocalizedNamesForm(),
+  isTour: false,
+  coverImage: '',
+  maxGroupSize: '',
+  difficulty: '',
+  meetingPoint: '',
+  includedItems: '',
+  durationDays: '',
+  isClinic: false,
+  clinicServiceType: '',
+  requiresFasting: false,
+  preparationNotes: '',
+  taxRatePercent: '',
 });
 
 const defaultCategoryForm = (): CategoryFormState => ({
@@ -115,10 +157,46 @@ function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'crea
       : localizedNames
         ? { ...base, localizedNames }
         : base;
+  const verticalPayload = form.isTour
+    ? {
+        serviceType: 'tour' as const,
+        coverImage: form.coverImage.trim() || undefined,
+        maxGroupSize: parseIntField(form.maxGroupSize) || undefined,
+        difficulty: form.difficulty || undefined,
+        meetingPoint: form.meetingPoint.trim() || undefined,
+        includedItems: form.includedItems.trim() || undefined,
+        durationDays: parseIntField(form.durationDays) || undefined,
+      }
+    : form.isClinic && form.clinicServiceType
+      ? {
+          serviceType: form.clinicServiceType,
+          requiresFasting: form.requiresFasting || undefined,
+          preparationNotes: form.preparationNotes.trim() || undefined,
+        }
+      : mode === 'update'
+        ? { serviceType: '' as const }
+        : {};
+  const taxOverride =
+    form.taxRatePercent.trim() === ''
+      ? mode === 'update'
+        ? { taxRatePercent: null }
+        : {}
+      : { taxRatePercent: parseFloatField(form.taxRatePercent) };
+
   if (mode === 'update') {
-    return { ...withNames, categoryId: form.categoryId || null };
+    return {
+      ...withNames,
+      categoryId: form.categoryId || null,
+      ...verticalPayload,
+      ...taxOverride,
+    };
   }
-  return { ...withNames, ...(form.categoryId ? { categoryId: form.categoryId } : {}) };
+  return {
+    ...withNames,
+    ...(form.categoryId ? { categoryId: form.categoryId } : {}),
+    ...verticalPayload,
+    ...taxOverride,
+  };
 }
 
 function categoryFormToPayload(form: CategoryFormState, mode: 'create' | 'update' = 'create') {
@@ -146,6 +224,21 @@ function serviceToForm(svc: ServiceRecord): ServiceFormState {
     prepaymentMode: svc.prepaymentMode === 'deposit' ? 'deposit' : 'full',
     depositAmount: svc.depositAmount != null ? String(Number(svc.depositAmount)) : '',
     localizedNames: localizedNamesFromApi(svc.localizedNames),
+    isTour: svc.tour?.serviceType === 'tour',
+    coverImage: svc.tour?.coverImage ?? '',
+    maxGroupSize: svc.tour?.maxGroupSize != null ? String(svc.tour.maxGroupSize) : '',
+    difficulty: svc.tour?.difficulty ?? '',
+    meetingPoint: svc.tour?.meetingPoint ?? '',
+    includedItems: svc.tour?.includedItems ?? '',
+    durationDays: svc.tour?.durationDays != null ? String(svc.tour.durationDays) : '',
+    isClinic: Boolean(svc.clinic?.serviceType),
+    clinicServiceType: svc.clinic?.serviceType ?? '',
+    requiresFasting: svc.clinic?.requiresFasting === true,
+    preparationNotes: svc.clinic?.preparationNotes ?? '',
+    taxRatePercent:
+      svc.taxRatePercent != null && svc.taxRatePercent >= 0
+        ? String(svc.taxRatePercent)
+        : '',
   };
 }
 
@@ -162,12 +255,20 @@ function ServiceFormFields({
   setForm,
   stripeReady,
   categories,
+  enabledLocales,
+  businessId,
+  editingServiceId,
+  inventoryProducts,
   t,
 }: {
   form: ServiceFormState;
   setForm: (f: ServiceFormState) => void;
   stripeReady: boolean;
   categories: ServiceCategoryRecord[];
+  enabledLocales: readonly AppLocale[];
+  businessId?: string;
+  editingServiceId?: string | null;
+  inventoryProducts?: Array<{ id: string; name: string; isActive?: boolean }>;
   t: (key: string) => string;
 }) {
   return (
@@ -199,6 +300,7 @@ function ServiceFormFields({
       <LocalizedNamesFields
         value={form.localizedNames}
         onChange={(localizedNames) => setForm({ ...form, localizedNames })}
+        enabledLocales={enabledLocales}
         t={t}
       />
       <div>
@@ -246,6 +348,159 @@ function ServiceFormFields({
           onFocus={(e) => e.target.select()}
           required
         />
+      </div>
+      <div>
+        <label className="label">{t('servicesPage.taxRateOverride')}</label>
+        <input
+          type="text"
+          inputMode="decimal"
+          className="input"
+          value={form.taxRatePercent}
+          placeholder={t('servicesPage.taxRateOverridePlaceholder')}
+          onChange={(e) => {
+            const next = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+            setForm({ ...form, taxRatePercent: next });
+          }}
+          onFocus={(e) => e.target.select()}
+        />
+        <p className="text-xs text-gray-500 mt-1">{t('servicesPage.taxRateOverrideHint')}</p>
+      </div>
+      <div className="md:col-span-2 space-y-3 rounded-lg border border-violet-500/20 bg-violet-600/5 p-4">
+        <ToggleChoice
+          variant="dashboard"
+          checked={form.isTour}
+          onChange={(isTour) =>
+            setForm({
+              ...form,
+              isTour,
+              isClinic: isTour ? false : form.isClinic,
+            })
+          }
+          label={t('tours.admin.enableTour')}
+        />
+        {form.isTour && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="md:col-span-2">
+              <label className="label">{t('tours.admin.coverImage')}</label>
+              <input
+                className="input"
+                value={form.coverImage}
+                onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label className="label">{t('tours.admin.maxGroupSize')}</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="input"
+                value={form.maxGroupSize}
+                onChange={(e) =>
+                  setForm({ ...form, maxGroupSize: e.target.value.replace(/\D/g, '') })
+                }
+              />
+            </div>
+            <div>
+              <label className="label">{t('tours.admin.durationDays')}</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="input"
+                value={form.durationDays}
+                onChange={(e) =>
+                  setForm({ ...form, durationDays: e.target.value.replace(/\D/g, '') })
+                }
+              />
+            </div>
+            <div>
+              <label className="label">{t('tours.admin.difficulty')}</label>
+              <select
+                className="input"
+                value={form.difficulty}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    difficulty: e.target.value as ServiceFormState['difficulty'],
+                  })
+                }
+              >
+                <option value="">—</option>
+                <option value="easy">{t('tours.difficulty.easy')}</option>
+                <option value="moderate">{t('tours.difficulty.moderate')}</option>
+                <option value="challenging">{t('tours.difficulty.challenging')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">{t('tours.admin.meetingPoint')}</label>
+              <input
+                className="input"
+                value={form.meetingPoint}
+                onChange={(e) => setForm({ ...form, meetingPoint: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">{t('tours.admin.includedItems')}</label>
+              <input
+                className="input"
+                value={form.includedItems}
+                onChange={(e) => setForm({ ...form, includedItems: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="md:col-span-2 space-y-3 rounded-lg border border-sky-500/20 bg-sky-600/5 p-4">
+        <ToggleChoice
+          variant="dashboard"
+          checked={form.isClinic}
+          onChange={(isClinic) =>
+            setForm({
+              ...form,
+              isClinic,
+              isTour: isClinic ? false : form.isTour,
+              clinicServiceType: isClinic ? form.clinicServiceType || 'consultation' : '',
+            })
+          }
+          label={t('clinic.admin.enableClinic')}
+        />
+        {form.isClinic && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="label">{t('clinic.admin.serviceType')}</label>
+              <select
+                className="input"
+                value={form.clinicServiceType}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    clinicServiceType: e.target.value as ServiceFormState['clinicServiceType'],
+                  })
+                }
+              >
+                <option value="consultation">{t('clinic.serviceType.consultation')}</option>
+                <option value="lab_test">{t('clinic.serviceType.lab_test')}</option>
+                <option value="procedure">{t('clinic.serviceType.procedure')}</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <ToggleChoice
+                variant="dashboard"
+                checked={form.requiresFasting}
+                onChange={(requiresFasting) => setForm({ ...form, requiresFasting })}
+                label={t('clinic.admin.requiresFasting')}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">{t('clinic.admin.preparationNotes')}</label>
+              <input
+                className="input"
+                value={form.preparationNotes}
+                onChange={(e) => setForm({ ...form, preparationNotes: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
       </div>
       <div className="md:col-span-2 space-y-3 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <ToggleChoice variant="dashboard"
@@ -302,6 +557,16 @@ function ServiceFormFields({
           </>
         )}
       </div>
+      {businessId && editingServiceId && (
+        <div className="md:col-span-2">
+          <RecommendedProductsField
+            businessId={businessId}
+            targetType="service"
+            targetId={editingServiceId}
+            products={inventoryProducts ?? []}
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -310,6 +575,7 @@ function CategoriesTab({
   businessId,
   categories,
   services,
+  inventoryProducts,
   categoryForm,
   setCategoryForm,
   editingCategoryId,
@@ -319,13 +585,16 @@ function CategoriesTab({
   createCategoryMutation,
   updateCategoryMutation,
   deleteCategoryMutation,
+  enabledLocales,
   t,
 }: {
   businessId: string;
   categories: ServiceCategoryRecord[];
   services: ServiceRecord[];
+  inventoryProducts: Array<{ id: string; name: string; isActive?: boolean }>;
   categoryForm: CategoryFormState;
   setCategoryForm: (f: CategoryFormState) => void;
+  enabledLocales: readonly AppLocale[];
   editingCategoryId: string | null;
   setEditingCategoryId: (v: string | null) => void;
   showCategoryForm: boolean;
@@ -407,6 +676,7 @@ function CategoriesTab({
           <LocalizedNamesFields
             value={categoryForm.localizedNames}
             onChange={(localizedNames) => setCategoryForm({ ...categoryForm, localizedNames })}
+            enabledLocales={enabledLocales}
             t={t}
           />
           <div className="md:col-span-2 flex gap-2">
@@ -481,8 +751,17 @@ function CategoriesTab({
                           onChange={(localizedNames) =>
                             setCategoryForm({ ...categoryForm, localizedNames })
                           }
+                          enabledLocales={enabledLocales}
                           t={t}
                         />
+                        <div className="md:col-span-2">
+                          <RecommendedProductsField
+                            businessId={businessId}
+                            targetType="category"
+                            targetId={cat.id}
+                            products={inventoryProducts}
+                          />
+                        </div>
                         <div className="md:col-span-2 flex gap-2">
                           <button
                             type="submit"
@@ -569,12 +848,18 @@ function ServiceTypesTab({
   startEdit,
   cancelEdit,
   groupedServices,
+  enabledLocales,
+  businessId,
+  inventoryProducts,
   t,
 }: {
   categories: ServiceCategoryRecord[];
   services: ServiceRecord[] | undefined;
   isLoading: boolean;
   stripeReady: boolean;
+  enabledLocales: readonly AppLocale[];
+  businessId?: string;
+  inventoryProducts: Array<{ id: string; name: string; isActive?: boolean }>;
   showForm: boolean;
   setShowForm: (v: boolean) => void;
   editingId: string | null;
@@ -590,6 +875,8 @@ function ServiceTypesTab({
   groupedServices: Array<{ label: string; sortOrder: number; items: ServiceRecord[] }>;
   t: (key: string) => string;
 }) {
+  const { formatMoney } = useBusinessCurrency();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -626,7 +913,14 @@ function ServiceTypesTab({
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} categories={categories} t={t} />
+            <ServiceFormFields
+              form={form}
+              setForm={setForm}
+              stripeReady={stripeReady}
+              categories={categories}
+              enabledLocales={enabledLocales}
+              t={t}
+            />
             {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
             <div className="md:col-span-2 flex gap-2">
               <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
@@ -668,7 +962,17 @@ function ServiceTypesTab({
                           }}
                           className="grid grid-cols-1 md:grid-cols-2 gap-4"
                         >
-                          <ServiceFormFields form={form} setForm={setForm} stripeReady={stripeReady} categories={categories} t={t} />
+                          <ServiceFormFields
+                            form={form}
+                            setForm={setForm}
+                            stripeReady={stripeReady}
+                            categories={categories}
+                            enabledLocales={enabledLocales}
+                            businessId={businessId}
+                            editingServiceId={svc.id}
+                            inventoryProducts={inventoryProducts}
+                            t={t}
+                          />
                           {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
                           <div className="md:col-span-2 flex gap-2">
                             <button type="submit" className="btn-primary" disabled={updateMutation.isPending}>
@@ -697,7 +1001,7 @@ function ServiceTypesTab({
                                 {svc.durationMinutes} min
                               </span>
                               <span className="flex items-center gap-1">
-                                <DollarSign className="w-3 h-3" />${svc.price}
+                                {formatMoney(svc.price, svc.currency)}
                               </span>
                               {svc.prepaymentMode && svc.prepaymentMode !== 'none' && (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-violet-600/15 text-violet-300">
@@ -732,6 +1036,7 @@ function ServiceTypesTab({
 export default function ServicesPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const { enabledLocales } = useBusinessEnabledLocales();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<ServicesTab>('types');
   const [showForm, setShowForm] = useState(false);
@@ -812,6 +1117,22 @@ export default function ServicesPage() {
       queryClient.invalidateQueries({ queryKey: ['service-categories'] });
       queryClient.invalidateQueries({ queryKey: ['services'] });
     },
+  });
+
+  const { data: inventoryProducts = [] } = useQuery({
+    queryKey: ['inventory', business?.id, 'recommendations'],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data } = await api.get(
+        `/businesses/${business.id}/inventory/products?includeInactive=true`,
+      );
+      return (data.data || data || []) as Array<{
+        id: string;
+        name: string;
+        isActive?: boolean;
+      }>;
+    },
+    enabled: !!business?.id,
   });
 
   const { data: services, isLoading } = useQuery({
@@ -951,6 +1272,8 @@ export default function ServicesPage() {
           createCategoryMutation={createCategoryMutation}
           updateCategoryMutation={updateCategoryMutation}
           deleteCategoryMutation={deleteCategoryMutation}
+          enabledLocales={enabledLocales}
+          inventoryProducts={inventoryProducts}
           t={t}
         />
       )}
@@ -983,6 +1306,9 @@ export default function ServicesPage() {
           startEdit={startEdit}
           cancelEdit={cancelEdit}
           groupedServices={groupedServices}
+          enabledLocales={enabledLocales}
+          businessId={business?.id}
+          inventoryProducts={inventoryProducts}
           t={t}
         />
       )}

@@ -19,6 +19,25 @@ import {
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
+import {
+  assertSupportedBusinessCurrency,
+  getBusinessDefaultCurrency,
+} from '../../common/utils/business-currency.util.js';
+import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
+import {
+  applyClinicMetadataToServiceMetadata,
+  extractClinicMetadata,
+  isClinicServiceType,
+} from '../../common/utils/clinic-service.util.js';
+import {
+  applyServiceTaxRateToMetadata,
+  readServiceTaxRatePercent,
+} from '../../common/utils/business-tax.util.js';
+import {
+  applyTourMetadataToServiceMetadata,
+  extractTourMetadata,
+  TOUR_SERVICE_TYPE,
+} from '../../common/utils/tour-service.util.js';
 
 @Injectable()
 export class ServiceService {
@@ -30,6 +49,20 @@ export class ServiceService {
     private eventStore: EventStoreService,
     private stripeIntegrationService: StripeIntegrationService,
   ) {}
+
+  private resolveServiceCurrency(
+    code: string | undefined,
+    defaultCurrency: string,
+  ): string {
+    if (!code) return defaultCurrency;
+    try {
+      return assertSupportedBusinessCurrency(code);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid currency code',
+      );
+    }
+  }
 
   private async assertOnlinePaymentAllowed(
     businessId: string,
@@ -49,11 +82,98 @@ export class ServiceService {
     }
   }
 
+  private applyVerticalServiceMetadata(
+    metadata: Record<string, unknown>,
+    dto: CreateServiceDto | UpdateServiceDto,
+  ): Record<string, unknown> {
+    const hasVerticalField =
+      dto.serviceType !== undefined ||
+      dto.coverImage !== undefined ||
+      dto.maxGroupSize !== undefined ||
+      dto.difficulty !== undefined ||
+      dto.meetingPoint !== undefined ||
+      dto.includedItems !== undefined ||
+      dto.durationDays !== undefined ||
+      dto.requiresFasting !== undefined ||
+      dto.preparationNotes !== undefined;
+    if (!hasVerticalField) return metadata;
+
+    if (dto.serviceType === '') {
+      return applyClinicMetadataToServiceMetadata(
+        applyTourMetadataToServiceMetadata(metadata, { serviceType: null }),
+        { serviceType: null },
+      );
+    }
+
+    if (dto.serviceType === TOUR_SERVICE_TYPE) {
+      let next = applyClinicMetadataToServiceMetadata(metadata, {
+        serviceType: null,
+      });
+      next = applyTourMetadataToServiceMetadata(next, {
+        serviceType: TOUR_SERVICE_TYPE,
+        coverImage: dto.coverImage,
+        maxGroupSize: dto.maxGroupSize,
+        difficulty:
+          dto.difficulty === '' ? undefined : dto.difficulty || undefined,
+        meetingPoint: dto.meetingPoint,
+        includedItems: dto.includedItems,
+        durationDays: dto.durationDays,
+      });
+      return next;
+    }
+
+    if (dto.serviceType && isClinicServiceType(dto.serviceType)) {
+      let next = applyTourMetadataToServiceMetadata(metadata, {
+        serviceType: null,
+      });
+      next = applyClinicMetadataToServiceMetadata(next, {
+        serviceType: dto.serviceType,
+        requiresFasting: dto.requiresFasting,
+        preparationNotes: dto.preparationNotes,
+      });
+      return next;
+    }
+
+    const tour = extractTourMetadata(metadata);
+    if (tour) {
+      return applyTourMetadataToServiceMetadata(metadata, {
+        coverImage: dto.coverImage,
+        maxGroupSize: dto.maxGroupSize,
+        difficulty:
+          dto.difficulty === '' ? undefined : dto.difficulty || undefined,
+        meetingPoint: dto.meetingPoint,
+        includedItems: dto.includedItems,
+        durationDays: dto.durationDays,
+      });
+    }
+
+    const clinic = extractClinicMetadata(metadata);
+    if (clinic) {
+      return applyClinicMetadataToServiceMetadata(metadata, {
+        requiresFasting: dto.requiresFasting,
+        preparationNotes: dto.preparationNotes,
+      });
+    }
+
+    return metadata;
+  }
+
   private enrichService(service: Service): Service & {
     localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
+    tour?: ReturnType<typeof extractTourMetadata>;
+    clinic?: ReturnType<typeof extractClinicMetadata>;
+    taxRatePercent?: number | null;
   } {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
-    const enriched = Object.assign(service, { localizedNames });
+    const tour = extractTourMetadata(service.metadata);
+    const clinic = extractClinicMetadata(service.metadata);
+    const taxRatePercent = readServiceTaxRatePercent(service.metadata);
+    const enriched = Object.assign(service, {
+      localizedNames,
+      tour,
+      clinic,
+      taxRatePercent,
+    });
     if (enriched.category) {
       Object.assign(enriched.category, {
         localizedNames: extractLocalizedNamesFromMetadata(
@@ -83,12 +203,39 @@ export class ServiceService {
     userId?: string,
   ): Promise<Service> {
     await this.assertOnlinePaymentAllowed(businessId, dto.prepaymentMode);
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    const businessSettings = business.settings as
+      | Record<string, unknown>
+      | undefined;
+    const defaultCurrency = getBusinessDefaultCurrency(businessSettings);
+    const enabledLocales = getBusinessEnabledLocales(businessSettings);
     const categoryId = await this.resolveCategoryId(businessId, dto.categoryId);
     const {
       categoryId: _inputCategoryId,
       localizedNames,
+      serviceType: _serviceType,
+      coverImage: _coverImage,
+      maxGroupSize: _maxGroupSize,
+      difficulty: _difficulty,
+      meetingPoint: _meetingPoint,
+      includedItems: _includedItems,
+      durationDays: _durationDays,
+      requiresFasting: _requiresFasting,
+      preparationNotes: _preparationNotes,
+      taxRatePercent: _taxRatePercent,
+      currency: _currencyInput,
       ...serviceData
     } = dto;
+    let metadata = applyLocalizedNamesToMetadata({}, localizedNames, {
+      enabledLocales,
+    });
+    metadata = this.applyVerticalServiceMetadata(metadata, dto);
+    if (dto.taxRatePercent !== undefined) {
+      metadata = applyServiceTaxRateToMetadata(metadata, dto.taxRatePercent);
+    }
 
     const service = await this.serviceRepo.save(
       this.serviceRepo.create({
@@ -96,8 +243,8 @@ export class ServiceService {
         businessId,
         categoryId: categoryId ?? null,
         bufferMinutes: dto.bufferMinutes || 0,
-        currency: dto.currency || 'USD',
-        metadata: applyLocalizedNamesToMetadata({}, localizedNames),
+        currency: this.resolveServiceCurrency(dto.currency, defaultCurrency),
+        metadata,
       }),
     );
     await this.eventStore.publish({
@@ -135,6 +282,12 @@ export class ServiceService {
     userId?: string,
   ): Promise<Service> {
     const service = await this.findOne(id);
+    const business = await this.businessRepo.findOne({
+      where: { id: service.businessId },
+    });
+    const enabledLocales = getBusinessEnabledLocales(
+      business?.settings as Record<string, unknown> | undefined,
+    );
     const nextMode = dto.prepaymentMode ?? service.prepaymentMode;
     await this.assertOnlinePaymentAllowed(service.businessId, nextMode);
 
@@ -144,11 +297,43 @@ export class ServiceService {
     );
     if (categoryId !== undefined) service.categoryId = categoryId;
 
-    const { categoryId: _omit, localizedNames, ...rest } = dto;
+    const {
+      categoryId: _omit,
+      localizedNames,
+      serviceType: _serviceType,
+      coverImage: _coverImage,
+      maxGroupSize: _maxGroupSize,
+      difficulty: _difficulty,
+      meetingPoint: _meetingPoint,
+      includedItems: _includedItems,
+      durationDays: _durationDays,
+      requiresFasting: _requiresFasting,
+      preparationNotes: _preparationNotes,
+      taxRatePercent: _taxRatePercent,
+      currency: _currency,
+      ...rest
+    } = dto;
     if (localizedNames !== undefined) {
       service.metadata = applyLocalizedNamesToMetadata(
         (service.metadata ?? {}) as Record<string, unknown>,
         localizedNames,
+        { enabledLocales },
+      );
+    }
+    service.metadata = this.applyVerticalServiceMetadata(
+      (service.metadata ?? {}) as Record<string, unknown>,
+      dto,
+    );
+    if (dto.taxRatePercent !== undefined) {
+      service.metadata = applyServiceTaxRateToMetadata(
+        (service.metadata ?? {}) as Record<string, unknown>,
+        dto.taxRatePercent,
+      );
+    }
+    if (dto.currency !== undefined) {
+      service.currency = this.resolveServiceCurrency(
+        dto.currency,
+        service.currency,
       );
     }
     Object.assign(service, rest);

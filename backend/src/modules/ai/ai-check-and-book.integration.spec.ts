@@ -149,7 +149,8 @@ function buildLogicDeps(
         services.filter(
           (service) =>
             service.businessId === where?.businessId &&
-            (where?.isActive === undefined || service.isActive === where.isActive),
+            (where?.isActive === undefined ||
+              service.isActive === where.isActive),
         ),
       ),
       findOne: jest.fn(async ({ where }: any) =>
@@ -353,21 +354,24 @@ describe('ai check-and-book integration', () => {
       'check who is free tomorrow evening for permanent lashes, book the nearest slot',
       'Book the nearest available slot for massage tomorrow',
       'Book first available permanent lashes tomorrow evening',
-    ])('passes validation when prompt says nearest/first available: %s', (prompt) => {
-      const params: Record<string, unknown> = {
-        serviceName: 'Permanent lashes',
-        date: '2026-06-06',
-        allProviders: true,
-      };
-      enrichBookingTimeHintsFromPrompt('create_booking', params, prompt);
+    ])(
+      'passes validation when prompt says nearest/first available: %s',
+      (prompt) => {
+        const params: Record<string, unknown> = {
+          serviceName: 'Permanent lashes',
+          date: '2026-06-06',
+          allProviders: true,
+        };
+        enrichBookingTimeHintsFromPrompt('create_booking', params, prompt);
 
-      const validation = validateCommand(resolvedCreateBooking(params));
-      expect(validation.ok).toBe(true);
-      expect(params.bookingFirstAvailable).toBe(true);
-      expect(validation.issues.some((issue) => issue.field === 'timeSlot')).toBe(
-        false,
-      );
-    });
+        const validation = validateCommand(resolvedCreateBooking(params));
+        expect(validation.ok).toBe(true);
+        expect(params.bookingFirstAvailable).toBe(true);
+        expect(
+          validation.issues.some((issue) => issue.field === 'timeSlot'),
+        ).toBe(false);
+      },
+    );
 
     it('still requires start time when no nearest/first-available wording is present', () => {
       const params: Record<string, unknown> = {
@@ -383,9 +387,9 @@ describe('ai check-and-book integration', () => {
 
       const validation = validateCommand(resolvedCreateBooking(params));
       expect(validation.ok).toBe(false);
-      expect(validation.issues.some((issue) => issue.field === 'timeSlot')).toBe(
-        true,
-      );
+      expect(
+        validation.issues.some((issue) => issue.field === 'timeSlot'),
+      ).toBe(true);
     });
   });
 
@@ -460,7 +464,9 @@ describe('ai check-and-book integration', () => {
         'book the nearest slot',
       );
 
-      expect(deps.publicBookingService.findNearestBookableSlot).toHaveBeenCalledWith(
+      expect(
+        deps.publicBookingService.findNearestBookableSlot,
+      ).toHaveBeenCalledWith(
         'salon',
         expect.objectContaining({
           serviceId: 's3',
@@ -492,7 +498,11 @@ describe('ai check-and-book integration', () => {
     it.each(ALL_CHECK_AND_BOOK_PROMPTS)(
       'completes compound flow for $id without start-time clarify',
       async ({ prompt }) => {
-        const result = await payments.handlePaymentsCompound('biz-1', prompt, {});
+        const result = await payments.handlePaymentsCompound(
+          'biz-1',
+          prompt,
+          {},
+        );
 
         expect(result.success).toBe(true);
         expect(result.action).toBe('compound_intent');
@@ -521,7 +531,9 @@ describe('ai check-and-book integration', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(deps.publicBookingService.findNearestBookableSlot).toHaveBeenCalledWith(
+      expect(
+        deps.publicBookingService.findNearestBookableSlot,
+      ).toHaveBeenCalledWith(
         'salon',
         expect.objectContaining({ employeeId: 'e1', serviceId: 's3' }),
       );

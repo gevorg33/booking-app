@@ -38,6 +38,16 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     settings: { businessType: 'dental', onboarding: { step: 'catalog' } },
   };
 
+  const tourBusiness = {
+    id: 'biz-3',
+    name: 'Alpine Tours',
+    slug: 'alpine-tours',
+    settings: {
+      businessType: 'tour_operator',
+      onboarding: { step: 'catalog' },
+    },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     businessRepo.save.mockImplementation(async (b) => b);
@@ -76,15 +86,55 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     });
   });
 
-  it('previews clinic playbook with lunch unavailable block', async () => {
+  it('previews clinic playbook with departments and Saturday hours', async () => {
     businessRepo.findOne.mockResolvedValue(clinicBusiness);
     const preview = await service.getVerticalPlaybookPreview('biz-2');
 
     expect(preview.playbookId).toBe('clinic');
-    const periods = preview.scheduleTemplates.flatMap((t) => t.timePeriods);
+    expect(preview.categories?.some((c) => c.name === 'Laboratory')).toBe(true);
+    const services = preview.categories?.flatMap((c) => c.services) ?? [];
+    expect(services.some((s) => s.serviceType === 'lab_test')).toBe(true);
+    expect(preview.scheduleTemplates.length).toBeGreaterThanOrEqual(2);
+    expect(preview.scheduleTemplates[1]?.name).toBe('Saturday clinic hours');
+  });
+
+  const polyclinicBusiness = {
+    id: 'biz-4',
+    name: 'Metro Polyclinic',
+    slug: 'metro-poly',
+    settings: { businessType: 'polyclinic', onboarding: { step: 'catalog' } },
+  };
+
+  it('previews polyclinic playbook with lab and cardiology services', async () => {
+    businessRepo.findOne.mockResolvedValue(polyclinicBusiness);
+    const preview = await service.getVerticalPlaybookPreview('biz-4');
+
+    expect(preview.businessType).toBe('polyclinic');
+    expect(preview.playbookId).toBe('clinic');
+    const services = preview.categories?.flatMap((c) => c.services) ?? [];
     expect(
-      periods.some((p) => p.type === TemplatePeriodType.UNAVAILABLE_BLOCK),
+      services.some((s) => s.name === 'ECG' && s.serviceType === 'procedure'),
     ).toBe(true);
+  });
+
+  it('previews tour playbook with sample tour services and full-day hours', async () => {
+    businessRepo.findOne.mockResolvedValue(tourBusiness);
+    const preview = await service.getVerticalPlaybookPreview('biz-3');
+
+    expect(preview.playbookId).toBe('tour');
+    expect(preview.businessType).toBe('tour_operator');
+    expect(preview.categories?.some((c) => c.name === 'Day Tours')).toBe(true);
+    const tourServices = preview.categories?.flatMap((c) => c.services) ?? [];
+    expect(
+      tourServices.some(
+        (s) => s.name === 'Full Day City Tour' && s.serviceType === 'tour',
+      ),
+    ).toBe(true);
+    expect(preview.scheduleTemplates[0]?.timePeriods[0]).toMatchObject({
+      startTime: '08:00',
+      endTime: '18:00',
+      daysActive: expect.arrayContaining(['Sun', 'Mon']),
+    });
   });
 
   it('rejects playbook preview without business type', async () => {
@@ -192,14 +242,30 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     const result = await service.applyDefaultSchedule('biz-2', 'user-2');
 
     expect(result.playbookId).toBe('clinic');
-    expect(result.templatesApplied).toHaveLength(1);
+    expect(result.templatesApplied).toHaveLength(2);
     expect(scheduleService.createTemplate).toHaveBeenCalledWith(
       'biz-2',
       expect.objectContaining({
         name: 'Clinic weekday hours',
         timePeriods: expect.arrayContaining([
           expect.objectContaining({
-            type: TemplatePeriodType.UNAVAILABLE_BLOCK,
+            type: TemplatePeriodType.SERVICE_BLOCK,
+            startTime: '09:00',
+            endTime: '17:00',
+          }),
+        ]),
+      }),
+      'user-2',
+    );
+    expect(scheduleService.createTemplate).toHaveBeenCalledWith(
+      'biz-2',
+      expect.objectContaining({
+        name: 'Saturday clinic hours',
+        timePeriods: expect.arrayContaining([
+          expect.objectContaining({
+            type: TemplatePeriodType.SERVICE_BLOCK,
+            startTime: '09:00',
+            endTime: '13:00',
           }),
         ]),
       }),
@@ -447,5 +513,177 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     expect(result.servicesCreated).toBe(6);
     expect(categoryService.create).toHaveBeenCalledTimes(2);
     expect(serviceService.create).toHaveBeenCalledTimes(6);
+  });
+
+  it('applies tour vertical playbook catalog and schedule', async () => {
+    businessRepo.findOne.mockResolvedValue(tourBusiness);
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-tour',
+      name: 'Guide',
+      businessId: 'biz-3',
+    });
+    categoryService.create.mockImplementation(async (_biz, dto) => ({
+      id: `cat-${dto.name}`,
+      ...dto,
+    }));
+    serviceService.create.mockResolvedValue({ id: 'svc-tour' });
+
+    const result = await service.applyVerticalPlaybook('biz-3', 'user-1');
+
+    expect(result.playbookId).toBe('tour');
+    expect(result.servicesCreated).toBeGreaterThan(0);
+    expect(result.templatesApplied).toEqual(
+      getVerticalPlaybook('tour_operator').scheduleTemplates.map((t) => t.name),
+    );
+    expect(scheduleService.createTemplate).toHaveBeenCalledWith(
+      'biz-3',
+      expect.objectContaining({ name: 'Tour operating hours' }),
+      'user-1',
+    );
+  });
+
+  it('recommends tour playbook catalog when AI is unavailable', async () => {
+    businessRepo.findOne.mockResolvedValue(tourBusiness);
+    const result = await service.recommendCatalog('biz-3');
+
+    expect(result.source).toBe('template');
+    expect(result.businessType).toBe('tour_operator');
+    expect(result.summary).toContain('tour');
+    expect(
+      result.categories.some((c) =>
+        c.services.some((s) => s.serviceType === 'tour'),
+      ),
+    ).toBe(true);
+    const trek = result.categories
+      .flatMap((c) => c.services)
+      .find((s) => s.name === '3-Day Mountain Trek');
+    expect(trek).toMatchObject({
+      serviceType: 'tour',
+      durationDays: 3,
+      maxGroupSize: 8,
+    });
+  });
+
+  it('applies clinic vertical playbook catalog and schedule for polyclinic', async () => {
+    businessRepo.findOne.mockResolvedValue(polyclinicBusiness);
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-poly',
+      name: 'Dr Park',
+      businessId: 'biz-4',
+    });
+    categoryService.create.mockImplementation(async (_biz, dto) => ({
+      id: `cat-${dto.name}`,
+      ...dto,
+    }));
+    serviceService.create.mockResolvedValue({ id: 'svc-clinic' });
+
+    const result = await service.applyVerticalPlaybook('biz-4', 'user-1');
+
+    expect(result.playbookId).toBe('clinic');
+    expect(result.servicesCreated).toBeGreaterThan(0);
+    expect(result.templatesApplied).toEqual(
+      getVerticalPlaybook('polyclinic').scheduleTemplates.map((t) => t.name),
+    );
+    expect(scheduleService.createTemplate).toHaveBeenCalledWith(
+      'biz-4',
+      expect.objectContaining({ name: 'Clinic weekday hours' }),
+      'user-1',
+    );
+  });
+
+  it('recommends clinic playbook catalog when AI is unavailable for polyclinic', async () => {
+    businessRepo.findOne.mockResolvedValue(polyclinicBusiness);
+    const result = await service.recommendCatalog('biz-4');
+
+    expect(result.source).toBe('template');
+    expect(result.businessType).toBe('polyclinic');
+    expect(result.summary).toContain('clinic');
+    expect(result.categories.some((c) => c.name === 'Laboratory')).toBe(true);
+    const lipid = result.categories
+      .flatMap((c) => c.services)
+      .find((s) => s.name === 'Lipid panel');
+    expect(lipid).toMatchObject({
+      serviceType: 'lab_test',
+      requiresFasting: true,
+    });
+  });
+
+  it('applyCatalog passes clinic metadata when seeding lab services', async () => {
+    businessRepo.findOne.mockResolvedValue(polyclinicBusiness);
+    categoryService.create.mockResolvedValue({
+      id: 'cat-lab',
+      name: 'Laboratory',
+    });
+    serviceService.create.mockResolvedValue({ id: 'svc-lab' });
+
+    await service.applyCatalog('biz-4', {
+      categories: [
+        {
+          name: 'Laboratory',
+          sortOrder: 1,
+          services: [
+            {
+              name: 'Lipid panel',
+              durationMinutes: 15,
+              price: 35,
+              serviceType: 'lab_test',
+              requiresFasting: true,
+              preparationNotes: 'Fast 12 hours',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(serviceService.create).toHaveBeenCalledWith(
+      'biz-4',
+      expect.objectContaining({
+        serviceType: 'lab_test',
+        requiresFasting: true,
+        preparationNotes: 'Fast 12 hours',
+      }),
+    );
+  });
+
+  it('applyCatalog passes tour metadata when seeding tour services', async () => {
+    businessRepo.findOne.mockResolvedValue(tourBusiness);
+    categoryService.create.mockResolvedValue({
+      id: 'cat-tour',
+      name: 'Day Tours',
+    });
+    serviceService.create.mockResolvedValue({ id: 'svc-tour' });
+
+    await service.applyCatalog('biz-3', {
+      categories: [
+        {
+          name: 'Day Tours',
+          sortOrder: 0,
+          services: [
+            {
+              name: 'Full Day City Tour',
+              durationMinutes: 480,
+              price: 85,
+              serviceType: 'tour',
+              coverImage: '/placeholders/tours/city-day.jpg',
+              maxGroupSize: 12,
+              difficulty: 'easy',
+              durationDays: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(serviceService.create).toHaveBeenCalledWith(
+      'biz-3',
+      expect.objectContaining({
+        name: 'Full Day City Tour',
+        serviceType: 'tour',
+        coverImage: '/placeholders/tours/city-day.jpg',
+        maxGroupSize: 12,
+        difficulty: 'easy',
+        durationDays: 1,
+      }),
+    );
   });
 });

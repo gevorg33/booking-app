@@ -137,7 +137,7 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       { slug: 'salon', customerId: 'cust-1' },
     );
     expect(llm.completeJson).toHaveBeenCalled();
-    expect(result.action).toBe('list_my_appointments');
+    expect(result.action).toBe('book_nearest_slot');
   });
 
   it('routes public discovery intent through public assistant after classification', async () => {

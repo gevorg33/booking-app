@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type { AppLocale } from './messages.js';
 import { SUPPORTED_LOCALES } from './messages.js';
+import { filterTranslationLocaleKeys } from '../utils/business-locale.util.js';
 
 export const LOCALIZED_NAME_SLOTS = 3;
 export const LOCALIZED_NAME_MAX_LENGTH = 120;
@@ -28,15 +29,28 @@ export function extractLocalizedNamesFromMetadata(
 
 export function normalizeLocalizedNames(
   input?: LocalizedNamesInput,
-  options?: { strict?: boolean },
+  options?: {
+    strict?: boolean;
+    enabledLocales?: readonly AppLocale[];
+    stripDisabledLocales?: boolean;
+  },
 ): LocalizedNamesMap | undefined {
   if (input === undefined) return undefined;
   if (input === null) return {};
 
   const strict = options?.strict ?? true;
+  const enabledLocales = options?.enabledLocales ?? [...SUPPORTED_LOCALES];
+  const filtered = filterTranslationLocaleKeys(
+    input as Record<string, unknown>,
+    enabledLocales,
+    {
+      strict,
+      stripDisabledOnly: options?.stripDisabledLocales ?? false,
+    },
+  ) as LocalizedNamesInput;
   const result: LocalizedNamesMap = {};
 
-  for (const [key, value] of Object.entries(input)) {
+  for (const [key, value] of Object.entries(filtered ?? {})) {
     if (!SUPPORTED_LOCALES.includes(key as AppLocale)) {
       if (strict) {
         throw new BadRequestException(
@@ -84,9 +98,15 @@ export function normalizeLocalizedNames(
 export function applyLocalizedNamesToMetadata(
   metadata: Record<string, unknown>,
   localizedNames?: LocalizedNamesInput,
+  options?: { enabledLocales?: readonly AppLocale[] },
 ): Record<string, unknown> {
   if (localizedNames === undefined) return metadata;
-  const normalized = normalizeLocalizedNames(localizedNames);
+  const enabledLocales = options?.enabledLocales ?? [...SUPPORTED_LOCALES];
+  const normalized = normalizeLocalizedNames(localizedNames, {
+    enabledLocales,
+    strict: true,
+    stripDisabledLocales: true,
+  });
   const next = { ...metadata };
   if (!normalized || Object.keys(normalized).length === 0) {
     delete next[METADATA_KEY];

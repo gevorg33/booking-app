@@ -267,6 +267,15 @@ export class OnboardingService {
           bufferMinutes: svcDraft.bufferMinutes ?? 0,
           price: svcDraft.price,
           categoryId: categoryId ?? undefined,
+          serviceType: svcDraft.serviceType,
+          coverImage: svcDraft.coverImage,
+          maxGroupSize: svcDraft.maxGroupSize,
+          difficulty: svcDraft.difficulty,
+          meetingPoint: svcDraft.meetingPoint,
+          includedItems: svcDraft.includedItems,
+          durationDays: svcDraft.durationDays,
+          requiresFasting: svcDraft.requiresFasting,
+          preparationNotes: svcDraft.preparationNotes,
         });
         serviceNameSet.add(svcName.toLowerCase());
         servicesCreated += 1;
@@ -459,16 +468,53 @@ export class OnboardingService {
         sortOrder: cat.sortOrder ?? index,
         services: (cat.services ?? [])
           .slice(0, 12)
-          .map((svc) => ({
-            name: svc.name.trim(),
-            description: svc.description?.trim(),
-            durationMinutes: Math.max(
-              10,
-              Math.round(svc.durationMinutes || 30),
-            ),
-            price: Math.max(0, Number(svc.price) || 0),
-            bufferMinutes: Math.max(0, Math.round(svc.bufferMinutes ?? 0)),
-          }))
+          .map((svc) => {
+            const normalized = {
+              name: svc.name.trim(),
+              description: svc.description?.trim(),
+              durationMinutes: Math.max(
+                10,
+                Math.round(svc.durationMinutes || 30),
+              ),
+              price: Math.max(0, Number(svc.price) || 0),
+              bufferMinutes: Math.max(0, Math.round(svc.bufferMinutes ?? 0)),
+            };
+            if (svc.serviceType === 'tour') {
+              return {
+                ...normalized,
+                serviceType: 'tour' as const,
+                ...(svc.coverImage ? { coverImage: svc.coverImage } : {}),
+                ...(svc.maxGroupSize != null
+                  ? { maxGroupSize: svc.maxGroupSize }
+                  : {}),
+                ...(svc.difficulty ? { difficulty: svc.difficulty } : {}),
+                ...(svc.meetingPoint ? { meetingPoint: svc.meetingPoint } : {}),
+                ...(svc.includedItems
+                  ? { includedItems: svc.includedItems }
+                  : {}),
+                ...(svc.durationDays != null
+                  ? { durationDays: svc.durationDays }
+                  : {}),
+              };
+            }
+            if (
+              svc.serviceType === 'consultation' ||
+              svc.serviceType === 'lab_test' ||
+              svc.serviceType === 'procedure'
+            ) {
+              return {
+                ...normalized,
+                serviceType: svc.serviceType,
+                ...(svc.requiresFasting != null
+                  ? { requiresFasting: svc.requiresFasting }
+                  : {}),
+                ...(svc.preparationNotes
+                  ? { preparationNotes: svc.preparationNotes }
+                  : {}),
+              };
+            }
+            return normalized;
+          })
           .filter((svc) => svc.name),
       }))
       .filter((cat) => cat.name && cat.services.length > 0);

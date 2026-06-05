@@ -1,4 +1,5 @@
 import { PUBLIC_LOCALE_COOKIE, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
+import { resolveTenantLocale } from '@/lib/business-locale';
 
 function writeLocaleCookie(name: string, locale: AppLocale): void {
   if (typeof document === 'undefined') return;
@@ -37,14 +38,16 @@ export function writePublicCookieLocale(locale: AppLocale): void {
   writeLocaleCookie(PUBLIC_LOCALE_COOKIE, locale);
 }
 
-/** Prefer public booking cookie, then optional business default; never dashboard app-locale. */
-export function readPublicBookingLocalePreference(businessLocale?: string): AppLocale {
+/** Prefer public booking cookie, then tenant default; never dashboard app-locale. */
+export function readPublicBookingLocalePreference(
+  businessSettings?: Record<string, unknown> | string | null,
+): AppLocale {
   const stored = readPublicCookieLocale();
-  if (stored) return stored;
-  if (businessLocale && SUPPORTED_LOCALES.includes(businessLocale as AppLocale)) {
-    return businessLocale as AppLocale;
-  }
-  return 'en';
+  const settings =
+    typeof businessSettings === 'string'
+      ? { locale: businessSettings, defaultLocale: businessSettings }
+      : businessSettings;
+  return resolveTenantLocale(stored, settings);
 }
 
 export function readClientLocaleForPublicApi(): string | null {

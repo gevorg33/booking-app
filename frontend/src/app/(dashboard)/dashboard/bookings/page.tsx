@@ -22,6 +22,7 @@ import { TimeInput } from '@/components/time-input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOperationalEvents } from '@/lib/use-operational-events';
 import { BookingDetailPanel } from '@/components/bookings/booking-detail-panel';
+import { StaffBookingTaxPreview } from '@/components/bookings/staff-booking-tax-preview';
 import { CustomerSelect } from '@/components/customers/customer-select';
 import { formatStatusLabel, STATUS_BADGE, formatBookingBlockHeadline, formatBookingBlockSublabel } from '@/lib/booking-types';
 import { unwrapBusinessApiPayload } from '@/lib/business-query';
@@ -140,6 +141,8 @@ interface BookingItem {
     multiServiceGroupId?: string;
     payAtVenue?: boolean;
     paymentMethod?: string;
+    pricing?: { amountDue?: number; taxAmount?: number };
+    amountPaid?: number;
   };
   service?: { id: string; name: string; durationMinutes?: number; price?: number; currency?: string };
   employee?: { id: string; name: string };
@@ -587,6 +590,27 @@ export default function BookingsPage() {
   }, [activeSubscription?.id]);
 
   const [formResetKey, setFormResetKey] = useState(0);
+
+  const { data: staffBookingQuote } = useQuery({
+    queryKey: ['staff-booking-quote', business?.id, form.serviceId],
+    queryFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/bookings/quote`, {
+        serviceId: form.serviceId,
+      });
+      return unwrapBusinessApiPayload(data) as {
+        subtotal: number;
+        amountDue: number;
+        taxEnabled?: boolean;
+        taxName?: string | null;
+        taxRate?: number | null;
+        taxModel?: 'inclusive' | 'exclusive' | null;
+        taxAmount?: number;
+        taxRules?: Array<{ id: string; name: string; rate: number; amount: number }>;
+        currency: string;
+      };
+    },
+    enabled: !!business?.id && !!form.serviceId && !useSubscriptionId,
+  });
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -1122,6 +1146,19 @@ export default function BookingsPage() {
                   />
                 </div>
               </div>
+
+              {staffBookingQuote && !useSubscriptionId && (
+                <div className="mt-4">
+                  <StaffBookingTaxPreview
+                    quote={staffBookingQuote}
+                    labels={{
+                      subtotal: t('appointments.paymentChargedAmount'),
+                      totalDue: t('public.totalDue'),
+                      taxIncluded: t('public.taxIncluded'),
+                    }}
+                  />
+                </div>
+              )}
 
               {createMutation.isError && (
                 <div className="mt-3 p-2.5 bg-red-600/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-xs">

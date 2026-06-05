@@ -13,6 +13,8 @@ import {
   PackageDiscountType,
 } from './entities/service-package.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Business } from '../business/entities/business.entity.js';
+import { resolvePriceCurrency } from '../../common/utils/business-currency.util.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   calculatePackagePricing,
@@ -23,6 +25,14 @@ import {
   type PackageDiscountType as DiscountType,
 } from '../../common/utils/package-pricing.util.js';
 import { expandPackageServiceIds } from '../../common/utils/package-booking.util.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
+import {
+  applyLocalizedNamesToMetadata,
+  extractLocalizedNamesFromMetadata,
+  resolveLocalizedDisplayName,
+  type LocalizedNamesInput,
+} from '../../common/i18n/service-localized-names.util.js';
+import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
 
 export interface PackageItemDto {
   serviceId: string;
@@ -37,6 +47,7 @@ export interface CreateServicePackageDto {
   discountValue?: number;
   displayOrder?: number;
   expiresAt?: string | null;
+  localizedNames?: LocalizedNamesInput;
   items: PackageItemDto[];
 }
 
@@ -55,6 +66,8 @@ export class ServicePackagesService {
     private serviceRepo: Repository<Service>,
     @InjectRepository(Booking)
     private bookingRepo: Repository<Booking>,
+    @InjectRepository(Business)
+    private businessRepo: Repository<Business>,
   ) {}
 
   async listPackages(
@@ -79,17 +92,24 @@ export class ServicePackagesService {
       );
     }
 
-    return packages.map((pkg) => this.enrichPackage(pkg));
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    return packages.map((pkg) => this.enrichPackage(pkg, businessSettings));
   }
 
   async getPackage(businessId: string, packageId: string) {
     const pkg = await this.findPackageOrThrow(businessId, packageId);
-    return this.enrichPackage(pkg);
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    return this.enrichPackage(pkg, businessSettings);
   }
 
   async createPackage(businessId: string, dto: CreateServicePackageDto) {
     await this.validateItems(businessId, dto.items);
     this.validateDiscount(dto.discountType, dto.discountValue);
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    const enabledLocales = getBusinessEnabledLocales(businessSettings);
+    const metadata = applyLocalizedNamesToMetadata({}, dto.localizedNames, {
+      enabledLocales,
+    });
 
     const pkg = this.packageRepo.create({
       businessId,
@@ -100,6 +120,7 @@ export class ServicePackagesService {
       discountValue: dto.discountValue ?? 0,
       displayOrder: dto.displayOrder ?? 0,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      metadata,
       isActive: true,
       items: dto.items.map((item, index) =>
         this.itemRepo.create({
@@ -126,6 +147,15 @@ export class ServicePackagesService {
       this.validateDiscount(
         (dto.discountType ?? pkg.discountType) as DiscountType,
         dto.discountValue ?? Number(pkg.discountValue),
+      );
+    }
+    if (dto.localizedNames !== undefined) {
+      const businessSettings = await this.loadBusinessSettings(businessId);
+      const enabledLocales = getBusinessEnabledLocales(businessSettings);
+      pkg.metadata = applyLocalizedNamesToMetadata(
+        pkg.metadata ?? {},
+        dto.localizedNames,
+        { enabledLocales },
       );
     }
 
@@ -224,6 +254,7 @@ export class ServicePackagesService {
       discountValue: Number(source.discountValue),
       displayOrder: source.displayOrder + 1,
       expiresAt: source.expiresAt?.toISOString() ?? null,
+      localizedNames: extractLocalizedNamesFromMetadata(source.metadata),
       items: (source.items ?? []).map((item) => ({
         serviceId: item.serviceId,
         quantity: item.quantity,
@@ -233,10 +264,14 @@ export class ServicePackagesService {
 
   async previewPackagePricing(businessId: string, packageId: string) {
     const pkg = await this.findPackageOrThrow(businessId, packageId);
-    return this.previewFromPackage(pkg);
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    return this.previewFromPackage(pkg, businessSettings);
   }
 
-  previewFromPackage(pkg: ServicePackage) {
+  previewFromPackage(
+    pkg: ServicePackage,
+    businessSettings?: Record<string, unknown>,
+  ) {
     const items = (pkg.items ?? []).map((item) => ({
       unitPrice: Number(item.service?.price ?? 0),
       quantity: item.quantity,
@@ -264,7 +299,10 @@ export class ServicePackagesService {
       lineSavings: lineAllocations[index].lineSavings,
     }));
 
-    const currency = pkg.items?.[0]?.service?.currency ?? 'USD';
+    const currency = resolvePriceCurrency(
+      pkg.items?.[0]?.service?.currency,
+      businessSettings,
+    );
 
     return {
       package: {
@@ -279,11 +317,16 @@ export class ServicePackagesService {
     };
   }
 
-  enrichPackage(pkg: ServicePackage) {
-    const preview = this.previewFromPackage(pkg);
+  enrichPackage(
+    pkg: ServicePackage,
+    businessSettings?: Record<string, unknown>,
+  ) {
+    const preview = this.previewFromPackage(pkg, businessSettings);
     const status = this.resolveStatus(pkg);
+    const localizedNames = extractLocalizedNamesFromMetadata(pkg.metadata);
     return {
       ...pkg,
+      localizedNames,
       status,
       isExpired: status === 'expired',
       isPubliclyVisible: isPackagePubliclyVisible(pkg.isActive, pkg.expiresAt),
@@ -300,7 +343,12 @@ export class ServicePackagesService {
     return 'active';
   }
 
-  async listPublicPackages(businessId: string, graceHours = 0) {
+  async listPublicPackages(
+    businessId: string,
+    graceHours = 0,
+    displayLocale: AppLocale = 'en',
+  ) {
+    const businessSettings = await this.loadBusinessSettings(businessId);
     const packages = await this.packageRepo.find({
       where: { businessId, isActive: true },
       relations: { items: { service: true } },
@@ -312,13 +360,16 @@ export class ServicePackagesService {
           pkg.items?.length &&
           isPackageBookable(pkg.isActive, pkg.expiresAt, graceHours),
       )
-      .map((pkg) => this.mapPublicPackage(pkg));
+      .map((pkg) =>
+        this.mapPublicPackage(pkg, businessSettings, displayLocale),
+      );
   }
 
   async getPublicPackage(
     businessId: string,
     packageId: string,
     graceHours = 0,
+    displayLocale: AppLocale = 'en',
   ) {
     const pkg = await this.packageRepo.findOne({
       where: { id: packageId, businessId, isActive: true },
@@ -330,7 +381,8 @@ export class ServicePackagesService {
     if (!isPackageBookable(pkg.isActive, pkg.expiresAt, graceHours)) {
       throw new NotFoundException('Service package is not available');
     }
-    return this.mapPublicPackage(pkg);
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    return this.mapPublicPackage(pkg, businessSettings, displayLocale);
   }
 
   async assertPackageBookable(
@@ -380,16 +432,25 @@ export class ServicePackagesService {
     );
   }
 
-  mapPublicPackage(pkg: ServicePackage) {
-    const preview = this.previewFromPackage(pkg);
+  mapPublicPackage(
+    pkg: ServicePackage,
+    businessSettings?: Record<string, unknown>,
+    displayLocale: AppLocale = 'en',
+  ) {
+    const preview = this.previewFromPackage(pkg, businessSettings);
     const totalDurationMinutes = preview.items.reduce(
       (sum, item) => sum + item.durationMinutes * item.quantity,
       0,
     );
+    const localizedNames = extractLocalizedNamesFromMetadata(pkg.metadata);
     return {
       id: pkg.id,
       kind: 'package' as const,
-      name: pkg.name,
+      name: resolveLocalizedDisplayName(
+        pkg.name,
+        localizedNames,
+        displayLocale,
+      ),
       description: pkg.description,
       imageUrl: pkg.imageUrl,
       expiresAt: pkg.expiresAt,
@@ -457,6 +518,15 @@ export class ServicePackagesService {
     if (services.length !== serviceIds.length) {
       throw new NotFoundException('One or more services were not found');
     }
+  }
+
+  private async loadBusinessSettings(
+    businessId: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    return business?.settings as Record<string, unknown> | undefined;
   }
 
   private validateDiscount(

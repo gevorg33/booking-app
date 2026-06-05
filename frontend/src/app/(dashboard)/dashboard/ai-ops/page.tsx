@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Brain,
   CheckCircle,
@@ -47,6 +47,9 @@ import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-p
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
 import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
+import { TablePagination } from '@/components/table/table-pagination';
+
+const AGENT_TASKS_PAGE_SIZE = 10;
 
 function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
   for (const key of AI_MUTATION_QUERY_KEYS) {
@@ -71,6 +74,7 @@ export default function AiOpsPage() {
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [tasksPage, setTasksPage] = useState(1);
   const [applyingFixId, setApplyingFixId] = useState<string | null>(null);
   const [undoMessage, setUndoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null,
@@ -97,6 +101,22 @@ export default function AiOpsPage() {
     enabled: !!business?.id,
     refetchInterval: 5000,
   });
+
+  const taskList = (tasks as AgentTask[] | undefined) ?? [];
+  const totalTasks = taskList.length;
+  const totalTaskPages = Math.max(1, Math.ceil(totalTasks / AGENT_TASKS_PAGE_SIZE));
+  const safeTasksPage = Math.min(tasksPage, totalTaskPages);
+
+  useEffect(() => {
+    if (tasksPage > totalTaskPages) {
+      setTasksPage(totalTaskPages);
+    }
+  }, [tasksPage, totalTaskPages]);
+
+  const pagedTasks = useMemo(() => {
+    const start = (safeTasksPage - 1) * AGENT_TASKS_PAGE_SIZE;
+    return taskList.slice(start, start + AGENT_TASKS_PAGE_SIZE);
+  }, [taskList, safeTasksPage]);
 
   const approveMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -224,7 +244,8 @@ export default function AiOpsPage() {
             <p className="text-gray-500 text-sm">{t('ai.tasksEmptyBody')}</p>
           </div>
         ) : (
-          (tasks as AgentTask[]).map((task) => {
+          <>
+            {pagedTasks.map((task) => {
             const { Icon: StatusIcon, color } = getStatusConfig(task.status);
             const preview = task.result?.preview;
             const planDiff = preview?.planDiff ?? task.plan?.steps?.map((s) => ({
@@ -333,7 +354,19 @@ export default function AiOpsPage() {
                 )}
               </div>
             );
-          })
+          })}
+            {totalTasks > AGENT_TASKS_PAGE_SIZE && (
+              <TablePagination
+                page={safeTasksPage}
+                pageSize={AGENT_TASKS_PAGE_SIZE}
+                totalItems={totalTasks}
+                onPageChange={(page) => {
+                  setTasksPage(page);
+                  setExpandedTaskId(null);
+                }}
+              />
+            )}
+          </>
         )}
       </div>
 

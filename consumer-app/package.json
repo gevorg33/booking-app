@@ -15,7 +15,11 @@
     "build:ios:lan": "bash scripts/prepare-env.sh && bash scripts/configure-ios-firebase.sh && npm run build && npx cap sync ios && xattr -cr ios 2>/dev/null || true",
     "build:android:lan": "bash scripts/prepare-apk-env.sh && bash scripts/configure-android-app-links.sh && npm run build && npx cap sync android",
     "test": "vitest run",
-    "test:sprint11": "vitest run --coverage --coverage.include='src/lib/deep-link.ts' --coverage.include='src/lib/customer-auth.ts' --coverage.include='src/lib/branding.ts' --coverage.include='src/lib/recent-salons.ts' --coverage.thresholds.lines=97 --coverage.thresholds.statements=97 --coverage.thresholds.functions=100 --coverage.thresholds.branches=73"
+    "test:sprint11": "vitest run --coverage --coverage.include='src/lib/deep-link.ts' --coverage.include='src/lib/customer-auth.ts' --coverage.include='src/lib/branding.ts' --coverage.include='src/lib/recent-salons.ts' --coverage.thresholds.lines=97 --coverage.thresholds.statements=97 --coverage.thresholds.functions=100 --coverage.thresholds.branches=73",
+    "test:sprint34": "vitest run --config vitest.sprint34.config.ts --coverage",
+    "test:sprint28": "vitest run --config vitest.sprint28.config.ts --coverage",
+    "test:sprint32": "vitest run --config vitest.sprint32.config.ts --coverage",
+    "test:sprint36": "vitest run --config vitest.sprint36.config.ts --coverage"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
@@ -44,6 +48,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "happy-dom": "^15.11.7",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vitest": "^3.2.4"

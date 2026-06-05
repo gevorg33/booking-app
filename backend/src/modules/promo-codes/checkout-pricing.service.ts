@@ -6,6 +6,7 @@ import {
   CheckoutPricingInput,
   CheckoutPricingResult,
 } from './checkout-pricing.types.js';
+import { applyTaxToCheckoutAmount } from '../../common/utils/business-tax.util.js';
 import {
   computeCheckoutTotals,
   isGiftCardCode,
@@ -170,8 +171,43 @@ export class CheckoutPricingService {
     });
     loyaltyDiscount = totals.loyaltyDiscount;
     giftCardDiscount = totals.giftCardDiscount;
-    const amountDue = totals.amountDue;
+    let amountDue = totals.amountDue;
     const totalDiscount = totals.totalDiscount;
+    let taxEnabled = false;
+    let taxName: string | null = null;
+    let taxRate: number | null = null;
+    let taxModel: 'inclusive' | 'exclusive' | null = null;
+    let taxAmount = 0;
+    let netAmount = amountDue;
+    let taxRules:
+      | Array<{ id: string; name: string; rate: number; amount: number }>
+      | undefined;
+
+    if (input.tax?.enabled) {
+      const overlay = applyTaxToCheckoutAmount(
+        amountDue,
+        {
+          enabled: true,
+          name: input.tax.name,
+          rate: input.tax.rate,
+          model: input.tax.model,
+          taxNumber: '',
+          rules: input.tax.rules,
+        },
+        input.tax.serviceRatePercent,
+      );
+      if (overlay) {
+        taxEnabled = true;
+        taxName = overlay.taxName;
+        taxRate = overlay.taxRate;
+        taxModel = overlay.taxModel;
+        taxAmount = overlay.taxAmount;
+        netAmount = overlay.netAmount;
+        amountDue = overlay.paymentAmount;
+        taxRules = overlay.taxRules;
+      }
+    }
+
     const pointsToEarn = this.loyaltyService.calculateEarnPoints(
       amountDue,
       input.earnPercentCashback,
@@ -197,6 +233,13 @@ export class CheckoutPricingService {
       giftCardCode,
       giftCardServiceRedemptions,
       adjustments,
+      taxEnabled,
+      taxName,
+      taxRate,
+      taxModel,
+      taxAmount,
+      netAmount,
+      ...(taxRules ? { taxRules } : {}),
     };
   }
 

@@ -12,6 +12,7 @@ import {
   exportPublicCustomerData,
   deletePublicCustomerData,
   formatPrice,
+  formatPublicMoney,
   type PublicBusinessProfile,
   type PublicCustomerBookingItem,
   type PublicCustomerLoyalty,
@@ -362,7 +363,10 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                 <p className="text-sm text-gray-600 mt-1">
                   {t('public.loyaltyBalance')
                     .replace('{points}', String(loyalty.pointsBalance))
-                    .replace('{value}', formatPrice(loyalty.pointsValue, 'USD', locale))}
+                    .replace(
+                      '{value}',
+                      formatPublicMoney(loyalty.pointsValue, null, tenant.currency, locale),
+                    )}
                 </p>
               </div>
             )}

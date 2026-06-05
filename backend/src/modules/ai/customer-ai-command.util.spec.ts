@@ -89,7 +89,9 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('book_nearest_slot');
     expect(schema).toContain('bookingFirstAvailable');
     expect(schema).toContain('timeOfDay');
-    expect(schema).toContain('who\'s free tomorrow evening for permanent lashes');
+    expect(schema).toContain(
+      "who's free tomorrow evening for permanent lashes",
+    );
     expect(schema).not.toContain('pick the FIRST actionable intent');
   });
 

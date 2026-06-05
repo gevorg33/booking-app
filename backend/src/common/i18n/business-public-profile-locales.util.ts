@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import type { AppLocale } from './messages.js';
 import { SUPPORTED_LOCALES } from './messages.js';
+import {
+  filterTranslationLocaleKeys,
+  getBusinessEnabledLocales,
+} from '../utils/business-locale.util.js';
 
 export const PUBLIC_PROFILE_FIELD_MAX = {
   name: 200,
@@ -41,15 +45,28 @@ export function extractPublicProfileLocalesFromSettings(
 
 export function normalizePublicProfileLocales(
   input?: PublicProfileLocalesInput,
-  options?: { strict?: boolean },
+  options?: {
+    strict?: boolean;
+    enabledLocales?: readonly AppLocale[];
+    stripDisabledLocales?: boolean;
+  },
 ): PublicProfileLocalesMap | undefined {
   if (input === undefined) return undefined;
   if (input === null) return {};
 
   const strict = options?.strict ?? true;
+  const enabledLocales = options?.enabledLocales ?? [...SUPPORTED_LOCALES];
+  const filtered = filterTranslationLocaleKeys(
+    input as Record<string, unknown>,
+    enabledLocales,
+    {
+      strict,
+      stripDisabledOnly: options?.stripDisabledLocales ?? false,
+    },
+  ) as PublicProfileLocalesInput;
   const result: PublicProfileLocalesMap = {};
 
-  for (const [key, value] of Object.entries(input)) {
+  for (const [key, value] of Object.entries(filtered ?? {})) {
     if (!SUPPORTED_LOCALES.includes(key as AppLocale)) {
       if (strict) {
         throw new BadRequestException(
@@ -101,9 +118,16 @@ export function normalizePublicProfileLocales(
 export function applyPublicProfileLocalesToSettings(
   settings: Record<string, unknown>,
   publicProfileLocales?: PublicProfileLocalesInput,
+  options?: { enabledLocales?: readonly AppLocale[] },
 ): Record<string, unknown> {
   if (publicProfileLocales === undefined) return settings;
-  const normalized = normalizePublicProfileLocales(publicProfileLocales);
+  const enabledLocales =
+    options?.enabledLocales ?? getBusinessEnabledLocales(settings);
+  const normalized = normalizePublicProfileLocales(publicProfileLocales, {
+    enabledLocales,
+    strict: true,
+    stripDisabledLocales: true,
+  });
   const next = { ...settings };
   if (!normalized || Object.keys(normalized).length === 0) {
     delete next[SETTINGS_KEY];

@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Mail, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { useI18n } from '@/i18n';
+import { useI18n, LOCALE_LABELS, type AppLocale } from '@/i18n';
+import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
 import {
   emailTemplateDescription,
   emailTemplateLabel,
@@ -31,6 +32,12 @@ interface TemplateVariable {
   custom: boolean;
 }
 
+interface ResolvedEmailTemplateLocaleContent {
+  subject: string;
+  bodyText: string;
+  bodyHtml: string;
+}
+
 interface ResolvedEmailTemplate {
   key: EmailTemplateKey;
   label: string;
@@ -41,6 +48,7 @@ interface ResolvedEmailTemplate {
   bodyText: string;
   bodyHtml: string;
   variables: TemplateVariable[];
+  byLocale?: Partial<Record<AppLocale, ResolvedEmailTemplateLocaleContent>>;
 }
 
 interface CustomVariable {
@@ -64,9 +72,16 @@ const SHOW_EMAIL_CUSTOM_VARIABLES_UI = false;
 export function NotificationEmailTemplatesPanel() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const { enabledLocales, defaultLocale } = useBusinessEnabledLocales();
   const queryClient = useQueryClient();
   const [selectedKey, setSelectedKey] = useState<EmailTemplateKey>('booking_confirmation');
-  const [draft, setDraft] = useState<{ enabled: boolean; subject: string; bodyText: string; bodyHtml: string } | null>(null);
+  const [activeLocale, setActiveLocale] = useState<AppLocale>(defaultLocale);
+  const [draft, setDraft] = useState<{
+    enabled: boolean;
+    subject: string;
+    bodyText: string;
+    bodyHtml: string;
+  } | null>(null);
   const [customVars, setCustomVars] = useState<CustomVariable[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -86,16 +101,28 @@ export function NotificationEmailTemplatesPanel() {
   );
 
   useEffect(() => {
+    if (!enabledLocales.includes(activeLocale)) {
+      queueMicrotask(() => setActiveLocale(enabledLocales[0] ?? defaultLocale));
+    }
+  }, [activeLocale, defaultLocale, enabledLocales]);
+
+  useEffect(() => {
     if (!selected) return;
-    queueMicrotask(() =>
-      setDraft({
-        enabled: selected.enabled,
+    const localeContent =
+      selected.byLocale?.[activeLocale] ?? {
         subject: selected.subject,
         bodyText: selected.bodyText,
         bodyHtml: selected.bodyHtml,
+      };
+    queueMicrotask(() =>
+      setDraft({
+        enabled: selected.enabled,
+        subject: localeContent.subject,
+        bodyText: localeContent.bodyText,
+        bodyHtml: localeContent.bodyHtml,
       }),
     );
-  }, [selected]);
+  }, [selected, activeLocale]);
 
   useEffect(() => {
     if (data?.customVariables) queueMicrotask(() => setCustomVars(data.customVariables));
@@ -106,7 +133,16 @@ export function NotificationEmailTemplatesPanel() {
       if (!draft) return;
       const { data: res } = await api.put(
         `/businesses/${business!.id}/notifications/email-templates/${selectedKey}`,
-        draft,
+        {
+          enabled: draft.enabled,
+          locales: {
+            [activeLocale]: {
+              subject: draft.subject,
+              bodyText: draft.bodyText,
+              bodyHtml: draft.bodyHtml,
+            },
+          },
+        },
       );
       return res.data || res;
     },
@@ -201,6 +237,23 @@ export function NotificationEmailTemplatesPanel() {
           <p className="text-xs text-gray-500">
             {emailTemplateDescription(t, selected.key, selected.description)}
           </p>
+
+          <div className="flex flex-wrap gap-2">
+            {enabledLocales.map((locale) => (
+              <button
+                key={locale}
+                type="button"
+                className={`text-xs px-3 py-1.5 rounded-full border ${
+                  activeLocale === locale
+                    ? 'border-violet-400 bg-violet-50 text-violet-800 dark:bg-violet-950 dark:text-violet-100'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+                onClick={() => setActiveLocale(locale)}
+              >
+                {LOCALE_LABELS[locale]}
+              </button>
+            ))}
+          </div>
 
           <div>
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{t('settings.emailTemplateVariables')}</p>

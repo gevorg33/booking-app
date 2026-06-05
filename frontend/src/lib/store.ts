@@ -18,6 +18,7 @@ interface AuthState {
     token: string,
     extras?: { businesses?: BusinessSummary[]; employee?: { id: string; name: string } | null },
   ) => void;
+  updateBusinessFormats: (dateFormat: string, timeFormat: string) => void;
   logout: () => void;
 }
 
@@ -41,6 +42,18 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           employee: extras?.employee ?? null,
           businesses: extras?.businesses ?? [],
+        });
+      },
+      updateBusinessFormats: (dateFormat, timeFormat) => {
+        set((state) => {
+          if (!state.business) return state;
+          const business = { ...state.business, dateFormat, timeFormat };
+          return {
+            business,
+            businesses: state.businesses.map((entry) =>
+              entry.id === business.id ? { ...entry, dateFormat, timeFormat } : entry,
+            ),
+          };
         });
       },
       logout: () => {

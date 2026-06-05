@@ -57,6 +57,10 @@ export enum EventType {
   // AI enterprise analytics (Sprint 25)
   AI_COMMAND_RECORDED = 'ai.command.recorded',
   AI_TASK_ESCALATED = 'ai.task.escalated',
+
+  // Post-checkout product recommendations (Sprint 32)
+  PRODUCT_RECOMMENDATION_SHOWN = 'product_recommendation.shown',
+  PRODUCT_RECOMMENDATION_CLICKED = 'product_recommendation.clicked',
 }
 
 export interface DomainEvent {

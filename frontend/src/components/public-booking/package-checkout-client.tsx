@@ -11,7 +11,7 @@ import {
   confirmPublicBookingPayment,
   createPublicPackageCheckout,
   formatDuration,
-  formatPrice,
+  formatPublicMoney,
   getPublicCustomerLoyalty,
   quotePublicPackage,
   type PublicBusinessProfile,
@@ -52,6 +52,8 @@ export function PackageCheckoutClient({
   const searchParams = useSearchParams();
   const { customer, loading: authLoading } = usePublicCustomerAuth();
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const money = (amount: number, entityCurrency?: string | null) =>
+    formatPublicMoney(amount, entityCurrency, tenant.currency, locale);
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
 
@@ -359,7 +361,7 @@ export function PackageCheckoutClient({
                     </div>
                     {discountedUnit != null && (
                       <p className="font-medium text-gray-900 shrink-0">
-                        {formatPrice(discountedUnit, pkg.currency)}
+                        {money(discountedUnit, pkg.currency)}
                       </p>
                     )}
                   </li>
@@ -370,7 +372,7 @@ export function PackageCheckoutClient({
             <div className="flex justify-between mt-4 pt-4 border-t border-gray-100">
               <span className="font-semibold text-gray-900">{t('public.total')}</span>
               <span className="font-semibold text-gray-900">
-                {formatPrice(confirmedTotal, pkg.currency)}
+                {money(confirmedTotal, pkg.currency)}
               </span>
             </div>
           </section>
@@ -487,16 +489,16 @@ export function PackageCheckoutClient({
                     {discountedUnit != null && (
                       <div className="text-right shrink-0">
                         <p className="font-medium text-gray-900">
-                          {formatPrice(discountedUnit, pkg.currency)}
+                          {money(discountedUnit, pkg.currency)}
                         </p>
                         {regularUnit != null && savingsUnit != null && savingsUnit > 0 && (
                           <>
                             <p className="text-sm text-gray-400 line-through">
-                              {formatPrice(regularUnit, pkg.currency)}
+                              {money(regularUnit, pkg.currency)}
                             </p>
                             <p className="text-xs text-emerald-700 font-medium">
                               {t('public.packageItemSave', {
-                                amount: formatPrice(savingsUnit, pkg.currency),
+                                amount: money(savingsUnit, pkg.currency),
                               })}
                             </p>
                           </>
@@ -510,36 +512,36 @@ export function PackageCheckoutClient({
             <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
               <span className="font-semibold text-gray-900">{t('public.total')}</span>
               <span className="font-semibold text-gray-900">
-                {formatPrice(checkoutSubtotal, pkg.currency)}
+                {money(checkoutSubtotal, pkg.currency)}
               </span>
             </div>
             <div className="flex justify-between mt-2 text-sm text-gray-400">
               <span>{t('public.regularPrice')}</span>
-              <span className="line-through">{formatPrice(pkg.pricing.regularTotal, pkg.currency)}</span>
+              <span className="line-through">{money(pkg.pricing.regularTotal, pkg.currency)}</span>
             </div>
             {quote && hasDiscounts && (
               <div className="mt-3 space-y-1 text-sm">
                 {quote.promoDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
                     <span>{t('public.discountPromo')}</span>
-                    <span>-{formatPrice(quote.promoDiscount, pkg.currency)}</span>
+                    <span>-{money(quote.promoDiscount, pkg.currency)}</span>
                   </div>
                 )}
                 {quote.giftCardDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
                     <span>{t('public.discountGiftCard')}</span>
-                    <span>-{formatPrice(quote.giftCardDiscount, pkg.currency)}</span>
+                    <span>-{money(quote.giftCardDiscount, pkg.currency)}</span>
                   </div>
                 )}
                 {quote.loyaltyDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
                     <span>{t('public.discountLoyalty')}</span>
-                    <span>-{formatPrice(quote.loyaltyDiscount, pkg.currency)}</span>
+                    <span>-{money(quote.loyaltyDiscount, pkg.currency)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold text-gray-900 pt-1">
                   <span>{amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}</span>
-                  <span>{formatPrice(amountDue, pkg.currency)}</span>
+                  <span>{money(amountDue, pkg.currency)}</span>
                 </div>
               </div>
             )}
@@ -593,7 +595,7 @@ export function PackageCheckoutClient({
                 <p className="text-xs text-gray-500 mb-2">
                   {t('public.loyaltyBalance')
                     .replace('{points}', loyalty.pointsBalance.toFixed(2))
-                    .replace('{value}', formatPrice(loyalty.pointsValue, pkg.currency))}
+                    .replace('{value}', money(loyalty.pointsValue, pkg.currency))}
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -703,7 +705,7 @@ export function PackageCheckoutClient({
                 <span className="text-gray-500">
                   {amountDue <= 0 && hasDiscounts ? t('public.freeAfterDiscounts') : t('public.totalDue')}
                 </span>
-                <span className="font-semibold text-gray-900">{formatPrice(amountDue, pkg.currency)}</span>
+                <span className="font-semibold text-gray-900">{money(amountDue, pkg.currency)}</span>
               </div>
               <button
                 type="submit"

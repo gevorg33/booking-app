@@ -60,11 +60,16 @@ export class AiSettingsService {
     };
   }
 
-  async getSettings(businessId: string): Promise<AiSettings> {
+  async getBusinessRecord(businessId: string): Promise<Business> {
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });
     if (!business) throw new NotFoundException('Business not found');
+    return business;
+  }
+
+  async getSettings(businessId: string): Promise<AiSettings> {
+    const business = await this.getBusinessRecord(businessId);
     return this.mergeSettings(business.settings);
   }
 

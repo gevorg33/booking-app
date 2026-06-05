@@ -104,7 +104,9 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         </p>
       </div>
 
-      <ToggleChoice variant="dashboard"
+      <ToggleChoice
+        variant="dashboard"
+        layout="toggle-first"
         checked={form.customerSelfService.allowCancel}
         onChange={(allowCancel) =>
           setForm((prev) => ({
@@ -115,7 +117,9 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         label={t('settings.allowCustomerCancel')}
       />
 
-      <ToggleChoice variant="dashboard"
+      <ToggleChoice
+        variant="dashboard"
+        layout="toggle-first"
         checked={form.customerSelfService.allowReschedule}
         onChange={(allowReschedule) =>
           setForm((prev) => ({
@@ -164,7 +168,9 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
         />
       </label>
 
-      <ToggleChoice variant="dashboard"
+      <ToggleChoice
+        variant="dashboard"
+        layout="toggle-first"
         checked={form.customerSelfService.allowProviderChangeOnReschedule}
         onChange={(allowProviderChangeOnReschedule) =>
           setForm((prev) => ({

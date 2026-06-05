@@ -11,6 +11,7 @@ import {
   type PublicGiftCardType,
   type PublicService,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -21,13 +22,14 @@ interface GiftCardCatalogClientProps {
   services?: PublicService[];
 }
 
-const DEFAULT_CURRENCY = 'USD';
-
 export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: GiftCardCatalogClientProps) {
   const { t } = useI18n();
   const router = useRouter();
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const businessCurrency = tenant.currency;
   const settings = catalog.settings!;
+  const displayCurrency = (code?: string | null) =>
+    resolveTenantPriceCurrency(code, businessCurrency);
 
   const availableTypes = useMemo(() => {
     const types: PublicGiftCardType[] = [];
@@ -159,7 +161,7 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                         : 'border-gray-200 text-gray-700'
                     }`}
                   >
-                    {formatPrice(preset, DEFAULT_CURRENCY)}
+                    {formatPrice(preset, displayCurrency())}
                   </button>
                 ))}
               </div>
@@ -197,7 +199,7 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                             {serviceNameById.get(svc.serviceId) ?? svc.serviceId}
                           </p>
                           <p className="text-sm text-gray-500 mt-1">
-                            {formatPrice(price, DEFAULT_CURRENCY)}
+                            {formatPrice(price, displayCurrency())}
                           </p>
                         </div>
                         <span
@@ -218,7 +220,7 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                     {t('public.giftCards.selectedServices', { count: selectedServiceIds.length })}
                   </p>
                   <p className="text-gray-600 mt-1">
-                    {formatPrice(selectedServicesTotal, DEFAULT_CURRENCY)}
+                    {formatPrice(selectedServicesTotal, displayCurrency())}
                   </p>
                 </div>
               )}
@@ -251,10 +253,10 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                   <p className="font-medium text-gray-900">{pkg.name}</p>
                   <p className="text-sm text-gray-500 mt-1">{pkg.itemSummary}</p>
                   <p className="text-sm font-semibold text-gray-900 mt-2">
-                    {formatPrice(pkg.packagePrice, pkg.currency || DEFAULT_CURRENCY)}
+                    {formatPrice(pkg.packagePrice, displayCurrency(pkg.currency))}
                     {(pkg.regularTotal ?? 0) > pkg.packagePrice && (
                       <span className="text-gray-400 font-normal line-through ml-2">
-                        {formatPrice(pkg.regularTotal ?? 0, pkg.currency || DEFAULT_CURRENCY)}
+                        {formatPrice(pkg.regularTotal ?? 0, displayCurrency(pkg.currency))}
                       </span>
                     )}
                   </p>
@@ -296,17 +298,17 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                     {t('public.giftCards.subscriptionMonths')}
                   </p>
                   <p className="text-sm font-semibold text-gray-900 mt-2">
-                    {formatPrice(plan.subscriptionPrice, plan.currency || DEFAULT_CURRENCY)}
+                    {formatPrice(plan.subscriptionPrice, displayCurrency(plan.currency))}
                     {(plan.regularTotal ?? 0) > plan.subscriptionPrice && (
                       <span className="text-gray-400 font-normal line-through ml-2">
-                        {formatPrice(plan.regularTotal ?? 0, plan.currency || DEFAULT_CURRENCY)}
+                        {formatPrice(plan.regularTotal ?? 0, displayCurrency(plan.currency))}
                       </span>
                     )}
                   </p>
                   {(plan.savings ?? 0) > 0 && (
                     <p className="text-sm text-emerald-600 mt-1">
                       ({t('public.saveAmount', {
-                        amount: formatPrice(plan.savings ?? 0, plan.currency || DEFAULT_CURRENCY),
+                        amount: formatPrice(plan.savings ?? 0, displayCurrency(plan.currency)),
                       })})
                     </p>
                   )}
@@ -333,7 +335,7 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
                     {bundle.lines.map((l) => `${l.serviceName} × ${l.quantity}`).join(' · ')}
                   </p>
                   <p className="text-sm font-semibold text-gray-900 mt-2">
-                    {formatPrice(bundle.price, DEFAULT_CURRENCY)}
+                    {formatPrice(bundle.price, displayCurrency())}
                   </p>
                 </button>
               ))}

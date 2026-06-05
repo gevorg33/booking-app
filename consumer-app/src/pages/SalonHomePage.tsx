@@ -9,6 +9,8 @@ import {
 import { useHistory } from 'react-router-dom';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { ConsumerLanguagePicker } from '../components/ConsumerLanguagePicker.js';
+import { useConsumerLocale } from '../hooks/use-consumer-locale.js';
 
 export default function SalonHomePage({
   slug,
@@ -19,12 +21,22 @@ export default function SalonHomePage({
 }) {
   const history = useHistory();
   const logo = profile.branding.logoUrl;
+  const { locale, setConsumerLocale, enabledLocales, localeLabels } = useConsumerLocale(
+    slug,
+    profile,
+  );
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{profile.name}</IonTitle>
+          <ConsumerLanguagePicker
+            locale={locale}
+            enabledLocales={enabledLocales}
+            localeLabels={localeLabels}
+            onChange={setConsumerLocale}
+          />
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">

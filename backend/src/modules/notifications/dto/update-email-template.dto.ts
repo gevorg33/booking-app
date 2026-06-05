@@ -2,12 +2,47 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
 import type { NotificationEmailTemplateKey } from '../notification-email-template.types.js';
+
+export class EmailTemplateLocaleOverrideDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  subject?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  bodyText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  bodyHtml?: string;
+}
+
+export class EmailTemplateLocalesDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateLocaleOverrideDto)
+  en?: EmailTemplateLocaleOverrideDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateLocaleOverrideDto)
+  hy?: EmailTemplateLocaleOverrideDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateLocaleOverrideDto)
+  ru?: EmailTemplateLocaleOverrideDto;
+}
 
 export class UpdateEmailTemplateDto {
   @IsOptional()
@@ -28,6 +63,12 @@ export class UpdateEmailTemplateDto {
   @IsString()
   @MaxLength(50000)
   bodyHtml?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => EmailTemplateLocalesDto)
+  locales?: EmailTemplateLocalesDto;
 }
 
 export class CustomEmailVariableDto {

@@ -84,7 +84,10 @@ describe('Service localized names integration', () => {
   };
   const employeeRepo = { findOne: jest.fn() };
 
-  const categoryService = new ServiceCategoryService(categoryRepo as any);
+  const categoryService = new ServiceCategoryService(
+    categoryRepo as any,
+    businessRepo as any,
+  );
   const serviceService = new ServiceService(
     serviceRepo as any,
     categoryRepo as any,
@@ -104,6 +107,7 @@ describe('Service localized names integration', () => {
     {} as any,
     {} as any,
     subscriptionsService as any,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,
@@ -161,6 +165,55 @@ describe('Service localized names integration', () => {
     );
     expect(publicRu[0].name).toBe('Haircut');
     expect(publicRu[0].category?.name).toBe('Hair care');
+  });
+
+  it('strips disabled locale translations on service create', async () => {
+    business.settings = {
+      locale: 'en',
+      enabledLocales: ['en', 'hy'],
+      defaultLocale: 'en',
+      publicBooking: { enabled: true },
+    };
+
+    await serviceService.create('biz-1', {
+      name: 'Color',
+      durationMinutes: 60,
+      price: 80,
+      localizedNames: {
+        en: ['Color EN'],
+        hy: ['Color HY'],
+        ru: ['Color RU'],
+      },
+    });
+
+    const saved = services[0] as {
+      metadata?: { localizedNames?: Record<string, string[]> };
+    };
+    expect(saved.metadata?.localizedNames).toEqual({
+      en: ['Color EN'],
+      hy: ['Color HY'],
+    });
+  });
+
+  it('drops localized names for disabled locales on create', async () => {
+    business.settings = {
+      locale: 'en',
+      enabledLocales: ['en'],
+      defaultLocale: 'en',
+      publicBooking: { enabled: true },
+    };
+
+    await serviceService.create('biz-1', {
+      name: 'Only EN',
+      durationMinutes: 30,
+      price: 20,
+      localizedNames: { hy: ['Հայերեն'] },
+    });
+
+    const saved = services.at(-1) as {
+      metadata?: { localizedNames?: Record<string, string[]> };
+    };
+    expect(saved.metadata?.localizedNames).toBeUndefined();
   });
 
   it('uses business locale when public locale query is invalid', async () => {

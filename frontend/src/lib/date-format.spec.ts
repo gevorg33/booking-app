@@ -1,17 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   dateKeyToExpiresAtEndOfDay,
+  formatBookingDateTimeRange,
   formatDateDisplay,
   formatAppointmentDateLabel,
   formatDateKeyPublicLabel,
   formatDateKeyStripParts,
   formatNearestSlotDateLabel,
+  formatScheduleTime,
   formatScheduleTimeRange,
   formatWeekdayShortByDayIndex,
   getTodayDateKey,
   isExpiredAt,
   resolveDisplayLocale,
   resolveNearestSlotDateLabel,
+  setActiveBusinessDateFormats,
   toIntlLocale,
 } from './date-format';
 
@@ -77,6 +80,33 @@ describe('date-format locale helpers', () => {
         nearestDateLabel: 'today, 4 June, Thursday',
       }),
     ).toBe('today, 4 June, Thursday');
+  });
+});
+
+describe('date-format business settings', () => {
+  beforeEach(() => {
+    setActiveBusinessDateFormats(undefined, undefined);
+  });
+
+  it('uses active tenant date format instead of locale ordering', () => {
+    setActiveBusinessDateFormats('MM/DD/YYYY', '24h');
+    const d = new Date('2026-06-04T12:00:00.000Z');
+    expect(formatDateDisplay(d, 'en')).toBe('06/04/2026');
+    expect(formatDateDisplay(d, 'hy')).toBe('06/04/2026');
+  });
+
+  it('formats checkout slot labels in 12-hour business time', () => {
+    setActiveBusinessDateFormats('DD/MM/YYYY', '12h');
+    expect(formatScheduleTime('2026-06-04T15:30:00.000Z', 'en')).toMatch(
+      /3:30\s*PM/i,
+    );
+    expect(
+      formatBookingDateTimeRange(
+        '2026-06-04T10:00:00.000Z',
+        '2026-06-04T11:00:00.000Z',
+        'en',
+      ),
+    ).toMatch(/04\/06\/2026 · .*AM/i);
   });
 });
 

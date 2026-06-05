@@ -19,6 +19,7 @@ import { GetBookingsQueryDto } from './dto/get-bookings-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { withBookingPaymentSummary } from './booking-payment-summary.util.js';
+import { BookingPaymentService } from './booking-payment.service.js';
 import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 
 @Controller('businesses/:businessId/bookings')
@@ -26,6 +27,7 @@ export class BookingController {
   constructor(
     private bookingService: BookingService,
     private retailPosService: RetailPosService,
+    private bookingPaymentService: BookingPaymentService,
   ) {}
 
   @Get('availability')
@@ -36,14 +38,30 @@ export class BookingController {
     return this.bookingService.getAvailability(businessId, dto);
   }
 
+  @Post('quote')
+  @UseGuards(JwtAuthGuard)
+  quoteStaffBooking(
+    @Param('businessId') businessId: string,
+    @Body() dto: { serviceId: string },
+  ) {
+    return this.bookingPaymentService.resolveStaffBookingPricing(
+      businessId,
+      dto.serviceId,
+    );
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
+  async create(
     @Param('businessId') businessId: string,
     @Body() dto: CreateBookingDto,
     @CurrentUser() user: any,
   ) {
-    return this.bookingService.create(businessId, dto, user?.id);
+    const enriched = await this.bookingPaymentService.enrichStaffCreateDto(
+      businessId,
+      dto,
+    );
+    return this.bookingService.create(businessId, enriched, user?.id);
   }
 
   @Put(':id')
@@ -60,6 +78,8 @@ export class BookingController {
   findAll(
     @Param('businessId') businessId: string,
     @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('employeeId') employeeId?: string,
     @Query('includeHidden') includeHidden?: string,
   ) {
@@ -68,6 +88,8 @@ export class BookingController {
       date,
       employeeId,
       includeHidden === 'true',
+      startDate,
+      endDate,
     );
   }
 
@@ -76,8 +98,9 @@ export class BookingController {
   searchDashboard(
     @Param('businessId') businessId: string,
     @Query() query: GetBookingsQueryDto,
+    @CurrentUser() user: { id: string },
   ) {
-    return this.bookingService.searchDashboard(businessId, query);
+    return this.bookingService.searchDashboard(businessId, query, user.id);
   }
 
   @Get('upcoming')
@@ -86,11 +109,15 @@ export class BookingController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async findOne(
     @Param('businessId') businessId: string,
     @Param('id') id: string,
+    @CurrentUser() user: { id: string },
   ) {
-    const booking = await this.bookingService.findOne(id);
+    const booking = await this.bookingService.findOne(id, {
+      staffUserId: user.id,
+    });
     const checkout = await this.retailPosService.getBookingRetailSales(
       businessId,
       id,

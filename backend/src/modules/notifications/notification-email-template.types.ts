@@ -20,11 +20,23 @@ export interface TenantCustomEmailVariable {
   defaultValue: string;
 }
 
+export interface TenantEmailTemplateLocaleOverride {
+  subject?: string;
+  bodyText?: string;
+  bodyHtml?: string;
+}
+
 export interface TenantEmailTemplateOverride {
   enabled?: boolean;
   subject?: string;
   bodyText?: string;
   bodyHtml?: string;
+  locales?: Partial<
+    Record<
+      import('../../common/i18n/messages.js').AppLocale,
+      TenantEmailTemplateLocaleOverride
+    >
+  >;
 }
 
 export interface TenantEmailTemplatesSettings {
@@ -42,6 +54,12 @@ export interface NormalizedTenantEmailTemplatesSettings {
   >;
 }
 
+export interface ResolvedEmailTemplateLocaleContent {
+  subject: string;
+  bodyText: string;
+  bodyHtml: string;
+}
+
 export interface ResolvedEmailTemplate {
   key: NotificationEmailTemplateKey;
   label: string;
@@ -52,6 +70,12 @@ export interface ResolvedEmailTemplate {
   bodyText: string;
   bodyHtml: string;
   variables: NotificationEmailTemplateVariable[];
+  byLocale?: Partial<
+    Record<
+      import('../../common/i18n/messages.js').AppLocale,
+      ResolvedEmailTemplateLocaleContent
+    >
+  >;
 }
 
 export interface RenderedEmail {

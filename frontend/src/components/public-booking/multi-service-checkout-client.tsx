@@ -24,6 +24,7 @@ import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 import {
@@ -163,7 +164,12 @@ export function MultiServiceCheckoutClient({
   );
 
   const subtotal = sumMultiServicePrice(selectedServices);
-  const currency = selectedServices[0]?.currency ?? 'USD';
+  const currency = resolveTenantPriceCurrency(
+    selectedServices[0]?.currency,
+    tenant.currency,
+  );
+  const serviceCurrency = (code?: string | null) =>
+    resolveTenantPriceCurrency(code, tenant.currency);
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
   const totalDuration = sumMultiServiceDuration(selectedServices, turnover);
 
@@ -480,7 +486,7 @@ export function MultiServiceCheckoutClient({
                       )}
                     </div>
                     <p className="font-medium text-gray-900 shrink-0">
-                      {formatPrice(service.price, service.currency)}
+                      {formatPrice(service.price, serviceCurrency(service.currency))}
                     </p>
                   </li>
                 );
@@ -574,7 +580,7 @@ export function MultiServiceCheckoutClient({
                     </div>
                     <div className="flex items-start gap-2 shrink-0">
                       <p className="font-medium text-gray-900 pt-0.5">
-                        {formatPrice(service.price, service.currency)}
+                        {formatPrice(service.price, serviceCurrency(service.currency))}
                       </p>
                       <button
                         type="button"

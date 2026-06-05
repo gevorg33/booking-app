@@ -17,6 +17,7 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
+import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
@@ -28,6 +29,7 @@ import { PROVIDER_OPEN_BOOKING_EVENT } from '../lib/provider-push-deep-link.util
 export default function TodayPage() {
   const { t } = useI18n();
   const { business, user } = useAuthStore();
+  const { currency: businessCurrency } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const location = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,7 +128,7 @@ export default function TodayPage() {
             <IonCard key={b.id} button onClick={() => setSelectedId(b.id)}>
               <IonCardHeader>
                 <IonCardTitle className="appointment-block-title">
-                  {formatBookingBlockHeadline(b, t)}
+                  {formatBookingBlockHeadline({ ...b, businessCurrency }, t)}
                 </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>

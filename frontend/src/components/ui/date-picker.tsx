@@ -5,6 +5,12 @@ import { createPortal } from 'react-dom';
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import {
+  businessDateFormatPattern,
+  businessDateInputPlaceholder,
+  getActiveBusinessDateFormats,
+  parseBusinessDateToKey,
+} from '@/lib/business-date-format';
+import {
   formatDateDisplay,
   getTodayDateKey,
   parseDateKey,
@@ -33,6 +39,8 @@ export type DatePickerProps = {
   variant?: DatePickerVariant;
   accentColor?: string;
   clearable?: boolean;
+  allowTyping?: boolean;
+  showFormatHint?: boolean;
   'aria-label'?: string;
 };
 
@@ -115,16 +123,29 @@ export function DatePicker({
   variant = 'default',
   accentColor,
   clearable = false,
+  allowTyping: allowTypingProp = true,
+  showFormatHint = true,
   'aria-label': ariaLabel,
 }: DatePickerProps) {
+  const allowTyping = allowTypingProp && variant !== 'compact';
   const { t, locale } = useI18n();
   const autoId = useId();
   const id = idProp ?? autoId;
   const styles = variantStyles(variant);
   const todayKey = getTodayDateKey();
   const accent = accentColor ?? 'var(--tenant-primary, #2563eb)';
+  const { dateFormat } = getActiveBusinessDateFormats();
+  const formatPattern = businessDateFormatPattern(dateFormat);
+  const formatExample = businessDateInputPlaceholder(dateFormat);
+  const formatHint = t('datePicker.formatHint', {
+    format: formatPattern,
+    example: formatExample,
+  });
+  const invalidHint = t('datePicker.invalidDate', { format: formatPattern });
 
   const [open, setOpen] = useState(false);
+  const [typedValue, setTypedValue] = useState('');
+  const [typedInvalid, setTypedInvalid] = useState(false);
   const [viewMonthKey, setViewMonthKey] = useState(() =>
     value ? monthKeyFromDateKey(value) : monthKeyFromDateKey(todayKey),
   );
@@ -146,7 +167,30 @@ export function DatePicker({
 
   const displayValue = value
     ? formatDateDisplay(value, locale)
-    : placeholder ?? t('datePicker.selectDate');
+    : placeholder ?? formatExample;
+
+  useEffect(() => {
+    if (!allowTyping) return;
+    queueMicrotask(() => setTypedValue(value ? formatDateDisplay(value, locale) : ''));
+    queueMicrotask(() => setTypedInvalid(false));
+  }, [allowTyping, value, locale, dateFormat]);
+
+  const commitTypedValue = useCallback(() => {
+    const trimmed = typedValue.trim();
+    if (!trimmed) {
+      setTypedInvalid(false);
+      if (clearable) onChange('');
+      return;
+    }
+    const key = parseBusinessDateToKey(trimmed, dateFormat);
+    if (key) {
+      setTypedInvalid(false);
+      onChange(key);
+      setTypedValue(formatDateDisplay(key, locale));
+      return;
+    }
+    setTypedInvalid(true);
+  }, [clearable, dateFormat, locale, onChange, typedValue]);
 
   const updatePopoverPosition = useCallback(() => {
     const el = triggerRef.current;
@@ -318,30 +362,87 @@ export function DatePicker({
         )
       : null;
 
+  const calendarTrigger = (
+    <button
+      ref={triggerRef}
+      id={allowTyping ? undefined : id}
+      type="button"
+      disabled={disabled}
+      aria-required={required}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={ariaLabel ?? (allowTyping ? t('datePicker.openCalendar') : displayValue)}
+      onClick={() => {
+        if (disabled) return;
+        setOpen((v) => !v);
+      }}
+      className={
+        allowTyping
+          ? `inline-flex items-center justify-center rounded-xl border px-2.5 py-2 text-sm transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${styles.trigger}`
+          : `inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${styles.trigger} ${className}`
+      }
+    >
+      <Calendar className={`w-4 h-4 shrink-0 ${styles.icon}`} />
+      {!allowTyping ? (
+        <>
+          <span className={value ? '' : 'opacity-60'}>{displayValue}</span>
+          <ChevronDown
+            className={`w-4 h-4 shrink-0 transition-transform ${styles.chevron} ${open ? 'rotate-180' : ''}`}
+          />
+        </>
+      ) : null}
+    </button>
+  );
+
+  const field = allowTyping ? (
+    <div className={`flex flex-col gap-1 ${className}`}>
+      <div className="flex items-center gap-1.5">
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          disabled={disabled}
+          required={required}
+          aria-required={required}
+          aria-invalid={typedInvalid}
+          aria-describedby={showFormatHint ? `${id}-hint` : undefined}
+          placeholder={placeholder ?? formatExample}
+          value={typedValue}
+          onChange={(e) => {
+            setTypedValue(e.target.value);
+            if (typedInvalid) setTypedInvalid(false);
+          }}
+          onBlur={commitTypedValue}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitTypedValue();
+            }
+          }}
+          className={`min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${styles.trigger}`}
+        />
+        {calendarTrigger}
+      </div>
+      {showFormatHint ? (
+        <p id={`${id}-hint`} className={`text-xs ${styles.muted}`}>
+          {formatHint}
+        </p>
+      ) : null}
+      {typedInvalid ? (
+        <p className="text-xs text-red-500" role="alert">
+          {invalidHint}
+        </p>
+      ) : null}
+    </div>
+  ) : (
+    <div className={className}>{calendarTrigger}</div>
+  );
+
   return (
     <>
       {name ? <input type="hidden" name={name} value={value} /> : null}
-      <button
-        ref={triggerRef}
-        id={id}
-        type="button"
-        disabled={disabled}
-        aria-required={required}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel ?? displayValue}
-        onClick={() => {
-          if (disabled) return;
-          setOpen((v) => !v);
-        }}
-        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${styles.trigger} ${className}`}
-      >
-        <Calendar className={`w-4 h-4 shrink-0 ${styles.icon}`} />
-        <span className={value ? '' : 'opacity-60'}>{displayValue}</span>
-        <ChevronDown
-          className={`w-4 h-4 shrink-0 transition-transform ${styles.chevron} ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
+      {field}
       {popover}
     </>
   );

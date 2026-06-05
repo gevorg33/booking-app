@@ -49,6 +49,24 @@ import {
   isWallClockSlotBookable,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
+import { readBusinessDateFormatSettings } from '../../common/utils/business-date-format.util.js';
+import {
+  readBusinessTaxSettings,
+  toPublicBusinessTaxSettings,
+} from '../../common/utils/business-tax.util.js';
+import {
+  readBusinessPrivacySettings,
+  toPublicBusinessPrivacySettings,
+} from '../../common/utils/business-compliance.util.js';
+import {
+  getBusinessDefaultCurrency,
+  isStripeChargeCurrencySupported,
+} from '../../common/utils/business-currency.util.js';
+import {
+  getBusinessDefaultLocale,
+  getBusinessEnabledLocales,
+  resolveTenantLocale,
+} from '../../common/utils/business-locale.util.js';
 import {
   formatTimeDisplay,
   toIsoDay,
@@ -95,6 +113,26 @@ import {
   buildPublicAppointmentReminderSettings,
   mergeCustomerReminderChoiceSettings,
 } from '../notifications/appointment-reminder-settings.util.js';
+import {
+  buildClinicBookingMetadata,
+  clinicServiceAcceptsPatientNotes,
+  extractClinicMetadata,
+  formatClinicServiceTypeBadge,
+  isClinicService,
+} from '../../common/utils/clinic-service.util.js';
+import { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
+import {
+  buildTourBookingMetadata,
+  clampTourPaxCount,
+  extractTourMetadata,
+  formatTourDurationBadge,
+  isDayLevelTour,
+  multiplyTourPrice,
+  resolveRemainingTourSpots,
+  resolveTourDurationDays,
+  sumBookedTourPax,
+} from '../../common/utils/tour-service.util.js';
+import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -154,6 +192,27 @@ export interface PublicBusinessProfile {
   address?: string;
   timezone: string;
   locale: string;
+  defaultLocale: string;
+  enabledLocales: string[];
+  dateFormat: string;
+  timeFormat: string;
+  tax?: {
+    enabled: boolean;
+    name: string;
+    rate: number;
+    model: 'inclusive' | 'exclusive';
+    rules?: Array<{ name: string; rate: number }>;
+  };
+  privacy?: {
+    cookieBannerEnabled: boolean;
+    cookieBannerMessage?: string;
+    privacyPolicyVersion: string;
+    requireAiProcessingConsent: boolean;
+    requireThirdPartyIntegrationsConsent: boolean;
+    dataResidencyRegion: 'eu' | 'us' | 'other';
+  };
+  currency: string;
+  stripeCurrencySupported: boolean;
   branding: PublicBranding;
   social?: PublicSocialLinks;
   location?: PublicLocation;
@@ -271,6 +330,7 @@ export class PublicBookingService {
     private packagesService: ServicePackagesService,
     private multiServiceBookingsService: MultiServiceBookingsService,
     private notificationsService: NotificationsService,
+    private productRecommendationService: ProductRecommendationService,
     private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
@@ -338,6 +398,18 @@ export class PublicBookingService {
       messagingLinks.whatsappUrl ||
       messagingLinks.facebookBookingUrl ||
       messagingLinks.instagramBookingUrl;
+    const currency = getBusinessDefaultCurrency(
+      settings as Record<string, unknown>,
+    );
+    const { dateFormat, timeFormat } = readBusinessDateFormatSettings(
+      settings as Record<string, unknown>,
+    );
+    const tax = toPublicBusinessTaxSettings(
+      readBusinessTaxSettings(settings as Record<string, unknown>),
+    );
+    const privacy = toPublicBusinessPrivacySettings(
+      readBusinessPrivacySettings(settings as Record<string, unknown>),
+    );
 
     return {
       id: business.id,
@@ -364,7 +436,19 @@ export class PublicBookingService {
         'address',
       ),
       timezone: business.timezone,
-      locale: settings.locale || 'en',
+      locale: getBusinessDefaultLocale(settings as Record<string, unknown>),
+      defaultLocale: getBusinessDefaultLocale(
+        settings as Record<string, unknown>,
+      ),
+      enabledLocales: getBusinessEnabledLocales(
+        settings as Record<string, unknown>,
+      ),
+      dateFormat,
+      timeFormat,
+      ...(tax ? { tax } : {}),
+      privacy,
+      currency,
+      stripeCurrencySupported: isStripeChargeCurrencySupported(currency),
       branding: {
         logoUrl: this.resolvePublicMediaUrl(branding.logoUrl),
         primaryColor: branding.primaryColor || '#7c3aed',
@@ -468,6 +552,11 @@ export class PublicBookingService {
       ? extractLocalizedNamesFromMetadata(service.category.metadata)
       : undefined;
 
+    const tour = extractTourMetadata(service.metadata);
+    const isTour = tour !== null;
+    const clinic = extractClinicMetadata(service.metadata);
+    const isClinic = clinic !== null;
+
     return {
       id: service.id,
       name: resolveLocalizedDisplayName(
@@ -496,6 +585,28 @@ export class PublicBookingService {
             sortOrder: service.category.sortOrder,
           }
         : null,
+      isTour,
+      tourDurationBadge: isTour ? formatTourDurationBadge(service) : undefined,
+      coverImage: tour?.coverImage
+        ? this.resolvePublicMediaUrl(tour.coverImage)
+        : undefined,
+      maxGroupSize: tour?.maxGroupSize,
+      difficulty: tour?.difficulty,
+      meetingPoint: tour?.meetingPoint,
+      includedItems: tour?.includedItems,
+      durationDays:
+        tour?.durationDays ??
+        (isTour ? resolveTourDurationDays(service) : undefined),
+      dayLevelBooking: isTour ? isDayLevelTour(service) : false,
+      pricePerPerson: isTour,
+      isClinic,
+      clinicServiceType: clinic?.serviceType,
+      clinicServiceTypeBadge: clinic
+        ? formatClinicServiceTypeBadge(clinic.serviceType)
+        : undefined,
+      requiresFasting: clinic?.requiresFasting,
+      preparationNotes: clinic?.preparationNotes,
+      acceptsPatientNotes: clinicServiceAcceptsPatientNotes(service.metadata),
     };
   }
 
@@ -520,8 +631,10 @@ export class PublicBookingService {
     business: Business,
     preferred?: string | null,
   ): AppLocale {
-    const settings = (business.settings ?? {}) as { locale?: string };
-    return resolveLocale(preferred, resolveLocale(settings.locale, 'en'));
+    return resolveTenantLocale(
+      preferred,
+      business.settings as Record<string, unknown> | undefined,
+    );
   }
 
   async getProfile(
@@ -534,6 +647,46 @@ export class PublicBookingService {
       preferredLocale,
     );
     return this.toPublicProfile(business, displayLocale);
+  }
+
+  async getCheckoutRecommendations(
+    slug: string,
+    serviceId?: string,
+    categoryId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const products =
+      await this.productRecommendationService.getCheckoutRecommendations(
+        business,
+        serviceId,
+        categoryId,
+      );
+    return {
+      products: products.map((product) => ({
+        ...product,
+        imageUrl: this.resolvePublicMediaUrl(product.imageUrl),
+      })),
+    };
+  }
+
+  async recordCheckoutRecommendationEvent(
+    slug: string,
+    input: {
+      event: 'shown' | 'clicked';
+      productId: string;
+      serviceId?: string;
+      categoryId?: string;
+      bookingId?: string;
+      surface?: string;
+    },
+  ): Promise<{ recorded: boolean }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.productRecommendationService.recordRecommendationEvent(
+      business,
+      input,
+    );
   }
 
   async getProviders(
@@ -891,16 +1044,62 @@ export class PublicBookingService {
       }
     }
 
-    const slots = [...slotMap.values()].sort((a, b) =>
+    let slots = [...slotMap.values()].sort((a, b) =>
       a.startTime.localeCompare(b.startTime),
     );
+
+    if (isDayLevelTour(service) && slots.length > 0) {
+      slots = [slots[0]];
+    }
+
+    const tour = extractTourMetadata(service.metadata);
+    let remainingSpots: number | null = null;
+    if (tour?.maxGroupSize) {
+      const bookedPax = await this.countTourPaxForDate(
+        business.id,
+        service.id,
+        date,
+      );
+      remainingSpots = resolveRemainingTourSpots(tour.maxGroupSize, bookedPax);
+      if (remainingSpots === 0) {
+        slots = [];
+      }
+    }
 
     return {
       date,
       serviceId: service.id,
       serviceName: service.name,
       slots,
+      ...(remainingSpots != null ? { remainingSpots } : {}),
     };
+  }
+
+  private async countTourPaxForDate(
+    businessId: string,
+    serviceId: string,
+    dateKey: string,
+  ): Promise<number> {
+    const dayStart = new Date(`${dateKey}T00:00:00.000Z`);
+    const dayEnd = new Date(`${dateKey}T23:59:59.999Z`);
+    const bookings = await this.bookingRepo.find({
+      where: {
+        businessId,
+        serviceId,
+        status: In([
+          BookingStatus.PENDING,
+          BookingStatus.CONFIRMED,
+          BookingStatus.IN_PROGRESS,
+        ]),
+      },
+    });
+    const overlapping = bookings.filter((booking) => {
+      const tourDate = (booking.metadata as Record<string, unknown> | undefined)
+        ?.tourStartDate;
+      if (typeof tourDate === 'string') return tourDate === dateKey;
+      return booking.startTime <= dayEnd && booking.endTime >= dayStart;
+    });
+    return sumBookedTourPax(overlapping);
   }
 
   async resolveEmployeeForServiceSlot(
@@ -1237,18 +1436,28 @@ export class PublicBookingService {
     contact: CreatePublicBookingDto['customer'],
     authenticatedCustomerId?: string,
   ) {
+    const business = await this.businessService.findOne(businessId);
+    const businessSettings = business.settings as
+      | Record<string, unknown>
+      | undefined;
     if (!authenticatedCustomerId) {
-      return this.customerService.findOrCreateByContact(businessId, {
-        name: contact.name,
-        email: contact.email,
-        phone: contact.phone,
-        emailReminders: contact.emailReminders,
-        smsReminders: contact.smsReminders,
-        whatsappReminders: contact.whatsappReminders,
-        privacyConsentAccepted: contact.privacyConsentAccepted,
-        marketingOptIn: contact.marketingOptIn,
-        registrationSource: 'web_booking',
-      });
+      return this.customerService.findOrCreateByContact(
+        businessId,
+        {
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+          emailReminders: contact.emailReminders,
+          smsReminders: contact.smsReminders,
+          whatsappReminders: contact.whatsappReminders,
+          privacyConsentAccepted: contact.privacyConsentAccepted,
+          marketingOptIn: contact.marketingOptIn,
+          aiProcessingOptIn: contact.aiProcessingOptIn,
+          thirdPartyIntegrationsOptIn: contact.thirdPartyIntegrationsOptIn,
+          registrationSource: 'web_booking',
+        },
+        businessSettings,
+      );
     }
 
     const customer = await this.customerService.findOne(
@@ -1258,14 +1467,18 @@ export class PublicBookingService {
       throw new UnauthorizedException('Customer session expired');
     }
 
-    const saved = await this.customerService.findOrCreateByContact(businessId, {
-      name: contact.name?.trim() || customer.name,
-      email: customer.email ?? contact.email,
-      phone: contact.phone?.trim() || customer.phone,
-      emailReminders: contact.emailReminders,
-      smsReminders: contact.smsReminders,
-      whatsappReminders: contact.whatsappReminders,
-    });
+    const saved = await this.customerService.findOrCreateByContact(
+      businessId,
+      {
+        name: contact.name?.trim() || customer.name,
+        email: customer.email ?? contact.email,
+        phone: contact.phone?.trim() || customer.phone,
+        emailReminders: contact.emailReminders,
+        smsReminders: contact.smsReminders,
+        whatsappReminders: contact.whatsappReminders,
+      },
+      businessSettings,
+    );
 
     if (saved.customer.id !== customer.id) {
       throw new BadRequestException(
@@ -1327,25 +1540,29 @@ export class PublicBookingService {
     );
   }
 
-  async getPublicPackages(slug: string) {
+  async getPublicPackages(slug: string, locale?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
     const packages = await this.packagesService.listPublicPackages(
       business.id,
       graceHours,
+      displayLocale,
     );
     return { packages };
   }
 
-  async getPublicPackage(slug: string, packageId: string) {
+  async getPublicPackage(slug: string, packageId: string, locale?: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const graceHours = resolvePackageCheckoutGraceHours(business.settings);
+    const displayLocale = this.resolvePublicDisplayLocale(business, locale);
     const pkg = await this.packagesService.getPublicPackage(
       business.id,
       packageId,
       graceHours,
+      displayLocale,
     );
     return { package: pkg };
   }
@@ -1514,12 +1731,17 @@ export class PublicBookingService {
       throw new BadRequestException('That time block is no longer available');
     }
 
-    const pricing =
+    const recalculatedPricing =
       await this.bookingPaymentService.resolvePackageCheckoutPricing(
         business.id,
         dto.packageId,
         dto,
         authenticatedCustomerId,
+      );
+    const pricing =
+      this.bookingPaymentService.resolveFulfillmentCheckoutPricing(
+        recalculatedPricing,
+        dto.metadata?.checkoutPricing,
       );
 
     const paymentsReady = this.stripeIntegrationService.isConnectReady(
@@ -1536,14 +1758,14 @@ export class PublicBookingService {
       dto.customer,
       authenticatedCustomerId,
     );
+    const pricingMeta = this.bookingPaymentService.pricingMetadata(pricing);
 
-    const preview = this.packagesService.previewFromPackage(pkg);
     const purchase = await this.packagesService.createPackagePurchase(
       business.id,
       pkg.id,
       customer.id,
       pricing.amountDue,
-      preview.currency,
+      pricing.currency,
     );
 
     const paymentStatus = dto.markPaid
@@ -1551,7 +1773,7 @@ export class PublicBookingService {
       : PaymentStatus.NOT_APPLICABLE;
     const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
     const sameVisitMultiService = dto.lines.length > 1;
-    for (const line of dto.lines) {
+    for (const [index, line] of dto.lines.entries()) {
       const booking = await this.bookingService.create(
         business.id,
         {
@@ -1566,6 +1788,7 @@ export class PublicBookingService {
             packageId: pkg.id,
             packageName: pkg.name,
             packagePurchaseId: purchase.id,
+            ...(index === 0 ? pricingMeta : {}),
             ...this.resolvePublicBookingReminderMetadata(
               business,
               dto.customer,
@@ -1930,12 +2153,17 @@ export class PublicBookingService {
       dto.serviceIds,
     );
 
-    const pricing =
+    const recalculatedPricing =
       await this.bookingPaymentService.resolveMultiServiceCheckoutPricing(
         business.id,
         dto.serviceIds,
         dto,
         authenticatedCustomerId,
+      );
+    const pricing =
+      this.bookingPaymentService.resolveFulfillmentCheckoutPricing(
+        recalculatedPricing,
+        dto.metadata?.checkoutPricing,
       );
 
     const paymentsReady = this.stripeIntegrationService.isConnectReady(
@@ -1952,6 +2180,7 @@ export class PublicBookingService {
       dto.customer,
       authenticatedCustomerId,
     );
+    const pricingMeta = this.bookingPaymentService.pricingMetadata(pricing);
 
     let appointments: Array<{
       serviceId: string;
@@ -2056,6 +2285,7 @@ export class PublicBookingService {
         serviceIds: dto.serviceIds,
         serviceNames,
         schedulingMode: settings.schedulingMode,
+        ...pricingMeta,
       },
     });
 
@@ -2066,7 +2296,7 @@ export class PublicBookingService {
     const sameVisitMultiService =
       settings.schedulingMode === 'same_visit' && appointments.length > 1;
 
-    for (const appt of appointments) {
+    for (const [index, appt] of appointments.entries()) {
       const booking = await this.bookingService.create(
         business.id,
         {
@@ -2081,6 +2311,7 @@ export class PublicBookingService {
             multiServiceGroupId: group.id,
             groupLabel: serviceNames.join(' + '),
             schedulingMode: settings.schedulingMode,
+            ...(index === 0 ? pricingMeta : {}),
             ...this.resolvePublicBookingReminderMetadata(
               business,
               dto.customer,
@@ -2377,6 +2608,32 @@ export class PublicBookingService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
+    const tourMeta = extractTourMetadata(service.metadata);
+    const isTour = tourMeta !== null;
+    const paxCount = isTour
+      ? clampTourPaxCount(dto.paxCount, tourMeta?.maxGroupSize)
+      : 1;
+
+    if (isTour && tourMeta?.maxGroupSize) {
+      const dateKey = dto.startTime.slice(0, 10);
+      const bookedPax = await this.countTourPaxForDate(
+        business.id,
+        service.id,
+        dateKey,
+      );
+      const remaining = resolveRemainingTourSpots(
+        tourMeta.maxGroupSize,
+        bookedPax,
+      );
+      if (remaining != null && paxCount > remaining) {
+        throw new BadRequestException(
+          remaining === 0
+            ? 'This tour date is fully booked'
+            : `Only ${remaining} spot${remaining === 1 ? '' : 's'} remaining for this tour date`,
+        );
+      }
+    }
+
     const paymentsReady = this.stripeIntegrationService.isConnectReady(
       business.settings,
     );
@@ -2385,12 +2642,18 @@ export class PublicBookingService {
 
     let useSubscriptionId = dto.useSubscriptionId;
 
-    const pricing = await this.bookingPaymentService.resolveCheckoutPricing(
-      business.id,
-      service,
-      dto,
-      authenticatedCustomerId,
-    );
+    const recalculatedPricing =
+      await this.bookingPaymentService.resolveCheckoutPricing(
+        business.id,
+        service,
+        { ...dto, paxCount: isTour ? paxCount : dto.paxCount },
+        authenticatedCustomerId,
+      );
+    const pricing =
+      this.bookingPaymentService.resolveFulfillmentCheckoutPricing(
+        recalculatedPricing,
+        dto.metadata?.checkoutPricing,
+      );
 
     const subscriptionCoversVisit = Boolean(useSubscriptionId);
     if (
@@ -2493,6 +2756,23 @@ export class PublicBookingService {
           ? PaymentStatus.PENDING
           : resolveCheckoutPaymentStatus(pricing);
 
+    const isClinic = isClinicService(service.metadata);
+    const tourBookingMeta = isTour
+      ? buildTourBookingMetadata({
+          paxCount,
+          startTime: new Date(dto.startTime),
+          durationMinutes: service.durationMinutes,
+          durationDays: tourMeta?.durationDays,
+          specialRequirements: dto.notes,
+        })
+      : {};
+    const clinicBookingMeta = isClinic
+      ? buildClinicBookingMetadata({
+          referralNotes: dto.referralNotes,
+          symptoms: dto.symptoms,
+        })
+      : {};
+
     const booking = await this.bookingService.create(
       business.id,
       {
@@ -2509,6 +2789,11 @@ export class PublicBookingService {
           ...(dto.purchasePlanId ? { purchasePlanId: dto.purchasePlanId } : {}),
           ...(wantsCash ? { paymentMethod: 'cash', payAtVenue: true } : {}),
           ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
+          ...tourBookingMeta,
+          ...clinicBookingMeta,
+          ...(isTour
+            ? { pricePerPerson: Number(service.price), paxCount }
+            : {}),
         },
       },
       undefined,

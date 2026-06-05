@@ -42,7 +42,9 @@ export function CustomerReminderSettingsPanel({
 
   return (
     <div className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-2 space-y-3">
-      <ToggleChoice variant="dashboard"
+      <ToggleChoice
+        variant="dashboard"
+        layout="toggle-first"
         checked={enabled}
         onChange={(allowCustomerReminderChoice) =>
           onChange({

@@ -17,6 +17,7 @@ import { ToggleChoice } from '@/components/ui/radio-choice';
 import { promptDialog } from '@/lib/app-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import { toast } from 'sonner';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -102,6 +103,7 @@ interface GiftCardSettings {
 
 export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
   const { t, locale } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<GiftCardSubTab>('orders');
   const [amount, setAmount] = useState('50');
@@ -813,7 +815,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
                       <tr key={card.id} className="border-b border-gray-800/80">
                         <td className="px-4 py-3 font-mono">{card.code}</td>
                         <td className="px-4 py-3">
-                          {Number(card.balance).toFixed(2)} {card.currency}
+                          {formatMoney(card.balance, card.currency)}
                         </td>
                         <td className="px-4 py-3 capitalize">{card.cardType ?? 'monetary'}</td>
                         <td className="px-4 py-3 text-gray-400">

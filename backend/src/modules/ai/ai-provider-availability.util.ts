@@ -49,7 +49,7 @@ export function buildCheckProvidersSummary(input: {
     ...input.providers.map((provider) => {
       const times = provider.previewTimes?.length
         ? provider.previewTimes.join(', ')
-        : provider.earliestStartTime ?? 'open';
+        : (provider.earliestStartTime ?? 'open');
       const role = provider.role ? ` (${provider.role})` : '';
       return `• ${provider.name}${role} — ${times}`;
     }),

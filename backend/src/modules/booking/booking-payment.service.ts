@@ -16,6 +16,7 @@ import { StripeIntegrationService } from '../billing/stripe-integration.service.
 import { CustomerService } from '../customer/customer.service.js';
 import { BookingService } from './booking.service.js';
 import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto.js';
+import { CreateBookingDto } from './dto/create-booking.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
@@ -25,11 +26,29 @@ import { resolveEarnPercentForService } from '../loyalty/loyalty-settings.util.j
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import {
+  businessTaxIsActive,
+  readBusinessTaxSettings,
+  readServiceTaxRatePercent,
+} from '../../common/utils/business-tax.util.js';
+import {
+  buildStripeTaxMetadata,
+  mergeStripeCheckoutMetadata,
+  resolveFulfillmentCheckoutPricing,
+  resolveStripeChargeAmount,
+  resolveStripeChargeAmountCents,
+} from '../../common/utils/booking-payment-stripe-tax.util.js';
+import {
+  isTourService,
+  multiplyTourPrice,
+} from '../../common/utils/tour-service.util.js';
+import type { CheckoutTaxInput } from '../promo-codes/checkout-pricing.types.js';
+import {
   resolvePublicCheckoutKind,
   buildSubscriptionLineItem,
   buildPackageLineItem,
   buildMultiServiceLineItem,
 } from '../../common/utils/subscription-checkout.util.js';
+import { resolvePriceCurrency } from '../../common/utils/business-currency.util.js';
 import {
   BookPublicPackageDto,
   BookPublicMultiServiceDto,
@@ -95,6 +114,13 @@ export class BookingPaymentService {
     );
   }
 
+  resolveFulfillmentCheckoutPricing(
+    recalculated: CheckoutPricingResult,
+    frozen?: unknown,
+  ): CheckoutPricingResult {
+    return resolveFulfillmentCheckoutPricing(recalculated, frozen);
+  }
+
   pricingMetadata(pricing: CheckoutPricingResult) {
     return {
       pricing: {
@@ -112,9 +138,45 @@ export class BookingPaymentService {
         giftCardId: pricing.giftCardId ?? null,
         pointsToEarn: pricing.pointsToEarn,
         adjustments: pricing.adjustments,
+        ...(pricing.taxEnabled
+          ? {
+              taxEnabled: true,
+              taxName: pricing.taxName ?? null,
+              taxRate: pricing.taxRate ?? null,
+              taxModel: pricing.taxModel ?? null,
+              taxAmount: pricing.taxAmount ?? 0,
+              netAmount: pricing.netAmount ?? null,
+              ...(pricing.taxRules?.length
+                ? { taxRules: pricing.taxRules }
+                : {}),
+            }
+          : {}),
       },
       amountPaid: pricing.amountDue,
       cashPaidEligible: pricing.amountDue,
+    };
+  }
+
+  private buildStripePaidCheckoutContext(pricing: CheckoutPricingResult) {
+    const amount = resolveStripeChargeAmount(pricing);
+    const amountCents = resolveStripeChargeAmountCents(pricing);
+    const taxMetadata = buildStripeTaxMetadata(pricing);
+    return { amount, amountCents, taxMetadata };
+  }
+
+  private buildTaxCheckoutInput(
+    businessSettings?: Record<string, unknown>,
+    serviceMetadata?: Record<string, unknown> | null,
+  ): CheckoutTaxInput | undefined {
+    const tax = readBusinessTaxSettings(businessSettings);
+    if (!businessTaxIsActive(tax)) return undefined;
+    return {
+      enabled: true,
+      name: tax.name,
+      rate: tax.rate,
+      model: tax.model,
+      serviceRatePercent: readServiceTaxRatePercent(serviceMetadata),
+      ...(tax.rules?.length ? { rules: tax.rules } : {}),
     };
   }
 
@@ -144,6 +206,9 @@ export class BookingPaymentService {
       earnPercentCashback: resolveEarnPercentForService(
         business?.settings,
         packageId,
+      ),
+      tax: this.buildTaxCheckoutInput(
+        business?.settings as Record<string, unknown> | undefined,
       ),
     });
   }
@@ -219,6 +284,7 @@ export class BookingPaymentService {
       packageId: dto.packageId,
     });
 
+    const stripeCheckout = this.buildStripePaidCheckoutContext(pricing);
     const [sessionParams, connectOpts] =
       this.stripeService.connectCheckoutSessionCreate(
         connectAccountId,
@@ -229,7 +295,7 @@ export class BookingPaymentService {
             {
               price_data: {
                 currency: preview.currency.toLowerCase(),
-                unit_amount: Math.round(pricing.amountDue * 100),
+                unit_amount: stripeCheckout.amountCents,
                 product_data: {
                   name: line.name,
                   description: line.description,
@@ -238,19 +304,23 @@ export class BookingPaymentService {
               quantity: 1,
             },
           ],
-          metadata: {
-            type: 'booking_payment',
-            draftId: draft.id,
-            businessId: business.id,
-            slug,
-            connectAccountId,
-            checkoutKind: 'package_purchase',
-          },
+          metadata: mergeStripeCheckoutMetadata(
+            {
+              type: 'booking_payment',
+              draftId: draft.id,
+              businessId: business.id,
+              slug,
+              connectAccountId,
+              checkoutKind: 'package_purchase',
+            },
+            pricing,
+          ),
           success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
         },
         business.settings,
-        Math.round(pricing.amountDue * 100),
+        stripeCheckout.amountCents,
+        stripeCheckout.taxMetadata,
       );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -421,6 +491,9 @@ export class BookingPaymentService {
         serviceIds[0],
       ),
       serviceLineItems,
+      tax: this.buildTaxCheckoutInput(
+        business?.settings as Record<string, unknown> | undefined,
+      ),
     });
   }
 
@@ -495,6 +568,7 @@ export class BookingPaymentService {
       services: dto.serviceIds.join(','),
     });
 
+    const stripeCheckout = this.buildStripePaidCheckoutContext(pricing);
     const [sessionParams, connectOpts] =
       this.stripeService.connectCheckoutSessionCreate(
         connectAccountId,
@@ -505,7 +579,7 @@ export class BookingPaymentService {
             {
               price_data: {
                 currency: preview.totals!.currency.toLowerCase(),
-                unit_amount: Math.round(pricing.amountDue * 100),
+                unit_amount: stripeCheckout.amountCents,
                 product_data: {
                   name: line.name,
                   description: line.description,
@@ -514,19 +588,23 @@ export class BookingPaymentService {
               quantity: 1,
             },
           ],
-          metadata: {
-            type: 'booking_payment',
-            draftId: draft.id,
-            businessId: business.id,
-            slug,
-            connectAccountId,
-            checkoutKind: 'multi_service_booking',
-          },
+          metadata: mergeStripeCheckoutMetadata(
+            {
+              type: 'booking_payment',
+              draftId: draft.id,
+              businessId: business.id,
+              slug,
+              connectAccountId,
+              checkoutKind: 'multi_service_booking',
+            },
+            pricing,
+          ),
           success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
         },
         business.settings,
-        Math.round(pricing.amountDue * 100),
+        stripeCheckout.amountCents,
+        stripeCheckout.taxMetadata,
       );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -546,6 +624,59 @@ export class BookingPaymentService {
       sessionId: session.id,
       amount: pricing.amountDue,
       currency: preview.totals!.currency,
+    };
+  }
+
+  async resolveStaffBookingPricing(businessId: string, serviceId: string) {
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const servicePrice = Number(service.price);
+    return this.checkoutPricingService.calculate({
+      businessId,
+      servicePrice,
+      prepaymentAmount: servicePrice,
+      currency: resolvePriceCurrency(
+        service.currency,
+        business?.settings as Record<string, unknown> | undefined,
+      ),
+      tax: this.buildTaxCheckoutInput(
+        business?.settings as Record<string, unknown> | undefined,
+        service.metadata,
+      ),
+    });
+  }
+
+  async enrichStaffCreateDto(
+    businessId: string,
+    dto: CreateBookingDto,
+  ): Promise<CreateBookingDto> {
+    if (
+      dto.metadata?.pricing ||
+      dto.useSubscriptionId ||
+      dto.packagePurchaseId ||
+      dto.multiServiceGroupId
+    ) {
+      return dto;
+    }
+
+    const pricing = await this.resolveStaffBookingPricing(
+      businessId,
+      dto.serviceId,
+    );
+    return {
+      ...dto,
+      metadata: {
+        ...(dto.metadata || {}),
+        source: 'dashboard_booking',
+        ...this.pricingMetadata(pricing),
+      },
     };
   }
 
@@ -571,15 +702,30 @@ export class BookingPaymentService {
       servicePrice = planCheckout.amount;
     } else {
       const prepaymentAmount = this.calculatePrepaymentAmount(service);
-      chargeBase =
+      const unitPrice =
         prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+      chargeBase = multiplyTourPrice(
+        unitPrice,
+        dto.paxCount ?? 1,
+        isTourService(service.metadata),
+      );
+      if (isTourService(service.metadata) && dto.paxCount && dto.paxCount > 1) {
+        servicePrice = multiplyTourPrice(
+          Number(service.price),
+          dto.paxCount,
+          true,
+        );
+      }
     }
 
     return this.checkoutPricingService.calculate({
       businessId,
       servicePrice,
       prepaymentAmount: chargeBase,
-      currency: service.currency || 'USD',
+      currency: resolvePriceCurrency(
+        service.currency,
+        business?.settings as Record<string, unknown> | undefined,
+      ),
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
@@ -588,6 +734,10 @@ export class BookingPaymentService {
         service.id,
       ),
       serviceLineItems: [{ serviceId: service.id, amount: chargeBase }],
+      tax: this.buildTaxCheckoutInput(
+        business?.settings as Record<string, unknown> | undefined,
+        service.metadata,
+      ),
     });
   }
 
@@ -638,7 +788,10 @@ export class BookingPaymentService {
       );
     }
 
-    let currency = service.currency || 'USD';
+    let currency = resolvePriceCurrency(
+      service.currency,
+      business.settings as Record<string, unknown> | undefined,
+    );
     let lineItemName = service.name;
     let lineItemDescription =
       service.prepaymentMode === PrepaymentMode.DEPOSIT
@@ -665,7 +818,8 @@ export class BookingPaymentService {
       );
     }
 
-    const amount = pricing.amountDue;
+    const stripeCheckout = this.buildStripePaidCheckoutContext(pricing);
+    const amount = stripeCheckout.amount;
 
     if (!dto.customer.email && !dto.customer.phone) {
       throw new BadRequestException('Email or phone number is required');
@@ -715,7 +869,7 @@ export class BookingPaymentService {
             {
               price_data: {
                 currency: currency.toLowerCase(),
-                unit_amount: Math.round(amount * 100),
+                unit_amount: stripeCheckout.amountCents,
                 product_data: {
                   name: lineItemName,
                   description: lineItemDescription,
@@ -724,19 +878,23 @@ export class BookingPaymentService {
               quantity: 1,
             },
           ],
-          metadata: {
-            type: 'booking_payment',
-            draftId: draft.id,
-            businessId: business.id,
-            slug,
-            connectAccountId,
-            checkoutKind,
-          },
+          metadata: mergeStripeCheckoutMetadata(
+            {
+              type: 'booking_payment',
+              draftId: draft.id,
+              businessId: business.id,
+              slug,
+              connectAccountId,
+              checkoutKind,
+            },
+            pricing,
+          ),
           success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
         },
         business.settings,
-        Math.round(amount * 100),
+        stripeCheckout.amountCents,
+        stripeCheckout.taxMetadata,
       );
 
     const session = await this.stripeService.client.checkout.sessions.create(
@@ -755,7 +913,7 @@ export class BookingPaymentService {
       url: session.url,
       sessionId: session.id,
       amount,
-      currency: service.currency || 'USD',
+      currency,
     };
   }
 

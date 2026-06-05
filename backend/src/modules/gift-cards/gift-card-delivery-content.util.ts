@@ -1,3 +1,10 @@
+import type { AppLocale } from '../../common/i18n/messages.js';
+import { getBusinessDefaultLocale } from '../../common/utils/business-locale.util.js';
+import {
+  formatGiftCardBalanceLine,
+  formatGiftCardPurchaseLine,
+} from '../../common/utils/notification-currency.util.js';
+import { formatNotificationExpiresLabel } from '../../common/utils/notification-date-format.util.js';
 import type { GiftCard } from './entities/gift-card.entity.js';
 import type { GiftCardType } from './gift-card.types.js';
 import { renderBusinessEmailTemplate } from '../notifications/notification-email-template.util.js';
@@ -34,11 +41,25 @@ const CARD_TYPE_LABEL: Record<GiftCardType, string> = {
   subscription: 'Subscription gift card',
 };
 
-export function describeGiftCardValue(card: GiftCard): string[] {
+export function describeGiftCardValue(
+  card: GiftCard,
+  locale?: AppLocale,
+): string[] {
+  const businessSettings = card.business?.settings as
+    | Record<string, unknown>
+    | undefined;
+  const resolvedLocale = locale ?? getBusinessDefaultLocale(businessSettings);
   const lines: string[] = [CARD_TYPE_LABEL[card.cardType] ?? 'Gift card'];
 
   if (card.cardType === 'monetary') {
-    lines.push(`Balance: ${card.currency} ${Number(card.balance).toFixed(2)}`);
+    lines.push(
+      formatGiftCardBalanceLine(
+        card.balance,
+        card.currency,
+        businessSettings,
+        resolvedLocale,
+      ),
+    );
   } else if (card.cardType === 'package' || card.cardType === 'subscription') {
     lines.push('Redeem this code in your account to activate your gift.');
   } else {
@@ -49,7 +70,9 @@ export function describeGiftCardValue(card: GiftCard): string[] {
   }
 
   if (card.expiresAt) {
-    lines.push(`Expires: ${card.expiresAt.toISOString().slice(0, 10)}`);
+    lines.push(
+      `Expires: ${formatNotificationExpiresLabel(card.expiresAt, businessSettings, resolvedLocale)}`,
+    );
   }
 
   return lines;
@@ -192,6 +215,20 @@ export function buildPurchaserReceiptEmail(
   links: PublicBookingLinks | null,
 ): { subject: string; text: string; html: string } | null {
   const businessName = card.business?.name ?? 'the business';
+  const businessSettings = card.business?.settings as
+    | Record<string, unknown>
+    | undefined;
+  const locale = getBusinessDefaultLocale(businessSettings);
+  const purchaseLine = formatGiftCardPurchaseLine(
+    card.purchaseAmount,
+    card.currency,
+    businessSettings,
+    locale,
+  );
+  const purchaseLineText = purchaseLine ? `${purchaseLine}\n\n` : '';
+  const purchaseLineHtml = purchaseLine
+    ? `<p>${escapeHtml(purchaseLine)}</p>`
+    : '';
   const accountLinksText = links
     ? [
         `View your gift card orders: ${links.accountUrl}`,
@@ -208,6 +245,8 @@ export function buildPurchaserReceiptEmail(
     {
       businessName,
       recipientEmail,
+      purchaseLineText,
+      purchaseLineHtml,
       accountLinksText,
       accountLinksHtml,
     },

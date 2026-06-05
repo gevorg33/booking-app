@@ -24,6 +24,11 @@ import {
   getBusinessAccountingIntegration,
 } from './accounting-integration.types.js';
 import { AccountingExportService } from './accounting-export.service.js';
+import {
+  getBusinessDefaultCurrency,
+  resolvePriceCurrency,
+} from '../../../common/utils/business-currency.util.js';
+import { resolveBookingAccountingTaxFields } from '../../../common/utils/booking-receipt-tax.util.js';
 
 export interface AccountingIntegrationPublicView {
   enabled: boolean;
@@ -149,6 +154,13 @@ export class AccountingIntegrationService {
     acct: BusinessAccountingIntegration,
   ): Promise<AccountingExportRow[]> {
     const rows: AccountingExportRow[] = [];
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const businessSettings = business?.settings as
+      | Record<string, unknown>
+      | undefined;
+    const defaultCurrency = getBusinessDefaultCurrency(businessSettings);
 
     const bookings = await this.bookingRepo.find({
       where: {
@@ -163,16 +175,25 @@ export class AccountingIntegrationService {
 
     for (const b of bookings) {
       if (!b.service) continue;
+      const taxFields = resolveBookingAccountingTaxFields({
+        service: b.service,
+        metadata: b.metadata as Record<string, unknown> | null,
+      });
       rows.push({
         date: b.startTime.toISOString().slice(0, 10),
         description: b.service.name,
-        amount: Number(b.service.price),
-        currency: b.service.currency || 'USD',
+        amount: taxFields.amount,
+        currency: resolvePriceCurrency(b.service.currency, businessSettings),
         type: 'income',
         incomeSubType: 'service',
         reference: b.id,
         customerName: b.customer?.name,
         employeeName: b.employee?.name,
+        subtotal: taxFields.subtotal,
+        taxRate: taxFields.taxRate,
+        taxAmount: taxFields.taxAmount,
+        taxName: taxFields.taxName,
+        total: taxFields.total,
       });
     }
 
@@ -192,7 +213,7 @@ export class AccountingIntegrationService {
         date: sub.createdAt.toISOString().slice(0, 10),
         description: sub.plan?.name ?? 'Subscription plan',
         amount,
-        currency: sub.currency || 'USD',
+        currency: resolvePriceCurrency(sub.currency, businessSettings),
         type: 'income',
         incomeSubType: 'subscription',
         reference: sub.id,
@@ -220,7 +241,7 @@ export class AccountingIntegrationService {
           date: e.expenseDate,
           description: e.description || e.category,
           amount: -Math.abs(Number(e.amount)),
-          currency: e.currency || 'USD',
+          currency: resolvePriceCurrency(e.currency, businessSettings),
           type: 'expense',
           reference: e.id,
         });
@@ -238,7 +259,7 @@ export class AccountingIntegrationService {
           date: end.toISOString().slice(0, 10),
           description: 'Staff commissions',
           amount: -commissionTotal,
-          currency: 'USD',
+          currency: defaultCurrency,
           type: 'commission',
           reference: `commissions-${start.toISOString().slice(0, 10)}`,
         });

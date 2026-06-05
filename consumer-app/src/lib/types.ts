@@ -4,6 +4,14 @@ export interface PublicBranding {
   tagline?: string;
 }
 
+export interface PublicBusinessTaxSettings {
+  enabled: boolean;
+  name: string;
+  rate: number;
+  model: 'inclusive' | 'exclusive';
+  rules?: Array<{ name: string; rate: number }>;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -11,8 +19,28 @@ export interface PublicBusinessProfile {
   description?: string;
   timezone: string;
   locale: string;
+  defaultLocale?: string;
+  enabledLocales?: string[];
+  dateFormat?: string;
+  timeFormat?: string;
+  currency: string;
   branding: PublicBranding;
   publicBookingEnabled: boolean;
+  tax?: PublicBusinessTaxSettings;
+}
+
+export interface PublicCheckoutQuote {
+  servicePrice: number;
+  subtotal: number;
+  amountDue: number;
+  taxEnabled?: boolean;
+  taxName?: string | null;
+  taxRate?: number | null;
+  taxModel?: 'inclusive' | 'exclusive' | null;
+  taxAmount?: number;
+  netAmount?: number;
+  taxRules?: Array<{ id: string; name: string; rate: number; amount: number }>;
+  currency: string;
 }
 
 export interface PublicProvider {
@@ -22,13 +50,28 @@ export interface PublicProvider {
   avatarUrl?: string | null;
 }
 
+export interface PublicServiceCategory {
+  id: string;
+  name: string;
+}
+
 export interface PublicService {
   id: string;
   name: string;
   description?: string | null;
   durationMinutes: number;
   price: number;
-  currency: string;
+  currency?: string | null;
+  category?: PublicServiceCategory | null;
+}
+
+export interface PublicRecommendationProduct {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  externalLink?: string;
+  price?: number;
 }
 
 export interface PublicSlot {

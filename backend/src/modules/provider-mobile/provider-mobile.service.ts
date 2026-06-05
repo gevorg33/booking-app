@@ -12,6 +12,7 @@ import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { resolveBookingPaymentSummary } from '../booking/booking-payment-summary.util.js';
 import { BusinessService } from '../business/business.service.js';
 import { BookingService } from '../booking/booking.service.js';
+import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import {
@@ -43,6 +44,7 @@ export class ProviderMobileService {
     private slotRepo: Repository<SchedulingSlot>,
     private businessService: BusinessService,
     private bookingService: BookingService,
+    private retailPosService: RetailPosService,
     private llm: LlmService,
   ) {}
 
@@ -226,7 +228,7 @@ export class ProviderMobileService {
       userId,
       bookingId,
     );
-    return this.toBookingDetail(booking);
+    return this.toBookingDetail(booking, businessId);
   }
 
   async updateBooking(
@@ -265,7 +267,7 @@ export class ProviderMobileService {
       userId,
     );
 
-    return this.toBookingDetail(updated);
+    return this.toBookingDetail(updated, businessId);
   }
 
   async cancelBooking(
@@ -281,7 +283,7 @@ export class ProviderMobileService {
       userId,
       dto.expectedUpdatedAt,
     );
-    return this.toBookingDetail(cancelled);
+    return this.toBookingDetail(cancelled, businessId);
   }
 
   async suggestCancelNote(
@@ -363,13 +365,30 @@ Write a cancellation note the provider can save.`,
     return booking;
   }
 
-  private toBookingDetail(booking: Booking) {
+  private async toBookingDetail(booking: Booking, businessId: string) {
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const checkout = await this.retailPosService.getBookingRetailSales(
+      businessId,
+      booking.id,
+    );
+    const retailLines = checkout.lines.map((line) => ({
+      productName: line.productName,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      lineTotal: line.lineTotal,
+    }));
+
     return {
       ...this.toBookingSummary(booking),
       paymentStatus: booking.paymentStatus,
       description: booking.description,
       cancellationReason: booking.cancellationReason,
-      paymentSummary: resolveBookingPaymentSummary(booking),
+      paymentSummary: resolveBookingPaymentSummary(
+        booking,
+        retailLines,
+        settings,
+      ),
     };
   }
 

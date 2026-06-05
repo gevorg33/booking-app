@@ -28,24 +28,53 @@ interface I18nContextValue {
   t: (key: string, vars?: Record<string, string | number>) => string;
   locales: AppLocale[];
   localeLabels: typeof LOCALE_LABELS;
+  enabledLocales: AppLocale[];
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
+
+function normalizeEnabledLocales(
+  enabledLocales?: readonly AppLocale[],
+): AppLocale[] {
+  if (!enabledLocales || enabledLocales.length === 0) return [...SUPPORTED_LOCALES];
+  return [...enabledLocales];
+}
+
+function coerceLocale(
+  value: AppLocale,
+  enabledLocales: readonly AppLocale[],
+): AppLocale {
+  return enabledLocales.includes(value) ? value : (enabledLocales[0] ?? 'en');
+}
 
 export function I18nProvider({
   children,
   initialLocale = 'en',
   localeCookie = 'app',
+  enabledLocales: enabledLocalesProp,
 }: {
   children: ReactNode;
   initialLocale?: AppLocale;
   /** Which cookie stores the visitor override (`public` on booking pages). */
   localeCookie?: LocaleCookieScope;
+  /** Tenant-enabled locales; when set, switcher and persistence are constrained. */
+  enabledLocales?: readonly AppLocale[];
 }) {
+  const enabledLocales = useMemo(
+    () => normalizeEnabledLocales(enabledLocalesProp),
+    [enabledLocalesProp],
+  );
+
   const [locale, setLocaleState] = useState<AppLocale>(() => {
-    if (typeof window === 'undefined') return initialLocale;
-    return readScopedCookie(localeCookie) ?? initialLocale;
+    const fallback = coerceLocale(initialLocale, enabledLocales);
+    if (typeof window === 'undefined') return fallback;
+    const stored = readScopedCookie(localeCookie);
+    return stored ? coerceLocale(stored, enabledLocales) : fallback;
   });
+
+  useEffect(() => {
+    queueMicrotask(() => setLocaleState((current) => coerceLocale(current, enabledLocales)));
+  }, [enabledLocales]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -53,10 +82,11 @@ export function I18nProvider({
 
   const setLocale = useCallback(
     (next: AppLocale, options?: { persist?: boolean }) => {
-      setLocaleState(next);
-      if (options?.persist !== false) writeScopedCookie(localeCookie, next);
+      const normalized = coerceLocale(next, enabledLocales);
+      setLocaleState(normalized);
+      if (options?.persist !== false) writeScopedCookie(localeCookie, normalized);
     },
-    [localeCookie],
+    [enabledLocales, localeCookie],
   );
 
   const catalog = useMemo(() => getMessages(locale), [locale]);
@@ -71,10 +101,11 @@ export function I18nProvider({
       locale,
       setLocale,
       t,
-      locales: SUPPORTED_LOCALES,
+      locales: enabledLocales,
       localeLabels: LOCALE_LABELS,
+      enabledLocales,
     }),
-    [locale, setLocale, t],
+    [enabledLocales, locale, setLocale, t],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

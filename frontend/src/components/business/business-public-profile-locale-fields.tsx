@@ -22,10 +22,12 @@ export function BusinessPublicProfileLocaleFields({
   value,
   onChange,
   t,
+  enabledLocales = SUPPORTED_LOCALES,
 }: {
   value: PublicProfileLocalesFormState;
   onChange: (next: PublicProfileLocalesFormState) => void;
   t: (key: string) => string;
+  enabledLocales?: readonly AppLocale[];
 }) {
   const updateField = (locale: AppLocale, field: FieldKey, nextValue: string) => {
     onChange({
@@ -38,7 +40,7 @@ export function BusinessPublicProfileLocaleFields({
     <div className="w-full space-y-4">
       <p className="text-xs text-gray-500">{t('business.publicContentHint')}</p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {SUPPORTED_LOCALES.map((locale) => (
+        {enabledLocales.map((locale) => (
           <div key={locale} className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">
               {t(LOCALE_LABEL_KEYS[locale])}

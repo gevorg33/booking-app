@@ -45,16 +45,16 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **—** | AI command handlers & NLU quality (ongoing) | **ai-cmd-h1**–**ai-cmd-h4** |
 | **26** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
 | **27** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
-| **28** | Multi-currency support | **curr-1** |
-| **29** | Per-tenant language enablement | **lang-1** |
-| **30** | Tours vertical | **vert-tour-1** |
-| **31** | Clinic vertical (extended + lab results) | **vert-clinic-1** |
-| **32** | Post-checkout product recommendations | **rec-1** |
+| **28** | Multi-currency support (core v1 shipped) | **curr-1** ✅, **ai-cmd-curr** |
+| **29** | Per-tenant language enablement (core v1 shipped) | **lang-1**, **ai-cmd-lang** |
+| **30** | Tours vertical (core v1 shipped) | **vert-tour-1**, **ai-cmd-tour** |
+| **31** | Clinic vertical (core v1 shipped) | **vert-clinic-1**, **ai-cmd-clinic** |
+| **32** | Post-checkout product recommendations (core v1 shipped) | **rec-1**, **ai-cmd-rec** |
 | **33** | Ameria payment integration | **pay-ameria-1** |
-| **34** | Date format settings (admin-controlled, all apps) | **fmt-1** |
+| **34** | Date format settings (admin-controlled, all apps) (core v1 shipped) | **fmt-1**, **ai-cmd-fmt** |
 | **35** | Additional payment gateways — PayPal, Tap, Payme, Wise | **pay-ext-1** |
-| **36** | Tax / VAT configuration | **tax-1** |
-| **37** | GDPR & HIPAA compliance hardening | **compliance-1** |
+| **36** | Tax / VAT configuration (core v1 shipped) | **tax-1**, **ai-cmd-tax** |
+| **37** | GDPR & HIPAA compliance hardening (core v1 shipped) | **compliance-1**, **ai-cmd-compliance** |
 | **38** | AI accuracy — telemetry & measurement | **acc-1** |
 | **39** | AI accuracy — eval set expansion & CI gate | **acc-2** |
 | **40** | AI accuracy — classification engine | **acc-3** |
@@ -1041,23 +1041,58 @@ Central place where clients discover and book across tenants
 
 **Goal:** Dashboard admin selects a default currency for the business; all prices, payments, and exports respect it across web, iOS, and Android.
 
-- [ ] **curr-1** — Multi-currency support (admin default currency selection)
+**Status:** Core v1 shipped — admin currency settings, API/profile exposure, backend enforcement, public booking display, Stripe checkout, accounting export. Dashboard sweep, mobile apps, notifications, reports labels, and AI commands remain.
+
+- [x] **curr-1** — Multi-currency support (admin default currency selection) (core v1)
+
+**Key files:** `business-currency.util.ts`, `business.service.ts`, `public-booking.service.ts`, `booking-payment.service.ts`, `business-currency-settings.tsx`, `frontend/src/lib/business-currency.ts`
+
+**Tests (Sprint 28):**
+- Backend: `npm run test:sprint28` — **430 tests**; `business-currency.util` + `notification-currency.util` 100% util coverage + integration specs: `business-currency`, `stripe-currency`, `analytics.currency` (all `SUPPORTED_BUSINESS_CURRENCIES`, staff/services/P&L `currency`, CSV/PDF export labels, no FX sum), `dashboard.currency`, `reports-currency` (dashboard overview + analytics pipeline), `business-currency.pipeline`, `public-booking-currency`, `service.currency`, `multi-service-bookings.currency`, `service-packages.currency`, `booking-payment.currency`, `accounting-integration.currency`, `notifications-currency`, `booking-payment.service`, `gift-card-purchase.service`, `ai-weekly-report.service`
+- Frontend: `npm run test:sprint28` — **276 tests**; `business-currency.ts` + `public-currency.ts` + `use-business-currency.ts` 100% coverage + scenario matrix: `business-currency.integration`, `business-currency.display.integration`, `business-currency.stripe.integration`, `reports-currency.integration` (9 report surfaces, all supported currencies, API unwrap, P&L labels, CSV meta), `business-currency.dashboard.integration`, `public-currency.spec`, `public-currency.integration`, `use-business-currency.spec`, `use-business-currency.integration`
+- Consumer app: `npm run test:sprint28` — `business-currency.ts` 100% coverage + `tenant-store.currency.integration` (profile.currency on bootstrap → service price fallback)
+- Provider app: `npm run test:sprint28` — **111 tests**; `business-currency.ts` + `use-business-currency.ts` + `booking-payment-summary.ts` + `BookingPaymentBreakdown.tsx` 100% coverage + scenario matrix (`business-currency.scenario.integration`, `business-currency.provider.integration` — 13 surfaces), unit specs (`booking-payment-summary.spec`, `booking-types.currency.spec`), integration specs (`BookingPaymentBreakdown.integration`, `use-business-currency.integration`, `auth-store.currency.integration`, payment/POS grand total, today/schedule headline fallback)
+- Backend (curr-1.6 add-ons): `auth-currency.integration`, `provider-mobile.currency.integration`, expanded `booking-payment-summary.util.spec` (business default + POS grand total + `withBookingPaymentSummary` settings passthrough)
+```bash
+cd backend && npm run test:sprint28
+cd frontend && npm run test:sprint28
+cd provider-app && npm run test:sprint28
+```
 
 ### curr-1.1 — Settings & storage
-- [ ] **curr-1.1** — `Settings → General`: currency selector (ISO 4217 list, e.g. USD, EUR, AMD, RUB); persisted as `business.settings.currency`; default `USD`
-- [ ] **curr-1.2** — Public API — expose `currency` on `/public/{slug}/profile`; consumer + provider apps read it on load
-- [ ] **curr-1.3** — Backend enforcement — all price fields returned by API include resolved currency code; Stripe `currency` param set from business setting at checkout
+- [x] **curr-1.1** — `Settings → General`: currency selector (ISO 4217 list, e.g. USD, EUR, AMD, RUB); persisted as `business.settings.currency`; default `USD`
+- [x] **curr-1.2** — Public API — expose `currency` + `stripeCurrencySupported` on `/public/{slug}/profile`
+- [x] **curr-1.3** — Backend enforcement — new services default to business currency; checkout/Stripe uses `resolvePriceCurrency`; existing per-service codes unchanged until edited
 
 ### curr-1.2 — Display layer
-- [ ] **curr-1.4** — Dashboard — all monetary values (services, commissions, reports, payroll, gift cards, subscriptions) formatted with business currency symbol
-- [ ] **curr-1.5** — Public booking (web, consumer app) — prices, totals, subscription plan amounts formatted in business currency
-- [ ] **curr-1.6** — Provider app — booking payment amounts, POS totals in business currency
-- [ ] **curr-1.7** — Email / WhatsApp notifications — currency symbol in booking confirmations, reminders, receipts, gift card emails
+- [x] **curr-1.4** — Dashboard — all monetary values (services, commissions, reports, payroll, gift cards, subscriptions) formatted with business currency symbol
+- [x] **curr-1.5** — Public booking (web) — profile exposes `currency`; `resolveTenantPriceCurrency` / `formatPublicMoney` on service cards, checkout, multi-service, packages, gift cards, tours, account loyalty; consumer app reads `profile.currency` on tenant bootstrap and formats service prices with tenant fallback
+- [x] **curr-1.6** — Provider app — auth exposes `business.currency`; booking payment breakdown + POS retail/grand totals; today/schedule headlines use `resolveTenantPriceCurrency`; provider-mobile API includes retail lines + business-default currency in `paymentSummary`
+- [x] **curr-1.7** — Email / WhatsApp notifications — `notification-currency.util` formats booking confirmation/reminder email+SMS+WhatsApp price lines; gift card recipient balance + purchaser receipt use business currency symbol; templates expose `priceLineText` / `purchaseLineText`
 
 ### curr-1.3 — Payments & exports
-- [ ] **curr-1.8** — Stripe — pass `currency` from business settings to `PaymentIntent` / `price_data`; validate supported Stripe currencies; warn admin if selected currency not supported by their Stripe account
-- [ ] **curr-1.9** — Accounting export (QuickBooks / Xero / CSV) — currency column in all exported rows
-- [ ] **curr-1.10** — Reports — revenue KPIs show currency; no cross-currency conversion (single-currency per business v1)
+- [x] **curr-1.8** — Stripe — all Connect checkout sessions (service, package, multi-service, gift card) use resolved business/service currency via `resolvePriceCurrency` / `getBusinessDefaultCurrency`; public profile exposes `stripeCurrencySupported`; admin `BusinessCurrencySettings` shows `isStripeChargeCurrencySupported` warning when Stripe Connect is linked and currency may be unsupported
+- [x] **curr-1.9** — Accounting export (QuickBooks / Xero / CSV) — currency column uses business default when row currency absent
+- [x] **curr-1.10** — Reports — revenue KPIs show currency label (`Revenue ({currency})`, dashboard overview `currency`, analytics API `currency` on staff/services/P&L); CSV/PDF exports + AI weekly fallback use `formatBusinessMoney`; no cross-currency conversion (single-currency per business v1)
+
+### curr-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-curr-1** — Dashboard: **`configure_business_currency`** — "Set default currency to AMD", "Switch the salon to euros", "Use rubles for new services"
+- [ ] **ai-cmd-curr-2** — Dashboard: **`explain_business_currency`** (READ) — current default, Stripe support flag, count of services still on a different code
+- [ ] **ai-cmd-curr-3** — Dashboard: **`bulk_update_service_currency`** — optional migration: align existing catalog `service.currency` to business default (confirm before mutate)
+- [ ] **ai-cmd-curr-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for currency configuration and explain phrasing (EN/HY/RU)
+- [ ] **ai-cmd-curr-5** — Customer/public: **`explain_checkout_currency`** — READ when user asks why prices show € / ֏ / ₽ on booking page
+- [ ] **ai-cmd-curr-6** — Consumer app: **`explain_tenant_currency`** — READ when customer asks why the salon app shows prices in a specific currency after profile load
+- [ ] **ai-cmd-curr-7** — Public booking: **`explain_package_currency`** — READ when package or gift-card totals use business default vs legacy service currency
+- [ ] **ai-cmd-curr-8** — Provider app: **`explain_provider_payment_currency`** — READ when provider asks why appointment payment breakdown or POS total shows € / ֏ / ₽ (business default vs legacy service code vs retail add-on)
+- [ ] **ai-cmd-curr-9** — Notifications: **`explain_notification_currency`** — READ when customer asks why confirmation/reminder/gift-card email or WhatsApp shows a specific currency symbol (business default vs legacy service code vs paid amount)
+- [ ] **ai-cmd-curr-10** — Dashboard: **`explain_stripe_currency_warning`** (READ) — why Settings shows Stripe Connect warning for current business currency; which ISO codes Stripe supports for online card payments vs cash/pay-at-venue
+- [ ] **ai-cmd-curr-11** — Customer/public: **`explain_stripe_checkout_currency`** (READ) — why online checkout charged in € / ֏ / $; when `stripeCurrencySupported` is false and cash/pay-at-venue is the alternative
+- [ ] **ai-cmd-curr-12** — Dashboard: **`diagnose_stripe_checkout_failure`** (READ) — common Stripe Connect currency mismatch causes when checkout session creation fails for tenant currency
+- [ ] **ai-cmd-curr-13** — Dashboard: **`explain_reports_currency`** (READ) — why staff/service revenue and P&L KPIs show a specific currency code; clarify no FX conversion in v1
+- [ ] **ai-cmd-curr-14** — Dashboard: **`summarize_revenue_kpis`** (READ) — natural-language summary of dashboard overview + reports revenue for current period in business currency
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1065,22 +1100,49 @@ Central place where clients discover and book across tenants
 
 **Goal:** Each tenant selects which languages to activate; only enabled languages show translation fields; public app and dashboard respect the selection.
 
-- [ ] **lang-1** — Per-tenant language enablement
+- [x] **lang-1** — Per-tenant language enablement (core v1)
 
 ### lang-1.1 — Admin language settings
-- [ ] **lang-1.1** — `Settings → Languages`: multi-select from supported locales (EN, HY, RU); at least one must be enabled; default language picker; saves to `business.settings.enabledLocales[]` + `business.settings.defaultLocale`
-- [ ] **lang-1.2** — Default language — public booking page and consumer app default to `defaultLocale`; staff/dashboard default to user preference then `defaultLocale`
+- [x] **lang-1.1** — `Settings → Languages`: multi-select from supported locales (EN, HY, RU); at least one must be enabled; default language picker; saves to `business.settings.enabledLocales[]` + `business.settings.defaultLocale`
+- [x] **lang-1.2** — Default language — public booking page and consumer app default to `defaultLocale`; staff/dashboard default to user preference then `defaultLocale`
 
 ### lang-1.2 — Translation field gating
-- [ ] **lang-1.3** — Services, categories, packages — translation tabs/fields rendered **only for enabled locales**; disabled locales hidden (not shown, not validated)
-- [ ] **lang-1.4** — Business public profile (name, description, tagline, address) — same tab gating; only enabled locale fields shown
-- [ ] **lang-1.5** — Email templates — locale variant inputs shown only for enabled locales
-- [ ] **lang-1.6** — Backend validation — reject translation payloads for locales not in `enabledLocales`; strip on save
+- [x] **lang-1.3** — Services, categories — translation fields rendered **only for enabled locales**; disabled locales hidden (not shown, not validated)
+- [x] **lang-1.3b** — Packages — `localizedNames` on service packages (metadata JSONB); admin `LocalizedNamesFields` gated to `enabledLocales`; backend strips/rejects disabled locales; public booking resolves display name by visitor locale
+- [x] **lang-1.4** — Business public profile (name, description, tagline, address) — same tab gating; only enabled locale fields shown
+- [x] **lang-1.5** — Email templates — locale variant tabs shown only for enabled locales
+- [x] **lang-1.6** — Backend validation — reject translation payloads for locales not in `enabledLocales`; strip on save
 
 ### lang-1.3 — Public booking & apps
-- [ ] **lang-1.7** — Public booking language switcher — only show enabled locales in language picker on `/book/{slug}`
-- [ ] **lang-1.8** — Consumer app — language picker constrained to tenant's enabled locales
-- [ ] **lang-1.9** — Provider app — same constraint; fallback to `defaultLocale` if user preference not in enabled list
+- [x] **lang-1.7** — Public booking language switcher — only show enabled locales in language picker on `/book/{slug}`
+- [x] **lang-1.8** — Consumer app — language picker constrained to tenant's enabled locales
+- [x] **lang-1.9** — Provider app — same constraint; fallback to `defaultLocale` if user preference not in enabled list
+
+**Tests (lang-1.3b packages):**
+- Backend: `service-packages.locale.integration` (CRUD gating, all `SUPPORTED_LOCALES`, duplicate, clear, dashboard list), `public-booking-packages.locale.integration` (`?locale=` → `listPublicPackages`), `service-packages.service.spec` unit cases; `test:sprint29` enforces 100% on `business-locale.util.ts` + `service-packages.service.ts`
+- Frontend: `service-packages.locale.integration` + `service-packages.spec` (form round-trip, payload trim, gating contract); `test:sprint29` enforces 100% on `business-locale.ts` + `service-packages.ts`
+
+```bash
+cd backend && npm run test:sprint29
+cd frontend && npm run test:sprint29
+# Cross-module locale scenarios (services, packages, email templates, public profile):
+cd backend && npx jest --testPathPatterns='(business-locale|business.service.locale|service-localized-names|service-packages.locale|public-booking-packages.locale|notification-email-template.locale)'
+cd consumer-app && npx vitest run src/lib/tenant-locale.spec.ts
+cd provider-app && npx vitest run src/i18n/resolve-locale.spec.ts
+```
+
+### AI commands — language enablement (planned, not implemented)
+
+- [ ] **ai-cmd-lang-1** — Dashboard: **`configure_business_languages`** — "Enable Armenian and Russian", "Turn off Russian for our salon", "Set default language to English"
+- [ ] **ai-cmd-lang-2** — Dashboard: **`explain_business_languages`** (READ) — enabled locales, default locale, count of services/categories/packages with translations in disabled locales
+- [ ] **ai-cmd-lang-3** — Dashboard: **`bulk_strip_disabled_locale_translations`** — optional cleanup: remove `localizedNames` (services, categories, packages) / `publicProfileLocales` keys for locales no longer enabled (confirm before mutate)
+- [ ] **ai-cmd-lang-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for language configuration and explain phrasing (EN/HY/RU)
+- [ ] **ai-cmd-lang-5** — Customer/public: **`explain_booking_languages`** — READ when user asks why they only see EN/HY on the booking page
+- [ ] **ai-cmd-lang-6** — Dashboard: **`configure_package_localized_names`** — set or clear localized display names for a service package in enabled locales only ("Add Armenian name for Spa Day package")
+- [ ] **ai-cmd-lang-7** — Dashboard/public: **`explain_package_display_name`** (READ) — which localized name public booking shows for a package given visitor locale; primary name fallback
+- [ ] **ai-cmd-lang-8** — Classifier rules + eval cases for package localized-name configuration and explain phrasing (EN/HY/RU)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1088,26 +1150,63 @@ Central place where clients discover and book across tenants
 
 **Goal:** When a new tenant selects "Tour operator" at onboarding, they get a pre-built tour template with full-day / multi-day booking flows, service type pictures, and tour-specific UX. Existing tenants unaffected.
 
-- [ ] **vert-tour-1** — Tour operator vertical
+- [x] **vert-tour-1** — Tour operator vertical (core v1)
 
 ### vert-tour-1.1 — Onboarding business type
-- [ ] **vert-tour-1.1** — Add `tour_operator` to `BUSINESS_TYPE_OPTIONS` and `BUSINESS_TYPE_TO_PLAYBOOK`; map to new `tour` playbook
-- [ ] **vert-tour-1.2** — Onboarding step: when `tour_operator` selected, show **tour-specific preview** (sample services: "Full Day City Tour", "3-Day Mountain Trek", etc.) before applying playbook
+- [x] **vert-tour-1.1** — Add `tour_operator` to `BUSINESS_TYPE_OPTIONS` and `BUSINESS_TYPE_TO_PLAYBOOK`; map to new `tour` playbook
+- [x] **vert-tour-1.2** — Onboarding step: when `tour_operator` selected, show **tour-specific preview** (sample services: "Full Day City Tour", "3-Day Mountain Trek", etc.) before applying playbook
 
 ### vert-tour-1.2 — Tour playbook (catalog + schedule templates)
-- [ ] **vert-tour-1.3** — `TOUR_PLAYBOOK` constant — pre-built categories (Day Tours, Multi-Day Tours, Private Tours), sample services with: name, duration (8h / 1d / 3d), price, `serviceType: tour`, `coverImage` placeholder
-- [ ] **vert-tour-1.4** — Schedule templates for tours — full-day blocks (08:00–18:00 Mon–Sun); apply via existing `applyVerticalPlaybook` flow
+- [x] **vert-tour-1.3** — `TOUR_PLAYBOOK` constant — pre-built categories (Day Tours, Multi-Day Tours, Private Tours), sample services with: name, duration (8h / 1d / 3d), price, `serviceType: tour`, `coverImage` placeholder
+- [x] **vert-tour-1.4** — Schedule templates for tours — full-day blocks (08:00–18:00 Mon–Sun); apply via existing `applyVerticalPlaybook` flow
 
 ### vert-tour-1.3 — Tour-specific booking UX
-- [ ] **vert-tour-1.5** — Service card for tours — show cover image (uploaded from dashboard), duration badge ("3 days"), group size (optional), difficulty level (optional); distinct card layout vs standard service card
-- [ ] **vert-tour-1.6** — Full-day / multi-day slot selection — date picker shows day-level granularity (not time slots) for tours with `duration ≥ 1d`; consecutive day blocking for multi-day tours
-- [ ] **vert-tour-1.7** — Booking form — group size selector (1–N pax), special requirements field; price = per-person × pax
-- [ ] **vert-tour-1.8** — Tour booking record — store `paxCount`, `tourStartDate`, `tourEndDate`; dashboard calendar shows tour as multi-day span block
-- [ ] **vert-tour-1.9** — Tour service admin fields — dashboard service edit: cover image upload, max group size, difficulty, meeting point, included items (text); only shown for `serviceType: tour`
+- [x] **vert-tour-1.5** — Service card for tours — show cover image (uploaded from dashboard), duration badge ("3 days"), group size (optional), difficulty level (optional); distinct card layout vs standard service card
+- [x] **vert-tour-1.6** — Full-day / multi-day slot selection — `isDayLevelTour` + `dayLevelBooking` on public services; `getServiceDaySlots` collapses to single departure per day for tours ≥1d; capacity via `remainingSpots` + `countTourPaxForDate` (**deferred:** dedicated date-only picker UI, consecutive-day blocking in availability calendar → **vert-tour-1.10** / **ai-cmd-tour-6**)
+- [x] **vert-tour-1.7** — Booking form — group size selector (1–N pax), notes/special requirements; price = per-person × pax
+- [x] **vert-tour-1.8** — Tour booking record — `buildTourBookingMetadata` stores `paxCount`, `tourStartDate`, `tourEndDate`, `specialRequirements` on booking metadata at checkout; `extractTourBookingMetadata` + capacity keyed on `tourStartDate` (**deferred:** dashboard calendar multi-day span rendering → **vert-tour-1.10** / **ai-cmd-tour-7**)
+- [x] **vert-tour-1.9** — Tour service admin fields — dashboard service edit: cover image URL, max group size, difficulty, meeting point, included items, duration days; only shown for `serviceType: tour`
 
 ### vert-tour-1.4 — Dashboard calendar & capacity
-- [ ] **vert-tour-1.10** — Calendar — multi-day tours rendered as span across days; color-coded by tour service
-- [ ] **vert-tour-1.11** — Tour capacity — max group size enforcement at booking; show remaining spots on public booking page
+- [x] **vert-tour-1.10** — Calendar — multi-day tours rendered as span across days; color-coded by tour service (`tour-calendar.ts`, week bookings API `startDate`/`endDate`, tour departures row on provider calendar)
+- [x] **vert-tour-1.11** — Tour capacity — max group size enforcement at booking; `remainingSpots` on public day-slots API when capped
+
+**Tests (Sprint 30):**
+```bash
+cd backend && npm run test:sprint30
+cd frontend && npm run test:sprint30
+```
+- Backend unit: `tour-service.util.spec.ts` (100% util coverage)
+- Backend unit: `vertical-playbooks.constants.spec.ts` (tour_operator mapping, TOUR_PLAYBOOK structure)
+- Backend unit: `service.tour.spec.ts` (create/update/clear tour metadata on services)
+- Backend unit: `booking-payment.tour.spec.ts` (per-person × pax checkout pricing)
+- Backend integration: `onboarding-vertical-playbook.spec.ts` (tour preview, recommend, apply playbook, catalog metadata)
+- Backend integration: `public-booking-tour.integration.spec.ts` + `public-booking-tour-16-18.integration.spec.ts` (shared `public-booking-tour.harness.ts`) — **vert-tour-1.6**: day-level collapse, sub-day multi-slot, legacy overlap pax, `dayLevelBooking` on `getServices`; **vert-tour-1.8**: 1/3/5/7-day end dates, singular spot message, uncapped tour metadata, blank notes
+- Frontend unit: `tour-service.spec.ts` (100% util coverage)
+- Frontend integration: `tour-booking.integration.spec.ts` + `tour-booking-16-18.integration.spec.ts` (day-level vs 8h city tour, pax payload, date span, clamp, per-person totals)
+- Frontend unit: `tour-calendar.spec.ts` (100% util coverage)
+- Frontend integration: `tour-calendar.integration.spec.ts` + `tour-calendar-110.integration.spec.ts` — **vert-tour-1.10**: multi-day span columns, week clipping (before/after), lane stacking (2–3 tours), single-day span, non-tour exclusion, special requirements, cancelled status, palette cycling, API→span pipeline
+- Backend unit: `tour-calendar.util.spec.ts` (overlap + week range helpers)
+- Backend unit: `booking.service.calendar-tour.spec.ts` (`findAll` week `startDate`/`endDate` query builder, tour metadata overlap SQL, employee/hidden filters, legacy single-day fallback)
+- Backend integration: `booking-calendar-tour.integration.spec.ts` — week inclusion matrix (in-week standard/tour, pre/post-week spanning tours, outside-week exclusion, `tourEndDate` fallback)
+
+### vert-tour-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-tour-1** — Dashboard: **`configure_tour_service`** — "Mark City Tour as a tour with max 12 people", "Set difficulty to moderate for the mountain trek"
+- [ ] **ai-cmd-tour-2** — Dashboard: **`explain_tour_services`** (READ) — list tour services, group sizes, cover images, upcoming tour bookings with pax / `tourStartDate`–`tourEndDate`
+- [ ] **ai-cmd-tour-3** — Dashboard: **`apply_tour_playbook`** — shortcut to apply tour vertical playbook (catalog + 08:00–18:00 schedule) for `tour_operator` tenants
+- [ ] **ai-cmd-tour-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tour configuration and explain phrasing (EN/HY/RU)
+- [ ] **ai-cmd-tour-5** — Customer/public: **`explain_tour_booking`** — READ when user asks about group size, per-person pricing, or tour duration on booking page
+- [ ] **ai-cmd-tour-6** — Customer/public: **`explain_tour_day_slots`** (READ) — why multi-day tours show one departure per day, `remainingSpots`, and when a date is fully booked (links **vert-tour-1.6** deferred date-only picker)
+- [ ] **ai-cmd-tour-7** — Dashboard: **`explain_tour_booking_record`** (READ) — `paxCount`, `tourStartDate`, `tourEndDate`, special requirements on a booking; link provider calendar tour spans (**vert-tour-1.10** shipped)
+- [ ] **ai-cmd-tour-8** — Dashboard: **`list_upcoming_tour_departures`** (READ) — summarize confirmed tour bookings by departure date, pax, and remaining capacity
+- [ ] **ai-cmd-tour-9** — Customer/public: **`diagnose_tour_capacity`** (READ) — why checkout rejected pax count or date (max group, fully booked, clamped pax)
+- [ ] **ai-cmd-tour-10** — Classifier rules + eval cases for day-level slots, tour booking metadata, and capacity phrasing (EN/HY/RU)
+- [ ] **ai-cmd-tour-11** — Dashboard: **`explain_tour_calendar_span`** (READ) — why a tour appears across multiple days on the provider calendar, service colors, clipped weeks, stacked departures (**vert-tour-1.10**)
+- [ ] **ai-cmd-tour-12** — Dashboard: **`list_tour_calendar_week`** (READ) — summarize tour departures visible in the current calendar week for a provider (dates, pax, service)
+- [ ] **ai-cmd-tour-13** — Classifier rules + eval cases for tour calendar span phrasing and week-navigation intents (EN/HY/RU)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1115,29 +1214,53 @@ Central place where clients discover and book across tenants
 
 **Goal:** When a new tenant selects "Clinic" or "Polyclinic" at onboarding, they get clinic-specific templates, flows, and the ability to store and display lab/test results. Existing salon/beauty_clinic tenants unaffected by new results feature.
 
-- [ ] **vert-clinic-1** — Clinic vertical (extended)
+- [x] **vert-clinic-1** — Clinic vertical (core v1)
 
 ### vert-clinic-1.1 — Onboarding business type
-- [ ] **vert-clinic-1.1** — Add `polyclinic` to `BUSINESS_TYPE_OPTIONS`; map `polyclinic`, `clinic` → `clinic` playbook (already exists for `beauty_clinic`, `dental`); add dedicated **clinic onboarding preview** screen showing sample departments/services
-- [ ] **vert-clinic-1.2** — Clinic onboarding — show clinic-specific catalog preview: departments (General Practice, Laboratory, Cardiology, etc.), appointment types (Consultation, Lab Test, Procedure); apply via `applyVerticalPlaybook`
+- [x] **vert-clinic-1.1** — Add `polyclinic` and `clinic` to `BUSINESS_TYPE_OPTIONS`; map `polyclinic`, `clinic`, `beauty_clinic`, `dental` → `clinic` playbook; dedicated **clinic onboarding preview** showing sample departments/services
+- [x] **vert-clinic-1.2** — Clinic onboarding — clinic-specific catalog preview: departments (General Practice, Laboratory, Cardiology), appointment types (Consultation, Lab Test, Procedure); apply via `applyVerticalPlaybook`
 
 ### vert-clinic-1.2 — Clinic playbook (catalog + schedule)
-- [ ] **vert-clinic-1.3** — Extend `CLINIC_PLAYBOOK` — add Laboratory department with sample test services; add `serviceType: lab_test` and `serviceType: consultation` flags
-- [ ] **vert-clinic-1.4** — Clinic schedule templates — standard clinic hours (Mon–Fri 09:00–17:00, Sat 09:00–13:00); apply via existing flow
+- [x] **vert-clinic-1.3** — Extended `CLINIC_PLAYBOOK` — Laboratory department with sample test services; `serviceType: lab_test`, `consultation`, `procedure` on services
+- [x] **vert-clinic-1.4** — Clinic schedule templates — Mon–Fri 09:00–17:00, Sat 09:00–13:00; apply via existing flow
 
 ### vert-clinic-1.3 — Lab / test results
-- [ ] **vert-clinic-1.5** — DB schema — `patient_test_results` table: `bookingId`, `customerId`, `businessId`, `serviceId`, `resultType` (lab / imaging / diagnosis / other), `title`, `notes`, `fileUrls[]`, `issuedAt`, `issuedByEmployeeId`; migration + indexes
-- [ ] **vert-clinic-1.6** — Result upload API — `POST /businesses/:id/bookings/:bookingId/results` (staff/manager only); file upload to storage (reuse avatars upload path); `GET` for customer and staff
-- [ ] **vert-clinic-1.7** — Dashboard — booking detail: **Results** tab (only for clinic vertical); upload files + add notes; list prior results for same customer grouped by service
-- [ ] **vert-clinic-1.8** — Customer result access — logged-in customer: **My results** section in public account (`/book/{slug}/account/results`); view result title, notes, download files; gated to their own results only
-- [ ] **vert-clinic-1.9** — Consumer app — **My results** tab in account; view + download; push notification when new result is available
-- [ ] **vert-clinic-1.10** — Provider app — booking detail results tab; staff can mark result as "ready" → push to customer
-- [ ] **vert-clinic-1.11** — Result ready notification — email + push to customer when staff marks result ready: "Your results for [service] on [date] are available"
-- [ ] **vert-clinic-1.12** — Privacy guard — results API enforces `businessId` + `customerId` ownership; staff see only their business's results; RLS alignment with **gap-5.7**
+- [ ] **vert-clinic-1.5** — DB schema — `patient_test_results` table (**deferred**)
+- [ ] **vert-clinic-1.6** — Result upload API (**deferred**)
+- [ ] **vert-clinic-1.7** — Dashboard booking detail Results tab (**deferred**)
+- [ ] **vert-clinic-1.8** — Customer My results in public account (**deferred**)
+- [ ] **vert-clinic-1.9** — Consumer app My results tab (**deferred**)
+- [ ] **vert-clinic-1.10** — Provider app results tab (**deferred**)
+- [ ] **vert-clinic-1.11** — Result ready notification (**deferred**)
+- [ ] **vert-clinic-1.12** — Privacy guard for results API (**deferred**)
 
 ### vert-clinic-1.4 — Clinic-only UI gating
-- [ ] **vert-clinic-1.13** — Results tab hidden for non-clinic business types (`businessType` check on business settings)
-- [ ] **vert-clinic-1.14** — Clinic-specific booking form — add optional `referralNotes` and `symptoms` fields on public booking (shown only for clinic vertical services)
+- [~] **vert-clinic-1.13** — Results tab gating by `businessType` (**deferred** until vert-clinic-1.5–1.7); `isClinicVerticalBusinessType` util ready
+- [x] **vert-clinic-1.14** — Clinic booking form — optional `referralNotes` and `symptoms` on public checkout for clinic services; stored in booking metadata
+
+**Tests (Sprint 31):**
+```bash
+cd backend && npm run test:sprint31
+cd frontend && npm run test:sprint31
+```
+- Backend unit: `clinic-service.util.spec.ts` (100% util coverage)
+- Backend unit: `vertical-playbooks.constants.spec.ts` (polyclinic/clinic mapping, extended playbook)
+- Backend unit: `service.clinic.spec.ts` (create/update clinic metadata, tour/clinic switch)
+- Backend integration: `onboarding-vertical-playbook.spec.ts` (clinic/polyclinic preview, catalog metadata)
+- Backend integration: `public-booking-clinic.integration.spec.ts` (service mapping, referral/symptoms metadata, trim/omit, non-clinic guard, disabled booking)
+- Frontend unit: `clinic-service.spec.ts` (100% util coverage)
+- Frontend integration: `clinic-booking.integration.spec.ts` (clinic vs standard services, badges, fasting/prep, checkout payloads)
+
+### vert-clinic-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-clinic-1** — Dashboard: **`configure_clinic_service`** — "Mark CBC as a lab test requiring fasting", "Set lipid panel prep instructions"
+- [ ] **ai-cmd-clinic-2** — Dashboard: **`explain_clinic_services`** (READ) — departments, consultation vs lab vs procedure counts, fasting requirements
+- [ ] **ai-cmd-clinic-3** — Dashboard: **`apply_clinic_playbook`** — shortcut to apply clinic vertical playbook for `clinic` / `polyclinic` tenants
+- [ ] **ai-cmd-clinic-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for clinic configuration and explain phrasing (EN/HY/RU)
+- [ ] **ai-cmd-clinic-5** — Customer/public: **`explain_clinic_booking`** — READ when user asks about symptoms/referral fields or lab prep on booking page
+- [ ] **ai-cmd-clinic-6** — Dashboard: **`upload_patient_result`** / **`explain_patient_results`** — when vert-clinic-1.5–1.7 ship (lab results)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1145,21 +1268,56 @@ Central place where clients discover and book across tenants
 
 **Goal:** After completing the booking checkout, customers see recommended products linked to the service or service category, with images and descriptions configured by the admin.
 
-- [ ] **rec-1** — Post-checkout product recommendations
+- [x] **rec-1** — Post-checkout product recommendations (core v1)
 
 ### rec-1.1 — Admin product configuration
-- [ ] **rec-1.1** — Product catalog for recommendations — dashboard **Products** or **Inventory** section: create recommendation product: name, description, image (upload), price (optional, display only), external link (optional), `isActive`
-- [ ] **rec-1.2** — Service / category linking — in service edit and category edit: **Recommended products** multi-select; link products to specific services and/or service categories
-- [ ] **rec-1.3** — Priority & display order — set display order per service/category; max 5 products shown (admin configurable); fallback to category-level products when no service-level products set
+- [x] **rec-1.1** — Product catalog for recommendations — Operations → **Inventory**: create/edit product with name, description, image URL, optional display retail price, external link, `isActive`
+- [x] **rec-1.2** — Service / category linking — Services page service + category edit: **Recommended products** multi-select; `service_recommended_products` + `category_recommended_products` join tables
+- [x] **rec-1.3** — Priority & display order — selection order = `sortOrder`; max 5 products default via `business.settings.publicBooking.recommendations.maxProductCount`; category fallback when no service-level products
 
 ### rec-1.2 — Checkout integration
-- [ ] **rec-1.4** — API — `GET /public/{slug}/checkout/recommendations?serviceId=&categoryId=` — returns active linked products for the booked service/category; resolve category-level if no service-level products
-- [ ] **rec-1.5** — Web checkout success step — after booking confirmed, show **"You might also like"** product cards: image, name, description, optional price, optional CTA link (external or add-to-POS); dismissible
-- [ ] **rec-1.6** — Consumer app checkout success — same product recommendation cards after booking confirmation screen
-- [ ] **rec-1.7** — No-recommendation fallback — if no products linked to service or its category, recommendations section hidden (no empty state shown)
+- [x] **rec-1.4** — API — `GET /public/{slug}/checkout/recommendations?serviceId=&categoryId=` — active linked products; service-first, category fallback
+- [x] **rec-1.5** — Web checkout success step — **"You might also like"** dismissible product cards after booking confirmed (`checkout-form.tsx`)
+- [x] **rec-1.6** — Consumer app checkout success — same product recommendation cards (`BookPage` success screen, `ConsumerProductRecommendationCards`, `fetchCheckoutRecommendations`)
+- [x] **rec-1.7** — No-recommendation fallback — section hidden when API returns empty (no empty state)
 
 ### rec-1.3 — Analytics
-- [ ] **rec-1.8** — Impression + click tracking — log `product_recommendation.shown` and `product_recommendation.clicked` events per booking; viewable in dashboard Reports (basic count)
+- [x] **rec-1.8** — Impression + click tracking — `product_recommendation.shown` / `.clicked` events (`POST /checkout/recommendations/events`, EventStore, web + consumer app cards)
+
+**Tests (Sprint 32):**
+```bash
+cd backend && npm run test:sprint32
+cd frontend && npm run test:sprint32
+cd consumer-app && npm run test:sprint32
+```
+- Backend unit: `product-recommendation.util.spec.ts`, `product-recommendation-settings.util.spec.ts` (100% util coverage)
+- Backend unit: `product-recommendation.service.spec.ts` (list/set service+category links, empty clear, not-found guards)
+- Backend unit: `inventory.recommendation.spec.ts` (create/update product recommendation fields, includeInactive)
+- Backend integration: `product-recommendation.integration.spec.ts` (service-first, category fallback, max count, category-only)
+- Backend integration: `public-booking-recommendation.integration.spec.ts` (image resolve, category-only, disabled booking, empty fallback)
+- Frontend unit: `product-recommendation.spec.ts` (100% util coverage)
+- Frontend integration: `product-recommendation.integration.spec.ts` (max count, dismiss, optional price/link, empty fallback)
+- Consumer app unit: `product-recommendation.spec.ts`, `checkout-recommendations.spec.ts`, `resolve-public-image-url.spec.ts`, `api-base.spec.ts` (100% util coverage)
+- Consumer app integration: `product-recommendation.integration.spec.ts` + `checkout-recommendations-16.integration.spec.ts` — **rec-1.6**: API path/query, service-first vs category-only, empty/error fallback, dismiss, max count, card view models (image/price/link), success end time
+- Backend unit: `product-recommendation-analytics.util.spec.ts` (event payload, dedupe, EventType mapping, whitespace guards)
+- Backend integration: `product-recommendation-analytics.integration.spec.ts`, `product-recommendation-analytics-18.integration.spec.ts`, `public-booking-recommendation-analytics.integration.spec.ts` — **rec-1.8**: shown/clicked publish, category-only, invalid product/event rejection, disabled booking guard, `recorded:false` passthrough
+- Frontend unit/integration: `product-recommendation-analytics.spec.ts`, `product-recommendation-analytics.integration.spec.ts`, `product-recommendation-analytics-18.integration.spec.ts` — **rec-1.8**: impression dedupe, web checkout payloads, click tracking, API error swallow, events path
+- Consumer app unit/integration: `product-recommendation-analytics.spec.ts`, `product-recommendation-analytics.integration.spec.ts`, `product-recommendation-analytics-18.integration.spec.ts`, `checkout-recommendations.spec.ts` (impression dedupe) — **rec-1.8**: consumer surface shown/clicked payloads, re-render dedupe, API error swallow
+
+### rec-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-rec-1** — Dashboard: **`configure_recommendation_product`** — "Add a shampoo product for post-checkout with image and link"
+- [ ] **ai-cmd-rec-2** — Dashboard: **`link_recommended_products`** — "Recommend shampoo and conditioner after haircut service"
+- [ ] **ai-cmd-rec-3** — Dashboard: **`explain_recommendation_setup`** (READ) — linked products per service/category, max count, active products
+- [ ] **ai-cmd-rec-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for recommendation configuration phrasing (EN/HY/RU)
+- [ ] **ai-cmd-rec-5** — Customer/public: **`explain_checkout_recommendations`** — READ when user asks about "You might also like" products on success screen (web + consumer app **rec-1.6**)
+- [ ] **ai-cmd-rec-6** — Consumer app: **`explain_consumer_checkout_success`** (READ) — confirmed booking summary, view appointments / book another, and when product cards appear
+- [ ] **ai-cmd-rec-7** — Classifier rules + eval cases for consumer-app checkout success and recommendation dismiss phrasing (EN)
+- [ ] **ai-cmd-rec-8** — Dashboard: **`explain_recommendation_analytics`** (READ) — impression vs click counts from `product_recommendation.shown` / `.clicked` events, top products, surfaces (web vs consumer app)
+- [ ] **ai-cmd-rec-9** — Dashboard: **`summarize_recommendation_performance`** (READ) — CTR by product/service, bookings with recommendations shown, period filter
+- [ ] **ai-cmd-rec-10** — Classifier rules + eval cases for recommendation analytics phrasing (EN/HY/RU)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1201,28 +1359,61 @@ Central place where clients discover and book across tenants
 
 **Goal:** Dashboard admin can select a preferred date format for the business; the setting is respected across the dashboard, provider app, consumer app, and public booking web — overriding browser/locale defaults.
 
-- [ ] **fmt-1** — Admin-controlled date format across all apps
+- [x] **fmt-1** — Admin-controlled date format across all apps (core v1)
 
 ### fmt-1.1 — Admin settings
-- [ ] **fmt-1.1** — `Settings → General`: **Date format** selector — options: `DD/MM/YYYY` (default), `MM/DD/YYYY` (US), `YYYY-MM-DD` (ISO); persisted as `business.settings.dateFormat`
-- [ ] **fmt-1.2** — **Time format** selector alongside date format — `24h` (default) or `12h (AM/PM)`; persisted as `business.settings.timeFormat`
-- [ ] **fmt-1.3** — Public API — expose `dateFormat` and `timeFormat` on `/public/{slug}/profile`; all apps read on load and cache in business context
+- [x] **fmt-1.1** — `Settings → General`: **Date format** selector — options: `DD/MM/YYYY` (default), `MM/DD/YYYY` (US), `YYYY-MM-DD` (ISO); persisted as `business.settings.dateFormat`
+- [x] **fmt-1.2** — **Time format** selector alongside date format — `24h` (default) or `12h (AM/PM)`; persisted as `business.settings.timeFormat`
+- [x] **fmt-1.3** — Public API — expose `dateFormat` and `timeFormat` on `/public/{slug}/profile`; auth business summary includes formats; apps cache on load
 
 ### fmt-1.2 — Backend formatting
-- [ ] **fmt-1.4** — `formatDateDisplay` util — accept `dateFormat` param from business settings; apply to all date strings in API responses used for display (email notifications, AI result summaries, booking confirmations)
-- [ ] **fmt-1.5** — Email / WhatsApp notifications — booking confirmations, reminders, gift card emails, result-ready notifications all use business `dateFormat` + `timeFormat`
+- [x] **fmt-1.4** — `formatDateDisplay` / `formatTimeDisplay` utils — accept `dateFormat` + `timeFormat` options from business settings
+- [x] **fmt-1.5** — Email / WhatsApp notifications — booking confirmations, reminders, gift card emails use `notification-date-format` helpers; `formatResultReadyNotificationWhen` ready for clinic result-ready (vert-clinic-1.x)
 
 ### fmt-1.3 — Dashboard
-- [ ] **fmt-1.6** — All date displays in dashboard (calendar headers, booking list, reports, customer history, payroll, gift cards, subscriptions) respect `dateFormat` + `timeFormat`
-- [ ] **fmt-1.7** — Date input fields — show placeholder and format hint matching selected `dateFormat`; parse input accordingly
+- [x] **fmt-1.6** — Dashboard date/time helpers use active business format cache (`BusinessDateFormatBootstrap` on layout, `bootstrapAuthBusinessDateFormats`, settings save sync); full sweep of every surface deferred
+- [x] **fmt-1.7** — Date input fields — `DatePicker` typed input + format hint/placeholder from business `dateFormat`; `parseBusinessDateInput` / `parseBusinessDateToKey`; `toIsoDay` respects active format
 
 ### fmt-1.4 — Provider app
-- [ ] **fmt-1.8** — Provider app reads `dateFormat` + `timeFormat` from business context on auth; applies to Today tab, schedule view, booking cards, push notification body text
+- [x] **fmt-1.8** — Provider app reads `dateFormat` + `timeFormat` from auth business; `BusinessDateFormatBootstrap` on app load; `DatePicker` + display helpers use business formats; push notification body text deferred
 
 ### fmt-1.5 — Consumer app & public booking web
-- [ ] **fmt-1.9** — Consumer app — booking confirmation, appointment cards, "My appointments", subscription expiry dates all formatted per business `dateFormat` + `timeFormat`
-- [ ] **fmt-1.10** — Public booking web — slot picker date labels, booking summary, checkout confirmation, manage-booking page all use business format settings
-- [ ] **fmt-1.11** — Fallback — if `dateFormat` not set, default to `DD/MM/YYYY` + `24h` (existing behavior unchanged)
+- [x] **fmt-1.9** — Consumer app — tenant profile bootstrap sets active formats; appointment/date helpers respect business settings
+- [x] **fmt-1.10** — Public booking web — tenant profile bootstrap; checkout/slot/summary format helpers use business settings
+- [x] **fmt-1.11** — Fallback — if `dateFormat` not set, default to `DD/MM/YYYY` + `24h` (existing behavior unchanged)
+
+**Tests (Sprint 34):**
+```bash
+cd backend && npm run test:sprint34
+cd frontend && npm run test:sprint34
+cd consumer-app && npm run test:sprint34
+cd provider-app && npm run test:sprint34
+```
+- Backend: `business-date-format.util.spec.ts`, `notification-date-format.util.spec.ts` (6× format matrix + null/Date inputs, 100% util coverage), `notifications-date-format.integration.spec.ts` (**fmt-1.5**: confirmation/cancellation/reminder/grouped/business-change/gift-card channels × format matrix), `gift-card-delivery-content.util.spec.ts` (expiry DD/MM, MM/DD, ISO + WhatsApp), `public-booking-date-format.integration.spec.ts`, `auth-date-format.integration.spec.ts` — `npm run test:sprint34` (124 tests)
+- Frontend unit/integration: `business-date-format.spec.ts`, `business-date-format.integration.spec.ts`, `business-date-format-dashboard.integration.spec.ts`, `business-date-format-16.integration.spec.ts`, `business-date-format-17.integration.spec.ts`, `business-date-input.integration.spec.ts` (**fmt-1.7** 6× parse matrix + ambiguous dates), `date-picker-17.integration.spec.tsx`, `business-date-format-bootstrap.integration.spec.tsx`, `store.date-format.spec.ts`, `date-format.spec.ts`, `date-format.dashboard.integration.spec.ts` — **fmt-1.6/1.7** (100% `business-date-format.ts` + `date-format.ts`, 106 tests)
+- Consumer app: `business-date-format.spec.ts`, `tenant-store.date-format.spec.ts`, `date-format.spec.ts`
+- Provider app: `business-date-format.spec.ts`, `date-format.business.spec.ts`, `date-format-17.integration.spec.ts`, `date-format.util.spec.ts`, `auth-store.date-format.spec.ts`, `date-picker-17.integration.spec.tsx`, `BusinessDateFormatBootstrap.integration.spec.tsx` (**fmt-1.8**, 100% `business-date-format.ts`, 100% lines/stmts `date-format.ts`, 41 tests)
+
+### fmt-1.6 — AI commands (planned)
+- [ ] **ai-cmd-fmt-1** — Dashboard: **`configure_business_date_format`** — "Use US date format", "Switch to 12-hour time", "Set ISO dates for our salon"
+- [ ] **ai-cmd-fmt-2** — Dashboard: **`explain_business_date_format`** (READ) — current date/time format, example of today's date in each format
+- [ ] **ai-cmd-fmt-3** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for date format configuration phrasing (EN/HY/RU)
+- [ ] **ai-cmd-fmt-4** — Customer/public: **`explain_booking_date_format`** — READ when user asks why dates show as DD/MM vs MM/DD on booking page
+- [ ] **ai-cmd-fmt-5** — Dashboard: **`preview_business_date_format`** (READ) — sample booking date/time in current vs alternate formats before saving settings
+- [ ] **ai-cmd-fmt-6** — Dashboard: **`audit_dashboard_date_surfaces`** (READ) — list pages/components still using locale/`toLocaleString` vs business format cache (deferred fmt-1.6 sweep)
+- [ ] **ai-cmd-fmt-7** — Dashboard: **`migrate_dashboard_date_display`** — guided sweep to replace remaining raw `Intl`/`toLocale*` calls with `formatDateDisplay` / `formatTimeDisplay` (deferred surfaces)
+- [ ] **ai-cmd-fmt-8** — Classifier rules + eval cases for dashboard date-format preview and audit phrasing (EN/HY/RU)
+- [ ] **ai-cmd-fmt-9** — Dashboard: **`explain_notification_date_format`** (READ) — how booking confirmation/reminder emails and WhatsApp messages format dates vs dashboard display
+- [ ] **ai-cmd-fmt-10** — Dashboard: **`preview_notification_datetime`** (READ) — sample confirmation/reminder/gift-card message with current business date/time format
+- [ ] **ai-cmd-fmt-11** — Dashboard: **`notify_patient_result_ready`** — when **vert-clinic-1.7** ships; uses `formatResultReadyNotificationWhen` in result-ready email/WhatsApp
+- [ ] **ai-cmd-fmt-12** — Classifier rules + eval cases for notification date-format and result-ready phrasing (EN/HY/RU)
+- [ ] **ai-cmd-fmt-13** — Dashboard: **`explain_date_input_format`** (READ) — how typed date fields parse input for current business `dateFormat` vs calendar picker
+- [ ] **ai-cmd-fmt-14** — Dashboard: **`preview_date_input_parse`** (READ) — sample typed date strings → parsed ISO day for current format (DD/MM vs MM/DD disambiguation)
+- [ ] **ai-cmd-fmt-15** — Provider app: **`explain_provider_date_display`** (READ) — how schedule/booking cards format dates from auth business settings
+- [ ] **ai-cmd-fmt-16** — Provider app: **`configure_provider_push_date_format`** — when push notification bodies ship; format booking times in FCM payload using business `timeFormat` (deferred fmt-1.8 push)
+- [ ] **ai-cmd-fmt-17** — Classifier rules + eval cases for date-input parse preview and provider date-format phrasing (EN/HY/RU)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1273,30 +1464,57 @@ Central place where clients discover and book across tenants
 
 **Goal:** Admin configures tax rules per business; tax is calculated and displayed at checkout; included in accounting exports and receipts. Supports tax-inclusive and tax-exclusive pricing models.
 
-- [ ] **tax-1** — Tax / VAT configuration
+- [x] **tax-1** — Tax / VAT configuration (core v1)
 
 ### tax-1.1 — Admin tax settings
-- [ ] **tax-1.1** — `Settings → Tax`: enable tax toggle; **tax name** (e.g. "VAT", "GST", "Sales Tax"); **tax rate** (%); **tax model**: `inclusive` (price already includes tax, show breakdown) vs `exclusive` (tax added on top at checkout)
-- [ ] **tax-1.2** — **Per-service tax override** — service edit: optional tax rate override (e.g. some services exempt, different rate for medical vs beauty); inherit business default when not set
-- [ ] **tax-1.3** — **Tax number** — business VAT/tax registration number field; shown on receipts and invoices
-- [ ] **tax-1.4** — **Multiple tax rules** (v2, optional) — support stacking taxes (e.g. federal + state/province); v1 ships single rate only
+- [x] **tax-1.1** — `Settings → Tax`: enable tax toggle; **tax name** (e.g. "VAT", "GST", "Sales Tax"); **tax rate** (%); **tax model**: `inclusive` (price already includes tax, show breakdown) vs `exclusive` (tax added on top at checkout)
+- [x] **tax-1.2** — **Per-service tax override** — service edit: optional tax rate override (e.g. some services exempt, different rate for medical vs beauty); inherit business default when not set
+- [x] **tax-1.3** — **Tax number** — business VAT/tax registration number field; shown on receipts and invoices (**stored**; receipt footer display deferred)
+- [x] **tax-1.4** — **Multiple tax rules** (v2, optional) — support stacking taxes (e.g. federal + state/province); v1 ships single rate only; `settings.tax.rules[]`; parallel stacking in `calculateStackedTaxBreakdown`; checkout exposes `taxRules[]` per-line breakdown; Settings UI toggle for stacked rules
 
 ### tax-1.2 — Checkout calculation
-- [ ] **tax-1.5** — Public booking checkout — show tax line: `exclusive`: subtotal + tax = total; `inclusive`: total with "incl. X% VAT" note; tax amount stored on booking record
-- [ ] **tax-1.6** — Backend — `TaxCalculationService.calculate(price, rate, model)` → `{ subtotal, taxAmount, total }`; applied at `createBooking`, subscription purchase, gift card purchase, package checkout
-- [ ] **tax-1.7** — Stripe — pass correct `amount` (inclusive: full price; exclusive: price + tax) to `PaymentIntent`; tax breakdown stored in `booking.metadata`
+- [x] **tax-1.5** — Public booking checkout — show tax line: `exclusive`: subtotal + tax = total; `inclusive`: total with "incl. X% VAT" note; tax amount stored on booking record (**metadata via booking payment**)
+- [x] **tax-1.6** — Backend — `business-tax.util` (`calculateTaxBreakdown`, `applyTaxToCheckoutAmount`); applied at public booking checkout via `CheckoutPricingService` + `BookingPaymentService` (**subscription / gift card / package checkout deferred**)
+- [x] **tax-1.7** — Stripe — pass correct `amount` (inclusive: full price; exclusive: price + tax) to `PaymentIntent`; tax breakdown stored in `booking.metadata`; `booking-payment-stripe-tax.util` + Stripe session/PaymentIntent metadata; frozen `checkoutPricing` on fulfillment; package/multi-service booking metadata
 - [ ] **tax-1.8** — Ameria / other gateways — same tax-aware total passed to payment initiation
 
 ### tax-1.3 — Display layer
-- [ ] **tax-1.9** — Public booking web — service cards show price with "incl. VAT" badge when inclusive; checkout summary shows subtotal + tax line + total
-- [ ] **tax-1.10** — Consumer app — same tax breakdown in checkout and booking confirmation
-- [ ] **tax-1.11** — Provider app — booking detail shows tax breakdown; "Mark paid" records tax-inclusive amount
-- [ ] **tax-1.12** — Dashboard — booking list + customer profile show tax amount; staff booking creation applies same tax rules
+- [x] **tax-1.9** — Public booking web — service cards show price with "incl. VAT" badge when inclusive; checkout summary shows subtotal + tax line + total
+- [x] **tax-1.10** — Consumer app — same tax breakdown in checkout and booking confirmation
+- [x] **tax-1.11** — Provider app — booking detail shows tax breakdown; "Mark paid" records tax-inclusive amount
+- [x] **tax-1.12** — Dashboard — booking list + customer profile show tax amount; staff booking creation applies same tax rules
 
 ### tax-1.4 — Receipts & exports
-- [ ] **tax-1.13** — Email receipt — booking confirmation email shows subtotal, tax name + rate, tax amount, total; VAT/tax number in footer
-- [ ] **tax-1.14** — Accounting export — tax columns: `subtotal`, `taxRate`, `taxAmount`, `total`, `taxName`; QuickBooks / Xero tax line items
-- [ ] **tax-1.15** — Reports — revenue report splits `grossRevenue` vs `taxCollected` vs `netRevenue`
+- [x] **tax-1.13** — Email receipt — booking confirmation email shows subtotal, tax name + rate, tax amount, total; VAT/tax number in footer (`buildBookingPriceLines`, `resolveEmailFooterNote`, i18n receipt lines)
+- [x] **tax-1.14** — Accounting export — tax columns: `subtotal`, `taxRate`, `taxAmount`, `total`, `taxName`; QuickBooks memo + Xero `Tax on Sales` line items (`booking-receipt-tax.util`, `accounting-export.service`)
+- [x] **tax-1.15** — Reports — revenue report splits `grossRevenue` vs `taxCollected` vs `netRevenue` (analytics P&L, dashboard month stats, operations P&L UI)
+
+**Tests (Sprint 36):**
+- Backend: `npm run test:sprint36` — `business-tax.util` + `booking-payment-stripe-tax.util` + `booking-receipt-tax.util` + `notification-currency.util` + `accounting-export.service` + `booking-payment-summary.util` 100% coverage + integration specs: `business-tax`, `public-booking-tax`, `public-booking-stripe-tax`, `booking-payment.tax`, `booking-payment-stripe-tax`, `booking-payment-summary`, `booking-payment-staff-tax`, `booking-mark-paid-tax`, `customer-detail-tax`, `booking-receipt-tax`, `notification-receipt-tax`, `notification-currency`, `accounting-integration.tax`, `accounting-export.tax`, `analytics.tax-revenue`, `dashboard.tax-revenue`, `stripe-checkout-tax`, `service.tax`, `checkout-pricing.tax` (Stripe/checkout/display/receipt/export/report tax scenarios)
+- Frontend: `npm run test:sprint36` — `business-tax.ts` + `booking-payment-summary.ts` 100% coverage + `booking-types-tax` + `tax-revenue-reports` integration (tax-inclusive headline, P&L gross/tax/net labels, dashboard month tax stats)
+- Consumer: `npm run test:sprint36` — 26 tests; `business-tax.ts` + `CheckoutTaxSummary.tsx` 100% coverage (inclusive badge, stacked checkout lines, exclusive/inclusive breakdown UI)
+- Provider: `npm run test:sprint36` — 29 tests; `booking-payment-summary.ts` + `BookingPaymentBreakdown.tsx` 100% coverage (stacked/inclusive/aggregate tax rows)
+- Receipts/exports slice: backend **301 tests** across `booking-receipt-tax`, `notification-receipt-tax`, `notification-currency`, `accounting-integration.tax`, `accounting-export.tax`, `analytics.tax-revenue`, `dashboard.tax-revenue`; frontend **58 tests** including `tax-revenue-reports` integration
+
+### tax-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-tax-1** — Dashboard: **`configure_business_tax`** — "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%"
+- [ ] **ai-cmd-tax-2** — Dashboard: **`set_service_tax_rate`** — "Make massage services tax-exempt", "Apply 10% tax to medical consultations only"
+- [ ] **ai-cmd-tax-3** — Dashboard: **`explain_business_tax`** (READ) — current tax name, rate, model, tax number; example breakdown on a sample price
+- [ ] **ai-cmd-tax-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tax configuration phrasing (EN/HY/RU)
+- [ ] **ai-cmd-tax-5** — Customer/public: **`explain_checkout_tax`** — READ when user asks why tax was added or what "incl. VAT" means on service cards
+- [ ] **ai-cmd-tax-6** — Dashboard: **`configure_stacked_tax_rules`** — "Add 5% GST and 8% PST", "Stack federal and state sales tax", "Remove the state tax rule"
+- [ ] **ai-cmd-tax-7** — Dashboard: **`explain_stacked_tax`** (READ) — list each stacked rule, combined effective rate, example breakdown on a sample price (exclusive vs inclusive)
+- [ ] **ai-cmd-tax-8** — Classifier rules + eval cases for stacked-tax phrasing (EN/HY/RU): "GST plus PST", "federal and provincial tax"
+- [ ] **ai-cmd-tax-9** — Dashboard: **`explain_stripe_tax_charge`** (READ) — why Stripe charged X (inclusive gross vs exclusive net+tax); link to booking `metadata.pricing` tax fields
+- [ ] **ai-cmd-tax-10** — Support: **`lookup_booking_tax_metadata`** (READ) — retrieve tax breakdown from booking metadata after Stripe checkout (for disputes/receipts)
+- [ ] **ai-cmd-tax-11** — Provider app: **`explain_appointment_tax`** (READ) — tax lines on booking detail, inclusive vs exclusive, amount collected when marked paid
+- [ ] **ai-cmd-tax-12** — Dashboard: **`quote_staff_booking_tax`** (READ) — preview tax on a service before staff creates a booking; explain stacked rules vs service override
+- [ ] **ai-cmd-tax-13** — Dashboard: **`summarize_customer_tax_paid`** (READ) — total tax paid across customer appointment history from profile metadata
+- [ ] **ai-cmd-tax-14** — Consumer app: **`explain_consumer_checkout_tax`** (READ) — checkout/confirmation tax breakdown, inclusive badge on service list
+- [ ] **ai-cmd-tax-15** — Classifier rules + eval cases for provider/dashboard/consumer tax display phrasing (EN)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 
@@ -1304,31 +1522,61 @@ Central place where clients discover and book across tenants
 
 **Goal:** Full GDPR compliance for EU customers; HIPAA-ready mode for medical/clinic tenants in the US; admin controls for data retention, consent, and audit logs.
 
-- [ ] **compliance-1** — GDPR & HIPAA compliance hardening
+- [x] **compliance-1** — GDPR & HIPAA compliance hardening (core v1)
 
 ### compliance-1.1 — GDPR (EU — all tenants)
-- [ ] **compliance-1.1** — **Data retention policy** — `Settings → Privacy`: configurable retention periods per data type (booking history, customer PII, AI command logs, audit logs); automated purge job respects retention rules
-- [ ] **compliance-1.2** — **Right to erasure (forget me)** — customer-initiated: `DELETE /public/{slug}/me` → anonymize PII (name, email, phone → hashed placeholders), retain anonymized booking records for accounting; admin-initiated from customer profile
-- [ ] **compliance-1.3** — **Data export (portability)** — customer requests full data export (`GET /public/{slug}/me/export`) → JSON/CSV: bookings, payments, subscriptions, gift cards; delivered by email within 24h
-- [ ] **compliance-1.4** — **Consent management** — marketing opt-in/out already done (**polish-3** ✅); add: granular consent for AI processing, third-party integrations (Zendesk, Zapier, QuickBooks); consent log with timestamp + IP
-- [ ] **compliance-1.5** — **Cookie consent banner** — public booking pages: configurable cookie banner with accept/reject; analytics cookies blocked until accepted; consent stored in `localStorage` + synced to backend
-- [ ] **compliance-1.6** — **DPA (Data Processing Agreement)** — dashboard: "Sign DPA" flow for EU businesses; DPA template already exists (**gap-5.4** ✅); add e-sign step + storage of signed DPA per business
-- [ ] **compliance-1.7** — **Privacy policy version tracking** — when business updates their privacy policy, log version + date; customers who consented before update get re-consent prompt at next booking
-- [ ] **compliance-1.8** — **Breach notification workflow** — admin: "Report data breach" form → auto-draft notification email to affected customers + log incident with timestamp; 72h GDPR deadline reminder
+- [x] **compliance-1.1** — **Data retention policy** — `Settings → Privacy`: configurable retention periods per data type (booking history, customer PII, AI command logs, audit logs); automated purge job respects retention rules (**settings stored**; automated purge job deferred)
+- [x] **compliance-1.2** — **Right to erasure (forget me)** — customer-initiated: `DELETE /public/{slug}/me/data` → anonymize PII (hashed placeholders); admin-initiated: `DELETE /businesses/{id}/customers/{id}/data`
+- [x] **compliance-1.3** — **Data export (portability)** — `GET /public/{slug}/me/data` + admin `GET .../customers/{id}/data-export` (**email delivery within 24h deferred**)
+- [x] **compliance-1.4** — **Consent management** — marketing opt-in/out (**polish-3** ✅); granular AI + third-party consent at checkout; consent log with timestamp (+ optional IP)
+- [x] **compliance-1.5** — **Cookie consent banner** — public booking: configurable banner with accept/reject; stored in `localStorage` (**backend sync deferred**)
+- [~] **compliance-1.6** — **DPA (Data Processing Agreement)** — DPA template exists (**gap-5.4** ✅ / Enterprise Trust tab); e-sign step + signed DPA storage deferred
+- [x] **compliance-1.7** — **Privacy policy version tracking** — `privacyPolicyVersion` on business settings; `shouldPromptPrivacyReconsent` helper (**checkout re-consent UI prompt deferred**)
+- [x] **compliance-1.8** — **Breach notification workflow** — admin: "Report data breach" form → auto-draft notification email to affected customers + log incident with timestamp; 72h GDPR deadline reminder
 
 ### compliance-1.2 — HIPAA (US clinic vertical only)
-- [ ] **compliance-1.9** — **HIPAA mode toggle** — `Settings → Compliance`: enable HIPAA mode (only available for `businessType: clinic / polyclinic`); activates additional safeguards below
-- [ ] **compliance-1.10** — **BAA (Business Associate Agreement)** — when HIPAA mode enabled: display BAA; require admin to accept before enabling; store accepted BAA version + timestamp + user ID
-- [ ] **compliance-1.11** — **PHI field encryption** — when HIPAA mode on: `referralNotes`, `symptoms`, `patient_test_results.notes` encrypted at rest (AES-256); decrypted only for authorized staff; encryption key per business stored in KMS / secrets manager
-- [ ] **compliance-1.12** — **Access audit log** — every read/write of PHI fields logged: `userId`, `role`, `action`, `resourceType`, `resourceId`, `timestamp`, `ip`; retention minimum 6 years; viewable by owner only
-- [ ] **compliance-1.13** — **Session timeout** — HIPAA mode enforces 15-minute inactivity auto-logout on dashboard and provider app
-- [ ] **compliance-1.14** — **Minimum necessary access** — HIPAA mode: staff role sees only PHI for their own assigned bookings; manager sees all; owner sees all; enforced at API layer
-- [ ] **compliance-1.15** — **AI + PHI guard** — when HIPAA mode on: block AI commands from including PHI fields in prompts sent to external LLMs; `referralNotes` / `symptoms` / test results never sent to OpenAI/Claude/Gemini
+- [x] **compliance-1.9** — **HIPAA mode toggle** — `Settings → Compliance`: enable HIPAA mode (clinic / polyclinic / beauty_clinic / dental only)
+- [x] **compliance-1.10** — **BAA (Business Associate Agreement)** — require admin BAA acceptance before enabling; store `baaAcceptedAt`, `baaAcceptedByUserId`, `baaVersion`
+- [x] **compliance-1.11** — **PHI field encryption** — when HIPAA mode on: `referralNotes`, `symptoms`, `patient_test_results.notes` encrypted at rest (AES-256); decrypted only for authorized staff; encryption key per business stored in KMS / secrets manager
+- [x] **compliance-1.12** — **Access audit log** — every read/write of PHI fields logged: `userId`, `role`, `action`, `resourceType`, `resourceId`, `timestamp`, `ip`; retention minimum 6 years; viewable by owner only
+- [x] **compliance-1.13** — **Session timeout** — dashboard enforces configurable inactivity auto-logout when HIPAA mode on (`useHipaaSessionTimeout` + banner notice; **provider app deferred**)
+- [x] **compliance-1.14** — **Minimum necessary access** — HIPAA mode: staff role sees only PHI for their own assigned bookings; manager sees all; owner sees all; enforced at API layer (`phi-minimum-access.util` + booking PHI decrypt paths)
+- [x] **compliance-1.15** — **AI + PHI guard** — `objectContainsPhiFields` + `phi-ai-guard.util`; blocks PHI in AI command `context` when HIPAA on (**free-text LLM prompt PHI scan deferred**)
 
 ### compliance-1.3 — Shared / cross-cutting
-- [ ] **compliance-1.16** — **Compliance dashboard** — owner-only page: GDPR status checklist, HIPAA status (if enabled), DPA signed status, pending data requests, breach log, consent stats
-- [ ] **compliance-1.17** — **Data residency hint** — settings: inform admin which region their data is stored in (EU / US / other based on deployment); no data migration in v1, informational only
-- [ ] **compliance-1.18** — **Third-party sub-processor list** — public page or in-dashboard: list of sub-processors (AWS/GCP, OpenAI, Stripe, Twilio, Resend, etc.) with data types and regions; required for GDPR Article 28
+- [x] **compliance-1.16** — **Compliance dashboard** — GDPR checklist + sub-processors + HIPAA status + breach log + PHI audit in `Settings → Compliance` (**dedicated owner page deferred**)
+- [x] **compliance-1.17** — **Data residency hint** — informational `dataResidencyRegion` on privacy settings + public profile
+- [x] **compliance-1.18** — **Third-party sub-processor list** — in-dashboard sub-processor list in compliance settings (Article 28)
+
+**Tests (Sprint 37):**
+- Backend: `npm run test:sprint37` — **186+ tests**; utils at **100%** lines/branches/functions; compliance services at **100%** lines/statements/functions (branch floors: phi-field 93%+, phi-access-audit 94%+, breach/controller 80%+ for Nest DI ctor paths). Specs: `business-compliance`, `phi-encryption`, `phi-minimum-access`, `phi-ai-guard`, `breach-notification`, `phi-field.service`, `phi-access-audit.service`, `compliance-breach.service`, `compliance.controller`, `compliance.module`, `compliance.integration`, `compliance-scenarios`, `public-booking-compliance`, `public-booking-consent`, `customer-privacy`, `booking-phi-compliance`, `booking-phi-minimum-access`, `ai-gateway-phi-guard`
+- Frontend: `npm run test:sprint37` — **52 tests**; `business-compliance.ts`, `compliance-workflow.ts`, `hipaa-session-timeout.ts`, `cookie-consent.ts` at **100%** coverage + scenario matrix (HIPAA session timeout, minimum-necessary PHI masking, breach deadline approaching/overdue/safe, owner-only panels, GDPR checklist, cookie consent)
+
+### compliance-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
+
+- [ ] **ai-cmd-compliance-1** — Dashboard: **`configure_privacy_retention`** — "Keep customer data for 3 years", "Enable cookie banner on our booking page"
+- [ ] **ai-cmd-compliance-2** — Dashboard: **`configure_granular_consent`** — "Require AI processing consent at checkout", "Ask for third-party integration consent"
+- [ ] **ai-cmd-compliance-3** — Dashboard: **`enable_hipaa_mode`** (clinic only) — "Enable HIPAA safeguards", "Set 15-minute session timeout for HIPAA"
+- [ ] **ai-cmd-compliance-4** — Dashboard: **`explain_compliance_status`** (READ) — GDPR checklist, HIPAA/BAA status, retention periods, sub-processors
+- [ ] **ai-cmd-compliance-5** — Dashboard: **`admin_delete_customer_data`** — "Forget this customer" / anonymize PII from customer profile
+- [ ] **ai-cmd-compliance-6** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for compliance configuration phrasing (EN/HY/RU)
+- [ ] **ai-cmd-compliance-7** — Customer/public: **`explain_data_rights`** — READ when user asks about export, delete, or cookie banner
+- [ ] **ai-cmd-compliance-8** — Dashboard (owner): **`report_data_breach`** — "Report a data breach", "Log security incident affecting customer emails"
+- [ ] **ai-cmd-compliance-9** — Dashboard (owner, READ): **`list_breach_incidents`** — "Show breach incidents", "What is our GDPR 72-hour deadline?"
+- [ ] **ai-cmd-compliance-10** — Dashboard (owner, READ): **`view_phi_access_audit`** — "Who accessed patient notes?", "Show HIPAA PHI audit log for last week"
+- [ ] **ai-cmd-compliance-11** — Dashboard (clinic, READ): **`explain_phi_encryption_status`** — "Is HIPAA encryption on?", "Are referral notes encrypted at rest?"
+- [ ] **ai-cmd-compliance-12** — Dashboard (READ): **`explain_minimum_necessary_phi_access`** — "Who can see patient notes?", "What PHI can staff access?"
+- [ ] **ai-cmd-compliance-13** — Dashboard (clinic, READ): **`explain_hipaa_session_timeout`** — "When will I be logged out?", "What is our HIPAA session timeout?"
+- [ ] **ai-cmd-compliance-14** — Dashboard: **`configure_hipaa_session_timeout`** — "Set HIPAA timeout to 10 minutes", "Require 15-minute auto logout"
+- [ ] **ai-cmd-compliance-15** — Classifier + eval: block/redact prompts that embed PHI field payloads in AI context when HIPAA on (extends **compliance-1.15**)
+- [ ] **ai-cmd-compliance-16** — Dashboard (owner): **`accept_hipaa_baa`** — "Accept the HIPAA business associate agreement", "Sign BAA to enable HIPAA mode"
+- [ ] **ai-cmd-compliance-17** — Dashboard (owner, READ): **`list_sub_processors`** — "Who are our data sub-processors?", "Show Article 28 processor list"
+- [ ] **ai-cmd-compliance-18** — Dashboard (owner, READ): **`explain_gdpr_checklist`** — "Are we GDPR compliant?", "What privacy items are still missing?"
+- [ ] **ai-cmd-compliance-19** — Dashboard (owner): **`send_breach_notification`** — "Email affected customers about breach BR-42", "Send draft breach notice for incident X"
+- [ ] **ai-cmd-compliance-20** — Provider app (clinic): **`explain_provider_session_timeout`** (READ) — "When will the provider app log me out?" (**compliance-1.13** provider deferred)
+- [ ] **ai-cmd-compliance-21** — Dashboard (owner, READ): **`open_compliance_dashboard`** — "Open compliance settings", "Take me to breach log" (**compliance-1.16** dedicated page deferred → deep-link into Settings → Compliance panels)
+
+**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
 

@@ -34,6 +34,7 @@ describe('PublicBookingService appointment reminder profile', () => {
     {} as any,
     multiServiceBookingsService,
     {} as any,
+    {} as any,
     config as unknown as ConfigService,
     {} as any,
     {} as any,

@@ -106,6 +106,82 @@ describe('ServiceService', () => {
     });
   });
 
+  it('preserves existing service currency when update omits currency', async () => {
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: { currency: 'AMD', stripeConnect: { chargesEnabled: true } },
+    });
+    const created = await serviceService.create('biz-1', {
+      name: 'Legacy',
+      durationMinutes: 30,
+      price: 100,
+      bufferMinutes: 0,
+      currency: 'EUR',
+    });
+
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: { currency: 'AMD', stripeConnect: { chargesEnabled: true } },
+    });
+    const updated = await serviceService.update(created.id, {
+      price: 120,
+    });
+
+    expect(updated.currency).toBe('EUR');
+  });
+
+  it('updates service currency only when explicitly provided', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { currency: 'AMD', stripeConnect: { chargesEnabled: true } },
+    });
+    const created = await serviceService.create('biz-1', {
+      name: 'Switch',
+      durationMinutes: 30,
+      price: 100,
+      bufferMinutes: 0,
+      currency: 'EUR',
+    });
+
+    const updated = await serviceService.update(created.id, {
+      currency: 'gel',
+    });
+
+    expect(updated.currency).toBe('GEL');
+  });
+
+  it('rejects unsupported currency on create', async () => {
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: { currency: 'AMD', stripeConnect: { chargesEnabled: true } },
+    });
+
+    await expect(
+      serviceService.create('biz-1', {
+        name: 'Bad',
+        durationMinutes: 30,
+        price: 10,
+        currency: 'XYZ',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('defaults currency from business settings when omitted on create', async () => {
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: { currency: 'AMD', stripeConnect: { chargesEnabled: true } },
+    });
+
+    const created = await serviceService.create('biz-1', {
+      name: 'Lashes',
+      durationMinutes: 60,
+      price: 15000,
+      bufferMinutes: 0,
+    });
+
+    expect(created.currency).toBe('AMD');
+  });
+
   it('creates a service with localized names in metadata', async () => {
     const created = await serviceService.create(
       'biz-1',

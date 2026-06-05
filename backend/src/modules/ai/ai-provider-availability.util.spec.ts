@@ -73,7 +73,11 @@ describe('buildCheckProvidersSummary', () => {
     expect(result.summary).toContain('14:00, 14:30, 15:00');
     expect(result.summary).toContain('Tap a provider below');
     expect(result.availableProviders).toEqual(['Karo Mazmanyan']);
-    expect(result.availability[0]?.previewTimes).toEqual(['14:00', '14:30', '15:00']);
+    expect(result.availability[0]?.previewTimes).toEqual([
+      '14:00',
+      '14:30',
+      '15:00',
+    ]);
   });
 
   it('uses earliest start time when preview times are missing', () => {
@@ -130,7 +134,10 @@ describe('buildCheckProvidersSummary', () => {
       ],
     });
 
-    expect(result.availableProviders).toEqual(['Karo Mazmanyan', 'Mary Torgomyan']);
+    expect(result.availableProviders).toEqual([
+      'Karo Mazmanyan',
+      'Mary Torgomyan',
+    ]);
     expect(result.availability).toHaveLength(2);
     expect(result.summary).toContain('2 provider(s) available');
   });
