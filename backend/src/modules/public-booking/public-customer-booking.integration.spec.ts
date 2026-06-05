@@ -1,8 +1,15 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import {
   ensureBookingManageToken,
   validateBookingManageToken,
@@ -48,31 +55,50 @@ describe('Public customer booking self-service integration', () => {
     packagePurchaseId?: string | null;
     metadata: Record<string, unknown>;
     employee?: { name: string };
-    service?: { name: string; durationMinutes?: number; bufferMinutes?: number };
+    service?: {
+      name: string;
+      durationMinutes?: number;
+      bufferMinutes?: number;
+    };
     customer?: { email: string | null };
   };
 
   const bookings = new Map<string, StoredBooking>();
-  const reviews: Array<{ bookingId: string; businessId: string; customerId: string }> = [];
+  const reviews: Array<{
+    bookingId: string;
+    businessId: string;
+    customerId: string;
+  }> = [];
 
   const businessService = {
     findBySlug: jest.fn(async (slug: string) => {
-      if (slug !== business.slug) throw new NotFoundException('Business not found');
+      if (slug !== business.slug)
+        throw new NotFoundException('Business not found');
       return business;
     }),
   };
 
   const bookingRepo = {
-    findOne: jest.fn(async ({ where, relations }: { where: Record<string, unknown>; relations?: unknown }) => {
-      if (where.id) {
-        const booking = bookings.get(String(where.id));
-        if (!booking) return null;
-        if (where.businessId && booking.businessId !== where.businessId) return null;
-        if (where.customerId && booking.customerId !== where.customerId) return null;
-        return { ...booking };
-      }
-      return null;
-    }),
+    findOne: jest.fn(
+      async ({
+        where,
+        relations,
+      }: {
+        where: Record<string, unknown>;
+        relations?: unknown;
+      }) => {
+        if (where.id) {
+          const booking = bookings.get(String(where.id));
+          if (!booking) return null;
+          if (where.businessId && booking.businessId !== where.businessId)
+            return null;
+          if (where.customerId && booking.customerId !== where.customerId)
+            return null;
+          return { ...booking };
+        }
+        return null;
+      },
+    ),
     find: jest.fn(
       async ({
         where,
@@ -91,9 +117,13 @@ describe('Public customer booking self-service integration', () => {
           list = list.filter((b) => b.customerId === where.customerId);
         }
         if (where.packagePurchaseId) {
-          list = list.filter((b) => b.packagePurchaseId === where.packagePurchaseId);
+          list = list.filter(
+            (b) => b.packagePurchaseId === where.packagePurchaseId,
+          );
         }
-        return list.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        return list.sort(
+          (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+        );
       },
     ),
     save: jest.fn(async (booking: StoredBooking) => {
@@ -104,7 +134,9 @@ describe('Public customer booking self-service integration', () => {
 
   const reviewRepo = {
     find: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
-      const bookingIdClause = where.bookingId as { _value?: string[] } | undefined;
+      const bookingIdClause = where.bookingId as
+        | { _value?: string[] }
+        | undefined;
       const allowedIds = bookingIdClause?._value;
       return reviews.filter(
         (r) =>
@@ -116,12 +148,28 @@ describe('Public customer booking self-service integration', () => {
   };
 
   const customerRepo = {
-    findOne: jest.fn(async ({ where }: { where: { id: string; businessId: string; isActive: boolean } }) => {
-      if (where.id === 'cust-1' && where.businessId === business.id && where.isActive) {
-        return { id: 'cust-1', businessId: business.id, name: 'Jane', email: 'jane@example.com', isActive: true };
-      }
-      return null;
-    }),
+    findOne: jest.fn(
+      async ({
+        where,
+      }: {
+        where: { id: string; businessId: string; isActive: boolean };
+      }) => {
+        if (
+          where.id === 'cust-1' &&
+          where.businessId === business.id &&
+          where.isActive
+        ) {
+          return {
+            id: 'cust-1',
+            businessId: business.id,
+            name: 'Jane',
+            email: 'jane@example.com',
+            isActive: true,
+          };
+        }
+        return null;
+      },
+    ),
   };
 
   const eventStore = { publish: jest.fn().mockResolvedValue(undefined) };
@@ -130,7 +178,11 @@ describe('Public customer booking self-service integration', () => {
       const booking = bookings.get(id);
       if (!booking) throw new NotFoundException('Booking not found');
       booking.status = BookingStatus.CANCELLED;
-      booking.metadata = { ...booking.metadata, cancelReason: reason, cancelledBy: userId };
+      booking.metadata = {
+        ...booking.metadata,
+        cancelReason: reason,
+        cancelledBy: userId,
+      };
       bookings.set(id, booking);
       await eventStore.publish({
         eventType: 'booking.cancelled',
@@ -142,7 +194,11 @@ describe('Public customer booking self-service integration', () => {
     update: jest.fn(
       async (
         id: string,
-        dto: { startTime: string; employeeId?: string; metadata?: Record<string, unknown> },
+        dto: {
+          startTime: string;
+          employeeId?: string;
+          metadata?: Record<string, unknown>;
+        },
         userId?: string,
         _internal?: { skipGroupReschedule?: boolean },
       ) => {
@@ -151,7 +207,11 @@ describe('Public customer booking self-service integration', () => {
         booking.startTime = new Date(dto.startTime);
         booking.endTime = new Date(booking.startTime.getTime() + 3600000);
         if (dto.employeeId) booking.employeeId = dto.employeeId;
-        booking.metadata = { ...booking.metadata, ...dto.metadata, rescheduledBy: userId };
+        booking.metadata = {
+          ...booking.metadata,
+          ...dto.metadata,
+          rescheduledBy: userId,
+        };
         bookings.set(id, booking);
         await eventStore.publish({
           eventType: 'booking.rescheduled',
@@ -179,7 +239,11 @@ describe('Public customer booking self-service integration', () => {
           booking.startTime = new Date(segment.startTime);
           booking.endTime = new Date(booking.startTime.getTime() + 3600000);
           booking.employeeId = segment.employeeId;
-          booking.metadata = { ...booking.metadata, ...segment.metadata, rescheduledBy: userId };
+          booking.metadata = {
+            ...booking.metadata,
+            ...segment.metadata,
+            rescheduledBy: userId,
+          };
           bookings.set(booking.id, booking);
           await eventStore.publish({
             eventType: 'booking.rescheduled',
@@ -201,7 +265,9 @@ describe('Public customer booking self-service integration', () => {
   const multiServiceBookingsService = {
     resolveSettingsFromBusiness: jest.fn(() => ({ turnoverBufferMinutes: 5 })),
   };
-  const jwtService = { sign: jest.fn(() => 'jwt-token') } as unknown as JwtService;
+  const jwtService = {
+    sign: jest.fn(() => 'jwt-token'),
+  } as unknown as JwtService;
 
   const publicCustomerBookingService = new PublicCustomerBookingService(
     businessService as any,
@@ -252,7 +318,10 @@ describe('Public customer booking self-service integration', () => {
     return booking;
   }
 
-  function seedPackageVisit(): { anchor: StoredBooking; second: StoredBooking } {
+  function seedPackageVisit(): {
+    anchor: StoredBooking;
+    second: StoredBooking;
+  } {
     const purchaseId = 'purchase-1';
     const blockStart = futureStart;
     const anchor = seedBooking({
@@ -293,7 +362,9 @@ describe('Public customer booking self-service integration', () => {
     blockStart: Date,
     employeeId = 'emp-1',
   ): Array<{ bookingId: string; startTime: string; employeeId: string }> {
-    const sorted = [...visit].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    const sorted = [...visit].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
     const sequential = buildSequentialAppointments(
       sorted.map((b) => ({
         serviceId: b.serviceId,
@@ -330,21 +401,33 @@ describe('Public customer booking self-service integration', () => {
   });
 
   it('exposes cash and self-service settings on business profile resolution', () => {
-    expect(resolvePublicPaymentSettings(business.settings)).toEqual({ acceptCashPayments: true });
-    expect(resolveCustomerSelfServiceSettings(business.settings)).toMatchObject({
-      allowCancel: true,
-      maxReschedulesPerBooking: 2,
+    expect(resolvePublicPaymentSettings(business.settings)).toEqual({
+      acceptCashPayments: true,
     });
+    expect(resolveCustomerSelfServiceSettings(business.settings)).toMatchObject(
+      {
+        allowCancel: true,
+        maxReschedulesPerBooking: 2,
+      },
+    );
   });
 
   it('issues manage token, lists enriched bookings, cancels, and emits events', async () => {
     const booking = seedBooking({ id: 'book-1' });
 
-    const token = await ensureBookingManageToken(bookingRepo as any, booking.id);
+    const token = await ensureBookingManageToken(
+      bookingRepo as any,
+      booking.id,
+    );
     expect(token).toMatch(/^[a-f0-9]{48}$/);
-    expect(validateBookingManageToken(bookings.get(booking.id)! as any, token)).toBe(true);
+    expect(
+      validateBookingManageToken(bookings.get(booking.id)! as any, token),
+    ).toBe(true);
 
-    const listed = await publicCustomerAuthService.listBookings('salon', 'cust-1');
+    const listed = await publicCustomerAuthService.listBookings(
+      'salon',
+      'cust-1',
+    );
     expect(listed.bookings).toHaveLength(1);
     expect(listed.bookings[0]).toMatchObject({
       id: 'book-1',
@@ -354,11 +437,19 @@ describe('Public customer booking self-service integration', () => {
       policyMessage: null,
     });
 
-    const manage = await publicCustomerBookingService.getManageContext('salon', booking.id, token);
+    const manage = await publicCustomerBookingService.getManageContext(
+      'salon',
+      booking.id,
+      token,
+    );
     expect(manage.canCancel).toBe(true);
     expect(manage.manageUrl).toContain(`token=${token}`);
 
-    const cancelled = await publicCustomerBookingService.cancelBooking('salon', 'cust-1', booking.id);
+    const cancelled = await publicCustomerBookingService.cancelBooking(
+      'salon',
+      'cust-1',
+      booking.id,
+    );
     expect(cancelled.booking.status).toBe(BookingStatus.CANCELLED);
     expect(bookingService.cancel).toHaveBeenCalledWith(
       booking.id,
@@ -373,40 +464,61 @@ describe('Public customer booking self-service integration', () => {
       expect.objectContaining({ eventType: 'booking.cancelled' }),
     );
 
-    const afterCancel = await publicCustomerAuthService.listBookings('salon', 'cust-1');
+    const afterCancel = await publicCustomerAuthService.listBookings(
+      'salon',
+      'cust-1',
+    );
     expect(afterCancel.bookings[0].canCancel).toBe(false);
-    expect(afterCancel.bookings[0].policyMessage).toContain('already cancelled');
+    expect(afterCancel.bookings[0].policyMessage).toContain(
+      'already cancelled',
+    );
   });
 
   it('reschedules until max then blocks further reschedules', async () => {
     seedBooking({ id: 'book-2', metadata: { customerRescheduleCount: 1 } });
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
 
-    await publicCustomerBookingService.rescheduleBooking('salon', 'cust-1', 'book-2', {
-      startTime: newStart,
-    });
+    await publicCustomerBookingService.rescheduleBooking(
+      'salon',
+      'cust-1',
+      'book-2',
+      {
+        startTime: newStart,
+      },
+    );
     expect(bookings.get('book-2')?.metadata.customerRescheduleCount).toBe(2);
     expect(eventStore.publish).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'booking.rescheduled' }),
     );
 
     await expect(
-      publicCustomerBookingService.rescheduleBooking('salon', 'cust-1', 'book-2', {
-        startTime: new Date(futureStart.getTime() + 172800000).toISOString(),
-      }),
+      publicCustomerBookingService.rescheduleBooking(
+        'salon',
+        'cust-1',
+        'book-2',
+        {
+          startTime: new Date(futureStart.getTime() + 172800000).toISOString(),
+        },
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('surfaces reschedule-only policy message when cancel is allowed but reschedule is not', async () => {
-    business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-      allowCancel: true,
-      allowReschedule: false,
-      minimumNoticeHours: 24,
-      maxReschedulesPerBooking: 2,
-    });
+    business.settings = applyCustomerSelfServiceToBusinessSettings(
+      business.settings,
+      {
+        allowCancel: true,
+        allowReschedule: false,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 2,
+      },
+    );
     seedBooking({ id: 'book-3' });
 
-    const listed = await publicCustomerAuthService.listBookings('salon', 'cust-1');
+    const listed = await publicCustomerAuthService.listBookings(
+      'salon',
+      'cust-1',
+    );
     expect(listed.bookings[0].canCancel).toBe(true);
     expect(listed.bookings[0].canReschedule).toBe(false);
     expect(listed.bookings[0].policyMessage).toContain('rescheduling');
@@ -414,35 +526,61 @@ describe('Public customer booking self-service integration', () => {
 
   it('marks completed bookings as reviewable when no review exists', async () => {
     seedBooking({ id: 'book-4', status: BookingStatus.COMPLETED });
-    const listed = await publicCustomerAuthService.listBookings('salon', 'cust-1');
+    const listed = await publicCustomerAuthService.listBookings(
+      'salon',
+      'cust-1',
+    );
     expect(listed.bookings[0].canReview).toBe(true);
 
-    reviews.push({ bookingId: 'book-4', businessId: business.id, customerId: 'cust-1' });
-    const afterReview = await publicCustomerAuthService.listBookings('salon', 'cust-1');
+    reviews.push({
+      bookingId: 'book-4',
+      businessId: business.id,
+      customerId: 'cust-1',
+    });
+    const afterReview = await publicCustomerAuthService.listBookings(
+      'salon',
+      'cust-1',
+    );
     expect(afterReview.bookings[0].canReview).toBe(false);
   });
 
   it('cancels via manage token without customer account login', async () => {
     const booking = seedBooking({ id: 'book-token' });
-    const token = await ensureBookingManageToken(bookingRepo as any, booking.id);
-
-    await publicCustomerBookingService.cancelBookingWithToken('salon', booking.id, token);
-    expect(bookings.get(booking.id)?.status).toBe(BookingStatus.CANCELLED);
-    expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalledWith(
+    const token = await ensureBookingManageToken(
+      bookingRepo as any,
       booking.id,
-      'cancelled',
     );
+
+    await publicCustomerBookingService.cancelBookingWithToken(
+      'salon',
+      booking.id,
+      token,
+    );
+    expect(bookings.get(booking.id)?.status).toBe(BookingStatus.CANCELLED);
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).toHaveBeenCalledWith(booking.id, 'cancelled');
   });
 
   it('reschedules via manage token and notifies business', async () => {
     const booking = seedBooking({ id: 'book-token-r' });
-    const token = await ensureBookingManageToken(bookingRepo as any, booking.id);
+    const token = await ensureBookingManageToken(
+      bookingRepo as any,
+      booking.id,
+    );
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
 
-    await publicCustomerBookingService.rescheduleBookingWithToken('salon', booking.id, token, {
-      startTime: newStart,
-    });
-    expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalledWith(
+    await publicCustomerBookingService.rescheduleBookingWithToken(
+      'salon',
+      booking.id,
+      token,
+      {
+        startTime: newStart,
+      },
+    );
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).toHaveBeenCalledWith(
       booking.id,
       'rescheduled',
       expect.objectContaining({ newStartTime: expect.any(String) }),
@@ -462,30 +600,57 @@ describe('Public customer booking self-service integration', () => {
   });
 
   it('reuses existing manage token on subsequent ensure calls', async () => {
-    const booking = seedBooking({ id: 'book-5', metadata: { manageToken: 'stable-token' } });
-    const first = await ensureBookingManageToken(bookingRepo as any, booking.id);
-    const second = await ensureBookingManageToken(bookingRepo as any, booking.id);
+    const booking = seedBooking({
+      id: 'book-5',
+      metadata: { manageToken: 'stable-token' },
+    });
+    const first = await ensureBookingManageToken(
+      bookingRepo as any,
+      booking.id,
+    );
+    const second = await ensureBookingManageToken(
+      bookingRepo as any,
+      booking.id,
+    );
     expect(first).toBe('stable-token');
     expect(second).toBe('stable-token');
     expect(bookingRepo.save).not.toHaveBeenCalled();
   });
 
   it('rejects invalid manage token on manage context lookup', async () => {
-    const booking = seedBooking({ id: 'book-bad-token', metadata: { manageToken: 'real-token' } });
+    const booking = seedBooking({
+      id: 'book-bad-token',
+      metadata: { manageToken: 'real-token' },
+    });
     await expect(
-      publicCustomerBookingService.getManageContext('salon', booking.id, 'wrong-token'),
+      publicCustomerBookingService.getManageContext(
+        'salon',
+        booking.id,
+        'wrong-token',
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects cancel for non-owned booking and invalid manage token', async () => {
     seedBooking({ id: 'book-owned', customerId: 'cust-1' });
     await expect(
-      publicCustomerBookingService.cancelBooking('salon', 'cust-2', 'book-owned'),
+      publicCustomerBookingService.cancelBooking(
+        'salon',
+        'cust-2',
+        'book-owned',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
 
-    const other = seedBooking({ id: 'book-token-bad', metadata: { manageToken: 'good' } });
+    const other = seedBooking({
+      id: 'book-token-bad',
+      metadata: { manageToken: 'good' },
+    });
     await expect(
-      publicCustomerBookingService.cancelBookingWithToken('salon', other.id, 'bad'),
+      publicCustomerBookingService.cancelBookingWithToken(
+        'salon',
+        other.id,
+        'bad',
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -495,19 +660,30 @@ describe('Public customer booking self-service integration', () => {
       startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
     });
     await expect(
-      publicCustomerBookingService.cancelBooking('salon', 'cust-1', 'book-soon'),
+      publicCustomerBookingService.cancelBooking(
+        'salon',
+        'cust-1',
+        'book-soon',
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
-    business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-      allowCancel: false,
-      allowReschedule: true,
-      minimumNoticeHours: 24,
-      maxReschedulesPerBooking: 2,
-      allowProviderChangeOnReschedule: false,
-    });
+    business.settings = applyCustomerSelfServiceToBusinessSettings(
+      business.settings,
+      {
+        allowCancel: false,
+        allowReschedule: true,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 2,
+        allowProviderChangeOnReschedule: false,
+      },
+    );
     seedBooking({ id: 'book-no-cancel' });
     await expect(
-      publicCustomerBookingService.cancelBooking('salon', 'cust-1', 'book-no-cancel'),
+      publicCustomerBookingService.cancelBooking(
+        'salon',
+        'cust-1',
+        'book-no-cancel',
+      ),
     ).rejects.toThrow('cancellation');
   });
 
@@ -516,40 +692,61 @@ describe('Public customer booking self-service integration', () => {
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
 
     await expect(
-      publicCustomerBookingService.rescheduleBooking('salon', 'cust-1', 'book-provider', {
-        startTime: newStart,
-        employeeId: 'emp-2',
-      }),
+      publicCustomerBookingService.rescheduleBooking(
+        'salon',
+        'cust-1',
+        'book-provider',
+        {
+          startTime: newStart,
+          employeeId: 'emp-2',
+        },
+      ),
     ).rejects.toThrow('Changing provider is not allowed');
 
-    business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-      allowCancel: true,
-      allowReschedule: true,
-      minimumNoticeHours: 24,
-      maxReschedulesPerBooking: 2,
-      allowProviderChangeOnReschedule: true,
-    });
+    business.settings = applyCustomerSelfServiceToBusinessSettings(
+      business.settings,
+      {
+        allowCancel: true,
+        allowReschedule: true,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 2,
+        allowProviderChangeOnReschedule: true,
+      },
+    );
 
-    await publicCustomerBookingService.rescheduleBooking('salon', 'cust-1', 'book-provider', {
-      startTime: newStart,
-      employeeId: 'emp-2',
-    });
+    await publicCustomerBookingService.rescheduleBooking(
+      'salon',
+      'cust-1',
+      'book-provider',
+      {
+        startTime: newStart,
+        employeeId: 'emp-2',
+      },
+    );
     expect(bookings.get('book-provider')?.employeeId).toBe('emp-2');
   });
 
   it('blocks reschedule when disabled and surfaces cancel-only policy on enrich', async () => {
-    business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-      allowCancel: true,
-      allowReschedule: false,
-      minimumNoticeHours: 24,
-      maxReschedulesPerBooking: 2,
-      allowProviderChangeOnReschedule: false,
-    });
+    business.settings = applyCustomerSelfServiceToBusinessSettings(
+      business.settings,
+      {
+        allowCancel: true,
+        allowReschedule: false,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 2,
+        allowProviderChangeOnReschedule: false,
+      },
+    );
     const booking = seedBooking({ id: 'book-reschedule-blocked' });
     await expect(
-      publicCustomerBookingService.rescheduleBooking('salon', 'cust-1', booking.id, {
-        startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
-      }),
+      publicCustomerBookingService.rescheduleBooking(
+        'salon',
+        'cust-1',
+        booking.id,
+        {
+          startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
+        },
+      ),
     ).rejects.toThrow('rescheduling');
 
     const item = publicCustomerBookingService.enrichBookingItem(
@@ -564,7 +761,10 @@ describe('Public customer booking self-service integration', () => {
 
   it('creates manage token when metadata is empty', async () => {
     const booking = seedBooking({ id: 'book-new-token', metadata: {} });
-    const token = await ensureBookingManageToken(bookingRepo as any, booking.id);
+    const token = await ensureBookingManageToken(
+      bookingRepo as any,
+      booking.id,
+    );
     expect(token).toMatch(/^[a-f0-9]{48}$/);
     expect(bookingRepo.save).toHaveBeenCalled();
   });
@@ -574,15 +774,24 @@ describe('Public customer booking self-service integration', () => {
       const { anchor, second } = seedPackageVisit();
       const token = 'pkg-manage-token';
 
-      const listed = await publicCustomerAuthService.listBookings('salon', 'cust-1');
-      const pkgRows = listed.bookings.filter((b) => b.packagePurchaseId === 'purchase-1');
+      const listed = await publicCustomerAuthService.listBookings(
+        'salon',
+        'cust-1',
+      );
+      const pkgRows = listed.bookings.filter(
+        (b) => b.packagePurchaseId === 'purchase-1',
+      );
       expect(pkgRows).toHaveLength(2);
       expect(pkgRows[0]).toMatchObject({
         packageId: 'pkg-catalog-1',
         packageName: 'Glow package',
       });
 
-      const manage = await publicCustomerBookingService.getManageContext('salon', anchor.id, token);
+      const manage = await publicCustomerBookingService.getManageContext(
+        'salon',
+        anchor.id,
+        token,
+      );
       expect(manage.packageVisit).toMatchObject({
         packagePurchaseId: 'purchase-1',
         packageName: 'Glow package',
@@ -593,16 +802,24 @@ describe('Public customer booking self-service integration', () => {
       expect(manage.canCancel).toBe(true);
       expect(manage.canReschedule).toBe(true);
 
-      const summary = await publicCustomerBookingService.getPackageVisitSummary('salon', anchor.id, {
-        customerId: 'cust-1',
-      });
-      expect(summary.appointments.map((a) => a.bookingId)).toEqual([anchor.id, second.id]);
-
-      const summaryViaToken = await publicCustomerBookingService.getPackageVisitSummary(
+      const summary = await publicCustomerBookingService.getPackageVisitSummary(
         'salon',
         anchor.id,
-        { token: 'pkg-manage-token' },
+        {
+          customerId: 'cust-1',
+        },
       );
+      expect(summary.appointments.map((a) => a.bookingId)).toEqual([
+        anchor.id,
+        second.id,
+      ]);
+
+      const summaryViaToken =
+        await publicCustomerBookingService.getPackageVisitSummary(
+          'salon',
+          anchor.id,
+          { token: 'pkg-manage-token' },
+        );
       expect(summaryViaToken.packageName).toBe('Glow package');
     });
 
@@ -618,7 +835,9 @@ describe('Public customer booking self-service integration', () => {
       expect(bookings.get('pkg-1')?.status).toBe(BookingStatus.CANCELLED);
       expect(bookings.get('pkg-2')?.status).toBe(BookingStatus.CANCELLED);
       expect(bookingService.cancel).toHaveBeenCalledTimes(2);
-      expect(notificationsService.sendBookingCancellation).toHaveBeenCalledTimes(2);
+      expect(
+        notificationsService.sendBookingCancellation,
+      ).toHaveBeenCalledTimes(2);
 
       bookings.clear();
       jest.clearAllMocks();
@@ -645,11 +864,17 @@ describe('Public customer booking self-service integration', () => {
       );
 
       expect(result.bookings).toHaveLength(2);
-      expect(bookings.get('pkg-1')?.startTime.toISOString()).toBe(lines[0].startTime);
-      expect(bookings.get('pkg-2')?.startTime.toISOString()).toBe(lines[1].startTime);
+      expect(bookings.get('pkg-1')?.startTime.toISOString()).toBe(
+        lines[0].startTime,
+      );
+      expect(bookings.get('pkg-2')?.startTime.toISOString()).toBe(
+        lines[1].startTime,
+      );
       expect(bookingService.rescheduleSameVisitBlock).toHaveBeenCalledTimes(1);
       expect(bookingService.update).not.toHaveBeenCalled();
-      expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalledWith(
+      expect(
+        notificationsService.sendBusinessCustomerBookingChange,
+      ).toHaveBeenCalledWith(
         'pkg-1',
         'rescheduled',
         expect.objectContaining({ previousStartTime: expect.any(String) }),
@@ -678,23 +903,35 @@ describe('Public customer booking self-service integration', () => {
       bookings.get('pkg-2')!.metadata = { customerRescheduleCount: 2 };
 
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: packageRescheduleLines(
-            [bookings.get('pkg-1')!, bookings.get('pkg-2')!],
-            new Date(futureStart.getTime() + 86400000),
-          ),
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: packageRescheduleLines(
+              [bookings.get('pkg-1')!, bookings.get('pkg-2')!],
+              new Date(futureStart.getTime() + 86400000),
+            ),
+          },
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
-      business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-        allowCancel: false,
-        allowReschedule: true,
-        minimumNoticeHours: 24,
-        maxReschedulesPerBooking: 2,
-        allowProviderChangeOnReschedule: false,
-      });
+      business.settings = applyCustomerSelfServiceToBusinessSettings(
+        business.settings,
+        {
+          allowCancel: false,
+          allowReschedule: true,
+          minimumNoticeHours: 24,
+          maxReschedulesPerBooking: 2,
+          allowProviderChangeOnReschedule: false,
+        },
+      );
       await expect(
-        publicCustomerBookingService.cancelPackageVisit('salon', 'cust-1', anchor.id),
+        publicCustomerBookingService.cancelPackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -702,31 +939,73 @@ describe('Public customer booking self-service integration', () => {
       const { anchor } = seedPackageVisit();
 
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: [{ bookingId: 'pkg-1', startTime: new Date(futureStart.getTime() + 86400000).toISOString() }],
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: [
+              {
+                bookingId: 'pkg-1',
+                startTime: new Date(
+                  futureStart.getTime() + 86400000,
+                ).toISOString(),
+              },
+            ],
+          },
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: [
-            { bookingId: 'pkg-1', startTime: new Date(futureStart.getTime() + 86400000).toISOString(), employeeId: 'emp-1' },
-            {
-              bookingId: 'pkg-2',
-              startTime: new Date(futureStart.getTime() + 90000000).toISOString(),
-              employeeId: 'emp-1',
-            },
-          ],
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: [
+              {
+                bookingId: 'pkg-1',
+                startTime: new Date(
+                  futureStart.getTime() + 86400000,
+                ).toISOString(),
+                employeeId: 'emp-1',
+              },
+              {
+                bookingId: 'pkg-2',
+                startTime: new Date(
+                  futureStart.getTime() + 90000000,
+                ).toISOString(),
+                employeeId: 'emp-1',
+              },
+            ],
+          },
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: [
-            { bookingId: 'pkg-1', startTime: new Date(futureStart.getTime() + 86400000).toISOString(), employeeId: 'emp-1' },
-            { bookingId: 'pkg-2', startTime: new Date(futureStart.getTime() + 86400000).toISOString(), employeeId: 'emp-2' },
-          ],
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: [
+              {
+                bookingId: 'pkg-1',
+                startTime: new Date(
+                  futureStart.getTime() + 86400000,
+                ).toISOString(),
+                employeeId: 'emp-1',
+              },
+              {
+                bookingId: 'pkg-2',
+                startTime: new Date(
+                  futureStart.getTime() + 86400000,
+                ).toISOString(),
+                employeeId: 'emp-2',
+              },
+            ],
+          },
+        ),
       ).rejects.toThrow('same provider');
 
       bookings.get('pkg-2')!.employeeId = 'emp-2';
@@ -736,20 +1015,28 @@ describe('Public customer booking self-service integration', () => {
         'emp-1',
       );
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: validLines,
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: validLines,
+          },
+        ),
       ).rejects.toThrow('Changing provider is not allowed');
     });
 
     it('allows provider change on package reschedule when enabled', async () => {
-      business.settings = applyCustomerSelfServiceToBusinessSettings(business.settings, {
-        allowCancel: true,
-        allowReschedule: true,
-        minimumNoticeHours: 24,
-        maxReschedulesPerBooking: 2,
-        allowProviderChangeOnReschedule: true,
-      });
+      business.settings = applyCustomerSelfServiceToBusinessSettings(
+        business.settings,
+        {
+          allowCancel: true,
+          allowReschedule: true,
+          minimumNoticeHours: 24,
+          maxReschedulesPerBooking: 2,
+          allowProviderChangeOnReschedule: true,
+        },
+      );
       const { anchor } = seedPackageVisit();
       const blockStart = new Date(futureStart.getTime() + 86400000);
       const lines = packageRescheduleLines(
@@ -758,20 +1045,33 @@ describe('Public customer booking self-service integration', () => {
         'emp-2',
       );
 
-      await publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-        lines,
-      });
+      await publicCustomerBookingService.reschedulePackageVisit(
+        'salon',
+        'cust-1',
+        anchor.id,
+        {
+          lines,
+        },
+      );
       expect(bookings.get('pkg-1')?.employeeId).toBe('emp-2');
     });
 
     it('rejects package visit actions for wrong customer or token', async () => {
       const { anchor } = seedPackageVisit();
       await expect(
-        publicCustomerBookingService.cancelPackageVisit('salon', 'cust-2', anchor.id),
+        publicCustomerBookingService.cancelPackageVisit(
+          'salon',
+          'cust-2',
+          anchor.id,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
 
       await expect(
-        publicCustomerBookingService.cancelPackageVisitWithToken('salon', anchor.id, 'wrong'),
+        publicCustomerBookingService.cancelPackageVisitWithToken(
+          'salon',
+          anchor.id,
+          'wrong',
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -792,9 +1092,13 @@ describe('Public customer booking self-service integration', () => {
       const { anchor } = seedPackageVisit();
       bookingRepo.find.mockResolvedValueOnce([]);
 
-      const summary = await publicCustomerBookingService.getPackageVisitSummary('salon', anchor.id, {
-        customerId: 'cust-1',
-      });
+      const summary = await publicCustomerBookingService.getPackageVisitSummary(
+        'salon',
+        anchor.id,
+        {
+          customerId: 'cust-1',
+        },
+      );
       expect(summary.appointments).toHaveLength(1);
       expect(summary.appointments[0].bookingId).toBe(anchor.id);
     });
@@ -808,9 +1112,13 @@ describe('Public customer booking self-service integration', () => {
         service: undefined,
       });
 
-      const summary = await publicCustomerBookingService.getPackageVisitSummary('salon', booking.id, {
-        customerId: 'cust-1',
-      });
+      const summary = await publicCustomerBookingService.getPackageVisitSummary(
+        'salon',
+        booking.id,
+        {
+          customerId: 'cust-1',
+        },
+      );
       expect(summary.packageName).toBe('Package visit');
       expect(summary.appointments[0].serviceName).toBe('Service');
       expect(summary.appointments[0].employeeName).toBe('Specialist');
@@ -823,15 +1131,22 @@ describe('Public customer booking self-service integration', () => {
       const blockStart = new Date(futureStart.getTime() + 86400000);
 
       await expect(
-        publicCustomerBookingService.reschedulePackageVisit('salon', 'cust-1', anchor.id, {
-          lines: [
-            { bookingId: 'pkg-1', startTime: blockStart.toISOString() },
-            {
-              bookingId: 'pkg-2',
-              startTime: new Date(blockStart.getTime() + 35 * 60 * 1000).toISOString(),
-            },
-          ],
-        }),
+        publicCustomerBookingService.reschedulePackageVisit(
+          'salon',
+          'cust-1',
+          anchor.id,
+          {
+            lines: [
+              { bookingId: 'pkg-1', startTime: blockStart.toISOString() },
+              {
+                bookingId: 'pkg-2',
+                startTime: new Date(
+                  blockStart.getTime() + 35 * 60 * 1000,
+                ).toISOString(),
+              },
+            ],
+          },
+        ),
       ).rejects.toThrow('Provider is required');
     });
   });
@@ -856,9 +1171,13 @@ describe('Public customer booking self-service integration', () => {
   it('summarizes a single booking when package purchase id is absent', async () => {
     const booking = seedBooking({ id: 'solo-no-purchase' });
 
-    const summary = await publicCustomerBookingService.getPackageVisitSummary('salon', booking.id, {
-      customerId: 'cust-1',
-    });
+    const summary = await publicCustomerBookingService.getPackageVisitSummary(
+      'salon',
+      booking.id,
+      {
+        customerId: 'cust-1',
+      },
+    );
     expect(summary.appointments).toHaveLength(1);
     expect(summary.appointments[0].bookingId).toBe('solo-no-purchase');
   });
@@ -866,7 +1185,11 @@ describe('Public customer booking self-service integration', () => {
   it('requires customer id or manage token for package visit summary', async () => {
     const booking = seedBooking({ id: 'solo-auth' });
     await expect(
-      publicCustomerBookingService.getPackageVisitSummary('salon', booking.id, {}),
+      publicCustomerBookingService.getPackageVisitSummary(
+        'salon',
+        booking.id,
+        {},
+      ),
     ).rejects.toThrow('Authentication required');
   });
 });

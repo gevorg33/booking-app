@@ -12,7 +12,9 @@ describe('ai-entity-memory.util', () => {
   });
 
   it('formats memory lines and blocks', () => {
-    expect(formatEntityMemoryLine('gevorg', { employeeName: 'Gevorg A.' })).toContain('provider=Gevorg');
+    expect(
+      formatEntityMemoryLine('gevorg', { employeeName: 'Gevorg A.' }),
+    ).toContain('provider=Gevorg');
     expect(
       formatEntityMemoryLine('john', {
         customerName: 'John',
@@ -21,7 +23,10 @@ describe('ai-entity-memory.util', () => {
     ).toContain('customer=John');
     expect(
       formatEntityMemoryContextBlock({
-        aliases: { gevorg: { employeeName: 'Gevorg' }, massage: { serviceName: 'Face massage' } },
+        aliases: {
+          gevorg: { employeeName: 'Gevorg' },
+          massage: { serviceName: 'Face massage' },
+        },
       }),
     ).toContain('"gevorg"');
     expect(formatEntityMemoryContextBlock({} as any)).toBe('');
@@ -81,7 +86,11 @@ describe('ai-entity-memory.util', () => {
 
   it('skips empty alias keys when applying memory', () => {
     expect(
-      applyEntityMemoryToParams({}, { aliases: { '': { employeeName: 'X' } } }, 'book'),
+      applyEntityMemoryToParams(
+        {},
+        { aliases: { '': { employeeName: 'X' } } },
+        'book',
+      ),
     ).toEqual({});
   });
 
@@ -91,10 +100,18 @@ describe('ai-entity-memory.util', () => {
 
   it('does not overwrite params already set from memory', () => {
     const result = applyEntityMemoryToParams(
-      { employeeName: 'Maria', serviceName: 'Cut', waitlistCustomerName: 'Ann' },
+      {
+        employeeName: 'Maria',
+        serviceName: 'Cut',
+        waitlistCustomerName: 'Ann',
+      },
       {
         aliases: {
-          gevorg: { employeeName: 'Gevorg', serviceName: 'Massage', customerName: 'John' },
+          gevorg: {
+            employeeName: 'Gevorg',
+            serviceName: 'Massage',
+            customerName: 'John',
+          },
         },
       },
       'gevorg massage john',

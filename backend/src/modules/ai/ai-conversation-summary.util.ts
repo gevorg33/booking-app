@@ -12,9 +12,10 @@ export function shouldSummarizeConversation(length: number): boolean {
   return length > SUMMARIZE_AFTER_TURNS;
 }
 
-export function splitHistoryForSummary(
-  history: ConversationHistoryMessage[],
-): { older: ConversationHistoryMessage[]; recent: ConversationHistoryMessage[] } | null {
+export function splitHistoryForSummary(history: ConversationHistoryMessage[]): {
+  older: ConversationHistoryMessage[];
+  recent: ConversationHistoryMessage[];
+} | null {
   if (!shouldSummarizeConversation(history.length)) return null;
   return {
     older: history.slice(0, -HISTORY_TAIL_AFTER_SUMMARY),
@@ -46,6 +47,8 @@ export function formatConversationSummaryBlock(
   return `Earlier conversation summary:\n${summary}${entities}`;
 }
 
-export function formatHistoryTranscript(messages: ConversationHistoryMessage[]): string {
+export function formatHistoryTranscript(
+  messages: ConversationHistoryMessage[],
+): string {
   return messages.map((m) => `${m.role}: ${m.content}`).join('\n');
 }

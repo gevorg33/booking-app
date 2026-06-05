@@ -1,15 +1,22 @@
 import {
   AI_COMMAND_EVAL_CASES,
+  AI_COMMAND_EVAL_COMPOUND_CASES,
+  AI_COMMAND_EVAL_DETERMINISTIC_CASES,
   AI_COMMAND_EVAL_LLM_CASES,
+  AI_COMMAND_EVAL_REGISTRY_COMPOUND_CASES,
+  compoundScenarioToEvalCase,
 } from './ai-command-eval.cases.js';
+import { COMPOUND_DECOMPOSITION_SCENARIOS } from '../intent-decomposition.fixtures.js';
 import {
   evaluateDeterministicEvalCase,
   runDeterministicEvalSuite,
 } from './ai-command-eval.runner.js';
 
-describe('AI command eval harness (Sprint 14 / gap-3.1)', () => {
+describe('AI command eval harness (Sprint 14 / gap-3.1 + ai-cmd-0.4)', () => {
   it('runs all deterministic golden cases without failures', () => {
-    const summary = runDeterministicEvalSuite(AI_COMMAND_EVAL_CASES);
+    const summary = runDeterministicEvalSuite(
+      AI_COMMAND_EVAL_DETERMINISTIC_CASES,
+    );
     const failures = summary.results.filter((r) => !r.passed);
     if (failures.length > 0) {
       const detail = failures
@@ -18,7 +25,69 @@ describe('AI command eval harness (Sprint 14 / gap-3.1)', () => {
       throw new Error(`Eval failures:\n${detail}`);
     }
     expect(summary.failed).toBe(0);
-    expect(summary.passed).toBeGreaterThanOrEqual(10);
+    expect(summary.passed).toBeGreaterThanOrEqual(50);
+  });
+
+  it('has unique ids across the full deterministic catalog', () => {
+    const ids = AI_COMMAND_EVAL_DETERMINISTIC_CASES.map((entry) => entry.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('passes hand-crafted compound cases for payments, marketing, and cart flows', () => {
+    const ids = [
+      'compound-dashboard-payments-export',
+      'compound-dashboard-marketing-reengagement',
+      'compound-customer-cart-duration',
+    ];
+    for (const id of ids) {
+      const evalCase = AI_COMMAND_EVAL_CASES.find((entry) => entry.id === id);
+      expect(evalCase).toBeDefined();
+      expect(evaluateDeterministicEvalCase(evalCase!).passed).toBe(true);
+    }
+  });
+
+  it('compound eval cases include dashboard, customer, and provider surfaces', () => {
+    const surfaces = new Set(
+      AI_COMMAND_EVAL_COMPOUND_CASES.map((c) => c.expect.compoundSurface),
+    );
+    expect([...surfaces]).toEqual(
+      expect.arrayContaining(['dashboard', 'customer', 'provider', 'public']),
+    );
+  });
+
+  it('maps every compound decomposition scenario to an eval case', () => {
+    expect(AI_COMMAND_EVAL_COMPOUND_CASES).toHaveLength(
+      COMPOUND_DECOMPOSITION_SCENARIOS.length,
+    );
+    for (const scenario of COMPOUND_DECOMPOSITION_SCENARIOS) {
+      const evalCase = compoundScenarioToEvalCase(scenario);
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('covers registry compound example prompts per surface', () => {
+    expect(
+      AI_COMMAND_EVAL_REGISTRY_COMPOUND_CASES.length,
+    ).toBeGreaterThanOrEqual(10);
+    const surfaces = new Set(
+      AI_COMMAND_EVAL_REGISTRY_COMPOUND_CASES.map(
+        (c) => c.expect.compoundSurface,
+      ),
+    );
+    expect([...surfaces]).toEqual(
+      expect.arrayContaining(['dashboard', 'customer', 'provider']),
+    );
+    const summary = runDeterministicEvalSuite(
+      AI_COMMAND_EVAL_REGISTRY_COMPOUND_CASES,
+    );
+    expect(summary.failed).toBe(0);
+  });
+
+  it('runs legacy routing cases independently', () => {
+    const summary = runDeterministicEvalSuite(AI_COMMAND_EVAL_CASES);
+    expect(summary.failed).toBe(0);
+    expect(summary.passed).toBeGreaterThanOrEqual(15);
   });
 
   it('documents LLM-only cases separately from CI', () => {

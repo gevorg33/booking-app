@@ -48,7 +48,8 @@ export class IntegrationsDocsService {
   ) {}
 
   buildDocs(businessId: string): IntegrationApiDocs {
-    const baseUrl = this.config.get<string>('API_PUBLIC_URL') || 'http://localhost:3001';
+    const baseUrl =
+      this.config.get<string>('API_PUBLIC_URL') || 'http://localhost:3001';
     const events = this.webhooksService.getEventOptions().events;
 
     return {
@@ -61,25 +62,62 @@ export class IntegrationsDocsService {
       publicBookingApi: {
         description: 'No API key required — scoped by business slug',
         endpoints: [
-          { method: 'GET', path: '/public/:slug', description: 'Business profile' },
-          { method: 'GET', path: '/public/:slug/services', description: 'List bookable services' },
-          { method: 'GET', path: '/public/:slug/providers', description: 'List providers for a date' },
-          { method: 'GET', path: '/public/:slug/providers/:employeeId/slots', description: 'Available time slots' },
-          { method: 'POST', path: '/public/:slug/bookings', description: 'Create a booking' },
-          { method: 'POST', path: '/public/:slug/bookings/checkout', description: 'Start Stripe prepay checkout' },
+          {
+            method: 'GET',
+            path: '/public/:slug',
+            description: 'Business profile',
+          },
+          {
+            method: 'GET',
+            path: '/public/:slug/services',
+            description: 'List bookable services',
+          },
+          {
+            method: 'GET',
+            path: '/public/:slug/providers',
+            description: 'List providers for a date',
+          },
+          {
+            method: 'GET',
+            path: '/public/:slug/providers/:employeeId/slots',
+            description: 'Available time slots',
+          },
+          {
+            method: 'POST',
+            path: '/public/:slug/bookings',
+            description: 'Create a booking',
+          },
+          {
+            method: 'POST',
+            path: '/public/:slug/bookings/checkout',
+            description: 'Start Stripe prepay checkout',
+          },
         ],
       },
       businessApi: {
         description: 'Requires API key created in Integrations settings',
         endpoints: [
-          { method: 'GET', path: '/v1/bookings', description: 'List bookings (optional ?date=, ?employeeId=)' },
-          { method: 'GET', path: '/v1/bookings/:id', description: 'Get booking by ID' },
-          { method: 'GET', path: '/v1/customers', description: 'List customers' },
+          {
+            method: 'GET',
+            path: '/v1/bookings',
+            description: 'List bookings (optional ?date=, ?employeeId=)',
+          },
+          {
+            method: 'GET',
+            path: '/v1/bookings/:id',
+            description: 'Get booking by ID',
+          },
+          {
+            method: 'GET',
+            path: '/v1/customers',
+            description: 'List customers',
+          },
           { method: 'GET', path: '/v1/services', description: 'List services' },
         ],
       },
       webhooks: {
-        description: 'Outbound HTTP POST with HMAC-SHA256 signature in X-OptiSchedule-Signature',
+        description:
+          'Outbound HTTP POST with HMAC-SHA256 signature in X-OptiSchedule-Signature',
         events,
         signatureHeader: 'X-OptiSchedule-Signature',
         signatureAlgorithm: 'HMAC-SHA256 hex digest of raw JSON body',
@@ -89,18 +127,48 @@ if (req.headers['x-optischedule-signature'] !== expected) throw new Error('Inval
       },
       quickStart: {
         apiKey: [
-          { title: 'Create API key', detail: 'Integrations → API keys → scopes: read:bookings, read:customers' },
-          { title: 'Test', detail: `curl -H "Authorization: Bearer osk_live_…" ${baseUrl}/v1/bookings` },
+          {
+            title: 'Create API key',
+            detail:
+              'Integrations → API keys → scopes: read:bookings, read:customers',
+          },
+          {
+            title: 'Test',
+            detail: `curl -H "Authorization: Bearer osk_live_…" ${baseUrl}/v1/bookings`,
+          },
         ],
         webhook: [
-          { title: 'Add webhook URL', detail: 'Integrations → Webhooks → select events (booking.created, payment.received, review.received)' },
-          { title: 'Save secret', detail: 'Copy the signing secret once — used to verify X-OptiSchedule-Signature' },
-          { title: 'Send test booking', detail: 'Create a booking in dashboard; check Webhook deliveries tab' },
+          {
+            title: 'Add webhook URL',
+            detail:
+              'Integrations → Webhooks → select events (booking.created, payment.received, review.received)',
+          },
+          {
+            title: 'Save secret',
+            detail:
+              'Copy the signing secret once — used to verify X-OptiSchedule-Signature',
+          },
+          {
+            title: 'Send test booking',
+            detail:
+              'Create a booking in dashboard; check Webhook deliveries tab',
+          },
         ],
         zapier: [
-          { title: 'Catch Hook', detail: 'Zapier → Webhooks by Zapier → Catch Hook → paste OptiSchedule webhook URL' },
-          { title: 'Subscribe', detail: 'Enable booking.created, booking.cancelled, payment.received, review.received on the webhook' },
-          { title: 'Poll API', detail: `GET ${baseUrl}/v1/bookings with your API key for backfill` },
+          {
+            title: 'Catch Hook',
+            detail:
+              'Zapier → Webhooks by Zapier → Catch Hook → paste OptiSchedule webhook URL',
+          },
+          {
+            title: 'Subscribe',
+            detail:
+              'Enable booking.created, booking.cancelled, payment.received, review.received on the webhook',
+          },
+          {
+            title: 'Poll API',
+            detail: `GET ${baseUrl}/v1/bookings with your API key for backfill`,
+          },
         ],
       },
       examples: {

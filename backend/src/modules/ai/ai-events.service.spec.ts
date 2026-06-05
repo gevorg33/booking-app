@@ -24,11 +24,16 @@ describe('AiEventsService', () => {
 
   it('emit forwards arbitrary AI event types', () => {
     service.emit('biz-1', 'ai.clarify', { custom: true });
-    expect(emitBusinessEvent).toHaveBeenCalledWith('biz-1', 'ai.clarify', { custom: true });
+    expect(emitBusinessEvent).toHaveBeenCalledWith('biz-1', 'ai.clarify', {
+      custom: true,
+    });
   });
 
   it('emitClarify forwards clarify payload', () => {
-    service.emitClarify('biz-1', { action: 'create_booking', summary: 'Need date' });
+    service.emitClarify('biz-1', {
+      action: 'create_booking',
+      summary: 'Need date',
+    });
     expect(emitBusinessEvent).toHaveBeenCalledWith('biz-1', 'ai.clarify', {
       action: 'create_booking',
       summary: 'Need date',

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { ServiceCategoryService } from './service-category.service.js';
 import {
   CreateServiceCategoryDto,
@@ -17,7 +26,10 @@ export class ServiceCategoryController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Param('businessId') businessId: string, @Body() dto: CreateServiceCategoryDto) {
+  create(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateServiceCategoryDto,
+  ) {
     return this.categoryService.create(businessId, dto);
   }
 

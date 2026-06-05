@@ -1,8 +1,14 @@
 /** Sprint 20 — shared push copy and AI prefill for provider mobile. */
 
-export type ProviderPushType = 'booking_created' | 'booking_updated' | 'end_of_day';
+export type ProviderPushType =
+  | 'booking_created'
+  | 'booking_updated'
+  | 'end_of_day';
 
-export function buildNewBookingAiPrompt(timeLabel: string, customerName: string): string {
+export function buildNewBookingAiPrompt(
+  timeLabel: string,
+  customerName: string,
+): string {
   const who = customerName.trim() || 'the client';
   return `Add a 15-minute buffer before ${who}'s appointment at ${timeLabel}`;
 }

@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsObject, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsObject,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class AssistantHistoryMessageDto {

@@ -1,4 +1,12 @@
-import { Controller, Get, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { BusinessService } from './business.service.js';
 import { DashboardService } from './dashboard.service.js';
 import { TeamMembersService } from './team-members.service.js';
@@ -28,7 +36,10 @@ export class BusinessController {
 
   @Get(':id/team-members')
   @UseGuards(JwtAuthGuard)
-  listTeamMembers(@Param('id') id: string, @CurrentUser() user: { id: string }) {
+  listTeamMembers(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ) {
     return this.teamMembersService.list(id, user.id);
   }
 
@@ -62,7 +73,10 @@ export class BusinessController {
 
   @Put(':id/profile')
   @UseGuards(JwtAuthGuard)
-  updateProfile(@Param('id') id: string, @Body() dto: UpdateBusinessProfileDto) {
+  updateProfile(
+    @Param('id') id: string,
+    @Body() dto: UpdateBusinessProfileDto,
+  ) {
     return this.businessService.updateProfile(id, dto);
   }
 }

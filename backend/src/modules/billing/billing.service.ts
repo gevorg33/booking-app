@@ -70,7 +70,8 @@ export class BillingService {
       plan,
       currentPeriodEnd: business.subscriptionCurrentPeriodEnd,
       isActive: isSubscriptionUsable(
-        (business.subscriptionStatus as SubscriptionStatus) ?? SubscriptionStatus.INACTIVE,
+        (business.subscriptionStatus as SubscriptionStatus) ??
+          SubscriptionStatus.INACTIVE,
       ),
       stripeCustomerId: business.stripeCustomerId,
     };
@@ -161,10 +162,13 @@ export class BillingService {
     }
 
     const business = await this.findBusiness(businessId);
-    const session = await this.stripeService.client.checkout.sessions.retrieve(sessionId);
+    const session =
+      await this.stripeService.client.checkout.sessions.retrieve(sessionId);
 
     if (session.metadata?.businessId !== businessId) {
-      throw new ForbiddenException('Checkout session does not belong to this business');
+      throw new ForbiddenException(
+        'Checkout session does not belong to this business',
+      );
     }
 
     if (session.status !== 'complete') {
@@ -182,28 +186,38 @@ export class BillingService {
 
     const business = await this.findBusiness(businessId);
     if (!business.stripeCustomerId) {
-      throw new BadRequestException('No billing account yet. Subscribe to a plan first.');
+      throw new BadRequestException(
+        'No billing account yet. Subscribe to a plan first.',
+      );
     }
 
-    const session = await this.stripeService.client.billingPortal.sessions.create({
-      customer: business.stripeCustomerId,
-      return_url: `${this.stripeService.frontendUrl}/dashboard/billing`,
-    });
+    const session =
+      await this.stripeService.client.billingPortal.sessions.create({
+        customer: business.stripeCustomerId,
+        return_url: `${this.stripeService.frontendUrl}/dashboard/billing`,
+      });
 
     return { url: session.url };
   }
 
-  async handleWebhookEvent(event: { type: string; data: { object: unknown } }): Promise<void> {
+  async handleWebhookEvent(event: {
+    type: string;
+    data: { object: unknown };
+  }): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed':
         await this.bookingPaymentService.handleCheckoutCompleted(
           event.data.object as StripeCheckoutSession,
         );
-        await this.onCheckoutCompleted(event.data.object as StripeCheckoutSession);
+        await this.onCheckoutCompleted(
+          event.data.object as StripeCheckoutSession,
+        );
         break;
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
-        await this.syncSubscription(event.data.object as StripeSubscriptionPayload);
+        await this.syncSubscription(
+          event.data.object as StripeSubscriptionPayload,
+        );
         break;
       case 'invoice.payment_failed':
         await this.onPaymentFailed(event.data.object as StripeInvoicePayload);
@@ -218,7 +232,11 @@ export class BillingService {
     if (!secret) {
       throw new BadRequestException('STRIPE_WEBHOOK_SECRET is not configured');
     }
-    return this.stripeService.client.webhooks.constructEvent(payload, signature, secret);
+    return this.stripeService.client.webhooks.constructEvent(
+      payload,
+      signature,
+      secret,
+    );
   }
 
   private async onCheckoutCompleted(session: StripeCheckoutSession) {
@@ -229,7 +247,9 @@ export class BillingService {
     const planId = session.metadata?.planId;
     if (!businessId) return;
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return;
 
     if (session.customer && typeof session.customer === 'string') {
@@ -237,21 +257,27 @@ export class BillingService {
     }
     if (session.subscription && typeof session.subscription === 'string') {
       business.stripeSubscriptionId = session.subscription;
-      const sub = await this.stripeService.client.subscriptions.retrieve(session.subscription);
+      const sub = await this.stripeService.client.subscriptions.retrieve(
+        session.subscription,
+      );
       await this.applySubscriptionToBusiness(business, sub, planId);
     } else if (planId) {
       business.subscriptionPlanId = planId;
     }
 
     await this.businessRepo.save(business);
-    this.logger.log(`Checkout completed for business ${businessId}, plan ${planId}`);
+    this.logger.log(
+      `Checkout completed for business ${businessId}, plan ${planId}`,
+    );
   }
 
   private async syncSubscription(subscription: StripeSubscriptionPayload) {
     const businessId = subscription.metadata?.businessId;
     if (!businessId) return;
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return;
 
     await this.applySubscriptionToBusiness(
@@ -260,12 +286,16 @@ export class BillingService {
       subscription.metadata?.planId,
     );
     await this.businessRepo.save(business);
-    this.logger.log(`Subscription synced for business ${businessId}: ${subscription.status}`);
+    this.logger.log(
+      `Subscription synced for business ${businessId}: ${subscription.status}`,
+    );
   }
 
   private async onPaymentFailed(invoice: StripeInvoicePayload) {
     const customerId =
-      typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+      typeof invoice.customer === 'string'
+        ? invoice.customer
+        : invoice.customer?.id;
     if (!customerId) return;
 
     const business = await this.businessRepo.findOne({
@@ -284,7 +314,9 @@ export class BillingService {
     planId?: string | null,
   ) {
     business.stripeSubscriptionId = subscription.id;
-    business.subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+    business.subscriptionStatus = mapStripeSubscriptionStatus(
+      subscription.status,
+    );
     const resolvedPlanId = planId ?? subscription.metadata?.planId;
     if (resolvedPlanId) {
       business.subscriptionPlanId = resolvedPlanId;
@@ -297,7 +329,9 @@ export class BillingService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

@@ -28,7 +28,12 @@ import { User } from '../user/entities/user.entity.js';
     ]),
   ],
   controllers: [BusinessController],
-  providers: [BusinessService, DashboardService, TeamMembersService, TenantMemberContactService],
+  providers: [
+    BusinessService,
+    DashboardService,
+    TeamMembersService,
+    TenantMemberContactService,
+  ],
   exports: [BusinessService, TenantMemberContactService, TeamMembersService],
 })
 export class BusinessModule {}

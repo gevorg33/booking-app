@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { toIsoDay, formatDateDisplay, applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
+import {
+  toIsoDay,
+  formatDateDisplay,
+  applyRelativeDateFromPrompt,
+} from '../../common/utils/date-format.util.js';
 import { resolveRescheduleParams } from './ai-intent-heuristics.js';
 import {
   resolveEmployees,
@@ -11,6 +15,7 @@ import {
   sanitizeProviderScopeFromPrompt,
   applyPromptDateOverride,
 } from './ai-orchestration.helpers.js';
+import { resolveServicesForEmployeeAssignment } from './ai-category-assignment.util.js';
 import {
   ClassifiedCommand,
   BusinessCatalog,
@@ -24,6 +29,10 @@ import {
   buildClarifySummary,
 } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
+import {
+  inheritSharedEntityParams,
+  pickSharedEntitySessionSlice,
+} from './ai-command-entity-params.util.js';
 
 const SESSION_INHERIT_KEYS = [
   'employeeName',
@@ -50,7 +59,12 @@ const SESSION_INHERIT_KEYS = [
   'segmentFilter',
 ] as const;
 
-const RESCHEDULE_SESSION_SKIP_KEYS = new Set(['date', 'dateFrom', 'dateTo', 'timeSlot']);
+const RESCHEDULE_SESSION_SKIP_KEYS = new Set([
+  'date',
+  'dateFrom',
+  'dateTo',
+  'timeSlot',
+]);
 
 const PROVIDER_SESSION_INHERIT_KEYS = [
   'customerName',
@@ -72,13 +86,17 @@ export class CommandCompletionPipelineService {
     if (!session) return params;
     const merged = { ...params };
     for (const key of SESSION_INHERIT_KEYS) {
-      if (action === 'reschedule_booking' && RESCHEDULE_SESSION_SKIP_KEYS.has(key)) continue;
+      if (
+        action === 'reschedule_booking' &&
+        RESCHEDULE_SESSION_SKIP_KEYS.has(key)
+      )
+        continue;
       const value = merged[key];
       if ((value == null || value === '') && session[key]) {
         merged[key] = session[key];
       }
     }
-    return merged;
+    return inheritSharedEntityParams(merged, session, action);
   }
 
   mergeProviderSessionContext(
@@ -89,21 +107,33 @@ export class CommandCompletionPipelineService {
     const merged = { ...params };
     for (const key of PROVIDER_SESSION_INHERIT_KEYS) {
       const value = merged[key];
-      if ((value == null || value === '') && session[key] != null && session[key] !== '') {
+      if (
+        (value == null || value === '') &&
+        session[key] != null &&
+        session[key] !== ''
+      ) {
         merged[key] = session[key];
       }
     }
     return merged;
   }
 
-  normalizeDateParams(params: Record<string, any>, prompt?: string, timeZone = 'UTC'): void {
+  normalizeDateParams(
+    params: Record<string, any>,
+    prompt?: string,
+    timeZone = 'UTC',
+  ): void {
     applyPromptDateOverride(params, prompt, timeZone);
     for (const key of ['date', 'dateFrom', 'dateTo', 'fromDate'] as const) {
       if (params[key]) params[key] = toIsoDay(params[key], timeZone);
     }
   }
 
-  finalizeRescheduleParams(params: Record<string, any>, prompt: string, timeZone = 'UTC'): void {
+  finalizeRescheduleParams(
+    params: Record<string, any>,
+    prompt: string,
+    timeZone = 'UTC',
+  ): void {
     resolveRescheduleParams(params, prompt, timeZone);
     for (const key of ['fromDate', 'date'] as const) {
       if (params[key]) params[key] = toIsoDay(params[key], timeZone);
@@ -112,7 +142,11 @@ export class CommandCompletionPipelineService {
     delete params.dateTo;
   }
 
-  enrichDateRangeParams(params: Record<string, any>, prompt: string, timeZone = 'UTC'): void {
+  enrichDateRangeParams(
+    params: Record<string, any>,
+    prompt: string,
+    timeZone = 'UTC',
+  ): void {
     enrichDateRangeFromPrompt(params, prompt, timeZone);
   }
 
@@ -124,12 +158,21 @@ export class CommandCompletionPipelineService {
     catalog: BusinessCatalog,
     timeZone = 'UTC',
   ): ResolvedCommand {
-    const params: Record<string, any> = { ...classified.params, _timeZone: timeZone };
+    const params: Record<string, any> = {
+      ...classified.params,
+      _timeZone: timeZone,
+    };
     sanitizeProviderScopeFromPrompt(prompt, params, catalog.employees);
     const allProviders = params.allProviders === true;
 
-    const employees = resolveEmployees(catalog.employees, { ...params, allProviders });
-    const services = resolveServices(catalog.services, params);
+    const employees = resolveEmployees(catalog.employees, {
+      ...params,
+      allProviders,
+    });
+    const services =
+      classified.action === 'assign_employee_services'
+        ? resolveServicesForEmployeeAssignment(catalog.services, params)
+        : resolveServices(catalog.services, params);
     const customer = params.customerName
       ? fuzzyMatchByName(catalog.customers, params.customerName)
       : undefined;
@@ -179,11 +222,14 @@ export class CommandCompletionPipelineService {
     }
 
     if (dateRange && classified.action !== 'reschedule_booking') {
-      const promptHasRelativeDate = /\b(tomorrow|today|yesterday|tonight)\b/i.test(
-        prompt.toLowerCase(),
-      );
+      const promptHasRelativeDate =
+        /\b(tomorrow|today|yesterday|tonight)\b/i.test(prompt.toLowerCase());
       if (promptHasRelativeDate) {
-        const relativeOnly = resolveDateRange({ _timeZone: timeZone }, prompt, timeZone);
+        const relativeOnly = resolveDateRange(
+          { _timeZone: timeZone },
+          prompt,
+          timeZone,
+        );
         if (relativeOnly) enrichedParams.date = relativeOnly.start;
       } else if (!enrichedParams.date) {
         enrichedParams.date = dateRange.start;
@@ -208,7 +254,10 @@ export class CommandCompletionPipelineService {
   }
 
   /** Stage 6: Clarify — structured follow-up instead of generic failure */
-  toClarifyResult(resolved: ResolvedCommand, validation: ValidationResult): CommandResult {
+  toClarifyResult(
+    resolved: ResolvedCommand,
+    validation: ValidationResult,
+  ): CommandResult {
     const summary = buildClarifySummary(validation.issues);
     return {
       success: false,
@@ -251,16 +300,20 @@ export class CommandCompletionPipelineService {
       customerMetric: resolved.params.customerMetric ?? null,
       bookingMetric: resolved.params.bookingMetric ?? null,
       route: resolved.params.route ?? null,
+      ...pickSharedEntitySessionSlice(p),
     };
   }
 
-  buildProviderSessionContext(params: Record<string, any>): Record<string, unknown> {
+  buildProviderSessionContext(
+    params: Record<string, any>,
+  ): Record<string, unknown> {
     return {
       customerName: params.customerName ?? null,
       date: params.date ? formatDateDisplay(String(params.date)) : null,
       timeSlot: params.timeSlot ?? null,
       serviceName: params.serviceName ?? null,
       allAppointments: params.allAppointments ?? null,
+      ...pickSharedEntitySessionSlice(params),
     };
   }
 
@@ -269,7 +322,12 @@ export class CommandCompletionPipelineService {
     params: Record<string, unknown>,
     reasoning: string,
     validation: ValidationResult,
-  ): { success: false; action: string; summary: string; details: Record<string, unknown> } {
+  ): {
+    success: false;
+    action: string;
+    summary: string;
+    details: Record<string, unknown>;
+  } {
     return {
       success: false,
       action,
@@ -280,14 +338,21 @@ export class CommandCompletionPipelineService {
         partialParams: params,
         reasoning,
         pipelineStage: 'clarify',
-        sessionContext: this.buildProviderSessionContext(params as Record<string, any>),
+        sessionContext: this.buildProviderSessionContext(
+          params as Record<string, any>,
+        ),
       },
     };
   }
 
-  attachSessionToResult(result: CommandResult, resolved: ResolvedCommand): CommandResult {
+  attachSessionToResult(
+    result: CommandResult,
+    resolved: ResolvedCommand,
+  ): CommandResult {
     const sessionContext = this.buildSessionContext(resolved);
-    const range = result.details?.range as { start?: string; end?: string } | undefined;
+    const range = result.details?.range as
+      | { start?: string; end?: string }
+      | undefined;
     if (range?.start && !sessionContext.dateFrom) {
       sessionContext.dateFrom = formatDateDisplay(range.start);
     }
@@ -299,7 +364,9 @@ export class CommandCompletionPipelineService {
       sessionContext.lastMetric = String(result.details.metric);
     }
     if (result.details?.appointmentMetric) {
-      sessionContext.appointmentMetric = String(result.details.appointmentMetric);
+      sessionContext.appointmentMetric = String(
+        result.details.appointmentMetric,
+      );
       sessionContext.lastMetric = String(result.details.appointmentMetric);
     }
     if (result.details?.bookingMetric) {
@@ -326,14 +393,20 @@ export class CommandCompletionPipelineService {
     };
   }
 
-  trace(stage: PipelineTrace['stage'], action: string, detail?: string): PipelineTrace {
+  trace(
+    stage: PipelineTrace['stage'],
+    action: string,
+    detail?: string,
+  ): PipelineTrace {
     const entry: PipelineTrace = {
       stage,
       action,
       at: new Date().toISOString(),
       detail,
     };
-    this.logger.debug(`Pipeline [${stage}] ${action}${detail ? `: ${detail}` : ''}`);
+    this.logger.debug(
+      `Pipeline [${stage}] ${action}${detail ? `: ${detail}` : ''}`,
+    );
     return entry;
   }
 }

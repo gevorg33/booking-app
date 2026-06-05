@@ -17,18 +17,29 @@ export function applyProviderEntityMemory(
   prompt: string,
   context?: Record<string, unknown>,
 ): Record<string, unknown> {
-  const aliases = context?._entityMemoryAliases as EntityMemory['aliases'] | undefined;
+  const aliases = context?._entityMemoryAliases as
+    | EntityMemory['aliases']
+    | undefined;
   if (!aliases || Object.keys(aliases).length === 0) return params;
   return applyEntityMemoryToParams(params, { aliases }, prompt);
 }
 
-export function buildProviderClassifierAppendix(context?: Record<string, unknown>): string {
-  return buildIntelligenceClassifierAppendix(extractIntelligenceBlocks(context));
+export function buildProviderClassifierAppendix(
+  context?: Record<string, unknown>,
+): string {
+  return buildIntelligenceClassifierAppendix(
+    extractIntelligenceBlocks(context),
+  );
 }
 
-export function buildProviderSessionContextBlock(context?: Record<string, unknown>): string {
+export function buildProviderSessionContextBlock(
+  context?: Record<string, unknown>,
+): string {
   const session = stripIntelligenceKeysFromSessionContext(context);
-  if (!session || !Object.values(session).some((value) => value != null && value !== '')) {
+  if (
+    !session ||
+    !Object.values(session).some((value) => value != null && value !== '')
+  ) {
     return '';
   }
   return `\nActive session context:\n${JSON.stringify(session, null, 2)}`;

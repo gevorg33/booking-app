@@ -4,12 +4,19 @@ import { EventType } from '../../events/event-types.js';
 describe('IntegrationsDocsService', () => {
   const webhooksService = {
     getEventOptions: jest.fn().mockReturnValue({
-      events: [EventType.BOOKING_CREATED, EventType.PAYMENT_RECEIVED, EventType.REVIEW_RECEIVED],
+      events: [
+        EventType.BOOKING_CREATED,
+        EventType.PAYMENT_RECEIVED,
+        EventType.REVIEW_RECEIVED,
+      ],
     }),
   };
   const config = { get: jest.fn().mockReturnValue('https://api.example.com') };
 
-  const service = new IntegrationsDocsService(config as any, webhooksService as any);
+  const service = new IntegrationsDocsService(
+    config as any,
+    webhooksService as any,
+  );
 
   it('builds API docs with quick start and webhook verification', () => {
     const docs = service.buildDocs('biz-1');

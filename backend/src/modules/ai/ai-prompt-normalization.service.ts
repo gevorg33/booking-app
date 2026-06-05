@@ -53,7 +53,11 @@ export class AiPromptNormalizationService {
       original,
       normalized: original,
       method: 'multilingual',
-      classifierContext: buildMultilingualClassifierContext(original, original, 'multilingual'),
+      classifierContext: buildMultilingualClassifierContext(
+        original,
+        original,
+        'multilingual',
+      ),
     };
 
     this.putCache(cacheKey, result);

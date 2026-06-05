@@ -30,13 +30,17 @@ export class ReactResultCompilerService {
     return this.compileReadOnlyResult(input);
   }
 
-  private async compilePlanResult(input: ReactCompileInput): Promise<CommandResult> {
+  private async compilePlanResult(
+    input: ReactCompileInput,
+  ): Promise<CommandResult> {
     const plan: AgentPlan = {
       id: crypto.randomUUID(),
       agentType: AgentType.SCHEDULING_OPTIMIZATION,
       businessId: input.businessId,
       intent: input.prompt,
-      reasoning: this.extractFinalText(input.messages) ?? 'ReAct agent proposed mutating steps.',
+      reasoning:
+        this.extractFinalText(input.messages) ??
+        'ReAct agent proposed mutating steps.',
       steps: this.normalizeProposalDependencies(input.proposals),
       constraints: [
         'All mutations require explicit user approval',
@@ -92,7 +96,11 @@ export class ReactResultCompilerService {
   private extractFinalText(messages: BaseMessage[]): string | null {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
-      if (isAIMessage(msg) && typeof msg.content === 'string' && msg.content.trim()) {
+      if (
+        isAIMessage(msg) &&
+        typeof msg.content === 'string' &&
+        msg.content.trim()
+      ) {
         if (msg.tool_calls?.length) continue;
         return msg.content.trim();
       }
@@ -101,13 +109,16 @@ export class ReactResultCompilerService {
           .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
           .map((p) => p.text)
           .join('');
-        if (textParts.trim() && !msg.tool_calls?.length) return textParts.trim();
+        if (textParts.trim() && !msg.tool_calls?.length)
+          return textParts.trim();
       }
     }
     return null;
   }
 
-  private normalizeProposalDependencies(steps: AgentPlanStep[]): AgentPlanStep[] {
+  private normalizeProposalDependencies(
+    steps: AgentPlanStep[],
+  ): AgentPlanStep[] {
     if (steps.length <= 1) {
       return steps.map((s) => ({ ...s, dependsOn: s.dependsOn ?? [] }));
     }
@@ -118,7 +129,7 @@ export class ReactResultCompilerService {
           ? s.dependsOn
           : i === 0
             ? []
-            : [steps[i - 1]!.id],
+            : [steps[i - 1].id],
     }));
   }
 }

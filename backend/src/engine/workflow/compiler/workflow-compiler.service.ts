@@ -1,11 +1,16 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { WorkflowDefinition, WorkflowStep } from '../interfaces/workflow.interfaces.js';
+import {
+  WorkflowDefinition,
+  WorkflowStep,
+} from '../interfaces/workflow.interfaces.js';
 import { AgentPlan } from '../../agent/interfaces/agent.interfaces.js';
 
 @Injectable()
 export class WorkflowCompilerService {
   compilePlanToWorkflow(plan: AgentPlan): WorkflowDefinition {
-    this.validateDAG(plan.steps.map(s => ({ id: s.id, dependsOn: s.dependsOn })));
+    this.validateDAG(
+      plan.steps.map((s) => ({ id: s.id, dependsOn: s.dependsOn })),
+    );
 
     const steps: WorkflowStep[] = plan.steps.map((step) => ({
       id: step.id,
@@ -35,11 +40,13 @@ export class WorkflowCompilerService {
 
   private validateDAG(steps: { id: string; dependsOn: string[] }[]): void {
     const stepIds = new Set(steps.map((s) => s.id));
-    
+
     for (const step of steps) {
       for (const dep of step.dependsOn) {
         if (!stepIds.has(dep)) {
-          throw new BadRequestException(`Step ${step.id} depends on unknown step ${dep}`);
+          throw new BadRequestException(
+            `Step ${step.id} depends on unknown step ${dep}`,
+          );
         }
       }
     }
@@ -49,7 +56,9 @@ export class WorkflowCompilerService {
 
     const visit = (id: string) => {
       if (visiting.has(id)) {
-        throw new BadRequestException(`Circular dependency detected involving step ${id}`);
+        throw new BadRequestException(
+          `Circular dependency detected involving step ${id}`,
+        );
       }
       if (visited.has(id)) return;
 

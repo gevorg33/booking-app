@@ -20,7 +20,11 @@ import {
     StripeIntegrationModule,
     forwardRef(() => BookingModule),
   ],
-  controllers: [BillingPlansController, BillingController, BillingWebhookController],
+  controllers: [
+    BillingPlansController,
+    BillingController,
+    BillingWebhookController,
+  ],
   providers: [BillingService],
   exports: [BillingService, PlanEntitlementsModule, StripeIntegrationModule],
 })

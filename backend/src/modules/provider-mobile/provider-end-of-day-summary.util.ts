@@ -1,4 +1,7 @@
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import type { ProviderPushType } from './provider-push-payload.util.js';
 
 export interface EodBookingRow {

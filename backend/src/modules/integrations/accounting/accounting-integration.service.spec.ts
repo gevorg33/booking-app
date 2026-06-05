@@ -1,7 +1,10 @@
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AccountingIntegrationService } from './accounting-integration.service.js';
 import { AccountingExportService } from './accounting-export.service.js';
-import { BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../../booking/entities/booking.entity.js';
 
 describe('AccountingIntegrationService', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
@@ -44,7 +47,14 @@ describe('AccountingIntegrationService', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([
-        { id: 'exp-1', expenseDate: '2026-05-02', description: 'Supplies', category: 'supplies', amount: 10, currency: 'USD' },
+        {
+          id: 'exp-1',
+          expenseDate: '2026-05-02',
+          description: 'Supplies',
+          category: 'supplies',
+          amount: 10,
+          currency: 'USD',
+        },
       ]),
     });
     commissionRepo.find.mockResolvedValue([]);
@@ -107,12 +117,16 @@ describe('AccountingIntegrationService', () => {
 
   it('throws when business missing on export', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.generateExport('x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.generateExport('x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('throws when accounting integration is disabled', async () => {
     businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: {} });
-    await expect(service.generateExport('biz-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.generateExport('biz-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('includes subscription purchases as income rows', async () => {
@@ -147,7 +161,11 @@ describe('AccountingIntegrationService', () => {
       id: 'biz-1',
       settings: { integrations: { accounting: { enabled: true } } },
     });
-    const result = await service.generateExport('biz-1', '2026-05-01', '2026-05-31');
+    const result = await service.generateExport(
+      'biz-1',
+      '2026-05-01',
+      '2026-05-31',
+    );
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
       expect.arrayContaining([
@@ -161,12 +179,20 @@ describe('AccountingIntegrationService', () => {
 
   it('includes commission row when rules exist', async () => {
     commissionRepo.find.mockResolvedValue([
-      { employeeId: 'e1', serviceId: 's1', type: 'percent', value: 10, isActive: true },
+      {
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'percent',
+        value: 10,
+        isActive: true,
+      },
     ]);
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
-      expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -5 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'commission', amount: -5 }),
+      ]),
       expect.any(Object),
     );
   });
@@ -202,7 +228,9 @@ describe('AccountingIntegrationService', () => {
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
-      expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -15 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'commission', amount: -15 }),
+      ]),
       expect.any(Object),
     );
   });
@@ -215,13 +243,23 @@ describe('AccountingIntegrationService', () => {
 
   it('skips commission block when includeCommissions is false', async () => {
     commissionRepo.find.mockResolvedValue([
-      { employeeId: 'e1', serviceId: 's1', type: 'percent', value: 50, isActive: true },
+      {
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'percent',
+        value: 50,
+        isActive: true,
+      },
     ]);
     businessRepo.findOne.mockResolvedValue({
       id: 'biz-1',
       settings: {
         integrations: {
-          accounting: { enabled: true, includeCommissions: false, includeExpenses: false },
+          accounting: {
+            enabled: true,
+            includeCommissions: false,
+            includeExpenses: false,
+          },
         },
       },
     });
@@ -235,7 +273,11 @@ describe('AccountingIntegrationService', () => {
       id: 'biz-1',
       settings: {
         integrations: {
-          accounting: { enabled: true, includeExpenses: false, includeCommissions: false },
+          accounting: {
+            enabled: true,
+            includeExpenses: false,
+            includeCommissions: false,
+          },
         },
       },
     });
@@ -248,19 +290,27 @@ describe('AccountingIntegrationService', () => {
       id: 'biz-1',
       settings: {
         integrations: {
-          accounting: { enabled: true, includeExpenses: false, includeCommissions: false },
+          accounting: {
+            enabled: true,
+            includeExpenses: false,
+            includeCommissions: false,
+          },
         },
       },
     });
     await service.generateExport('biz-1');
-    const rows = exportService.buildExport.mock.calls[0][1] as { type: string }[];
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      type: string;
+    }[];
     expect(rows.every((r) => r.type === 'income')).toBe(true);
   });
 
   it('uses configured provider from settings', async () => {
     businessRepo.findOne.mockResolvedValue({
       id: 'biz-1',
-      settings: { integrations: { accounting: { enabled: true, provider: 'quickbooks' } } },
+      settings: {
+        integrations: { accounting: { enabled: true, provider: 'quickbooks' } },
+      },
     });
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
@@ -272,7 +322,13 @@ describe('AccountingIntegrationService', () => {
 
   it('matches commission rules by specificity', async () => {
     commissionRepo.find.mockResolvedValue([
-      { employeeId: 'e1', serviceId: 's1', type: 'percent', value: 20, isActive: true },
+      {
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'percent',
+        value: 20,
+        isActive: true,
+      },
       { employeeId: 'e1', type: 'percent', value: 10, isActive: true },
       { serviceId: 's1', type: 'percent', value: 5, isActive: true },
       { type: 'percent', value: 1, isActive: true },
@@ -280,7 +336,9 @@ describe('AccountingIntegrationService', () => {
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
-      expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -10 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'commission', amount: -10 }),
+      ]),
       expect.any(Object),
     );
   });
@@ -316,7 +374,9 @@ describe('AccountingIntegrationService', () => {
     await service.generateExport('biz-1');
     expect(exportService.buildExport).toHaveBeenCalledWith(
       'csv',
-      expect.arrayContaining([expect.objectContaining({ type: 'commission', amount: -5 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'commission', amount: -5 }),
+      ]),
       expect.any(Object),
     );
   });
@@ -336,7 +396,9 @@ describe('AccountingIntegrationService', () => {
       },
     ]);
     await service.generateExport('biz-1');
-    const rows = exportService.buildExport.mock.calls[0][1] as { type: string }[];
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      type: string;
+    }[];
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('expense');
   });
@@ -364,14 +426,16 @@ describe('AccountingIntegrationService', () => {
 
   it('throws when business missing on update', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.updateSettings('x', { enabled: true })).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.updateSettings('x', { enabled: true }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('throws when business missing on getPublicSettings', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getPublicSettings('x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getPublicSettings('x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('skips subscription rows with zero or invalid pricePaid', async () => {
@@ -394,7 +458,9 @@ describe('AccountingIntegrationService', () => {
       },
     ]);
     await service.generateExport('biz-1', '2026-05-01', '2026-05-31');
-    const rows = exportService.buildExport.mock.calls[0][1] as { reference: string }[];
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      reference: string;
+    }[];
     expect(rows.some((r) => r.reference === 'sub-free')).toBe(false);
     expect(rows.some((r) => r.reference === 'sub-bad')).toBe(false);
   });
@@ -403,10 +469,16 @@ describe('AccountingIntegrationService', () => {
     businessRepo.findOne.mockResolvedValue({
       id: 'biz-1',
       settings: {
-        integrations: { webhooks: { enabled: true }, accounting: { enabled: false } },
+        integrations: {
+          webhooks: { enabled: true },
+          accounting: { enabled: false },
+        },
       },
     });
-    const view = await service.updateSettings('biz-1', { enabled: true, provider: 'xero' });
+    const view = await service.updateSettings('biz-1', {
+      enabled: true,
+      provider: 'xero',
+    });
     expect(view.enabled).toBe(true);
     expect(view.provider).toBe('xero');
     expect(businessRepo.save).toHaveBeenCalledWith(
@@ -414,7 +486,10 @@ describe('AccountingIntegrationService', () => {
         settings: expect.objectContaining({
           integrations: expect.objectContaining({
             webhooks: { enabled: true },
-            accounting: expect.objectContaining({ enabled: true, provider: 'xero' }),
+            accounting: expect.objectContaining({
+              enabled: true,
+              provider: 'xero',
+            }),
           }),
         }),
       }),
@@ -463,14 +538,26 @@ describe('AccountingIntegrationService', () => {
       description: string;
       incomeSubType?: string;
     }[];
-    expect(rows.find((r) => r.incomeSubType === 'service')?.currency).toBe('USD');
-    expect(rows.find((r) => r.incomeSubType === 'subscription')?.currency).toBe('USD');
-    expect(rows.find((r) => r.description === 'supplies' && r.currency === 'USD')).toBeDefined();
+    expect(rows.find((r) => r.incomeSubType === 'service')?.currency).toBe(
+      'USD',
+    );
+    expect(rows.find((r) => r.incomeSubType === 'subscription')?.currency).toBe(
+      'USD',
+    );
+    expect(
+      rows.find((r) => r.description === 'supplies' && r.currency === 'USD'),
+    ).toBeDefined();
   });
 
   it('omits commission row when computed total is zero', async () => {
     commissionRepo.find.mockResolvedValue([
-      { employeeId: 'e9', serviceId: 's9', type: 'percent', value: 0, isActive: true },
+      {
+        employeeId: 'e9',
+        serviceId: 's9',
+        type: 'percent',
+        value: 0,
+        isActive: true,
+      },
     ]);
     bookingRepo.find.mockResolvedValue([
       {
@@ -486,7 +573,9 @@ describe('AccountingIntegrationService', () => {
       },
     ]);
     await service.generateExport('biz-1');
-    const rows = exportService.buildExport.mock.calls[0][1] as { type: string }[];
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      type: string;
+    }[];
     expect(rows.some((r) => r.type === 'commission')).toBe(false);
   });
 
@@ -513,7 +602,10 @@ describe('AccountingIntegrationService', () => {
       },
     ]);
     await service.generateExport('biz-1');
-    const rows = exportService.buildExport.mock.calls[0][1] as { date: string; reference: string }[];
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      date: string;
+      reference: string;
+    }[];
     expect(rows[0].reference).toBe('sub-early');
     expect(rows[1].reference).toBe('b-late');
   });

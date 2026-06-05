@@ -91,10 +91,22 @@ export class GiftCard {
   @Column({ name: 'shipping_method', type: 'varchar', nullable: true })
   shippingMethod: string | null;
 
-  @Column({ name: 'purchase_amount', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'purchase_amount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   purchaseAmount: number | null;
 
-  @Column({ name: 'shipping_fee', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'shipping_fee',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   shippingFee: number;
 
   @Column({ name: 'service_id', type: 'uuid', nullable: true })

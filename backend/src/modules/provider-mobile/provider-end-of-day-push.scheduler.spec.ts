@@ -1,7 +1,10 @@
 import { ProviderEndOfDayPushScheduler } from './provider-end-of-day-push.scheduler.js';
 import { PushService } from '../push.service.js';
 import { ProviderMobileService } from '../provider-mobile.service.js';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 
 describe('ProviderEndOfDayPushScheduler', () => {
   const bookingRepo = { find: jest.fn() };

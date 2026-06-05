@@ -6,7 +6,10 @@ import { CUSTOMER_REGISTERED_EVENT } from './customer-registration.types.js';
 import { mergeBusinessNotificationSettings } from './notification.types.js';
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { AccountingExportService } from '../integrations/accounting/accounting-export.service.js';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 
 /**
  * Sprint 12.b — marketing alerts & subscription accounting (integration).
@@ -42,7 +45,10 @@ describe('Sprint 12.b launch integration', () => {
       findOne: jest.fn(async (opts: { where: { id: string } }) =>
         opts.where.id === customer.id ? customer : null,
       ),
-      save: jest.fn(async (c: Record<string, unknown>) => ({ id: 'cust-new', ...c })),
+      save: jest.fn(async (c: Record<string, unknown>) => ({
+        id: 'cust-new',
+        ...c,
+      })),
       create: jest.fn((c: Record<string, unknown>) => c),
     };
     const bookingRepo = { find: jest.fn(), findOne: jest.fn() };
@@ -59,11 +65,15 @@ describe('Sprint 12.b launch integration', () => {
       { send: jest.fn() } as any,
       { resolveRuntimeConfig: jest.fn() } as any,
       {
-        get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+        get: jest.fn((key: string) =>
+          key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+        ),
       } as any,
     );
 
-    const listener = new MarketingCustomerRegistrationListener(notificationsService);
+    const listener = new MarketingCustomerRegistrationListener(
+      notificationsService,
+    );
     const eventEmitter = new EventEmitter2();
     eventEmitter.on(CUSTOMER_REGISTERED_EVENT, (payload) =>
       listener.handleCustomerRegistered(payload),
@@ -99,10 +109,13 @@ describe('Sprint 12.b launch integration', () => {
     });
 
     it('persists marketing settings via updateBusinessSettings', async () => {
-      const updated = await notificationsService.updateBusinessSettings('biz-1', {
-        emailOnNewCustomerRegistration: true,
-        marketingTeamEmails: ['only@test.com'],
-      });
+      const updated = await notificationsService.updateBusinessSettings(
+        'biz-1',
+        {
+          emailOnNewCustomerRegistration: true,
+          marketingTeamEmails: ['only@test.com'],
+        },
+      );
       expect(updated.marketingTeamEmails).toEqual(['only@test.com']);
       expect(updated.emailOnNewCustomerRegistration).toBe(true);
     });
@@ -136,7 +149,12 @@ describe('Sprint 12.b launch integration', () => {
         id: 'biz-1',
         settings: {
           integrations: {
-            accounting: { enabled: true, provider: 'csv', includeExpenses: false, includeCommissions: false },
+            accounting: {
+              enabled: true,
+              provider: 'csv',
+              includeExpenses: false,
+              includeCommissions: false,
+            },
           },
         },
       });
@@ -172,7 +190,11 @@ describe('Sprint 12.b launch integration', () => {
     });
 
     it('exports service and subscription income rows sorted by date', async () => {
-      const result = await accountingService.generateExport('biz-1', '2026-06-01', '2026-06-30');
+      const result = await accountingService.generateExport(
+        'biz-1',
+        '2026-06-01',
+        '2026-06-30',
+      );
 
       expect(result.format).toBe('csv');
       expect(result.rowCount).toBe(2);
@@ -189,9 +211,17 @@ describe('Sprint 12.b launch integration', () => {
     it('includes subscription label in QuickBooks export', async () => {
       businessRepo.findOne.mockResolvedValue({
         id: 'biz-1',
-        settings: { integrations: { accounting: { enabled: true, provider: 'quickbooks' } } },
+        settings: {
+          integrations: {
+            accounting: { enabled: true, provider: 'quickbooks' },
+          },
+        },
       });
-      const result = await accountingService.generateExport('biz-1', '2026-06-01', '2026-06-30');
+      const result = await accountingService.generateExport(
+        'biz-1',
+        '2026-06-01',
+        '2026-06-30',
+      );
       expect(result.content).toContain('[subscription]');
     });
   });

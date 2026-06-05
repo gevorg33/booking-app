@@ -44,14 +44,26 @@ describe('locale-date.util formatters', () => {
   });
 
   it('prefixes today in the requested locale', () => {
-    expect(formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'en')).toMatch(/^today,/);
-    expect(formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'hy')).toMatch(/^այսօր,/);
-    expect(formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'ru')).toMatch(/^сегодня,/);
-    expect(formatNearestSlotDateLabel('2026-06-05', '2026-06-04', tz, 'ru')).not.toMatch(/^сегодня,/);
+    expect(
+      formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'en'),
+    ).toMatch(/^today,/);
+    expect(
+      formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'hy'),
+    ).toMatch(/^այսօր,/);
+    expect(
+      formatNearestSlotDateLabel('2026-06-04', '2026-06-04', tz, 'ru'),
+    ).toMatch(/^сегодня,/);
+    expect(
+      formatNearestSlotDateLabel('2026-06-05', '2026-06-04', tz, 'ru'),
+    ).not.toMatch(/^сегодня,/);
   });
 
   it('uses business timezone for strip parts', () => {
-    const parts = formatDateKeyStripParts('2026-06-04', 'America/New_York', 'en');
+    const parts = formatDateKeyStripParts(
+      '2026-06-04',
+      'America/New_York',
+      'en',
+    );
     expect(parts.dayNum).toBeTruthy();
   });
 });

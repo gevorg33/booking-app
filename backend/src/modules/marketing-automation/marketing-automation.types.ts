@@ -15,15 +15,16 @@ export interface MarketingAutomationSettings {
   reEngagementPromoCode?: string | null;
 }
 
-export const DEFAULT_MARKETING_AUTOMATION_SETTINGS: MarketingAutomationSettings = {
-  postVisitReviewEnabled: true,
-  reEngagementEnabled: false,
-  inactiveDaysThreshold: 90,
-  reEngagementEmailEnabled: true,
-  reEngagementSmsEnabled: false,
-  minDaysBetweenReEngagement: 30,
-  reEngagementPromoCode: null,
-};
+export const DEFAULT_MARKETING_AUTOMATION_SETTINGS: MarketingAutomationSettings =
+  {
+    postVisitReviewEnabled: true,
+    reEngagementEnabled: false,
+    inactiveDaysThreshold: 90,
+    reEngagementEmailEnabled: true,
+    reEngagementSmsEnabled: false,
+    minDaysBetweenReEngagement: 30,
+    reEngagementPromoCode: null,
+  };
 
 export function mergeMarketingAutomationSettings(
   raw?: Record<string, unknown>,
@@ -34,12 +35,16 @@ export function mergeMarketingAutomationSettings(
     ...partial,
     inactiveDaysThreshold: Math.max(
       30,
-      Math.round(partial.inactiveDaysThreshold ?? DEFAULT_MARKETING_AUTOMATION_SETTINGS.inactiveDaysThreshold),
+      Math.round(
+        partial.inactiveDaysThreshold ??
+          DEFAULT_MARKETING_AUTOMATION_SETTINGS.inactiveDaysThreshold,
+      ),
     ),
     minDaysBetweenReEngagement: Math.max(
       7,
       Math.round(
-        partial.minDaysBetweenReEngagement ?? DEFAULT_MARKETING_AUTOMATION_SETTINGS.minDaysBetweenReEngagement,
+        partial.minDaysBetweenReEngagement ??
+          DEFAULT_MARKETING_AUTOMATION_SETTINGS.minDaysBetweenReEngagement,
       ),
     ),
     reEngagementPromoCode: partial.reEngagementPromoCode?.trim() || null,

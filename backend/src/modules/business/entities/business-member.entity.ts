@@ -22,14 +22,18 @@ export class BusinessMember {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, (user) => user.businessMemberships, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.businessMemberships, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column({ name: 'user_id' })
   userId: string;
 
-  @ManyToOne(() => Business, (business) => business.members, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Business, (business) => business.members, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'business_id' })
   business: Business;
 

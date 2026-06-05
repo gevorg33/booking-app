@@ -1,6 +1,9 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
 
 describe('ProviderPushActionService sprint20', () => {
@@ -59,11 +62,24 @@ describe('ProviderPushActionService sprint20', () => {
   });
 
   it('notifyBookingActions omits AI fields without time label', async () => {
-    await service.notifyBookingActions('user-1', 'biz-1', 'booking-2', 'Title', 'Body');
-    await service.notifyBookingActions('user-1', 'biz-1', 'booking-3', 'Title', 'Body', {
-      timeLabel: '   ',
-      customerName: '   ',
-    });
+    await service.notifyBookingActions(
+      'user-1',
+      'biz-1',
+      'booking-2',
+      'Title',
+      'Body',
+    );
+    await service.notifyBookingActions(
+      'user-1',
+      'biz-1',
+      'booking-3',
+      'Title',
+      'Body',
+      {
+        timeLabel: '   ',
+        customerName: '   ',
+      },
+    );
     expect(pushService.sendToUser).toHaveBeenCalledWith(
       'user-1',
       'biz-1',

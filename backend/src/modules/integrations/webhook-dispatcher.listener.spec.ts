@@ -30,12 +30,18 @@ describe('WebhookDispatcherListener', () => {
   });
 
   it('skips when business id missing', async () => {
-    await listener.handleDomainEvent({ eventType: EventType.BOOKING_CREATED } as any);
-    expect(webhooksService.getActiveSubscriptionsForEvent).not.toHaveBeenCalled();
+    await listener.handleDomainEvent({
+      eventType: EventType.BOOKING_CREATED,
+    } as any);
+    expect(
+      webhooksService.getActiveSubscriptionsForEvent,
+    ).not.toHaveBeenCalled();
   });
 
   it('delivers signed webhook payload on success', async () => {
-    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([subscription]);
+    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([
+      subscription,
+    ]);
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       status: 200,
@@ -56,10 +62,16 @@ describe('WebhookDispatcherListener', () => {
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toBe(subscription.url);
     const body = init.body as string;
-    const signature = createHmac('sha256', 'whsec_test').update(body).digest('hex');
+    const signature = createHmac('sha256', 'whsec_test')
+      .update(body)
+      .digest('hex');
     expect(init.headers['X-OptiSchedule-Signature']).toBe(signature);
-    expect(init.headers['X-OptiSchedule-Event']).toBe(EventType.PAYMENT_RECEIVED);
-    expect(deliveryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
+    expect(init.headers['X-OptiSchedule-Event']).toBe(
+      EventType.PAYMENT_RECEIVED,
+    );
+    expect(deliveryRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'success' }),
+    );
   });
 
   it('skips when no subscriptions', async () => {
@@ -77,7 +89,9 @@ describe('WebhookDispatcherListener', () => {
   });
 
   it('uses current timestamp when event has no createdAt', async () => {
-    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([subscription]);
+    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([
+      subscription,
+    ]);
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       status: 200,
@@ -98,7 +112,9 @@ describe('WebhookDispatcherListener', () => {
   });
 
   it('marks delivery failed after HTTP errors', async () => {
-    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([subscription]);
+    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([
+      subscription,
+    ]);
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 500,
@@ -116,11 +132,15 @@ describe('WebhookDispatcherListener', () => {
     } as any);
 
     expect(global.fetch).toHaveBeenCalledTimes(3);
-    expect(deliveryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    expect(deliveryRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 
   it('skips delivery when secret cannot be decrypted', async () => {
-    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([subscription]);
+    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([
+      subscription,
+    ]);
     webhooksService.decryptSubscriptionSecret.mockImplementation(() => {
       throw new Error('bad key');
     });
@@ -139,7 +159,9 @@ describe('WebhookDispatcherListener', () => {
   });
 
   it('marks delivery failed after network errors', async () => {
-    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([subscription]);
+    webhooksService.getActiveSubscriptionsForEvent.mockResolvedValue([
+      subscription,
+    ]);
     (global.fetch as jest.Mock).mockRejectedValue(new Error('timeout'));
 
     await listener.handleDomainEvent({
@@ -153,6 +175,8 @@ describe('WebhookDispatcherListener', () => {
     } as any);
 
     expect(global.fetch).toHaveBeenCalledTimes(3);
-    expect(deliveryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    expect(deliveryRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 });

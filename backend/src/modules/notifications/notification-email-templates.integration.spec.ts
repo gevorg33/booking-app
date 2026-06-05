@@ -9,7 +9,9 @@ import {
 
 describe('Notification email templates integration', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
-  const templateService = new NotificationEmailTemplateService(businessRepo as any);
+  const templateService = new NotificationEmailTemplateService(
+    businessRepo as any,
+  );
 
   const bookingRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
@@ -18,10 +20,18 @@ describe('Notification email templates integration', () => {
     save: jest.fn(),
     create: jest.fn((value) => value),
   };
-  const emailService = { send: jest.fn().mockResolvedValue({ ok: true }), isConfigured: true };
+  const emailService = {
+    send: jest.fn().mockResolvedValue({ ok: true }),
+    isConfigured: true,
+  };
   const smsService = { send: jest.fn() };
-  const whatsappService = { sendBookingMessage: jest.fn(), shouldSkipImmediateAfterConfirmation: jest.fn() };
-  const whatsappIntegrationService = { resolveRuntimeConfig: jest.fn().mockReturnValue(null) };
+  const whatsappService = {
+    sendBookingMessage: jest.fn(),
+    shouldSkipImmediateAfterConfirmation: jest.fn(),
+  };
+  const whatsappIntegrationService = {
+    resolveRuntimeConfig: jest.fn().mockReturnValue(null),
+  };
   const configService = { get: jest.fn(() => 'https://app.test') };
   const notifications = new NotificationsService(
     bookingRepo as any,
@@ -36,7 +46,9 @@ describe('Notification email templates integration', () => {
   );
 
   const giftCardRepo = { findOne: jest.fn(), save: jest.fn() };
-  const giftCardWhatsapp = { sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }) };
+  const giftCardWhatsapp = {
+    sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }),
+  };
   const giftCardDelivery = new GiftCardDeliveryService(
     giftCardRepo as any,
     emailService as any,
@@ -73,17 +85,21 @@ describe('Notification email templates integration', () => {
     });
 
     const saved = businessRepo.save.mock.calls[0][0];
-    const rendered = renderBusinessEmailTemplate(saved.settings, 'booking_confirmation', {
-      customerName: 'Alex',
-      businessName: 'Glow Salon',
-      serviceName: 'Facial',
-      providerName: 'Jane',
-      dateLabel: 'Today',
-      timeLabel: '10:00',
-      manageLinkText: '',
-      manageLinkHtml: '',
-      footerNote: '',
-    });
+    const rendered = renderBusinessEmailTemplate(
+      saved.settings,
+      'booking_confirmation',
+      {
+        customerName: 'Alex',
+        businessName: 'Glow Salon',
+        serviceName: 'Facial',
+        providerName: 'Jane',
+        dateLabel: 'Today',
+        timeLabel: '10:00',
+        manageLinkText: '',
+        manageLinkHtml: '',
+        footerNote: '',
+      },
+    );
 
     expect(rendered?.subject).toBe('Welcome Alex to Glow Salon');
     expect(rendered?.text).toContain('Facial is booked');
@@ -265,7 +281,9 @@ describe('Notification email templates integration', () => {
     });
 
     const { templates } = await templateService.listTemplates('biz-1');
-    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+    const confirmation = templates.find(
+      (t) => t.key === 'booking_confirmation',
+    );
 
     expect(confirmation?.subject).toContain('Հաստատված');
     expect(confirmation?.bodyText).toContain('Բարև {{customerName}}');
@@ -289,7 +307,9 @@ describe('Notification email templates integration', () => {
     });
 
     const { templates } = await templateService.listTemplates('biz-1');
-    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+    const confirmation = templates.find(
+      (t) => t.key === 'booking_confirmation',
+    );
 
     expect(confirmation?.subject).toBe('Custom RU subject {{customerName}}');
     expect(confirmation?.isCustomized).toBe(true);
@@ -364,7 +384,10 @@ describe('Notification email templates integration', () => {
       },
     });
 
-    const reset = await templateService.resetTemplate('biz-1', 'booking_confirmation');
+    const reset = await templateService.resetTemplate(
+      'biz-1',
+      'booking_confirmation',
+    );
     expect(reset.subject).toContain('Հաստատված');
     expect(reset.isCustomized).toBe(false);
     expect(businessRepo.save).toHaveBeenCalledWith(

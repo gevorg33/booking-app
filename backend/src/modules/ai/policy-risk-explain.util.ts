@@ -57,7 +57,9 @@ export function buildPolicyRiskExplain(input: {
   if (violations.length > 0) {
     parts.push(`Policy notes: ${violations.slice(0, 3).join('; ')}.`);
   } else if (riskLevel === 'high') {
-    parts.push('Bulk schedule or booking changes at this scale are treated as high risk.');
+    parts.push(
+      'Bulk schedule or booking changes at this scale are treated as high risk.',
+    );
   }
 
   return {

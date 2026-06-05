@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BusinessMember, MemberRole } from './entities/business-member.entity.js';
+import {
+  BusinessMember,
+  MemberRole,
+} from './entities/business-member.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { BusinessService } from './business.service.js';
 import { AssignableMemberRole } from './dto/update-member-role.dto.js';
@@ -24,12 +27,16 @@ export interface TeamMemberView {
 @Injectable()
 export class TeamMembersService {
   constructor(
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private businessService: BusinessService,
   ) {}
 
-  async list(businessId: string, requesterId: string): Promise<TeamMemberView[]> {
+  async list(
+    businessId: string,
+    requesterId: string,
+  ): Promise<TeamMemberView[]> {
     await this.businessService.ensureMember(businessId, requesterId);
 
     const members = await this.memberRepo.find({
@@ -42,14 +49,15 @@ export class TeamMembersService {
       where: { businessId, isActive: true },
     });
     const employeeByUserId = new Map(
-      employees.filter((e) => e.userId).map((e) => [e.userId!, e]),
+      employees.filter((e) => e.userId).map((e) => [e.userId, e]),
     );
 
     return members.map((member) => {
       const linked = employeeByUserId.get(member.userId);
       const user = member.user;
       const name =
-        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email;
+        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+        user.email;
       return {
         id: member.id,
         userId: member.userId,
@@ -79,7 +87,9 @@ export class TeamMembersService {
     }
 
     if (member.role === MemberRole.OWNER) {
-      throw new BadRequestException('The business owner role cannot be changed');
+      throw new BadRequestException(
+        'The business owner role cannot be changed',
+      );
     }
 
     if (member.userId === requesterId) {
@@ -97,7 +107,8 @@ export class TeamMembersService {
 
     const user = member.user;
     const name =
-      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email;
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      user.email;
 
     return {
       id: member.id,
@@ -123,7 +134,9 @@ export class TeamMembersService {
       throw new NotFoundException('Employee not found');
     }
     if (!employee.userId) {
-      throw new BadRequestException('This employee does not have dashboard access yet');
+      throw new BadRequestException(
+        'This employee does not have dashboard access yet',
+      );
     }
 
     const member = await this.memberRepo.findOne({

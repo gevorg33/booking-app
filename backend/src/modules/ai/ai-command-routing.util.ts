@@ -55,7 +55,9 @@ export function appendMultilingualClassifierContext(
   catalogContext: string,
   multilingualHint: string | null,
 ): string {
-  return multilingualHint ? `${catalogContext}\n${multilingualHint}` : catalogContext;
+  return multilingualHint
+    ? `${catalogContext}\n${multilingualHint}`
+    : catalogContext;
 }
 
 /** Merges preset, LLM, and deterministic complexity routes. */

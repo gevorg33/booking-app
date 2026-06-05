@@ -11,7 +11,10 @@ import { randomBytes } from 'crypto';
 import { WebhookSubscription } from './entities/webhook-subscription.entity.js';
 import { WebhookDelivery } from './entities/webhook-delivery.entity.js';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto/integrations.dto.js';
-import { encryptSecret, decryptSecret } from '../../common/utils/secret.util.js';
+import {
+  encryptSecret,
+  decryptSecret,
+} from '../../common/utils/secret.util.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { BusinessMember } from '../business/entities/business-member.entity.js';
 import { EventType } from '../../events/event-types.js';
@@ -36,8 +39,13 @@ export class WebhooksService {
   ) {}
 
   assertAdminRole(membership: BusinessMember): void {
-    if (membership.role !== MemberRole.OWNER && membership.role !== MemberRole.ADMIN) {
-      throw new ForbiddenException('Only owners and admins can manage webhooks');
+    if (
+      membership.role !== MemberRole.OWNER &&
+      membership.role !== MemberRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only owners and admins can manage webhooks',
+      );
     }
   }
 
@@ -83,13 +91,18 @@ export class WebhooksService {
     };
   }
 
-  async updateSubscription(businessId: string, id: string, dto: UpdateWebhookDto) {
+  async updateSubscription(
+    businessId: string,
+    id: string,
+    dto: UpdateWebhookDto,
+  ) {
     const sub = await this.findSubscription(businessId, id);
     if (dto.events) this.validateEvents(dto.events);
     if (dto.url !== undefined) sub.url = dto.url.trim();
     if (dto.events !== undefined) sub.events = dto.events;
     if (dto.isActive !== undefined) sub.isActive = dto.isActive;
-    if (dto.description !== undefined) sub.description = dto.description?.trim() || null;
+    if (dto.description !== undefined)
+      sub.description = dto.description?.trim() || null;
     await this.subRepo.save(sub);
     return {
       id: sub.id,
@@ -106,7 +119,11 @@ export class WebhooksService {
     return { deleted: true };
   }
 
-  async listDeliveries(businessId: string, subscriptionId?: string, limit = 50) {
+  async listDeliveries(
+    businessId: string,
+    subscriptionId?: string,
+    limit = 50,
+  ) {
     const qb = this.deliveryRepo
       .createQueryBuilder('d')
       .where('d.business_id = :businessId', { businessId })
@@ -145,6 +162,8 @@ export class WebhooksService {
   }
 
   private encryptionSecret(): string {
-    return this.config.get<string>('JWT_SECRET') || 'dev-secret-change-in-production';
+    return (
+      this.config.get<string>('JWT_SECRET') || 'dev-secret-change-in-production'
+    );
   }
 }

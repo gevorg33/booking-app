@@ -14,7 +14,9 @@ async function main() {
   });
 
   try {
-    const businessRepo = app.get<Repository<Business>>(getRepositoryToken(Business));
+    const businessRepo = app.get<Repository<Business>>(
+      getRepositoryToken(Business),
+    );
     const businesses = await businessRepo.find({
       select: {
         id: true,
@@ -56,7 +58,9 @@ async function main() {
       })
       .execute();
 
-    console.log(`\nUpdated ${result.affected ?? 0} tenant(s) to ${TOP_SUBSCRIPTION_PLAN_ID} (active).`);
+    console.log(
+      `\nUpdated ${result.affected ?? 0} tenant(s) to ${TOP_SUBSCRIPTION_PLAN_ID} (active).`,
+    );
   } finally {
     await app.close();
   }

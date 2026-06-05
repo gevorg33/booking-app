@@ -2,12 +2,21 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Between } from 'typeorm';
 import { ScheduleTemplate } from '../entities/schedule-template.entity.js';
-import { SchedulingTemplatePeriod, TemplatePeriodType } from '../entities/scheduling-template-period.entity.js';
-import { SchedulingSlot, SlotStatus } from '../entities/scheduling-slot.entity.js';
+import {
+  SchedulingTemplatePeriod,
+  TemplatePeriodType,
+} from '../entities/scheduling-template-period.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../entities/scheduling-period.entity.js';
 import { ApplyTemplateDto } from '../dto/create-schedule.dto.js';
 import { Employee } from '../../employee/entities/employee.entity.js';
-import { Booking, BookingStatus } from '../../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+} from '../../booking/entities/booking.entity.js';
 import { EventStoreService } from '../../../events/store/event-store.service.js';
 import { EventType } from '../../../events/event-types.js';
 
@@ -35,7 +44,11 @@ export class TemplateApplyService {
     private eventStore: EventStoreService,
   ) {}
 
-  async applyTemplate(dto: ApplyTemplateDto, businessId: string, userId?: string): Promise<{ slotsCreated: number }> {
+  async applyTemplate(
+    dto: ApplyTemplateDto,
+    businessId: string,
+    userId?: string,
+  ): Promise<{ slotsCreated: number }> {
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
     const today = new Date();
@@ -73,8 +86,11 @@ export class TemplateApplyService {
       throw new BadRequestException('No periods match the selected days');
     }
 
-    const daysToApply = this.getIntervalDays(startDate, endDate, repeatWeeks)
-      .filter((day) => dto.applyDays.includes(day.getUTCDay()));
+    const daysToApply = this.getIntervalDays(
+      startDate,
+      endDate,
+      repeatWeeks,
+    ).filter((day) => dto.applyDays.includes(day.getUTCDay()));
 
     // Delete existing micro-slots AND applied periods for affected days
     await this.deleteExistingData(employee.id, businessId, daysToApply);
@@ -83,7 +99,13 @@ export class TemplateApplyService {
     const periodsToSave: Partial<SchedulingPeriod>[] = [];
 
     for (const period of periods) {
-      const { slots, appliedPeriods } = this.generateDataForPeriod(period, employee, businessId, daysToApply, template.id);
+      const { slots, appliedPeriods } = this.generateDataForPeriod(
+        period,
+        employee,
+        businessId,
+        daysToApply,
+        template.id,
+      );
       totalSlotsCreated += slots.length;
       periodsToSave.push(...appliedPeriods);
 
@@ -94,10 +116,17 @@ export class TemplateApplyService {
 
     // Save applied period records (for calendar display)
     for (let i = 0; i < periodsToSave.length; i += SAVE_CHUNK_SIZE) {
-      await this.schedulingPeriodRepo.save(periodsToSave.slice(i, i + SAVE_CHUNK_SIZE) as SchedulingPeriod[]);
+      await this.schedulingPeriodRepo.save(
+        periodsToSave.slice(i, i + SAVE_CHUNK_SIZE) as SchedulingPeriod[],
+      );
     }
 
-    await this.restoreBookedSlotStatus(employee.id, businessId, startDate, endDate);
+    await this.restoreBookedSlotStatus(
+      employee.id,
+      businessId,
+      startDate,
+      endDate,
+    );
 
     await this.eventStore.publish({
       eventType: EventType.SCHEDULE_TEMPLATE_APPLIED,
@@ -114,7 +143,9 @@ export class TemplateApplyService {
       userId,
     });
 
-    this.logger.log(`Applied template "${template.name}" for employee ${employee.id}: ${totalSlotsCreated} micro-slots, ${periodsToSave.length} periods`);
+    this.logger.log(
+      `Applied template "${template.name}" for employee ${employee.id}: ${totalSlotsCreated} micro-slots, ${periodsToSave.length} periods`,
+    );
 
     return { slotsCreated: totalSlotsCreated };
   }
@@ -128,16 +159,27 @@ export class TemplateApplyService {
     });
   }
 
-  private isDayActiveForPeriod(dayOfWeek: number, period: SchedulingTemplatePeriod): boolean {
+  private isDayActiveForPeriod(
+    dayOfWeek: number,
+    period: SchedulingTemplatePeriod,
+  ): boolean {
     switch (dayOfWeek) {
-      case 0: return period.isActiveOnSunday;
-      case 1: return period.isActiveOnMonday;
-      case 2: return period.isActiveOnTuesday;
-      case 3: return period.isActiveOnWednesday;
-      case 4: return period.isActiveOnThursday;
-      case 5: return period.isActiveOnFriday;
-      case 6: return period.isActiveOnSaturday;
-      default: return false;
+      case 0:
+        return period.isActiveOnSunday;
+      case 1:
+        return period.isActiveOnMonday;
+      case 2:
+        return period.isActiveOnTuesday;
+      case 3:
+        return period.isActiveOnWednesday;
+      case 4:
+        return period.isActiveOnThursday;
+      case 5:
+        return period.isActiveOnFriday;
+      case 6:
+        return period.isActiveOnSaturday;
+      default:
+        return false;
     }
   }
 
@@ -191,18 +233,27 @@ export class TemplateApplyService {
         type: period.type,
         placeholderLabel: period.placeholderLabel,
         serviceIds: validServiceIds.length > 0 ? validServiceIds : null,
-        maxAppointmentCount: period.type === TemplatePeriodType.SERVICE_BLOCK ? (period.maxAppointmentCount || 1) : 0,
+        maxAppointmentCount:
+          period.type === TemplatePeriodType.SERVICE_BLOCK
+            ? period.maxAppointmentCount || 1
+            : 0,
         templateId,
       });
 
-      if (period.type === TemplatePeriodType.UNAVAILABLE_BLOCK || period.type === TemplatePeriodType.BLOCKED_TIME) {
+      if (
+        period.type === TemplatePeriodType.UNAVAILABLE_BLOCK ||
+        period.type === TemplatePeriodType.BLOCKED_TIME
+      ) {
         // One blocking micro-slot covering the whole period
         const slot = this.slotRepo.create({
           businessId,
           employeeId: employee.id,
           startTime: periodStart,
           endTime: periodEnd,
-          status: period.type === TemplatePeriodType.UNAVAILABLE_BLOCK ? SlotStatus.UNAVAILABLE : SlotStatus.BLOCKED,
+          status:
+            period.type === TemplatePeriodType.UNAVAILABLE_BLOCK
+              ? SlotStatus.UNAVAILABLE
+              : SlotStatus.BLOCKED,
           placeholderLabel: period.placeholderLabel,
           maxAppointmentCount: 0,
           appointmentCount: 0,
@@ -214,8 +265,13 @@ export class TemplateApplyService {
 
       // SERVICE_BLOCK: generate 10-minute micro-slots for booking
       let current = new Date(periodStart);
-      while (current.getTime() + SLOT_DURATION_MINUTES * 60000 <= periodEnd.getTime()) {
-        const slotEnd = new Date(current.getTime() + SLOT_DURATION_MINUTES * 60000);
+      while (
+        current.getTime() + SLOT_DURATION_MINUTES * 60000 <=
+        periodEnd.getTime()
+      ) {
+        const slotEnd = new Date(
+          current.getTime() + SLOT_DURATION_MINUTES * 60000,
+        );
 
         const slot = this.slotRepo.create({
           businessId,
@@ -240,7 +296,11 @@ export class TemplateApplyService {
   }
 
   /** Delete micro-slots AND applied periods for the given days. */
-  private async deleteExistingData(employeeId: string, businessId: string, days: Date[]): Promise<void> {
+  private async deleteExistingData(
+    employeeId: string,
+    businessId: string,
+    days: Date[],
+  ): Promise<void> {
     if (days.length === 0) return;
 
     for (const day of days) {
@@ -274,7 +334,7 @@ export class TemplateApplyService {
       where: {
         employeeId,
         businessId,
-        startTime: Between(startDate, endDate) as any,
+        startTime: Between(startDate, endDate),
         status: In([BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS]) as any,
       },
     });
@@ -285,13 +345,18 @@ export class TemplateApplyService {
         .createQueryBuilder('slot')
         .where('slot.employee_id = :employeeId', { employeeId })
         .andWhere('slot.business_id = :businessId', { businessId })
-        .andWhere('slot.startTime >= :startTime', { startTime: booking.startTime })
+        .andWhere('slot.startTime >= :startTime', {
+          startTime: booking.startTime,
+        })
         .andWhere('slot.startTime < :endTime', { endTime: booking.endTime })
         .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
         .getMany();
 
       for (const slot of overlappingSlots) {
-        slot.appointmentCount = Math.min(slot.appointmentCount + 1, slot.maxAppointmentCount);
+        slot.appointmentCount = Math.min(
+          slot.appointmentCount + 1,
+          slot.maxAppointmentCount,
+        );
         if (slot.appointmentCount >= slot.maxAppointmentCount) {
           slot.status = SlotStatus.BOOKED;
         }

@@ -77,15 +77,27 @@ export class WhatsAppService implements OnModuleInit {
     return this.approvedTemplateKeysByAccount.get(key) ?? new Set();
   }
 
-  isTemplateApproved(config: WhatsAppRuntimeConfig, name: string, language: string): boolean {
+  isTemplateApproved(
+    config: WhatsAppRuntimeConfig,
+    name: string,
+    language: string,
+  ): boolean {
     return this.getApprovedKeys(config).has(this.templateKey(name, language));
   }
 
   /** Skip duplicate hello_world when both confirmation and reminder use fallback. */
   shouldSkipImmediateAfterConfirmation(config: WhatsAppRuntimeConfig): boolean {
     return (
-      !this.isTemplateApproved(config, config.templateConfirmation, config.templateLanguage) &&
-      !this.isTemplateApproved(config, config.templateReminder, config.templateLanguage)
+      !this.isTemplateApproved(
+        config,
+        config.templateConfirmation,
+        config.templateLanguage,
+      ) &&
+      !this.isTemplateApproved(
+        config,
+        config.templateReminder,
+        config.templateLanguage,
+      )
     );
   }
 
@@ -98,7 +110,12 @@ export class WhatsAppService implements OnModuleInit {
     await this.refreshApprovedTemplates(config);
 
     if (this.isTemplateApproved(config, templateName, templateLang)) {
-      return { name: templateName, language: templateLang, bodyParams, isFallback: false };
+      return {
+        name: templateName,
+        language: templateLang,
+        bodyParams,
+        isFallback: false,
+      };
     }
 
     const fallbackParams =
@@ -122,7 +139,9 @@ export class WhatsAppService implements OnModuleInit {
     return value.replace(/\s+/g, ' ').trim().slice(0, 1024);
   }
 
-  private async refreshApprovedTemplates(config: WhatsAppRuntimeConfig): Promise<void> {
+  private async refreshApprovedTemplates(
+    config: WhatsAppRuntimeConfig,
+  ): Promise<void> {
     if (!config.wabaId || !config.accessToken) return;
 
     try {
@@ -145,7 +164,9 @@ export class WhatsAppService implements OnModuleInit {
     }
   }
 
-  private async validateTemplatesOnStartup(config: WhatsAppRuntimeConfig): Promise<void> {
+  private async validateTemplatesOnStartup(
+    config: WhatsAppRuntimeConfig,
+  ): Promise<void> {
     if (!config.wabaId || !config.accessToken) return;
 
     try {
@@ -163,11 +184,17 @@ export class WhatsAppService implements OnModuleInit {
         this.accountCacheKey(config),
         new Set(approved.map((t) => this.templateKey(t.name, t.language))),
       );
-      const names = approved.map((t) => `${t.name} (${t.language})`).join(', ') || 'none';
-      this.logger.log(`WhatsApp approved templates (${config.source}): ${names}`);
+      const names =
+        approved.map((t) => `${t.name} (${t.language})`).join(', ') || 'none';
+      this.logger.log(
+        `WhatsApp approved templates (${config.source}): ${names}`,
+      );
 
       for (const required of [
-        { name: config.templateConfirmation, language: config.templateLanguage },
+        {
+          name: config.templateConfirmation,
+          language: config.templateLanguage,
+        },
         { name: config.templateReminder, language: config.templateLanguage },
       ]) {
         const found = approved.some(
@@ -200,7 +227,10 @@ export class WhatsAppService implements OnModuleInit {
       template.components = [
         {
           type: 'body',
-          parameters: options.bodyParams.map((text) => ({ type: 'text', text })),
+          parameters: options.bodyParams.map((text) => ({
+            type: 'text',
+            text,
+          })),
         },
       ];
     }
@@ -236,7 +266,10 @@ export class WhatsAppService implements OnModuleInit {
   ): Promise<{ ok: boolean; error?: string }> {
     const to = this.normalizeRecipient(payload.toPhone);
     if (!to) {
-      return { ok: false, error: `Invalid phone number for WhatsApp: ${payload.toPhone}` };
+      return {
+        ok: false,
+        error: `Invalid phone number for WhatsApp: ${payload.toPhone}`,
+      };
     }
 
     const isConfirmation = payload.kind === 'confirmation';
@@ -258,11 +291,7 @@ export class WhatsAppService implements OnModuleInit {
           `${payload.dateLabel} ${payload.timeLabel}`,
         ]
       : isCancellation
-        ? [
-            payload.customerName,
-            payload.businessName,
-            cancellationDetail,
-          ]
+        ? [payload.customerName, payload.businessName, cancellationDetail]
         : [
             payload.customerName,
             payload.businessName,
@@ -275,7 +304,9 @@ export class WhatsAppService implements OnModuleInit {
         : config.reminderBodyParamCount;
     const bodyParams =
       paramCount > 0
-        ? allBodyParams.slice(0, paramCount).map((v) => this.formatTemplateValue(v))
+        ? allBodyParams
+            .slice(0, paramCount)
+            .map((v) => this.formatTemplateValue(v))
         : [];
 
     const preview = isConfirmation
@@ -285,7 +316,12 @@ export class WhatsAppService implements OnModuleInit {
         : `[reminder] ${payload.businessName}: ${payload.serviceName} in ${payload.reminderLabel}`;
 
     try {
-      const resolved = await this.resolveTemplateSend(config, templateName, templateLang, bodyParams);
+      const resolved = await this.resolveTemplateSend(
+        config,
+        templateName,
+        templateLang,
+        bodyParams,
+      );
       const result = await this.sendTemplate(config, to, resolved, preview);
 
       if (!result.ok) {
@@ -298,7 +334,8 @@ export class WhatsAppService implements OnModuleInit {
 
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'WhatsApp send failed';
+      const message =
+        err instanceof Error ? err.message : 'WhatsApp send failed';
       return { ok: false, error: message };
     }
   }
@@ -309,7 +346,10 @@ export class WhatsAppService implements OnModuleInit {
   ): Promise<{ ok: boolean; error?: string }> {
     const to = this.normalizeRecipient(payload.toPhone);
     if (!to) {
-      return { ok: false, error: `Invalid phone number for WhatsApp: ${payload.toPhone}` };
+      return {
+        ok: false,
+        error: `Invalid phone number for WhatsApp: ${payload.toPhone}`,
+      };
     }
 
     const templateName = config.templateGiftCard;
@@ -330,7 +370,12 @@ export class WhatsAppService implements OnModuleInit {
     const preview = `[gift card] from ${payload.senderName}: ${payload.giftCardCode} → ${payload.summary}`;
 
     try {
-      const resolved = await this.resolveTemplateSend(config, templateName, templateLang, bodyParams);
+      const resolved = await this.resolveTemplateSend(
+        config,
+        templateName,
+        templateLang,
+        bodyParams,
+      );
       const result = await this.sendTemplate(config, to, resolved, preview);
 
       if (!result.ok) {
@@ -343,7 +388,8 @@ export class WhatsAppService implements OnModuleInit {
 
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'WhatsApp send failed';
+      const message =
+        err instanceof Error ? err.message : 'WhatsApp send failed';
       return { ok: false, error: message };
     }
   }

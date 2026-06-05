@@ -39,6 +39,8 @@ describe('ai-intelligence-context.util', () => {
         customerName: 'John',
       }),
     ).toEqual({ customerName: 'John' });
-    expect(stripIntelligenceKeysFromSessionContext({ _ragContextBlock: 'only' })).toBeUndefined();
+    expect(
+      stripIntelligenceKeysFromSessionContext({ _ragContextBlock: 'only' }),
+    ).toBeUndefined();
   });
 });

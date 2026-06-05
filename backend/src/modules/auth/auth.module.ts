@@ -16,13 +16,21 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Business, BusinessMember, Employee, PasswordResetToken]),
+    TypeOrmModule.forFeature([
+      User,
+      Business,
+      BusinessMember,
+      Employee,
+      PasswordResetToken,
+    ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('app.jwtSecret')!,
-        signOptions: { expiresIn: config.get<string>('app.jwtExpiration')! as any },
+        signOptions: {
+          expiresIn: config.get<string>('app.jwtExpiration')! as any,
+        },
       }),
     }),
     EventStoreModule,

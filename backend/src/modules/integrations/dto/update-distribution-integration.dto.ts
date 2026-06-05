@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsString, MaxLength, Matches } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 
 export class UpdateDistributionIntegrationDto {
   @IsOptional()
@@ -46,7 +52,9 @@ export class UpdateDistributionIntegrationDto {
   @IsOptional()
   @IsString()
   @MaxLength(64)
-  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'telegramBotUsername must be a valid bot username' })
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: 'telegramBotUsername must be a valid bot username',
+  })
   telegramBotUsername?: string;
 
   @IsOptional()

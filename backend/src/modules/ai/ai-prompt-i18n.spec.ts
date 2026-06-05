@@ -48,8 +48,7 @@ const COMPLEX_COMMANDS = {
   translit: {
     compound:
       'pokazhi vse zapisi Gevorg na vagh@ i otmeni vse mezhdu 16:30-17:30',
-    book:
-      'amsagrum facemassage Gevorg 10:00 vagh@ esli zanyat Mary',
+    book: 'amsagrum facemassage Gevorg 10:00 vagh@ esli zanyat Mary',
     gaps: 'zapolni azat sloty na etoy nedele dlya Gevorg i Mary',
   },
 } as const;
@@ -74,12 +73,16 @@ describe('ai-prompt-i18n detection', () => {
   describe('basic script detection', () => {
     it('detects Armenian script', () => {
       expect(containsNonEnglishScript('Ցույց տուր ամրագրումները')).toBe(true);
-      expect(needsMultilingualNormalization('Ցույց տուր ամրագրումները')).toBe(true);
+      expect(needsMultilingualNormalization('Ցույց տուր ամրագրումները')).toBe(
+        true,
+      );
     });
 
     it('detects Russian script', () => {
       expect(containsNonEnglishScript('Покажи записи на завтра')).toBe(true);
-      expect(needsMultilingualNormalization(COMPLEX_COMMANDS.ru.showTomorrow)).toBe(true);
+      expect(
+        needsMultilingualNormalization(COMPLEX_COMMANDS.ru.showTomorrow),
+      ).toBe(true);
     });
 
     it('detects Latin transliteration', () => {
@@ -88,10 +91,14 @@ describe('ai-prompt-i18n detection', () => {
     });
 
     it('skips plain English commands', () => {
-      expect(needsMultilingualNormalization('Show Gevorg appointments tomorrow')).toBe(false);
-      expect(needsMultilingualNormalization('Cancel all appointments Friday 16:30-17:30 and notify customers')).toBe(
-        false,
-      );
+      expect(
+        needsMultilingualNormalization('Show Gevorg appointments tomorrow'),
+      ).toBe(false);
+      expect(
+        needsMultilingualNormalization(
+          'Cancel all appointments Friday 16:30-17:30 and notify customers',
+        ),
+      ).toBe(false);
     });
 
     it('skips empty and whitespace-only prompts', () => {
@@ -121,7 +128,9 @@ describe('ai-prompt-i18n detection', () => {
     });
 
     it('detects waitlist command with embedded English slot', () => {
-      expect(needsMultilingualNormalization(COMPLEX_COMMANDS.hy.waitlist)).toBe(true);
+      expect(needsMultilingualNormalization(COMPLEX_COMMANDS.hy.waitlist)).toBe(
+        true,
+      );
     });
   });
 
@@ -178,7 +187,9 @@ describe('ai-prompt-i18n detection', () => {
         ['manicure', SERVICE_TYPE_COMMANDS.hy.manicure, 'մանիկյուր'],
       ])('recognizes %s (%s)', (_label, prompt, expectedTerm) => {
         const terms = recognizeServiceTypeTerms(prompt);
-        expect(terms.some((t) => t.locale === 'hy' && t.term === expectedTerm)).toBe(true);
+        expect(
+          terms.some((t) => t.locale === 'hy' && t.term === expectedTerm),
+        ).toBe(true);
         expect(promptMentionsNativeServiceType(prompt)).toBe(true);
         expect(promptMentionsServiceType(prompt)).toBe(true);
         expect(needsMultilingualNormalization(prompt)).toBe(true);
@@ -188,9 +199,7 @@ describe('ai-prompt-i18n detection', () => {
         const prompt = COMPLEX_COMMANDS.hy.conditionalBook;
         const terms = recognizeServiceTypeTerms(prompt);
         expect(terms).toEqual(
-          expect.arrayContaining([
-            { term: 'facemassage', locale: 'latin' },
-          ]),
+          expect.arrayContaining([{ term: 'facemassage', locale: 'latin' }]),
         );
         expect(promptMentionsNativeServiceType(prompt)).toBe(false);
         expect(promptMentionsServiceType(prompt)).toBe(true);
@@ -198,7 +207,11 @@ describe('ai-prompt-i18n detection', () => {
 
       it('preserves Armenian service term in classifier multilingual context', () => {
         const prompt = SERVICE_TYPE_COMMANDS.hy.massage;
-        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'multilingual');
+        const ctx = buildMultilingualClassifierContext(
+          prompt,
+          prompt,
+          'multilingual',
+        );
         expect(ctx).toContain('մասաժ');
       });
     });
@@ -240,7 +253,11 @@ describe('ai-prompt-i18n detection', () => {
 
       it('preserves Russian service term in classifier multilingual context', () => {
         const prompt = SERVICE_TYPE_COMMANDS.ru.haircut;
-        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'multilingual');
+        const ctx = buildMultilingualClassifierContext(
+          prompt,
+          prompt,
+          'multilingual',
+        );
         expect(ctx).toMatch(/стрижк/i);
       });
     });
@@ -255,8 +272,12 @@ describe('ai-prompt-i18n detection', () => {
     });
 
     it('returns empty list for prompts without service vocabulary', () => {
-      expect(recognizeServiceTypeTerms('Show all appointments today')).toEqual([]);
-      expect(promptMentionsServiceType('Show all appointments today')).toBe(false);
+      expect(recognizeServiceTypeTerms('Show all appointments today')).toEqual(
+        [],
+      );
+      expect(promptMentionsServiceType('Show all appointments today')).toBe(
+        false,
+      );
     });
   });
 
@@ -273,7 +294,11 @@ describe('ai-prompt-i18n detection', () => {
 
     it('includes multilingual hint for Armenian commands', () => {
       const original = COMPLEX_COMMANDS.hy.showWithFilters;
-      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
+      const ctx = buildMultilingualClassifierContext(
+        original,
+        original,
+        'multilingual',
+      );
       expect(ctx).toContain('Armenian/Russian');
       expect(ctx).toContain('Գևորգ');
       expect(ctx).toContain(original);
@@ -281,14 +306,22 @@ describe('ai-prompt-i18n detection', () => {
 
     it('includes multilingual hint for bulk cancel Armenian', () => {
       const original = COMPLEX_COMMANDS.hy.bulkCancelRange;
-      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
+      const ctx = buildMultilingualClassifierContext(
+        original,
+        original,
+        'multilingual',
+      );
       expect(ctx).toContain('Armenian/Russian');
       expect(ctx).toContain(original);
     });
 
     it('includes multilingual hint for complex Russian reschedule', () => {
       const original = COMPLEX_COMMANDS.ru.reschedule;
-      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
+      const ctx = buildMultilingualClassifierContext(
+        original,
+        original,
+        'multilingual',
+      );
       expect(ctx).toContain('Марии');
       expect(ctx).toContain('hot stone massage');
     });

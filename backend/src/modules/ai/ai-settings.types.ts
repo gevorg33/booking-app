@@ -75,7 +75,11 @@ export interface EntityMemory {
   aliases: Record<string, EntityMemoryEntry>;
 }
 
-export type RagDocumentType = 'sop' | 'playbook_note' | 'business_note' | 'past_plan';
+export type RagDocumentType =
+  | 'sop'
+  | 'playbook_note'
+  | 'business_note'
+  | 'past_plan';
 
 /** Optional RAG knowledge chunk stored per business (ai-i8). */
 export interface RagDocument {
@@ -115,7 +119,8 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
         name: 'Auto-fill small gaps',
         enabled: false,
         cron: '0 7 * * 1-5',
-        prompt: 'Fill schedule gaps under 30 minutes for all providers today between 9-19',
+        prompt:
+          'Fill schedule gaps under 30 minutes for all providers today between 9-19',
       },
       {
         id: 'sunday-template',
@@ -136,7 +141,8 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
     {
       id: 'end-week-gap-fill',
       name: 'End-of-week gap fill',
-      prompt: 'Fill schedule gaps between 9-19 for all providers for the rest of this week',
+      prompt:
+        'Fill schedule gaps between 9-19 for all providers for the rest of this week',
     },
   ],
   playbooks: [
@@ -145,7 +151,8 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
       name: 'Salon weekday',
       description: 'Apply weekday template and fill 9–19 gaps for the team',
       triggers: ['salon weekday', 'weekday setup', 'standard weekday'],
-      prompt: 'Apply weekday template to all providers this week, then fill gaps between 9-19',
+      prompt:
+        'Apply weekday template to all providers this week, then fill gaps between 9-19',
       enabled: true,
     },
     {
@@ -168,8 +175,18 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
         name: 'Suggestion copy A/B',
         enabled: false,
         suggestionVariants: [
-          { id: 'a', title: 'Fill gaps this week', prompt: 'Fill schedule gaps for all providers this week between 9-19' },
-          { id: 'b', title: 'Optimize open slots', prompt: 'Fill unused slots between 9-19 for all providers for the rest of this week' },
+          {
+            id: 'a',
+            title: 'Fill gaps this week',
+            prompt:
+              'Fill schedule gaps for all providers this week between 9-19',
+          },
+          {
+            id: 'b',
+            title: 'Optimize open slots',
+            prompt:
+              'Fill unused slots between 9-19 for all providers for the rest of this week',
+          },
         ],
       },
     ],

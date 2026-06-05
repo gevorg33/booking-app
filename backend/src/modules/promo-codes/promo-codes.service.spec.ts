@@ -15,7 +15,10 @@ describe('PromoCodesService', () => {
     assertFeature: jest.fn().mockResolvedValue(undefined),
   };
 
-  const service = new PromoCodesService(promoRepo as any, planEntitlements as any);
+  const service = new PromoCodesService(
+    promoRepo as any,
+    planEntitlements as any,
+  );
 
   const basePromo = {
     id: 'promo-1',
@@ -132,9 +135,9 @@ describe('PromoCodesService', () => {
 
   it('validates promo for checkout', async () => {
     promoRepo.findOne.mockResolvedValue({ ...basePromo });
-    await expect(service.findValidForCheckout('biz-1', 'save10', 100)).resolves.toEqual(
-      expect.objectContaining({ code: 'SAVE10' }),
-    );
+    await expect(
+      service.findValidForCheckout('biz-1', 'save10', 100),
+    ).resolves.toEqual(expect.objectContaining({ code: 'SAVE10' }));
   });
 
   it('rejects expired promo codes at checkout', async () => {
@@ -143,9 +146,9 @@ describe('PromoCodesService', () => {
       expiresAt: new Date('2020-01-01T00:00:00.000Z'),
     });
 
-    await expect(service.findValidForCheckout('biz-1', 'SAVE10', 100)).rejects.toThrow(
-      'Promo code has expired',
-    );
+    await expect(
+      service.findValidForCheckout('biz-1', 'SAVE10', 100),
+    ).rejects.toThrow('Promo code has expired');
   });
 
   it('accepts promo codes before expiration', async () => {
@@ -154,49 +157,67 @@ describe('PromoCodesService', () => {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    await expect(service.findValidForCheckout('biz-1', 'SAVE10', 100)).resolves.toBeTruthy();
+    await expect(
+      service.findValidForCheckout('biz-1', 'SAVE10', 100),
+    ).resolves.toBeTruthy();
   });
 
   it('rejects inactive, missing, max-use, and min-order promos', async () => {
     promoRepo.findOne.mockResolvedValue(null);
-    await expect(service.findValidForCheckout('biz-1', 'MISSING', 100)).rejects.toThrow(
-      'Invalid promo code',
-    );
+    await expect(
+      service.findValidForCheckout('biz-1', 'MISSING', 100),
+    ).rejects.toThrow('Invalid promo code');
 
     promoRepo.findOne.mockResolvedValue({ ...basePromo, isActive: false });
-    await expect(service.findValidForCheckout('biz-1', 'SAVE10', 100)).rejects.toThrow(
-      'no longer active',
-    );
+    await expect(
+      service.findValidForCheckout('biz-1', 'SAVE10', 100),
+    ).rejects.toThrow('no longer active');
 
-    promoRepo.findOne.mockResolvedValue({ ...basePromo, maxUses: 5, usedCount: 5 });
-    await expect(service.findValidForCheckout('biz-1', 'SAVE10', 100)).rejects.toThrow(
-      'usage limit',
-    );
+    promoRepo.findOne.mockResolvedValue({
+      ...basePromo,
+      maxUses: 5,
+      usedCount: 5,
+    });
+    await expect(
+      service.findValidForCheckout('biz-1', 'SAVE10', 100),
+    ).rejects.toThrow('usage limit');
 
     promoRepo.findOne.mockResolvedValue({ ...basePromo, minOrderAmount: 200 });
-    await expect(service.findValidForCheckout('biz-1', 'SAVE10', 100)).rejects.toThrow(
-      'Minimum order amount',
-    );
+    await expect(
+      service.findValidForCheckout('biz-1', 'SAVE10', 100),
+    ).rejects.toThrow('Minimum order amount');
   });
 
   it('calculates percent and fixed discounts', () => {
     expect(
       service.calculateDiscount(
-        { ...basePromo, discountType: PromoDiscountType.PERCENT, discountValue: 10 } as any,
+        {
+          ...basePromo,
+          discountType: PromoDiscountType.PERCENT,
+          discountValue: 10,
+        } as any,
         100,
       ),
     ).toBe(10);
 
     expect(
       service.calculateDiscount(
-        { ...basePromo, discountType: PromoDiscountType.FIXED, discountValue: 25 } as any,
+        {
+          ...basePromo,
+          discountType: PromoDiscountType.FIXED,
+          discountValue: 25,
+        } as any,
         100,
       ),
     ).toBe(25);
 
     expect(
       service.calculateDiscount(
-        { ...basePromo, discountType: PromoDiscountType.FIXED, discountValue: 150 } as any,
+        {
+          ...basePromo,
+          discountType: PromoDiscountType.FIXED,
+          discountValue: 150,
+        } as any,
         100,
       ),
     ).toBe(100);
@@ -204,6 +225,10 @@ describe('PromoCodesService', () => {
 
   it('records promo use', async () => {
     await service.recordUse('promo-1');
-    expect(promoRepo.increment).toHaveBeenCalledWith({ id: 'promo-1' }, 'usedCount', 1);
+    expect(promoRepo.increment).toHaveBeenCalledWith(
+      { id: 'promo-1' },
+      'usedCount',
+      1,
+    );
   });
 });

@@ -6,16 +6,26 @@ import {
 
 describe('marketing-notification-settings.util', () => {
   it('parses comma-separated emails', () => {
-    expect(parseMarketingTeamEmails('a@x.com, b@y.com')).toEqual(['a@x.com', 'b@y.com']);
+    expect(parseMarketingTeamEmails('a@x.com, b@y.com')).toEqual([
+      'a@x.com',
+      'b@y.com',
+    ]);
   });
 
   it('parses newline-separated emails and ignores non-strings in arrays', () => {
-    expect(parseMarketingTeamEmails('a@x.com\nb@y.com')).toEqual(['a@x.com', 'b@y.com']);
-    expect(parseMarketingTeamEmails(['c@z.com', 99, 'c@z.com'])).toEqual(['c@z.com']);
+    expect(parseMarketingTeamEmails('a@x.com\nb@y.com')).toEqual([
+      'a@x.com',
+      'b@y.com',
+    ]);
+    expect(parseMarketingTeamEmails(['c@z.com', 99, 'c@z.com'])).toEqual([
+      'c@z.com',
+    ]);
   });
 
   it('dedupes and rejects invalid addresses', () => {
-    expect(parseMarketingTeamEmails(['A@X.com', 'bad', 'a@x.com'])).toEqual(['a@x.com']);
+    expect(parseMarketingTeamEmails(['A@X.com', 'bad', 'a@x.com'])).toEqual([
+      'a@x.com',
+    ]);
   });
 
   it('merges marketing notification flags', () => {
@@ -35,9 +45,8 @@ describe('marketing-notification-settings.util', () => {
   });
 
   it('serializes textarea input', () => {
-    expect(serializeMarketingTeamEmailsInput('one@test.com; two@test.com')).toEqual([
-      'one@test.com',
-      'two@test.com',
-    ]);
+    expect(
+      serializeMarketingTeamEmailsInput('one@test.com; two@test.com'),
+    ).toEqual(['one@test.com', 'two@test.com']);
   });
 });

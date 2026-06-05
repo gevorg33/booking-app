@@ -7,9 +7,13 @@ import {
 
 describe('provider-push-payload.util', () => {
   it('builds AI prefill and foreground hint for new bookings', () => {
-    expect(buildNewBookingAiPrompt('14:00', 'Sam')).toMatch(/15-minute buffer.*Sam.*14:00/);
+    expect(buildNewBookingAiPrompt('14:00', 'Sam')).toMatch(
+      /15-minute buffer.*Sam.*14:00/,
+    );
     expect(buildNewBookingAiPrompt('10:00', '')).toMatch(/the client/);
-    expect(buildNewBookingForegroundHint('14:00')).toBe('New booking 14:00 — Add buffer?');
+    expect(buildNewBookingForegroundHint('14:00')).toBe(
+      'New booking 14:00 — Add buffer?',
+    );
     expect(toNativePushDataFields({})).toEqual({});
   });
 

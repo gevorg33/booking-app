@@ -20,7 +20,9 @@ describe('Business public profile locales integration', () => {
     memberRepo as any,
   );
 
-  const stripeIntegrationService = { isConnectReady: jest.fn().mockReturnValue(false) };
+  const stripeIntegrationService = {
+    isConnectReady: jest.fn().mockReturnValue(false),
+  };
 
   const publicBusinessService = {
     findBySlug: jest.fn(async () => business),
@@ -81,10 +83,12 @@ describe('Business public profile locales integration', () => {
     };
     jest.clearAllMocks();
     businessRepo.findOne.mockImplementation(async () => business);
-    businessRepo.save.mockImplementation(async (value: Record<string, unknown>) => {
-      business = value;
-      return value;
-    });
+    businessRepo.save.mockImplementation(
+      async (value: Record<string, unknown>) => {
+        business = value;
+        return value;
+      },
+    );
   });
 
   it('persists dashboard locale content and serves it on the public profile API', async () => {
@@ -131,7 +135,9 @@ describe('Business public profile locales integration', () => {
     await dashboardBusinessService.updateProfile('biz-1', {
       publicProfileLocales: { hy: { name: 'Temporary' } },
     });
-    await dashboardBusinessService.updateProfile('biz-1', { publicProfileLocales: {} });
+    await dashboardBusinessService.updateProfile('biz-1', {
+      publicProfileLocales: {},
+    });
 
     expect((business.settings as any).publicProfileLocales).toBeUndefined();
 
@@ -154,13 +160,15 @@ describe('Business public profile locales integration', () => {
       dashboardBusinessService.updateProfile('biz-1', {
         publicProfileLocales: { de: { name: 'German' } },
       }),
-    ).rejects.toThrow(new BadRequestException('Unsupported locale in publicProfileLocales: de'));
+    ).rejects.toThrow(
+      new BadRequestException('Unsupported locale in publicProfileLocales: de'),
+    );
   });
 
   it('blocks public profile when business is inactive', async () => {
     business.isActive = false;
-    await expect(publicBookingService.getProfile('salon', 'hy')).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      publicBookingService.getProfile('salon', 'hy'),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

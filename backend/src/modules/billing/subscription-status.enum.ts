@@ -6,7 +6,9 @@ export enum SubscriptionStatus {
   TRIALING = 'trialing',
 }
 
-export function mapStripeSubscriptionStatus(stripeStatus: string): SubscriptionStatus {
+export function mapStripeSubscriptionStatus(
+  stripeStatus: string,
+): SubscriptionStatus {
   switch (stripeStatus) {
     case 'active':
       return SubscriptionStatus.ACTIVE;

@@ -1,10 +1,28 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In, LessThan, MoreThan, DataSource } from 'typeorm';
-import { Booking, BookingStatus } from '../../modules/booking/entities/booking.entity.js';
-import { ScheduleTemplate, DayOfWeek, TimeSlotRange } from '../../modules/schedule/entities/schedule-template.entity.js';
+import {
+  Repository,
+  Between,
+  Not,
+  In,
+  LessThan,
+  MoreThan,
+  DataSource,
+} from 'typeorm';
+import {
+  Booking,
+  BookingStatus,
+} from '../../modules/booking/entities/booking.entity.js';
+import {
+  ScheduleTemplate,
+  DayOfWeek,
+  TimeSlotRange,
+} from '../../modules/schedule/entities/schedule-template.entity.js';
 import { ScheduleAssignment } from '../../modules/schedule/entities/schedule-assignment.entity.js';
-import { ScheduleOverride, OverrideType } from '../../modules/schedule/entities/schedule-override.entity.js';
+import {
+  ScheduleOverride,
+  OverrideType,
+} from '../../modules/schedule/entities/schedule-override.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 
@@ -56,13 +74,19 @@ export class SchedulingEngineService {
   ) {}
 
   async getAvailableSlots(query: AvailabilityQuery): Promise<AvailableSlot[]> {
-    const service = await this.serviceRepo.findOneOrFail({ where: { id: query.serviceId } });
+    const service = await this.serviceRepo.findOneOrFail({
+      where: { id: query.serviceId },
+    });
     const totalDuration = service.durationMinutes + service.bufferMinutes;
 
     let employees: Employee[];
     if (query.employeeId) {
       employees = await this.employeeRepo.find({
-        where: { id: query.employeeId, businessId: query.businessId, isActive: true },
+        where: {
+          id: query.employeeId,
+          businessId: query.businessId,
+          isActive: true,
+        },
       });
     } else {
       employees = await this.employeeRepo.find({
@@ -71,7 +95,10 @@ export class SchedulingEngineService {
     }
 
     employees = employees.filter(
-      (e) => !e.serviceIds || e.serviceIds.length === 0 || e.serviceIds.includes(query.serviceId),
+      (e) =>
+        !e.serviceIds ||
+        e.serviceIds.length === 0 ||
+        e.serviceIds.includes(query.serviceId),
     );
 
     const allSlots: AvailableSlot[] = [];
@@ -92,7 +119,9 @@ export class SchedulingEngineService {
       );
     }
 
-    return allSlots.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    return allSlots.sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
   }
 
   private async getEmployeeAvailableSlots(
@@ -101,7 +130,11 @@ export class SchedulingEngineService {
     durationMinutes: number,
     businessId: string,
   ): Promise<TimeSlot[]> {
-    const workingHours = await this.getEffectiveWorkingHours(employee.id, date, businessId);
+    const workingHours = await this.getEffectiveWorkingHours(
+      employee.id,
+      date,
+      businessId,
+    );
     if (!workingHours || workingHours.length === 0) return [];
 
     const dayStart = new Date(date);
@@ -131,7 +164,10 @@ export class SchedulingEngineService {
 
       let current = new Date(windowStart);
 
-      while (current.getTime() + durationMinutes * 60000 <= windowEnd.getTime()) {
+      while (
+        current.getTime() + durationMinutes * 60000 <=
+        windowEnd.getTime()
+      ) {
         const slotEnd = new Date(current.getTime() + durationMinutes * 60000);
 
         const hasConflict = existingBookings.some(
@@ -147,7 +183,9 @@ export class SchedulingEngineService {
           });
         }
 
-        current = new Date(current.getTime() + SLOT_GRANULARITY_MINUTES * 60000);
+        current = new Date(
+          current.getTime() + SLOT_GRANULARITY_MINUTES * 60000,
+        );
       }
     }
 
@@ -161,11 +199,15 @@ export class SchedulingEngineService {
   ): Promise<TimeSlotRange[] | null> {
     const dateStr = date.toISOString().split('T')[0];
     const override = await this.overrideRepo.findOne({
-      where: { employeeId, date: new Date(dateStr) as any, businessId },
+      where: { employeeId, date: new Date(dateStr), businessId },
     });
 
     if (override) {
-      if (override.type === OverrideType.VACATION || override.type === OverrideType.SICK_LEAVE || override.type === OverrideType.BLOCKED) {
+      if (
+        override.type === OverrideType.VACATION ||
+        override.type === OverrideType.SICK_LEAVE ||
+        override.type === OverrideType.BLOCKED
+      ) {
         return null;
       }
       if (override.type === OverrideType.CUSTOM_HOURS && override.customHours) {
@@ -180,7 +222,7 @@ export class SchedulingEngineService {
     const assignment = await this.assignmentRepo.findOne({
       where: {
         employeeId,
-        effectiveFrom: LessThan(new Date(dateStr)) as any,
+        effectiveFrom: LessThan(new Date(dateStr)),
       },
       relations: { template: true },
       order: { effectiveFrom: 'DESC' },
@@ -191,7 +233,7 @@ export class SchedulingEngineService {
     const template = await this.templateRepo.findOne({
       where: {
         id: assignment.templateId,
-        dayOfWeek: dayOfWeek as DayOfWeek,
+        dayOfWeek: dayOfWeek,
         isActive: true,
       },
     });
@@ -206,7 +248,10 @@ export class SchedulingEngineService {
     return hours;
   }
 
-  private subtractBreaks(hours: TimeSlotRange[], breaks: { startTime: string; endTime: string }[]): TimeSlotRange[] {
+  private subtractBreaks(
+    hours: TimeSlotRange[],
+    breaks: { startTime: string; endTime: string }[],
+  ): TimeSlotRange[] {
     let result = [...hours];
     for (const brk of breaks) {
       const newResult: TimeSlotRange[] = [];
@@ -219,7 +264,10 @@ export class SchedulingEngineService {
     return result;
   }
 
-  private subtractRange(slot: TimeSlotRange, brk: { startTime: string; endTime: string }): TimeSlotRange[] {
+  private subtractRange(
+    slot: TimeSlotRange,
+    brk: { startTime: string; endTime: string },
+  ): TimeSlotRange[] {
     const slotStart = this.timeToMinutes(slot.startTime);
     const slotEnd = this.timeToMinutes(slot.endTime);
     const brkStart = this.timeToMinutes(brk.startTime);
@@ -243,20 +291,26 @@ export class SchedulingEngineService {
 
   async createBooking(request: BookingRequest): Promise<Booking> {
     return this.dataSource.transaction(async (manager) => {
-      const service = await manager.findOneOrFail(Service, { where: { id: request.serviceId } });
+      const service = await manager.findOneOrFail(Service, {
+        where: { id: request.serviceId },
+      });
       const totalDuration = service.durationMinutes + service.bufferMinutes;
 
       const startTime = new Date(request.startTime);
       const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
       if (startTime.getUTCMinutes() % SLOT_GRANULARITY_MINUTES !== 0) {
-        throw new ConflictException('Booking must start on a 10-minute boundary');
+        throw new ConflictException(
+          'Booking must start on a 10-minute boundary',
+        );
       }
 
       const conflicts = await manager
         .createQueryBuilder(Booking, 'booking')
         .setLock('pessimistic_write')
-        .where('booking.employee_id = :employeeId', { employeeId: request.employeeId })
+        .where('booking.employee_id = :employeeId', {
+          employeeId: request.employeeId,
+        })
         .andWhere('booking.status NOT IN (:...excludedStatuses)', {
           excludedStatuses: [BookingStatus.CANCELLED],
         })
@@ -284,7 +338,9 @@ export class SchedulingEngineService {
   }
 
   async cancelBooking(bookingId: string, reason?: string): Promise<Booking> {
-    const booking = await this.bookingRepo.findOneOrFail({ where: { id: bookingId } });
+    const booking = await this.bookingRepo.findOneOrFail({
+      where: { id: bookingId },
+    });
     booking.status = BookingStatus.CANCELLED;
     booking.cancellationReason = reason || 'Cancelled';
     return this.bookingRepo.save(booking);
@@ -294,7 +350,11 @@ export class SchedulingEngineService {
     employeeId: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<{ totalMinutes: number; bookedMinutes: number; utilizationPercent: number }> {
+  ): Promise<{
+    totalMinutes: number;
+    bookedMinutes: number;
+    utilizationPercent: number;
+  }> {
     const bookings = await this.bookingRepo.find({
       where: {
         employeeId,
@@ -307,13 +367,16 @@ export class SchedulingEngineService {
       return sum + (b.endTime.getTime() - b.startTime.getTime()) / 60000;
     }, 0);
 
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+    const days = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000),
+    );
     const totalMinutes = days * 8 * 60;
 
     return {
       totalMinutes,
       bookedMinutes,
-      utilizationPercent: totalMinutes > 0 ? Math.round((bookedMinutes / totalMinutes) * 100) : 0,
+      utilizationPercent:
+        totalMinutes > 0 ? Math.round((bookedMinutes / totalMinutes) * 100) : 0,
     };
   }
 
@@ -340,8 +403,14 @@ export class SchedulingEngineService {
     const conflicts: { employeeId: string; bookings: Booking[] }[] = [];
     for (const [employeeId, empBookings] of byEmployee) {
       for (let i = 0; i < empBookings.length - 1; i++) {
-        if (empBookings[i].endTime.getTime() > empBookings[i + 1].startTime.getTime()) {
-          conflicts.push({ employeeId, bookings: [empBookings[i], empBookings[i + 1]] });
+        if (
+          empBookings[i].endTime.getTime() >
+          empBookings[i + 1].startTime.getTime()
+        ) {
+          conflicts.push({
+            employeeId,
+            bookings: [empBookings[i], empBookings[i + 1]],
+          });
         }
       }
     }

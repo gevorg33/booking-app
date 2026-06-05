@@ -1,6 +1,20 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { BookingService } from './booking.service.js';
-import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto, CancelBookingDto } from './dto/create-booking.dto.js';
+import {
+  CreateBookingDto,
+  UpdateBookingDto,
+  GetAvailabilityDto,
+  CancelBookingDto,
+} from './dto/create-booking.dto.js';
 import { GetBookingsQueryDto } from './dto/get-bookings-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -15,7 +29,10 @@ export class BookingController {
   ) {}
 
   @Get('availability')
-  getAvailability(@Param('businessId') businessId: string, @Query() dto: GetAvailabilityDto) {
+  getAvailability(
+    @Param('businessId') businessId: string,
+    @Query() dto: GetAvailabilityDto,
+  ) {
     return this.bookingService.getAvailability(businessId, dto);
   }
 
@@ -69,9 +86,15 @@ export class BookingController {
   }
 
   @Get(':id')
-  async findOne(@Param('businessId') businessId: string, @Param('id') id: string) {
+  async findOne(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+  ) {
     const booking = await this.bookingService.findOne(id);
-    const checkout = await this.retailPosService.getBookingRetailSales(businessId, id);
+    const checkout = await this.retailPosService.getBookingRetailSales(
+      businessId,
+      id,
+    );
     const retailLines = checkout.lines.map((line) => ({
       productName: line.productName,
       quantity: line.quantity,
@@ -88,6 +111,11 @@ export class BookingController {
     @Body() dto: CancelBookingDto,
     @CurrentUser() user: any,
   ) {
-    return this.bookingService.cancel(id, dto.reason, user?.id, dto.expectedUpdatedAt);
+    return this.bookingService.cancel(
+      id,
+      dto.reason,
+      user?.id,
+      dto.expectedUpdatedAt,
+    );
   }
 }

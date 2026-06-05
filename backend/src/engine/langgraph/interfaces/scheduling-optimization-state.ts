@@ -15,10 +15,17 @@ export const SchedulingOptimizationState = Annotation.Root({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({}),
   }),
-  employeeCount: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+  employeeCount: Annotation<number>({
+    reducer: (_p, n) => n,
+    default: () => 0,
+  }),
   gapCount: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
-  recommendationCount: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+  recommendationCount: Annotation<number>({
+    reducer: (_p, n) => n,
+    default: () => 0,
+  }),
   reasoning: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
 });
 
-export type SchedulingOptimizationGraphState = typeof SchedulingOptimizationState.State;
+export type SchedulingOptimizationGraphState =
+  typeof SchedulingOptimizationState.State;

@@ -31,7 +31,10 @@ export class AiAuditService {
       EventType.WORKFLOW_FAILED,
     ]);
 
-    const events = await this.eventStore.getEvents({ businessId, limit: limit * 2 });
+    const events = await this.eventStore.getEvents({
+      businessId,
+      limit: limit * 2,
+    });
 
     return events
       .filter((e) => types.has(e.eventType))
@@ -43,14 +46,20 @@ export class AiAuditService {
         businessId: e.businessId,
         userId: e.userId,
         approvedBy: (e.payload as any)?.approvedBy,
-        summary: this.summarizeEvent(e.eventType, e.payload as Record<string, unknown>),
+        summary: this.summarizeEvent(
+          e.eventType,
+          e.payload as Record<string, unknown>,
+        ),
         planDiff: (e.payload as any)?.planDiff,
         payload: e.payload as Record<string, unknown>,
         timestamp: e.createdAt?.toISOString?.() ?? String(e.createdAt),
       }));
   }
 
-  private summarizeEvent(eventType: string, payload: Record<string, unknown>): string {
+  private summarizeEvent(
+    eventType: string,
+    payload: Record<string, unknown>,
+  ): string {
     switch (eventType) {
       case EventType.AGENT_PLAN_APPROVED:
         return `Approved: ${payload.intent ?? 'plan'} (${payload.stepCount ?? 0} steps)`;

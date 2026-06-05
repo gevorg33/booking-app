@@ -24,7 +24,10 @@ import {
   ZendeskIntegrationPublicView,
   ZendeskPublicWidgetConfig,
 } from './zendesk-integration.types.js';
-import { ZendeskApiClient, type ZendeskRuntimeConfig } from './zendesk-api.client.js';
+import {
+  ZendeskApiClient,
+  type ZendeskRuntimeConfig,
+} from './zendesk-api.client.js';
 import { normalizeZendeskSubdomain } from './zendesk-subdomain.util.js';
 import type { GiftCardModifyPayload } from '../../gift-cards/gift-card-order.types.js';
 
@@ -68,7 +71,10 @@ export class ZendeskIntegrationService {
       return null;
     }
     try {
-      const apiToken = decryptSecret(integration.apiTokenEnc, this.encryptionKey());
+      const apiToken = decryptSecret(
+        integration.apiTokenEnc,
+        this.encryptionKey(),
+      );
       if (!apiToken.trim()) return null;
       return {
         subdomain: normalizeZendeskSubdomain(integration.subdomain),
@@ -81,8 +87,12 @@ export class ZendeskIntegrationService {
     }
   }
 
-  async getPublicSettings(businessId: string): Promise<ZendeskIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<ZendeskIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessZendeskIntegration(business.settings);
@@ -91,7 +101,9 @@ export class ZendeskIntegrationService {
     let apiTokenHint: string | undefined;
     if (integration.apiTokenEnc) {
       try {
-        apiTokenHint = maskSecret(decryptSecret(integration.apiTokenEnc, this.encryptionKey()));
+        apiTokenHint = maskSecret(
+          decryptSecret(integration.apiTokenEnc, this.encryptionKey()),
+        );
       } catch {
         apiTokenHint = undefined;
       }
@@ -106,7 +118,9 @@ export class ZendeskIntegrationService {
       apiTokenHint,
       widgetKey: integration.widgetKey,
       widgetEnabledOnDashboard: integration.widgetEnabledOnDashboard !== false,
-      widgetEnabledOnPublicBooking: Boolean(integration.widgetEnabledOnPublicBooking),
+      widgetEnabledOnPublicBooking: Boolean(
+        integration.widgetEnabledOnPublicBooking,
+      ),
       syncCustomersEnabled: Boolean(integration.syncCustomersEnabled),
       createTicketOnReview: Boolean(integration.createTicketOnReview),
       reviewTicketMaxRating: integration.reviewTicketMaxRating,
@@ -118,16 +132,22 @@ export class ZendeskIntegrationService {
     businessId: string,
     dto: UpdateZendeskIntegrationDto,
   ): Promise<ZendeskIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown> || {}) };
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
     const current = getBusinessZendeskIntegration(settings);
 
     if (dto.clearCredentials) {
       delete integrations.zendesk;
-      settings.integrations = Object.keys(integrations).length ? integrations : undefined;
+      settings.integrations = Object.keys(integrations).length
+        ? integrations
+        : undefined;
       business.settings = settings;
       await this.businessRepo.save(business);
       return this.getPublicSettings(businessId);
@@ -148,9 +168,13 @@ export class ZendeskIntegrationService {
           'Zendesk account email is required when setting an API token',
         );
       }
-      next.apiTokenEnc = encryptSecret(dto.apiToken.trim(), this.encryptionKey());
+      next.apiTokenEnc = encryptSecret(
+        dto.apiToken.trim(),
+        this.encryptionKey(),
+      );
     }
-    if (dto.widgetKey !== undefined) next.widgetKey = dto.widgetKey.trim() || undefined;
+    if (dto.widgetKey !== undefined)
+      next.widgetKey = dto.widgetKey.trim() || undefined;
     if (dto.widgetEnabledOnDashboard !== undefined) {
       next.widgetEnabledOnDashboard = dto.widgetEnabledOnDashboard;
     }
@@ -193,10 +217,15 @@ export class ZendeskIntegrationService {
     return this.getPublicSettings(businessId);
   }
 
-  getPublicWidgetConfig(settings?: Record<string, unknown>): ZendeskPublicWidgetConfig | null {
+  getPublicWidgetConfig(
+    settings?: Record<string, unknown>,
+  ): ZendeskPublicWidgetConfig | null {
     const integration = getBusinessZendeskIntegration(settings);
     if (!integration.enabled || !integration.widgetKey?.trim()) return null;
-    if (!integration.widgetEnabledOnPublicBooking && !integration.widgetEnabledOnDashboard) {
+    if (
+      !integration.widgetEnabledOnPublicBooking &&
+      !integration.widgetEnabledOnDashboard
+    ) {
       return null;
     }
     return { widgetKey: integration.widgetKey.trim() };
@@ -232,13 +261,17 @@ export class ZendeskIntegrationService {
     actorEmail?: string,
     actorName?: string,
   ) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessZendeskIntegration(business.settings);
     const runtime = this.runtimeConfig(integration);
     if (!runtime || !integration.enabled) {
-      throw new BadRequestException('Zendesk is not configured for this business');
+      throw new BadRequestException(
+        'Zendesk is not configured for this business',
+      );
     }
 
     let customer: Customer | null = null;
@@ -266,7 +299,9 @@ export class ZendeskIntegrationService {
       booking?.customer?.email?.trim() ||
       actorEmail?.trim();
     if (!requesterEmail) {
-      throw new BadRequestException('A requester email is required to create a support ticket');
+      throw new BadRequestException(
+        'A requester email is required to create a support ticket',
+      );
     }
 
     const requesterName =
@@ -276,18 +311,21 @@ export class ZendeskIntegrationService {
       actorName ||
       requesterEmail;
 
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const customFields: Record<string, string> = {
       Business: business.name,
       'Business ID': business.id,
     };
     if (customer) {
       customFields['Customer ID'] = customer.id;
-      customFields['Customer profile'] = `${frontendUrl}/dashboard/customers?search=${encodeURIComponent(customer.name)}`;
+      customFields['Customer profile'] =
+        `${frontendUrl}/dashboard/customers?search=${encodeURIComponent(customer.name)}`;
     }
     if (booking) {
       customFields['Booking ID'] = booking.id;
-      customFields['Appointment'] = `${booking.service?.name ?? 'Service'} with ${booking.employee?.name ?? 'Provider'} at ${booking.startTime.toISOString()}`;
+      customFields['Appointment'] =
+        `${booking.service?.name ?? 'Service'} with ${booking.employee?.name ?? 'Provider'} at ${booking.startTime.toISOString()}`;
     }
 
     const ticket = await this.api.createTicket(runtime, {
@@ -302,8 +340,13 @@ export class ZendeskIntegrationService {
     return { ...ticket, requesterEmail };
   }
 
-  async createTicketFromReviewIfEnabled(businessId: string, payload: ReviewTicketPayload) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async createTicketFromReviewIfEnabled(
+    businessId: string,
+    payload: ReviewTicketPayload,
+  ) {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return null;
 
     const integration = getBusinessZendeskIntegration(business.settings);
@@ -311,7 +354,9 @@ export class ZendeskIntegrationService {
 
     const rating = Number(payload.rating);
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-      this.logger.warn(`Skipping Zendesk review ticket — invalid rating for review ${payload.reviewId}`);
+      this.logger.warn(
+        `Skipping Zendesk review ticket — invalid rating for review ${payload.reviewId}`,
+      );
       return null;
     }
 
@@ -340,18 +385,18 @@ export class ZendeskIntegrationService {
     const tags = ['optischedule', 'review'];
     if (rating <= 3) tags.push('low-rating');
 
-    return this.createSupportTicket(
-      businessId,
-      {
-        subject: `New review — ${rating}★ from ${customerName}`,
-        body: bodyParts.join('\n\n'),
-        customerId: payload.customerId,
-        bookingId: payload.bookingId,
-        requesterName: customerName,
-        requesterEmail: await this.resolveReviewRequesterEmail(businessId, payload),
-        tags,
-      },
-    );
+    return this.createSupportTicket(businessId, {
+      subject: `New review — ${rating}★ from ${customerName}`,
+      body: bodyParts.join('\n\n'),
+      customerId: payload.customerId,
+      bookingId: payload.bookingId,
+      requesterName: customerName,
+      requesterEmail: await this.resolveReviewRequesterEmail(
+        businessId,
+        payload,
+      ),
+      tags,
+    });
   }
 
   private async resolveReviewRequesterEmail(
@@ -370,16 +415,20 @@ export class ZendeskIntegrationService {
         where: { id: payload.bookingId, businessId },
         relations: { customer: true },
       });
-      if (booking?.customer?.email?.trim()) return booking.customer.email.trim();
+      if (booking?.customer?.email?.trim())
+        return booking.customer.email.trim();
     }
 
     const domain =
-      this.config.get<string>('ZENDESK_REVIEW_NOREPLY_DOMAIN') || 'noreply.optischedule.app';
+      this.config.get<string>('ZENDESK_REVIEW_NOREPLY_DOMAIN') ||
+      'noreply.optischedule.app';
     return `reviews+${businessId}@${domain}`;
   }
 
   async syncCustomerIfEnabled(businessId: string, customerId: string) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return null;
 
     const integration = getBusinessZendeskIntegration(business.settings);
@@ -388,7 +437,9 @@ export class ZendeskIntegrationService {
     const runtime = this.runtimeConfig(integration);
     if (!runtime) return null;
 
-    const customer = await this.customerRepo.findOne({ where: { id: customerId, businessId } });
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId },
+    });
     if (!customer?.email?.trim()) return null;
 
     return this.syncCustomerRecord(business, customer, runtime);
@@ -408,7 +459,10 @@ export class ZendeskIntegrationService {
       recipientName?: string | null;
       recipientEmail?: string | null;
       purchaserEmail?: string | null;
-      serviceCredits?: Array<{ serviceName: string; quantityRemaining: number }>;
+      serviceCredits?: Array<{
+        serviceName: string;
+        quantityRemaining: number;
+      }>;
     },
     request: {
       id: string;
@@ -419,7 +473,9 @@ export class ZendeskIntegrationService {
   ) {
     const requesterEmail = card.purchaserEmail?.trim();
     if (!requesterEmail) {
-      throw new BadRequestException('Purchaser email is required for Zendesk ticket');
+      throw new BadRequestException(
+        'Purchaser email is required for Zendesk ticket',
+      );
     }
 
     const creditsSummary = (card.serviceCredits ?? [])
@@ -433,9 +489,13 @@ export class ZendeskIntegrationService {
       `Delivery: ${card.deliveryMethod ?? 'n/a'}`,
       `Fulfillment status: ${card.fulfillmentStatus ?? 'n/a'}`,
       `Purchase amount: ${card.purchaseAmount ?? card.balance ?? 'n/a'}`,
-      card.expiresAt ? `Expiration: ${card.expiresAt.toISOString()}` : 'Expiration: none',
+      card.expiresAt
+        ? `Expiration: ${card.expiresAt.toISOString()}`
+        : 'Expiration: none',
       `Recipient: ${card.recipientName ?? 'n/a'} <${card.recipientEmail ?? 'n/a'}>`,
-      request.customerNotes ? `Customer notes:\n${request.customerNotes}` : null,
+      request.customerNotes
+        ? `Customer notes:\n${request.customerNotes}`
+        : null,
       request.modifyPayload
         ? `Requested changes:\n${JSON.stringify(request.modifyPayload, null, 2)}`
         : null,
@@ -444,9 +504,15 @@ export class ZendeskIntegrationService {
     ].filter(Boolean);
 
     const integration = getBusinessZendeskIntegration(
-      (await this.businessRepo.findOne({ where: { id: businessId } }))?.settings,
+      (await this.businessRepo.findOne({ where: { id: businessId } }))
+        ?.settings,
     );
-    const tags = ['optischedule', 'gift-card', 'sales-specialist', request.requestType];
+    const tags = [
+      'optischedule',
+      'gift-card',
+      'sales-specialist',
+      request.requestType,
+    ];
 
     return this.createSupportTicket(businessId, {
       subject: `Gift card ${request.requestType} request — ${card.code}`,
@@ -462,7 +528,8 @@ export class ZendeskIntegrationService {
     customer: Customer,
     runtime: ZendeskRuntimeConfig,
   ) {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const bookingCount = await this.bookingRepo.count({
       where: { businessId: business.id, customerId: customer.id },
     });
@@ -477,7 +544,7 @@ export class ZendeskIntegrationService {
       .join('\n');
 
     return this.api.upsertUser(runtime, {
-      email: customer.email!.trim(),
+      email: customer.email.trim(),
       name: customer.name,
       phone: customer.phone,
       externalId: customer.id,

@@ -4,7 +4,9 @@ import { NotificationsService } from './notifications.service.js';
 
 describe('Sprint 12.b marketing customer registration', () => {
   const notificationsService = {
-    sendMarketingNewCustomerRegistration: jest.fn().mockResolvedValue(undefined),
+    sendMarketingNewCustomerRegistration: jest
+      .fn()
+      .mockResolvedValue(undefined),
   };
 
   const listener = new MarketingCustomerRegistrationListener(
@@ -19,11 +21,9 @@ describe('Sprint 12.b marketing customer registration', () => {
       customerId: 'cust-1',
       source: 'web_booking',
     });
-    expect(notificationsService.sendMarketingNewCustomerRegistration).toHaveBeenCalledWith(
-      'biz-1',
-      'cust-1',
-      'web_booking',
-    );
+    expect(
+      notificationsService.sendMarketingNewCustomerRegistration,
+    ).toHaveBeenCalledWith('biz-1', 'cust-1', 'web_booking');
   });
 
   it('swallows notification errors without rethrowing', async () => {
@@ -55,12 +55,16 @@ describe('Sprint 12.b marketing customer registration', () => {
       customerId: 'cust-1',
       source: 'dashboard',
     });
-    expect(notificationsService.sendMarketingNewCustomerRegistration).toHaveBeenCalled();
+    expect(
+      notificationsService.sendMarketingNewCustomerRegistration,
+    ).toHaveBeenCalled();
     await moduleRef.close();
   });
 
   it('formats non-Error failures in the warning log', async () => {
-    notificationsService.sendMarketingNewCustomerRegistration.mockRejectedValue('smtp down');
+    notificationsService.sendMarketingNewCustomerRegistration.mockRejectedValue(
+      'smtp down',
+    );
     await expect(
       listener.handleCustomerRegistered({
         businessId: 'biz-1',

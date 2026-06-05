@@ -19,7 +19,8 @@ export class ProviderEndOfDayPushScheduler {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
     private pushService: PushService,
     private providerMobileService: ProviderMobileService,
   ) {}
@@ -32,7 +33,9 @@ export class ProviderEndOfDayPushScheduler {
     const now = new Date();
     if (now.getUTCHours() !== 20) return;
 
-    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dayStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
     const dayEnd = new Date(dayStart.getTime() + 86400000 - 1);
 
     const tomorrowStart = new Date(dayStart);
@@ -41,27 +44,37 @@ export class ProviderEndOfDayPushScheduler {
 
     const bookings = await this.bookingRepo.find({
       where: {
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
         status: Not(In([BookingStatus.CANCELLED])) as any,
       },
       relations: { employee: true },
     });
 
-    const employeeIds = [...new Set(bookings.map((b) => b.employeeId).filter(Boolean))];
+    const employeeIds = [
+      ...new Set(bookings.map((b) => b.employeeId).filter(Boolean)),
+    ];
     const gapsTomorrowByEmployee = new Map<string, number>();
 
     if (employeeIds.length > 0) {
       const tomorrowPeriods = await this.periodRepo.find({
         where: {
           employeeId: In(employeeIds),
-          startTime: Between(tomorrowStart, tomorrowEnd) as any,
+          startTime: Between(tomorrowStart, tomorrowEnd),
         },
       });
 
       for (const employeeId of employeeIds) {
-        const periods = tomorrowPeriods.filter((p) => p.employeeId === employeeId);
-        const gaps = findScheduleGapsInWindow(tomorrowStart, '09:00', '19:00', periods);
-        if (gaps.length > 0) gapsTomorrowByEmployee.set(employeeId, gaps.length);
+        const periods = tomorrowPeriods.filter(
+          (p) => p.employeeId === employeeId,
+        );
+        const gaps = findScheduleGapsInWindow(
+          tomorrowStart,
+          '09:00',
+          '19:00',
+          periods,
+        );
+        if (gaps.length > 0)
+          gapsTomorrowByEmployee.set(employeeId, gaps.length);
       }
     }
 
@@ -76,17 +89,23 @@ export class ProviderEndOfDayPushScheduler {
 
     for (const summary of summaries) {
       if (summary.appointmentCount === 0) continue;
-      const userId = await this.providerMobileService.findEmployeeUserId(summary.employeeId);
+      const userId = await this.providerMobileService.findEmployeeUserId(
+        summary.employeeId,
+      );
       if (!userId) continue;
 
       const payload = buildEodPushPayload(summary);
-      const sent = await this.pushService.sendToUser(userId, summary.businessId, {
-        title: payload.title,
-        body: payload.body,
-        url: payload.url,
-        pushType: payload.pushType,
-        aiPrompt: payload.aiPrompt,
-      });
+      const sent = await this.pushService.sendToUser(
+        userId,
+        summary.businessId,
+        {
+          title: payload.title,
+          body: payload.body,
+          url: payload.url,
+          pushType: payload.pushType,
+          aiPrompt: payload.aiPrompt,
+        },
+      );
       if (sent > 0) {
         this.logger.log(
           `EOD push sent to employee ${summary.employeeId} (${payload.body})`,

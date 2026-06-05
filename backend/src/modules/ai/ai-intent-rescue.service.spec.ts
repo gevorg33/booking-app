@@ -48,10 +48,11 @@ describe('AiIntentRescueService', () => {
     expect(result?.action).toBe('mark_no_shows');
   });
 
-  it('rescues no-show recovery and sick-day replan sprint24 intents', () => {
+  it('rescues no-show recovery and sick-day replan operations intents', () => {
     expect(
       rescue.rescue({
-        prompt: 'Mark no-shows today, release slots, suggest rebooking messages',
+        prompt:
+          'Mark no-shows today, release slots, suggest rebooking messages',
         action: 'unknown',
         params: { date: '26_05_2026' },
         employees,
@@ -60,7 +61,8 @@ describe('AiIntentRescueService', () => {
 
     expect(
       rescue.rescue({
-        prompt: 'Maria is sick — cancel her day and redistribute urgent bookings',
+        prompt:
+          'Maria is sick — cancel her day and redistribute urgent bookings',
         action: 'unknown',
         params: { date: '26_05_2026' },
         employees,
@@ -131,7 +133,11 @@ describe('AiIntentRescueService', () => {
       prompt:
         'Book facemassage on Gevorg tomorrow at 9; if not available then Mary; otherwise whoever is free',
       action: 'unknown',
-      params: { serviceName: 'facemassage', date: '27_05_2026', timeSlot: '09:00' },
+      params: {
+        serviceName: 'facemassage',
+        date: '27_05_2026',
+        timeSlot: '09:00',
+      },
       employees,
     });
     expect(result?.action).toBe('create_booking');
@@ -139,7 +145,7 @@ describe('AiIntentRescueService', () => {
     expect(result?.params.providerFallbackNames?.length).toBeGreaterThan(0);
   });
 
-  it('rescues sprint23 scheduling scenarios from unknown', () => {
+  it('rescues scheduling scenarios from unknown', () => {
     expect(
       rescue.rescue({
         prompt: 'Swap Friday schedules between Gevorg and Maria',
@@ -159,15 +165,67 @@ describe('AiIntentRescueService', () => {
     ).toBe('rebalance_capacity');
   });
 
-  it('disambiguates misclassified actions to sprint23 intents', () => {
+  it('disambiguates misclassified actions to scheduling intents', () => {
     const swap = rescue.rescue({
       prompt: 'Swap Friday schedules between Gevorg and Maria',
       action: 'apply_schedule',
-      params: { employeeNames: ['Gevorg Gasparyan', 'Mary Torgomyan'], date: '06/06/2026' },
+      params: {
+        employeeNames: ['Gevorg Gasparyan', 'Mary Torgomyan'],
+        date: '06/06/2026',
+      },
       employees,
     });
     expect(swap?.action).toBe('swap_schedules');
-    expect(swap?.rescueReason).toBe('sprint23_scheduling');
+    expect(swap?.rescueReason).toBe('scheduling_intent');
+  });
+
+  it('rescues total earnings prompts to summarize_bookings revenue metric', () => {
+    const result = rescue.rescue({
+      prompt: 'Calculate total earnings for today',
+      action: 'unknown',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('summarize_bookings');
+    expect(result?.params.bookingMetric).toBe('revenue');
+    expect(result?.rescueReason).toBe('total_earnings');
+  });
+
+  it('rescues top specialist revenue prompts to summarize_staff', () => {
+    const result = rescue.rescue({
+      prompt: 'Top 3 specialists by revenue last week',
+      action: 'unknown',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('summarize_staff');
+    expect(result?.params.staffMetric).toBe('most_revenue');
+    expect(result?.params.limit).toBe(3);
+    expect(result?.rescueReason).toBe('top_staff_revenue');
+  });
+
+  it('disambiguates list_bookings to total earnings analytics', () => {
+    const result = rescue.rescue({
+      prompt: 'How much did we earn last month?',
+      action: 'list_bookings',
+      params: { dateFrom: '01/05/2026', dateTo: '31/05/2026' },
+      employees,
+    });
+    expect(result?.action).toBe('summarize_bookings');
+    expect(result?.params.bookingMetric).toBe('revenue');
+    expect(result?.rescueReason).toBe('list_to_total_earnings');
+  });
+
+  it('disambiguates list_employees to specialist revenue ranking', () => {
+    const result = rescue.rescue({
+      prompt: 'Which specialist had the most revenue today?',
+      action: 'list_employees',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('summarize_staff');
+    expect(result?.params.staffMetric).toBe('most_revenue');
+    expect(result?.rescueReason).toBe('list_to_top_staff_revenue');
   });
 
   it('returns null when no rescue applies', () => {

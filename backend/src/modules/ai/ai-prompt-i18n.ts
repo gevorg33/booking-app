@@ -68,7 +68,9 @@ function collectServiceTermMatches(
 }
 
 /** Extract Armenian, Russian, or Latin service-type tokens mentioned in a command. */
-export function recognizeServiceTypeTerms(prompt: string): RecognizedServiceTypeTerm[] {
+export function recognizeServiceTypeTerms(
+  prompt: string,
+): RecognizedServiceTypeTerm[] {
   const trimmed = prompt.trim();
   if (!trimmed) return [];
 

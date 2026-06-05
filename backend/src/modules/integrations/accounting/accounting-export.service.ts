@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AccountingExportRow, AccountingExportResult, AccountingProvider } from './accounting-integration.types.js';
+import {
+  AccountingExportRow,
+  AccountingExportResult,
+  AccountingProvider,
+} from './accounting-integration.types.js';
 
 @Injectable()
 export class AccountingExportService {
@@ -11,7 +15,11 @@ export class AccountingExportService {
     const generatedAt = new Date().toISOString();
     switch (provider) {
       case 'quickbooks':
-        return this.quickBooksIif(rows, options?.incomeAccountName, generatedAt);
+        return this.quickBooksIif(
+          rows,
+          options?.incomeAccountName,
+          generatedAt,
+        );
       case 'xero':
         return this.xeroCsv(rows, options?.accountCode, generatedAt);
       default:
@@ -19,7 +27,10 @@ export class AccountingExportService {
     }
   }
 
-  private genericCsv(rows: AccountingExportRow[], generatedAt: string): AccountingExportResult {
+  private genericCsv(
+    rows: AccountingExportRow[],
+    generatedAt: string,
+  ): AccountingExportResult {
     const header =
       'Date,Type,IncomeSubType,Description,Amount,Currency,Reference,Customer,Employee';
     const lines = rows.map((r) =>
@@ -45,9 +56,14 @@ export class AccountingExportService {
     };
   }
 
-  private xeroCsv(rows: AccountingExportRow[], accountCode: string | undefined, generatedAt: string): AccountingExportResult {
+  private xeroCsv(
+    rows: AccountingExportRow[],
+    accountCode: string | undefined,
+    generatedAt: string,
+  ): AccountingExportResult {
     const code = accountCode || '200';
-    const header = '*ContactName,*InvoiceNumber,*InvoiceDate,DueDate,InventoryItemCode,Description,*Quantity,*UnitAmount,*AccountCode,*TaxType,Reference';
+    const header =
+      '*ContactName,*InvoiceNumber,*InvoiceDate,DueDate,InventoryItemCode,Description,*Quantity,*UnitAmount,*AccountCode,*TaxType,Reference';
     const lines = rows.map((r, i) =>
       [
         this.csvEscape(r.customerName || 'Walk-in'),
@@ -73,7 +89,11 @@ export class AccountingExportService {
     };
   }
 
-  private quickBooksIif(rows: AccountingExportRow[], incomeAccount: string | undefined, generatedAt: string): AccountingExportResult {
+  private quickBooksIif(
+    rows: AccountingExportRow[],
+    incomeAccount: string | undefined,
+    generatedAt: string,
+  ): AccountingExportResult {
     const account = incomeAccount || 'Service Income';
     const lines = [
       '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
@@ -83,8 +103,12 @@ export class AccountingExportService {
     for (const r of rows) {
       const subLabel = r.incomeSubType ? ` [${r.incomeSubType}]` : '';
       const memo = `${r.description}${subLabel} (${r.reference})`;
-      lines.push(`TRNS\tGENERAL JOURNAL\t${r.date}\t${account}\t${r.customerName || ''}\t${r.amount.toFixed(2)}\t${memo}`);
-      lines.push(`SPL\tGENERAL JOURNAL\t${r.date}\tAccounts Receivable\t${r.customerName || ''}\t-${r.amount.toFixed(2)}\t${memo}`);
+      lines.push(
+        `TRNS\tGENERAL JOURNAL\t${r.date}\t${account}\t${r.customerName || ''}\t${r.amount.toFixed(2)}\t${memo}`,
+      );
+      lines.push(
+        `SPL\tGENERAL JOURNAL\t${r.date}\tAccounts Receivable\t${r.customerName || ''}\t-${r.amount.toFixed(2)}\t${memo}`,
+      );
       lines.push('ENDTRNS');
     }
     return {

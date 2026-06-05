@@ -88,10 +88,11 @@ export class BookingCommandGraphService {
       if (reactResult) return reactResult;
     }
 
-    const graphPath = this.decomposition.isCompoundPrompt(input.effectivePrompt)
-      || input.complexityRoute?.tier === 'compound'
-      ? 'compound'
-      : 'single';
+    const graphPath =
+      this.decomposition.isCompoundPrompt(input.effectivePrompt) ||
+      input.complexityRoute?.tier === 'compound'
+        ? 'compound'
+        : 'single';
 
     let result: CommandResult;
 
@@ -122,9 +123,13 @@ export class BookingCommandGraphService {
     return false;
   }
 
-  private async runReactAgent(input: CommandGraphRunInput): Promise<CommandResult | null> {
+  private async runReactAgent(
+    input: CommandGraphRunInput,
+  ): Promise<CommandResult | null> {
     try {
-      this.logger.log(`ReAct tool agent: "${input.effectivePrompt.slice(0, 80)}..."`);
+      this.logger.log(
+        `ReAct tool agent: "${input.effectivePrompt.slice(0, 80)}..."`,
+      );
 
       const output = await this.reactAgent.run({
         businessId: input.businessId,
@@ -148,16 +153,25 @@ export class BookingCommandGraphService {
         proposals: output.proposals,
       });
 
-      return this.reasoning.enrichResult(input.businessId, input.prompt, result, {
-        graphPath: 'react_agent',
-      });
+      return this.reasoning.enrichResult(
+        input.businessId,
+        input.prompt,
+        result,
+        {
+          graphPath: 'react_agent',
+        },
+      );
     } catch (err: any) {
-      this.logger.warn(`ReAct agent failed, falling back to classify path: ${err?.message ?? err}`);
+      this.logger.warn(
+        `ReAct agent failed, falling back to classify path: ${err?.message ?? err}`,
+      );
       return null;
     }
   }
 
-  private async runCompound(input: CommandGraphRunInput): Promise<CommandResult> {
+  private async runCompound(
+    input: CommandGraphRunInput,
+  ): Promise<CommandResult> {
     const subIntents = await this.decomposition.decompose(
       input.businessId,
       input.userId,
@@ -175,7 +189,10 @@ export class BookingCommandGraphService {
           businessId: input.businessId,
           prompt: input.effectivePrompt,
           userId: input.userId,
-          sessionContext: { ...input.session?.context, timeZone: input.timeZone },
+          sessionContext: {
+            ...input.session?.context,
+            timeZone: input.timeZone,
+          },
           subIntents,
           catalog: input.catalog,
           timeZone: input.timeZone,
@@ -185,7 +202,9 @@ export class BookingCommandGraphService {
           executeReadOnlySubIntent: input.delegates.executeReadOnlySubIntent,
         });
       } catch (err: any) {
-        this.logger.warn(`Compound LangGraph failed, falling back: ${err?.message ?? err}`);
+        this.logger.warn(
+          `Compound LangGraph failed, falling back: ${err?.message ?? err}`,
+        );
       }
     }
 

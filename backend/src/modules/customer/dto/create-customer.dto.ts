@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEmail, IsBoolean, IsArray, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsBoolean,
+  IsArray,
+  IsIn,
+} from 'class-validator';
 import { CUSTOMER_TAGS } from '../customer-tag.constants.js';
 
 export class CreateCustomerDto {

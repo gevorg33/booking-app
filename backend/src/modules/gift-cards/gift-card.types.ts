@@ -1,4 +1,9 @@
-export type GiftCardType = 'monetary' | 'service' | 'bundle' | 'package' | 'subscription';
+export type GiftCardType =
+  | 'monetary'
+  | 'service'
+  | 'bundle'
+  | 'package'
+  | 'subscription';
 export type GiftCardDeliveryMethod = 'digital' | 'physical';
 
 export type GiftCardFulfillmentStatus =
@@ -87,8 +92,18 @@ export const DEFAULT_GIFT_CARD_SETTINGS: GiftCardBusinessSettings = {
   bundles: [],
   defaultExpiryMonths: 12,
   shippingMethods: [
-    { id: 'standard', label: 'Standard shipping', fee: 5, estimatedDays: '5–7 business days' },
-    { id: 'express', label: 'Express shipping', fee: 12, estimatedDays: '2–3 business days' },
+    {
+      id: 'standard',
+      label: 'Standard shipping',
+      fee: 5,
+      estimatedDays: '5–7 business days',
+    },
+    {
+      id: 'express',
+      label: 'Express shipping',
+      fee: 12,
+      estimatedDays: '2–3 business days',
+    },
   ],
   cardCreatorStaffIds: [],
   deliveryStaffIds: [],
@@ -97,7 +112,9 @@ export const DEFAULT_GIFT_CARD_SETTINGS: GiftCardBusinessSettings = {
   physicalCancelBeforeReady: true,
 };
 
-export function mergeGiftCardSettings(raw?: Record<string, unknown>): GiftCardBusinessSettings {
+export function mergeGiftCardSettings(
+  raw?: Record<string, unknown>,
+): GiftCardBusinessSettings {
   const partial = (raw ?? {}) as Partial<GiftCardBusinessSettings>;
   return {
     ...DEFAULT_GIFT_CARD_SETTINGS,
@@ -111,23 +128,32 @@ export function mergeGiftCardSettings(raw?: Record<string, unknown>): GiftCardBu
     purchasablePackages: Array.isArray(partial.purchasablePackages)
       ? partial.purchasablePackages
       : DEFAULT_GIFT_CARD_SETTINGS.purchasablePackages,
-    purchasableSubscriptionPlans: Array.isArray(partial.purchasableSubscriptionPlans)
+    purchasableSubscriptionPlans: Array.isArray(
+      partial.purchasableSubscriptionPlans,
+    )
       ? partial.purchasableSubscriptionPlans
       : DEFAULT_GIFT_CARD_SETTINGS.purchasableSubscriptionPlans,
-    bundles: Array.isArray(partial.bundles) ? partial.bundles : DEFAULT_GIFT_CARD_SETTINGS.bundles,
+    bundles: Array.isArray(partial.bundles)
+      ? partial.bundles
+      : DEFAULT_GIFT_CARD_SETTINGS.bundles,
     shippingMethods: Array.isArray(partial.shippingMethods)
       ? partial.shippingMethods
       : DEFAULT_GIFT_CARD_SETTINGS.shippingMethods,
     cardCreatorStaffIds: Array.isArray(partial.cardCreatorStaffIds)
       ? partial.cardCreatorStaffIds
       : [],
-    deliveryStaffIds: Array.isArray(partial.deliveryStaffIds) ? partial.deliveryStaffIds : [],
+    deliveryStaffIds: Array.isArray(partial.deliveryStaffIds)
+      ? partial.deliveryStaffIds
+      : [],
     cancelModifyEnabled:
-      partial.cancelModifyEnabled ?? DEFAULT_GIFT_CARD_SETTINGS.cancelModifyEnabled,
+      partial.cancelModifyEnabled ??
+      DEFAULT_GIFT_CARD_SETTINGS.cancelModifyEnabled,
     cancelModifyWindowHours:
-      partial.cancelModifyWindowHours ?? DEFAULT_GIFT_CARD_SETTINGS.cancelModifyWindowHours,
+      partial.cancelModifyWindowHours ??
+      DEFAULT_GIFT_CARD_SETTINGS.cancelModifyWindowHours,
     physicalCancelBeforeReady:
-      partial.physicalCancelBeforeReady ?? DEFAULT_GIFT_CARD_SETTINGS.physicalCancelBeforeReady,
+      partial.physicalCancelBeforeReady ??
+      DEFAULT_GIFT_CARD_SETTINGS.physicalCancelBeforeReady,
   };
 }
 
@@ -135,6 +161,7 @@ export function readBusinessGiftCardSettings(
   settings?: Record<string, unknown> | null,
 ): GiftCardBusinessSettings {
   const root = settings?.giftCards;
-  if (!root || typeof root !== 'object') return { ...DEFAULT_GIFT_CARD_SETTINGS };
+  if (!root || typeof root !== 'object')
+    return { ...DEFAULT_GIFT_CARD_SETTINGS };
   return mergeGiftCardSettings(root as Record<string, unknown>);
 }

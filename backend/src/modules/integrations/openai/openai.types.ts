@@ -7,10 +7,16 @@ export type AiUsageSurface =
   | 'dashboard'
   | 'provider_mobile'
   | 'public_booking'
+  | 'customer'
   | 'onboarding'
   | 'agent';
 
-export type AiActorType = 'owner' | 'manager' | 'provider' | 'customer' | 'system';
+export type AiActorType =
+  | 'owner'
+  | 'manager'
+  | 'provider'
+  | 'customer'
+  | 'system';
 
 export interface AiCallContext {
   businessId: string;

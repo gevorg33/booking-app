@@ -1,5 +1,8 @@
 import type { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
-import { buildPolicyRiskExplain, type PolicyPreviewLike } from './policy-risk-explain.util.js';
+import {
+  buildPolicyRiskExplain,
+  type PolicyPreviewLike,
+} from './policy-risk-explain.util.js';
 import {
   buildWizardSteps,
   shouldUseWizardMode,
@@ -24,7 +27,9 @@ export type ApprovalAlertPayload = {
 };
 
 export function mapExecutionTimeline(task: {
-  result?: { steps?: Array<{ stepId: string; status: string; error?: string }> };
+  result?: {
+    steps?: Array<{ stepId: string; status: string; error?: string }>;
+  };
   plan?: { steps?: Array<{ id: string; description?: string }> };
 }): ExecutionTimelineEntry[] | undefined {
   const steps = task.result?.steps;
@@ -58,7 +63,8 @@ export function buildPendingApprovalDetails(input: {
     daySpan: input.daySpan ?? 7,
   });
   const wizardMode = shouldUseWizardMode(input.action, input.planDiff);
-  const wizardSteps = wizardMode && input.planDiff ? buildWizardSteps(input.planDiff) : undefined;
+  const wizardSteps =
+    wizardMode && input.planDiff ? buildWizardSteps(input.planDiff) : undefined;
 
   return {
     taskId: input.taskId,
@@ -81,7 +87,9 @@ export function buildApprovalAlertPayload(
   const isConflict = action === 'resolve_conflicts';
   return {
     alertType: isConflict ? 'conflict' : 'approval',
-    title: isConflict ? 'Scheduling conflict detected' : 'AI plan needs approval',
+    title: isConflict
+      ? 'Scheduling conflict detected'
+      : 'AI plan needs approval',
     message: isConflict
       ? 'Review conflicts and apply fixes from AI Ops.'
       : `Orchestrix prepared a ${stepCount}-step plan that requires your approval.`,

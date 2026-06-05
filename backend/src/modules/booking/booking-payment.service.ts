@@ -31,9 +31,15 @@ import {
   buildPackageLineItem,
   buildMultiServiceLineItem,
 } from '../../common/utils/subscription-checkout.util.js';
-import { BookPublicPackageDto, BookPublicMultiServiceDto } from '../public-booking/dto/public-booking.dto.js';
+import {
+  BookPublicPackageDto,
+  BookPublicMultiServiceDto,
+} from '../public-booking/dto/public-booking.dto.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
-import { GiftCardPurchaseService, type PurchaseGiftCardInput } from '../gift-cards/gift-card-purchase.service.js';
+import {
+  GiftCardPurchaseService,
+  type PurchaseGiftCardInput,
+} from '../gift-cards/gift-card-purchase.service.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
 
 interface StripeCheckoutSession {
@@ -119,8 +125,13 @@ export class BookingPaymentService {
     dto: Pick<BookPublicPackageDto, 'promoCode' | 'loyaltyPointsToRedeem'>,
     customerId?: string,
   ) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
-    const preview = await this.packagesService.previewPackagePricing(businessId, packageId);
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const preview = await this.packagesService.previewPackagePricing(
+      businessId,
+      packageId,
+    );
     const packagePrice = preview.pricing.packagePrice;
 
     return this.checkoutPricingService.calculate({
@@ -131,7 +142,10 @@ export class BookingPaymentService {
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
-      earnPercentCashback: resolveEarnPercentForService(business?.settings, packageId),
+      earnPercentCashback: resolveEarnPercentForService(
+        business?.settings,
+        packageId,
+      ),
     });
   }
 
@@ -141,15 +155,18 @@ export class BookingPaymentService {
     authenticatedCustomerId?: string,
   ) {
     if (!this.stripeService.isConfigured) {
-      throw new BadRequestException('Online payments are not configured on the server');
+      throw new BadRequestException(
+        'Online payments are not configured on the server',
+      );
     }
 
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
-      business.id,
-    );
+    const connectAccountId =
+      await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+        business.id,
+      );
 
     const pricing = await this.resolvePackageCheckoutPricing(
       business.id,
@@ -164,7 +181,10 @@ export class BookingPaymentService {
       );
     }
 
-    const preview = await this.packagesService.previewPackagePricing(business.id, dto.packageId);
+    const preview = await this.packagesService.previewPackagePricing(
+      business.id,
+      dto.packageId,
+    );
     const line = buildPackageLineItem(preview.package.name, dto.lines.length);
 
     if (!dto.customer.email && !dto.customer.phone) {
@@ -200,38 +220,39 @@ export class BookingPaymentService {
       packageId: dto.packageId,
     });
 
-    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
-      connectAccountId,
-      {
-        mode: 'payment',
-        customer_email: dto.customer.email || undefined,
-        line_items: [
-          {
-            price_data: {
-              currency: preview.currency.toLowerCase(),
-              unit_amount: Math.round(pricing.amountDue * 100),
-              product_data: {
-                name: line.name,
-                description: line.description,
+    const [sessionParams, connectOpts] =
+      this.stripeService.connectCheckoutSessionCreate(
+        connectAccountId,
+        {
+          mode: 'payment',
+          customer_email: dto.customer.email || undefined,
+          line_items: [
+            {
+              price_data: {
+                currency: preview.currency.toLowerCase(),
+                unit_amount: Math.round(pricing.amountDue * 100),
+                product_data: {
+                  name: line.name,
+                  description: line.description,
+                },
               },
+              quantity: 1,
             },
-            quantity: 1,
+          ],
+          metadata: {
+            type: 'booking_payment',
+            draftId: draft.id,
+            businessId: business.id,
+            slug,
+            connectAccountId,
+            checkoutKind: 'package_purchase',
           },
-        ],
-        metadata: {
-          type: 'booking_payment',
-          draftId: draft.id,
-          businessId: business.id,
-          slug,
-          connectAccountId,
-          checkoutKind: 'package_purchase',
+          success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
         },
-        success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
-      },
-      business.settings,
-      Math.round(pricing.amountDue * 100),
-    );
+        business.settings,
+        Math.round(pricing.amountDue * 100),
+      );
 
     const session = await this.stripeService.client.checkout.sessions.create(
       sessionParams,
@@ -259,19 +280,27 @@ export class BookingPaymentService {
     authenticatedCustomerId?: string,
   ) {
     if (!this.stripeService.isConfigured) {
-      throw new BadRequestException('Online payments are not configured on the server');
+      throw new BadRequestException(
+        'Online payments are not configured on the server',
+      );
     }
 
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
-      business.id,
-    );
+    const connectAccountId =
+      await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+        business.id,
+      );
 
-    const quote = await this.giftCardPurchaseService.quotePurchase(business.id, dto);
+    const quote = await this.giftCardPurchaseService.quotePurchase(
+      business.id,
+      dto,
+    );
     if (quote.total <= 0) {
-      throw new BadRequestException('Gift card total must be greater than zero');
+      throw new BadRequestException(
+        'Gift card total must be greater than zero',
+      );
     }
     if (!dto.purchaserEmail?.trim()) {
       throw new BadRequestException('Purchaser email is required');
@@ -319,38 +348,45 @@ export class BookingPaymentService {
       });
     }
 
-    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
-      connectAccountId,
-      {
-        mode: 'payment',
-        customer_email: dto.purchaserEmail.trim(),
-        line_items: lineItems,
-        metadata: {
-          type: 'booking_payment',
-          draftId: draft.id,
-          businessId: business.id,
-          slug,
-          connectAccountId,
-          checkoutKind: 'gift_card_purchase',
+    const [sessionParams, connectOpts] =
+      this.stripeService.connectCheckoutSessionCreate(
+        connectAccountId,
+        {
+          mode: 'payment',
+          customer_email: dto.purchaserEmail.trim(),
+          line_items: lineItems,
+          metadata: {
+            type: 'booking_payment',
+            draftId: draft.id,
+            businessId: business.id,
+            slug,
+            connectAccountId,
+            checkoutKind: 'gift_card_purchase',
+          },
+          success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
         },
-        success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
-      },
-      business.settings,
-      Math.round(quote.total * 100),
-    );
+        business.settings,
+        Math.round(quote.total * 100),
+      );
 
     const session = await this.stripeService.client.checkout.sessions.create(
       sessionParams,
       connectOpts,
     );
 
-    if (!session.url) throw new BadRequestException('Failed to create payment session');
+    if (!session.url)
+      throw new BadRequestException('Failed to create payment session');
 
     draft.stripeSessionId = session.id;
     await this.draftRepo.save(draft);
 
-    return { url: session.url, sessionId: session.id, draftId: draft.id, total: quote.total };
+    return {
+      url: session.url,
+      sessionId: session.id,
+      draftId: draft.id,
+      total: quote.total,
+    };
   }
 
   async resolveMultiServiceCheckoutPricing(
@@ -359,8 +395,13 @@ export class BookingPaymentService {
     dto: Pick<BookPublicMultiServiceDto, 'promoCode' | 'loyaltyPointsToRedeem'>,
     customerId?: string,
   ) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
-    const preview = await this.multiServiceBookingsService.previewTotals(businessId, serviceIds);
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      businessId,
+      serviceIds,
+    );
     const totalPrice = preview.totals!.totalPrice;
     const currency = preview.totals!.currency;
     const serviceLineItems = preview.services.map((svc) => ({
@@ -376,7 +417,10 @@ export class BookingPaymentService {
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
-      earnPercentCashback: resolveEarnPercentForService(business?.settings, serviceIds[0]),
+      earnPercentCashback: resolveEarnPercentForService(
+        business?.settings,
+        serviceIds[0],
+      ),
       serviceLineItems,
     });
   }
@@ -387,15 +431,18 @@ export class BookingPaymentService {
     authenticatedCustomerId?: string,
   ) {
     if (!this.stripeService.isConfigured) {
-      throw new BadRequestException('Online payments are not configured on the server');
+      throw new BadRequestException(
+        'Online payments are not configured on the server',
+      );
     }
 
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
-      business.id,
-    );
+    const connectAccountId =
+      await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+        business.id,
+      );
 
     const pricing = await this.resolveMultiServiceCheckoutPricing(
       business.id,
@@ -410,7 +457,10 @@ export class BookingPaymentService {
       );
     }
 
-    const preview = await this.multiServiceBookingsService.previewTotals(business.id, dto.serviceIds);
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      dto.serviceIds,
+    );
     const line = buildMultiServiceLineItem(dto.serviceIds.length);
 
     if (!dto.customer.email && !dto.customer.phone) {
@@ -446,38 +496,39 @@ export class BookingPaymentService {
       services: dto.serviceIds.join(','),
     });
 
-    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
-      connectAccountId,
-      {
-        mode: 'payment',
-        customer_email: dto.customer.email || undefined,
-        line_items: [
-          {
-            price_data: {
-              currency: preview.totals!.currency.toLowerCase(),
-              unit_amount: Math.round(pricing.amountDue * 100),
-              product_data: {
-                name: line.name,
-                description: line.description,
+    const [sessionParams, connectOpts] =
+      this.stripeService.connectCheckoutSessionCreate(
+        connectAccountId,
+        {
+          mode: 'payment',
+          customer_email: dto.customer.email || undefined,
+          line_items: [
+            {
+              price_data: {
+                currency: preview.totals!.currency.toLowerCase(),
+                unit_amount: Math.round(pricing.amountDue * 100),
+                product_data: {
+                  name: line.name,
+                  description: line.description,
+                },
               },
+              quantity: 1,
             },
-            quantity: 1,
+          ],
+          metadata: {
+            type: 'booking_payment',
+            draftId: draft.id,
+            businessId: business.id,
+            slug,
+            connectAccountId,
+            checkoutKind: 'multi_service_booking',
           },
-        ],
-        metadata: {
-          type: 'booking_payment',
-          draftId: draft.id,
-          businessId: business.id,
-          slug,
-          connectAccountId,
-          checkoutKind: 'multi_service_booking',
+          success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
         },
-        success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
-      },
-      business.settings,
-      Math.round(pricing.amountDue * 100),
-    );
+        business.settings,
+        Math.round(pricing.amountDue * 100),
+      );
 
     const session = await this.stripeService.client.checkout.sessions.create(
       sessionParams,
@@ -505,20 +556,24 @@ export class BookingPaymentService {
     dto: CreatePublicBookingDto,
     customerId?: string,
   ) {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     let chargeBase: number;
     let servicePrice = Number(service.price);
 
     if (dto.purchasePlanId) {
-      const planCheckout = await this.subscriptionsService.getPlanCheckoutDetails(
-        businessId,
-        dto.purchasePlanId,
-      );
+      const planCheckout =
+        await this.subscriptionsService.getPlanCheckoutDetails(
+          businessId,
+          dto.purchasePlanId,
+        );
       chargeBase = planCheckout.amount;
       servicePrice = planCheckout.amount;
     } else {
       const prepaymentAmount = this.calculatePrepaymentAmount(service);
-      chargeBase = prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+      chargeBase =
+        prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
     }
 
     return this.checkoutPricingService.calculate({
@@ -529,7 +584,10 @@ export class BookingPaymentService {
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
       customerId,
-      earnPercentCashback: resolveEarnPercentForService(business?.settings, service.id),
+      earnPercentCashback: resolveEarnPercentForService(
+        business?.settings,
+        service.id,
+      ),
       serviceLineItems: [{ serviceId: service.id, amount: chargeBase }],
     });
   }
@@ -538,17 +596,25 @@ export class BookingPaymentService {
     slug: string,
     dto: CreatePublicBookingDto,
     authenticatedCustomerId?: string,
-  ): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
+  ): Promise<{
+    url: string;
+    sessionId: string;
+    amount: number;
+    currency: string;
+  }> {
     if (!this.stripeService.isConfigured) {
-      throw new BadRequestException('Online payments are not configured on the server');
+      throw new BadRequestException(
+        'Online payments are not configured on the server',
+      );
     }
 
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const connectAccountId = await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
-      business.id,
-    );
+    const connectAccountId =
+      await this.stripeIntegrationService.assertCanAcceptOnlinePayments(
+        business.id,
+      );
 
     const service = await this.serviceRepo.findOne({
       where: { id: dto.serviceId, businessId: business.id, isActive: true },
@@ -581,10 +647,11 @@ export class BookingPaymentService {
         : service.name;
 
     if (checkoutKind === 'subscription_purchase') {
-      const planCheckout = await this.subscriptionsService.getPlanCheckoutDetails(
-        business.id,
-        dto.purchasePlanId!,
-      );
+      const planCheckout =
+        await this.subscriptionsService.getPlanCheckoutDetails(
+          business.id,
+          dto.purchasePlanId!,
+        );
       currency = planCheckout.currency;
       const line = buildSubscriptionLineItem(
         planCheckout.planName,
@@ -594,7 +661,9 @@ export class BookingPaymentService {
       lineItemName = line.name;
       lineItemDescription = line.description;
     } else if (this.calculatePrepaymentAmount(service) <= 0) {
-      throw new BadRequestException('This service does not require online payment');
+      throw new BadRequestException(
+        'This service does not require online payment',
+      );
     }
 
     const amount = pricing.amountDue;
@@ -637,38 +706,39 @@ export class BookingPaymentService {
       checkoutQuery.set('autoAssign', '1');
     }
 
-    const [sessionParams, connectOpts] = this.stripeService.connectCheckoutSessionCreate(
-      connectAccountId,
-      {
-        mode: 'payment',
-        customer_email: dto.customer.email || undefined,
-        line_items: [
-          {
-            price_data: {
-              currency: currency.toLowerCase(),
-              unit_amount: Math.round(amount * 100),
-              product_data: {
-                name: lineItemName,
-                description: lineItemDescription,
+    const [sessionParams, connectOpts] =
+      this.stripeService.connectCheckoutSessionCreate(
+        connectAccountId,
+        {
+          mode: 'payment',
+          customer_email: dto.customer.email || undefined,
+          line_items: [
+            {
+              price_data: {
+                currency: currency.toLowerCase(),
+                unit_amount: Math.round(amount * 100),
+                product_data: {
+                  name: lineItemName,
+                  description: lineItemDescription,
+                },
               },
+              quantity: 1,
             },
-            quantity: 1,
+          ],
+          metadata: {
+            type: 'booking_payment',
+            draftId: draft.id,
+            businessId: business.id,
+            slug,
+            connectAccountId,
+            checkoutKind,
           },
-        ],
-        metadata: {
-          type: 'booking_payment',
-          draftId: draft.id,
-          businessId: business.id,
-          slug,
-          connectAccountId,
-          checkoutKind,
+          success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
         },
-        success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
-      },
-      business.settings,
-      Math.round(amount * 100),
-    );
+        business.settings,
+        Math.round(amount * 100),
+      );
 
     const session = await this.stripeService.client.checkout.sessions.create(
       sessionParams,
@@ -698,19 +768,26 @@ export class BookingPaymentService {
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
-    const connectAccountId = this.stripeIntegrationService.resolveConnectAccountId(
-      business.settings,
-    );
+    const connectAccountId =
+      this.stripeIntegrationService.resolveConnectAccountId(business.settings);
     if (!connectAccountId) {
-      throw new BadRequestException('Stripe is not connected for this business');
+      throw new BadRequestException(
+        'Stripe is not connected for this business',
+      );
     }
 
     const session = await this.stripeService.client.checkout.sessions.retrieve(
       sessionId,
       {},
-      this.stripeService.connectRequestOptions(connectAccountId, business.settings),
+      this.stripeService.connectRequestOptions(
+        connectAccountId,
+        business.settings,
+      ),
     );
-    if (session.metadata?.type !== 'booking_payment' || session.metadata.slug !== slug) {
+    if (
+      session.metadata?.type !== 'booking_payment' ||
+      session.metadata.slug !== slug
+    ) {
       throw new BadRequestException('Invalid payment session');
     }
 
@@ -718,11 +795,14 @@ export class BookingPaymentService {
       throw new BadRequestException('Payment is not complete yet');
     }
 
-    return this.fulfillDraft(session.metadata.draftId!, sessionId);
+    return this.fulfillDraft(session.metadata.draftId, sessionId);
   }
 
   async handleCheckoutCompleted(session: StripeCheckoutSession): Promise<void> {
-    if (session.metadata?.type !== 'booking_payment' || !session.metadata.draftId) {
+    if (
+      session.metadata?.type !== 'booking_payment' ||
+      !session.metadata.draftId
+    ) {
       return;
     }
 
@@ -745,7 +825,9 @@ export class BookingPaymentService {
     }
 
     const dto = draft.payload as unknown as CreatePublicBookingDto;
-    const business = await this.businessRepo.findOne({ where: { id: draft.businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: draft.businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const authenticatedCustomerId =
@@ -857,7 +939,9 @@ export class BookingPaymentService {
         ...(dto.metadata || {}),
         stripeSessionId: sessionId,
         stripeConnectAccountId: draft.stripeConnectAccountId,
-        subscriptionPricePaid: dto.purchasePlanId ? Number(draft.amount) : undefined,
+        subscriptionPricePaid: dto.purchasePlanId
+          ? Number(draft.amount)
+          : undefined,
         prepaymentAmount: Number(draft.amount),
       },
     };
@@ -888,7 +972,8 @@ export class BookingPaymentService {
     });
 
     if (dto.purchasePlanId) {
-      const subscriptionId = result.customerSubscriptionId ?? dto.purchasePlanId;
+      const subscriptionId =
+        result.customerSubscriptionId ?? dto.purchasePlanId;
       await this.eventStore.publish({
         eventType: EventType.SUBSCRIPTION_PURCHASED,
         aggregateType: 'customer_subscription',

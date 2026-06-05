@@ -9,7 +9,11 @@ describe('GiftCardsService', () => {
     create: jest.fn(),
   };
   const creditRepo = { find: jest.fn(), save: jest.fn(), create: jest.fn() };
-  const redemptionRepo = { find: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const redemptionRepo = {
+    find: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
   const expirationAuditRepo = {
     find: jest.fn(),
     save: jest.fn(),
@@ -55,7 +59,10 @@ describe('GiftCardsService', () => {
   });
 
   it('creates typed monetary gift card codes', async () => {
-    const created = await service.create('biz-1', { amount: 50, cardType: 'service' });
+    const created = await service.create('biz-1', {
+      amount: 50,
+      cardType: 'service',
+    });
     expect(created.code).toMatch(/^GCS-/);
   });
 
@@ -63,7 +70,12 @@ describe('GiftCardsService', () => {
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 50 });
     giftCardRepo.save.mockImplementation(async (v) => v);
 
-    const result = await service.redeem('biz-1', 'GCM-ABCD1234', 30, 'booking-1');
+    const result = await service.redeem(
+      'biz-1',
+      'GCM-ABCD1234',
+      30,
+      'booking-1',
+    );
     expect(result.balance).toBe(20);
     expect(result.isActive).toBe(true);
     expect(redemptionRepo.save).toHaveBeenCalled();
@@ -84,38 +96,67 @@ describe('GiftCardsService', () => {
       code: 'GCB-BUNDLE1',
       balance: 0,
       serviceCredits: [
-        { id: 'c1', serviceId: 'svc-1', serviceName: 'Haircut', quantityRemaining: 1, quantityTotal: 1 },
+        {
+          id: 'c1',
+          serviceId: 'svc-1',
+          serviceName: 'Haircut',
+          quantityRemaining: 1,
+          quantityTotal: 1,
+        },
       ],
     });
     giftCardRepo.save.mockImplementation(async (v) => v);
 
-    const result = await service.redeemServiceCredit('biz-1', 'GCB-BUNDLE1', 'svc-1', 'booking-1');
+    const result = await service.redeemServiceCredit(
+      'biz-1',
+      'GCB-BUNDLE1',
+      'svc-1',
+      'booking-1',
+    );
     expect(result.isActive).toBe(false);
-    expect(creditRepo.save).toHaveBeenCalledWith(expect.objectContaining({ quantityRemaining: 0 }));
+    expect(creditRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ quantityRemaining: 0 }),
+    );
   });
 
   it('rejects hidden codes and expired cards', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, codeRevealed: false });
-    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow('not yet active');
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      codeRevealed: false,
+    });
+    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow(
+      'not yet active',
+    );
 
     giftCardRepo.findOne.mockResolvedValue({
       ...baseCard,
       expiresAt: new Date('2020-01-01T00:00:00.000Z'),
     });
-    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow('expired');
+    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow(
+      'expired',
+    );
   });
 
   it('returns balance view with masked code when hidden', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, codeRevealed: false });
-    await expect(service.getBalanceView('biz-1', 'GCM-ABCD1234')).resolves.toMatchObject({
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      codeRevealed: false,
+    });
+    await expect(
+      service.getBalanceView('biz-1', 'GCM-ABCD1234'),
+    ).resolves.toMatchObject({
       code: '****',
     });
   });
 
   it('rejects missing cards', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.validate('biz-1', 'GCM-MISSING')).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.redeem('biz-1', 'GCM-MISSING', 10)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.validate('biz-1', 'GCM-MISSING'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.redeem('biz-1', 'GCM-MISSING', 10),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('lists gift cards and redemption history', async () => {
@@ -131,7 +172,9 @@ describe('GiftCardsService', () => {
       cardType: 'service',
       serviceCredits: [{ serviceId: 'svc-1', quantityRemaining: 1 }],
     });
-    await expect(service.redeem('biz-1', 'GCS-123', 10)).rejects.toThrow('service credit');
+    await expect(service.redeem('biz-1', 'GCS-123', 10)).rejects.toThrow(
+      'service credit',
+    );
   });
 
   it('validates service credits for matching and exhausted cards', async () => {
@@ -144,26 +187,32 @@ describe('GiftCardsService', () => {
     await expect(service.validate('biz-1', 'GCS-SVC', 'svc-1')).rejects.toThrow(
       'no remaining credit',
     );
-    await expect(service.validate('biz-1', 'GCS-SVC')).rejects.toThrow('no remaining service credits');
+    await expect(service.validate('biz-1', 'GCS-SVC')).rejects.toThrow(
+      'no remaining service credits',
+    );
   });
 
   it('rejects redeem above balance and missing service credit', async () => {
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 5 });
-    await expect(service.redeem('biz-1', 'GCM-ABCD1234', 10)).rejects.toThrow('Insufficient');
+    await expect(service.redeem('biz-1', 'GCM-ABCD1234', 10)).rejects.toThrow(
+      'Insufficient',
+    );
 
     giftCardRepo.findOne.mockResolvedValue({
       ...baseCard,
       cardType: 'service',
       serviceCredits: [{ serviceId: 'svc-1', quantityRemaining: 1 }],
     });
-    await expect(service.redeemServiceCredit('biz-1', 'GCS-123', 'svc-2')).rejects.toThrow(
-      'no remaining credit',
-    );
+    await expect(
+      service.redeemServiceCredit('biz-1', 'GCS-123', 'svc-2'),
+    ).rejects.toThrow('no remaining credit');
   });
 
   it('rejects monetary cards with zero balance', async () => {
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 0 });
-    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow('no balance');
+    await expect(service.validate('biz-1', 'GCM-ABCD1234')).rejects.toThrow(
+      'no balance',
+    );
   });
 
   it('routes package and subscription cards to account claim instead of checkout', async () => {
@@ -188,7 +237,9 @@ describe('GiftCardsService', () => {
       claimedAt: new Date(),
       serviceCredits: [],
     });
-    await expect(service.validate('biz-1', 'GCU-SUB')).rejects.toThrow('already been claimed');
+    await expect(service.validate('biz-1', 'GCU-SUB')).rejects.toThrow(
+      'already been claimed',
+    );
   });
 
   it('throws when service credit row is missing after validation', async () => {
@@ -197,15 +248,17 @@ describe('GiftCardsService', () => {
       cardType: 'service',
       serviceCredits: [],
     } as any);
-    await expect(service.redeemServiceCredit('biz-1', 'GCS-123', 'svc-1')).rejects.toThrow(
-      'No service credit available',
-    );
+    await expect(
+      service.redeemServiceCredit('biz-1', 'GCS-123', 'svc-1'),
+    ).rejects.toThrow('No service credit available');
     jest.restoreAllMocks();
   });
 
   it('throws when balance view target is missing', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.getBalanceView('biz-1', 'GCM-MISSING')).rejects.toThrow('not found');
+    await expect(
+      service.getBalanceView('biz-1', 'GCM-MISSING'),
+    ).rejects.toThrow('not found');
   });
 
   it('returns balance view with service credits and rejects monetary service redeem', async () => {
@@ -222,16 +275,21 @@ describe('GiftCardsService', () => {
         },
       ],
     });
-    await expect(service.getBalanceView('biz-1', 'GCB-BUNDLE')).resolves.toMatchObject({
+    await expect(
+      service.getBalanceView('biz-1', 'GCB-BUNDLE'),
+    ).resolves.toMatchObject({
       serviceCredits: [
-        expect.objectContaining({ serviceName: 'Haircut', quantityRemaining: 2 }),
+        expect.objectContaining({
+          serviceName: 'Haircut',
+          quantityRemaining: 2,
+        }),
       ],
     });
 
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 50 });
-    await expect(service.redeemServiceCredit('biz-1', 'GCM-ABCD1234', 'svc-1')).rejects.toThrow(
-      'Monetary gift cards',
-    );
+    await expect(
+      service.redeemServiceCredit('biz-1', 'GCM-ABCD1234', 'svc-1'),
+    ).rejects.toThrow('Monetary gift cards');
   });
 
   it('creates admin gift card with expiration and purchaser', async () => {
@@ -249,17 +307,30 @@ describe('GiftCardsService', () => {
       cardType: 'bundle',
       code: 'GCB-MULTI',
       serviceCredits: [
-        { id: 'c1', serviceId: 'svc-1', serviceName: 'Haircut', quantityRemaining: 2, quantityTotal: 2 },
+        {
+          id: 'c1',
+          serviceId: 'svc-1',
+          serviceName: 'Haircut',
+          quantityRemaining: 2,
+          quantityTotal: 2,
+        },
       ],
     });
     giftCardRepo.save.mockImplementation(async (v) => v);
-    const result = await service.redeemServiceCredit('biz-1', 'GCB-MULTI', 'svc-1');
+    const result = await service.redeemServiceCredit(
+      'biz-1',
+      'GCB-MULTI',
+      'svc-1',
+    );
     expect(result.isActive).toBe(true);
   });
 
   it('updates expiration, writes audit, and skips no-op changes', async () => {
     const previous = new Date('2027-06-01T23:59:59.999Z');
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: previous });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      expiresAt: previous,
+    });
     giftCardRepo.save.mockImplementation(async (v) => v);
 
     const updated = await service.updateExpiration(
@@ -279,7 +350,10 @@ describe('GiftCardsService', () => {
     );
 
     jest.clearAllMocks();
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: updated.expiresAt });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      expiresAt: updated.expiresAt,
+    });
     const unchanged = await service.updateExpiration(
       'biz-1',
       'gc-1',
@@ -294,7 +368,12 @@ describe('GiftCardsService', () => {
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, expiresAt: null });
     giftCardRepo.save.mockImplementation(async (v) => v);
 
-    await service.updateExpiration('biz-1', 'gc-1', { extendMonths: 3 }, 'admin-2');
+    await service.updateExpiration(
+      'biz-1',
+      'gc-1',
+      { extendMonths: 3 },
+      'admin-2',
+    );
     expect(expirationAuditRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'extend', adminUserId: 'admin-2' }),
     );
@@ -303,21 +382,33 @@ describe('GiftCardsService', () => {
       ...baseCard,
       expiresAt: new Date('2028-01-01T00:00:00.000Z'),
     });
-    await service.updateExpiration('biz-1', 'gc-1', { expiresAt: null }, 'admin-2');
+    await service.updateExpiration(
+      'biz-1',
+      'gc-1',
+      { expiresAt: null },
+      'admin-2',
+    );
     expect(expirationAuditRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'clear', newExpiresAt: null }),
     );
   });
 
   it('lists expiration audit entries', async () => {
-    expirationAuditRepo.find.mockResolvedValue([{ id: 'audit-1', action: 'set' }]);
+    expirationAuditRepo.find.mockResolvedValue([
+      { id: 'audit-1', action: 'set' },
+    ]);
     await expect(service.listExpirationAudit('gc-1')).resolves.toHaveLength(1);
   });
 
   it('rejects expiration update for missing card', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
     await expect(
-      service.updateExpiration('biz-1', 'missing', { expiresAt: '2028-01-01' }, 'admin-1'),
+      service.updateExpiration(
+        'biz-1',
+        'missing',
+        { expiresAt: '2028-01-01' },
+        'admin-1',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

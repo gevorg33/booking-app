@@ -1,6 +1,10 @@
 import type { AiRagSettings } from './ai-settings.types.js';
 
-export type RagDocumentType = 'sop' | 'playbook_note' | 'business_note' | 'past_plan';
+export type RagDocumentType =
+  | 'sop'
+  | 'playbook_note'
+  | 'business_note'
+  | 'past_plan';
 
 export interface RagDocument {
   id: string;
@@ -25,7 +29,8 @@ export function scoreRagDocument(doc: RagDocument, prompt: string): number {
   if (!doc.enabled) return 0;
 
   const tokens = tokenizeForRag(prompt);
-  const haystack = `${doc.title} ${doc.content} ${(doc.keywords ?? []).join(' ')}`.toLowerCase();
+  const haystack =
+    `${doc.title} ${doc.content} ${(doc.keywords ?? []).join(' ')}`.toLowerCase();
 
   let score = 0;
   for (const token of tokens) {

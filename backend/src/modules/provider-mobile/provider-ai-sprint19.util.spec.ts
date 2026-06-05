@@ -24,9 +24,9 @@ import {
 
 describe('provider-ai-sprint19.util', () => {
   it('maps schedule gap labels', () => {
-    expect(mapScheduleGapLabels([{ startTime: '10:00', endTime: '11:00' }])).toEqual([
-      { start: '10:00', end: '11:00' },
-    ]);
+    expect(
+      mapScheduleGapLabels([{ startTime: '10:00', endTime: '11:00' }]),
+    ).toEqual([{ start: '10:00', end: '11:00' }]);
   });
 
   it('detects who is next prompts and merges params', () => {
@@ -34,16 +34,26 @@ describe('provider-ai-sprint19.util', () => {
     const merged = mergeShowAppointmentsParams("Who's next?", {});
     expect(merged.statusFilter).toBe('upcoming');
     expect(merged.date).toBeTruthy();
-    const kept = mergeShowAppointmentsParams("Who's next?", { date: '2026-06-01' });
-    expect(kept.date).toBe('2026-06-01');
-    expect(mergeShowAppointmentsParams('List today', { date: '2026-06-01' })).toEqual({
+    const kept = mergeShowAppointmentsParams("Who's next?", {
       date: '2026-06-01',
     });
-    expect(resolveStatusFilter({ statusFilter: 'upcoming', status: 'pending' })).toBe('upcoming');
+    expect(kept.date).toBe('2026-06-01');
+    expect(
+      mergeShowAppointmentsParams('List today', { date: '2026-06-01' }),
+    ).toEqual({
+      date: '2026-06-01',
+    });
+    expect(
+      resolveStatusFilter({ statusFilter: 'upcoming', status: 'pending' }),
+    ).toBe('upcoming');
     expect(resolveStatusFilter({ status: 'pending' })).toBe('pending');
     expect(resolveStatusFilter({})).toBe('');
-    expect(resolveStatusFilter({ statusFilter: null, status: 'pending' })).toBe('pending');
-    expect(filterBookingsForProviderList([], 'null', 0, () => undefined)).toEqual([]);
+    expect(resolveStatusFilter({ statusFilter: null, status: 'pending' })).toBe(
+      'pending',
+    );
+    expect(
+      filterBookingsForProviderList([], 'null', 0, () => undefined),
+    ).toEqual([]);
   });
 
   it('filters upcoming and status-specific bookings', () => {
@@ -65,13 +75,28 @@ describe('provider-ai-sprint19.util', () => {
         service: null,
       },
     ];
-    const upcoming = filterBookingsForProviderList(bookings, 'upcoming', now, () => undefined);
+    const upcoming = filterBookingsForProviderList(
+      bookings,
+      'upcoming',
+      now,
+      () => undefined,
+    );
     expect(upcoming).toHaveLength(1);
     const sorted = sortBookingsByStartTime([
-      { startTime: new Date(now + 120_000), status: BookingStatus.CONFIRMED, service: null },
-      { startTime: new Date(now + 60_000), status: BookingStatus.CONFIRMED, service: null },
+      {
+        startTime: new Date(now + 120_000),
+        status: BookingStatus.CONFIRMED,
+        service: null,
+      },
+      {
+        startTime: new Date(now + 60_000),
+        status: BookingStatus.CONFIRMED,
+        service: null,
+      },
     ]);
-    expect(sorted[0].startTime.getTime()).toBeLessThan(sorted[1].startTime.getTime());
+    expect(sorted[0].startTime.getTime()).toBeLessThan(
+      sorted[1].startTime.getTime(),
+    );
     const confirmed = filterBookingsForProviderList(
       bookings,
       'confirmed',
@@ -79,7 +104,12 @@ describe('provider-ai-sprint19.util', () => {
       () => BookingStatus.CONFIRMED,
     );
     expect(confirmed).toHaveLength(2);
-    const completed = filterBookingsForProviderList(bookings, 'completed', now, () => undefined);
+    const completed = filterBookingsForProviderList(
+      bookings,
+      'completed',
+      now,
+      () => undefined,
+    );
     expect(completed).toHaveLength(bookings.length);
   });
 
@@ -96,7 +126,13 @@ describe('provider-ai-sprint19.util', () => {
     expect(empty.summary).toBe('None');
 
     const single = buildProviderBookingsListResult({
-      bookings: [{ startTime: future, status: BookingStatus.CONFIRMED, service: { name: 'Spa' } }],
+      bookings: [
+        {
+          startTime: future,
+          status: BookingStatus.CONFIRMED,
+          service: { name: 'Spa' },
+        },
+      ],
       params: { date: '2026-06-02' },
       statusFilter: 'upcoming',
       action: 'show_appointments',
@@ -106,7 +142,9 @@ describe('provider-ai-sprint19.util', () => {
     expect(single.summary).toMatch(/Next up:.*\(Spa\)/);
 
     const singleNoService = buildProviderBookingsListResult({
-      bookings: [{ startTime: future, status: BookingStatus.CONFIRMED, service: null }],
+      bookings: [
+        { startTime: future, status: BookingStatus.CONFIRMED, service: null },
+      ],
       params: { date: '2026-06-02' },
       statusFilter: 'upcoming',
       action: 'show_appointments',
@@ -118,7 +156,11 @@ describe('provider-ai-sprint19.util', () => {
     const upcomingTwo = buildProviderBookingsListResult({
       bookings: [
         { startTime: future, status: BookingStatus.CONFIRMED, service: null },
-        { startTime: new Date(future.getTime() + 1000), status: BookingStatus.CONFIRMED, service: null },
+        {
+          startTime: new Date(future.getTime() + 1000),
+          status: BookingStatus.CONFIRMED,
+          service: null,
+        },
       ],
       params: { date: '2026-06-02' },
       statusFilter: 'upcoming',
@@ -143,7 +185,9 @@ describe('provider-ai-sprint19.util', () => {
     expect(many.summary).toMatch(/…and 2 more/);
 
     const oneOnDay = buildProviderBookingsListResult({
-      bookings: [{ startTime: future, status: BookingStatus.CONFIRMED, service: null }],
+      bookings: [
+        { startTime: future, status: BookingStatus.CONFIRMED, service: null },
+      ],
       params: {},
       statusFilter: '',
       action: 'list_bookings',
@@ -154,8 +198,16 @@ describe('provider-ai-sprint19.util', () => {
 
     const listMulti = buildProviderBookingsListResult({
       bookings: [
-        { startTime: future, status: BookingStatus.CONFIRMED, service: { name: 'Color' } },
-        { startTime: new Date(future.getTime() + 1000), status: BookingStatus.CONFIRMED, service: null },
+        {
+          startTime: future,
+          status: BookingStatus.CONFIRMED,
+          service: { name: 'Color' },
+        },
+        {
+          startTime: new Date(future.getTime() + 1000),
+          status: BookingStatus.CONFIRMED,
+          service: null,
+        },
       ],
       params: { date: '2026-06-02' },
       statusFilter: '',
@@ -165,7 +217,9 @@ describe('provider-ai-sprint19.util', () => {
     });
     expect(listMulti.summary).toMatch(/2 appointments on/);
     expect(listMulti.summary).toContain('•');
-    expect(buildNoLinkedEmployeeAvailabilityResult().action).toBe('check_availability');
+    expect(buildNoLinkedEmployeeAvailabilityResult().action).toBe(
+      'check_availability',
+    );
   });
 
   it('builds availability summaries', () => {
@@ -194,7 +248,10 @@ describe('provider-ai-sprint19.util', () => {
     expect(
       buildAfternoonAvailabilityResult({
         displayDay: '02/06/2026',
-        gaps: [{ start: '13:00', end: '14:00' }, { start: '10:00', end: '11:00' }],
+        gaps: [
+          { start: '13:00', end: '14:00' },
+          { start: '10:00', end: '11:00' },
+        ],
         timeFrom: '09:00',
         timeTo: '19:00',
       }).summary,
@@ -223,33 +280,57 @@ describe('provider-ai-sprint19.util', () => {
         timeTo: '19:00',
       }).summary,
     ).toMatch(/Open slots on/);
-    expect(resolveAvailabilityDayBounds('2026-06-02').dayEnd.getUTCHours()).toBe(23);
-    expect(resolveAvailabilityTimeWindow({ timeFrom: '8:00', timeTo: '17:30' })).toEqual({
+    expect(
+      resolveAvailabilityDayBounds('2026-06-02').dayEnd.getUTCHours(),
+    ).toBe(23);
+    expect(
+      resolveAvailabilityTimeWindow({ timeFrom: '8:00', timeTo: '17:30' }),
+    ).toEqual({
       timeFrom: '08:00',
       timeTo: '17:30',
     });
-    expect(shouldUseAfternoonAvailability('gaps this afternoon', {})).toBe(true);
-    expect(shouldUseAfternoonAvailability('gaps', { timeFrom: '12:00' })).toBe(false);
+    expect(shouldUseAfternoonAvailability('gaps this afternoon', {})).toBe(
+      true,
+    );
+    expect(shouldUseAfternoonAvailability('gaps', { timeFrom: '12:00' })).toBe(
+      false,
+    );
   });
 
   it('prepares block schedule params with lunch defaults', () => {
-    const params = prepareBlockScheduleParams('Block lunch today', {}, {
-      scopedEmployeeId: 'emp-1',
-      employeeName: 'Alex',
-    });
+    const params = prepareBlockScheduleParams(
+      'Block lunch today',
+      {},
+      {
+        scopedEmployeeId: 'emp-1',
+        employeeName: 'Alex',
+      },
+    );
     expect(params.allProviders).toBe(false);
     expect(params.employeeName).toBe('Alex');
     expect(params.timeFrom).toBe('12:00');
     expect(params.timeTo).toBe('13:00');
     expect(params.date).toBeTruthy();
 
-    const team = prepareBlockScheduleParams('Block break', { dateFrom: '2026-06-03' }, {});
+    const team = prepareBlockScheduleParams(
+      'Block break',
+      { dateFrom: '2026-06-03' },
+      {},
+    );
     expect(team.allProviders).toBeUndefined();
     expect(team.dateFrom).toBe('2026-06-03');
-    const scopedNoName = prepareBlockScheduleParams('Block break', {}, { scopedEmployeeId: 'emp-2' });
+    const scopedNoName = prepareBlockScheduleParams(
+      'Block break',
+      {},
+      { scopedEmployeeId: 'emp-2' },
+    );
     expect(scopedNoName.allProviders).toBe(false);
     expect(scopedNoName.employeeName).toBeUndefined();
-    const keepTimes = prepareBlockScheduleParams('Block lunch', { timeFrom: '11:00' }, {});
+    const keepTimes = prepareBlockScheduleParams(
+      'Block lunch',
+      { timeFrom: '11:00' },
+      {},
+    );
     expect(keepTimes.timeFrom).toBe('11:00');
     expect(keepTimes.timeTo).toBeUndefined();
     expect(sortUtilizationRows([])).toEqual([]);
@@ -269,7 +350,14 @@ describe('provider-ai-sprint19.util', () => {
     const summary = buildUtilizationSummaryResult({
       scopedEmployeeId: null,
       range,
-      rows: [{ employeeName: 'Alex', utilizationPercent: 55, bookedMinutes: 120, totalMinutes: 220 }],
+      rows: [
+        {
+          employeeName: 'Alex',
+          utilizationPercent: 55,
+          bookedMinutes: 120,
+          totalMinutes: 220,
+        },
+      ],
     });
     expect(summary.action).toBe('summarize_utilization');
     expect(summary.summary).toMatch(/Team utilization/);
@@ -292,7 +380,8 @@ describe('provider-ai-sprint19.util', () => {
     ).toEqual(['Zero', 'Unset', 'High']);
 
     expect(
-      buildUtilizationSummaryResult({ scopedEmployeeId: null, range, rows: [] }).summary,
+      buildUtilizationSummaryResult({ scopedEmployeeId: null, range, rows: [] })
+        .summary,
     ).toMatch(/Team utilization/);
   });
 

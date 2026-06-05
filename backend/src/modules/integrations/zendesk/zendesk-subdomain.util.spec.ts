@@ -10,6 +10,8 @@ describe('normalizeZendeskSubdomain', () => {
   });
 
   it('strips https URL prefix and path', () => {
-    expect(normalizeZendeskSubdomain('https://acme.zendesk.com/agent/')).toBe('acme');
+    expect(normalizeZendeskSubdomain('https://acme.zendesk.com/agent/')).toBe(
+      'acme',
+    );
   });
 });

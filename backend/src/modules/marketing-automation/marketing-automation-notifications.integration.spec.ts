@@ -6,11 +6,17 @@ describe('Marketing automation + notifications integration', () => {
   const bookingRepo = { findOne: jest.fn() };
   const businessRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
-  const notificationLogRepo = { save: jest.fn(), create: jest.fn(), findOne: jest.fn() };
+  const notificationLogRepo = {
+    save: jest.fn(),
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
   const emailService = { send: jest.fn() };
   const smsService = { send: jest.fn() };
   const whatsAppService = { sendTemplate: jest.fn() };
-  const whatsappIntegrationService = { isConfigured: jest.fn().mockReturnValue(false) };
+  const whatsappIntegrationService = {
+    isConfigured: jest.fn().mockReturnValue(false),
+  };
   const configService = {
     get: jest.fn((key: string) => {
       if (key === 'FRONTEND_URL') return 'http://localhost:3000';
@@ -87,6 +93,8 @@ describe('Marketing automation + notifications integration', () => {
   });
 
   it('defaults postVisitReviewEnabled to true when unset', () => {
-    expect(mergeMarketingAutomationSettings(undefined).postVisitReviewEnabled).toBe(true);
+    expect(
+      mergeMarketingAutomationSettings(undefined).postVisitReviewEnabled,
+    ).toBe(true);
   });
 });

@@ -48,7 +48,11 @@ export class ServiceSubscriptionsService {
     private planEntitlements: PlanEntitlementsService,
   ) {}
 
-  async listPlans(businessId: string, serviceId?: string, includeInactive = false) {
+  async listPlans(
+    businessId: string,
+    serviceId?: string,
+    includeInactive = false,
+  ) {
     const where: Record<string, unknown> = { businessId };
     if (!includeInactive) where.isActive = true;
     if (serviceId) where.serviceId = serviceId;
@@ -64,7 +68,9 @@ export class ServiceSubscriptionsService {
   }
 
   async activatePlan(businessId: string, planId: string) {
-    const plan = await this.planRepo.findOne({ where: { id: planId, businessId } });
+    const plan = await this.planRepo.findOne({
+      where: { id: planId, businessId },
+    });
     if (!plan) throw new NotFoundException('Subscription plan not found');
     if (plan.isActive) {
       throw new BadRequestException('Subscription plan is already active');
@@ -74,7 +80,9 @@ export class ServiceSubscriptionsService {
   }
 
   async deletePlan(businessId: string, planId: string) {
-    const plan = await this.planRepo.findOne({ where: { id: planId, businessId } });
+    const plan = await this.planRepo.findOne({
+      where: { id: planId, businessId },
+    });
     if (!plan) throw new NotFoundException('Subscription plan not found');
     if (plan.isActive) {
       throw new BadRequestException('Deactivate the plan before deleting it');
@@ -145,7 +153,9 @@ export class ServiceSubscriptionsService {
     planId: string,
     dto: Partial<CreateSubscriptionPlanDto & { isActive: boolean }>,
   ) {
-    const plan = await this.planRepo.findOne({ where: { id: planId, businessId } });
+    const plan = await this.planRepo.findOne({
+      where: { id: planId, businessId },
+    });
     if (!plan) throw new NotFoundException('Subscription plan not found');
     if (dto.serviceId) await this.assertService(businessId, dto.serviceId);
     Object.assign(plan, {
@@ -273,7 +283,9 @@ export class ServiceSubscriptionsService {
       throw new ConflictException('Subscription is not active');
     }
     if (sub.plan.serviceId !== serviceId) {
-      throw new BadRequestException('Subscription does not apply to this service');
+      throw new BadRequestException(
+        'Subscription does not apply to this service',
+      );
     }
     if (sub.appointmentsRemaining <= 0) {
       throw new ConflictException('Subscription has no remaining appointments');
@@ -393,7 +405,10 @@ export class ServiceSubscriptionsService {
     return [...new Set(plans.map((p) => p.serviceId))];
   }
 
-  syncStatus(sub: CustomerSubscription, now = new Date()): CustomerSubscription {
+  syncStatus(
+    sub: CustomerSubscription,
+    now = new Date(),
+  ): CustomerSubscription {
     if (sub.status === CustomerSubscriptionStatus.CANCELLED) return sub;
     if (sub.expiresAt < now) {
       sub.status = CustomerSubscriptionStatus.EXPIRED;

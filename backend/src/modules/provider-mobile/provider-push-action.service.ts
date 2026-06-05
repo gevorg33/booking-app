@@ -1,7 +1,11 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { BookingService } from '../booking/booking.service.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
@@ -32,7 +36,10 @@ export class ProviderPushActionService {
     userId: string,
     dto: PushActionPayload,
   ): Promise<{ success: boolean; summary: string }> {
-    const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+    const access = await this.providerMobile.resolveMobileAccess(
+      businessId,
+      userId,
+    );
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
 
     const booking = await this.bookingRepo.findOne({
@@ -53,11 +60,15 @@ export class ProviderPushActionService {
           { status: BookingStatus.CONFIRMED },
           userId,
         );
-        return { success: true, summary: `Confirmed ${booking.customer?.name ?? 'appointment'}` };
+        return {
+          success: true,
+          summary: `Confirmed ${booking.customer?.name ?? 'appointment'}`,
+        };
 
       case 'mark_paid': {
         const isCashAtVenue =
-          booking.metadata?.payAtVenue === true || booking.metadata?.paymentMethod === 'cash';
+          booking.metadata?.payAtVenue === true ||
+          booking.metadata?.paymentMethod === 'cash';
         await this.bookingService.update(
           booking.id,
           {
@@ -76,7 +87,10 @@ export class ProviderPushActionService {
           },
           userId,
         );
-        return { success: true, summary: `Marked paid — ${booking.customer?.name ?? 'appointment'}` };
+        return {
+          success: true,
+          summary: `Marked paid — ${booking.customer?.name ?? 'appointment'}`,
+        };
       }
 
       case 'suggest_reschedule':
@@ -100,8 +114,12 @@ export class ProviderPushActionService {
   ): Promise<number> {
     const timeLabel = options?.timeLabel?.trim();
     const customerName = options?.customerName?.trim() ?? '';
-    const aiPrompt = timeLabel ? buildNewBookingAiPrompt(timeLabel, customerName) : undefined;
-    const foregroundHint = timeLabel ? buildNewBookingForegroundHint(timeLabel) : undefined;
+    const aiPrompt = timeLabel
+      ? buildNewBookingAiPrompt(timeLabel, customerName)
+      : undefined;
+    const foregroundHint = timeLabel
+      ? buildNewBookingForegroundHint(timeLabel)
+      : undefined;
 
     return this.pushService.sendToUser(userId, businessId, {
       title,

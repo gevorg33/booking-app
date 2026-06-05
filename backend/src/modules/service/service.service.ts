@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service, PrepaymentMode } from './entities/service.entity.js';
 import { ServiceCategory } from './entities/service-category.entity.js';
 import { Business } from '../business/entities/business.entity.js';
-import { CreateServiceDto, UpdateServiceDto } from './dto/create-service.dto.js';
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+} from './dto/create-service.dto.js';
 import {
   applyLocalizedNamesToMetadata,
   extractLocalizedNamesFromMetadata,
@@ -17,7 +24,8 @@ import { StripeIntegrationService } from '../billing/stripe-integration.service.
 export class ServiceService {
   constructor(
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
-    @InjectRepository(ServiceCategory) private categoryRepo: Repository<ServiceCategory>,
+    @InjectRepository(ServiceCategory)
+    private categoryRepo: Repository<ServiceCategory>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private eventStore: EventStoreService,
     private stripeIntegrationService: StripeIntegrationService,
@@ -29,7 +37,9 @@ export class ServiceService {
   ): Promise<void> {
     if (!prepaymentMode || prepaymentMode === PrepaymentMode.NONE) return;
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     if (!this.stripeIntegrationService.isConnectReady(business.settings)) {
@@ -39,12 +49,16 @@ export class ServiceService {
     }
   }
 
-  private enrichService(service: Service): Service & { localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata> } {
+  private enrichService(service: Service): Service & {
+    localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
+  } {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
     const enriched = Object.assign(service, { localizedNames });
     if (enriched.category) {
       Object.assign(enriched.category, {
-        localizedNames: extractLocalizedNamesFromMetadata(enriched.category.metadata),
+        localizedNames: extractLocalizedNamesFromMetadata(
+          enriched.category.metadata,
+        ),
       });
     }
     return enriched;
@@ -63,10 +77,18 @@ export class ServiceService {
     return categoryId;
   }
 
-  async create(businessId: string, dto: CreateServiceDto, userId?: string): Promise<Service> {
+  async create(
+    businessId: string,
+    dto: CreateServiceDto,
+    userId?: string,
+  ): Promise<Service> {
     await this.assertOnlinePaymentAllowed(businessId, dto.prepaymentMode);
     const categoryId = await this.resolveCategoryId(businessId, dto.categoryId);
-    const { categoryId: _inputCategoryId, localizedNames, ...serviceData } = dto;
+    const {
+      categoryId: _inputCategoryId,
+      localizedNames,
+      ...serviceData
+    } = dto;
 
     const service = await this.serviceRepo.save(
       this.serviceRepo.create({
@@ -107,12 +129,19 @@ export class ServiceService {
     return this.enrichService(service);
   }
 
-  async update(id: string, dto: UpdateServiceDto, userId?: string): Promise<Service> {
+  async update(
+    id: string,
+    dto: UpdateServiceDto,
+    userId?: string,
+  ): Promise<Service> {
     const service = await this.findOne(id);
     const nextMode = dto.prepaymentMode ?? service.prepaymentMode;
     await this.assertOnlinePaymentAllowed(service.businessId, nextMode);
 
-    const categoryId = await this.resolveCategoryId(service.businessId, dto.categoryId);
+    const categoryId = await this.resolveCategoryId(
+      service.businessId,
+      dto.categoryId,
+    );
     if (categoryId !== undefined) service.categoryId = categoryId;
 
     const { categoryId: _omit, localizedNames, ...rest } = dto;

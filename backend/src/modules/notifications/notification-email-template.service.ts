@@ -16,11 +16,16 @@ import {
   readTenantEmailTemplatesSettings,
 } from './notification-email-template.util.js';
 import { resolveLocale } from '../../common/i18n/messages.js';
-import { getEmailTemplateDefinition, resolveEmailTemplate } from './notification-email-template.defaults.js';
+import {
+  getEmailTemplateDefinition,
+  resolveEmailTemplate,
+} from './notification-email-template.defaults.js';
 
 @Injectable()
 export class NotificationEmailTemplateService {
-  constructor(@InjectRepository(Business) private businessRepo: Repository<Business>) {}
+  constructor(
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
+  ) {}
 
   async listTemplates(businessId: string): Promise<{
     templates: ResolvedEmailTemplate[];
@@ -60,7 +65,11 @@ export class NotificationEmailTemplateService {
       },
     };
     await this.businessRepo.save(business);
-    return resolveEmailTemplate(key, next, this.businessLocale(business.settings));
+    return resolveEmailTemplate(
+      key,
+      next,
+      this.businessLocale(business.settings),
+    );
   }
 
   async resetTemplate(
@@ -80,7 +89,11 @@ export class NotificationEmailTemplateService {
       },
     };
     await this.businessRepo.save(business);
-    return resolveEmailTemplate(key, undefined, this.businessLocale(business.settings));
+    return resolveEmailTemplate(
+      key,
+      undefined,
+      this.businessLocale(business.settings),
+    );
   }
 
   async replaceCustomVariables(
@@ -104,13 +117,17 @@ export class NotificationEmailTemplateService {
     return normalized;
   }
 
-  private businessLocale(settings: Record<string, unknown>): ReturnType<typeof resolveLocale> {
+  private businessLocale(
+    settings: Record<string, unknown>,
+  ): ReturnType<typeof resolveLocale> {
     const raw = settings.locale;
     return resolveLocale(typeof raw === 'string' ? raw : null);
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

@@ -57,7 +57,9 @@ export function findIncompatiblePairs(
   incompatiblePairs: Array<[string, string]>,
 ): Array<[string, string]> {
   const selected = new Set(serviceIds);
-  return incompatiblePairs.filter(([a, b]) => selected.has(a) && selected.has(b));
+  return incompatiblePairs.filter(
+    ([a, b]) => selected.has(a) && selected.has(b),
+  );
 }
 
 export function resolveSelectedCategoryKeys(
@@ -65,9 +67,16 @@ export function resolveSelectedCategoryKeys(
   services: Array<Pick<MultiServiceLineInput, 'serviceId' | 'categoryId'>>,
 ): string[] {
   const byId = new Map(
-    services.map((svc) => [svc.serviceId, svc.categoryId ?? UNCATEGORIZED_CATEGORY_KEY]),
+    services.map((svc) => [
+      svc.serviceId,
+      svc.categoryId ?? UNCATEGORIZED_CATEGORY_KEY,
+    ]),
   );
-  return [...new Set(serviceIds.map((id) => byId.get(id) ?? UNCATEGORIZED_CATEGORY_KEY))];
+  return [
+    ...new Set(
+      serviceIds.map((id) => byId.get(id) ?? UNCATEGORIZED_CATEGORY_KEY),
+    ),
+  ];
 }
 
 export function findIncompatibleCategoryPairs(
@@ -75,7 +84,9 @@ export function findIncompatibleCategoryPairs(
   incompatibleCategoryPairs: Array<[string, string]>,
 ): Array<[string, string]> {
   const selected = new Set(categoryKeys);
-  return incompatibleCategoryPairs.filter(([a, b]) => selected.has(a) && selected.has(b));
+  return incompatibleCategoryPairs.filter(
+    ([a, b]) => selected.has(a) && selected.has(b),
+  );
 }
 
 export function findIncompatibleForSelection(
@@ -108,7 +119,9 @@ export function calculateMultiServiceTotals(
   const blockDurationMinutes =
     totalDurationMinutes +
     Math.max(0, serviceCount - 1) * Math.max(0, turnoverBufferMinutes);
-  const totalPrice = roundMoney(services.reduce((sum, svc) => sum + Number(svc.price), 0));
+  const totalPrice = roundMoney(
+    services.reduce((sum, svc) => sum + Number(svc.price), 0),
+  );
 
   return {
     serviceCount,
@@ -132,7 +145,9 @@ export function validateMultiServiceSelection(
   }
 
   if (uniqueIds.length > settings.maxServiceCount) {
-    errors.push(`You can book at most ${settings.maxServiceCount} services at once`);
+    errors.push(
+      `You can book at most ${settings.maxServiceCount} services at once`,
+    );
   }
 
   if (uniqueIds.length !== serviceIds.length) {
@@ -146,7 +161,11 @@ export function validateMultiServiceSelection(
   }
 
   const ordered = uniqueIds.map((id) => byId.get(id)!);
-  const incompatible = findIncompatibleForSelection(uniqueIds, ordered, settings);
+  const incompatible = findIncompatibleForSelection(
+    uniqueIds,
+    ordered,
+    settings,
+  );
   if (incompatible.length) {
     errors.push('Some selected services cannot be booked together');
   }
@@ -174,7 +193,12 @@ export function validateMultiServiceSelection(
 }
 
 export function buildSequentialAppointments(
-  services: Array<Pick<MultiServiceLineInput, 'serviceId' | 'durationMinutes' | 'bufferMinutes'>>,
+  services: Array<
+    Pick<
+      MultiServiceLineInput,
+      'serviceId' | 'durationMinutes' | 'bufferMinutes'
+    >
+  >,
   blockStart: Date,
   turnoverBufferMinutes: number,
 ): SequentialAppointment[] {
@@ -184,7 +208,9 @@ export function buildSequentialAppointments(
   for (let i = 0; i < services.length; i++) {
     const svc = services[i];
     const startTime = new Date(cursor);
-    const endTime = new Date(cursor + (svc.durationMinutes + svc.bufferMinutes) * 60_000);
+    const endTime = new Date(
+      cursor + (svc.durationMinutes + svc.bufferMinutes) * 60_000,
+    );
     lines.push({ serviceId: svc.serviceId, startTime, endTime });
     cursor = endTime.getTime();
     if (i < services.length - 1) {
@@ -202,7 +228,9 @@ export function validatePerServiceLines(
   const received = lines.map((line) => line.serviceId).sort();
   const expected = [...expectedServiceIds].sort();
   if (received.length !== expected.length) {
-    throw new Error('Multi-service line count does not match selected services');
+    throw new Error(
+      'Multi-service line count does not match selected services',
+    );
   }
   for (let i = 0; i < expected.length; i++) {
     if (received[i] !== expected[i]) {

@@ -39,9 +39,14 @@ export class PublicCustomerAuthService {
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
   ) {}
 
-  async loginWithGoogle(slug: string, idToken: string): Promise<PublicCustomerAuthResponse> {
+  async loginWithGoogle(
+    slug: string,
+    idToken: string,
+  ): Promise<PublicCustomerAuthResponse> {
     if (!this.firebase.isReady) {
-      throw new BadRequestException('Google sign-in is not configured on the server');
+      throw new BadRequestException(
+        'Google sign-in is not configured on the server',
+      );
     }
 
     let decoded;
@@ -59,7 +64,10 @@ export class PublicCustomerAuthService {
     const business = await this.resolveBusiness(slug);
     const name =
       decoded.name?.trim() ||
-      [decoded.given_name, decoded.family_name].filter(Boolean).join(' ').trim() ||
+      [decoded.given_name, decoded.family_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim() ||
       email.split('@')[0];
 
     let customer = await this.customerRepo
@@ -127,7 +135,10 @@ export class PublicCustomerAuthService {
     return this.toProfile(customer);
   }
 
-  async getCustomerById(businessId: string, customerId: string): Promise<Customer> {
+  async getCustomerById(
+    businessId: string,
+    customerId: string,
+  ): Promise<Customer> {
     const customer = await this.customerRepo.findOne({
       where: { id: customerId, businessId, isActive: true },
     });
@@ -135,7 +146,10 @@ export class PublicCustomerAuthService {
     return customer;
   }
 
-  async listBookings(slug: string, customerId: string): Promise<{ bookings: PublicCustomerBookingItem[] }> {
+  async listBookings(
+    slug: string,
+    customerId: string,
+  ): Promise<{ bookings: PublicCustomerBookingItem[] }> {
     const business = await this.resolveBusiness(slug);
     await this.getCustomerById(business.id, customerId);
 
@@ -165,7 +179,11 @@ export class PublicCustomerAuthService {
 
     return {
       bookings: bookings.map((booking) =>
-        this.publicCustomerBookingService.enrichBookingItem(booking, settings, reviewBookingIds),
+        this.publicCustomerBookingService.enrichBookingItem(
+          booking,
+          settings,
+          reviewBookingIds,
+        ),
       ),
     };
   }

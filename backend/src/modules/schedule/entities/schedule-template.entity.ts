@@ -24,7 +24,7 @@ export enum DayOfWeek {
 
 export interface TimeSlotRange {
   startTime: string; // HH:mm format
-  endTime: string;   // HH:mm format
+  endTime: string; // HH:mm format
 }
 
 export interface BreakSlot {
@@ -72,7 +72,9 @@ export class ScheduleTemplate {
   @OneToMany(() => ScheduleAssignment, (sa) => sa.template)
   assignments: ScheduleAssignment[];
 
-  @OneToMany(() => SchedulingTemplatePeriod, (p) => p.template, { cascade: true })
+  @OneToMany(() => SchedulingTemplatePeriod, (p) => p.template, {
+    cascade: true,
+  })
   periods: SchedulingTemplatePeriod[];
 
   @CreateDateColumn()

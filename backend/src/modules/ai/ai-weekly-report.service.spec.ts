@@ -40,7 +40,9 @@ describe('AiWeeklyReportService', () => {
         { provide: AiIntelligenceService, useValue: intelligence },
       ],
     }).compile();
-    expect(moduleRef.get(AiWeeklyReportService)).toBeInstanceOf(AiWeeklyReportService);
+    expect(moduleRef.get(AiWeeklyReportService)).toBeInstanceOf(
+      AiWeeklyReportService,
+    );
   });
 
   beforeEach(() => {

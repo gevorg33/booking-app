@@ -40,14 +40,17 @@ describe('service-localized-names.util', () => {
 
     it('skips unknown locales when not strict', () => {
       expect(
-        normalizeLocalizedNames({ de: ['Test'], en: ['Color'] }, { strict: false }),
+        normalizeLocalizedNames(
+          { de: ['Test'], en: ['Color'] },
+          { strict: false },
+        ),
       ).toEqual({ en: ['Color'] });
     });
 
     it('rejects non-array locale values', () => {
-      expect(() => normalizeLocalizedNames({ en: 'Haircut' as unknown as string[] })).toThrow(
-        /must be an array/,
-      );
+      expect(() =>
+        normalizeLocalizedNames({ en: 'Haircut' as unknown as string[] }),
+      ).toThrow(/must be an array/);
     });
 
     it('rejects more than three slots in input array', () => {
@@ -57,25 +60,32 @@ describe('service-localized-names.util', () => {
     });
 
     it('rejects non-string entries', () => {
-      expect(() => normalizeLocalizedNames({ en: [1 as unknown as string] })).toThrow(
-        /must be strings/,
-      );
+      expect(() =>
+        normalizeLocalizedNames({ en: [1 as unknown as string] }),
+      ).toThrow(/must be strings/);
     });
 
     it('rejects names longer than max length', () => {
       const long = 'x'.repeat(LOCALIZED_NAME_MAX_LENGTH + 1);
-      expect(() => normalizeLocalizedNames({ en: [long] })).toThrow(/at most 120 characters/);
+      expect(() => normalizeLocalizedNames({ en: [long] })).toThrow(
+        /at most 120 characters/,
+      );
     });
 
     it('ignores null locale values and empty locale arrays', () => {
       expect(
-        normalizeLocalizedNames({ en: null as unknown as string[], hy: undefined }),
+        normalizeLocalizedNames({
+          en: null as unknown as string[],
+          hy: undefined,
+        }),
       ).toEqual({});
     });
 
     it('skips null and undefined name entries in a locale array', () => {
       expect(
-        normalizeLocalizedNames({ en: [null, undefined, 'Trim'] as unknown as string[] }),
+        normalizeLocalizedNames({
+          en: [null, undefined, 'Trim'] as unknown as string[],
+        }),
       ).toEqual({ en: ['Trim'] });
     });
   });
@@ -84,7 +94,9 @@ describe('service-localized-names.util', () => {
     it('returns undefined for missing or invalid metadata', () => {
       expect(extractLocalizedNamesFromMetadata(null)).toBeUndefined();
       expect(extractLocalizedNamesFromMetadata(undefined)).toBeUndefined();
-      expect(extractLocalizedNamesFromMetadata({ localizedNames: 'bad' })).toBeUndefined();
+      expect(
+        extractLocalizedNamesFromMetadata({ localizedNames: 'bad' }),
+      ).toBeUndefined();
     });
 
     it('reads stored names with non-strict normalization', () => {
@@ -112,7 +124,9 @@ describe('service-localized-names.util', () => {
 
     it('stores and reads from metadata', () => {
       const metadata = applyLocalizedNamesToMetadata({}, { en: ['Color'] });
-      expect(extractLocalizedNamesFromMetadata(metadata)).toEqual({ en: ['Color'] });
+      expect(extractLocalizedNamesFromMetadata(metadata)).toEqual({
+        en: ['Color'],
+      });
     });
 
     it('clears metadata key when all names removed', () => {
@@ -128,12 +142,18 @@ describe('service-localized-names.util', () => {
   describe('resolveLocalizedDisplayName', () => {
     it('uses first non-empty localized name for locale', () => {
       expect(
-        resolveLocalizedDisplayName('Primary', { hy: ['Հայերեն'], en: ['English'] }, 'hy'),
+        resolveLocalizedDisplayName(
+          'Primary',
+          { hy: ['Հայերեն'], en: ['English'] },
+          'hy',
+        ),
       ).toBe('Հայերեն');
     });
 
     it('falls back to primary when locale has no names', () => {
-      expect(resolveLocalizedDisplayName('Primary', { en: ['English'] }, 'ru')).toBe('Primary');
+      expect(
+        resolveLocalizedDisplayName('Primary', { en: ['English'] }, 'ru'),
+      ).toBe('Primary');
     });
 
     it('skips whitespace-only localized entries', () => {
@@ -143,14 +163,19 @@ describe('service-localized-names.util', () => {
     });
 
     it('falls back when all localized entries are blank', () => {
-      expect(resolveLocalizedDisplayName('Primary', { en: ['  '] }, 'en')).toBe('Primary');
+      expect(resolveLocalizedDisplayName('Primary', { en: ['  '] }, 'en')).toBe(
+        'Primary',
+      );
     });
   });
 
   describe('collectLocalizedNameAliases', () => {
     it('collects aliases across locales', () => {
       expect(
-        collectLocalizedNameAliases('Primary', { en: ['English'], hy: ['Հայերեն'] }),
+        collectLocalizedNameAliases('Primary', {
+          en: ['English'],
+          hy: ['Հայերեն'],
+        }),
       ).toEqual(expect.arrayContaining(['Primary', 'English', 'Հայերեն']));
     });
 
@@ -164,7 +189,9 @@ describe('service-localized-names.util', () => {
 
     it('handles missing locale arrays in the map', () => {
       expect(
-        collectLocalizedNameAliases('Cut', { en: undefined as unknown as string[] }),
+        collectLocalizedNameAliases('Cut', {
+          en: undefined as unknown as string[],
+        }),
       ).toEqual(['Cut']);
     });
   });

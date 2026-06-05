@@ -5,16 +5,24 @@ export interface BookingAmountSource {
   servicePrice?: number | null;
 }
 
-function readPricing(metadata: Record<string, unknown>): Record<string, unknown> | null {
+function readPricing(
+  metadata: Record<string, unknown>,
+): Record<string, unknown> | null {
   const pricing = metadata.pricing;
-  return pricing && typeof pricing === 'object' ? (pricing as Record<string, unknown>) : null;
+  return pricing && typeof pricing === 'object'
+    ? (pricing as Record<string, unknown>)
+    : null;
 }
 
 /** True when this booking redeemed loyalty bonuses at checkout. */
-export function wasLoyaltyRedeemedOnBooking(metadata?: Record<string, unknown> | null): boolean {
+export function wasLoyaltyRedeemedOnBooking(
+  metadata?: Record<string, unknown> | null,
+): boolean {
   const meta = metadata ?? {};
   const pricing = readPricing(meta);
-  const loyaltyDiscount = Number(pricing?.loyaltyDiscount ?? meta.loyaltyDiscount ?? 0);
+  const loyaltyDiscount = Number(
+    pricing?.loyaltyDiscount ?? meta.loyaltyDiscount ?? 0,
+  );
   const loyaltyRedeemed = Number(
     pricing?.loyaltyPointsRedeemed ??
       pricing?.loyaltyPointsToRedeem ??
@@ -28,7 +36,9 @@ export function wasLoyaltyRedeemedOnBooking(metadata?: Record<string, unknown> |
  * Cash/card (or other eligible) amount that may earn loyalty cashback.
  * Excludes any portion covered by redeemed loyalty bonuses.
  */
-export function resolveEligibleCashPaidForEarn(source: BookingAmountSource): number {
+export function resolveEligibleCashPaidForEarn(
+  source: BookingAmountSource,
+): number {
   const metadata = source.metadata ?? {};
   const pricing = readPricing(metadata);
 

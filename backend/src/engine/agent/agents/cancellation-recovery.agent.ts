@@ -37,7 +37,11 @@ export class CancellationRecoveryAgent implements AgentHandler {
       }
     }
 
-    const llmResult = await this.llm.buildPlan(AgentType.CANCELLATION_RECOVERY, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.CANCELLATION_RECOVERY,
+      intent,
+      context,
+    );
     if (llmResult) {
       return {
         plan: {
@@ -110,7 +114,10 @@ export class CancellationRecoveryAgent implements AgentHandler {
       ],
       riskAssessment: {
         level: 'medium',
-        factors: ['Involves customer communication', 'May modify bookings after approval'],
+        factors: [
+          'Involves customer communication',
+          'May modify bookings after approval',
+        ],
       },
       status: PlanStatus.DRAFT,
       createdAt: new Date(),

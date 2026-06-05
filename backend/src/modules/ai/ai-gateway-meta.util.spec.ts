@@ -1,5 +1,6 @@
 import {
   attachGatewayMeta,
+  buildCustomerEntityMemoryLearnPayload,
   buildEntityMemoryLearnPayload,
   buildProviderEntityMemoryLearnPayload,
   shouldLearnFromCommandResult,
@@ -7,15 +8,37 @@ import {
 
 describe('ai-gateway-meta.util', () => {
   it('shouldLearnFromCommandResult accepts successful known actions only', () => {
-    expect(shouldLearnFromCommandResult({ success: true, action: 'list_bookings', summary: 'ok' })).toBe(
-      true,
-    );
-    expect(shouldLearnFromCommandResult({ success: false, action: 'list_bookings', summary: 'x' })).toBe(
-      false,
-    );
-    expect(shouldLearnFromCommandResult({ success: true, action: 'unknown', summary: 'x' })).toBe(false);
-    expect(shouldLearnFromCommandResult({ success: true, action: 'error', summary: 'x' })).toBe(false);
-    expect(shouldLearnFromCommandResult({ success: true, summary: 'x' } as any)).toBe(false);
+    expect(
+      shouldLearnFromCommandResult({
+        success: true,
+        action: 'list_bookings',
+        summary: 'ok',
+      }),
+    ).toBe(true);
+    expect(
+      shouldLearnFromCommandResult({
+        success: false,
+        action: 'list_bookings',
+        summary: 'x',
+      }),
+    ).toBe(false);
+    expect(
+      shouldLearnFromCommandResult({
+        success: true,
+        action: 'unknown',
+        summary: 'x',
+      }),
+    ).toBe(false);
+    expect(
+      shouldLearnFromCommandResult({
+        success: true,
+        action: 'error',
+        summary: 'x',
+      }),
+    ).toBe(false);
+    expect(
+      shouldLearnFromCommandResult({ success: true, summary: 'x' } as any),
+    ).toBe(false);
   });
 
   it('buildEntityMemoryLearnPayload merges details', () => {
@@ -24,7 +47,11 @@ describe('ai-gateway-meta.util', () => {
         success: true,
         action: 'list_bookings',
         summary: 'ok',
-        details: { employee: 'Gevorg', serviceName: 'Cut', params: { date: 'today' } },
+        details: {
+          employee: 'Gevorg',
+          serviceName: 'Cut',
+          params: { date: 'today' },
+        },
       }),
     ).toEqual({
       date: 'today',
@@ -52,6 +79,42 @@ describe('ai-gateway-meta.util', () => {
     ).toEqual({
       employee: undefined,
       service: undefined,
+    });
+  });
+
+  it('buildCustomerEntityMemoryLearnPayload merges session context', () => {
+    expect(
+      buildCustomerEntityMemoryLearnPayload({
+        success: true,
+        action: 'book_package',
+        summary: 'ok',
+        details: {
+          packageId: 'pkg-1',
+          bookingId: 'bk-1',
+          serviceName: 'Spa',
+          employeeName: 'Maria',
+          sessionContext: { slug: 'salon', promoCode: 'SPRING25' },
+        },
+      }),
+    ).toEqual({
+      slug: 'salon',
+      promoCode: 'SPRING25',
+      service: 'Spa',
+      employee: 'Maria',
+      packageId: 'pkg-1',
+      bookingId: 'bk-1',
+    });
+    expect(
+      buildCustomerEntityMemoryLearnPayload({
+        success: true,
+        action: 'ok',
+        summary: 'ok',
+      }),
+    ).toEqual({
+      service: undefined,
+      employee: undefined,
+      packageId: undefined,
+      bookingId: undefined,
     });
   });
 

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { LocationsService } from './locations.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,7 +22,10 @@ export class LocationsController {
   ) {}
 
   @Get()
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.locationsService.findAll(businessId);
   }
@@ -21,7 +33,14 @@ export class LocationsController {
   @Post()
   async create(
     @Param('businessId') businessId: string,
-    @Body() dto: { name: string; address?: string; phone?: string; timezone?: string; isDefault?: boolean },
+    @Body()
+    dto: {
+      name: string;
+      address?: string;
+      phone?: string;
+      timezone?: string;
+      isDefault?: boolean;
+    },
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
@@ -36,7 +55,7 @@ export class LocationsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.locationsService.update(id, businessId, dto as any);
+    return this.locationsService.update(id, businessId, dto);
   }
 
   @Delete(':id')

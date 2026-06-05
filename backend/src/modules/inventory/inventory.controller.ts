@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
 import { LinkServiceProductDto } from './dto/link-service-product.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -30,7 +39,7 @@ export class InventoryController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.inventoryService.createProduct(businessId, dto as any);
+    return this.inventoryService.createProduct(businessId, dto);
   }
 
   @Post('products/:id/adjust')

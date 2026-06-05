@@ -22,7 +22,12 @@ describe('inferDirectSchedulePeriods', () => {
     );
     expect(periods).toEqual([
       { startTime: '09:00', endTime: '12:00', type: 'service_block' },
-      { startTime: '12:00', endTime: '13:00', type: 'unavailable_block', placeholderLabel: 'Unavailable' },
+      {
+        startTime: '12:00',
+        endTime: '13:00',
+        type: 'unavailable_block',
+        placeholderLabel: 'Unavailable',
+      },
       { startTime: '13:00', endTime: '19:00', type: 'service_block' },
     ]);
   });
@@ -39,7 +44,12 @@ describe('inferDirectSchedulePeriods', () => {
     );
     expect(periods).toEqual([
       { startTime: '09:00', endTime: '12:00', type: 'service_block' },
-      { startTime: '12:00', endTime: '13:00', type: 'unavailable_block', placeholderLabel: 'Unavailable' },
+      {
+        startTime: '12:00',
+        endTime: '13:00',
+        type: 'unavailable_block',
+        placeholderLabel: 'Unavailable',
+      },
       { startTime: '13:00', endTime: '19:00', type: 'service_block' },
     ]);
   });
@@ -47,23 +57,40 @@ describe('inferDirectSchedulePeriods', () => {
   it('splits a single long service block when lunch is requested', () => {
     const periods = inferDirectSchedulePeriods(
       {
-        periods: [{ startTime: '09:00', endTime: '19:00', type: 'service_block' }],
+        periods: [
+          { startTime: '09:00', endTime: '19:00', type: 'service_block' },
+        ],
       },
       'Schedule 9-19, lunch 12-13 unavailable',
     );
     expect(periods).toEqual([
-      { startTime: '09:00', endTime: '12:00', type: 'service_block', placeholderLabel: undefined },
-      { startTime: '12:00', endTime: '13:00', type: 'unavailable_block', placeholderLabel: 'Lunch' },
-      { startTime: '13:00', endTime: '19:00', type: 'service_block', placeholderLabel: undefined },
+      {
+        startTime: '09:00',
+        endTime: '12:00',
+        type: 'service_block',
+        placeholderLabel: undefined,
+      },
+      {
+        startTime: '12:00',
+        endTime: '13:00',
+        type: 'unavailable_block',
+        placeholderLabel: 'Lunch',
+      },
+      {
+        startTime: '13:00',
+        endTime: '19:00',
+        type: 'service_block',
+        placeholderLabel: undefined,
+      },
     ]);
   });
 });
 
 describe('extractUnavailableBlocksFromPrompt', () => {
   it('parses make X-Y unavailable phrasing', () => {
-    expect(extractUnavailableBlocksFromPrompt('make 12-13 unavailable')).toEqual([
-      { from: '12:00', to: '13:00', label: 'Unavailable' },
-    ]);
+    expect(
+      extractUnavailableBlocksFromPrompt('make 12-13 unavailable'),
+    ).toEqual([{ from: '12:00', to: '13:00', label: 'Unavailable' }]);
   });
 });
 
@@ -88,7 +115,11 @@ describe('resolvePublicAvailabilityDateKeys', () => {
   const tz = 'UTC';
 
   it('returns upcoming Monday and Friday keys from weekday names', () => {
-    const dates = resolvePublicAvailabilityDateKeys({}, 'free slots on Monday and Friday for massage', tz);
+    const dates = resolvePublicAvailabilityDateKeys(
+      {},
+      'free slots on Monday and Friday for massage',
+      tz,
+    );
     expect(dates.length).toBeGreaterThan(0);
     for (const dateKey of dates) {
       const day = new Date(`${dateKey}T12:00:00.000Z`).getUTCDay();
@@ -111,25 +142,45 @@ describe('resolvePublicAvailabilityDateKeys', () => {
   });
 
   it('returns a single day for tomorrow', () => {
-    const dates = resolvePublicAvailabilityDateKeys({}, 'available tomorrow', tz);
+    const dates = resolvePublicAvailabilityDateKeys(
+      {},
+      'available tomorrow',
+      tz,
+    );
     expect(dates).toHaveLength(1);
   });
 
   it('uses explicit date param when no weekday filter', () => {
-    const dates = resolvePublicAvailabilityDateKeys({ date: '15_06_2026' }, 'check slots', tz);
+    const dates = resolvePublicAvailabilityDateKeys(
+      { date: '15_06_2026' },
+      'check slots',
+      tz,
+    );
     expect(dates).toEqual(['2026-06-15']);
   });
 
   it('drops past dates from explicit params', () => {
-    const dates = resolvePublicAvailabilityDateKeys({ date: '01_01_2020' }, 'check slots', tz);
+    const dates = resolvePublicAvailabilityDateKeys(
+      { date: '01_01_2020' },
+      'check slots',
+      tz,
+    );
     expect(dates).toEqual([]);
   });
 });
 
 describe('applyAvailabilityDateFromPrompt', () => {
   it('clears stale session date when weekdays are mentioned', () => {
-    const params: Record<string, any> = { date: '29_05_2026', dateFrom: '29_05_2026', dateTo: '29_05_2026' };
-    applyAvailabilityDateFromPrompt(params, 'free slots on Monday for Gevorg', 'UTC');
+    const params: Record<string, any> = {
+      date: '29_05_2026',
+      dateFrom: '29_05_2026',
+      dateTo: '29_05_2026',
+    };
+    applyAvailabilityDateFromPrompt(
+      params,
+      'free slots on Monday for Gevorg',
+      'UTC',
+    );
     expect(params.date).toBeUndefined();
     expect(params.dateFrom).toBeUndefined();
     expect(params.dateTo).toBeUndefined();
@@ -138,7 +189,11 @@ describe('applyAvailabilityDateFromPrompt', () => {
 
 describe('resolveDateRange bare weekday', () => {
   it('resolves upcoming Monday from prompt', () => {
-    const range = resolveDateRange({}, 'free slots on Monday for Gevorg', 'UTC');
+    const range = resolveDateRange(
+      {},
+      'free slots on Monday for Gevorg',
+      'UTC',
+    );
     expect(range).not.toBeNull();
     expect(new Date(`${range!.start}T12:00:00.000Z`).getUTCDay()).toBe(1);
   });
@@ -207,8 +262,18 @@ describe('extractRecommendServicesFromPrompt', () => {
 describe('matchEmployeesInPrompt', () => {
   const employees = [
     { id: '1', name: 'Mary Torgomyan', businessId: 'b', isActive: true } as any,
-    { id: '2', name: 'Jujo Karapetyan', businessId: 'b', isActive: true } as any,
-    { id: '3', name: 'Gevorg Gasparyan', businessId: 'b', isActive: true } as any,
+    {
+      id: '2',
+      name: 'Jujo Karapetyan',
+      businessId: 'b',
+      isActive: true,
+    } as any,
+    {
+      id: '3',
+      name: 'Gevorg Gasparyan',
+      businessId: 'b',
+      isActive: true,
+    } as any,
   ];
 
   it('returns both providers when prompt names them with and', () => {
@@ -228,6 +293,17 @@ describe('resolveDateRange', () => {
     expect(range?.start.endsWith('-07-01')).toBe(true);
     expect(range?.end.endsWith('-07-31')).toBe(true);
   });
+
+  it('resolves all-time to a wide historical window ending today', () => {
+    const range = resolveDateRange(
+      {},
+      'Top specialists by revenue all time',
+      'UTC',
+    );
+    expect(range).not.toBeNull();
+    expect(range!.end).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(range!.start < range!.end).toBe(true);
+  });
 });
 
 describe('resolveDirectSchedulePeriodServiceIds', () => {
@@ -235,14 +311,20 @@ describe('resolveDirectSchedulePeriodServiceIds', () => {
 
   it('uses employee assigned services when period has none', () => {
     expect(
-      resolveDirectSchedulePeriodServiceIds({ type: 'service_block', serviceIds: [] }, assigned),
+      resolveDirectSchedulePeriodServiceIds(
+        { type: 'service_block', serviceIds: [] },
+        assigned,
+      ),
     ).toEqual(assigned);
   });
 
   it('filters catalog-wide ids down to assigned services', () => {
     expect(
       resolveDirectSchedulePeriodServiceIds(
-        { type: 'service_block', serviceIds: ['svc-a', 'svc-b', 'svc-c', 'svc-d'] },
+        {
+          type: 'service_block',
+          serviceIds: ['svc-a', 'svc-b', 'svc-c', 'svc-d'],
+        },
         assigned,
       ),
     ).toEqual(assigned);

@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AiGatewayService } from './ai-gateway.service.js';
 import { AiCommandService } from './ai-command.service.js';
+import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { ProviderAiCommandService } from '../provider-mobile/provider-ai-command.service.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
@@ -9,8 +10,8 @@ import { AiRagService } from './ai-rag.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
-import { AiSprint25Service } from './ai-sprint25.service.js';
-import { createAiGatewaySprint25Mocks } from './ai-gateway.test-mocks.js';
+import { AiPlatformService } from './ai-platform.service.js';
+import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
 import type { CommandResult } from './command-completion.types.js';
 
 describe('AiGatewayService', () => {
@@ -18,7 +19,11 @@ describe('AiGatewayService', () => {
     success: true,
     action: 'list_bookings',
     summary: 'ok',
-    details: { employee: 'Gevorg', serviceName: 'Cut', params: { date: 'today' } },
+    details: {
+      employee: 'Gevorg',
+      serviceName: 'Cut',
+      params: { date: 'today' },
+    },
   };
 
   function createMocks() {
@@ -27,8 +32,21 @@ describe('AiGatewayService', () => {
       approveTask: jest.fn(async () => ({ success: true })),
       retryWorkflowStep: jest.fn(async () => ({ success: true })),
     };
+    const customerCommands = {
+      executeCommand: jest.fn(async () => ({
+        success: true,
+        action: 'list_providers',
+        summary: 'ok',
+        details: {},
+      })),
+    };
     const providerCommands = {
-      executeCommand: jest.fn(async () => ({ success: true, action: 'noop', summary: 'ok', details: {} })),
+      executeCommand: jest.fn(async () => ({
+        success: true,
+        action: 'noop',
+        summary: 'ok',
+        details: {},
+      })),
     };
     const planEntitlements = {
       assertCanRunDashboardAiCommand: jest.fn(async () => undefined),
@@ -42,7 +60,9 @@ describe('AiGatewayService', () => {
     const promptSecurity = { preflightBlock: jest.fn(() => null) };
     const entityMemory = {
       buildMemoryContextBlock: jest.fn(async () => ''),
-      getEntityMemory: jest.fn(async () => ({ aliases: { gevorg: { employeeName: 'Gevorg' } } })),
+      getEntityMemory: jest.fn(async () => ({
+        aliases: { gevorg: { employeeName: 'Gevorg' } },
+      })),
       learnFromCommand: jest.fn(),
     };
     const conversationSummary = {
@@ -54,9 +74,10 @@ describe('AiGatewayService', () => {
     const rag = {
       buildRagContextBlock: jest.fn(async () => 'rag context'),
     };
-    const sprintMocks = createAiGatewaySprint25Mocks();
+    const sprintMocks = createAiGatewayPlatformMocks();
     return {
       dashboardCommands,
+      customerCommands,
       providerCommands,
       planEntitlements,
       promptSecurity,
@@ -70,6 +91,7 @@ describe('AiGatewayService', () => {
   function createService(mocks = createMocks()) {
     const service = new AiGatewayService(
       mocks.dashboardCommands as any,
+      mocks.customerCommands as any,
       mocks.providerCommands as any,
       mocks.entityMemory as any,
       mocks.conversationSummary as any,
@@ -77,7 +99,7 @@ describe('AiGatewayService', () => {
       mocks.promptSecurity as any,
       mocks.planEntitlements as any,
       mocks.aiSettings as any,
-      mocks.sprint25 as any,
+      mocks.platform as any,
     );
     return { service, ...mocks };
   }
@@ -88,14 +110,18 @@ describe('AiGatewayService', () => {
       providers: [
         AiGatewayService,
         { provide: AiCommandService, useValue: mocks.dashboardCommands },
+        { provide: CustomerAiCommandService, useValue: mocks.customerCommands },
         { provide: ProviderAiCommandService, useValue: mocks.providerCommands },
         { provide: AiEntityMemoryService, useValue: mocks.entityMemory },
-        { provide: AiConversationSummaryService, useValue: mocks.conversationSummary },
+        {
+          provide: AiConversationSummaryService,
+          useValue: mocks.conversationSummary,
+        },
         { provide: AiRagService, useValue: mocks.rag },
         { provide: AiPromptSecurityService, useValue: mocks.promptSecurity },
         { provide: PlanEntitlementsService, useValue: mocks.planEntitlements },
         { provide: AiSettingsService, useValue: mocks.aiSettings },
-        { provide: AiSprint25Service, useValue: mocks.sprint25 },
+        { provide: AiPlatformService, useValue: mocks.platform },
       ],
     }).compile();
     expect(moduleRef.get(AiGatewayService)).toBeInstanceOf(AiGatewayService);
@@ -103,7 +129,9 @@ describe('AiGatewayService', () => {
 
   it('getCapabilityHints returns matrix summary', () => {
     const { service } = createService();
-    expect(service.getCapabilityHints('dashboard', 'owner')).toMatch(/Allowed AI actions/);
+    expect(service.getCapabilityHints('dashboard', 'owner')).toMatch(
+      /Allowed AI actions/,
+    );
   });
 
   it('executes dashboard command with enriched context', async () => {
@@ -203,7 +231,9 @@ describe('AiGatewayService', () => {
 
   it('includes non-empty memory and rag blocks in dashboard context', async () => {
     const mocks = createMocks();
-    mocks.entityMemory.buildMemoryContextBlock = jest.fn(async () => 'memory block');
+    mocks.entityMemory.buildMemoryContextBlock = jest.fn(
+      async () => 'memory block',
+    );
     mocks.rag.buildRagContextBlock = jest.fn(async () => 'rag block');
     const { service, dashboardCommands } = createService(mocks);
     await service.execute({
@@ -307,7 +337,29 @@ describe('AiGatewayService', () => {
       membershipRole: 'owner',
     });
     expect(entityMemory.learnFromCommand).not.toHaveBeenCalled();
-    expect((result as CommandResult).details?.executionTimeline).toEqual([{ step: 1 }]);
+    expect((result as CommandResult).details?.executionTimeline).toEqual([
+      { step: 1 },
+    ]);
+  });
+
+  it('routes customer surface with customer history channel', async () => {
+    const { service, customerCommands, conversationSummary } = createService();
+    await service.execute({
+      surface: 'customer',
+      businessId: 'biz-1',
+      prompt: 'Book spa day package and apply promo SAVE10',
+      membershipRole: 'client',
+      context: { slug: 'salon', customerId: 'cust-1' },
+    });
+    expect(
+      conversationSummary.prepareHistoryForClassifier,
+    ).toHaveBeenCalledWith('biz-1', undefined, 'customer');
+    expect(customerCommands.executeCommand).toHaveBeenCalledWith(
+      'biz-1',
+      'Book spa day package and apply promo SAVE10',
+      expect.any(Array),
+      expect.objectContaining({ slug: 'salon', customerId: 'cust-1' }),
+    );
   });
 
   it('routes provider surface with provider_mobile history channel', async () => {
@@ -320,11 +372,9 @@ describe('AiGatewayService', () => {
       membershipRole: 'staff',
       confirmed: true,
     });
-    expect(conversationSummary.prepareHistoryForClassifier).toHaveBeenCalledWith(
-      'biz-1',
-      undefined,
-      'provider_mobile',
-    );
+    expect(
+      conversationSummary.prepareHistoryForClassifier,
+    ).toHaveBeenCalledWith('biz-1', undefined, 'provider_mobile');
     expect(providerCommands.executeCommand).toHaveBeenCalledWith(
       'biz-1',
       'user-1',
@@ -341,10 +391,12 @@ describe('AiGatewayService', () => {
 
   it('omits empty conversation summary from provider context', async () => {
     const mocks = createMocks();
-    mocks.conversationSummary.prepareHistoryForClassifier = jest.fn(async () => ({
-      history: [],
-      summaryBlock: '',
-    }));
+    mocks.conversationSummary.prepareHistoryForClassifier = jest.fn(
+      async () => ({
+        history: [],
+        summaryBlock: '',
+      }),
+    );
     mocks.rag.buildRagContextBlock = jest.fn(async () => '');
     const { service, providerCommands } = createService(mocks);
     await service.execute({
@@ -421,18 +473,22 @@ describe('AiGatewayService', () => {
 
   it('assertIntentAllowed throws for blocked action', () => {
     const { service } = createService();
-    expect(() => service.assertIntentAllowed('dashboard', 'staff', 'optimize_schedule')).toThrow(
-      ForbiddenException,
-    );
-    expect(() => service.assertIntentAllowed('provider', 'staff', 'payment_sweep')).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      service.assertIntentAllowed('dashboard', 'staff', 'optimize_schedule'),
+    ).toThrow(ForbiddenException);
+    expect(() =>
+      service.assertIntentAllowed('provider', 'staff', 'payment_sweep'),
+    ).toThrow(ForbiddenException);
   });
 
   it('assertIntentAllowed passes for permitted action', () => {
     const { service } = createService();
-    expect(() => service.assertIntentAllowed('dashboard', 'owner', 'list_bookings')).not.toThrow();
-    expect(() => service.assertIntentAllowed('provider', 'owner', 'list_bookings')).not.toThrow();
+    expect(() =>
+      service.assertIntentAllowed('dashboard', 'owner', 'list_bookings'),
+    ).not.toThrow();
+    expect(() =>
+      service.assertIntentAllowed('provider', 'owner', 'list_bookings'),
+    ).not.toThrow();
   });
 
   it('learns with details that omit params object', async () => {
@@ -461,16 +517,24 @@ describe('AiGatewayService', () => {
   it('approveTask uses system user when userId omitted', async () => {
     const { service, dashboardCommands } = createService();
     await service.approveTask('biz-1', 'task-1');
-    expect(dashboardCommands.approveTask).toHaveBeenCalledWith('task-1', 'system', 'biz-1');
+    expect(dashboardCommands.approveTask).toHaveBeenCalledWith(
+      'task-1',
+      'system',
+      'biz-1',
+    );
   });
 
   it('approveTask delegates to dashboard and blocks provider', async () => {
     const { service, dashboardCommands } = createService();
     await service.approveTask('biz-1', 'task-1', 'user-1', 'dashboard');
-    expect(dashboardCommands.approveTask).toHaveBeenCalledWith('task-1', 'user-1', 'biz-1');
-    await expect(service.approveTask('biz-1', 'task-1', 'user-1', 'provider')).rejects.toThrow(
-      /dashboard-only/,
+    expect(dashboardCommands.approveTask).toHaveBeenCalledWith(
+      'task-1',
+      'user-1',
+      'biz-1',
     );
+    await expect(
+      service.approveTask('biz-1', 'task-1', 'user-1', 'provider'),
+    ).rejects.toThrow(/dashboard-only/);
   });
 
   it('retryFailedStep uses system user when omitted', async () => {

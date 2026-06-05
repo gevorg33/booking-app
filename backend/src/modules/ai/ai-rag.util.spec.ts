@@ -11,7 +11,8 @@ describe('ai-rag.util', () => {
     {
       id: '1',
       title: 'Holiday closure SOP',
-      content: 'Close all providers on public holidays and notify waitlist customers.',
+      content:
+        'Close all providers on public holidays and notify waitlist customers.',
       type: 'sop' as const,
       enabled: true,
     },
@@ -26,7 +27,9 @@ describe('ai-rag.util', () => {
 
   it('tokenizes and scores documents', () => {
     expect(tokenizeForRag('Holiday waitlist')).toContain('holiday');
-    expect(scoreRagDocument(docs[0], 'holiday waitlist closure')).toBeGreaterThan(0);
+    expect(
+      scoreRagDocument(docs[0], 'holiday waitlist closure'),
+    ).toBeGreaterThan(0);
     expect(scoreRagDocument(docs[1], 'holiday waitlist')).toBe(0);
   });
 
@@ -71,11 +74,17 @@ describe('ai-rag.util', () => {
 
   it('resolveRagContextFromSettings handles all rag settings states', () => {
     expect(resolveRagContextFromSettings({}, 'holiday')).toBe('');
-    expect(resolveRagContextFromSettings({ rag: { enabled: false, documents: [] } }, 'holiday')).toBe(
-      '',
-    );
     expect(
-      resolveRagContextFromSettings({ rag: { enabled: true } }, 'holiday waitlist'),
+      resolveRagContextFromSettings(
+        { rag: { enabled: false, documents: [] } },
+        'holiday',
+      ),
+    ).toBe('');
+    expect(
+      resolveRagContextFromSettings(
+        { rag: { enabled: true } },
+        'holiday waitlist',
+      ),
     ).toBe('');
     expect(
       resolveRagContextFromSettings(

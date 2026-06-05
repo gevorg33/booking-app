@@ -1,5 +1,8 @@
 import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
-import { normalizeTime24, timeToMinutes } from '../../../common/utils/time-format.util.js';
+import {
+  normalizeTime24,
+  timeToMinutes,
+} from '../../../common/utils/time-format.util.js';
 
 export interface TimeInterval {
   startTime: Date;
@@ -54,8 +57,12 @@ export function findScheduleGapsInWindow(
     occupied
       .filter((o) => o.endTime > windowStartDate && o.startTime < windowEndDate)
       .map((o) => ({
-        startTime: new Date(Math.max(o.startTime.getTime(), windowStartDate.getTime())),
-        endTime: new Date(Math.min(o.endTime.getTime(), windowEndDate.getTime())),
+        startTime: new Date(
+          Math.max(o.startTime.getTime(), windowStartDate.getTime()),
+        ),
+        endTime: new Date(
+          Math.min(o.endTime.getTime(), windowEndDate.getTime()),
+        ),
       })),
   );
 
@@ -63,7 +70,10 @@ export function findScheduleGapsInWindow(
   let cursor = windowStartDate;
 
   for (const block of clipped) {
-    if (block.startTime.getTime() - cursor.getTime() >= minGapMinutes * 60_000) {
+    if (
+      block.startTime.getTime() - cursor.getTime() >=
+      minGapMinutes * 60_000
+    ) {
       gaps.push({
         startTime: formatTimeDisplay(cursor),
         endTime: formatTimeDisplay(block.startTime),
@@ -87,7 +97,10 @@ export function findScheduleGapsInWindow(
 /** Parse "between 9-19:00" style ranges from natural language. */
 export function parseTimeWindowFromText(
   text: string,
-  defaults: { timeFrom: string; timeTo: string } = { timeFrom: '09:00', timeTo: '19:00' },
+  defaults: { timeFrom: string; timeTo: string } = {
+    timeFrom: '09:00',
+    timeTo: '19:00',
+  },
 ): { timeFrom: string; timeTo: string } {
   const match = text.match(
     /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,

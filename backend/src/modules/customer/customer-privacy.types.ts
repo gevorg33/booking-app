@@ -31,7 +31,9 @@ export interface CustomerPrivacyExport {
   }>;
 }
 
-export function getCustomerGdpr(metadata?: Record<string, unknown>): CustomerGdprConsent {
+export function getCustomerGdpr(
+  metadata?: Record<string, unknown>,
+): CustomerGdprConsent {
   return (metadata?.gdpr as CustomerGdprConsent) || {};
 }
 

@@ -34,7 +34,9 @@ export class BookingCompletedListener {
       await this.notificationsService.sendReviewRequest(booking.id);
       this.logger.log(`Post-completion hooks ran for booking ${booking.id}`);
     } catch (err) {
-      this.logger.warn(`Post-completion hooks failed for ${booking.id}: ${err}`);
+      this.logger.warn(
+        `Post-completion hooks failed for ${booking.id}: ${err}`,
+      );
     }
   }
 }

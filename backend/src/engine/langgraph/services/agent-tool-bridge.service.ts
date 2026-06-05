@@ -27,7 +27,9 @@ export class AgentToolBridgeService {
       dependsOn: options.dependsOn ?? [],
     };
 
-    this.logger.debug(`LangGraph tool: ${options.action} (step=${options.stepId})`);
+    this.logger.debug(
+      `LangGraph tool: ${options.action} (step=${options.stepId})`,
+    );
 
     const result = await this.workflowExecutor.runStep(step, ctx);
     return {

@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { CommissionRule } from './entities/commission-rule.entity.js';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { parseDateRange } from '../analytics/dto/analytics-query.dto.js';
 import {
   buildPayoutExportRows,
@@ -12,7 +16,8 @@ import {
 @Injectable()
 export class CommissionsService {
   constructor(
-    @InjectRepository(CommissionRule) private ruleRepo: Repository<CommissionRule>,
+    @InjectRepository(CommissionRule)
+    private ruleRepo: Repository<CommissionRule>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
   ) {}
 
@@ -23,7 +28,10 @@ export class CommissionsService {
     });
   }
 
-  async create(businessId: string, dto: Partial<CommissionRule>): Promise<CommissionRule> {
+  async create(
+    businessId: string,
+    dto: Partial<CommissionRule>,
+  ): Promise<CommissionRule> {
     return this.ruleRepo.save(
       this.ruleRepo.create({
         businessId,
@@ -46,7 +54,9 @@ export class CommissionsService {
     locationId?: string,
   ): Promise<{ filename: string; content: string; rowCount: number }> {
     const { start, end } = parseDateRange(from, to);
-    const rules = await this.ruleRepo.find({ where: { businessId, isActive: true } });
+    const rules = await this.ruleRepo.find({
+      where: { businessId, isActive: true },
+    });
 
     const qb = this.bookingRepo
       .createQueryBuilder('b')

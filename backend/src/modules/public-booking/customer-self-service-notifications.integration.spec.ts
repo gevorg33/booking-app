@@ -5,11 +5,17 @@ describe('Customer self-service business notifications integration', () => {
   const bookingRepo = { findOne: jest.fn() };
   const businessRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
-  const notificationLogRepo = { save: jest.fn(), create: jest.fn(), findOne: jest.fn() };
+  const notificationLogRepo = {
+    save: jest.fn(),
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
   const emailService = { send: jest.fn() };
   const smsService = { send: jest.fn() };
   const whatsAppService = { sendTemplate: jest.fn() };
-  const whatsappIntegrationService = { isConfigured: jest.fn().mockReturnValue(false) };
+  const whatsappIntegrationService = {
+    isConfigured: jest.fn().mockReturnValue(false),
+  };
   const configService = { get: jest.fn(() => 'http://localhost:3000') };
 
   const notifications = new NotificationsService(
@@ -56,7 +62,10 @@ describe('Customer self-service business notifications integration', () => {
   });
 
   it('emails business on customer cancellation', async () => {
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'cancelled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'cancelled',
+    );
 
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -68,10 +77,14 @@ describe('Customer self-service business notifications integration', () => {
   });
 
   it('emails business on customer reschedule with old and new times', async () => {
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'rescheduled', {
-      previousStartTime: '2026-05-01T10:00:00.000Z',
-      newStartTime: '2026-05-03T14:00:00.000Z',
-    });
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'rescheduled',
+      {
+        previousStartTime: '2026-05-01T10:00:00.000Z',
+        newStartTime: '2026-05-03T14:00:00.000Z',
+      },
+    );
 
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -82,7 +95,10 @@ describe('Customer self-service business notifications integration', () => {
   });
 
   it('uses current booking time when reschedule details are omitted', async () => {
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'rescheduled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'rescheduled',
+    );
 
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -105,7 +121,10 @@ describe('Customer self-service business notifications integration', () => {
       },
     });
 
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'cancelled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'cancelled',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
@@ -123,7 +142,10 @@ describe('Customer self-service business notifications integration', () => {
         },
       },
     });
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'cancelled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'cancelled',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
 
     bookingRepo.findOne.mockResolvedValue({
@@ -139,13 +161,19 @@ describe('Customer self-service business notifications integration', () => {
         },
       },
     });
-    await notifications.sendBusinessCustomerBookingChange('book-1', 'cancelled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'book-1',
+      'cancelled',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
   it('no-ops when booking context is missing', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
-    await notifications.sendBusinessCustomerBookingChange('missing', 'cancelled');
+    await notifications.sendBusinessCustomerBookingChange(
+      'missing',
+      'cancelled',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 });

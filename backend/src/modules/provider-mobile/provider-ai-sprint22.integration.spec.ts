@@ -52,12 +52,17 @@ describe('Sprint 22 provider AI intelligence integration', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn(async () => [{ id: 'cust-john', name: 'John Smith', tags: ['waitlist'] }]),
+        getMany: jest.fn(async () => [
+          { id: 'cust-john', name: 'John Smith', tags: ['waitlist'] },
+        ]),
       })),
     };
     bookingService = { cancel: jest.fn(async () => undefined) };
     planBuilder = {
-      buildFillSlotFromWaitlistPlan: jest.fn(() => ({ steps: [], reasoning: 'fill' })),
+      buildFillSlotFromWaitlistPlan: jest.fn(() => ({
+        steps: [],
+        reasoning: 'fill',
+      })),
     };
     orchestration = {
       executePlan: jest.fn(async () => ({
@@ -93,6 +98,15 @@ describe('Sprint 22 provider AI intelligence integration', () => {
         stripParams: jest.fn((params) => params),
         applyStaffScope: jest.fn((_tier, _action, params) => params),
       } as any,
+      {
+        isPushNotificationsCompound: jest.fn(() => false),
+        handlePushNotificationsCompound: jest.fn(),
+      } as any,
+      {
+        isProviderBookingCompound: jest.fn(() => false),
+        handleProviderBookingCompound: jest.fn(),
+        rescueProviderBookingIntent: jest.fn(() => null),
+      } as any,
     );
   });
 
@@ -107,7 +121,9 @@ describe('Sprint 22 provider AI intelligence integration', () => {
   it('applies entity memory aliases from gateway context into params', async () => {
     mockIntent('list_bookings', {});
     bookingRepo.find.mockResolvedValue([]);
-    completionPipeline.buildProviderSessionContext.mockImplementation((params) => params);
+    completionPipeline.buildProviderSessionContext.mockImplementation(
+      (params) => params,
+    );
 
     await service.executeCommand(
       businessId,
@@ -204,7 +220,11 @@ describe('Sprint 22 provider AI intelligence integration', () => {
       { confirmed: true },
     );
 
-    expect(bookingService.cancel).toHaveBeenCalledWith('b-maria', expect.any(String), userId);
+    expect(bookingService.cancel).toHaveBeenCalledWith(
+      'b-maria',
+      expect.any(String),
+      userId,
+    );
     expect(planBuilder.buildFillSlotFromWaitlistPlan).toHaveBeenCalled();
     expect(orchestration.executePlan).toHaveBeenCalled();
     expect(result.success).toBe(true);
@@ -312,7 +332,9 @@ describe('Sprint 22 provider AI intelligence integration', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      getMany: jest.fn(async () => [{ id: 'cust-sam', name: 'Sam Waitlist', tags: ['waitlist'] }]),
+      getMany: jest.fn(async () => [
+        { id: 'cust-sam', name: 'Sam Waitlist', tags: ['waitlist'] },
+      ]),
     });
     mockIntent('coordinate_waitlist_offer', {
       employeeName: 'Maria',
@@ -326,7 +348,9 @@ describe('Sprint 22 provider AI intelligence integration', () => {
     );
 
     expect(result.success).toBe(false);
-    expect(result.summary).toContain('No waitlist customer found matching "John"');
+    expect(result.summary).toContain(
+      'No waitlist customer found matching "John"',
+    );
   });
 
   it('reports no upcoming appointments to coordinate', async () => {
@@ -344,7 +368,9 @@ describe('Sprint 22 provider AI intelligence integration', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(result.summary).toContain('No upcoming appointments found for Maria Lopez');
+    expect(result.summary).toContain(
+      'No upcoming appointments found for Maria Lopez',
+    );
   });
 
   it('requires confirmation when multiple appointments match', async () => {

@@ -17,20 +17,32 @@ export interface IntelligenceBlocks {
   capabilityHints?: string;
 }
 
-export function extractIntelligenceBlocks(context?: Record<string, unknown>): IntelligenceBlocks {
+export function extractIntelligenceBlocks(
+  context?: Record<string, unknown>,
+): IntelligenceBlocks {
   return {
     entityMemoryBlock:
-      typeof context?._entityMemoryBlock === 'string' ? context._entityMemoryBlock : undefined,
+      typeof context?._entityMemoryBlock === 'string'
+        ? context._entityMemoryBlock
+        : undefined,
     conversationSummary:
-      typeof context?._conversationSummary === 'string' ? context._conversationSummary : undefined,
+      typeof context?._conversationSummary === 'string'
+        ? context._conversationSummary
+        : undefined,
     ragContextBlock:
-      typeof context?._ragContextBlock === 'string' ? context._ragContextBlock : undefined,
+      typeof context?._ragContextBlock === 'string'
+        ? context._ragContextBlock
+        : undefined,
     capabilityHints:
-      typeof context?._capabilityHints === 'string' ? context._capabilityHints : undefined,
+      typeof context?._capabilityHints === 'string'
+        ? context._capabilityHints
+        : undefined,
   };
 }
 
-export function buildIntelligenceClassifierAppendix(blocks: IntelligenceBlocks): string {
+export function buildIntelligenceClassifierAppendix(
+  blocks: IntelligenceBlocks,
+): string {
   const parts: string[] = [];
   if (blocks.capabilityHints) parts.push(blocks.capabilityHints);
   if (blocks.entityMemoryBlock) parts.push(blocks.entityMemoryBlock);

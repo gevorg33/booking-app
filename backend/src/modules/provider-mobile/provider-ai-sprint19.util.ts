@@ -55,8 +55,12 @@ export function resolveStatusFilter(params: Record<string, unknown>): string {
   return String(params.statusFilter ?? params.status ?? '').toLowerCase();
 }
 
-export function sortBookingsByStartTime<T extends ProviderListBooking>(bookings: T[]): T[] {
-  return [...bookings].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+export function sortBookingsByStartTime<T extends ProviderListBooking>(
+  bookings: T[],
+): T[] {
+  return [...bookings].sort(
+    (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+  );
 }
 
 export function filterBookingsForProviderList<T extends ProviderListBooking>(
@@ -85,7 +89,9 @@ export function filterBookingsForProviderList<T extends ProviderListBooking>(
   return bookings;
 }
 
-export function buildProviderBookingsListResult<T extends ProviderListBooking>(options: {
+export function buildProviderBookingsListResult<
+  T extends ProviderListBooking,
+>(options: {
   bookings: T[];
   params: Record<string, unknown>;
   statusFilter: string;
@@ -93,7 +99,8 @@ export function buildProviderBookingsListResult<T extends ProviderListBooking>(o
   emptySummary: string;
   formatLabel: (booking: T) => string;
 }): ProviderBookingsListResult {
-  const { bookings, params, statusFilter, action, emptySummary, formatLabel } = options;
+  const { bookings, params, statusFilter, action, emptySummary, formatLabel } =
+    options;
 
   if (bookings.length === 0) {
     return {
@@ -108,7 +115,9 @@ export function buildProviderBookingsListResult<T extends ProviderListBooking>(o
     const svc = b.service?.name ? ` · ${b.service.name}` : '';
     return `• ${formatLabel(b)}${svc} — ${b.status}`;
   });
-  const dateLabel = params.date ? formatDateDisplay(String(params.date)) : 'the selected day';
+  const dateLabel = params.date
+    ? formatDateDisplay(String(params.date))
+    : 'the selected day';
   const headline =
     statusFilter === 'upcoming' && bookings[0]
       ? `Next up: ${formatLabel(bookings[0])}${bookings[0].service?.name ? ` (${bookings[0].service.name})` : ''}`
@@ -133,12 +142,16 @@ export function buildNoLinkedEmployeeAvailabilityResult(): CheckAvailabilityResu
   return {
     success: false,
     action: 'check_availability',
-    summary: 'Open a provider profile linked to your account to check your own availability.',
+    summary:
+      'Open a provider profile linked to your account to check your own availability.',
     details: {},
   };
 }
 
-export function resolveAvailabilityDayBounds(isoDay: string): { day: Date; dayEnd: Date } {
+export function resolveAvailabilityDayBounds(isoDay: string): {
+  day: Date;
+  dayEnd: Date;
+} {
   const day = new Date(isoDay);
   day.setUTCHours(0, 0, 0, 0);
   const dayEnd = new Date(day);
@@ -146,12 +159,16 @@ export function resolveAvailabilityDayBounds(isoDay: string): { day: Date; dayEn
   return { day, dayEnd };
 }
 
-export function resolveAvailabilityTimeWindow(params: Record<string, unknown>): {
+export function resolveAvailabilityTimeWindow(
+  params: Record<string, unknown>,
+): {
   timeFrom: string;
   timeTo: string;
 } {
   return {
-    timeFrom: params.timeFrom ? normalizeTime24(String(params.timeFrom)) : '09:00',
+    timeFrom: params.timeFrom
+      ? normalizeTime24(String(params.timeFrom))
+      : '09:00',
     timeTo: params.timeTo ? normalizeTime24(String(params.timeTo)) : '19:00',
   };
 }
@@ -210,7 +227,10 @@ export function buildGapsAvailabilityResult(options: {
   };
 }
 
-export function shouldUseAfternoonAvailability(prompt: string, params: Record<string, unknown>): boolean {
+export function shouldUseAfternoonAvailability(
+  prompt: string,
+  params: Record<string, unknown>,
+): boolean {
   return /afternoon/i.test(prompt) && !params.timeFrom;
 }
 
@@ -243,7 +263,9 @@ export function defaultUtilizationWeekRange(): { start: string; end: string } {
   };
 }
 
-export function utilizationScopeLabel(scopedEmployeeId?: string | null): string {
+export function utilizationScopeLabel(
+  scopedEmployeeId?: string | null,
+): string {
   return scopedEmployeeId ? 'Your utilization' : 'Team utilization';
 }
 
@@ -279,7 +301,10 @@ export function buildUtilizationSummaryResult(options: {
   return {
     success: true,
     action: 'summarize_utilization',
-    summary: [`${scopeLabel} ${options.range.start} → ${options.range.end}:`, ...lines].join('\n'),
+    summary: [
+      `${scopeLabel} ${options.range.start} → ${options.range.end}:`,
+      ...lines,
+    ].join('\n'),
     details: { range: options.range, utilization: sorted },
   };
 }

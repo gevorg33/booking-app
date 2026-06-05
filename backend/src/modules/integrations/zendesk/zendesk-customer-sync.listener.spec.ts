@@ -16,21 +16,33 @@ describe('ZendeskCustomerSyncListener', () => {
 
   it('syncs customer on customer.upserted event', async () => {
     zendesk.syncCustomerIfEnabled.mockResolvedValue({ userId: 1 });
-    await listener.handleCustomerUpsert({ businessId: 'biz-1', customerId: 'cust-1' });
-    expect(zendesk.syncCustomerIfEnabled).toHaveBeenCalledWith('biz-1', 'cust-1');
+    await listener.handleCustomerUpsert({
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+    });
+    expect(zendesk.syncCustomerIfEnabled).toHaveBeenCalledWith(
+      'biz-1',
+      'cust-1',
+    );
   });
 
   it('swallows sync errors without rethrowing', async () => {
     zendesk.syncCustomerIfEnabled.mockRejectedValue(new Error('Zendesk down'));
     await expect(
-      listener.handleCustomerUpsert({ businessId: 'biz-1', customerId: 'cust-1' }),
+      listener.handleCustomerUpsert({
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+      }),
     ).resolves.toBeUndefined();
   });
 
   it('swallows sync errors without message property', async () => {
     zendesk.syncCustomerIfEnabled.mockRejectedValue({});
     await expect(
-      listener.handleCustomerUpsert({ businessId: 'biz-1', customerId: 'cust-1' }),
+      listener.handleCustomerUpsert({
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+      }),
     ).resolves.toBeUndefined();
   });
 });

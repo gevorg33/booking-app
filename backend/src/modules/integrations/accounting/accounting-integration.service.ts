@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Business } from '../../business/entities/business.entity.js';
-import { Booking, BookingStatus, PaymentStatus } from '../../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../../booking/entities/booking.entity.js';
 import { Expense } from '../../expenses/entities/expense.entity.js';
 import { CommissionRule } from '../../commissions/entities/commission-rule.entity.js';
 import { CustomerSubscription } from '../../service-subscriptions/entities/subscription.entity.js';
@@ -39,8 +47,10 @@ export class AccountingIntegrationService {
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(Expense) expenseRepo: Repository<Expense>,
-    @InjectRepository(CommissionRule) commissionRepo: Repository<CommissionRule>,
-    @InjectRepository(CustomerSubscription) customerSubscriptionRepo: Repository<CustomerSubscription>,
+    @InjectRepository(CommissionRule)
+    commissionRepo: Repository<CommissionRule>,
+    @InjectRepository(CustomerSubscription)
+    customerSubscriptionRepo: Repository<CustomerSubscription>,
     exportService: AccountingExportService,
   ) {
     this.businessRepo = businessRepo;
@@ -51,8 +61,12 @@ export class AccountingIntegrationService {
     this.exportService = exportService;
   }
 
-  async getPublicSettings(businessId: string): Promise<AccountingIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<AccountingIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const acct = getBusinessAccountingIntegration(business.settings);
@@ -70,11 +84,15 @@ export class AccountingIntegrationService {
     businessId: string,
     dto: UpdateAccountingIntegrationDto,
   ): Promise<AccountingIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown> || {}) };
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
     const current = getBusinessAccountingIntegration(settings);
 
     const next: BusinessAccountingIntegration = { ...current };
@@ -83,9 +101,12 @@ export class AccountingIntegrationService {
     if (dto.incomeAccountName !== undefined) {
       next.incomeAccountName = dto.incomeAccountName.trim() || undefined;
     }
-    if (dto.accountCode !== undefined) next.accountCode = dto.accountCode.trim() || undefined;
-    if (dto.includeCommissions !== undefined) next.includeCommissions = dto.includeCommissions;
-    if (dto.includeExpenses !== undefined) next.includeExpenses = dto.includeExpenses;
+    if (dto.accountCode !== undefined)
+      next.accountCode = dto.accountCode.trim() || undefined;
+    if (dto.includeCommissions !== undefined)
+      next.includeCommissions = dto.includeCommissions;
+    if (dto.includeExpenses !== undefined)
+      next.includeExpenses = dto.includeExpenses;
 
     integrations.accounting = next;
     settings.integrations = integrations;
@@ -100,12 +121,16 @@ export class AccountingIntegrationService {
     from?: string,
     to?: string,
   ): Promise<AccountingExportResult> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const acct = getBusinessAccountingIntegration(business.settings);
     if (!acct.enabled) {
-      throw new BadRequestException('Accounting integration is not enabled for this business');
+      throw new BadRequestException(
+        'Accounting integration is not enabled for this business',
+      );
     }
     const provider = acct.provider || 'csv';
     const { start, end } = parseDateRange(from, to);
@@ -128,7 +153,7 @@ export class AccountingIntegrationService {
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(start, end) as any,
+        startTime: Between(start, end),
         status: BookingStatus.COMPLETED,
         paymentStatus: PaymentStatus.PAID,
       },
@@ -154,7 +179,7 @@ export class AccountingIntegrationService {
     const subscriptions = await this.customerSubscriptionRepo.find({
       where: {
         businessId,
-        createdAt: Between(start, end) as any,
+        createdAt: Between(start, end),
       },
       relations: { plan: true, customer: true },
       order: { createdAt: 'ASC' },
@@ -175,7 +200,10 @@ export class AccountingIntegrationService {
       });
     }
 
-    rows.sort((a, b) => a.date.localeCompare(b.date) || a.reference.localeCompare(b.reference));
+    rows.sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) || a.reference.localeCompare(b.reference),
+    );
 
     if (acct.includeExpenses !== false) {
       const expenses = await this.expenseRepo
@@ -200,7 +228,11 @@ export class AccountingIntegrationService {
     }
 
     if (acct.includeCommissions !== false) {
-      const commissionTotal = await this.computeCommissions(businessId, start, end);
+      const commissionTotal = await this.computeCommissions(
+        businessId,
+        start,
+        end,
+      );
       if (commissionTotal > 0) {
         rows.push({
           date: end.toISOString().slice(0, 10),
@@ -216,14 +248,20 @@ export class AccountingIntegrationService {
     return rows;
   }
 
-  private async computeCommissions(businessId: string, start: Date, end: Date): Promise<number> {
-    const rules = await this.commissionRepo.find({ where: { businessId, isActive: true } });
+  private async computeCommissions(
+    businessId: string,
+    start: Date,
+    end: Date,
+  ): Promise<number> {
+    const rules = await this.commissionRepo.find({
+      where: { businessId, isActive: true },
+    });
     if (rules.length === 0) return 0;
 
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(start, end) as any,
+        startTime: Between(start, end),
         status: BookingStatus.COMPLETED,
         paymentStatus: PaymentStatus.PAID,
       },
@@ -235,12 +273,17 @@ export class AccountingIntegrationService {
       if (!b.service) continue;
       const price = Number(b.service.price);
       const rule =
-        rules.find((r) => r.employeeId === b.employeeId && r.serviceId === b.serviceId) ??
+        rules.find(
+          (r) => r.employeeId === b.employeeId && r.serviceId === b.serviceId,
+        ) ??
         rules.find((r) => r.employeeId === b.employeeId && !r.serviceId) ??
         rules.find((r) => !r.employeeId && r.serviceId === b.serviceId) ??
         rules.find((r) => !r.employeeId && !r.serviceId);
       if (!rule) continue;
-      total += rule.type === 'percent' ? (price * Number(rule.value)) / 100 : Number(rule.value);
+      total +=
+        rule.type === 'percent'
+          ? (price * Number(rule.value)) / 100
+          : Number(rule.value);
     }
     return Math.round(total * 100) / 100;
   }

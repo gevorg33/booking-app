@@ -1,4 +1,10 @@
-export const CUSTOMER_TAGS = ['vip', 'regular', 'persona', 'corporate', 'referral'] as const;
+export const CUSTOMER_TAGS = [
+  'vip',
+  'regular',
+  'persona',
+  'corporate',
+  'referral',
+] as const;
 
 export type CustomerTag = (typeof CUSTOMER_TAGS)[number];
 

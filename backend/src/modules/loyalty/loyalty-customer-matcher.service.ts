@@ -111,7 +111,7 @@ export class LoyaltyCustomerMatcherService {
       return ambiguous;
     }
 
-    const customerId = [...union][0]!;
+    const customerId = [...union][0];
     let method: LoyaltyCustomerMatchMethod = 'email';
     if (emailMatches.has(customerId) && phoneMatches.has(customerId)) {
       method = 'email_and_phone';
@@ -119,7 +119,13 @@ export class LoyaltyCustomerMatcherService {
       method = 'phone';
     }
 
-    return { status: 'matched', customerId, method, emails: contacts.emails, phones: contacts.phones };
+    return {
+      status: 'matched',
+      customerId,
+      method,
+      emails: contacts.emails,
+      phones: contacts.phones,
+    };
   }
 
   /** When email and phone match different records, only accept if they collapse to one id. */
@@ -134,12 +140,16 @@ export class LoyaltyCustomerMatcherService {
       const [emailId] = [...emailMatches];
       const [phoneId] = [...phoneMatches];
       if (emailId === phoneId) {
-        return { status: 'matched', customerId: emailId, method: 'email_and_phone' };
+        return {
+          status: 'matched',
+          customerId: emailId,
+          method: 'email_and_phone',
+        };
       }
       return {
         status: 'ambiguous',
         reason: 'email_and_phone_different_customers',
-        candidateCustomerIds: [emailId!, phoneId!],
+        candidateCustomerIds: [emailId, phoneId],
       };
     }
 

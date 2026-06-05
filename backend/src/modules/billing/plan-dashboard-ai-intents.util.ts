@@ -39,14 +39,20 @@ export function isDashboardAiIntentAllowedByPlan(
   planTierId: PlanTierId,
   action: string,
 ): boolean {
-  if (action === 'unknown' || action === 'error' || action === 'security_blocked') {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  ) {
     return true;
   }
   if (planTierId !== 'solo') return true;
   return !SOLO_DENIED_DASHBOARD_AI_INTENTS.has(action);
 }
 
-export function getPlanDeniedDashboardIntents(planTierId: PlanTierId): string[] {
+export function getPlanDeniedDashboardIntents(
+  planTierId: PlanTierId,
+): string[] {
   if (planTierId !== 'solo') return [];
   return [...SOLO_DENIED_DASHBOARD_AI_INTENTS].sort();
 }

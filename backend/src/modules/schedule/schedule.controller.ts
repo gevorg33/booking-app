@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { ScheduleService } from './schedule.service.js';
 import { TemplateApplyService } from './services/template-apply.service.js';
 import { BlockScheduleService } from './services/block-schedule.service.js';
@@ -12,7 +22,10 @@ import {
   GetTemplatesQueryDto,
   CreateDirectScheduleDto,
 } from './dto/create-schedule.dto.js';
-import { CreateBlockScheduleDto, UpdateBlockScheduleDto } from './dto/block-schedule.dto.js';
+import {
+  CreateBlockScheduleDto,
+  UpdateBlockScheduleDto,
+} from './dto/block-schedule.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -60,7 +73,12 @@ export class ScheduleController {
     @Body() dto: UpdateScheduleTemplateDto,
     @CurrentUser() user: any,
   ) {
-    return this.scheduleService.updateTemplate(businessId, templateId, dto, user?.id);
+    return this.scheduleService.updateTemplate(
+      businessId,
+      templateId,
+      dto,
+      user?.id,
+    );
   }
 
   @Post('templates/:templateId/duplicate')
@@ -70,7 +88,11 @@ export class ScheduleController {
     @Param('templateId') templateId: string,
     @CurrentUser() user: any,
   ) {
-    return this.scheduleService.duplicateTemplate(businessId, templateId, user?.id);
+    return this.scheduleService.duplicateTemplate(
+      businessId,
+      templateId,
+      user?.id,
+    );
   }
 
   @Delete('templates')
@@ -120,7 +142,10 @@ export class ScheduleController {
 
   @Get('block-schedules/:id')
   @UseGuards(JwtAuthGuard)
-  getBlockSchedule(@Param('businessId') businessId: string, @Param('id') id: string) {
+  getBlockSchedule(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+  ) {
     return this.blockScheduleService.getOne(businessId, id);
   }
 
@@ -164,7 +189,12 @@ export class ScheduleController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.scheduleService.getProviderCalendar(businessId, employeeId, startDate, endDate);
+    return this.scheduleService.getProviderCalendar(
+      businessId,
+      employeeId,
+      startDate,
+      endDate,
+    );
   }
 
   // ─── Slot Availability ────────────────────────────────────

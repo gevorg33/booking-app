@@ -8,8 +8,18 @@ import {
 
 describe('ai-wizard.util', () => {
   const diff = [
-    { id: '1', action: 'apply_template', description: 'Apply template', impact: 'Team' },
-    { id: '2', action: 'fill_schedule_gaps', description: 'Fill gaps', impact: 'Slots' },
+    {
+      id: '1',
+      action: 'apply_template',
+      description: 'Apply template',
+      impact: 'Team',
+    },
+    {
+      id: '2',
+      action: 'fill_schedule_gaps',
+      description: 'Fill gaps',
+      impact: 'Slots',
+    },
   ];
 
   it('enables wizard for setup_week_schedule with 2+ steps', () => {

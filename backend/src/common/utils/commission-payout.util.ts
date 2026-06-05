@@ -27,7 +27,9 @@ export function pickCommissionRule(
   serviceId: string,
 ): CommissionRule | undefined {
   return (
-    rules.find((r) => r.employeeId === employeeId && r.serviceId === serviceId) ??
+    rules.find(
+      (r) => r.employeeId === employeeId && r.serviceId === serviceId,
+    ) ??
     rules.find((r) => r.employeeId === employeeId && !r.serviceId) ??
     rules.find((r) => !r.employeeId && r.serviceId === serviceId) ??
     rules.find((r) => !r.employeeId && !r.serviceId)
@@ -53,7 +55,11 @@ export function buildPayoutExportRows(
   for (const booking of bookings) {
     if (!booking.service) continue;
 
-    const rule = pickCommissionRule(rules, booking.employeeId, booking.serviceId);
+    const rule = pickCommissionRule(
+      rules,
+      booking.employeeId,
+      booking.serviceId,
+    );
     if (!rule) continue;
 
     const bookingAmount = Number(booking.service.price);

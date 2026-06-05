@@ -26,14 +26,22 @@ export class ConflictResolutionAgent implements AgentHandler {
     if (this.router.useLangGraph(AgentType.CONFLICT_RESOLUTION)) {
       try {
         const result = await this.conflictGraph.run(context, intent);
-        this.logger.log(`LangGraph conflict resolution: mode=${result.executionMode}`);
+        this.logger.log(
+          `LangGraph conflict resolution: mode=${result.executionMode}`,
+        );
         return result;
       } catch (err: any) {
-        this.logger.warn(`LangGraph conflict resolution failed, falling back: ${err?.message ?? err}`);
+        this.logger.warn(
+          `LangGraph conflict resolution failed, falling back: ${err?.message ?? err}`,
+        );
       }
     }
 
-    const llmResult = await this.llm.buildPlan(AgentType.CONFLICT_RESOLUTION, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.CONFLICT_RESOLUTION,
+      intent,
+      context,
+    );
     if (llmResult) {
       return {
         plan: {
@@ -81,10 +89,15 @@ export class ConflictResolutionAgent implements AgentHandler {
         {
           id: analyzeId,
           action: 'analyze_resolution_options',
-          description: 'Evaluate possible resolution strategies for each conflict',
+          description:
+            'Evaluate possible resolution strategies for each conflict',
           params: {
             businessId: context.businessId,
-            strategies: ['reschedule', 'reassign_employee', 'cancel_lower_priority'],
+            strategies: [
+              'reschedule',
+              'reassign_employee',
+              'cancel_lower_priority',
+            ],
           },
           dependsOn: [detectId],
           estimatedImpact: 'Read-only analysis',
@@ -108,7 +121,10 @@ export class ConflictResolutionAgent implements AgentHandler {
       ],
       riskAssessment: {
         level: 'medium',
-        factors: ['May require booking modifications', 'Customer impact possible'],
+        factors: [
+          'May require booking modifications',
+          'Customer impact possible',
+        ],
       },
       status: PlanStatus.DRAFT,
       createdAt: new Date(),

@@ -7,7 +7,9 @@ import {
 
 describe('multi-service-settings.util', () => {
   it('returns defaults when settings are missing', () => {
-    expect(resolveMultiServiceSettings(null)).toEqual(DEFAULT_MULTI_SERVICE_SETTINGS);
+    expect(resolveMultiServiceSettings(null)).toEqual(
+      DEFAULT_MULTI_SERVICE_SETTINGS,
+    );
   });
 
   it('reads nested publicBooking.multiService settings', () => {
@@ -61,16 +63,23 @@ describe('multi-service-settings.util', () => {
         },
       },
     });
-    expect(settings.maxServiceCount).toBe(DEFAULT_MULTI_SERVICE_SETTINGS.maxServiceCount);
-    expect(settings.turnoverBufferMinutes).toBe(DEFAULT_MULTI_SERVICE_SETTINGS.turnoverBufferMinutes);
+    expect(settings.maxServiceCount).toBe(
+      DEFAULT_MULTI_SERVICE_SETTINGS.maxServiceCount,
+    );
+    expect(settings.turnoverBufferMinutes).toBe(
+      DEFAULT_MULTI_SERVICE_SETTINGS.turnoverBufferMinutes,
+    );
     expect(settings.incompatiblePairs).toEqual([['x', 'y']]);
   });
 
   it('merges patches and applies to business settings', () => {
-    const merged = mergeMultiServiceSettingsPatch(DEFAULT_MULTI_SERVICE_SETTINGS, {
-      enabled: true,
-      maxServiceCount: 4,
-    });
+    const merged = mergeMultiServiceSettingsPatch(
+      DEFAULT_MULTI_SERVICE_SETTINGS,
+      {
+        enabled: true,
+        maxServiceCount: 4,
+      },
+    );
     expect(merged.enabled).toBe(true);
     expect(merged.maxServiceCount).toBe(4);
 

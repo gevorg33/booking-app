@@ -55,11 +55,18 @@ export class StripeIntegrationService {
     },
   ) {
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown>) || {} };
-    const current = { ...((integrations.stripe as Record<string, unknown>) || {}) };
-    if (patch.connectAccountId !== undefined) current.connectAccountId = patch.connectAccountId;
-    if (patch.connectCountry !== undefined) current.connectCountry = patch.connectCountry;
-    if (patch.connectMode !== undefined) current.connectMode = patch.connectMode;
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
+    const current = {
+      ...((integrations.stripe as Record<string, unknown>) || {}),
+    };
+    if (patch.connectAccountId !== undefined)
+      current.connectAccountId = patch.connectAccountId;
+    if (patch.connectCountry !== undefined)
+      current.connectCountry = patch.connectCountry;
+    if (patch.connectMode !== undefined)
+      current.connectMode = patch.connectMode;
     if (patch.connectChargeModel !== undefined) {
       current.connectChargeModel = patch.connectChargeModel;
     }
@@ -80,10 +87,15 @@ export class StripeIntegrationService {
     if (override && /^[A-Za-z]{2}$/.test(override.trim())) {
       return override.trim().toUpperCase();
     }
-    return resolveStripeConnectCountry(business, this.stripeService.connectDefaultCountry);
+    return resolveStripeConnectCountry(
+      business,
+      this.stripeService.connectDefaultCountry,
+    );
   }
 
-  private connectAccountCapabilities(settings?: Record<string, unknown>):
+  private connectAccountCapabilities(
+    settings?: Record<string, unknown>,
+  ):
     | { transfers: { requested: true } }
     | { card_payments: { requested: true }; transfers: { requested: true } } {
     if (this.stripeService.usesDestinationCharges(settings)) {
@@ -109,9 +121,14 @@ export class StripeIntegrationService {
   }
 
   /** Preferred onboarding: OAuth when configured (tenant's own Stripe account, any supported country). */
-  async startConnect(businessId: string, dto: StartStripeConnectDto = {}): Promise<{ url: string }> {
+  async startConnect(
+    businessId: string,
+    dto: StartStripeConnectDto = {},
+  ): Promise<{ url: string }> {
     await this.planEntitlements.assertFeature(businessId, 'stripeConnect');
-    const mode = dto.mode ?? (this.stripeService.isOAuthConfigured() ? 'oauth' : 'express');
+    const mode =
+      dto.mode ??
+      (this.stripeService.isOAuthConfigured() ? 'oauth' : 'express');
     if (mode === 'oauth') {
       return this.createConnectOAuthLink(businessId);
     }
@@ -127,7 +144,9 @@ export class StripeIntegrationService {
       );
     }
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const redirectUri = this.stripeService.connectOAuthRedirectUri;
@@ -139,10 +158,15 @@ export class StripeIntegrationService {
       state: businessId,
     });
 
-    return { url: `https://connect.stripe.com/oauth/authorize?${params.toString()}` };
+    return {
+      url: `https://connect.stripe.com/oauth/authorize?${params.toString()}`,
+    };
   }
 
-  async completeConnectOAuth(businessId: string, code: string): Promise<StripeIntegrationPublicView> {
+  async completeConnectOAuth(
+    businessId: string,
+    code: string,
+  ): Promise<StripeIntegrationPublicView> {
     if (!this.stripeService.isConfigured) {
       throw new BadRequestException('Stripe is not configured on the platform');
     }
@@ -150,7 +174,9 @@ export class StripeIntegrationService {
       throw new BadRequestException('Stripe Connect OAuth is not configured');
     }
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const stripe = this.stripeService.client;
@@ -161,12 +187,16 @@ export class StripeIntegrationService {
         code,
       });
     } catch {
-      throw new BadRequestException('Could not connect Stripe account. Try again from Billing.');
+      throw new BadRequestException(
+        'Could not connect Stripe account. Try again from Billing.',
+      );
     }
 
     const connectAccountId = token.stripe_user_id;
     if (!connectAccountId) {
-      throw new BadRequestException('Stripe did not return a connected account ID');
+      throw new BadRequestException(
+        'Stripe did not return a connected account ID',
+      );
     }
 
     const account = await stripe.accounts.retrieve(connectAccountId);
@@ -195,7 +225,9 @@ export class StripeIntegrationService {
       throw new BadRequestException('Stripe is not configured on the platform');
     }
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const country = this.resolveConnectCountry(business, countryOverride);
@@ -216,7 +248,8 @@ export class StripeIntegrationService {
       const draftSettings = {
         ...(business.settings || {}),
         integrations: {
-          ...((business.settings?.integrations as Record<string, unknown>) || {}),
+          ...((business.settings?.integrations as Record<string, unknown>) ||
+            {}),
           stripe: {
             connectChargeModel: expressChargeModel,
           },
@@ -257,7 +290,9 @@ export class StripeIntegrationService {
     }
 
     if (!connectAccountId) {
-      throw new BadRequestException('Failed to create Stripe connected account');
+      throw new BadRequestException(
+        'Failed to create Stripe connected account',
+      );
     }
 
     const { returnUrl, refreshUrl } = this.connectCallbackUrls();
@@ -275,13 +310,19 @@ export class StripeIntegrationService {
     return { url: link.url };
   }
 
-  async syncConnectAccount(businessId: string): Promise<StripeIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async syncConnectAccount(
+    businessId: string,
+  ): Promise<StripeIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const connectAccountId = this.resolveConnectAccountId(business.settings);
     if (!connectAccountId) {
-      throw new BadRequestException('No Stripe account linked for this business');
+      throw new BadRequestException(
+        'No Stripe account linked for this business',
+      );
     }
 
     if (!this.stripeService.isConfigured) {
@@ -289,18 +330,25 @@ export class StripeIntegrationService {
     }
 
     try {
-      const account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+      const account =
+        await this.stripeService.client.accounts.retrieve(connectAccountId);
       const integration = getBusinessStripeIntegration(business.settings);
 
       // Correct the charge model in DB if it was stored incorrectly (e.g. oauth accounts must be direct)
       const correctChargeModel: 'direct' | 'destination' =
-        integration.connectMode === 'oauth' || account.type === 'standard' ? 'direct' : (integration.connectChargeModel ?? 'direct');
+        integration.connectMode === 'oauth' || account.type === 'standard'
+          ? 'direct'
+          : (integration.connectChargeModel ?? 'direct');
       if (correctChargeModel !== integration.connectChargeModel) {
-        await this.persistConnectSettings(business, { connectChargeModel: correctChargeModel });
+        await this.persistConnectSettings(business, {
+          connectChargeModel: correctChargeModel,
+        });
       }
     } catch (err) {
       this.logger.warn(`Stripe sync failed for ${connectAccountId}`);
-      throw new BadRequestException('Could not verify Stripe account. Try connecting again.');
+      throw new BadRequestException(
+        'Could not verify Stripe account. Try connecting again.',
+      );
     }
 
     return this.getPublicSettings(businessId);
@@ -311,15 +359,20 @@ export class StripeIntegrationService {
       throw new BadRequestException('Stripe is not configured on the platform');
     }
 
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const connectAccountId = this.resolveConnectAccountId(business.settings);
     if (!connectAccountId) {
-      throw new BadRequestException('Connect Stripe before opening the dashboard');
+      throw new BadRequestException(
+        'Connect Stripe before opening the dashboard',
+      );
     }
 
-    const account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+    const account =
+      await this.stripeService.client.accounts.retrieve(connectAccountId);
 
     // Standard accounts manage their own dashboard — no login link needed
     if (account.type === 'standard') {
@@ -327,7 +380,10 @@ export class StripeIntegrationService {
     }
 
     // Express accounts use a platform-generated login link
-    const link = await this.stripeService.client.accounts.createLoginLink(connectAccountId);
+    const link =
+      await this.stripeService.client.accounts.createLoginLink(
+        connectAccountId,
+      );
     if (!link.url) {
       throw new BadRequestException('Failed to create Stripe dashboard link');
     }
@@ -335,8 +391,12 @@ export class StripeIntegrationService {
     return { url: link.url };
   }
 
-  async getPublicSettings(businessId: string): Promise<StripeIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<StripeIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessStripeIntegration(business.settings);
@@ -373,7 +433,8 @@ export class StripeIntegrationService {
       return {
         configured: ready,
         connectAccountId: integration.connectAccountId,
-        connectCountry: integration.connectCountry ?? account.country?.toUpperCase(),
+        connectCountry:
+          integration.connectCountry ?? account.country?.toUpperCase(),
         connectMode: integration.connectMode,
         connectChargeModel: integration.connectChargeModel,
         accountType: account.type ?? undefined,
@@ -383,11 +444,13 @@ export class StripeIntegrationService {
         displayName:
           account.business_profile?.name ||
           account.email ||
-          (account as { settings?: { dashboard?: { display_name?: string } } }).settings?.dashboard
-            ?.display_name,
+          (account as { settings?: { dashboard?: { display_name?: string } } })
+            .settings?.dashboard?.display_name,
       };
     } catch (err) {
-      this.logger.warn(`Failed to retrieve Stripe account ${integration.connectAccountId}`);
+      this.logger.warn(
+        `Failed to retrieve Stripe account ${integration.connectAccountId}`,
+      );
       return {
         configured: false,
         connectAccountId: integration.connectAccountId,
@@ -402,15 +465,21 @@ export class StripeIntegrationService {
     businessId: string,
     dto: UpdateStripeIntegrationDto,
   ): Promise<StripeIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown>) || {} };
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
 
     if (dto.disconnect) {
       delete integrations.stripe;
-      settings.integrations = Object.keys(integrations).length ? integrations : undefined;
+      settings.integrations = Object.keys(integrations).length
+        ? integrations
+        : undefined;
       business.settings = settings;
       await this.businessRepo.save(business);
       return this.getPublicSettings(businessId);
@@ -423,7 +492,9 @@ export class StripeIntegrationService {
       throw new BadRequestException('Stripe Connect account ID is required');
     }
     if (!isValidConnectAccountId(connectAccountId)) {
-      throw new BadRequestException('Invalid Stripe account ID — must start with acct_');
+      throw new BadRequestException(
+        'Invalid Stripe account ID — must start with acct_',
+      );
     }
     if (!this.stripeService.isConfigured) {
       throw new BadRequestException('Stripe is not configured on the platform');
@@ -431,7 +502,8 @@ export class StripeIntegrationService {
 
     let account;
     try {
-      account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+      account =
+        await this.stripeService.client.accounts.retrieve(connectAccountId);
     } catch {
       throw new BadRequestException(
         'Could not find that connected account. Copy the ID from Stripe → Connect → Connected accounts.',
@@ -451,7 +523,9 @@ export class StripeIntegrationService {
   }
 
   async assertCanAcceptOnlinePayments(businessId: string): Promise<string> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const connectAccountId = this.resolveConnectAccountId(business.settings);
@@ -461,10 +535,13 @@ export class StripeIntegrationService {
       );
     }
     if (!this.stripeService.isConfigured) {
-      throw new BadRequestException('Online payments are not configured on the platform');
+      throw new BadRequestException(
+        'Online payments are not configured on the platform',
+      );
     }
 
-    const account = await this.stripeService.client.accounts.retrieve(connectAccountId);
+    const account =
+      await this.stripeService.client.accounts.retrieve(connectAccountId);
     if (!this.isConnectAccountReady(account, business.settings)) {
       throw new BadRequestException(
         'Stripe onboarding is incomplete. Click Continue setup in Billing to add your business address and bank details.',

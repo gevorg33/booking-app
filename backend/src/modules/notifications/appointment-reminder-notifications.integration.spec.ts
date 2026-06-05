@@ -25,13 +25,18 @@ describe('Customer-chosen appointment reminders integration', () => {
     save: jest.fn(),
     create: jest.fn((value) => value),
   };
-  const emailService = { send: jest.fn().mockResolvedValue({ ok: true }), isConfigured: true };
+  const emailService = {
+    send: jest.fn().mockResolvedValue({ ok: true }),
+    isConfigured: true,
+  };
   const smsService = { send: jest.fn().mockResolvedValue({ ok: true }) };
   const whatsappService = {
     sendBookingMessage: jest.fn().mockResolvedValue({ ok: true }),
     shouldSkipImmediateAfterConfirmation: jest.fn(),
   };
-  const whatsappIntegrationService = { resolveRuntimeConfig: jest.fn().mockReturnValue({}) };
+  const whatsappIntegrationService = {
+    resolveRuntimeConfig: jest.fn().mockReturnValue({}),
+  };
   const configService = { get: jest.fn(() => 'https://app.test') };
 
   const service = new NotificationsService(
@@ -83,7 +88,13 @@ describe('Customer-chosen appointment reminders integration', () => {
     name: 'Alex',
     email: 'alex@test.com',
     phone: '+15551234567',
-    metadata: { notifications: { emailReminders: true, smsReminders: true, whatsappReminders: true } },
+    metadata: {
+      notifications: {
+        emailReminders: true,
+        smsReminders: true,
+        whatsappReminders: true,
+      },
+    },
   };
 
   beforeEach(() => {
@@ -108,19 +119,23 @@ describe('Customer-chosen appointment reminders integration', () => {
 
   it('sends email at the customer-chosen lead time', async () => {
     const startTime = new Date(Date.now() + 6 * 60 * 60 * 1000);
-    mockReminderQueries([], [], [
-      {
-        id: 'book-1',
-        status: BookingStatus.CONFIRMED,
-        startTime,
-        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: 6 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-1',
+          status: BookingStatus.CONFIRMED,
+          startTime,
+          endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: 6 },
+        },
+      ],
+    );
 
     const sent = await service.processDueReminders();
 
@@ -138,19 +153,23 @@ describe('Customer-chosen appointment reminders integration', () => {
 
   it('sends sms and whatsapp reminders for 1-hour customer choice', async () => {
     const startTime = new Date(Date.now() + 60 * 60 * 1000);
-    mockReminderQueries([], [], [
-      {
-        id: 'book-1h',
-        status: BookingStatus.CONFIRMED,
-        startTime,
-        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: 1 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-1h',
+          status: BookingStatus.CONFIRMED,
+          startTime,
+          endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: 1 },
+        },
+      ],
+    );
 
     const sent = await service.processDueReminders();
 
@@ -163,30 +182,34 @@ describe('Customer-chosen appointment reminders integration', () => {
   });
 
   it('skips customer-chosen reminders when lead time is null or outside the window', async () => {
-    mockReminderQueries([], [], [
-      {
-        id: 'book-none',
-        status: BookingStatus.CONFIRMED,
-        startTime: new Date(Date.now() + 6 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 6.5 * 60 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: null },
-      },
-      {
-        id: 'book-later',
-        status: BookingStatus.CONFIRMED,
-        startTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 12.5 * 60 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: 6 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-none',
+          status: BookingStatus.CONFIRMED,
+          startTime: new Date(Date.now() + 6 * 60 * 60 * 1000),
+          endTime: new Date(Date.now() + 6.5 * 60 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: null },
+        },
+        {
+          id: 'book-later',
+          status: BookingStatus.CONFIRMED,
+          startTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
+          endTime: new Date(Date.now() + 12.5 * 60 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: 6 },
+        },
+      ],
+    );
 
     await service.processDueReminders();
 
@@ -247,26 +270,30 @@ describe('Customer-chosen appointment reminders integration', () => {
   });
 
   it('skips bookings without business or customer in customer-chosen flow', async () => {
-    mockReminderQueries([], [], [
-      {
-        id: 'book-no-business',
-        status: BookingStatus.CONFIRMED,
-        startTime: new Date(Date.now() + 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 90 * 60 * 1000),
-        customer,
-        business: null,
-        metadata: { reminderHoursBefore: 1 },
-      },
-      {
-        id: 'book-no-customer',
-        status: BookingStatus.CONFIRMED,
-        startTime: new Date(Date.now() + 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 90 * 60 * 1000),
-        customer: null,
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: 1 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-no-business',
+          status: BookingStatus.CONFIRMED,
+          startTime: new Date(Date.now() + 60 * 60 * 1000),
+          endTime: new Date(Date.now() + 90 * 60 * 1000),
+          customer,
+          business: null,
+          metadata: { reminderHoursBefore: 1 },
+        },
+        {
+          id: 'book-no-customer',
+          status: BookingStatus.CONFIRMED,
+          startTime: new Date(Date.now() + 60 * 60 * 1000),
+          endTime: new Date(Date.now() + 90 * 60 * 1000),
+          customer: null,
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: 1 },
+        },
+      ],
+    );
 
     await service.processDueReminders();
 
@@ -305,21 +332,31 @@ describe('Customer-chosen appointment reminders integration', () => {
     const startTime = new Date(Date.now() + 6 * 60 * 60 * 1000);
     const optedOutCustomer = {
       ...customer,
-      metadata: { notifications: { emailReminders: false, smsReminders: false, whatsappReminders: false } },
-    };
-    mockReminderQueries([], [], [
-      {
-        id: 'book-opted-out',
-        status: BookingStatus.CONFIRMED,
-        startTime,
-        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
-        customer: optedOutCustomer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: choiceEnabledBusiness,
-        metadata: { reminderHoursBefore: 6 },
+      metadata: {
+        notifications: {
+          emailReminders: false,
+          smsReminders: false,
+          whatsappReminders: false,
+        },
       },
-    ]);
+    };
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-opted-out',
+          status: BookingStatus.CONFIRMED,
+          startTime,
+          endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+          customer: optedOutCustomer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: choiceEnabledBusiness,
+          metadata: { reminderHoursBefore: 6 },
+        },
+      ],
+    );
 
     const sent = await service.processDueReminders();
 
@@ -336,19 +373,23 @@ describe('Customer-chosen appointment reminders integration', () => {
         locale: 'hy',
       },
     };
-    mockReminderQueries([], [], [
-      {
-        id: 'book-hy',
-        status: BookingStatus.CONFIRMED,
-        startTime,
-        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: hyBusiness,
-        metadata: { reminderHoursBefore: 6 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-hy',
+          status: BookingStatus.CONFIRMED,
+          startTime,
+          endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: hyBusiness,
+          metadata: { reminderHoursBefore: 6 },
+        },
+      ],
+    );
 
     await service.processDueReminders();
 
@@ -361,19 +402,23 @@ describe('Customer-chosen appointment reminders integration', () => {
   });
 
   it('skips customer-chosen flow when business has choice disabled', async () => {
-    mockReminderQueries([], [], [
-      {
-        id: 'book-disabled-business',
-        status: BookingStatus.CONFIRMED,
-        startTime: new Date(Date.now() + 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 90 * 60 * 1000),
-        customer,
-        employee: { name: 'Jane' },
-        service: { name: 'Facial' },
-        business: legacyBusiness,
-        metadata: { reminderHoursBefore: 1 },
-      },
-    ]);
+    mockReminderQueries(
+      [],
+      [],
+      [
+        {
+          id: 'book-disabled-business',
+          status: BookingStatus.CONFIRMED,
+          startTime: new Date(Date.now() + 60 * 60 * 1000),
+          endTime: new Date(Date.now() + 90 * 60 * 1000),
+          customer,
+          employee: { name: 'Jane' },
+          service: { name: 'Facial' },
+          business: legacyBusiness,
+          metadata: { reminderHoursBefore: 1 },
+        },
+      ],
+    );
 
     await service.processDueReminders();
 

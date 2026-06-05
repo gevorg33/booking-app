@@ -53,8 +53,12 @@ export class GiftCardClaimService {
     }
 
     if (card.cardType === 'package') {
-      if (!card.packageId) throw new BadRequestException('Gift card is missing package reference');
-      const pkg = await this.packagesService.assertPackageBookable(businessId, card.packageId);
+      if (!card.packageId)
+        throw new BadRequestException('Gift card is missing package reference');
+      const pkg = await this.packagesService.assertPackageBookable(
+        businessId,
+        card.packageId,
+      );
       const purchase = await this.packagesService.createPackagePurchase(
         businessId,
         pkg.id,
@@ -72,13 +76,18 @@ export class GiftCardClaimService {
 
     if (card.cardType === 'subscription') {
       if (!card.subscriptionPlanId) {
-        throw new BadRequestException('Gift card is missing subscription plan reference');
+        throw new BadRequestException(
+          'Gift card is missing subscription plan reference',
+        );
       }
       const subscription = await this.subscriptionsService.assignSubscription(
         businessId,
         customerId,
         card.subscriptionPlanId,
-        { pricePaid: Number(card.purchaseAmount ?? 0), currency: card.currency },
+        {
+          pricePaid: Number(card.purchaseAmount ?? 0),
+          currency: card.currency,
+        },
       );
       await this.markClaimed(card, customerId);
       return {
@@ -88,12 +97,18 @@ export class GiftCardClaimService {
       };
     }
 
-    throw new BadRequestException('This gift card cannot be claimed on your account');
+    throw new BadRequestException(
+      'This gift card cannot be claimed on your account',
+    );
   }
 
   private assertClaimable(card: GiftCard, customerId: string) {
-    if (!card.isActive) throw new BadRequestException('Gift card is no longer active');
-    if (card.claimedAt && (card.cardType === 'package' || card.cardType === 'subscription')) {
+    if (!card.isActive)
+      throw new BadRequestException('Gift card is no longer active');
+    if (
+      card.claimedAt &&
+      (card.cardType === 'package' || card.cardType === 'subscription')
+    ) {
       throw new BadRequestException('Gift card has already been claimed');
     }
     if (!card.codeRevealed) {
@@ -104,16 +119,22 @@ export class GiftCardClaimService {
     }
 
     if (card.cardType === 'monetary') {
-      throw new BadRequestException('Monetary gift cards are redeemed at booking checkout');
+      throw new BadRequestException(
+        'Monetary gift cards are redeemed at booking checkout',
+      );
     }
 
     if (card.cardType === 'service' || card.cardType === 'bundle') {
       if (card.claimedByCustomerId && card.claimedByCustomerId !== customerId) {
-        throw new BadRequestException('Gift card has already been claimed by another account');
+        throw new BadRequestException(
+          'Gift card has already been claimed by another account',
+        );
       }
       const credits = card.serviceCredits ?? [];
       if (!credits.some((c) => c.quantityRemaining > 0)) {
-        throw new BadRequestException('Gift card has no remaining service credits');
+        throw new BadRequestException(
+          'Gift card has no remaining service credits',
+        );
       }
     }
   }

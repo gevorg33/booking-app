@@ -11,24 +11,41 @@ export type AiEventType =
 export class AiEventsService {
   constructor(private eventsGateway: EventsGateway) {}
 
-  emit(businessId: string, type: AiEventType, payload: Record<string, unknown>) {
+  emit(
+    businessId: string,
+    type: AiEventType,
+    payload: Record<string, unknown>,
+  ) {
     this.eventsGateway.emitBusinessEvent(businessId, type, payload);
   }
 
-  emitClarify(businessId: string, payload: { action: string; summary: string; missing?: unknown[] }) {
+  emitClarify(
+    businessId: string,
+    payload: { action: string; summary: string; missing?: unknown[] },
+  ) {
     this.emit(businessId, 'ai.clarify', payload);
   }
 
   emitTaskProgress(
     businessId: string,
-    payload: { taskId: string; action: string; status: string; summary?: string },
+    payload: {
+      taskId: string;
+      action: string;
+      status: string;
+      summary?: string;
+    },
   ) {
     this.emit(businessId, 'ai.task.progress', payload);
   }
 
   emitTaskCompleted(
     businessId: string,
-    payload: { taskId?: string; action: string; success: boolean; summary: string },
+    payload: {
+      taskId?: string;
+      action: string;
+      success: boolean;
+      summary: string;
+    },
   ) {
     this.emit(businessId, 'ai.task.completed', payload);
   }

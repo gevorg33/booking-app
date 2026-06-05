@@ -16,9 +16,9 @@ describe('booking-conflict-messages.util', () => {
   });
 
   it('formats overlap with provider but no parsed time', () => {
-    expect(formatBookingOverlapConflict({ employeeName: 'Gevorg Gasparyan' })).toMatch(
-      /already booked at that time/i,
-    );
+    expect(
+      formatBookingOverlapConflict({ employeeName: 'Gevorg Gasparyan' }),
+    ).toMatch(/already booked at that time/i);
   });
 
   it('formats overlap with provider, time, without customer', () => {
@@ -35,7 +35,9 @@ describe('booking-conflict-messages.util', () => {
   });
 
   it('formats fully booked window with provider name', () => {
-    expect(formatBookingWindowFullyBooked('Mary Torgomyan')).toMatch(/Mary Torgomyan/);
+    expect(formatBookingWindowFullyBooked('Mary Torgomyan')).toMatch(
+      /Mary Torgomyan/,
+    );
   });
 
   it('formats fully booked window without provider name', () => {

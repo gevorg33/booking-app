@@ -34,13 +34,24 @@ export class MultiServiceBookingGroup {
   @Column({ name: 'customer_id', type: 'uuid', nullable: true })
   customerId: string | null;
 
-  @Column({ name: 'scheduling_mode', type: 'varchar', length: 32, default: 'same_visit' })
+  @Column({
+    name: 'scheduling_mode',
+    type: 'varchar',
+    length: 32,
+    default: 'same_visit',
+  })
   schedulingMode: MultiServiceSchedulingMode;
 
   @Column({ name: 'total_duration_minutes', type: 'int', default: 0 })
   totalDurationMinutes: number;
 
-  @Column({ name: 'total_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'total_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   totalPrice: number;
 
   @Column({ length: 8, default: 'USD' })

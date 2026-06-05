@@ -19,7 +19,9 @@ export class BlockScheduleInstance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => BlockSchedule, (schedule) => schedule.instances, { onDelete: 'CASCADE' })
+  @ManyToOne(() => BlockSchedule, (schedule) => schedule.instances, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'block_schedule_id' })
   blockSchedule: BlockSchedule;
 

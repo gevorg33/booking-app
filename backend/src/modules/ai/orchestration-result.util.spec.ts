@@ -36,8 +36,18 @@ describe('orchestration-result.util', () => {
         taskId: 't1',
         status: 'requires_approval',
         planDiff: [
-          { id: '1', action: 'apply_template', description: 'Apply', impact: 'Team' },
-          { id: '2', action: 'fill_schedule_gaps', description: 'Fill', impact: 'Slots' },
+          {
+            id: '1',
+            action: 'apply_template',
+            description: 'Apply',
+            impact: 'Team',
+          },
+          {
+            id: '2',
+            action: 'fill_schedule_gaps',
+            description: 'Fill',
+            impact: 'Slots',
+          },
         ],
         policyPreview: {
           decision: 'requires_approval',
@@ -76,7 +86,11 @@ describe('orchestration-result.util', () => {
     });
 
     it('builds generic approval alert', () => {
-      const alert = buildApprovalAlertPayload('setup_week_schedule', 'task-2', 3);
+      const alert = buildApprovalAlertPayload(
+        'setup_week_schedule',
+        'task-2',
+        3,
+      );
       expect(alert.alertType).toBe('approval');
       expect(alert.prompt).toBeUndefined();
       expect(alert.message).toContain('3-step');

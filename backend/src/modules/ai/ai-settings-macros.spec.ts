@@ -9,7 +9,9 @@ describe('AiSettingsService macros', () => {
     const merged = service.mergeSettings({});
     expect(merged.macros.length).toBeGreaterThanOrEqual(2);
     expect(merged.macros[0].name).toBeTruthy();
-    expect(merged.macros.some((m) => m.id === 'monday-morning-setup')).toBe(true);
+    expect(merged.macros.some((m) => m.id === 'monday-morning-setup')).toBe(
+      true,
+    );
   });
 
   it('preserves custom macros from stored settings', () => {
@@ -18,7 +20,9 @@ describe('AiSettingsService macros', () => {
         macros: [{ id: 'custom', name: 'Custom', prompt: 'Do thing' }],
       },
     });
-    expect(merged.macros).toEqual([{ id: 'custom', name: 'Custom', prompt: 'Do thing' }]);
+    expect(merged.macros).toEqual([
+      { id: 'custom', name: 'Custom', prompt: 'Do thing' },
+    ]);
   });
 
   it('includes macros in DEFAULT_AI_SETTINGS', () => {

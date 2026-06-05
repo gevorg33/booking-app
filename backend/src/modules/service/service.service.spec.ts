@@ -11,19 +11,30 @@ describe('ServiceService', () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value: Record<string, unknown>) => {
       const id = (value.id as string) ?? `svc-${services.length + 1}`;
-      const saved = { isActive: true, prepaymentMode: PrepaymentMode.NONE, metadata: {}, ...value, id };
+      const saved = {
+        isActive: true,
+        prepaymentMode: PrepaymentMode.NONE,
+        metadata: {},
+        ...value,
+        id,
+      };
       const idx = services.findIndex((s) => s.id === id);
       if (idx >= 0) services[idx] = saved;
       else services.push(saved);
       return saved;
     }),
-    find: jest.fn(async ({ where }: { where: { businessId: string; isActive: boolean } }) =>
-      services
-        .filter((s) => s.businessId === where.businessId && s.isActive === where.isActive)
-        .map((s) => ({
-          ...s,
-          category: categories.find((c) => c.id === s.categoryId) ?? null,
-        })),
+    find: jest.fn(
+      async ({ where }: { where: { businessId: string; isActive: boolean } }) =>
+        services
+          .filter(
+            (s) =>
+              s.businessId === where.businessId &&
+              s.isActive === where.isActive,
+          )
+          .map((s) => ({
+            ...s,
+            category: categories.find((c) => c.id === s.categoryId) ?? null,
+          })),
     ),
     findOne: jest.fn(
       async ({
@@ -38,10 +49,9 @@ describe('ServiceService', () => {
         if (!svc) return null;
         return {
           ...svc,
-          category:
-            relations?.category
-              ? categories.find((c) => c.id === svc.categoryId) ?? null
-              : undefined,
+          category: relations?.category
+            ? (categories.find((c) => c.id === svc.categoryId) ?? null)
+            : undefined,
         };
       },
     ),
@@ -49,13 +59,14 @@ describe('ServiceService', () => {
   };
 
   const categoryRepo = {
-    findOne: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
-      categories.find(
-        (c) =>
-          c.id === where.id &&
-          c.businessId === where.businessId &&
-          c.isActive === where.isActive,
-      ) ?? null,
+    findOne: jest.fn(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        categories.find(
+          (c) =>
+            c.id === where.id &&
+            c.businessId === where.businessId &&
+            c.isActive === where.isActive,
+        ) ?? null,
     ),
   };
 
@@ -96,14 +107,18 @@ describe('ServiceService', () => {
   });
 
   it('creates a service with localized names in metadata', async () => {
-    const created = await serviceService.create('biz-1', {
-      name: 'Haircut',
-      durationMinutes: 30,
-      price: 25,
-      bufferMinutes: 5,
-      currency: 'EUR',
-      localizedNames: { en: ['Cut'], hy: ['Կտրում'] },
-    } as any, 'user-1');
+    const created = await serviceService.create(
+      'biz-1',
+      {
+        name: 'Haircut',
+        durationMinutes: 30,
+        price: 25,
+        bufferMinutes: 5,
+        currency: 'EUR',
+        localizedNames: { en: ['Cut'], hy: ['Կտրում'] },
+      },
+      'user-1',
+    );
 
     expect(created.bufferMinutes).toBe(5);
     expect(created.currency).toBe('EUR');
@@ -122,9 +137,9 @@ describe('ServiceService', () => {
       durationMinutes: 20,
       price: 10,
       bufferMinutes: 0,
-    } as any);
+    });
 
-    const one = await serviceService.findOne(created.id as string);
+    const one = await serviceService.findOne(created.id);
     expect(one.category).toBeNull();
     expect(one.localizedNames).toBeUndefined();
   });
@@ -136,7 +151,7 @@ describe('ServiceService', () => {
       price: 50,
       prepaymentMode: PrepaymentMode.DEPOSIT,
       depositAmount: 10,
-    } as any);
+    });
 
     expect(created.prepaymentMode).toBe(PrepaymentMode.DEPOSIT);
   });
@@ -146,7 +161,7 @@ describe('ServiceService', () => {
       name: 'Trim',
       durationMinutes: 20,
       price: 15,
-    } as any);
+    });
 
     expect(created.localizedNames).toBeUndefined();
     expect(created.metadata).toEqual({});
@@ -193,7 +208,7 @@ describe('ServiceService', () => {
       durationMinutes: 60,
       price: 80,
       categoryId: 'cat-1',
-    } as any);
+    });
 
     const list = await serviceService.findAll('biz-1');
     expect(list).toHaveLength(1);
@@ -201,7 +216,9 @@ describe('ServiceService', () => {
   });
 
   it('findOne throws when service is missing', async () => {
-    await expect(serviceService.findOne('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(serviceService.findOne('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('updates scalar fields without touching localized metadata', async () => {
@@ -210,11 +227,11 @@ describe('ServiceService', () => {
       durationMinutes: 30,
       price: 20,
       localizedNames: { en: ['Label'] },
-    } as any);
+    });
 
-    const updated = await serviceService.update(created.id as string, {
+    const updated = await serviceService.update(created.id, {
       price: 25,
-    } as any);
+    });
 
     expect(updated.price).toBe(25);
     expect(updated.localizedNames).toEqual({ en: ['Label'] });
@@ -226,23 +243,23 @@ describe('ServiceService', () => {
       durationMinutes: 45,
       price: 90,
       localizedNames: { en: ['Relax'] },
-    } as any);
+    });
 
-    const updated = await serviceService.update(created.id as string, {
+    const updated = await serviceService.update(created.id, {
       localizedNames: { ru: ['Спа'] },
-    } as any);
+    });
     expect(updated.localizedNames).toEqual({ ru: ['Спа'] });
 
-    const cleared = await serviceService.update(created.id as string, {
+    const cleared = await serviceService.update(created.id, {
       localizedNames: {},
-    } as any);
+    });
     expect(cleared.localizedNames).toBeUndefined();
     expect(cleared.metadata?.localizedNames).toBeUndefined();
 
     services[0].metadata = null;
-    const withNullMetadata = await serviceService.update(created.id as string, {
+    const withNullMetadata = await serviceService.update(created.id, {
       localizedNames: { en: ['Again'] },
-    } as any);
+    });
     expect(withNullMetadata.localizedNames).toEqual({ en: ['Again'] });
   });
 
@@ -252,11 +269,11 @@ describe('ServiceService', () => {
       durationMinutes: 30,
       price: 20,
       categoryId: 'cat-1',
-    } as any);
+    });
 
-    const updated = await serviceService.update(created.id as string, {
+    const updated = await serviceService.update(created.id, {
       categoryId: null,
-    } as any);
+    });
 
     expect(updated.categoryId).toBeNull();
   });
@@ -266,13 +283,13 @@ describe('ServiceService', () => {
       name: 'Blowout',
       durationMinutes: 40,
       price: 55,
-    } as any);
+    });
 
-    const updated = await serviceService.update(created.id as string, {
+    const updated = await serviceService.update(created.id, {
       name: 'Blowout Pro',
       categoryId: 'cat-1',
       isActive: true,
-    } as any);
+    });
 
     expect(updated.name).toBe('Blowout Pro');
     expect(updated.categoryId).toBe('cat-1');
@@ -286,9 +303,11 @@ describe('ServiceService', () => {
       name: 'Remove me',
       durationMinutes: 15,
       price: 10,
-    } as any);
+    });
 
-    await serviceService.remove(created.id as string);
-    expect(serviceRepo.update).toHaveBeenCalledWith(created.id, { isActive: false });
+    await serviceService.remove(created.id);
+    expect(serviceRepo.update).toHaveBeenCalledWith(created.id, {
+      isActive: false,
+    });
   });
 });

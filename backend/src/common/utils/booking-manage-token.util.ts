@@ -33,12 +33,18 @@ export function buildBookingManageUrl(
 }
 
 /** Plain-text fallback (includes URL for non-HTML clients). */
-export function formatBookingManageLinkText(label: string, url: string): string {
+export function formatBookingManageLinkText(
+  label: string,
+  url: string,
+): string {
   return `${label}: ${url}`;
 }
 
 /** HTML manage link — label text with underlined "here" anchor instead of raw URL. */
-export function formatBookingManageLinkHtml(label: string, url: string): string {
+export function formatBookingManageLinkHtml(
+  label: string,
+  url: string,
+): string {
   const safeUrl = url
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
@@ -56,5 +62,7 @@ export function validateBookingManageToken(
   token: string,
 ): boolean {
   const expected = booking.metadata?.manageToken;
-  return typeof expected === 'string' && expected.length > 0 && expected === token;
+  return (
+    typeof expected === 'string' && expected.length > 0 && expected === token
+  );
 }

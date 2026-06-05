@@ -21,7 +21,9 @@ export class Service {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Business, (business) => business.services, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Business, (business) => business.services, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'business_id' })
   business: Business;
 
@@ -56,10 +58,20 @@ export class Service {
   @Column({ default: 'USD' })
   currency: string;
 
-  @Column({ type: 'varchar', default: PrepaymentMode.NONE, name: 'prepayment_mode' })
+  @Column({
+    type: 'varchar',
+    default: PrepaymentMode.NONE,
+    name: 'prepayment_mode',
+  })
   prepaymentMode: PrepaymentMode;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'deposit_amount' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    name: 'deposit_amount',
+  })
   depositAmount: number | null;
 
   @Column({ default: true })

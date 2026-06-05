@@ -34,8 +34,12 @@ export class ZapierIntegrationService {
     return this.config.get<string>('API_PUBLIC_URL') || 'http://localhost:3001';
   }
 
-  async getPublicSettings(businessId: string): Promise<ZapierIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<ZapierIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const zapier = getBusinessZapierIntegration(business.settings);
@@ -62,11 +66,15 @@ export class ZapierIntegrationService {
     businessId: string,
     dto: UpdateZapierIntegrationDto,
   ): Promise<ZapierIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown> || {}) };
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
     const current = getBusinessZapierIntegration(settings);
 
     const next: BusinessZapierIntegration = { ...current };
@@ -116,14 +124,23 @@ export class ZapierIntegrationService {
         businessId,
         aggregateId: '00000000-0000-0000-0000-000000000002',
         timestamp: now,
-        payload: { amount: 50, currency: 'USD', bookingId: '00000000-0000-0000-0000-000000000001' },
+        payload: {
+          amount: 50,
+          currency: 'USD',
+          bookingId: '00000000-0000-0000-0000-000000000001',
+        },
       },
       {
         event: 'review.received',
         businessId,
         aggregateId: '00000000-0000-0000-0000-000000000003',
         timestamp: now,
-        payload: { rating: 5, comment: 'Great service', employeeId: 'emp-1', customerName: 'Jane Doe' },
+        payload: {
+          rating: 5,
+          comment: 'Great service',
+          employeeId: 'emp-1',
+          customerName: 'Jane Doe',
+        },
       },
     ];
   }

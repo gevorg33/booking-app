@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Expense } from '../expenses/entities/expense.entity.js';
 import { CommissionRule } from '../commissions/entities/commission-rule.entity.js';
-import { AnalyticsQueryDto, parseDateRange } from './dto/analytics-query.dto.js';
+import {
+  AnalyticsQueryDto,
+  parseDateRange,
+} from './dto/analytics-query.dto.js';
 
 export interface StaffPerformanceRow {
   employeeId: string;
@@ -47,10 +54,14 @@ export class AnalyticsService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Expense) private expenseRepo: Repository<Expense>,
-    @InjectRepository(CommissionRule) private commissionRepo: Repository<CommissionRule>,
+    @InjectRepository(CommissionRule)
+    private commissionRepo: Repository<CommissionRule>,
   ) {}
 
-  async staffPerformance(businessId: string, query: AnalyticsQueryDto): Promise<StaffPerformanceRow[]> {
+  async staffPerformance(
+    businessId: string,
+    query: AnalyticsQueryDto,
+  ): Promise<StaffPerformanceRow[]> {
     const { start, end } = parseDateRange(query.from, query.to);
     const employees = await this.employeeRepo.find({
       where: { businessId, isActive: true },
@@ -63,8 +74,14 @@ export class AnalyticsService {
       .where('b.business_id = :businessId', { businessId })
       .andWhere('b.startTime BETWEEN :start AND :end', { start, end });
 
-    if (query.employeeId) qb.andWhere('b.employee_id = :employeeId', { employeeId: query.employeeId });
-    if (query.locationId) qb.andWhere('b.location_id = :locationId', { locationId: query.locationId });
+    if (query.employeeId)
+      qb.andWhere('b.employee_id = :employeeId', {
+        employeeId: query.employeeId,
+      });
+    if (query.locationId)
+      qb.andWhere('b.location_id = :locationId', {
+        locationId: query.locationId,
+      });
 
     const bookings = await qb.getMany();
     const byEmployee = new Map<string, StaffPerformanceRow>();
@@ -92,10 +109,14 @@ export class AnalyticsService {
       if (b.paymentStatus === PaymentStatus.PAID && b.service) {
         row.revenue += Number(b.service.price);
       }
-      row.hoursBooked += (b.endTime.getTime() - b.startTime.getTime()) / 3600000;
+      row.hoursBooked +=
+        (b.endTime.getTime() - b.startTime.getTime()) / 3600000;
     }
 
-    const periodDays = Math.max(1, (end.getTime() - start.getTime()) / 86400000);
+    const periodDays = Math.max(
+      1,
+      (end.getTime() - start.getTime()) / 86400000,
+    );
     const capacityHours = periodDays * 8;
 
     for (const row of byEmployee.values()) {
@@ -107,15 +128,20 @@ export class AnalyticsService {
       );
     }
 
-    return Array.from(byEmployee.values()).sort((a, b) => b.revenue - a.revenue);
+    return Array.from(byEmployee.values()).sort(
+      (a, b) => b.revenue - a.revenue,
+    );
   }
 
-  async servicePopularity(businessId: string, query: AnalyticsQueryDto): Promise<ServicePopularityRow[]> {
+  async servicePopularity(
+    businessId: string,
+    query: AnalyticsQueryDto,
+  ): Promise<ServicePopularityRow[]> {
     const { start, end } = parseDateRange(query.from, query.to);
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(start, end) as any,
+        startTime: Between(start, end),
         status: Not(In([BookingStatus.CANCELLED])) as any,
       },
       relations: { service: true },
@@ -145,13 +171,18 @@ export class AnalyticsService {
       .sort((a, b) => b.bookings - a.bookings);
   }
 
-  async heatmap(businessId: string, query: AnalyticsQueryDto): Promise<HeatmapCell[]> {
+  async heatmap(
+    businessId: string,
+    query: AnalyticsQueryDto,
+  ): Promise<HeatmapCell[]> {
     const { start, end } = parseDateRange(query.from, query.to);
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(start, end) as any,
-        status: Not(In([BookingStatus.CANCELLED, BookingStatus.NO_SHOW])) as any,
+        startTime: Between(start, end),
+        status: Not(
+          In([BookingStatus.CANCELLED, BookingStatus.NO_SHOW]),
+        ) as any,
       },
     });
 
@@ -175,7 +206,10 @@ export class AnalyticsService {
     return cells;
   }
 
-  async profitAndLoss(businessId: string, query: AnalyticsQueryDto): Promise<PlReport> {
+  async profitAndLoss(
+    businessId: string,
+    query: AnalyticsQueryDto,
+  ): Promise<PlReport> {
     const { start, end } = parseDateRange(query.from, query.to);
     const staff = await this.staffPerformance(businessId, query);
     const revenue = staff.reduce((s, r) => s + r.revenue, 0);
@@ -187,11 +221,19 @@ export class AnalyticsService {
         from: start.toISOString().slice(0, 10),
         to: end.toISOString().slice(0, 10),
       });
-    if (query.locationId) expenseQb.andWhere('e.location_id = :locationId', { locationId: query.locationId });
+    if (query.locationId)
+      expenseQb.andWhere('e.location_id = :locationId', {
+        locationId: query.locationId,
+      });
     const expenses = await expenseQb.getMany();
     const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
-    const commissions = await this.computeCommissions(businessId, start, end, query.locationId);
+    const commissions = await this.computeCommissions(
+      businessId,
+      start,
+      end,
+      query.locationId,
+    );
     const netProfit = revenue - expenseTotal - commissions;
 
     return {
@@ -230,12 +272,17 @@ export class AnalyticsService {
       if (!b.service) continue;
       const price = Number(b.service.price);
       const rule =
-        rules.find((r) => r.employeeId === b.employeeId && r.serviceId === b.serviceId) ??
+        rules.find(
+          (r) => r.employeeId === b.employeeId && r.serviceId === b.serviceId,
+        ) ??
         rules.find((r) => r.employeeId === b.employeeId && !r.serviceId) ??
         rules.find((r) => !r.employeeId && r.serviceId === b.serviceId) ??
         rules.find((r) => !r.employeeId && !r.serviceId);
       if (!rule) continue;
-      total += rule.type === 'percent' ? (price * Number(rule.value)) / 100 : Number(rule.value);
+      total +=
+        rule.type === 'percent'
+          ? (price * Number(rule.value)) / 100
+          : Number(rule.value);
     }
     return total;
   }
@@ -260,7 +307,10 @@ export class AnalyticsService {
         )
         .join('');
       const serviceRows = services
-        .map((s) => `<tr><td>${s.serviceName}</td><td>${s.bookings}</td><td>$${s.revenue}</td></tr>`)
+        .map(
+          (s) =>
+            `<tr><td>${s.serviceName}</td><td>${s.bookings}</td><td>$${s.revenue}</td></tr>`,
+        )
         .join('');
       return `<!DOCTYPE html><html><head><title>Report</title><style>
         body{font-family:sans-serif;padding:24px}table{border-collapse:collapse;width:100%;margin:16px 0}
@@ -280,7 +330,10 @@ export class AnalyticsService {
     });
   }
 
-  private async buildExportRows(businessId: string, query: AnalyticsQueryDto): Promise<string[]> {
+  private async buildExportRows(
+    businessId: string,
+    query: AnalyticsQueryDto,
+  ): Promise<string[]> {
     const [staff, services, pl] = await Promise.all([
       this.staffPerformance(businessId, query),
       this.servicePopularity(businessId, query),
@@ -292,10 +345,14 @@ export class AnalyticsService {
     rows.push(`P&L,Commissions,${pl.commissions},,`);
     rows.push(`P&L,Net Profit,${pl.netProfit},,`);
     for (const s of staff) {
-      rows.push(`Staff,${this.csvEscape(s.employeeName)},${s.bookings},${s.revenue},${s.utilizationPercent}`);
+      rows.push(
+        `Staff,${this.csvEscape(s.employeeName)},${s.bookings},${s.revenue},${s.utilizationPercent}`,
+      );
     }
     for (const s of services) {
-      rows.push(`Service,${this.csvEscape(s.serviceName)},${s.bookings},${s.revenue},`);
+      rows.push(
+        `Service,${this.csvEscape(s.serviceName)},${s.bookings},${s.revenue},`,
+      );
     }
     return rows;
   }

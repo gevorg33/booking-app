@@ -21,11 +21,15 @@ export function readTenantEmailTemplatesSettings(
   settings?: Record<string, unknown>,
 ): NormalizedTenantEmailTemplatesSettings {
   const raw = settings?.emailTemplates;
-  if (!raw || typeof raw !== 'object') return { customVariables: [], templates: {} };
+  if (!raw || typeof raw !== 'object')
+    return { customVariables: [], templates: {} };
   const obj = raw as TenantEmailTemplatesSettings;
   return {
-    customVariables: Array.isArray(obj.customVariables) ? obj.customVariables : [],
-    templates: obj.templates && typeof obj.templates === 'object' ? obj.templates : {},
+    customVariables: Array.isArray(obj.customVariables)
+      ? obj.customVariables
+      : [],
+    templates:
+      obj.templates && typeof obj.templates === 'object' ? obj.templates : {},
   };
 }
 
@@ -46,11 +50,23 @@ export function listResolvedEmailTemplates(
 
 export function listAllTemplateVariables(
   settings?: Record<string, unknown>,
-): Array<{ key: string; label: string; description: string; sampleValue: string; custom: boolean }> {
+): Array<{
+  key: string;
+  label: string;
+  description: string;
+  sampleValue: string;
+  custom: boolean;
+}> {
   const stored = readTenantEmailTemplatesSettings(settings);
   const builtin = new Map<
     string,
-    { key: string; label: string; description: string; sampleValue: string; custom: boolean }
+    {
+      key: string;
+      label: string;
+      description: string;
+      sampleValue: string;
+      custom: boolean;
+    }
   >();
   for (const def of EMAIL_TEMPLATE_DEFINITIONS) {
     for (const variable of def.variables) {
@@ -146,7 +162,9 @@ export function assertBuiltinVariableKeyAvailable(
     for (const variable of def.variables) builtins.add(variable.key);
   }
   if (builtins.has(key)) {
-    throw new BadRequestException(`Variable key "${key}" is reserved by the system`);
+    throw new BadRequestException(
+      `Variable key "${key}" is reserved by the system`,
+    );
   }
   const stored = readTenantEmailTemplatesSettings(settings);
   // ok if updating same key — service handles

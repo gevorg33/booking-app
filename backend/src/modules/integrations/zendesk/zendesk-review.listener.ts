@@ -16,15 +16,37 @@ export class ZendeskReviewListener {
 
     const payload = event.payload ?? {};
     try {
-      const ticket = await this.zendesk.createTicketFromReviewIfEnabled(event.businessId, {
-        reviewId: typeof payload.reviewId === 'string' ? payload.reviewId : event.aggregateId,
-        employeeId: typeof payload.employeeId === 'string' ? payload.employeeId : undefined,
-        rating: typeof payload.rating === 'number' ? payload.rating : Number(payload.rating),
-        comment: typeof payload.comment === 'string' ? payload.comment : undefined,
-        customerId: typeof payload.customerId === 'string' ? payload.customerId : undefined,
-        bookingId: typeof payload.bookingId === 'string' ? payload.bookingId : undefined,
-        customerName: typeof payload.customerName === 'string' ? payload.customerName : undefined,
-      });
+      const ticket = await this.zendesk.createTicketFromReviewIfEnabled(
+        event.businessId,
+        {
+          reviewId:
+            typeof payload.reviewId === 'string'
+              ? payload.reviewId
+              : event.aggregateId,
+          employeeId:
+            typeof payload.employeeId === 'string'
+              ? payload.employeeId
+              : undefined,
+          rating:
+            typeof payload.rating === 'number'
+              ? payload.rating
+              : Number(payload.rating),
+          comment:
+            typeof payload.comment === 'string' ? payload.comment : undefined,
+          customerId:
+            typeof payload.customerId === 'string'
+              ? payload.customerId
+              : undefined,
+          bookingId:
+            typeof payload.bookingId === 'string'
+              ? payload.bookingId
+              : undefined,
+          customerName:
+            typeof payload.customerName === 'string'
+              ? payload.customerName
+              : undefined,
+        },
+      );
       if (ticket) {
         this.logger.log(
           `Zendesk review ticket #${ticket.ticketId} for review ${event.aggregateId}`,

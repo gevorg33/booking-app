@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -89,7 +94,10 @@ export class WhatsAppIntegrationService {
 
     let accessToken: string;
     try {
-      accessToken = decryptSecret(integration.accessTokenEnc, this.encryptionKey());
+      accessToken = decryptSecret(
+        integration.accessTokenEnc,
+        this.encryptionKey(),
+      );
     } catch {
       this.logger.warn('Failed to decrypt business WhatsApp token');
       return null;
@@ -105,13 +113,17 @@ export class WhatsAppIntegrationService {
         integration.templateConfirmation ||
         DEFAULT_WHATSAPP_INTEGRATION.templateConfirmation,
       templateReminder:
-        integration.templateReminder || DEFAULT_WHATSAPP_INTEGRATION.templateReminder,
+        integration.templateReminder ||
+        DEFAULT_WHATSAPP_INTEGRATION.templateReminder,
       templateGiftCard:
-        integration.templateGiftCard || DEFAULT_WHATSAPP_INTEGRATION.templateGiftCard,
+        integration.templateGiftCard ||
+        DEFAULT_WHATSAPP_INTEGRATION.templateGiftCard,
       templateLanguage:
-        integration.templateLanguage || DEFAULT_WHATSAPP_INTEGRATION.templateLanguage,
+        integration.templateLanguage ||
+        DEFAULT_WHATSAPP_INTEGRATION.templateLanguage,
       templateBodyParamCount:
-        integration.templateBodyParams ?? DEFAULT_WHATSAPP_INTEGRATION.templateBodyParams,
+        integration.templateBodyParams ??
+        DEFAULT_WHATSAPP_INTEGRATION.templateBodyParams,
       reminderBodyParamCount:
         integration.templateReminderBodyParams ??
         DEFAULT_WHATSAPP_INTEGRATION.templateReminderBodyParams,
@@ -119,23 +131,32 @@ export class WhatsAppIntegrationService {
         integration.templateGiftCardBodyParams ??
         DEFAULT_WHATSAPP_INTEGRATION.templateGiftCardBodyParams,
       fallbackTemplate:
-        integration.fallbackTemplate || DEFAULT_WHATSAPP_INTEGRATION.fallbackTemplate,
+        integration.fallbackTemplate ||
+        DEFAULT_WHATSAPP_INTEGRATION.fallbackTemplate,
       fallbackLanguage:
-        integration.fallbackLanguage || DEFAULT_WHATSAPP_INTEGRATION.fallbackLanguage,
+        integration.fallbackLanguage ||
+        DEFAULT_WHATSAPP_INTEGRATION.fallbackLanguage,
       fallbackBodyParamCount:
-        integration.fallbackBodyParams ?? DEFAULT_WHATSAPP_INTEGRATION.fallbackBodyParams,
+        integration.fallbackBodyParams ??
+        DEFAULT_WHATSAPP_INTEGRATION.fallbackBodyParams,
     };
   }
 
-  resolveRuntimeConfig(settings?: Record<string, unknown>): WhatsAppRuntimeConfig | null {
+  resolveRuntimeConfig(
+    settings?: Record<string, unknown>,
+  ): WhatsAppRuntimeConfig | null {
     const integration = getBusinessWhatsAppIntegration(settings);
     const businessConfig = this.businessRuntimeConfig(integration);
     if (businessConfig) return businessConfig;
     return this.platformRuntimeConfig();
   }
 
-  async getPublicSettings(businessId: string): Promise<WhatsAppIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<WhatsAppIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessWhatsAppIntegration(business.settings);
@@ -150,7 +171,10 @@ export class WhatsAppIntegrationService {
     let accessTokenHint: string | undefined;
     if (integration.accessTokenEnc) {
       try {
-        const token = decryptSecret(integration.accessTokenEnc, this.encryptionKey());
+        const token = decryptSecret(
+          integration.accessTokenEnc,
+          this.encryptionKey(),
+        );
         accessTokenHint = maskSecret(token);
       } catch {
         accessTokenHint = undefined;
@@ -182,7 +206,9 @@ export class WhatsAppIntegrationService {
     businessId: string,
     dto: UpdateWhatsAppIntegrationDto,
   ): Promise<WhatsAppIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
@@ -191,7 +217,9 @@ export class WhatsAppIntegrationService {
 
     if (dto.usePlatformDefault) {
       delete integrations.whatsapp;
-      settings.integrations = Object.keys(integrations).length ? integrations : undefined;
+      settings.integrations = Object.keys(integrations).length
+        ? integrations
+        : undefined;
       business.settings = settings;
       await this.businessRepo.save(business);
       return this.getPublicSettings(businessId);
@@ -200,21 +228,29 @@ export class WhatsAppIntegrationService {
     const next: BusinessWhatsAppIntegration = {
       ...current,
       phoneNumberId: dto.phoneNumberId?.trim() || current.phoneNumberId,
-      businessAccountId: dto.businessAccountId?.trim() || current.businessAccountId,
+      businessAccountId:
+        dto.businessAccountId?.trim() || current.businessAccountId,
       templateConfirmation:
         dto.templateConfirmation?.trim() || current.templateConfirmation,
-      templateReminder: dto.templateReminder?.trim() || current.templateReminder,
-      templateLanguage: dto.templateLanguage?.trim() || current.templateLanguage,
+      templateReminder:
+        dto.templateReminder?.trim() || current.templateReminder,
+      templateLanguage:
+        dto.templateLanguage?.trim() || current.templateLanguage,
       templateBodyParams: dto.templateBodyParams ?? current.templateBodyParams,
       templateReminderBodyParams:
         dto.templateReminderBodyParams ?? current.templateReminderBodyParams,
-      fallbackTemplate: dto.fallbackTemplate?.trim() || current.fallbackTemplate,
-      fallbackLanguage: dto.fallbackLanguage?.trim() || current.fallbackLanguage,
+      fallbackTemplate:
+        dto.fallbackTemplate?.trim() || current.fallbackTemplate,
+      fallbackLanguage:
+        dto.fallbackLanguage?.trim() || current.fallbackLanguage,
       fallbackBodyParams: dto.fallbackBodyParams ?? current.fallbackBodyParams,
     };
 
     if (dto.accessToken?.trim()) {
-      next.accessTokenEnc = encryptSecret(dto.accessToken.trim(), this.encryptionKey());
+      next.accessTokenEnc = encryptSecret(
+        dto.accessToken.trim(),
+        this.encryptionKey(),
+      );
     }
 
     this.assertCompleteBusinessWhatsApp(next);
@@ -227,12 +263,16 @@ export class WhatsAppIntegrationService {
     return this.getPublicSettings(businessId);
   }
 
-  private assertCompleteBusinessWhatsApp(integration: BusinessWhatsAppIntegration): void {
+  private assertCompleteBusinessWhatsApp(
+    integration: BusinessWhatsAppIntegration,
+  ): void {
     if (!integration.phoneNumberId?.trim()) {
       throw new BadRequestException('Phone number ID is required');
     }
     if (!integration.businessAccountId?.trim()) {
-      throw new BadRequestException('WhatsApp Business Account ID (WABA) is required');
+      throw new BadRequestException(
+        'WhatsApp Business Account ID (WABA) is required',
+      );
     }
     if (!integration.accessTokenEnc) {
       throw new BadRequestException('Access token is required');

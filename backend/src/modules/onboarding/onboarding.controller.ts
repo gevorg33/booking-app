@@ -18,7 +18,10 @@ export class OnboardingController {
   }
 
   @Get('status')
-  async getStatus(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getStatus(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.getStatus(businessId);
   }
@@ -39,7 +42,10 @@ export class OnboardingController {
   }
 
   @Post('recommend-catalog')
-  async recommendCatalog(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async recommendCatalog(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.recommendCatalog(businessId);
   }
@@ -55,31 +61,46 @@ export class OnboardingController {
   }
 
   @Post('apply-schedule')
-  async applySchedule(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async applySchedule(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.applyDefaultSchedule(businessId, user.id);
   }
 
   @Get('vertical-playbook')
-  async getVerticalPlaybook(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getVerticalPlaybook(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.getVerticalPlaybookPreview(businessId);
   }
 
   @Post('apply-playbook')
-  async applyPlaybook(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async applyPlaybook(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.applyVerticalPlaybook(businessId, user.id);
   }
 
   @Post('skip-schedule')
-  async skipSchedule(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async skipSchedule(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.skipScheduleStep(businessId);
   }
 
   @Post('complete')
-  async complete(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async complete(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.guard(businessId, user.id);
     return this.onboardingService.completeOnboarding(businessId);
   }

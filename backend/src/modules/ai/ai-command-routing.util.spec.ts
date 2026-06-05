@@ -16,15 +16,34 @@ const decomposition = {
 const router = new CommandComplexityRouterService(decomposition);
 
 const employees = [
-  { id: 'emp-1', name: 'Gevorg Gasparyan', businessId: 'biz-1', isActive: true } as any,
-  { id: 'emp-2', name: 'Mary Torgomyan', businessId: 'biz-1', isActive: true } as any,
+  {
+    id: 'emp-1',
+    name: 'Gevorg Gasparyan',
+    businessId: 'biz-1',
+    isActive: true,
+  } as any,
+  {
+    id: 'emp-2',
+    name: 'Mary Torgomyan',
+    businessId: 'biz-1',
+    isActive: true,
+  } as any,
 ];
 
 const catalog = {
   employees,
   services: [{ id: 'svc-1', name: 'facemassage', businessId: 'biz-1' } as any],
-  customers: [{ id: 'cust-1', name: 'Anna', businessId: 'biz-1', isActive: true } as any],
-  templates: [{ id: 'tpl-1', name: 'Weekday 9-17', businessId: 'biz-1', isDeleted: false } as any],
+  customers: [
+    { id: 'cust-1', name: 'Anna', businessId: 'biz-1', isActive: true } as any,
+  ],
+  templates: [
+    {
+      id: 'tpl-1',
+      name: 'Weekday 9-17',
+      businessId: 'biz-1',
+      isDeleted: false,
+    } as any,
+  ],
 };
 
 function delay(ms: number): Promise<void> {
@@ -55,8 +74,11 @@ describe('ai-command-routing.util', () => {
   describe('appendMultilingualClassifierContext', () => {
     it('appends Armenian hint when present', () => {
       const base = 'Available employees: Gevorg';
-      const hint = 'User command (may be Armenian/Russian/transliteration): "Ցույց տուր"';
-      expect(appendMultilingualClassifierContext(base, hint)).toBe(`${base}\n${hint}`);
+      const hint =
+        'User command (may be Armenian/Russian/transliteration): "Ցույց տուր"';
+      expect(appendMultilingualClassifierContext(base, hint)).toBe(
+        `${base}\n${hint}`,
+      );
     });
 
     it('returns catalog context unchanged when hint is null', () => {
@@ -195,7 +217,10 @@ describe('ai-command-routing.util', () => {
     it('propagates rejection when classify fails', async () => {
       await expect(
         runParallelRouteAndClassification({
-          resolveRoute: async () => ({ tier: 'simple_mutate', useDecomposition: false }),
+          resolveRoute: async () => ({
+            tier: 'simple_mutate',
+            useDecomposition: false,
+          }),
           classify: async () => {
             throw new Error('classify failed');
           },

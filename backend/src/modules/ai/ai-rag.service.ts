@@ -10,7 +10,10 @@ export class AiRagService {
     this.aiSettings = aiSettings;
   }
 
-  async buildRagContextBlock(businessId: string, prompt: string): Promise<string> {
+  async buildRagContextBlock(
+    businessId: string,
+    prompt: string,
+  ): Promise<string> {
     const settings = await this.aiSettings.getSettings(businessId);
     return resolveRagContextFromSettings(settings, prompt);
   }

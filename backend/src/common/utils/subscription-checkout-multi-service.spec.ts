@@ -5,8 +5,12 @@ import {
 
 describe('subscription-checkout.util multi-service', () => {
   it('resolves multi-service checkout kind', () => {
-    expect(resolvePublicCheckoutKind({ serviceIds: ['a', 'b'] })).toBe('multi_service_booking');
-    expect(resolvePublicCheckoutKind({ packageId: 'p1' })).toBe('package_purchase');
+    expect(resolvePublicCheckoutKind({ serviceIds: ['a', 'b'] })).toBe(
+      'multi_service_booking',
+    );
+    expect(resolvePublicCheckoutKind({ packageId: 'p1' })).toBe(
+      'package_purchase',
+    );
   });
 
   it('builds multi-service stripe line item', () => {

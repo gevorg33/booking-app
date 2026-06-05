@@ -35,7 +35,9 @@ export class EnterpriseTrustService {
     dto: UpdateEnterpriseTrustSettingsDto,
   ): Promise<EnterpriseTrustSettings> {
     const business = await this.findBusiness(businessId);
-    const current = mergeEnterpriseTrustSettings(business.settings?.enterpriseTrust);
+    const current = mergeEnterpriseTrustSettings(
+      business.settings?.enterpriseTrust,
+    );
     const next = mergeEnterpriseTrustSettings({ ...current, ...dto });
     business.settings = {
       ...(business.settings ?? {}),
@@ -47,7 +49,9 @@ export class EnterpriseTrustService {
 
   async renderDocuments(businessId: string): Promise<RenderedTrustDocument[]> {
     const business = await this.findBusiness(businessId);
-    const settings = mergeEnterpriseTrustSettings(business.settings?.enterpriseTrust);
+    const settings = mergeEnterpriseTrustSettings(
+      business.settings?.enterpriseTrust,
+    );
     const values = this.buildPlaceholderValues(business, settings);
 
     return [
@@ -68,7 +72,8 @@ export class EnterpriseTrustService {
 
   getSecurityOnePager(): SecurityOnePager {
     const contactEmail =
-      this.configService.get<string>('SECURITY_CONTACT_EMAIL') || SECURITY_ONE_PAGER.contactEmail;
+      this.configService.get<string>('SECURITY_CONTACT_EMAIL') ||
+      SECURITY_ONE_PAGER.contactEmail;
     return { ...SECURITY_ONE_PAGER, contactEmail };
   }
 
@@ -82,18 +87,26 @@ export class EnterpriseTrustService {
       processorName: PROCESSOR_NAME,
       dpaEffectiveDate: settings.dpaEffectiveDate || today,
       privacyPolicyEffectiveDate: settings.privacyPolicyEffectiveDate || today,
-      registeredAddress: settings.registeredAddress || '[Registered business address]',
+      registeredAddress:
+        settings.registeredAddress || '[Registered business address]',
       country: settings.country || '[Country]',
       dpoEmail: settings.dpoEmail || '[dpo@yourbusiness.com]',
-      euRepresentative: settings.euRepresentative || '[EU representative, if required]',
+      euRepresentative:
+        settings.euRepresentative || '[EU representative, if required]',
       customDataProcessingNotes:
         settings.customDataProcessingNotes ||
         'No additional processing terms specified.',
     };
   }
 
-  private fillTemplate(template: string, values: Record<string, string>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? `[${key}]`);
+  private fillTemplate(
+    template: string,
+    values: Record<string, string>,
+  ): string {
+    return template.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, key: string) => values[key] ?? `[${key}]`,
+    );
   }
 
   private filledKeys(values: Record<string, string>): string[] {
@@ -104,7 +117,9 @@ export class EnterpriseTrustService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

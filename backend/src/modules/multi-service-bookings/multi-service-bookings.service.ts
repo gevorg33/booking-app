@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
@@ -36,13 +40,16 @@ export class MultiServiceBookingsService {
     businessId: string,
     dto: UpdateMultiServiceSettingsDto,
   ): Promise<MultiServiceSettings> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const current = resolveMultiServiceSettings(business.settings);
     const next = mergeMultiServiceSettingsPatch(current, {
       ...dto,
-      incompatiblePairMode: dto.incompatiblePairMode ?? current.incompatiblePairMode,
+      incompatiblePairMode:
+        dto.incompatiblePairMode ?? current.incompatiblePairMode,
       incompatiblePairs: dto.incompatiblePairs ?? current.incompatiblePairs,
       incompatibleCategoryPairs:
         dto.incompatibleCategoryPairs ?? current.incompatibleCategoryPairs,
@@ -78,18 +85,28 @@ export class MultiServiceBookingsService {
   async validateSelection(businessId: string, serviceIds: string[]) {
     const settings = await this.resolveSettingsForBusiness(businessId);
     if (!settings.enabled) {
-      throw new BadRequestException('Multi-service booking is not enabled for this business');
+      throw new BadRequestException(
+        'Multi-service booking is not enabled for this business',
+      );
     }
-    const services = await this.loadServicesForSelection(businessId, serviceIds);
+    const services = await this.loadServicesForSelection(
+      businessId,
+      serviceIds,
+    );
     return validateMultiServiceSelection(serviceIds, services, settings);
   }
 
   async previewTotals(businessId: string, serviceIds: string[]) {
     const validation = await this.validateSelection(businessId, serviceIds);
     if (!validation.valid || !validation.totals) {
-      throw new BadRequestException(validation.errors[0] ?? 'Invalid service selection');
+      throw new BadRequestException(
+        validation.errors[0] ?? 'Invalid service selection',
+      );
     }
-    const services = await this.loadServicesForSelection(businessId, serviceIds);
+    const services = await this.loadServicesForSelection(
+      businessId,
+      serviceIds,
+    );
     const currency = services[0]?.currency ?? 'USD';
     return {
       ...validation,
@@ -108,7 +125,11 @@ export class MultiServiceBookingsService {
     businessId: string;
     customerId: string;
     schedulingMode: MultiServiceSchedulingMode;
-    totals: { blockDurationMinutes: number; totalPrice: number; currency: string };
+    totals: {
+      blockDurationMinutes: number;
+      totalPrice: number;
+      currency: string;
+    };
     blockStartTime?: Date | null;
     primaryEmployeeId?: string | null;
     metadata?: Record<string, unknown>;
@@ -132,8 +153,12 @@ export class MultiServiceBookingsService {
     return resolveMultiServiceSettings(business.settings);
   }
 
-  private async resolveSettingsForBusiness(businessId: string): Promise<MultiServiceSettings> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  private async resolveSettingsForBusiness(
+    businessId: string,
+  ): Promise<MultiServiceSettings> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return resolveMultiServiceSettings(business.settings);
   }

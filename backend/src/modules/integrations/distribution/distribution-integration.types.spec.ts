@@ -24,12 +24,19 @@ describe('distribution-integration.types', () => {
         },
       },
     };
-    expect(getDistributionIntegrations(settings).metaBooking?.enabled).toBe(true);
+    expect(getDistributionIntegrations(settings).metaBooking?.enabled).toBe(
+      true,
+    );
   });
 
   it('builds public booking url without trailing slash on frontend', () => {
-    const links = buildMessagingLinksForBusiness(business, 'https://app.example.com/');
-    expect(links.publicBookingUrl).toBe('https://app.example.com/book/salon-one');
+    const links = buildMessagingLinksForBusiness(
+      business,
+      'https://app.example.com/',
+    );
+    expect(links.publicBookingUrl).toBe(
+      'https://app.example.com/book/salon-one',
+    );
   });
 
   it('builds telegram deep link when enabled', () => {
@@ -39,7 +46,10 @@ describe('distribution-integration.types', () => {
         settings: {
           integrations: {
             distribution: {
-              messaging: { telegramEnabled: true, telegramBotUsername: '@MyBot' },
+              messaging: {
+                telegramEnabled: true,
+                telegramBotUsername: '@MyBot',
+              },
             },
           },
         },
@@ -90,7 +100,9 @@ describe('distribution-integration.types', () => {
       'https://app.example.com',
     );
     expect(links.whatsappUrl).toContain('wa.me/15551234567');
-    expect(decodeURIComponent(links.whatsappUrl!.split('text=')[1])).toContain('Salon One');
+    expect(decodeURIComponent(links.whatsappUrl!.split('text=')[1])).toContain(
+      'Salon One',
+    );
   });
 
   it('builds meta facebook and instagram links', () => {
@@ -129,11 +141,16 @@ describe('distribution-integration.types', () => {
       },
       'https://app.example.com',
     );
-    expect(links.facebookBookingUrl).toBe('https://app.example.com/book/salon-one');
+    expect(links.facebookBookingUrl).toBe(
+      'https://app.example.com/book/salon-one',
+    );
   });
 
   it('omits disabled channel links', () => {
-    const links = buildMessagingLinksForBusiness(business, 'https://app.example.com');
+    const links = buildMessagingLinksForBusiness(
+      business,
+      'https://app.example.com',
+    );
     expect(links.telegramUrl).toBeNull();
     expect(links.whatsappUrl).toBeNull();
     expect(links.facebookBookingUrl).toBeNull();

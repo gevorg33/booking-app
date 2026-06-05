@@ -44,11 +44,13 @@ export class AiWeeklyReportService {
       (s, b) => s + Number(b.service?.price ?? b.metadata?.price ?? 0),
       0,
     );
-    const noShows = bookings.filter((b) => b.status === BookingStatus.NO_SHOW).length;
+    const noShows = bookings.filter(
+      (b) => b.status === BookingStatus.NO_SHOW,
+    ).length;
     const cancelled = await this.bookingRepo.count({
       where: {
         businessId,
-        startTime: Between(start, end) as any,
+        startTime: Between(start, end),
         status: BookingStatus.CANCELLED,
       },
     });
@@ -64,7 +66,10 @@ export class AiWeeklyReportService {
       staffNames: employees.map((e) => e.name),
     };
 
-    const report = await this.intelligence.generateWeeklyReport(businessId, snapshot);
+    const report = await this.intelligence.generateWeeklyReport(
+      businessId,
+      snapshot,
+    );
 
     return {
       snapshot,

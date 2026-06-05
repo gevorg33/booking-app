@@ -2,7 +2,11 @@ import { ZendeskApiClient } from './zendesk-api.client.js';
 
 describe('ZendeskApiClient', () => {
   const client = new ZendeskApiClient();
-  const config = { subdomain: 'acme', apiUserEmail: 'agent@test.com', apiToken: 'secret-token' };
+  const config = {
+    subdomain: 'acme',
+    apiUserEmail: 'agent@test.com',
+    apiToken: 'secret-token',
+  };
 
   const originalFetch = global.fetch;
 
@@ -94,7 +98,9 @@ describe('ZendeskApiClient', () => {
   it('upsertUser returns user metadata', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ user: { id: 7, created_at: '2024-01-01T00:00:00Z' } }),
+      json: async () => ({
+        user: { id: 7, created_at: '2024-01-01T00:00:00Z' },
+      }),
     });
 
     const result = await client.upsertUser(config, {

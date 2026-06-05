@@ -16,7 +16,9 @@ describe('loyalty-settings.util', () => {
   });
 
   it('reads tenant-configured earn percent', () => {
-    expect(getEarnPercentCashback({ loyalty: { earnPercentCashback: 10 } })).toBe(10);
+    expect(
+      getEarnPercentCashback({ loyalty: { earnPercentCashback: 10 } }),
+    ).toBe(10);
   });
 
   it('earns percent of amount paid as dollar bonus', () => {
@@ -57,9 +59,11 @@ describe('loyalty-settings.util', () => {
         loyalty: { earnExcludedServiceIds: ['svc-1', '', 42, null, 'svc-2'] },
       }),
     ).toEqual(['svc-1', 'svc-2']);
-    expect(getLoyaltyEarnExcludedServiceIds({ loyalty: { earnExcludedServiceIds: 'bad' } })).toEqual(
-      [],
-    );
+    expect(
+      getLoyaltyEarnExcludedServiceIds({
+        loyalty: { earnExcludedServiceIds: 'bad' },
+      }),
+    ).toEqual([]);
     expect(getLoyaltyEarnExcludedServiceIds({ loyalty: null })).toEqual([]);
   });
 
@@ -86,8 +90,12 @@ describe('loyalty-settings.util', () => {
   });
 
   it('falls back to default earn percent for invalid settings', () => {
-    expect(getEarnPercentCashback({ loyalty: { earnPercentCashback: -1 } })).toBe(5);
-    expect(getEarnPercentCashback({ loyalty: { earnPercentCashback: '10' } })).toBe(5);
+    expect(
+      getEarnPercentCashback({ loyalty: { earnPercentCashback: -1 } }),
+    ).toBe(5);
+    expect(
+      getEarnPercentCashback({ loyalty: { earnPercentCashback: '10' } }),
+    ).toBe(5);
   });
 
   it('returns zero earn percent for excluded services at checkout', () => {

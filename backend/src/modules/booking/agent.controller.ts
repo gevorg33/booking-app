@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Put } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  Put,
+} from '@nestjs/common';
 import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.service.js';
 import { AgentTaskUndoService } from '../../engine/agent/agent-task-undo.service.js';
 import { AgentIntentDto } from './dto/agent-intent.dto.js';
@@ -26,7 +34,10 @@ export class AgentController {
       context: {
         businessId,
         dateRange: dto.dateRange
-          ? { start: new Date(dto.dateRange.start), end: new Date(dto.dateRange.end) }
+          ? {
+              start: new Date(dto.dateRange.start),
+              end: new Date(dto.dateRange.end),
+            }
           : undefined,
       },
       userId: user.id,
@@ -45,7 +56,10 @@ export class AgentController {
   }
 
   @Post('tasks/undo-latest')
-  undoLatest(@Param('businessId') businessId: string, @CurrentUser() user: any) {
+  undoLatest(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: any,
+  ) {
     return this.agentTaskUndo.undoLatest(businessId, user.id);
   }
 
@@ -94,7 +108,7 @@ export class AgentController {
     }
 
     const plan = {
-      ...task.plan!,
+      ...task.plan,
       id: crypto.randomUUID(),
       intent: `Rebook all from task ${taskId}`,
       steps,

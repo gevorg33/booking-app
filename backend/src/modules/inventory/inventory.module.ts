@@ -7,7 +7,10 @@ import { InventoryController } from './inventory.controller.js';
 import { BusinessModule } from '../business/business.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, ServiceProduct, Service]), BusinessModule],
+  imports: [
+    TypeOrmModule.forFeature([Product, ServiceProduct, Service]),
+    BusinessModule,
+  ],
   controllers: [InventoryController],
   providers: [InventoryService],
   exports: [InventoryService],

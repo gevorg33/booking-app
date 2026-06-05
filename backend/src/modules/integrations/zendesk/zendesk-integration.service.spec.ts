@@ -82,7 +82,9 @@ describe('ZendeskIntegrationService', () => {
   describe('getPublicSettings', () => {
     it('throws when business not found', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.getPublicSettings('missing')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getPublicSettings('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('returns unconfigured view when zendesk not set up', async () => {
@@ -126,7 +128,9 @@ describe('ZendeskIntegrationService', () => {
     it('clears credentials when clearCredentials is true', async () => {
       const business = businessWithZendesk();
       businessRepo.findOne.mockResolvedValue(business);
-      const view = await service.updateSettings('biz-1', { clearCredentials: true });
+      const view = await service.updateSettings('biz-1', {
+        clearCredentials: true,
+      });
       expect(businessRepo.save).toHaveBeenCalled();
       expect(view.configured).toBe(false);
     });
@@ -215,27 +219,35 @@ describe('ZendeskIntegrationService', () => {
     });
 
     it('skips credential verification when integration disabled', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ enabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ enabled: false }),
+      );
       await service.updateSettings('biz-1', { widgetKey: 'only-widget' });
       expect(api.verifyCredentials).not.toHaveBeenCalled();
     });
 
     it('throws when business not found on update', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.updateSettings('missing', { enabled: false })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.updateSettings('missing', { enabled: false }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('clears widget key when empty string provided', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ enabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ enabled: false }),
+      );
       const view = await service.updateSettings('biz-1', { widgetKey: '   ' });
       expect(view.widgetKey).toBeUndefined();
     });
 
     it('updates dashboard widget flag explicitly', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ enabled: false }));
-      const view = await service.updateSettings('biz-1', { widgetEnabledOnDashboard: false });
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ enabled: false }),
+      );
+      const view = await service.updateSettings('biz-1', {
+        widgetEnabledOnDashboard: false,
+      });
       expect(view.widgetEnabledOnDashboard).toBe(false);
     });
   });
@@ -246,13 +258,24 @@ describe('ZendeskIntegrationService', () => {
       expect(
         service.getPublicWidgetConfig({
           integrations: {
-            zendesk: { enabled: true, widgetKey: 'k', widgetEnabledOnDashboard: false, widgetEnabledOnPublicBooking: false },
+            zendesk: {
+              enabled: true,
+              widgetKey: 'k',
+              widgetEnabledOnDashboard: false,
+              widgetEnabledOnPublicBooking: false,
+            },
           },
         }),
       ).toBeNull();
       expect(
         service.getPublicWidgetConfig({
-          integrations: { zendesk: { enabled: true, widgetKey: 'k', widgetEnabledOnPublicBooking: true } },
+          integrations: {
+            zendesk: {
+              enabled: true,
+              widgetKey: 'k',
+              widgetEnabledOnPublicBooking: true,
+            },
+          },
         }),
       ).toEqual({ widgetKey: 'k' });
     });
@@ -278,14 +301,22 @@ describe('ZendeskIntegrationService', () => {
     it('getPublicWidgetKey requires public booking flag', () => {
       const settings = {
         integrations: {
-          zendesk: { enabled: true, widgetKey: 'pub', widgetEnabledOnPublicBooking: false },
+          zendesk: {
+            enabled: true,
+            widgetKey: 'pub',
+            widgetEnabledOnPublicBooking: false,
+          },
         },
       };
       expect(service.getPublicWidgetKey(settings)).toBeNull();
       expect(
         service.getPublicWidgetKey({
           integrations: {
-            zendesk: { enabled: true, widgetKey: 'pub', widgetEnabledOnPublicBooking: true },
+            zendesk: {
+              enabled: true,
+              widgetKey: 'pub',
+              widgetEnabledOnPublicBooking: true,
+            },
           },
         }),
       ).toBe('pub');
@@ -357,12 +388,14 @@ describe('ZendeskIntegrationService', () => {
     });
 
     it('creates ticket without syncing customer when sync disabled', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ syncCustomersEnabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ syncCustomersEnabled: false }),
+      );
       customerRepo.findOne.mockResolvedValue({
         id: 'cust-1',
         name: 'Jane',
         email: 'jane@example.com',
-      } as Customer);
+      });
 
       await service.createSupportTicket(
         'biz-1',
@@ -377,15 +410,18 @@ describe('ZendeskIntegrationService', () => {
     it('throws when business missing for ticket creation', async () => {
       businessRepo.findOne.mockResolvedValue(null);
       await expect(
-        service.createSupportTicket(
-          'biz-1',
-          { subject: 'Hi', body: 'Help', requesterEmail: 'a@b.com' },
-        ),
+        service.createSupportTicket('biz-1', {
+          subject: 'Hi',
+          body: 'Help',
+          requesterEmail: 'a@b.com',
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('falls back to actor email when no customer or booking email', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ syncCustomersEnabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ syncCustomersEnabled: false }),
+      );
       const result = await service.createSupportTicket(
         'biz-1',
         { subject: 'Issue', body: 'Details' },
@@ -395,19 +431,24 @@ describe('ZendeskIntegrationService', () => {
       expect(result.requesterEmail).toBe('owner@test.com');
       expect(api.createTicket).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ requesterEmail: 'owner@test.com', requesterName: 'Owner Name' }),
+        expect.objectContaining({
+          requesterEmail: 'owner@test.com',
+          requesterName: 'Owner Name',
+        }),
       );
     });
 
     it('uses booking customer email when dto email omitted', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ syncCustomersEnabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ syncCustomersEnabled: false }),
+      );
       bookingRepo.findOne.mockResolvedValue({
         id: 'book-1',
         startTime: new Date('2026-05-01T10:00:00Z'),
         service: { name: 'Cut' },
         employee: { name: 'Sam' },
         customer: { name: 'Pat', email: 'pat@example.com' },
-      } as Booking);
+      });
 
       const result = await service.createSupportTicket('biz-1', {
         subject: 'Issue',
@@ -426,7 +467,9 @@ describe('ZendeskIntegrationService', () => {
     });
 
     it('returns null when zendesk disabled', async () => {
-      businessRepo.findOne.mockResolvedValue(businessWithZendesk({ enabled: false }));
+      businessRepo.findOne.mockResolvedValue(
+        businessWithZendesk({ enabled: false }),
+      );
       expect(await service.syncCustomerIfEnabled('biz-1', 'cust-1')).toBeNull();
     });
 
@@ -440,7 +483,10 @@ describe('ZendeskIntegrationService', () => {
 
     it('returns null when customer has no email', async () => {
       businessRepo.findOne.mockResolvedValue(businessWithZendesk());
-      customerRepo.findOne.mockResolvedValue({ id: 'cust-1', name: 'No Email' });
+      customerRepo.findOne.mockResolvedValue({
+        id: 'cust-1',
+        name: 'No Email',
+      });
       const result = await service.syncCustomerIfEnabled('biz-1', 'cust-1');
       expect(result).toBeNull();
     });
@@ -500,13 +546,19 @@ describe('ZendeskIntegrationService', () => {
     it('returns null when createTicketOnReview is disabled', async () => {
       businessRepo.findOne.mockResolvedValue(businessWithZendesk());
       expect(
-        await service.createTicketFromReviewIfEnabled('biz-1', { rating: 5, reviewId: 'rev-1' }),
+        await service.createTicketFromReviewIfEnabled('biz-1', {
+          rating: 5,
+          reviewId: 'rev-1',
+        }),
       ).toBeNull();
     });
 
     it('returns null when rating exceeds max threshold', async () => {
       businessRepo.findOne.mockResolvedValue(
-        businessWithZendesk({ createTicketOnReview: true, reviewTicketMaxRating: 3 }),
+        businessWithZendesk({
+          createTicketOnReview: true,
+          reviewTicketMaxRating: 3,
+        }),
       );
       expect(
         await service.createTicketFromReviewIfEnabled('biz-1', {
@@ -548,7 +600,11 @@ describe('ZendeskIntegrationService', () => {
         expect.objectContaining({
           subject: 'New review — 2★ from Jane',
           requesterEmail: 'jane@example.com',
-          tags: expect.arrayContaining(['optischedule', 'review', 'low-rating']),
+          tags: expect.arrayContaining([
+            'optischedule',
+            'review',
+            'low-rating',
+          ]),
           body: expect.stringContaining('Provider: Alex'),
         }),
       );
@@ -561,7 +617,10 @@ describe('ZendeskIntegrationService', () => {
       employeeRepo.findOne.mockResolvedValue(null);
       customerRepo.findOne.mockResolvedValue({ id: 'cust-1', name: 'Guest' });
       bookingRepo.findOne.mockResolvedValue(null);
-      api.createTicket.mockResolvedValue({ ticketId: 88, url: 'https://x.zendesk.com/t/88' });
+      api.createTicket.mockResolvedValue({
+        ticketId: 88,
+        url: 'https://x.zendesk.com/t/88',
+      });
 
       await service.createTicketFromReviewIfEnabled('biz-1', {
         reviewId: 'rev-2',

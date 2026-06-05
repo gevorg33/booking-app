@@ -17,7 +17,10 @@ export const WIZARD_ACTIONS = new Set([
   'reassign_cancelled',
 ]);
 
-export function shouldUseWizardMode(action: string, planDiff?: WizardPlanStep[]): boolean {
+export function shouldUseWizardMode(
+  action: string,
+  planDiff?: WizardPlanStep[],
+): boolean {
   if (!WIZARD_ACTIONS.has(action)) return false;
   return Array.isArray(planDiff) && planDiff.length >= 2;
 }

@@ -25,9 +25,13 @@ export function parseMarketingTeamEmails(raw: unknown): string[] {
 
 export function mergeMarketingNotificationSettings(
   raw?: Record<string, unknown>,
-): Pick<BusinessNotificationSettings, 'emailOnNewCustomerRegistration' | 'marketingTeamEmails'> {
+): Pick<
+  BusinessNotificationSettings,
+  'emailOnNewCustomerRegistration' | 'marketingTeamEmails'
+> {
   return {
-    emailOnNewCustomerRegistration: raw?.emailOnNewCustomerRegistration === true,
+    emailOnNewCustomerRegistration:
+      raw?.emailOnNewCustomerRegistration === true,
     marketingTeamEmails: parseMarketingTeamEmails(raw?.marketingTeamEmails),
   };
 }

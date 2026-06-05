@@ -37,7 +37,9 @@ export class GiftCardDeliveryService {
     const recipientPhone = card.recipientPhone?.trim() || null;
 
     if (!recipientEmail && !recipientPhone) {
-      this.logger.warn(`Gift card ${card.id} has no recipient email or phone for digital delivery`);
+      this.logger.warn(
+        `Gift card ${card.id} has no recipient email or phone for digital delivery`,
+      );
       return;
     }
 
@@ -73,11 +75,14 @@ export class GiftCardDeliveryService {
     }
 
     if (recipientPhone) {
-      const whatsappConfig = this.whatsappIntegrationService.resolveRuntimeConfig(
-        card.business?.settings,
-      );
+      const whatsappConfig =
+        this.whatsappIntegrationService.resolveRuntimeConfig(
+          card.business?.settings,
+        );
       if (!whatsappConfig) {
-        this.logger.warn(`WhatsApp not configured — skipping gift card WhatsApp for ${card.id}`);
+        this.logger.warn(
+          `WhatsApp not configured — skipping gift card WhatsApp for ${card.id}`,
+        );
       } else {
         const whatsappSummary = buildWhatsAppGiftCardSummary(card, links);
         const businessName = card.business?.name ?? 'Gift card';
@@ -97,7 +102,9 @@ export class GiftCardDeliveryService {
         if (result.ok) {
           delivered = true;
         } else {
-          this.logger.warn(`Gift card WhatsApp failed for ${card.id}: ${result.error}`);
+          this.logger.warn(
+            `Gift card WhatsApp failed for ${card.id}: ${result.error}`,
+          );
         }
       }
     }

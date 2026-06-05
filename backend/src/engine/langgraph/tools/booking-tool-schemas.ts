@@ -38,7 +38,9 @@ export const directSchedulePeriodSchema = z.object({
 });
 
 export const compoundStepSchema = z.object({
-  action: z.string().describe('Workflow action name e.g. cancel_bookings, clear_schedule'),
+  action: z
+    .string()
+    .describe('Workflow action name e.g. cancel_bookings, clear_schedule'),
   description: z.string(),
   params: z.record(z.string(), z.unknown()).default({}),
   chainPrevious: z
@@ -47,7 +49,9 @@ export const compoundStepSchema = z.object({
     .describe('If true (default), depends on the previous step in this batch'),
 });
 
-export function buildDateParams(input: z.infer<typeof dateRangeSchema>): Record<string, unknown> {
+export function buildDateParams(
+  input: z.infer<typeof dateRangeSchema>,
+): Record<string, unknown> {
   if (input.dateFrom && input.dateTo) {
     return { dateRange: { start: input.dateFrom, end: input.dateTo } };
   }

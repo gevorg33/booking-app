@@ -51,7 +51,9 @@ describe('loyalty-amount.util', () => {
   });
 
   it('uses full service price when no loyalty was redeemed', () => {
-    expect(resolveEligibleCashPaidForEarn({ metadata: {}, servicePrice: 85 })).toBe(85);
+    expect(
+      resolveEligibleCashPaidForEarn({ metadata: {}, servicePrice: 85 }),
+    ).toBe(85);
   });
 
   it('prefers explicit cashPaidEligible', () => {

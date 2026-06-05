@@ -29,11 +29,15 @@ describe('AiEntityMemoryService', () => {
         { provide: AiSettingsService, useValue: aiSettings },
       ],
     }).compile();
-    expect(moduleRef.get(AiEntityMemoryService)).toBeInstanceOf(AiEntityMemoryService);
+    expect(moduleRef.get(AiEntityMemoryService)).toBeInstanceOf(
+      AiEntityMemoryService,
+    );
   });
 
   it('getEntityMemory delegates to settings', async () => {
-    aiSettings.getEntityMemory.mockResolvedValue({ aliases: { gevorg: { employeeName: 'Gevorg' } } });
+    aiSettings.getEntityMemory.mockResolvedValue({
+      aliases: { gevorg: { employeeName: 'Gevorg' } },
+    });
     await expect(service.getEntityMemory('biz-1')).resolves.toEqual({
       aliases: { gevorg: { employeeName: 'Gevorg' } },
     });
@@ -59,7 +63,9 @@ describe('AiEntityMemoryService', () => {
     openAi.completeJson.mockResolvedValue({
       aliases: { gevorg: { employeeName: 'Gevorg' } },
     });
-    await service.learnFromCommand('biz-1', 'show gevorg', 'list_bookings', { employee: 'Gevorg' });
+    await service.learnFromCommand('biz-1', 'show gevorg', 'list_bookings', {
+      employee: 'Gevorg',
+    });
     expect(aiSettings.mergeEntityMemory).toHaveBeenCalledWith('biz-1', {
       gevorg: { employeeName: 'Gevorg' },
     });
@@ -103,7 +109,9 @@ describe('AiEntityMemoryService', () => {
     aiSettings.getEntityMemory.mockResolvedValue({
       aliases: { gevorg: { employeeName: 'Gevorg' } },
     });
-    await expect(service.resolveMention('biz-1', '  Gevorg  ', 'catalog')).resolves.toEqual({
+    await expect(
+      service.resolveMention('biz-1', '  Gevorg  ', 'catalog'),
+    ).resolves.toEqual({
       employeeName: 'Gevorg',
     });
   });
@@ -112,7 +120,9 @@ describe('AiEntityMemoryService', () => {
     aiSettings.getEntityMemory.mockResolvedValue({
       aliases: { gevorg: { employeeName: 'Gevorg' } },
     });
-    await expect(service.resolveMention('biz-1', 'Gevorg', 'catalog')).resolves.toEqual({
+    await expect(
+      service.resolveMention('biz-1', 'Gevorg', 'catalog'),
+    ).resolves.toEqual({
       employeeName: 'Gevorg',
     });
     expect(openAi.completeJson).not.toHaveBeenCalled();
@@ -122,13 +132,17 @@ describe('AiEntityMemoryService', () => {
     aiSettings.getEntityMemory.mockResolvedValue({ aliases: {} });
     openAi.isAvailableForBusiness.mockResolvedValue(true);
     openAi.completeJson.mockResolvedValue({ employeeName: 'Maybe' });
-    await expect(service.resolveMention('biz-1', 'maybe', 'catalog')).resolves.toBeNull();
+    await expect(
+      service.resolveMention('biz-1', 'maybe', 'catalog'),
+    ).resolves.toBeNull();
   });
 
   it('resolveMention returns null when OpenAI unavailable after miss', async () => {
     aiSettings.getEntityMemory.mockResolvedValue({ aliases: {} });
     openAi.isAvailableForBusiness.mockResolvedValue(false);
-    await expect(service.resolveMention('biz-1', 'unknown', 'catalog')).resolves.toBeNull();
+    await expect(
+      service.resolveMention('biz-1', 'unknown', 'catalog'),
+    ).resolves.toBeNull();
   });
 
   it('resolveMention uses LLM when alias missing and confidence is high', async () => {
@@ -138,7 +152,9 @@ describe('AiEntityMemoryService', () => {
       employeeName: 'Maria',
       confidence: 0.9,
     });
-    await expect(service.resolveMention('biz-1', 'maria', 'providers: Maria')).resolves.toEqual({
+    await expect(
+      service.resolveMention('biz-1', 'maria', 'providers: Maria'),
+    ).resolves.toEqual({
       employeeName: 'Maria',
       confidence: 0.9,
     });
@@ -151,7 +167,9 @@ describe('AiEntityMemoryService', () => {
       employeeName: 'Maria',
       confidence: 0.6,
     });
-    await expect(service.resolveMention('biz-1', 'maria', 'catalog')).resolves.toEqual({
+    await expect(
+      service.resolveMention('biz-1', 'maria', 'catalog'),
+    ).resolves.toEqual({
       employeeName: 'Maria',
       confidence: 0.6,
     });
@@ -164,13 +182,17 @@ describe('AiEntityMemoryService', () => {
       employeeName: 'Maybe',
       confidence: 0.4,
     });
-    await expect(service.resolveMention('biz-1', 'maybe', 'catalog')).resolves.toBeNull();
+    await expect(
+      service.resolveMention('biz-1', 'maybe', 'catalog'),
+    ).resolves.toBeNull();
   });
 
   it('resolveMention rejects null LLM responses', async () => {
     aiSettings.getEntityMemory.mockResolvedValue({ aliases: {} });
     openAi.isAvailableForBusiness.mockResolvedValue(true);
     openAi.completeJson.mockResolvedValue(null);
-    await expect(service.resolveMention('biz-1', 'x', 'catalog')).resolves.toBeNull();
+    await expect(
+      service.resolveMention('biz-1', 'x', 'catalog'),
+    ).resolves.toBeNull();
   });
 });

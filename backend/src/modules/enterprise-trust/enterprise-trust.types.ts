@@ -32,7 +32,8 @@ export function mergeEnterpriseTrustSettings(
     country: partial.country?.trim() || null,
     dpoEmail: partial.dpoEmail?.trim() || null,
     euRepresentative: partial.euRepresentative?.trim() || null,
-    customDataProcessingNotes: partial.customDataProcessingNotes?.trim() || null,
+    customDataProcessingNotes:
+      partial.customDataProcessingNotes?.trim() || null,
   };
 }
 

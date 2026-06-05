@@ -7,7 +7,9 @@ import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MultiServiceBookingGroup, Business, Service])],
+  imports: [
+    TypeOrmModule.forFeature([MultiServiceBookingGroup, Business, Service]),
+  ],
   controllers: [MultiServiceBookingsController],
   providers: [MultiServiceBookingsService],
   exports: [MultiServiceBookingsService],

@@ -1,4 +1,7 @@
-import { PlanLimitExceededException, PLAN_LIMIT_ERROR_CODE } from './plan-limit.exception.js';
+import {
+  PlanLimitExceededException,
+  PLAN_LIMIT_ERROR_CODE,
+} from './plan-limit.exception.js';
 
 describe('PlanLimitExceededException', () => {
   it('exposes plan limit payload for provider seats', () => {

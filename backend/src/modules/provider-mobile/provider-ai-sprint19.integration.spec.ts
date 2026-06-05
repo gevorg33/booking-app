@@ -49,7 +49,9 @@ describe('Sprint 19 provider AI commands integration', () => {
     bookingRepo = { find: jest.fn(async () => []) };
     periodRepo = { find: jest.fn(async () => []) };
     employeeRepo = {
-      find: jest.fn(async () => [{ id: employeeId, name: 'Alex Provider', isActive: true }]),
+      find: jest.fn(async () => [
+        { id: employeeId, name: 'Alex Provider', isActive: true },
+      ]),
     };
     schedulingEngine = {
       getEmployeeUtilization: jest.fn(async () => ({
@@ -81,7 +83,14 @@ describe('Sprint 19 provider AI commands integration', () => {
       bookingRepo as any,
       employeeRepo as any,
       { find: jest.fn() } as any,
-      { createQueryBuilder: jest.fn(() => ({ where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), orderBy: jest.fn().mockReturnThis(), getMany: jest.fn(async () => []) })) } as any,
+      {
+        createQueryBuilder: jest.fn(() => ({
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          getMany: jest.fn(async () => []),
+        })),
+      } as any,
       periodRepo as any,
       {} as any,
       schedulingEngine as any,
@@ -93,6 +102,15 @@ describe('Sprint 19 provider AI commands integration', () => {
       {} as any,
       {} as any,
       promptSecurity as any,
+      {
+        isPushNotificationsCompound: jest.fn(() => false),
+        handlePushNotificationsCompound: jest.fn(),
+      } as any,
+      {
+        isProviderBookingCompound: jest.fn(() => false),
+        handleProviderBookingCompound: jest.fn(),
+        rescueProviderBookingIntent: jest.fn(() => null),
+      } as any,
     );
   });
 
@@ -118,7 +136,11 @@ describe('Sprint 19 provider AI commands integration', () => {
     ]);
     mockIntent('show_appointments', { date: '02/06/2026' });
 
-    const result = await service.executeCommand(businessId, userId, "Who's next?");
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      "Who's next?",
+    );
     expect(result.action).toBe('show_appointments');
     expect(result.success).toBe(true);
     expect(result.summary).toMatch(/Next up|appointment/i);
@@ -139,12 +161,20 @@ describe('Sprint 19 provider AI commands integration', () => {
 
   it('blocks lunch on own calendar for staff', async () => {
     mockIntent('block_schedule', { date: '02/06/2026' });
-    const result = await service.executeCommand(businessId, userId, 'Block lunch today');
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Block lunch today',
+    );
     expect(result.action).toBe('block_schedule');
     expect(scheduleHandlers.handleBlockSchedule).toHaveBeenCalledWith(
       businessId,
       'Block lunch today',
-      expect.objectContaining({ timeFrom: '12:00', timeTo: '13:00', allProviders: false }),
+      expect.objectContaining({
+        timeFrom: '12:00',
+        timeTo: '13:00',
+        allProviders: false,
+      }),
       expect.arrayContaining([expect.objectContaining({ id: employeeId })]),
       userId,
     );
@@ -173,7 +203,11 @@ describe('Sprint 19 provider AI commands integration', () => {
   it('fails availability when provider has no linked employee', async () => {
     providerMobile.getScopedEmployeeId.mockReturnValue(undefined);
     mockIntent('check_availability', { date: '02/06/2026' });
-    const result = await service.executeCommand(businessId, userId, 'Open slots today?');
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Open slots today?',
+    );
     expect(result.action).toBe('check_availability');
     expect(result.success).toBe(false);
     expect(result.summary).toMatch(/linked to your account/i);

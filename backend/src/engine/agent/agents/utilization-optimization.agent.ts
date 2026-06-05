@@ -16,7 +16,11 @@ export class UtilizationOptimizationAgent implements AgentHandler {
   constructor(private llm: LlmService) {}
 
   async handle(context: AgentContext, intent: string): Promise<AgentResult> {
-    const llmResult = await this.llm.buildPlan(AgentType.UTILIZATION_OPTIMIZATION, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.UTILIZATION_OPTIMIZATION,
+      intent,
+      context,
+    );
     if (llmResult) {
       return {
         plan: {
@@ -35,7 +39,10 @@ export class UtilizationOptimizationAgent implements AgentHandler {
       };
     }
 
-    return { plan: this.buildPlan(context, intent), executionMode: 'requires_approval' };
+    return {
+      plan: this.buildPlan(context, intent),
+      executionMode: 'requires_approval',
+    };
   }
 
   private buildPlan(context: AgentContext, intent: string): AgentPlan {
@@ -46,7 +53,9 @@ export class UtilizationOptimizationAgent implements AgentHandler {
 
     const employeeCount = context.employees?.length ?? 0;
     const bookingCount = context.bookings?.length ?? 0;
-    const templateNames = (context.templates ?? []).map((t: any) => t.name).slice(0, 3);
+    const templateNames = (context.templates ?? [])
+      .map((t: any) => t.name)
+      .slice(0, 3);
 
     return {
       id: crypto.randomUUID(),
@@ -64,8 +73,12 @@ export class UtilizationOptimizationAgent implements AgentHandler {
         {
           id: analyzeId,
           action: 'analyze_utilization',
-          description: 'Measure utilization per provider for the selected period',
-          params: { businessId: context.businessId, dateRange: context.dateRange },
+          description:
+            'Measure utilization per provider for the selected period',
+          params: {
+            businessId: context.businessId,
+            dateRange: context.dateRange,
+          },
           dependsOn: [],
           estimatedImpact: 'Read-only analysis',
         },
@@ -92,8 +105,12 @@ export class UtilizationOptimizationAgent implements AgentHandler {
         {
           id: templateId,
           action: 'summarize_utilization',
-          description: 'Summarize who is under/over utilized and suggest template adjustments',
-          params: { businessId: context.businessId, dateRange: context.dateRange },
+          description:
+            'Summarize who is under/over utilized and suggest template adjustments',
+          params: {
+            businessId: context.businessId,
+            dateRange: context.dateRange,
+          },
           dependsOn: [recommendId],
           estimatedImpact: 'Read-only summary for owner review',
         },
@@ -108,7 +125,9 @@ export class UtilizationOptimizationAgent implements AgentHandler {
         factors: [
           `${employeeCount} provider(s) in scope`,
           `${bookingCount} active booking(s) in period`,
-          templateNames.length ? 'May recommend template application' : 'No templates to apply',
+          templateNames.length
+            ? 'May recommend template application'
+            : 'No templates to apply',
         ],
       },
       status: PlanStatus.DRAFT,

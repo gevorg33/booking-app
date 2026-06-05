@@ -71,7 +71,8 @@ export function evaluateGiftCardOrderPolicy(
       : card.createdAt
         ? new Date(card.createdAt)
         : now;
-  const windowMs = Math.max(0, Number(settings.cancelModifyWindowHours ?? 0)) * 60 * 60 * 1000;
+  const windowMs =
+    Math.max(0, Number(settings.cancelModifyWindowHours ?? 0)) * 60 * 60 * 1000;
   const windowExpiresAt =
     windowMs > 0 ? new Date(createdAt.getTime() + windowMs) : null;
   const windowRemainingMs = windowExpiresAt
@@ -90,7 +91,11 @@ export function evaluateGiftCardOrderPolicy(
   }
 
   if (card.fulfillmentStatus === 'cancelled') {
-    return blocked(windowExpiresAt, windowRemainingMs, 'This gift card order was cancelled');
+    return blocked(
+      windowExpiresAt,
+      windowRemainingMs,
+      'This gift card order was cancelled',
+    );
   }
 
   if (pendingRequest && OPEN_REQUEST_STATUSES.has(pendingRequest.status)) {
@@ -102,7 +107,11 @@ export function evaluateGiftCardOrderPolicy(
   }
 
   if (isGiftCardFullyRedeemed(card)) {
-    return blocked(windowExpiresAt, windowRemainingMs, 'This gift card has been fully redeemed');
+    return blocked(
+      windowExpiresAt,
+      windowRemainingMs,
+      'This gift card has been fully redeemed',
+    );
   }
 
   if (hasGiftCardValueBeenUsed(card)) {

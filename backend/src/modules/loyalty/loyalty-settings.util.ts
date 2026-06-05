@@ -15,7 +15,9 @@ export function getLoyaltyEarnExcludedServiceIds(
   if (!Array.isArray(raw)) {
     return [];
   }
-  return raw.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  return raw.filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  );
 }
 
 export function isServiceExcludedFromLoyaltyEarn(
@@ -36,7 +38,9 @@ export function resolveEarnPercentForService(
   return getEarnPercentCashback(settings);
 }
 
-export function getEarnPercentCashback(settings?: Record<string, unknown> | null): number {
+export function getEarnPercentCashback(
+  settings?: Record<string, unknown> | null,
+): number {
   const loyalty = settings?.loyalty;
   if (!loyalty || typeof loyalty !== 'object') {
     return DEFAULT_EARN_PERCENT_CASHBACK;
@@ -49,7 +53,10 @@ export function getEarnPercentCashback(settings?: Record<string, unknown> | null
 }
 
 /** Earn bonuses from eligible cash paid only (excludes loyalty redemption). */
-export function calculateEarnPoints(amountPaid: number, earnPercentCashback: number): number {
+export function calculateEarnPoints(
+  amountPaid: number,
+  earnPercentCashback: number,
+): number {
   const paid = Math.max(0, Number(amountPaid) || 0);
   const percent = Math.max(0, Number(earnPercentCashback) || 0);
   if (paid <= 0 || percent <= 0) return 0;
@@ -60,12 +67,17 @@ export function pointsToCurrency(points: number): number {
   return roundBonus(Number(points) || 0);
 }
 
-export function maxRedeemablePoints(balance: number, amountDue: number): number {
+export function maxRedeemablePoints(
+  balance: number,
+  amountDue: number,
+): number {
   const maxByAmount = roundBonus(Math.max(0, amountDue));
   return Math.min(roundBonus(balance), maxByAmount);
 }
 
-export function getLoyaltySettingsResponse(settings?: Record<string, unknown> | null) {
+export function getLoyaltySettingsResponse(
+  settings?: Record<string, unknown> | null,
+) {
   return {
     earnPercentCashback: getEarnPercentCashback(settings),
     earnExcludedServiceIds: getLoyaltyEarnExcludedServiceIds(settings),

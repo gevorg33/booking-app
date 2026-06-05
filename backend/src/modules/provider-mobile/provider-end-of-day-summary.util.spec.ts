@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import {
   aggregateEodSummaries,
   buildEodPushPayload,

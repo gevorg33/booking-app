@@ -9,7 +9,10 @@ describe('buildPolicyRiskExplain', () => {
         riskLevel: 'high',
         violations: ['Too many bookings affected'],
       },
-      plan: { steps: [{ id: '1' }, { id: '2' }], riskAssessment: { level: 'high' } },
+      plan: {
+        steps: [{ id: '1' }, { id: '2' }],
+        riskAssessment: { level: 'high' },
+      },
       employeeCount: 3,
       daySpan: 7,
     });
@@ -62,7 +65,11 @@ describe('buildPolicyRiskExplain', () => {
 
   it('covers non-approval decision and medium risk without violations', () => {
     const result = buildPolicyRiskExplain({
-      policyPreview: { decision: 'allow', riskLevel: 'unknown', violations: [] },
+      policyPreview: {
+        decision: 'allow',
+        riskLevel: 'unknown',
+        violations: [],
+      },
       plan: { steps: [{ id: '1' }] },
       employeeCount: 1,
       daySpan: 1,

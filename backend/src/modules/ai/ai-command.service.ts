@@ -2,16 +2,26 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import OpenAI from 'openai';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
-import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../schedule/entities/scheduling-slot.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { AgentType } from '../../engine/agent/interfaces/agent.interfaces.js';
-import { CommandOrchestrationService, OrchestrationResult } from './command-orchestration.service.js';
+import {
+  CommandOrchestrationService,
+  OrchestrationResult,
+} from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import {
   formatDateDisplay,
@@ -23,19 +33,36 @@ import {
   parseDateInput,
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
-import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
-import { pickTimezone, addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import {
+  normalizeTime24,
+  timeToMinutes,
+} from '../../common/utils/time-format.util.js';
+import {
+  pickTimezone,
+  addDaysToDateKey,
+} from '../../common/utils/timezone.util.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
-import { AiSprint23Service } from './ai-sprint23.service.js';
-import { AiSprint24Service } from './ai-sprint24.service.js';
-import { AiSprint25Service } from './ai-sprint25.service.js';
+import { AiSchedulingService } from './ai-scheduling.service.js';
+import { AiOperationsService } from './ai-operations.service.js';
+import { AiPlatformService } from './ai-platform.service.js';
+import { AiBookingDepthService } from './ai-booking-depth.service.js';
+import { AiCatalogService } from './ai-catalog.service.js';
+import { AiCustomerCrmService } from './ai-customer-crm.service.js';
+import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
+import { AiPaymentsService } from './ai-payments.service.js';
+import { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
+import { AiIntegrationsService } from './ai-integrations.service.js';
+import { AiRetailFinanceService } from './ai-retail-finance.service.js';
+import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
+import { AiPushNotificationsService } from './ai-push-notifications.service.js';
+import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
 import {
   filterSlotsByTimeOfDay,
   formatTimeOfDayLabel,
   isNoShowRecoveryPrompt,
   parseTimeOfDayWindow,
-} from './ai-sprint24.util.js';
+} from './ai-operations.util.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import {
   resolveEmployees,
@@ -56,6 +83,7 @@ import {
 } from './ai-orchestration.helpers.js';
 import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
+import { resolveAssignEmployeeServicesInput } from './ai-category-assignment.util.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
@@ -244,12 +272,47 @@ Rules:
 - create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
 - Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
 - Do not use create_service when booking an appointment — that is create_booking.
+- bulk_create_catalog: create a category AND multiple services in one command (e.g. "Create category Hair with Women's cut 60m $65, Men's cut 30m $35").
+- create_service_category: add a single category; optional placeholderCount for stub services.
+- create_package / update_package / deactivate_package / duplicate_package: service package CRUD (NOT package visit booking — use create_package_booking for appointments).
+- create_subscription_plan / update_subscription_plan / deactivate_subscription_plan: membership plan CRUD for a service.
+- assign_subscription_to_customer: admin enrolls a customer on a plan (customerName + planName).
+- configure_gift_card_products: enable presets and purchasable service cards (presetAmounts, serviceName).
+- create_gift_card_bundle: bundle multiple services as a gift card product (bundleName + serviceNames).
+- configure_multi_service_settings: enable multi-service booking limits (maxServiceCount, maxDurationMinutes).
+- set_service_compatibility: block two services from same visit (incompatibleServiceNames).
+- deactivate_service: hide a service from public catalog (NOT deactivate_package).
+- list_packages / list_subscription_plans: READ-ONLY catalog monetization lists.
+- list_customer_subscriptions / subscription_usage_history / list_customer_gift_cards / list_customer_bookings / customer_no_show_history: READ-ONLY customer 360 (requires customerName).
+- extend_subscription / cancel_subscription_admin / tag_customer / merge_customers / export_customer_data / delete_customer_data / send_reengagement_message: dashboard CRM mutations.
+- my_appointments / my_subscriptions / my_gift_cards / subscription_usage / my_profile: signed-in customer account (session customerId).
+- request_gift_card_cancel / request_gift_card_modify / track_physical_gift_card_order / privacy_export / privacy_delete: customer self-service.
+- discover_packages / discover_subscription_plans / discover_gift_card_products: public catalog discovery (not admin CRUD).
+- list_scheduling_resources / create_resource / update_resource / deactivate_resource / assign_resource_hours / list_resource_conflicts / explain_resource_conflict: scheduling resource CRUD and conflict checks (gap-8.2).
+- configure_multi_service_scheduling_mode: set same_visit vs per_service scheduling (not full multi-service limits — use configure_multi_service_settings).
+- my_resource_assignments / block_resource_unavailable: provider resource views and marking a room/chair unavailable.
+- check_multi_service_block_availability / check_package_line_availability / earliest_slot_all_services / providers_available_later_days / explain_why_no_slots: customer multi-service and package availability (serviceNames or serviceIds, packageId).
+- summarize_unpaid / configure_cash_payments / validate_gift_card / adjust_gift_card_balance / extend_gift_card_expiry / refund_gift_card_order / export_accounting / export_commissions / explain_checkout_total / list_subscription_revenue: payments, gift cards, and accounting (Sprint 30).
+- list_products / create_product / link_product_to_service / adjust_inventory / add_retail_sale_to_booking / remove_retail_line / record_expense / list_expenses / summarize_pl / commission_report / payout_export: inventory, retail POS, and finance (Sprint 33).
+- configure_marketing_automation / summarize_automation_performance / trigger_reengagement / list_inactive_customers / explain_plan_limits / suggest_upgrade / toggle_annual_billing / summarize_new_registrations: marketing automation, billing, and growth (Sprint 34). trigger_reengagement is bulk automation — NOT send_reengagement_message (single customer Zendesk).
+- explain_last_push / open_booking_from_push / offline_queue_status / retry_offline_action / dismiss_push / end_of_day_summary / new_booking_push_actions: provider push and offline queue (Sprint 35).
+- configure_push_recipients / test_push / notification_history / toggle_business_email_on_customer_change: dashboard notification settings (Sprint 35). test_push is NOT test_webhook.
+- enable_notifications / appointment_reminder_preferences: customer notification and reminder prefs (Sprint 35). NOT order_status_notifications (gift card orders).
+- book_package / book_multi_service / check_package_availability / check_multi_service_availability / select_subscription_plan / use_subscription_credit: customer package, multi-service, and subscription booking flows (Sprint 36). NOT create_package_booking (dashboard staff).
+- cancel_my_booking / reschedule_my_booking / cancel_package_visit_self / reschedule_package_visit_self / list_my_appointments / get_manage_link / explain_cancel_policy: customer self-service (Sprint 36). NOT cancel_bookings (staff).
+- book_with_cash / book_with_gift_card / change_provider_on_reschedule / add_services_to_cart / remove_service_from_cart / show_cart_total_duration: customer checkout cart and payment prefs (Sprint 36). book_with_cash is booking-flow cash; pay_cash_at_visit is checkout step (Sprint 30).
+- how_to_download_app / switch_to_consumer_app / promo_code_help / loyalty_points_balance: customer app, promo, and loyalty (Sprint 34).
+- suggest_retail_upsell / add_retail_to_my_booking: provider retail at chair (Sprint 33).
+- list_webhooks / create_webhook / test_webhook / rotate_api_key / list_zapier_triggers / configure_zapier / run_accounting_export / configure_zendesk / create_support_ticket / sync_customer_to_zendesk / configure_marketing_registration_email / list_integration_health: integrations and back-office (Sprint 32).
+- contact_support / open_ticket_for_order: customer Zendesk support (Sprint 32).
+- explain_payment_status / collect_cash_confirm: provider payment collection.
+- check_providers_for_service / book_nearest_slot / apply_gift_card_code / check_gift_card_balance / buy_gift_card / buy_gift_card_physical / choose_payment_method / pay_online / pay_cash_at_visit / purchase_subscription_checkout / explain_why_stripe_required / receipt_status: customer checkout and payments (code-based gift card balance, not my_gift_cards account balance).
 - "Who has a X schedule today at 9" / "which provider is working at 09:00" are READ-ONLY show_appointments — NOT create_booking. Never interpret the noun "schedule" in a question as a booking verb.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30/06/2026", "what is Gevorg's schedule on Friday", "does Gevorg do face massage today at 9", "is Gevorg available to give facemassage at 09:00". Always set employeeName, serviceName, date, and timeSlot when mentioned. NEVER use create_booking for these questions.
 - lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), return only providers with an applied SERVICE_BLOCK for that service on that day AND at least one unbooked open window inside those blocks — NOT the general catalog assignment list. Use for "who is doing facemassage today", "who has a free slot for facemassage today", "who can do face massage tomorrow".
 - analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
-- summarize_bookings: READ-ONLY booking analytics — counts, revenue, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "who is the busiest provider today", "how many cancelled today". NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
+- summarize_bookings: READ-ONLY booking analytics — counts, revenue/earnings, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "calculate total earnings for today", "how much did we earn last month", "who is the busiest provider today". Set bookingMetric="revenue" for earnings/revenue questions. NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows. For two or more providers use employeeNames array, e.g. ["Gevorg Gasparyan", "Mary Torgomyan"], or employeeName "Gevorg and Mary".
 - list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
@@ -257,7 +320,7 @@ Rules:
 - summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "which customer pays the most" / "who paid the most", "top 10 customers who paid the most", "new customers", "most cancellations". Set customerMetric when clear (e.g. top_spenders for payment/spend questions); set limit from "top N" (default 5). NEVER use overview when the user asks for a specific ranking like who pays the most.
 - list_services: READ-ONLY service catalog — list offerings or look up price/duration. Use for "what services do we offer", "how much is facemassage", "show our service menu". NOT for adding services (use create_service).
 - analyze_services: READ-ONLY — most booked / top revenue / least popular services for a date range.
-- summarize_staff: READ-ONLY — provider rankings (busiest, most revenue, most bookings) for a date range.
+- summarize_staff: READ-ONLY — provider/specialist rankings (busiest, most revenue, most bookings) for a date range. Use for "which specialist earned the most today", "top 3 specialists by revenue last week", "who brought in the most revenue all time". Set staffMetric="most_revenue" and limit from "top N".
 - lookup_customer: READ-ONLY — single customer profile, last visit, appointment history snippet. Requires customerName.
 - summarize_waitlist: READ-ONLY — count and list CRM customers tagged "waitlist". Use for "how many on waitlist", "show waitlist customers". NOT for filling a slot (use fill_slot_from_waitlist).
 - Example follow-up: after "who can do facemassage tomorrow", "book Gevorg at 10:00" or "at 10:00" → create_booking with inherited serviceName, date, employeeName, timeSlot.
@@ -285,7 +348,7 @@ Rules:
 - create_direct_schedule: set/replace applied schedule for one or more providers (allProviders=true for "all employees") for a day or date range. Hours like "9-19, 12-13 unavailable" can omit explicit periods — the system splits service blocks around lunch. When the user says "his/her/their services" or does not name specific services, leave serviceNames null — uses only services assigned to each provider. For ranges like "this week", set dateFrom and dateTo.
 - clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Requires employeeName (or allProviders for whole team) and date (or dateFrom/dateTo). "Clear all schedules for Karo" means Karo only — set employeeName=Karo, allProviders=false. NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
-- assign_employee_services: assign services from catalog to a provider.
+- assign_employee_services: assign services from catalog to a provider. For category bulk: "Assign all services from Color category to Gevorg" → categoryName=Color, employeeName=Gevorg, assignFromCategory=true (merges with existing provider skills).
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
@@ -325,15 +388,29 @@ export class AiCommandService {
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private scheduleHandlers: AiScheduleHandlersService,
-    private sprint23: AiSprint23Service,
-    private sprint24: AiSprint24Service,
-    private sprint25: AiSprint25Service,
+    private scheduling: AiSchedulingService,
+    private operations: AiOperationsService,
+    private platform: AiPlatformService,
+    private bookingDepth: AiBookingDepthService,
+    private catalog: AiCatalogService,
+    private customerCrm: AiCustomerCrmService,
+    private scheduleResources: AiScheduleResourcesService,
+    private payments: AiPaymentsService,
+    private giftFulfillment: AiGiftFulfillmentService,
+    private integrations: AiIntegrationsService,
+    private retailFinance: AiRetailFinanceService,
+    private marketingGrowth: AiMarketingGrowthService,
+    private pushNotifications: AiPushNotificationsService,
+    private selfServiceBooking: AiSelfServiceBookingService,
     private schedulingEngine: SchedulingEngineService,
     private completionPipeline: CommandCompletionPipelineService,
     private openAi: OpenAiGatewayService,
@@ -350,7 +427,11 @@ export class AiCommandService {
     private promptNormalization: AiPromptNormalizationService,
   ) {}
 
-  async approveTask(taskId: string, userId: string, businessId?: string): Promise<CommandResult> {
+  async approveTask(
+    taskId: string,
+    userId: string,
+    businessId?: string,
+  ): Promise<CommandResult> {
     const orch = await this.orchestration.approveTask(taskId, userId);
     const result = this.toCommandResult(orch);
     if (businessId) {
@@ -370,7 +451,12 @@ export class AiCommandService {
     stepId: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const orch = await this.orchestration.retryFailedStep(businessId, taskId, stepId, userId);
+    const orch = await this.orchestration.retryFailedStep(
+      businessId,
+      taskId,
+      stepId,
+      userId,
+    );
     const result = this.toCommandResult(orch);
     this.aiEvents.emitTaskCompleted(businessId, {
       taskId,
@@ -391,7 +477,8 @@ export class AiCommandService {
       return {
         success: false,
         action: 'error',
-        summary: 'AI is not configured. Add an OpenAI API key in Settings → API Keys, or contact your platform administrator.',
+        summary:
+          'AI is not configured. Add an OpenAI API key in Settings → API Keys, or contact your platform administrator.',
         details: {},
       };
     }
@@ -402,7 +489,10 @@ export class AiCommandService {
       this.employeeRepo.find({ where: { businessId, isActive: true } }),
       this.serviceRepo.find({ where: { businessId } }),
       this.customerRepo.find({ where: { businessId, isActive: true } }),
-      this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
+      this.templateRepo.find({
+        where: { businessId, isDeleted: false },
+        order: { name: 'ASC' },
+      }),
     ]);
 
     const catalog = { employees, services, customers, templates };
@@ -412,11 +502,17 @@ export class AiCommandService {
       select: { id: true, settings: true },
     });
     const businessType = business?.settings?.businessType as string | undefined;
-    const { scope, classifierHint } = this.sprint25.resolveBranchContext(session?.context, aiConfig);
+    const { scope, classifierHint } = this.platform.resolveBranchContext(
+      session?.context,
+      aiConfig,
+    );
     const scopedCatalog = scope.locationId
-      ? await this.sprint25.scopeCatalog(businessId, catalog, scope)
+      ? await this.platform.scopeCatalog(businessId, catalog, scope)
       : catalog;
-    const verticalHints = this.sprint25.buildVerticalHints(businessType, aiConfig);
+    const verticalHints = this.platform.buildVerticalHints(
+      businessType,
+      aiConfig,
+    );
 
     const playbook = this.aiSettings.matchPlaybook(aiConfig, prompt);
     const effectivePrompt = playbook ? playbook.prompt : prompt;
@@ -433,7 +529,10 @@ export class AiCommandService {
       _branchScope: scope,
       _businessType: businessType,
     };
-    const classifierCatalogContext = buildClassifierCatalogContext(scopedCatalog, timeZone);
+    const classifierCatalogContext = buildClassifierCatalogContext(
+      scopedCatalog,
+      timeZone,
+    );
     const branchAugmented = classifierHint
       ? `${classifierCatalogContext}\n${classifierHint}\n${verticalHints}`
       : `${classifierCatalogContext}\n${verticalHints}`;
@@ -442,7 +541,9 @@ export class AiCommandService {
       promptNorm.classifierContext,
     );
 
-    const presetRoute = session?.context?._complexityRoute as ComplexityRoute | undefined;
+    const presetRoute = session?.context?._complexityRoute as
+      | ComplexityRoute
+      | undefined;
     const { route: mergedRoute, classification: preclassified } =
       await runParallelRouteAndClassification({
         resolveRoute: () =>
@@ -473,9 +574,210 @@ export class AiCommandService {
       },
     };
 
+    if (this.selfServiceBooking.isCustomerBookingCompound(effectivePrompt)) {
+      const customerBookingCompound =
+        await this.selfServiceBooking.handleCustomerBookingCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            cartServiceIds: session?.context?.cartServiceIds,
+            packageId: session?.context?.packageId,
+            packageName: session?.context?.packageName,
+            giftCardCode: session?.context?.giftCardCode,
+            paymentMethod: session?.context?.paymentMethod,
+            useSubscriptionId: session?.context?.useSubscriptionId,
+            bookingId: session?.context?.bookingId,
+          },
+        );
+      if (
+        customerBookingCompound.success ||
+        customerBookingCompound.details?.failedStep
+      ) {
+        return customerBookingCompound;
+      }
+    }
+
+    if (this.pushNotifications.isPushNotificationsCompound(effectivePrompt)) {
+      const pushNotificationsCompound =
+        await this.pushNotifications.handlePushNotificationsCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            sessionEmployeeId: session?.context?.scopedEmployeeId as
+              | string
+              | undefined,
+            userId,
+            lastPush: session?.context?.lastPush,
+            offlineQueueCount: session?.context?.offlineQueueCount,
+            online: session?.context?.online,
+          },
+        );
+      if (
+        pushNotificationsCompound.success ||
+        pushNotificationsCompound.details?.failedStep
+      ) {
+        return pushNotificationsCompound;
+      }
+    }
+
+    if (this.marketingGrowth.isMarketingGrowthCompound(effectivePrompt)) {
+      const marketingGrowthCompound =
+        await this.marketingGrowth.handleMarketingGrowthCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+          session?.context?.userEmail as string | undefined,
+        );
+      if (
+        marketingGrowthCompound.success ||
+        marketingGrowthCompound.details?.failedStep
+      ) {
+        return marketingGrowthCompound;
+      }
+    }
+
+    if (this.retailFinance.isRetailFinanceCompound(effectivePrompt)) {
+      const retailFinanceCompound =
+        await this.retailFinance.handleRetailFinanceCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionEmployeeId: session?.context?.employeeId as
+              | string
+              | undefined,
+          },
+          userId,
+        );
+      if (
+        retailFinanceCompound.success ||
+        retailFinanceCompound.details?.failedStep
+      ) {
+        return retailFinanceCompound;
+      }
+    }
+
+    if (this.integrations.isIntegrationsCompound(effectivePrompt)) {
+      const integrationsCompound =
+        await this.integrations.handleIntegrationsCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+          userId,
+          session?.context?.userEmail as string | undefined,
+          session?.context?.userName as string | undefined,
+        );
+      if (
+        integrationsCompound.success ||
+        integrationsCompound.details?.failedStep
+      ) {
+        return integrationsCompound;
+      }
+    }
+
+    if (this.giftFulfillment.isFulfillmentCompound(effectivePrompt)) {
+      const fulfillmentCompound =
+        await this.giftFulfillment.handleFulfillmentCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+          userId,
+        );
+      if (
+        fulfillmentCompound.success ||
+        fulfillmentCompound.details?.failedStep
+      ) {
+        return fulfillmentCompound;
+      }
+    }
+
+    if (this.payments.isPaymentsCompound(effectivePrompt)) {
+      const paymentsCompound = await this.payments.handlePaymentsCompound(
+        businessId,
+        effectivePrompt,
+        {
+          sessionCustomerId: session?.context?.customerId as string | undefined,
+        },
+        userId,
+      );
+      if (paymentsCompound.success || paymentsCompound.details?.failedStep) {
+        return paymentsCompound;
+      }
+    }
+
+    if (this.scheduleResources.isScheduleResourceCompound(effectivePrompt)) {
+      const scheduleCompound =
+        await this.scheduleResources.handleScheduleResourceCompound(
+          businessId,
+          effectivePrompt,
+          {
+            sessionEmployeeId: session?.context?.employeeId as
+              | string
+              | undefined,
+          },
+          scopedCatalog.services,
+          userId,
+        );
+      if (scheduleCompound.success || scheduleCompound.details?.failedStep) {
+        return scheduleCompound;
+      }
+    }
+
+    if (this.customerCrm.isCrmCompound(effectivePrompt)) {
+      const crmCompound = await this.customerCrm.handleCrmCompound(
+        businessId,
+        effectivePrompt,
+        {
+          ...{},
+          sessionCustomerId: session?.context?.customerId as string | undefined,
+        },
+        scopedCatalog.customers,
+        (list, name) => this.resolveCustomer(list, name),
+        userId,
+      );
+      if (crmCompound.success || crmCompound.details?.failedStep) {
+        return crmCompound;
+      }
+    }
+
+    if (this.catalog.isCatalogCompound(effectivePrompt)) {
+      const catalogCompound = await this.catalog.handleCatalogCompound(
+        businessId,
+        effectivePrompt,
+        {},
+        scopedCatalog.services,
+        scopedCatalog.customers,
+        (list, name) => this.resolveCustomer(list, name),
+        userId,
+      );
+      if (catalogCompound.success || catalogCompound.details?.failedStep) {
+        return catalogCompound;
+      }
+    }
+
     if (this.bookingCommandGraph.isEnabled()) {
       const complexityRoute = sessionWithRoute.context?._complexityRoute as
-        | { tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound'; useDecomposition?: boolean }
+        | {
+            tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
+            useDecomposition?: boolean;
+          }
         | undefined;
 
       return this.bookingCommandGraph.run({
@@ -489,7 +791,8 @@ export class AiCommandService {
         confidenceThresholds: {
           low: aiConfig.confidence.low,
           high:
-            (session?.context?._confidenceHigh as number | undefined) ?? aiConfig.confidence.high,
+            (session?.context?._confidenceHigh as number | undefined) ??
+            aiConfig.confidence.high,
         },
         complexityRoute,
         delegates: {
@@ -506,7 +809,12 @@ export class AiCommandService {
               promptNorm,
               preclassified,
             ),
-          buildCompoundPlan: (action, params, employeeId, pendingCancelBookingIds) =>
+          buildCompoundPlan: (
+            action,
+            params,
+            employeeId,
+            pendingCancelBookingIds,
+          ) =>
             this.buildPlanForResolvedIntent(
               businessId,
               effectivePrompt,
@@ -551,7 +859,12 @@ export class AiCommandService {
     }
 
     if (this.decomposition.isCompoundPrompt(classifierPrompt)) {
-      const subIntents = await this.decomposition.decompose(businessId, userId, classifierPrompt, timeZone);
+      const subIntents = await this.decomposition.decompose(
+        businessId,
+        userId,
+        classifierPrompt,
+        timeZone,
+      );
       if (subIntents.length > 1) {
         return this.executeCompoundIntents(
           businessId,
@@ -563,7 +876,8 @@ export class AiCommandService {
           {
             low: aiConfig.confidence.low,
             high:
-              (session?.context?._confidenceHigh as number | undefined) ?? aiConfig.confidence.high,
+              (session?.context?._confidenceHigh as number | undefined) ??
+              aiConfig.confidence.high,
           },
           timeZone,
         );
@@ -631,7 +945,12 @@ export class AiCommandService {
       },
     });
     if (!parsed) {
-      return { success: false, action: 'error', summary: 'Failed to understand the command. Please try rephrasing.', details: {} };
+      return {
+        success: false,
+        action: 'error',
+        summary: 'Failed to understand the command. Please try rephrasing.',
+        details: {},
+      };
     }
 
     parsed.params = this.completionPipeline.mergeSessionContext(
@@ -647,7 +966,10 @@ export class AiCommandService {
     if (parsed.action === 'create_booking') {
       parsed.params.customerName = null;
       delete parsed.params.customerId;
-      const fallback = extractProviderFallbackFromPrompt(effectivePrompt, employees);
+      const fallback = extractProviderFallbackFromPrompt(
+        effectivePrompt,
+        employees,
+      );
       if (fallback.providerFallbackNames.length) {
         parsed.params.providerFallbackNames = fallback.providerFallbackNames;
       }
@@ -664,18 +986,30 @@ export class AiCommandService {
       customers,
     );
     parsed.params._timeZone = timeZone;
-    this.enrichMultiEmployeeFromPrompt(effectivePrompt, parsed.params, employees);
-    this.applyScheduleScopeFromPrompt(effectivePrompt, parsed.params, parsed.action, employees);
+    this.enrichMultiEmployeeFromPrompt(
+      effectivePrompt,
+      parsed.params,
+      employees,
+    );
+    this.applyScheduleScopeFromPrompt(
+      effectivePrompt,
+      parsed.params,
+      parsed.action,
+      employees,
+    );
 
     if (parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
       parsed.action = 'clear_schedule';
       parsed.reasoning =
         'Clear applied schedule periods and micro-slots for the provider on the specified date(s).';
-      parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.88);
+      parsed.confidence = Math.max(
+        typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        0.88,
+      );
     }
 
     if (parsed.action === 'unknown') {
-      const vertical = this.sprint25.rescueVerticalIntent(
+      const vertical = this.platform.rescueVerticalIntent(
         effectivePrompt,
         (session?.context?._businessType as string | undefined) ?? undefined,
         aiConfig,
@@ -683,7 +1017,10 @@ export class AiCommandService {
       if (vertical) {
         parsed.action = vertical.action;
         parsed.reasoning = `Vertical plugin rescue → ${vertical.action}`;
-        parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.84);
+        parsed.confidence = Math.max(
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          0.84,
+        );
       }
     }
 
@@ -698,9 +1035,17 @@ export class AiCommandService {
       parsed.action = rescued.action;
       parsed.params = { ...parsed.params, ...rescued.params };
       parsed.reasoning = rescued.reasoning ?? parsed.reasoning;
-      parsed.confidence = Math.max(typeof parsed.confidence === 'number' ? parsed.confidence : 0, 0.85);
+      parsed.confidence = Math.max(
+        typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        0.85,
+      );
     }
-    this.applyBulkAppointmentScope(effectivePrompt, parsed.params, parsed.action, services);
+    this.applyBulkAppointmentScope(
+      effectivePrompt,
+      parsed.params,
+      parsed.action,
+      services,
+    );
 
     const actorTier = normalizeActorRole(
       (session?.context?._accessTier as string | undefined) ??
@@ -716,15 +1061,20 @@ export class AiCommandService {
       };
     }
 
-    const roleProfile = this.sprint25.resolveRoleProfile(
+    const roleProfile = this.platform.resolveRoleProfile(
       (session?.context?._membershipRole as string | undefined) ??
         (session?.context?._actorRole as string | undefined),
       aiConfig,
     );
-    const roleDenied = this.sprint25.gateRoleIntent(roleProfile, 'dashboard', parsed.action);
+    const roleDenied = this.platform.gateRoleIntent(
+      roleProfile,
+      'dashboard',
+      parsed.action,
+    );
     if (roleDenied) return roleDenied;
 
-    const planTierId = (session?.context?._planTierId as PlanTierId | undefined) ?? 'solo';
+    const planTierId =
+      (session?.context?._planTierId as PlanTierId | undefined) ?? 'solo';
     if (!isDashboardAiIntentAllowedByPlan(planTierId, parsed.action)) {
       return {
         success: false,
@@ -734,7 +1084,10 @@ export class AiCommandService {
       };
     }
 
-    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, any>;
+    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<
+      string,
+      any
+    >;
     parsed.params = this.promptSecurity.applyStaffScope(
       actorTier,
       parsed.action,
@@ -754,13 +1107,24 @@ export class AiCommandService {
       return securityDenied;
     }
 
-    const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
+    const confidence =
+      typeof parsed.confidence === 'number' ? parsed.confidence : 0.75;
 
-    this.logger.log(`AI (LLM) classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`);
+    this.logger.log(
+      `AI (LLM) classified action="${parsed.action}" confidence=${confidence} — ${parsed.reasoning}`,
+    );
 
-    this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
+    this.completionPipeline.normalizeDateParams(
+      parsed.params,
+      effectivePrompt,
+      timeZone,
+    );
     if (parsed.action === 'reschedule_booking') {
-      this.completionPipeline.finalizeRescheduleParams(parsed.params, effectivePrompt, timeZone);
+      this.completionPipeline.finalizeRescheduleParams(
+        parsed.params,
+        effectivePrompt,
+        timeZone,
+      );
     } else if (
       parsed.action === 'create_direct_schedule' ||
       parsed.action === 'clear_schedule' ||
@@ -774,16 +1138,37 @@ export class AiCommandService {
       parsed.action === 'cancel_bookings' ||
       parsed.action === 'hide_appointments_from_calendar'
     ) {
-      this.completionPipeline.enrichDateRangeParams(parsed.params, effectivePrompt, timeZone);
-      this.completionPipeline.normalizeDateParams(parsed.params, effectivePrompt, timeZone);
+      this.completionPipeline.enrichDateRangeParams(
+        parsed.params,
+        effectivePrompt,
+        timeZone,
+      );
+      this.completionPipeline.normalizeDateParams(
+        parsed.params,
+        effectivePrompt,
+        timeZone,
+      );
     }
     if (parsed.action === 'create_direct_schedule') {
-      parsed.params.periods = inferDirectSchedulePeriods(parsed.params, effectivePrompt);
+      parsed.params.periods = inferDirectSchedulePeriods(
+        parsed.params,
+        effectivePrompt,
+      );
     }
 
-    const resolved = this.completionPipeline.resolve(businessId, effectivePrompt, parsed, catalog, timeZone);
+    const resolved = this.completionPipeline.resolve(
+      businessId,
+      effectivePrompt,
+      parsed,
+      catalog,
+      timeZone,
+    );
     const pipelineTrace = [
-      this.completionPipeline.trace('classify', parsed.action, parsed.reasoning),
+      this.completionPipeline.trace(
+        'classify',
+        parsed.action,
+        parsed.reasoning,
+      ),
       this.completionPipeline.trace('resolve', parsed.action),
     ];
 
@@ -798,7 +1183,10 @@ export class AiCommandService {
       );
 
       if (!validation.ok) {
-        const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
+        const clarify = this.completionPipeline.toClarifyResult(
+          resolved,
+          validation,
+        );
         clarify.details.pipelineTrace = pipelineTrace;
         this.aiEvents.emitClarify(businessId, {
           action: parsed.action,
@@ -810,12 +1198,113 @@ export class AiCommandService {
     }
 
     const mutatingActions = new Set([
-      'create_booking', 'create_service', 'create_services', 'cancel_bookings', 'update_bookings',
-      'bulk_smart_cancel', 'hide_appointments_from_calendar', 'unhide_appointments_from_calendar', 'fill_slot_from_waitlist', 'reschedule_booking',
-      'fill_unused_slots', 'apply_schedule', 'clear_schedule', 'block_schedule', 'setup_week_schedule',
-      'swap_schedules', 'rebalance_capacity', 'holiday_mode', 'onboard_provider_schedule',
-      'create_schedule_template', 'mark_no_shows', 'no_show_recovery', 'payment_sweep', 'day_replan',
-      'sick_day_replan', 'import_services_from_menu', 'update_service_prices', 'staff_service_matrix',
+      'create_booking',
+      'create_service',
+      'create_services',
+      'cancel_bookings',
+      'update_bookings',
+      'bulk_smart_cancel',
+      'hide_appointments_from_calendar',
+      'unhide_appointments_from_calendar',
+      'fill_slot_from_waitlist',
+      'reschedule_booking',
+      'fill_unused_slots',
+      'apply_schedule',
+      'clear_schedule',
+      'block_schedule',
+      'setup_week_schedule',
+      'swap_schedules',
+      'rebalance_capacity',
+      'holiday_mode',
+      'onboard_provider_schedule',
+      'create_schedule_template',
+      'mark_no_shows',
+      'no_show_recovery',
+      'payment_sweep',
+      'day_replan',
+      'sick_day_replan',
+      'import_services_from_menu',
+      'update_service_prices',
+      'staff_service_matrix',
+      'create_booking_subscription_credit',
+      'create_booking_cash',
+      'create_package_booking',
+      'create_multi_service_booking',
+      'cancel_package_visit',
+      'cancel_multi_service_group',
+      'reschedule_package_visit',
+      'reschedule_multi_service_group',
+      'mark_paid',
+      'assign_booking_resource',
+      'create_service_category',
+      'bulk_create_catalog',
+      'deactivate_service',
+      'create_package',
+      'update_package',
+      'deactivate_package',
+      'duplicate_package',
+      'create_subscription_plan',
+      'update_subscription_plan',
+      'deactivate_subscription_plan',
+      'assign_subscription_to_customer',
+      'configure_gift_card_products',
+      'create_gift_card_bundle',
+      'configure_multi_service_settings',
+      'set_service_compatibility',
+      'extend_subscription',
+      'cancel_subscription_admin',
+      'merge_customers',
+      'export_customer_data',
+      'delete_customer_data',
+      'send_reengagement_message',
+      'tag_customer',
+      'request_gift_card_cancel',
+      'request_gift_card_modify',
+      'privacy_export',
+      'privacy_delete',
+      'create_resource',
+      'update_resource',
+      'deactivate_resource',
+      'assign_resource_hours',
+      'configure_multi_service_scheduling_mode',
+      'block_resource_unavailable',
+      'configure_cash_payments',
+      'adjust_gift_card_balance',
+      'extend_gift_card_expiry',
+      'refund_gift_card_order',
+      'collect_cash_confirm',
+      'assign_card_creator',
+      'assign_delivery_staff',
+      'mark_shipped',
+      'mark_delivered',
+      'cancel_gift_card_order',
+      'extend_cancel_window',
+      'start_card_preparation',
+      'mark_card_ready',
+      'accept_delivery',
+      'mark_out_for_delivery',
+      'capture_delivery_proof',
+      'notify_delay',
+      'enter_shipping_address',
+      'create_webhook',
+      'rotate_api_key',
+      'configure_zapier',
+      'run_accounting_export',
+      'configure_zendesk',
+      'create_support_ticket',
+      'sync_customer_to_zendesk',
+      'configure_marketing_registration_email',
+      'contact_support',
+      'open_ticket_for_order',
+      'configure_marketing_automation',
+      'trigger_reengagement',
+      'toggle_annual_billing',
+      'configure_push_recipients',
+      'test_push',
+      'toggle_business_email_on_customer_change',
+      'retry_offline_action',
+      'dismiss_push',
+      'enable_notifications',
     ]);
     if (
       mutatingActions.has(parsed.action) &&
@@ -836,12 +1325,15 @@ export class AiCommandService {
 
     const confidenceThresholds = {
       low: aiConfig.confidence.low,
-      high: (session?.context?._confidenceHigh as number | undefined) ?? aiConfig.confidence.high,
+      high:
+        (session?.context?._confidenceHigh as number | undefined) ??
+        aiConfig.confidence.high,
     };
     const autoExecuteFlag = resolveAutoExecute({
       action: parsed.action,
       stepCount: 1,
-      providerCount: resolveEmployees(employees, resolved.enrichedParams).length || 1,
+      providerCount:
+        resolveEmployees(employees, resolved.enrichedParams).length || 1,
       confidence,
       thresholds: confidenceThresholds,
     });
@@ -863,6 +1355,12 @@ export class AiCommandService {
       'import_services_from_menu',
       'update_service_prices',
       'staff_service_matrix',
+      'bulk_create_catalog',
+      'create_package',
+      'create_subscription_plan',
+      'merge_customers',
+      'delete_customer_data',
+      'privacy_delete',
     ]);
     if (
       bulkConfirmActions.has(parsed.action) &&
@@ -902,19 +1400,1466 @@ export class AiCommandService {
           userId,
         );
         break;
+      case 'create_booking_subscription_credit': {
+        const prepared =
+          await this.bookingDepth.prepareSubscriptionCreditParams(
+            businessId,
+            params,
+            customers,
+            services,
+            (list, name) => this.resolveCustomer(list, name),
+            (list, name) => this.resolveService(list, name) ?? undefined,
+          );
+        if (!prepared.ok) {
+          result = prepared.result;
+          break;
+        }
+        result = await this.handleCreateBooking(
+          businessId,
+          prepared.params,
+          employees,
+          services,
+          customers,
+          userId,
+        );
+        if (result.action === 'create_booking') {
+          result = { ...result, action: 'create_booking_subscription_credit' };
+        }
+        break;
+      }
+      case 'create_booking_cash': {
+        const businessRow = await this.businessRepo.findOne({
+          where: { id: businessId },
+          select: { settings: true },
+        });
+        const prepared = this.bookingDepth.prepareCashCreateParams(
+          params,
+          businessRow?.settings ?? null,
+        );
+        if (!prepared.ok) {
+          result = prepared.result;
+          break;
+        }
+        result = await this.handleCreateBooking(
+          businessId,
+          prepared.params,
+          employees,
+          services,
+          customers,
+          userId,
+        );
+        if (result.action === 'create_booking') {
+          result = { ...result, action: 'create_booking_cash' };
+        }
+        break;
+      }
+      case 'create_package_booking': {
+        const businessRow = await this.businessRepo.findOne({
+          where: { id: businessId },
+        });
+        if (!businessRow) {
+          result = {
+            success: false,
+            action: 'create_package_booking',
+            summary: 'Business not found',
+            details: {},
+          };
+          break;
+        }
+        result = await this.bookingDepth.handleCreatePackageBooking(
+          businessId,
+          params,
+          businessRow,
+          employees,
+          services,
+          customers,
+          (list, name) => this.resolveEmployee(list, name),
+          (list, name) => this.resolveCustomer(list, name),
+          userId,
+        );
+        break;
+      }
+      case 'create_multi_service_booking': {
+        const businessRow = await this.businessRepo.findOne({
+          where: { id: businessId },
+        });
+        if (!businessRow) {
+          result = {
+            success: false,
+            action: 'create_multi_service_booking',
+            summary: 'Business not found',
+            details: {},
+          };
+          break;
+        }
+        result = await this.bookingDepth.handleCreateMultiServiceBooking(
+          businessId,
+          params,
+          businessRow,
+          employees,
+          services,
+          customers,
+          (list, name) => this.resolveEmployee(list, name),
+          (list, p) => this.resolveServices(list, p),
+          (list, name) => this.resolveCustomer(list, name),
+          userId,
+        );
+        break;
+      }
+      case 'cancel_package_visit':
+        result = await this.bookingDepth.handleCancelPackageVisit(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'cancel_multi_service_group':
+        result = await this.bookingDepth.handleCancelMultiServiceGroup(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'reschedule_package_visit':
+        result = await this.bookingDepth.handleReschedulePackageVisit(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'reschedule_multi_service_group':
+        result = await this.bookingDepth.handleRescheduleMultiServiceGroup(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'list_cash_pending_bookings':
+        result = await this.bookingDepth.handleListCashPending(
+          businessId,
+          effectivePrompt,
+          params,
+        );
+        break;
+      case 'list_package_bookings':
+        result = await this.bookingDepth.handleListPackageBookings(
+          businessId,
+          effectivePrompt,
+          params,
+        );
+        break;
+      case 'list_multi_service_bookings':
+        result = await this.bookingDepth.handleListMultiServiceBookings(
+          businessId,
+          effectivePrompt,
+          params,
+        );
+        break;
+      case 'mark_paid':
+        result = await this.bookingDepth.handleMarkPaid(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'assign_booking_resource':
+        result = await this.bookingDepth.handleAssignResource(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'explain_booking_policy':
+        result = await this.bookingDepth.handleExplainPolicy(
+          businessId,
+          params,
+        );
+        break;
+      case 'create_service_category':
+        result = await this.catalog.handleCreateServiceCategory(
+          businessId,
+          params,
+        );
+        break;
+      case 'bulk_create_catalog':
+        result = await this.catalog.handleBulkCreateCatalog(
+          businessId,
+          effectivePrompt,
+          params,
+        );
+        break;
+      case 'deactivate_service':
+        result = await this.catalog.handleDeactivateService(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'list_packages':
+        result = await this.catalog.handleListPackages(businessId);
+        break;
+      case 'create_package':
+        result = await this.catalog.handleCreatePackage(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'update_package':
+        result = await this.catalog.handleUpdatePackage(businessId, params);
+        break;
+      case 'deactivate_package':
+        result = await this.catalog.handleDeactivatePackage(businessId, params);
+        break;
+      case 'duplicate_package':
+        result = await this.catalog.handleDuplicatePackage(businessId, params);
+        break;
+      case 'list_subscription_plans':
+        result = await this.catalog.handleListSubscriptionPlans(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'create_subscription_plan':
+        result = await this.catalog.handleCreateSubscriptionPlan(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'update_subscription_plan':
+        result = await this.catalog.handleUpdateSubscriptionPlan(
+          businessId,
+          params,
+        );
+        break;
+      case 'deactivate_subscription_plan':
+        result = await this.catalog.handleDeactivateSubscriptionPlan(
+          businessId,
+          params,
+        );
+        break;
+      case 'assign_subscription_to_customer':
+        result = await this.catalog.handleAssignSubscription(
+          businessId,
+          params,
+          services,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'configure_gift_card_products':
+        result = await this.catalog.handleConfigureGiftCardProducts(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'create_gift_card_bundle':
+        result = await this.catalog.handleCreateGiftCardBundle(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'configure_multi_service_settings':
+        result = await this.catalog.handleConfigureMultiServiceSettings(
+          businessId,
+          params,
+        );
+        break;
+      case 'set_service_compatibility':
+        result = await this.catalog.handleSetServiceCompatibility(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'list_customer_subscriptions':
+        result = await this.customerCrm.handleListCustomerSubscriptions(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'subscription_usage_history':
+        result = await this.customerCrm.handleSubscriptionUsageHistory(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'extend_subscription':
+        result = await this.customerCrm.handleExtendSubscription(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'cancel_subscription_admin':
+        result = await this.customerCrm.handleCancelSubscriptionAdmin(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'list_customer_gift_cards':
+        result = await this.customerCrm.handleListCustomerGiftCards(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'list_customer_bookings':
+        result = await this.customerCrm.handleListCustomerBookings(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'customer_no_show_history':
+        result = await this.customerCrm.handleCustomerNoShowHistory(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'tag_customer':
+        result = await this.customerCrm.handleTagCustomer(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'export_customer_data':
+        result = await this.customerCrm.handleExportCustomerData(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'delete_customer_data':
+        result = await this.customerCrm.handleDeleteCustomerData(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'send_reengagement_message':
+        result = await this.customerCrm.handleSendReengagementMessage(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'merge_customers':
+        result = await this.customerCrm.handleMergeCustomers(
+          businessId,
+          params,
+          customers,
+          (list, name) => this.resolveCustomer(list, name),
+        );
+        break;
+      case 'my_profile':
+        result = await this.customerCrm.handleMyProfile(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'my_appointments':
+        result = await this.customerCrm.handleMyAppointments(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'my_subscriptions':
+        result = await this.customerCrm.handleMySubscriptions(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'subscription_usage':
+        result = await this.customerCrm.handleSubscriptionUsage(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'my_gift_cards':
+        result = await this.customerCrm.handleMyGiftCards(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'gift_card_balance':
+        result = await this.customerCrm.handleGiftCardBalance(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'gift_card_redemption_history':
+        result = await this.customerCrm.handleGiftCardRedemptionHistory(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId,
+          },
+        );
+        break;
+      case 'request_gift_card_cancel':
+        result = await this.customerCrm.handleRequestGiftCardCancel(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId,
+          },
+        );
+        break;
+      case 'request_gift_card_modify':
+        result = await this.customerCrm.handleRequestGiftCardModify(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId,
+          },
+        );
+        break;
+      case 'track_physical_gift_card_order':
+        result = await this.customerCrm.handleTrackPhysicalGiftCardOrder(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId,
+          },
+        );
+        break;
+      case 'privacy_export':
+        result = await this.customerCrm.handlePrivacyExport(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'privacy_delete':
+        result = await this.customerCrm.handlePrivacyDelete(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId,
+        });
+        break;
+      case 'discover_packages':
+        result = await this.customerCrm.handleDiscoverPackages(businessId);
+        break;
+      case 'discover_subscription_plans':
+        result = await this.customerCrm.handleDiscoverSubscriptionPlans(
+          businessId,
+          params,
+        );
+        break;
+      case 'discover_gift_card_products':
+        result =
+          await this.customerCrm.handleDiscoverGiftCardProducts(businessId);
+        break;
+      case 'list_scheduling_resources':
+        result =
+          await this.scheduleResources.handleListSchedulingResources(
+            businessId,
+          );
+        break;
+      case 'create_resource':
+        result = await this.scheduleResources.handleCreateResource(
+          businessId,
+          params,
+        );
+        break;
+      case 'update_resource':
+        result = await this.scheduleResources.handleUpdateResource(
+          businessId,
+          params,
+        );
+        break;
+      case 'deactivate_resource':
+        result = await this.scheduleResources.handleDeactivateResource(
+          businessId,
+          params,
+        );
+        break;
+      case 'assign_resource_hours':
+        result = await this.scheduleResources.handleAssignResourceHours(
+          businessId,
+          params,
+          services,
+        );
+        break;
+      case 'list_resource_conflicts':
+        result = await this.scheduleResources.handleListResourceConflicts(
+          businessId,
+          params,
+        );
+        break;
+      case 'explain_resource_conflict':
+        result = await this.scheduleResources.handleExplainResourceConflict(
+          businessId,
+          params,
+        );
+        break;
+      case 'configure_multi_service_scheduling_mode':
+        result =
+          await this.scheduleResources.handleConfigureMultiServiceSchedulingMode(
+            businessId,
+            params,
+          );
+        break;
+      case 'my_resource_assignments':
+        result = await this.scheduleResources.handleMyResourceAssignments(
+          businessId,
+          {
+            ...params,
+            sessionEmployeeId: employeeId,
+          },
+        );
+        break;
+      case 'block_resource_unavailable':
+        result = await this.scheduleResources.handleBlockResourceUnavailable(
+          businessId,
+          params,
+        );
+        break;
+      case 'check_multi_service_block_availability':
+        result =
+          await this.scheduleResources.handleCheckMultiServiceBlockAvailability(
+            businessId,
+            params,
+          );
+        break;
+      case 'check_package_line_availability':
+        result =
+          await this.scheduleResources.handleCheckPackageLineAvailability(
+            businessId,
+            params,
+          );
+        break;
+      case 'earliest_slot_all_services':
+        result = await this.scheduleResources.handleEarliestSlotAllServices(
+          businessId,
+          params,
+        );
+        break;
+      case 'providers_available_later_days':
+        result = await this.scheduleResources.handleProvidersAvailableLaterDays(
+          businessId,
+          params,
+        );
+        break;
+      case 'explain_why_no_slots':
+        result = await this.scheduleResources.handleExplainWhyNoSlots(
+          businessId,
+          params,
+        );
+        break;
+      case 'list_products':
+        result = await this.retailFinance.handleListProducts(
+          businessId,
+          params,
+        );
+        break;
+      case 'configure_marketing_automation':
+        result = await this.marketingGrowth.handleConfigureMarketingAutomation(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'summarize_automation_performance':
+        result =
+          await this.marketingGrowth.handleSummarizeAutomationPerformance(
+            businessId,
+          );
+        break;
+      case 'trigger_reengagement':
+        result =
+          await this.marketingGrowth.handleTriggerReengagement(businessId);
+        break;
+      case 'list_inactive_customers':
+        result =
+          await this.marketingGrowth.handleListInactiveCustomers(businessId);
+        break;
+      case 'explain_plan_limits':
+        result = await this.marketingGrowth.handleExplainPlanLimits(businessId);
+        break;
+      case 'suggest_upgrade':
+        result = await this.marketingGrowth.handleSuggestUpgrade(businessId);
+        break;
+      case 'toggle_annual_billing':
+        result = await this.marketingGrowth.handleToggleAnnualBilling(
+          businessId,
+          params,
+          session?.context?.userEmail as string | undefined,
+        );
+        break;
+      case 'summarize_new_registrations':
+        result = await this.marketingGrowth.handleSummarizeNewRegistrations(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'how_to_download_app':
+        result = await this.marketingGrowth.handleHowToDownloadApp(businessId);
+        break;
+      case 'switch_to_consumer_app':
+        result =
+          await this.marketingGrowth.handleSwitchToConsumerApp(businessId);
+        break;
+      case 'promo_code_help':
+        result = await this.marketingGrowth.handlePromoCodeHelp(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'loyalty_points_balance':
+        result = await this.marketingGrowth.handleLoyaltyPointsBalance(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'explain_last_push':
+        result = await this.pushNotifications.handleExplainLastPush({
+          ...params,
+          lastPush: params.lastPush ?? session?.context?.lastPush,
+        });
+        break;
+      case 'open_booking_from_push':
+        result = await this.pushNotifications.handleOpenBookingFromPush(
+          businessId,
+          {
+            ...params,
+            lastPush: params.lastPush ?? session?.context?.lastPush,
+          },
+          effectivePrompt,
+        );
+        break;
+      case 'offline_queue_status':
+        result = await this.pushNotifications.handleOfflineQueueStatus({
+          ...params,
+          offlineQueueCount:
+            params.offlineQueueCount ?? session?.context?.offlineQueueCount,
+          online: params.online ?? session?.context?.online,
+        });
+        break;
+      case 'retry_offline_action':
+        result = await this.pushNotifications.handleRetryOfflineAction({
+          ...params,
+          offlineQueueCount:
+            params.offlineQueueCount ?? session?.context?.offlineQueueCount,
+          online: params.online ?? session?.context?.online,
+        });
+        break;
+      case 'dismiss_push':
+        result = await this.pushNotifications.handleDismissPush({
+          ...params,
+          lastPush: params.lastPush ?? session?.context?.lastPush,
+        });
+        break;
+      case 'end_of_day_summary':
+        result = await this.pushNotifications.handleEndOfDaySummary(
+          businessId,
+          {
+            ...params,
+            sessionEmployeeId:
+              (params.sessionEmployeeId as string | undefined) ??
+              (session?.context?.scopedEmployeeId as string | undefined) ??
+              employeeId,
+          },
+        );
+        break;
+      case 'new_booking_push_actions':
+        result = await this.pushNotifications.handleNewBookingPushActions();
+        break;
+      case 'configure_push_recipients':
+        result = await this.pushNotifications.handleConfigurePushRecipients(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'test_push':
+        result = await this.pushNotifications.handleTestPush(businessId, {
+          ...params,
+          userId,
+        });
+        break;
+      case 'notification_history':
+        result = await this.pushNotifications.handleNotificationHistory(
+          businessId,
+          params,
+        );
+        break;
+      case 'toggle_business_email_on_customer_change':
+        result =
+          await this.pushNotifications.handleToggleBusinessEmailOnCustomerChange(
+            businessId,
+            params,
+            effectivePrompt,
+          );
+        break;
+      case 'enable_notifications':
+        result = await this.pushNotifications.handleEnableNotifications(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+          effectivePrompt,
+        );
+        break;
+      case 'appointment_reminder_preferences':
+        result =
+          await this.pushNotifications.handleAppointmentReminderPreferences(
+            businessId,
+            {
+              ...params,
+              sessionCustomerId: session?.context?.customerId as
+                | string
+                | undefined,
+            },
+            effectivePrompt,
+          );
+        break;
+      case 'book_package':
+        result = await this.selfServiceBooking.handleBookPackage(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId as string | undefined,
+          _prompt: effectivePrompt,
+        });
+        break;
+      case 'book_multi_service':
+        result = await this.selfServiceBooking.handleBookMultiService(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            cartServiceIds:
+              session?.context?.cartServiceIds ?? params.cartServiceIds,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'check_package_availability':
+        result = await this.selfServiceBooking.handleCheckPackageAvailability(
+          businessId,
+          {
+            ...params,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'check_multi_service_availability':
+        result =
+          await this.selfServiceBooking.handleCheckMultiServiceAvailability(
+            businessId,
+            {
+              ...params,
+              cartServiceIds:
+                session?.context?.cartServiceIds ?? params.cartServiceIds,
+              _prompt: effectivePrompt,
+            },
+          );
+        break;
+      case 'select_subscription_plan':
+        result = await this.selfServiceBooking.handleSelectSubscriptionPlan(
+          businessId,
+          {
+            ...params,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'use_subscription_credit':
+        result = await this.selfServiceBooking.handleUseSubscriptionCredit(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'cancel_my_booking':
+        result = await this.selfServiceBooking.handleCancelMyBooking(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            bookingId: params.bookingId ?? session?.context?.bookingId,
+          },
+        );
+        break;
+      case 'reschedule_my_booking':
+        result = await this.selfServiceBooking.handleRescheduleMyBooking(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            bookingId: params.bookingId ?? session?.context?.bookingId,
+          },
+        );
+        break;
+      case 'cancel_package_visit_self':
+        result = await this.selfServiceBooking.handleCancelPackageVisitSelf(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            bookingId: params.bookingId ?? session?.context?.bookingId,
+          },
+        );
+        break;
+      case 'reschedule_package_visit_self':
+        result = await this.selfServiceBooking.handleReschedulePackageVisitSelf(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            bookingId: params.bookingId ?? session?.context?.bookingId,
+          },
+        );
+        break;
+      case 'list_my_appointments':
+        result = await this.selfServiceBooking.handleListMyAppointments(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'get_manage_link':
+        result = await this.selfServiceBooking.handleGetManageLink(businessId, {
+          ...params,
+          sessionCustomerId: session?.context?.customerId as string | undefined,
+          bookingId: params.bookingId ?? session?.context?.bookingId,
+        });
+        break;
+      case 'explain_cancel_policy':
+        result = await this.selfServiceBooking.handleExplainCancelPolicy(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'book_with_cash':
+        result = await this.selfServiceBooking.handleBookWithCash(
+          businessId,
+          params,
+        );
+        break;
+      case 'book_with_gift_card':
+        result = await this.selfServiceBooking.handleBookWithGiftCard(
+          businessId,
+          {
+            ...params,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'change_provider_on_reschedule':
+        result = await this.selfServiceBooking.handleChangeProviderOnReschedule(
+          businessId,
+          {
+            ...params,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'add_services_to_cart':
+        result = await this.selfServiceBooking.handleAddServicesToCart(
+          businessId,
+          {
+            ...params,
+            cartServiceIds:
+              session?.context?.cartServiceIds ?? params.cartServiceIds,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'remove_service_from_cart':
+        result = await this.selfServiceBooking.handleRemoveServiceFromCart(
+          businessId,
+          {
+            ...params,
+            cartServiceIds:
+              session?.context?.cartServiceIds ?? params.cartServiceIds,
+            _prompt: effectivePrompt,
+          },
+        );
+        break;
+      case 'show_cart_total_duration':
+        result = await this.selfServiceBooking.handleShowCartTotalDuration(
+          businessId,
+          {
+            ...params,
+            cartServiceIds:
+              session?.context?.cartServiceIds ?? params.cartServiceIds,
+          },
+        );
+        break;
+      case 'create_product':
+        result = await this.retailFinance.handleCreateProduct(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'link_product_to_service':
+        result = await this.retailFinance.handleLinkProductToService(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'adjust_inventory':
+        result = await this.retailFinance.handleAdjustInventory(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'add_retail_sale_to_booking':
+        result = await this.retailFinance.handleAddRetailSaleToBooking(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'remove_retail_line':
+        result = await this.retailFinance.handleRemoveRetailLine(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'record_expense':
+        result = await this.retailFinance.handleRecordExpense(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'list_expenses':
+        result = await this.retailFinance.handleListExpenses(
+          businessId,
+          params,
+        );
+        break;
+      case 'summarize_pl':
+        result = await this.retailFinance.handleSummarizePl(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'commission_report':
+        result = await this.retailFinance.handleCommissionReport(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'payout_export':
+        result = await this.retailFinance.handlePayoutExport(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'suggest_retail_upsell':
+        result = await this.retailFinance.handleSuggestRetailUpsell(
+          businessId,
+          {
+            ...params,
+            sessionEmployeeId: session?.context?.employeeId as
+              | string
+              | undefined,
+            _prompt: effectivePrompt,
+          },
+          effectivePrompt,
+        );
+        break;
+      case 'add_retail_to_my_booking':
+        result = await this.retailFinance.handleAddRetailToMyBooking(
+          businessId,
+          {
+            ...params,
+            sessionEmployeeId: session?.context?.employeeId as
+              | string
+              | undefined,
+            _prompt: effectivePrompt,
+          },
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'list_webhooks':
+        result = await this.integrations.handleListWebhooks(businessId);
+        break;
+      case 'create_webhook':
+        result = await this.integrations.handleCreateWebhook(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'test_webhook':
+        result = await this.integrations.handleTestWebhook(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'rotate_api_key':
+        result = await this.integrations.handleRotateApiKey(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'list_zapier_triggers':
+        result = await this.integrations.handleListZapierTriggers(businessId);
+        break;
+      case 'configure_zapier':
+        result = await this.integrations.handleConfigureZapier(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'run_accounting_export':
+        result = await this.integrations.handleRunAccountingExport(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'configure_zendesk':
+        result = await this.integrations.handleConfigureZendesk(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'create_support_ticket':
+        result = await this.integrations.handleCreateSupportTicket(
+          businessId,
+          params,
+          effectivePrompt,
+          session?.context?.userEmail as string | undefined,
+          session?.context?.userName as string | undefined,
+        );
+        break;
+      case 'sync_customer_to_zendesk':
+        result = await this.integrations.handleSyncCustomerToZendesk(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'configure_marketing_registration_email':
+        result =
+          await this.integrations.handleConfigureMarketingRegistrationEmail(
+            businessId,
+            params,
+            effectivePrompt,
+          );
+        break;
+      case 'list_integration_health':
+        result =
+          await this.integrations.handleListIntegrationHealth(businessId);
+        break;
+      case 'contact_support':
+        result = await this.integrations.handleContactSupport(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            _prompt: effectivePrompt,
+          },
+          effectivePrompt,
+          session?.context?.userEmail as string | undefined,
+          session?.context?.userName as string | undefined,
+        );
+        break;
+      case 'open_ticket_for_order':
+        result = await this.integrations.handleOpenTicketForOrder(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            _prompt: effectivePrompt,
+          },
+          effectivePrompt,
+          session?.context?.userEmail as string | undefined,
+          session?.context?.userName as string | undefined,
+        );
+        break;
+      case 'list_gift_card_orders':
+        result = await this.giftFulfillment.handleListGiftCardOrders(
+          businessId,
+          params,
+        );
+        break;
+      case 'filter_awaiting_creation':
+        result = await this.giftFulfillment.handleFilterAwaitingCreation(
+          businessId,
+          params,
+        );
+        break;
+      case 'assign_card_creator':
+        result = await this.giftFulfillment.handleAssignCardCreator(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'assign_delivery_staff':
+        result = await this.giftFulfillment.handleAssignDeliveryStaff(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'mark_shipped':
+        result = await this.giftFulfillment.handleMarkShipped(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'mark_delivered':
+        result = await this.giftFulfillment.handleMarkDelivered(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'cancel_gift_card_order':
+        result = await this.giftFulfillment.handleCancelGiftCardOrder(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'extend_cancel_window':
+        result = await this.giftFulfillment.handleExtendCancelWindow(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'print_packing_slip':
+        result = await this.giftFulfillment.handlePrintPackingSlip(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'gift_card_creation_queue':
+        result =
+          await this.giftFulfillment.handleGiftCardCreationQueue(businessId);
+        break;
+      case 'start_card_preparation':
+        result = await this.giftFulfillment.handleStartCardPreparation(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'mark_card_ready':
+        result = await this.giftFulfillment.handleMarkCardReady(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'delivery_queue':
+        result = await this.giftFulfillment.handleDeliveryQueue(businessId);
+        break;
+      case 'accept_delivery':
+        result = await this.giftFulfillment.handleAcceptDelivery(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'mark_out_for_delivery':
+        result = await this.giftFulfillment.handleMarkOutForDelivery(
+          businessId,
+          params,
+          userId,
+          effectivePrompt,
+        );
+        break;
+      case 'capture_delivery_proof':
+        result = await this.giftFulfillment.handleCaptureDeliveryProof(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'notify_delay':
+        result = await this.giftFulfillment.handleNotifyDelay(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'track_gift_card_shipment':
+        result = await this.giftFulfillment.handleTrackGiftCardShipment(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'enter_shipping_address':
+        result = await this.giftFulfillment.handleEnterShippingAddress(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+            _prompt: effectivePrompt,
+          },
+          effectivePrompt,
+        );
+        break;
+      case 'shipping_method_quote':
+        result = await this.giftFulfillment.handleShippingMethodQuote(
+          businessId,
+          params,
+        );
+        break;
+      case 'order_status_notifications':
+        result = await this.giftFulfillment.handleOrderStatusNotifications(
+          businessId,
+          {
+            ...params,
+            sessionCustomerId: session?.context?.customerId as
+              | string
+              | undefined,
+          },
+        );
+        break;
+      case 'summarize_unpaid':
+        result = await this.payments.handleSummarizeUnpaid(businessId, params);
+        break;
+      case 'validate_gift_card':
+        result = await this.payments.handleValidateGiftCard(businessId, {
+          ...params,
+          _prompt: effectivePrompt,
+        });
+        break;
+      case 'export_accounting':
+        result = await this.payments.handleExportAccounting(businessId, params);
+        break;
+      case 'export_commissions':
+        result = await this.payments.handleExportCommissions(
+          businessId,
+          params,
+        );
+        break;
+      case 'explain_checkout_total':
+        result = await this.payments.handleExplainCheckoutTotal(businessId, {
+          ...params,
+          _prompt: effectivePrompt,
+        });
+        break;
+      case 'list_subscription_revenue':
+        result = await this.payments.handleListSubscriptionRevenue(
+          businessId,
+          params,
+        );
+        break;
+      case 'configure_cash_payments':
+        result = await this.payments.handleConfigureCashPayments(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'adjust_gift_card_balance':
+        result = await this.payments.handleAdjustGiftCardBalance(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          userId,
+        );
+        break;
+      case 'extend_gift_card_expiry':
+        result = await this.payments.handleExtendGiftCardExpiry(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          userId,
+        );
+        break;
+      case 'refund_gift_card_order':
+        result = await this.payments.handleRefundGiftCardOrder(businessId, {
+          ...params,
+          _prompt: effectivePrompt,
+        });
+        break;
+      case 'explain_payment_status':
+        result = await this.payments.handleExplainPaymentStatus(
+          businessId,
+          params,
+        );
+        break;
+      case 'collect_cash_confirm':
+        result = await this.payments.handleCollectCashConfirm(
+          businessId,
+          params,
+          userId,
+        );
+        break;
+      case 'check_providers_for_service':
+        result = await this.payments.handleCheckProvidersForService(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'book_nearest_slot':
+        result = await this.payments.handleBookNearestSlot(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'apply_gift_card_code':
+        result = await this.payments.handleApplyGiftCardCode(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'check_gift_card_balance':
+        result = await this.payments.handleCheckGiftCardBalance(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'buy_gift_card':
+        result = await this.payments.handleBuyGiftCard(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          false,
+        );
+        break;
+      case 'buy_gift_card_physical':
+        result = await this.payments.handleBuyGiftCard(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          true,
+        );
+        break;
+      case 'choose_payment_method':
+        result = await this.payments.handleChoosePaymentMethod(businessId);
+        break;
+      case 'pay_online':
+        result = await this.payments.handlePayOnline(businessId);
+        break;
+      case 'pay_cash_at_visit':
+        result = await this.payments.handlePayCashAtVisit(businessId);
+        break;
+      case 'purchase_subscription_checkout':
+        result = await this.payments.handlePurchaseSubscriptionCheckout(
+          businessId,
+          params,
+        );
+        break;
+      case 'explain_why_stripe_required':
+        result = await this.payments.handleExplainWhyStripeRequired(businessId);
+        break;
+      case 'receipt_status':
+        result = await this.payments.handleReceiptStatus(businessId, params);
+        break;
       case 'create_service':
         if (Array.isArray(params.services) && params.services.length > 1) {
-          result = await this.handleCreateServices(businessId, params, services, userId);
+          result = await this.handleCreateServices(
+            businessId,
+            params,
+            services,
+            userId,
+          );
         } else {
-          result = await this.handleCreateService(businessId, params, services, userId);
+          result = await this.handleCreateService(
+            businessId,
+            params,
+            services,
+            userId,
+          );
         }
         break;
       case 'create_services':
-        result = await this.handleCreateServices(businessId, params, services, userId);
+        result = await this.handleCreateServices(
+          businessId,
+          params,
+          services,
+          userId,
+        );
         break;
       case 'cancel_bookings':
         if (
-          /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(effectivePrompt) ||
+          /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(
+            effectivePrompt,
+          ) ||
           params.notifyCustomers ||
           params.reason
         ) {
@@ -1001,7 +2946,12 @@ export class AiCommandService {
         );
         break;
       case 'summarize_day':
-        result = await this.handleSummarizeDay(businessId, params, employeeId, resolvedEmployee?.name);
+        result = await this.handleSummarizeDay(
+          businessId,
+          params,
+          employeeId,
+          resolvedEmployee?.name,
+        );
         break;
       case 'summarize_bookings':
         result = await this.handleSummarizeBookings(
@@ -1025,10 +2975,19 @@ export class AiCommandService {
         result = this.handleListServices(services, params, effectivePrompt);
         break;
       case 'analyze_services':
-        result = await this.handleAnalyzeServices(businessId, effectivePrompt, params);
+        result = await this.handleAnalyzeServices(
+          businessId,
+          effectivePrompt,
+          params,
+        );
         break;
       case 'summarize_staff':
-        result = await this.handleSummarizeStaff(businessId, effectivePrompt, params, employees);
+        result = await this.handleSummarizeStaff(
+          businessId,
+          effectivePrompt,
+          params,
+          employees,
+        );
         break;
       case 'lookup_customer':
         result = await this.handleLookupCustomer(
@@ -1122,7 +3081,7 @@ export class AiCommandService {
         );
         break;
       case 'sick_day_replan':
-        result = await this.sprint24.handleSickDayReplan(
+        result = await this.operations.handleSickDayReplan(
           businessId,
           effectivePrompt,
           params,
@@ -1132,7 +3091,7 @@ export class AiCommandService {
         );
         break;
       case 'import_services_from_menu':
-        result = await this.sprint24.handleImportServicesFromMenu(
+        result = await this.operations.handleImportServicesFromMenu(
           businessId,
           effectivePrompt,
           params,
@@ -1140,7 +3099,7 @@ export class AiCommandService {
         );
         break;
       case 'update_service_prices':
-        result = await this.sprint24.handleUpdateServicePrices(
+        result = await this.operations.handleUpdateServicePrices(
           businessId,
           effectivePrompt,
           params,
@@ -1149,7 +3108,7 @@ export class AiCommandService {
         );
         break;
       case 'staff_service_matrix':
-        result = await this.sprint24.handleStaffServiceMatrix(
+        result = await this.operations.handleStaffServiceMatrix(
           businessId,
           effectivePrompt,
           params,
@@ -1159,14 +3118,14 @@ export class AiCommandService {
         );
         break;
       case 'check_schedule_compliance':
-        result = await this.sprint24.handleCheckScheduleCompliance(
+        result = await this.operations.handleCheckScheduleCompliance(
           businessId,
           effectivePrompt,
           params,
         );
         break;
       case 'revenue_forecast':
-        result = await this.sprint24.handleRevenueForecast(
+        result = await this.operations.handleRevenueForecast(
           businessId,
           effectivePrompt,
           params,
@@ -1237,10 +3196,19 @@ export class AiCommandService {
         );
         break;
       case 'summarize_utilization':
-        result = await this.handleSummarizeUtilization(businessId, effectivePrompt, params, employees);
+        result = await this.handleSummarizeUtilization(
+          businessId,
+          effectivePrompt,
+          params,
+          employees,
+        );
         break;
       case 'summarize_customers':
-        result = await this.handleSummarizeCustomers(businessId, effectivePrompt, params);
+        result = await this.handleSummarizeCustomers(
+          businessId,
+          effectivePrompt,
+          params,
+        );
         break;
       case 'setup_week_schedule':
         result = await this.scheduleHandlers.handleTemplateCascade(
@@ -1253,7 +3221,7 @@ export class AiCommandService {
         );
         break;
       case 'swap_schedules':
-        result = await this.sprint23.handleSwapSchedules(
+        result = await this.scheduling.handleSwapSchedules(
           businessId,
           effectivePrompt,
           params,
@@ -1262,7 +3230,7 @@ export class AiCommandService {
         );
         break;
       case 'rebalance_capacity':
-        result = await this.sprint23.handleRebalanceCapacity(
+        result = await this.scheduling.handleRebalanceCapacity(
           businessId,
           effectivePrompt,
           params,
@@ -1272,7 +3240,7 @@ export class AiCommandService {
         );
         break;
       case 'holiday_mode':
-        result = await this.sprint23.handleHolidayMode(
+        result = await this.scheduling.handleHolidayMode(
           businessId,
           effectivePrompt,
           params,
@@ -1281,7 +3249,7 @@ export class AiCommandService {
         );
         break;
       case 'onboard_provider_schedule':
-        result = await this.sprint23.handleOnboardProviderSchedule(
+        result = await this.scheduling.handleOnboardProviderSchedule(
           businessId,
           effectivePrompt,
           params,
@@ -1327,7 +3295,12 @@ export class AiCommandService {
         );
         break;
       case 'reschedule_booking':
-        result = await this.handleRescheduleBooking(businessId, params, employeeId, userId);
+        result = await this.handleRescheduleBooking(
+          businessId,
+          params,
+          employeeId,
+          userId,
+        );
         break;
       default:
         result = {
@@ -1338,8 +3311,16 @@ export class AiCommandService {
         };
     }
 
-    result.details = { ...result.details, pipelineTrace, confidence, playbook: playbook?.name ?? null };
-    const final = this.completionPipeline.attachSessionToResult(result, resolved);
+    result.details = {
+      ...result.details,
+      pipelineTrace,
+      confidence,
+      playbook: playbook?.name ?? null,
+    };
+    const final = this.completionPipeline.attachSessionToResult(
+      result,
+      resolved,
+    );
     this.emitCommandEvents(businessId, final);
     return final;
   }
@@ -1449,7 +3430,11 @@ export class AiCommandService {
       prompt,
       services.map((s) => ({ id: s.id, name: s.name })),
     );
-    if ((isBulkAllAppointmentsPrompt(prompt) || params.allAppointments === true) && !promptService) {
+    if (
+      (isBulkAllAppointmentsPrompt(prompt) ||
+        params.allAppointments === true) &&
+      !promptService
+    ) {
       params.allAppointments = true;
       delete params.serviceName;
       params.serviceNames = null;
@@ -1632,9 +3617,11 @@ export class AiCommandService {
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
   ): Promise<ClassifiedIntent | null> {
-    const strippedSession = stripIntelligenceKeysFromSessionContext(sessionContext);
+    const strippedSession =
+      stripIntelligenceKeysFromSessionContext(sessionContext);
     const sessionBlock =
-      strippedSession && Object.values(strippedSession).some((v) => v != null && v !== '')
+      strippedSession &&
+      Object.values(strippedSession).some((v) => v != null && v !== '')
         ? `\nActive session context (inherit in params when not overridden by the latest message):\n${JSON.stringify(strippedSession, null, 2)}`
         : '';
 
@@ -1650,7 +3637,7 @@ export class AiCommandService {
       .slice(-10)
       .filter((m) => m.role === 'user' || m.role === 'assistant')
       .map((m) => ({
-        role: m.role as 'user' | 'assistant',
+        role: m.role,
         content: m.content,
       }));
 
@@ -1660,7 +3647,10 @@ export class AiCommandService {
         content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
-      { role: 'user', content: this.promptSecurity.prepareUserPromptForClassifier(prompt) },
+      {
+        role: 'user',
+        content: this.promptSecurity.prepareUserPromptForClassifier(prompt),
+      },
     ];
 
     const response = await this.openAi.chatCompletion(
@@ -1690,11 +3680,17 @@ export class AiCommandService {
     }
   }
 
-  private resolveEmployee(employees: Employee[], name: string): Employee | undefined {
+  private resolveEmployee(
+    employees: Employee[],
+    name: string,
+  ): Employee | undefined {
     return this.fuzzyMatchByName(employees, name);
   }
 
-  private resolveService(services: Service[], name: string): Service | undefined {
+  private resolveService(
+    services: Service[],
+    name: string,
+  ): Service | undefined {
     return fuzzyMatchServiceByName(services, name);
   }
 
@@ -1728,11 +3724,17 @@ export class AiCommandService {
     return resolved;
   }
 
-  private resolveCustomer(customers: Customer[], name: string): Customer | undefined {
+  private resolveCustomer(
+    customers: Customer[],
+    name: string,
+  ): Customer | undefined {
     return this.fuzzyMatchByName(customers, name);
   }
 
-  private fuzzyMatchByName<T extends { name: string }>(items: T[], name: string): T | undefined {
+  private fuzzyMatchByName<T extends { name: string }>(
+    items: T[],
+    name: string,
+  ): T | undefined {
     const lower = name.toLowerCase().trim();
     return (
       items.find((item) => item.name.toLowerCase() === lower) ||
@@ -1771,8 +3773,12 @@ export class AiCommandService {
     userId?: string,
   ): Promise<CommandResult> {
     const service =
-      (params.serviceName ? this.resolveService(services, params.serviceName) : undefined) ??
-      (params.serviceId ? services.find((s) => s.id === params.serviceId) : undefined);
+      (params.serviceName
+        ? this.resolveService(services, params.serviceName)
+        : undefined) ??
+      (params.serviceId
+        ? services.find((s) => s.id === params.serviceId)
+        : undefined);
     const customer = params.customerId
       ? customers.find((c) => c.id === params.customerId)
       : params.customerName
@@ -1832,9 +3838,15 @@ export class AiCommandService {
           success: false,
           action: 'create_booking',
           summary: `No upcoming open ${service.name} slots found${afterLabel}${
-            params.allProviders ? ' for any provider' : ` for ${resolvedEmployee?.name ?? 'that provider'}`
+            params.allProviders
+              ? ' for any provider'
+              : ` for ${resolvedEmployee?.name ?? 'that provider'}`
           } in the next two weeks.`,
-          details: { serviceName: service.name, allProviders: !!params.allProviders, timeFrom: params.timeFrom ?? null },
+          details: {
+            serviceName: service.name,
+            allProviders: !!params.allProviders,
+            timeFrom: params.timeFrom ?? null,
+          },
         };
       }
 
@@ -1850,16 +3862,21 @@ export class AiCommandService {
       !!params.date &&
       !!timeSlot &&
       (params.fallbackAnyProvider === true ||
-        (Array.isArray(params.providerFallbackNames) && params.providerFallbackNames.length > 0) ||
-        (Array.isArray(params.employeeNames) && params.employeeNames.length >= 2));
+        (Array.isArray(params.providerFallbackNames) &&
+          params.providerFallbackNames.length > 0) ||
+        (Array.isArray(params.employeeNames) &&
+          params.employeeNames.length >= 2));
 
     if (wantsProviderFallback && timeSlot) {
       const fixedTimeSlot = timeSlot;
       const timeZone = params._timeZone ?? 'UTC';
       const isoDay = toIsoDay(params.date, timeZone);
-      const priorityNames: string[] = Array.isArray(params.providerFallbackNames)
+      const priorityNames: string[] = Array.isArray(
+        params.providerFallbackNames,
+      )
         ? params.providerFallbackNames
-        : Array.isArray(params.employeeNames) && params.employeeNames.length >= 2
+        : Array.isArray(params.employeeNames) &&
+            params.employeeNames.length >= 2
           ? params.employeeNames
           : params.employeeName
             ? [params.employeeName]
@@ -1886,7 +3903,9 @@ export class AiCommandService {
       });
 
       if (!pick) {
-        const tried = providerPriority.map((p) => p.name).join(', ') || 'requested providers';
+        const tried =
+          providerPriority.map((p) => p.name).join(', ') ||
+          'requested providers';
         return {
           success: false,
           action: 'create_booking',
@@ -1958,6 +3977,13 @@ export class AiCommandService {
       customerName: customer?.name,
       date: formatDateDisplay(params.date),
       timeSlot,
+      useSubscriptionId: params.useSubscriptionId,
+      metadata: params._bookingMetadata,
+      paymentStatus: params._paymentStatus,
+      packagePurchaseId: params.packagePurchaseId,
+      multiServiceGroupId: params.multiServiceGroupId,
+      resourceIds: params.resourceIds,
+      sameVisitMultiService: params.sameVisitMultiService,
     });
 
     return this.toCommandResult(
@@ -1987,7 +4013,11 @@ export class AiCommandService {
       sortKey: number;
     } | null = null;
 
-    for (let offset = 0; offset < AiCommandService.FIRST_AVAILABLE_SCAN_DAYS; offset++) {
+    for (
+      let offset = 0;
+      offset < AiCommandService.FIRST_AVAILABLE_SCAN_DAYS;
+      offset++
+    ) {
       const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
 
       for (const provider of providers) {
@@ -2000,7 +4030,15 @@ export class AiCommandService {
         if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
 
         for (const slot of row.openSlots) {
-          if (!isWallClockSlotBookable(isoDay, slot.start, timeZone, notBeforeTime)) continue;
+          if (
+            !isWallClockSlotBookable(
+              isoDay,
+              slot.start,
+              timeZone,
+              notBeforeTime,
+            )
+          )
+            continue;
 
           const sortKey = offset * 24 * 60 + timeToMinutes(slot.start);
           if (!best || sortKey < best.sortKey) {
@@ -2016,7 +4054,11 @@ export class AiCommandService {
     }
 
     return best
-      ? { employee: best.employee, timeSlot: best.timeSlot, isoDay: best.isoDay }
+      ? {
+          employee: best.employee,
+          timeSlot: best.timeSlot,
+          isoDay: best.isoDay,
+        }
       : null;
   }
 
@@ -2027,32 +4069,26 @@ export class AiCommandService {
     services: Service[],
     userId?: string,
   ): Promise<CommandResult> {
-    const targets = resolveEmployees(employees, params);
-    if (targets.length !== 1) {
+    const resolved = resolveAssignEmployeeServicesInput(
+      employees,
+      services,
+      params,
+    );
+    if (!resolved.ok) {
       return {
         success: false,
         action: 'assign_employee_services',
-        summary: 'Specify one service provider to assign services to.',
-        details: { params },
-      };
-    }
-
-    const matched = resolveServices(services, params);
-    if (matched.length === 0) {
-      return {
-        success: false,
-        action: 'assign_employee_services',
-        summary: 'Specify which service(s) to assign.',
-        details: { availableServices: services.map((s) => s.name) },
+        summary: resolved.summary,
+        details: resolved.details ?? { params },
       };
     }
 
     const plan = this.planBuilder.buildAssignEmployeeServicesPlan({
       businessId,
-      employeeId: targets[0].id,
-      employeeName: targets[0].name,
-      serviceIds: matched.map((s) => s.id),
-      serviceNames: matched.map((s) => s.name),
+      employeeId: resolved.employeeId,
+      employeeName: resolved.employeeName,
+      serviceIds: resolved.serviceIds,
+      serviceNames: resolved.serviceNames,
       userId,
     });
 
@@ -2072,13 +4108,18 @@ export class AiCommandService {
     params: any,
     employees: Employee[],
   ): Promise<CommandResult> {
-    const range = resolveDateRange(params, prompt) ?? (() => {
-      const start = new Date();
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setUTCDate(end.getUTCDate() + 6);
-      return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
-    })();
+    const range =
+      resolveDateRange(params, prompt) ??
+      (() => {
+        const start = new Date();
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 6);
+        return {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        };
+      })();
 
     const start = new Date(range.start);
     start.setUTCHours(0, 0, 0, 0);
@@ -2088,19 +4129,28 @@ export class AiCommandService {
     const util = await Promise.all(
       employees.map(async (e) => ({
         employeeName: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+        ...(await this.schedulingEngine.getEmployeeUtilization(
+          e.id,
+          start,
+          end,
+        )),
       })),
     );
 
-    const sorted = [...util].sort((a, b) => (a.utilizationPercent ?? 0) - (b.utilizationPercent ?? 0));
+    const sorted = [...util].sort(
+      (a, b) => (a.utilizationPercent ?? 0) - (b.utilizationPercent ?? 0),
+    );
     const lines = sorted.map(
-      (u) => `• ${u.employeeName}: ${u.utilizationPercent ?? 0}% utilized (${u.bookedMinutes ?? 0}/${u.totalMinutes ?? 0} min)`,
+      (u) =>
+        `• ${u.employeeName}: ${u.utilizationPercent ?? 0}% utilized (${u.bookedMinutes ?? 0}/${u.totalMinutes ?? 0} min)`,
     );
 
     return {
       success: true,
       action: 'summarize_utilization',
-      summary: [`Utilization ${range.start} → ${range.end}:`, ...lines].join('\n'),
+      summary: [`Utilization ${range.start} → ${range.end}:`, ...lines].join(
+        '\n',
+      ),
       details: { range, utilization: sorted },
     };
   }
@@ -2116,7 +4166,11 @@ export class AiCommandService {
         ? Math.min(params.limit, MAX_AI_CUSTOMER_ROWS)
         : Math.min(extractLimitFromPrompt(prompt), MAX_AI_CUSTOMER_ROWS);
 
-    const insights = await this.customerService.getCustomerInsights(businessId, metric, limit);
+    const insights = await this.customerService.getCustomerInsights(
+      businessId,
+      metric,
+      limit,
+    );
     const { rows, summary } = insights;
 
     const metricTitles: Record<CustomerInsightMetric, string> = {
@@ -2131,7 +4185,11 @@ export class AiCommandService {
       overview: 'Customer overview',
     };
 
-    const lines: string[] = [metricTitles[metric] + (metric === 'top_spenders' ? ` (top ${limit})` : '') + ':'];
+    const lines: string[] = [
+      metricTitles[metric] +
+        (metric === 'top_spenders' ? ` (top ${limit})` : '') +
+        ':',
+    ];
 
     if (metric === 'overview') {
       lines.push(
@@ -2151,20 +4209,28 @@ export class AiCommandService {
         const cancelled = row.stats.byStatus.cancelled ?? 0;
         const completed = row.stats.byStatus.completed ?? 0;
         let detail = `${row.stats.noShowCount} no-show(s), ${row.stats.total} total appt(s)`;
-        if (metric === 'most_cancellations') detail = `${cancelled} cancellation(s)`;
-        if (metric === 'most_bookings') detail = `${row.stats.total} appointment(s)`;
+        if (metric === 'most_cancellations')
+          detail = `${cancelled} cancellation(s)`;
+        if (metric === 'most_bookings')
+          detail = `${row.stats.total} appointment(s)`;
         if (metric === 'at_risk' && row.stats.lastBookingAt) {
           detail = `last visit ${formatDateDisplay(row.stats.lastBookingAt)}, ${completed} completed`;
         }
-        if (metric === 'vip') detail = `${completed} completed, ${row.stats.total} total`;
+        if (metric === 'vip')
+          detail = `${completed} completed, ${row.stats.total} total`;
         if (metric === 'top_spenders') {
           const currency = row.currency ?? 'USD';
           detail = `${currency} ${Number(row.paidTotal ?? 0).toFixed(2)} from ${row.paidCount ?? 0} paid appt(s)`;
         }
         if (metric === 'new_customers') {
-          detail = row.stats.total === 0 ? 'no appointments yet' : `${row.stats.total} appointment(s)`;
+          detail =
+            row.stats.total === 0
+              ? 'no appointments yet'
+              : `${row.stats.total} appointment(s)`;
         }
-        lines.push(`• ${row.name}: ${detail}${metric === 'top_spenders' ? '' : ` · segment: ${row.segment}`}`);
+        lines.push(
+          `• ${row.name}: ${detail}${metric === 'top_spenders' ? '' : ` · segment: ${row.segment}`}`,
+        );
       }
     }
 
@@ -2207,7 +4273,7 @@ export class AiCommandService {
     if (employeeId) where.employeeId = employeeId;
 
     const bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
@@ -2225,12 +4291,18 @@ export class AiCommandService {
         b.status !== BookingStatus.COMPLETED &&
         b.status !== BookingStatus.NO_SHOW,
     );
-    const confirmed = filtered.filter((b) => b.status === BookingStatus.CONFIRMED);
+    const confirmed = filtered.filter(
+      (b) => b.status === BookingStatus.CONFIRMED,
+    );
     const pending = filtered.filter((b) => b.status === BookingStatus.PENDING);
-    const completed = filtered.filter((b) => b.status === BookingStatus.COMPLETED);
+    const completed = filtered.filter(
+      (b) => b.status === BookingStatus.COMPLETED,
+    );
 
     const active = filtered.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const cancelled = filtered.filter((b) => b.status === BookingStatus.CANCELLED);
+    const cancelled = filtered.filter(
+      (b) => b.status === BookingStatus.CANCELLED,
+    );
     const noShows = filtered.filter((b) => b.status === BookingStatus.NO_SHOW);
     const unpaid = filtered.filter(
       (b) =>
@@ -2249,7 +4321,9 @@ export class AiCommandService {
       (sum, b) => sum + Number(b.service?.price ?? 0),
       0,
     );
-    const currency = revenueBookings.find((b) => b.service?.currency)?.service?.currency ?? 'USD';
+    const currency =
+      revenueBookings.find((b) => b.service?.currency)?.service?.currency ??
+      'USD';
 
     const byProvider = new Map<string, number>();
     for (const booking of active) {
@@ -2279,17 +4353,23 @@ export class AiCommandService {
       overview: 'Booking overview',
     };
 
-    const lines: string[] = [`${metricTitles[metric]} for ${scopeLabel} on ${rangeLabel}${statusNote}:`];
+    const lines: string[] = [
+      `${metricTitles[metric]} for ${scopeLabel} on ${rangeLabel}${statusNote}:`,
+    ];
 
     switch (metric) {
       case 'count':
         lines.push(`• ${active.length} active appointment(s)`);
         if (!statusFilter) {
-          lines.push(`• ${cancelled.length} cancelled · ${noShows.length} no-show(s)`);
+          lines.push(
+            `• ${cancelled.length} cancelled · ${noShows.length} no-show(s)`,
+          );
         }
         break;
       case 'revenue':
-        lines.push(`• ${currency} ${totalRevenue.toFixed(2)} from ${revenueBookings.length} appointment(s)`);
+        lines.push(
+          `• ${currency} ${totalRevenue.toFixed(2)} from ${revenueBookings.length} appointment(s)`,
+        );
         break;
       case 'busiest_provider':
         if (busiest.length === 0) {
@@ -2299,7 +4379,12 @@ export class AiCommandService {
           const tied = busiest.filter(([, c]) => c === topCount);
           lines.push(`• ${topName}: ${topCount} appointment(s)`);
           if (tied.length > 1) {
-            lines.push(`• Tied with: ${tied.slice(1).map(([n, c]) => `${n} (${c})`).join(', ')}`);
+            lines.push(
+              `• Tied with: ${tied
+                .slice(1)
+                .map(([n, c]) => `${n} (${c})`)
+                .join(', ')}`,
+            );
           }
           if (busiest.length > 1 && tied.length === 1) {
             lines.push('', 'All providers:');
@@ -2363,7 +4448,10 @@ export class AiCommandService {
           completed: completed.length,
         },
         revenue: { total: totalRevenue, currency },
-        busiestProvider: busiest.length > 0 ? { name: busiest[0][0], count: busiest[0][1] } : null,
+        busiestProvider:
+          busiest.length > 0
+            ? { name: busiest[0][0], count: busiest[0][1] }
+            : null,
         byProvider: Object.fromEntries(busiest),
       },
     };
@@ -2388,17 +4476,21 @@ export class AiCommandService {
           `• Duration: ${target.durationMinutes} min${target.bufferMinutes ? ` (+${target.bufferMinutes} min buffer)` : ''}`,
           `• Price: ${currency} ${Number(target.price).toFixed(2)}`,
           target.description ? `• ${target.description}` : '',
-        ].filter(Boolean).join('\n'),
+        ]
+          .filter(Boolean)
+          .join('\n'),
         details: {
-          services: [{
-            id: target.id,
-            name: target.name,
-            durationMinutes: target.durationMinutes,
-            bufferMinutes: target.bufferMinutes,
-            price: Number(target.price),
-            currency,
-            description: target.description,
-          }],
+          services: [
+            {
+              id: target.id,
+              name: target.name,
+              durationMinutes: target.durationMinutes,
+              bufferMinutes: target.bufferMinutes,
+              price: Number(target.price),
+              currency,
+              description: target.description,
+            },
+          ],
         },
       };
     }
@@ -2407,7 +4499,8 @@ export class AiCommandService {
       return {
         success: true,
         action: 'list_services',
-        summary: 'No services in catalog yet. Add one with "Add service facemassage 60min $50".',
+        summary:
+          'No services in catalog yet. Add one with "Add service facemassage 60min $50".',
         details: { services: [] },
       };
     }
@@ -2465,12 +4558,15 @@ export class AiCommandService {
       where: {
         businessId,
         startTime: Between(start, end),
-        status: Not(BookingStatus.CANCELLED) as any,
+        status: Not(BookingStatus.CANCELLED),
       },
       relations: { service: true },
     });
 
-    const byService = new Map<string, { name: string; count: number; revenue: number; currency: string }>();
+    const byService = new Map<
+      string,
+      { name: string; count: number; revenue: number; currency: string }
+    >();
     for (const b of bookings) {
       if (!b.service) continue;
       const key = b.service.id;
@@ -2555,20 +4651,38 @@ export class AiCommandService {
     const end = new Date(range.end);
     end.setUTCHours(23, 59, 59, 999);
 
+    const targetEmployees = params.employeeName
+      ? employees.filter((e) =>
+          e.name
+            .toLowerCase()
+            .includes(String(params.employeeName).toLowerCase()),
+        )
+      : employees;
+    const targetIds = new Set(targetEmployees.map((e) => e.id));
+
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
         startTime: Between(start, end),
-        status: Not(BookingStatus.CANCELLED) as any,
+        status: Not(BookingStatus.CANCELLED),
       },
       relations: { employee: true, service: true },
     });
 
-    const byEmployee = new Map<string, { name: string; count: number; revenue: number; currency: string }>();
-    for (const e of employees) {
-      byEmployee.set(e.id, { name: e.name, count: 0, revenue: 0, currency: 'USD' });
+    const byEmployee = new Map<
+      string,
+      { name: string; count: number; revenue: number; currency: string }
+    >();
+    for (const e of targetEmployees) {
+      byEmployee.set(e.id, {
+        name: e.name,
+        count: 0,
+        revenue: 0,
+        currency: 'USD',
+      });
     }
     for (const b of bookings) {
+      if (targetIds.size > 0 && !targetIds.has(b.employeeId)) continue;
       const row = byEmployee.get(b.employeeId);
       if (!row) continue;
       row.count += 1;
@@ -2646,12 +4760,44 @@ export class AiCommandService {
       };
     }
 
-    const detail = await this.customerService.getCustomerDetail(businessId, customer.id);
+    const detail = await this.customerService.getCustomerDetail(
+      businessId,
+      customer.id,
+    );
     const { stats, appointments } = detail;
     const lastAppt = appointments[0];
     const upcoming = appointments.filter(
       (a) => new Date(a.startTime) > new Date() && a.status !== 'cancelled',
     ).length;
+
+    const bookingContext = params.bookingContext === true;
+    const contextEmployee = params.employeeName as string | undefined;
+    const contextTime = params.timeSlot as string | undefined;
+    const contextDate = params.date as string | undefined;
+    let contextMatch: (typeof appointments)[number] | undefined;
+    if (bookingContext && (contextEmployee || contextTime || contextDate)) {
+      const range = resolveDateRange(
+        { date: contextDate },
+        contextDate ?? 'today',
+      ) ?? {
+        start: new Date().toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0],
+      };
+      contextMatch = appointments.find((appt) => {
+        if (appt.status === 'cancelled') return false;
+        const day = new Date(appt.startTime).toISOString().split('T')[0];
+        if (day < range.start || day > range.end) return false;
+        if (contextEmployee && appt.employee?.name) {
+          const needle = contextEmployee.toLowerCase();
+          if (!appt.employee.name.toLowerCase().includes(needle)) return false;
+        }
+        if (contextTime) {
+          const slot = this.snapTo10min(contextTime);
+          if (formatTimeDisplay(appt.startTime) !== slot) return false;
+        }
+        return true;
+      });
+    }
 
     const tier = normalizeActorRole(accessTier);
     const limitedView = tier === 'staff';
@@ -2679,13 +4825,31 @@ export class AiCommandService {
           ].filter(Boolean)),
     ];
 
+    if (contextMatch) {
+      lines.push(
+        `• Booking match: ${formatDateDisplay(contextMatch.startTime)} ${formatTimeDisplay(contextMatch.startTime)} — ${contextMatch.service?.name ?? 'Service'} with ${contextMatch.employee?.name ?? 'provider'} (${contextMatch.status})`,
+      );
+    } else if (bookingContext && (contextEmployee || contextTime)) {
+      lines.push('• No matching booking found for the provider/time filter.');
+    }
+
     return {
       success: true,
       action: 'lookup_customer',
       summary: lines.join('\n'),
       details: limitedView
-        ? { customerId: detail.customer.id, name: detail.customer.name, upcoming }
-        : { customer: detail.customer, stats, recentAppointments: appointments.slice(0, 5) },
+        ? {
+            customerId: detail.customer.id,
+            name: detail.customer.name,
+            upcoming,
+            contextBookingId: contextMatch?.id,
+          }
+        : {
+            customer: detail.customer,
+            stats,
+            recentAppointments: appointments.slice(0, 5),
+            contextBooking: contextMatch ?? null,
+          },
     };
   }
 
@@ -2715,23 +4879,36 @@ export class AiCommandService {
       cancelledWhere.startTime = Between(dayStart, dayEnd);
     }
 
-    const recoverableSlots = await this.bookingRepo.count({ where: cancelledWhere as any });
+    const recoverableSlots = await this.bookingRepo.count({
+      where: cancelledWhere,
+    });
 
     if (waitlist.length === 0) {
-      const lines = ['No customers on the waitlist. Tag customers with "waitlist" in CRM.'];
+      const lines = [
+        'No customers on the waitlist. Tag customers with "waitlist" in CRM.',
+      ];
       if (recoverableSlots > 0) {
-        lines.push(`Cancelled slots available for recovery: ${recoverableSlots}`);
+        lines.push(
+          `Cancelled slots available for recovery: ${recoverableSlots}`,
+        );
       }
       return {
         success: true,
         action: 'summarize_waitlist',
         summary: lines.join('\n'),
-        details: { count: 0, customers: [], recoverableCancelledSlots: recoverableSlots },
+        details: {
+          count: 0,
+          customers: [],
+          recoverableCancelledSlots: recoverableSlots,
+        },
       };
     }
 
     const shown = waitlist.slice(0, limit);
-    const lines = [`Waitlist: ${waitlist.length} customer(s)`, ...shown.map((c) => `• ${c.name}`)];
+    const lines = [
+      `Waitlist: ${waitlist.length} customer(s)`,
+      ...shown.map((c) => `• ${c.name}`),
+    ];
     if (waitlist.length > limit) {
       lines.push(`… and ${waitlist.length - limit} more`);
     }
@@ -2745,7 +4922,12 @@ export class AiCommandService {
       summary: lines.join('\n'),
       details: {
         count: waitlist.length,
-        customers: shown.map((c) => ({ id: c.id, name: c.name, phone: c.phone, email: c.email })),
+        customers: shown.map((c) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          email: c.email,
+        })),
         recoverableCancelledSlots: recoverableSlots,
       },
     };
@@ -2816,7 +4998,11 @@ export class AiCommandService {
         summary: lines.join('\n'),
         details: {
           employeeName: employee.name,
-          services: assigned.map((s) => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes })),
+          services: assigned.map((s) => ({
+            id: s.id,
+            name: s.name,
+            durationMinutes: s.durationMinutes,
+          })),
         },
       };
     }
@@ -2844,7 +5030,8 @@ export class AiCommandService {
     const active = employees.filter((e) => e.isActive);
 
     if (params.date) {
-      const isoDay = parseDateInput(params.date)?.toISOString().split('T')[0] ?? params.date;
+      const isoDay =
+        parseDateInput(params.date)?.toISOString().split('T')[0] ?? params.date;
       const displayDay = formatDateDisplay(isoDay);
 
       const availabilityRows = await Promise.all(
@@ -2899,7 +5086,9 @@ export class AiCommandService {
       const lines = [
         `Providers scheduled for ${service.name} on ${displayDay} with open time (${availableProviders.length}):`,
         ...availableProviders.map((r) => {
-          const blocks = r.scheduledBlocks.map((b) => `${b.start}–${b.end}`).join(', ');
+          const blocks = r.scheduledBlocks
+            .map((b) => `${b.start}–${b.end}`)
+            .join(', ');
           const open = r.openSlots.map((s) => `${s.start}–${s.end}`).join(', ');
           return `• ${r.provider.name} — shift: ${blocks} | open: ${open}`;
         }),
@@ -2953,7 +5142,10 @@ export class AiCommandService {
     };
   }
 
-  private handleListEmployees(employees: Employee[], params: Record<string, any>): CommandResult {
+  private handleListEmployees(
+    employees: Employee[],
+    params: Record<string, any>,
+  ): CommandResult {
     const active = employees.filter((e) => e.isActive);
     if (active.length === 0) {
       return {
@@ -2981,7 +5173,8 @@ export class AiCommandService {
       return {
         success: true,
         action: 'list_templates',
-        summary: 'No schedule templates yet. Create one in Schedule → Templates.',
+        summary:
+          'No schedule templates yet. Create one in Schedule → Templates.',
         details: { templates: [] },
       };
     }
@@ -2996,7 +5189,9 @@ export class AiCommandService {
   }
 
   private bookingDurationMinutes(booking: Booking): number {
-    return Math.round((booking.endTime.getTime() - booking.startTime.getTime()) / 60_000);
+    return Math.round(
+      (booking.endTime.getTime() - booking.startTime.getTime()) / 60_000,
+    );
   }
 
   private formatServicePrice(service: Service | null | undefined): string {
@@ -3024,13 +5219,15 @@ export class AiCommandService {
       return {
         success: false,
         action: 'analyze_appointments',
-        summary: 'Specify what to analyze: most expensive, longest, shortest, earliest, or latest appointment.',
+        summary:
+          'Specify what to analyze: most expensive, longest, shortest, earliest, or latest appointment.',
         details: { params },
       };
     }
 
     const range = resolveDateRange(params, prompt);
-    const isoDay = range?.start ?? params.date ?? new Date().toISOString().split('T')[0];
+    const isoDay =
+      range?.start ?? params.date ?? new Date().toISOString().split('T')[0];
     const displayDay = formatDateDisplay(isoDay);
     const d = new Date(isoDay);
     const dayStart = new Date(d);
@@ -3045,7 +5242,7 @@ export class AiCommandService {
     if (employeeId) where.employeeId = employeeId;
 
     const bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
@@ -3074,7 +5271,9 @@ export class AiCommandService {
 
     switch (metric) {
       case 'most_expensive': {
-        const priced = active.filter((b) => b.service && Number(b.service.price) >= 0);
+        const priced = active.filter(
+          (b) => b.service && Number(b.service.price) >= 0,
+        );
         if (priced.length === 0) {
           return {
             success: true,
@@ -3083,18 +5282,28 @@ export class AiCommandService {
             details: { metric, date: displayDay, count: 0 },
           };
         }
-        const maxPrice = Math.max(...priced.map((b) => Number(b.service!.price)));
-        matches = priced.filter((b) => Number(b.service!.price) === maxPrice);
+        const maxPrice = Math.max(
+          ...priced.map((b) => Number(b.service.price)),
+        );
+        matches = priced.filter((b) => Number(b.service.price) === maxPrice);
         break;
       }
       case 'longest': {
-        const maxDuration = Math.max(...active.map((b) => this.bookingDurationMinutes(b)));
-        matches = active.filter((b) => this.bookingDurationMinutes(b) === maxDuration);
+        const maxDuration = Math.max(
+          ...active.map((b) => this.bookingDurationMinutes(b)),
+        );
+        matches = active.filter(
+          (b) => this.bookingDurationMinutes(b) === maxDuration,
+        );
         break;
       }
       case 'shortest': {
-        const minDuration = Math.min(...active.map((b) => this.bookingDurationMinutes(b)));
-        matches = active.filter((b) => this.bookingDurationMinutes(b) === minDuration);
+        const minDuration = Math.min(
+          ...active.map((b) => this.bookingDurationMinutes(b)),
+        );
+        matches = active.filter(
+          (b) => this.bookingDurationMinutes(b) === minDuration,
+        );
         break;
       }
       case 'earliest':
@@ -3149,7 +5358,10 @@ export class AiCommandService {
   ): Promise<CommandResult> {
     const matchedServices = this.resolveServices(services, params);
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return {
         success: false,
         action: 'bulk_smart_cancel',
@@ -3234,8 +5446,10 @@ export class AiCommandService {
 
     if (params.date) {
       const d = new Date(params.date);
-      const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+      const dayStart = new Date(d);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(d);
+      dayEnd.setUTCHours(23, 59, 59, 999);
       where.startTime = Between(dayStart, dayEnd);
     }
 
@@ -3258,7 +5472,8 @@ export class AiCommandService {
       return {
         success: false,
         action: 'fill_slot_from_waitlist',
-        summary: 'No cancelled slot found to fill. Specify provider, date, and time (e.g. "Fill cancelled 14:00 slot from waitlist").',
+        summary:
+          'No cancelled slot found to fill. Specify provider, date, and time (e.g. "Fill cancelled 14:00 slot from waitlist").',
         details: { params },
       };
     }
@@ -3273,7 +5488,8 @@ export class AiCommandService {
       return {
         success: false,
         action: 'fill_slot_from_waitlist',
-        summary: 'No waitlist customers found. Tag customers with "waitlist" in CRM.',
+        summary:
+          'No waitlist customers found. Tag customers with "waitlist" in CRM.',
         details: { slotId: slot.id },
       };
     }
@@ -3322,7 +5538,11 @@ export class AiCommandService {
     prompt: string,
     userId: string | undefined,
     session: CommandSessionOptions | undefined,
-    subIntents: Array<{ action: string; params: Record<string, any>; reasoning: string }>,
+    subIntents: Array<{
+      action: string;
+      params: Record<string, any>;
+      reasoning: string;
+    }>,
     catalog: {
       employees: Employee[];
       services: Service[];
@@ -3334,7 +5554,11 @@ export class AiCommandService {
   ): Promise<CommandResult> {
     const plans: AgentPlan[] = [];
     const pipelineTrace = [
-      this.completionPipeline.trace('classify', 'compound_intent', `${subIntents.length} sub-intent(s)`),
+      this.completionPipeline.trace(
+        'classify',
+        'compound_intent',
+        `${subIntents.length} sub-intent(s)`,
+      ),
     ];
 
     let pendingCancelBookingIds: string[] | undefined;
@@ -3356,10 +5580,23 @@ export class AiCommandService {
         params: parsedParams,
         reasoning: sub.reasoning,
       };
-      this.applyScheduleScopeFromPrompt(prompt, parsedParams, parsed.action, catalog.employees);
-      this.completionPipeline.normalizeDateParams(parsedParams, prompt, timeZone);
+      this.applyScheduleScopeFromPrompt(
+        prompt,
+        parsedParams,
+        parsed.action,
+        catalog.employees,
+      );
+      this.completionPipeline.normalizeDateParams(
+        parsedParams,
+        prompt,
+        timeZone,
+      );
       if (parsed.action === 'reschedule_booking') {
-        this.completionPipeline.finalizeRescheduleParams(parsedParams, prompt, timeZone);
+        this.completionPipeline.finalizeRescheduleParams(
+          parsedParams,
+          prompt,
+          timeZone,
+        );
       } else if (
         parsed.action === 'create_direct_schedule' ||
         parsed.action === 'clear_schedule' ||
@@ -3369,21 +5606,41 @@ export class AiCommandService {
         parsed.action === 'cancel_bookings' ||
         parsed.action === 'hide_appointments_from_calendar'
       ) {
-        this.completionPipeline.enrichDateRangeParams(parsedParams, prompt, timeZone);
-        this.completionPipeline.normalizeDateParams(parsedParams, prompt, timeZone);
+        this.completionPipeline.enrichDateRangeParams(
+          parsedParams,
+          prompt,
+          timeZone,
+        );
+        this.completionPipeline.normalizeDateParams(
+          parsedParams,
+          prompt,
+          timeZone,
+        );
       }
       if (parsed.action === 'create_direct_schedule') {
         parsedParams.periods = inferDirectSchedulePeriods(parsedParams, prompt);
       }
-      if (parsed.action === 'hide_appointments_from_calendar' && pendingCancelBookingIds?.length) {
+      if (
+        parsed.action === 'hide_appointments_from_calendar' &&
+        pendingCancelBookingIds?.length
+      ) {
         parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
       }
-      const resolved = this.completionPipeline.resolve(businessId, prompt, parsed, catalog, timeZone);
+      const resolved = this.completionPipeline.resolve(
+        businessId,
+        prompt,
+        parsed,
+        catalog,
+        timeZone,
+      );
 
       if (shouldValidateAction(parsed.action)) {
         const validation = this.completionPipeline.validate(resolved);
         if (!validation.ok) {
-          const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
+          const clarify = this.completionPipeline.toClarifyResult(
+            resolved,
+            validation,
+          );
           clarify.details.pipelineTrace = pipelineTrace;
           clarify.details.compoundStep = parsed.action;
           return clarify;
@@ -3423,8 +5680,12 @@ export class AiCommandService {
       if (plan) {
         plans.push(plan);
         if (parsed.action === 'cancel_bookings') {
-          const cancelStep = plan.steps.find((s) => s.action === 'cancel_bookings');
-          pendingCancelBookingIds = cancelStep?.params?.bookingIds as string[] | undefined;
+          const cancelStep = plan.steps.find(
+            (s) => s.action === 'cancel_bookings',
+          );
+          pendingCancelBookingIds = cancelStep?.params?.bookingIds as
+            | string[]
+            | undefined;
         }
       }
     }
@@ -3438,12 +5699,17 @@ export class AiCommandService {
       };
     }
 
-    const merged = this.planBuilder.mergePlans(businessId, 'compound_intent', plans);
-    const providerCount = new Set(
-      merged.steps
-        .map((s) => s.params?.employeeId as string | undefined)
-        .filter(Boolean),
-    ).size || 1;
+    const merged = this.planBuilder.mergePlans(
+      businessId,
+      'compound_intent',
+      plans,
+    );
+    const providerCount =
+      new Set(
+        merged.steps
+          .map((s) => s.params?.employeeId as string | undefined)
+          .filter(Boolean),
+      ).size || 1;
 
     const result = this.toCommandResult(
       await this.orchestration.executePlan({
@@ -3499,7 +5765,10 @@ export class AiCommandService {
       case 'create_service': {
         const parsed = this.parseServiceDraft(params, params.currency || 'USD');
         if (parsed.errors.length > 0 || !parsed.draft) return null;
-        const existing = this.resolveService(catalog.services, parsed.draft.name);
+        const existing = this.resolveService(
+          catalog.services,
+          parsed.draft.name,
+        );
         if (existing) return null;
         return this.planBuilder.buildCreateServicePlan({
           businessId,
@@ -3518,7 +5787,8 @@ export class AiCommandService {
           if (parsed.errors.length > 0 || !parsed.draft) continue;
           const key = parsed.draft.name.toLowerCase();
           if (batchNames.has(key)) continue;
-          if (this.resolveService(catalog.services, parsed.draft.name)) continue;
+          if (this.resolveService(catalog.services, parsed.draft.name))
+            continue;
           batchNames.add(key);
           toCreate.push(parsed.draft);
         }
@@ -3530,16 +5800,18 @@ export class AiCommandService {
         });
       }
       case 'assign_employee_services': {
-        const targets = resolveEmployees(catalog.employees, params);
-        if (targets.length !== 1) return null;
-        const matched = resolveServices(catalog.services, params);
-        if (matched.length === 0) return null;
+        const resolved = resolveAssignEmployeeServicesInput(
+          catalog.employees,
+          catalog.services,
+          params,
+        );
+        if (!resolved.ok) return null;
         return this.planBuilder.buildAssignEmployeeServicesPlan({
           businessId,
-          employeeId: targets[0].id,
-          employeeName: targets[0].name,
-          serviceIds: matched.map((s) => s.id),
-          serviceNames: matched.map((s) => s.name),
+          employeeId: resolved.employeeId,
+          employeeName: resolved.employeeName,
+          serviceIds: resolved.serviceIds,
+          serviceNames: resolved.serviceNames,
           userId,
         });
       }
@@ -3564,7 +5836,7 @@ export class AiCommandService {
         );
         if (!bookings.length) return null;
         if (isNoShowRecoveryPrompt(prompt)) {
-          return this.sprint24.prepareNoShowRecoveryPlan(
+          return this.operations.prepareNoShowRecoveryPlan(
             businessId,
             prompt,
             params,
@@ -3590,7 +5862,7 @@ export class AiCommandService {
           prompt,
         );
         if (!bookings.length) return null;
-        return this.sprint24.prepareNoShowRecoveryPlan(
+        return this.operations.prepareNoShowRecoveryPlan(
           businessId,
           prompt,
           params,
@@ -3633,7 +5905,11 @@ export class AiCommandService {
           catalog.employees,
           employeeId,
         );
-        const { bookings } = this.sprint24.applyPaymentSweepFilters(prompt, params, rawBookings);
+        const { bookings } = this.operations.applyPaymentSweepFilters(
+          prompt,
+          params,
+          rawBookings,
+        );
         if (!bookings.length) return null;
         return this.planBuilder.buildUpdateBookingsPlan({
           businessId,
@@ -3644,12 +5920,18 @@ export class AiCommandService {
         });
       }
       case 'day_replan': {
-        const range = resolveDateRange(params, prompt, params._timeZone ?? 'UTC');
+        const range = resolveDateRange(
+          params,
+          prompt,
+          params._timeZone ?? 'UTC',
+        );
         if (!range) return null;
         const targets = resolveEmployees(catalog.employees, params);
         return this.planBuilder.buildDayReplanPlan({
           businessId,
-          date: params.date ?? (range.start === range.end ? range.start : undefined),
+          date:
+            params.date ??
+            (range.start === range.end ? range.start : undefined),
           dateFrom: range.start !== range.end ? range.start : undefined,
           dateTo: range.start !== range.end ? range.end : undefined,
           employeeIds: targets.length ? targets.map((e) => e.id) : undefined,
@@ -3657,18 +5939,19 @@ export class AiCommandService {
         });
       }
       case 'setup_week_schedule': {
-        const cascadeResult = await this.scheduleHandlers.prepareTemplateCascadePlan(
-          businessId,
-          prompt,
-          params,
-          catalog.employees,
-          catalog.services,
-          userId,
-        );
+        const cascadeResult =
+          await this.scheduleHandlers.prepareTemplateCascadePlan(
+            businessId,
+            prompt,
+            params,
+            catalog.employees,
+            catalog.services,
+            userId,
+          );
         return cascadeResult;
       }
       case 'swap_schedules':
-        return this.sprint23.prepareSwapSchedulesPlan(
+        return this.scheduling.prepareSwapSchedulesPlan(
           businessId,
           prompt,
           params,
@@ -3676,7 +5959,7 @@ export class AiCommandService {
           userId,
         );
       case 'rebalance_capacity':
-        return this.sprint23.prepareRebalanceCapacityPlan(
+        return this.scheduling.prepareRebalanceCapacityPlan(
           businessId,
           prompt,
           params,
@@ -3685,7 +5968,7 @@ export class AiCommandService {
           userId,
         );
       case 'holiday_mode':
-        return this.sprint23.prepareHolidayModePlan(
+        return this.scheduling.prepareHolidayModePlan(
           businessId,
           prompt,
           params,
@@ -3693,7 +5976,7 @@ export class AiCommandService {
           userId,
         );
       case 'onboard_provider_schedule':
-        return this.sprint23.prepareOnboardProviderSchedulePlan(
+        return this.scheduling.prepareOnboardProviderSchedulePlan(
           businessId,
           prompt,
           params,
@@ -3702,7 +5985,7 @@ export class AiCommandService {
           userId,
         );
       case 'sick_day_replan':
-        return this.sprint24.prepareSickDayReplanPlan(
+        return this.operations.prepareSickDayReplanPlan(
           businessId,
           prompt,
           params,
@@ -3711,14 +5994,14 @@ export class AiCommandService {
           userId,
         );
       case 'import_services_from_menu':
-        return this.sprint24.prepareImportServicesFromMenuPlan(
+        return this.operations.prepareImportServicesFromMenuPlan(
           businessId,
           prompt,
           params,
           userId,
         );
       case 'update_service_prices':
-        return this.sprint24.prepareUpdateServicePricesPlan(
+        return this.operations.prepareUpdateServicePricesPlan(
           businessId,
           prompt,
           params,
@@ -3726,7 +6009,7 @@ export class AiCommandService {
           userId,
         );
       case 'staff_service_matrix':
-        return this.sprint24.prepareStaffServiceMatrixPlan(
+        return this.operations.prepareStaffServiceMatrixPlan(
           businessId,
           prompt,
           params,
@@ -3850,7 +6133,11 @@ export class AiCommandService {
           params,
         );
       case 'list_services':
-        return this.handleListServices(catalog.services, params, effectivePrompt);
+        return this.handleListServices(
+          catalog.services,
+          params,
+          effectivePrompt,
+        );
       case 'list_employees':
         return this.handleListEmployees(catalog.employees, params);
       case 'list_templates':
@@ -3870,7 +6157,11 @@ export class AiCommandService {
           catalog.employees,
         );
       case 'summarize_customers':
-        return this.handleSummarizeCustomers(businessId, effectivePrompt, params);
+        return this.handleSummarizeCustomers(
+          businessId,
+          effectivePrompt,
+          params,
+        );
       default:
         return null;
     }
@@ -3885,8 +6176,12 @@ export class AiCommandService {
     userId?: string,
   ): Promise<AgentPlan | null> {
     const service =
-      (params.serviceName ? this.resolveService(services, params.serviceName) : undefined) ??
-      (params.serviceId ? services.find((s) => s.id === params.serviceId) : undefined);
+      (params.serviceName
+        ? this.resolveService(services, params.serviceName)
+        : undefined) ??
+      (params.serviceId
+        ? services.find((s) => s.id === params.serviceId)
+        : undefined);
     if (!service) return null;
 
     const customer = params.customerId
@@ -3933,16 +6228,21 @@ export class AiCommandService {
       !!params.date &&
       !!timeSlot &&
       (params.fallbackAnyProvider === true ||
-        (Array.isArray(params.providerFallbackNames) && params.providerFallbackNames.length > 0) ||
-        (Array.isArray(params.employeeNames) && params.employeeNames.length >= 2));
+        (Array.isArray(params.providerFallbackNames) &&
+          params.providerFallbackNames.length > 0) ||
+        (Array.isArray(params.employeeNames) &&
+          params.employeeNames.length >= 2));
 
     if (wantsProviderFallback && timeSlot) {
       const fixedTimeSlot = timeSlot;
       const timeZone = params._timeZone ?? 'UTC';
       const isoDay = toIsoDay(params.date, timeZone);
-      const priorityNames: string[] = Array.isArray(params.providerFallbackNames)
+      const priorityNames: string[] = Array.isArray(
+        params.providerFallbackNames,
+      )
         ? params.providerFallbackNames
-        : Array.isArray(params.employeeNames) && params.employeeNames.length >= 2
+        : Array.isArray(params.employeeNames) &&
+            params.employeeNames.length >= 2
           ? params.employeeNames
           : params.employeeName
             ? [params.employeeName]
@@ -4091,7 +6391,7 @@ export class AiCommandService {
         break;
       case 'swap_schedules':
         if (options?.planOnly) {
-          const plan = await this.sprint23.prepareSwapSchedulesPlan(
+          const plan = await this.scheduling.prepareSwapSchedulesPlan(
             businessId,
             prompt,
             params,
@@ -4100,7 +6400,7 @@ export class AiCommandService {
           );
           return { success: !!plan, action, summary: '', details: { plan } };
         }
-        result = await this.sprint23.handleSwapSchedules(
+        result = await this.scheduling.handleSwapSchedules(
           businessId,
           prompt,
           params,
@@ -4110,7 +6410,7 @@ export class AiCommandService {
         break;
       case 'rebalance_capacity':
         if (options?.planOnly) {
-          const plan = await this.sprint23.prepareRebalanceCapacityPlan(
+          const plan = await this.scheduling.prepareRebalanceCapacityPlan(
             businessId,
             prompt,
             params,
@@ -4120,7 +6420,7 @@ export class AiCommandService {
           );
           return { success: !!plan, action, summary: '', details: { plan } };
         }
-        result = await this.sprint23.handleRebalanceCapacity(
+        result = await this.scheduling.handleRebalanceCapacity(
           businessId,
           prompt,
           params,
@@ -4131,7 +6431,7 @@ export class AiCommandService {
         break;
       case 'holiday_mode':
         if (options?.planOnly) {
-          const plan = await this.sprint23.prepareHolidayModePlan(
+          const plan = await this.scheduling.prepareHolidayModePlan(
             businessId,
             prompt,
             params,
@@ -4140,7 +6440,7 @@ export class AiCommandService {
           );
           return { success: !!plan, action, summary: '', details: { plan } };
         }
-        result = await this.sprint23.handleHolidayMode(
+        result = await this.scheduling.handleHolidayMode(
           businessId,
           prompt,
           params,
@@ -4150,7 +6450,7 @@ export class AiCommandService {
         break;
       case 'onboard_provider_schedule':
         if (options?.planOnly) {
-          const plan = await this.sprint23.prepareOnboardProviderSchedulePlan(
+          const plan = await this.scheduling.prepareOnboardProviderSchedulePlan(
             businessId,
             prompt,
             params,
@@ -4160,7 +6460,7 @@ export class AiCommandService {
           );
           return { success: !!plan, action, summary: '', details: { plan } };
         }
-        result = await this.sprint23.handleOnboardProviderSchedule(
+        result = await this.scheduling.handleOnboardProviderSchedule(
           businessId,
           prompt,
           params,
@@ -4201,7 +6501,8 @@ export class AiCommandService {
             employeeId,
             prompt,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
           const plan = this.planBuilder.buildCancelBookingsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4210,7 +6511,9 @@ export class AiCommandService {
             {
               employeeName: params.employeeName,
               date: params.date ? formatDateDisplay(params.date) : undefined,
-              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              services: this.resolveServices(catalog.services, params).map(
+                (s) => s.name,
+              ),
               notifyCustomers: Boolean(params.notifyCustomers),
             },
           );
@@ -4237,13 +6540,17 @@ export class AiCommandService {
             employeeId,
             prompt,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
           const plan = this.planBuilder.buildBulkSmartCancelPlan(
             businessId,
             bookings.map((b) => b.id),
             params.reason || 'Cancelled via AI',
             userId,
-            { employeeName: params.employeeName, services: params.serviceNames },
+            {
+              employeeName: params.employeeName,
+              services: params.serviceNames,
+            },
           );
           return { success: true, action, summary: '', details: { plan } };
         }
@@ -4260,10 +6567,20 @@ export class AiCommandService {
       }
       case 'fill_slot_from_waitlist':
         if (options?.planOnly) {
-          const fillResult = await this.handleFillSlotFromWaitlist(businessId, params, employeeId, userId);
+          const fillResult = await this.handleFillSlotFromWaitlist(
+            businessId,
+            params,
+            employeeId,
+            userId,
+          );
           return { ...fillResult, details: { plan: fillResult.details?.plan } };
         }
-        result = await this.handleFillSlotFromWaitlist(businessId, params, employeeId, userId);
+        result = await this.handleFillSlotFromWaitlist(
+          businessId,
+          params,
+          employeeId,
+          userId,
+        );
         break;
       case 'hide_appointments_from_calendar': {
         if (options?.planOnly) {
@@ -4275,8 +6592,10 @@ export class AiCommandService {
             catalog.customers,
             employeeId,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
-          const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
+          const statuses =
+            this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
           const plan = this.planBuilder.buildHideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4284,7 +6603,9 @@ export class AiCommandService {
             {
               employeeName: params.employeeName,
               date: params.date ? formatDateDisplay(params.date) : undefined,
-              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              services: this.resolveServices(catalog.services, params).map(
+                (s) => s.name,
+              ),
               statuses,
             },
           );
@@ -4312,8 +6633,12 @@ export class AiCommandService {
             employeeId,
             'unhide',
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
-          const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'unhide');
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
+          const statuses = this.resolveCalendarVisibilityStatusFilters(
+            params,
+            'unhide',
+          );
           const plan = this.planBuilder.buildUnhideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4321,9 +6646,15 @@ export class AiCommandService {
             {
               employeeName: params.employeeName,
               date: params.date ? formatDateDisplay(params.date) : undefined,
-              dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : undefined,
-              dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : undefined,
-              services: this.resolveServices(catalog.services, params).map((s) => s.name),
+              dateFrom: params.dateFrom
+                ? formatDateDisplay(params.dateFrom)
+                : undefined,
+              dateTo: params.dateTo
+                ? formatDateDisplay(params.dateTo)
+                : undefined,
+              services: this.resolveServices(catalog.services, params).map(
+                (s) => s.name,
+              ),
               statuses: statuses ?? undefined,
             },
           );
@@ -4342,14 +6673,15 @@ export class AiCommandService {
       }
       case 'create_schedule_template': {
         if (options?.planOnly) {
-          const plan = await this.scheduleHandlers.prepareCreateScheduleTemplatePlan(
-            businessId,
-            prompt,
-            params,
-            catalog.employees,
-            catalog.services,
-            userId,
-          );
+          const plan =
+            await this.scheduleHandlers.prepareCreateScheduleTemplatePlan(
+              businessId,
+              prompt,
+              params,
+              catalog.employees,
+              catalog.services,
+              userId,
+            );
           return { success: !!plan, action, summary: '', details: { plan } };
         }
         result = await this.scheduleHandlers.handleCreateScheduleTemplate(
@@ -4372,7 +6704,8 @@ export class AiCommandService {
             employeeId,
             prompt,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
           const plan = this.planBuilder.buildUpdateBookingsPlan({
             businessId,
             bookingIds: bookings.map((b) => b.id),
@@ -4402,7 +6735,8 @@ export class AiCommandService {
             catalog.employees,
             employeeId,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
           const plan = this.planBuilder.buildUpdateBookingsPlan({
             businessId,
             bookingIds: bookings.map((b) => b.id),
@@ -4433,10 +6767,14 @@ export class AiCommandService {
             employeeId,
             prompt,
           );
-          if (!bookings.length) return { success: false, action, summary: '', details: {} };
+          if (!bookings.length)
+            return { success: false, action, summary: '', details: {} };
           const status = normalizeBookingStatusValue(params.status);
-          const paymentStatus = normalizePaymentStatusValue(params.paymentStatus);
-          if (!status && !paymentStatus) return { success: false, action, summary: '', details: {} };
+          const paymentStatus = normalizePaymentStatusValue(
+            params.paymentStatus,
+          );
+          if (!status && !paymentStatus)
+            return { success: false, action, summary: '', details: {} };
           const changeParts = [
             status ? `status → ${status}` : null,
             paymentStatus ? `payment → ${paymentStatus}` : null,
@@ -4465,12 +6803,19 @@ export class AiCommandService {
       }
       case 'day_replan': {
         if (options?.planOnly) {
-          const range = resolveDateRange(params, prompt, params._timeZone ?? 'UTC');
-          if (!range) return { success: false, action, summary: '', details: {} };
+          const range = resolveDateRange(
+            params,
+            prompt,
+            params._timeZone ?? 'UTC',
+          );
+          if (!range)
+            return { success: false, action, summary: '', details: {} };
           const targets = resolveEmployees(catalog.employees, params);
           const plan = this.planBuilder.buildDayReplanPlan({
             businessId,
-            date: params.date ?? (range.start === range.end ? range.start : undefined),
+            date:
+              params.date ??
+              (range.start === range.end ? range.start : undefined),
             dateFrom: range.start !== range.end ? range.start : undefined,
             dateTo: range.start !== range.end ? range.end : undefined,
             employeeIds: targets.length ? targets.map((e) => e.id) : undefined,
@@ -4490,7 +6835,12 @@ export class AiCommandService {
         break;
       }
       default:
-        result = { success: false, action, summary: 'Unsupported compound step', details: {} };
+        result = {
+          success: false,
+          action,
+          summary: 'Unsupported compound step',
+          details: {},
+        };
     }
 
     return result;
@@ -4513,7 +6863,7 @@ export class AiCommandService {
       scopedEmployeeId,
       prompt,
     );
-    return this.sprint24.handleNoShowRecovery(
+    return this.operations.handleNoShowRecovery(
       businessId,
       prompt,
       params,
@@ -4600,11 +6950,8 @@ export class AiCommandService {
       employees,
       scopedEmployeeId,
     );
-    const { params: sweepParams, bookings } = this.sprint24.applyPaymentSweepFilters(
-      prompt,
-      params,
-      rawBookings,
-    );
+    const { params: sweepParams, bookings } =
+      this.operations.applyPaymentSweepFilters(prompt, params, rawBookings);
 
     if (!bookings.length) {
       return {
@@ -4680,7 +7027,8 @@ export class AiCommandService {
     plans.push(
       this.planBuilder.buildDayReplanPlan({
         businessId,
-        date: params.date ?? (range.start === range.end ? range.start : undefined),
+        date:
+          params.date ?? (range.start === range.end ? range.start : undefined),
         dateFrom: range.start !== range.end ? range.start : undefined,
         dateTo: range.start !== range.end ? range.end : undefined,
         employeeIds: targets.length ? targets.map((e) => e.id) : undefined,
@@ -4691,7 +7039,12 @@ export class AiCommandService {
     const fillPlan = await this.scheduleHandlers.prepareFillGapsPlan(
       businessId,
       prompt,
-      { ...params, date: params.date ?? range.start, dateFrom: range.start, dateTo: range.end },
+      {
+        ...params,
+        date: params.date ?? range.start,
+        dateFrom: range.start,
+        dateTo: range.end,
+      },
       employees,
       services,
       userId,
@@ -4699,7 +7052,9 @@ export class AiCommandService {
     if (fillPlan) plans.push(fillPlan);
 
     const merged =
-      plans.length === 1 ? plans[0] : this.planBuilder.mergePlans(businessId, 'day_replan', plans);
+      plans.length === 1
+        ? plans[0]
+        : this.planBuilder.mergePlans(businessId, 'day_replan', plans);
 
     return this.toCommandResult(
       await this.orchestration.executePlan({
@@ -4750,15 +7105,22 @@ export class AiCommandService {
     }
   }
 
-  private applyDateScopeToWhere(where: Record<string, unknown>, params: Record<string, any>): void {
+  private applyDateScopeToWhere(
+    where: Record<string, unknown>,
+    params: Record<string, any>,
+  ): void {
     if (params.date) {
       const isoDay = toIsoDay(params.date, params._timeZone);
       const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
       const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
       where.startTime = Between(dayStart, dayEnd);
     } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
-      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
+      const from = new Date(
+        `${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`,
+      );
+      const to = new Date(
+        `${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`,
+      );
       where.startTime = Between(from, to);
     }
   }
@@ -4774,17 +7136,24 @@ export class AiCommandService {
     const matchedServices = this.resolveServices(services, params);
     const where: Record<string, unknown> = {
       businessId,
-      status: Not(BookingStatus.CANCELLED) as any,
+      status: Not(BookingStatus.CANCELLED),
     };
 
-    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+    if (
+      !this.applyEmployeeScopeToWhere(
+        where,
+        params,
+        employees,
+        scopedEmployeeId,
+      )
+    ) {
       return [];
     }
     this.applyServiceScopeToWhere(where, params, matchedServices);
     this.applyDateScopeToWhere(where, params);
 
     const bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
     });
@@ -4820,12 +7189,16 @@ export class AiCommandService {
       return {
         success: false,
         action: 'update_bookings',
-        summary: 'Tell me what to change — e.g. mark as done, set payment to paid or N/A.',
+        summary:
+          'Tell me what to change — e.g. mark as done, set payment to paid or N/A.',
         details: { params },
       };
     }
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return {
         success: false,
         action: 'update_bookings',
@@ -4847,7 +7220,12 @@ export class AiCommandService {
       return {
         success: false,
         action: 'update_bookings',
-        summary: this.buildBulkBookingNoMatchMessage('update', params, services, prompt),
+        summary: this.buildBulkBookingNoMatchMessage(
+          'update',
+          params,
+          services,
+          prompt,
+        ),
         details: { matchedCount: 0, params },
       };
     }
@@ -4896,7 +7274,9 @@ export class AiCommandService {
         ? ` for ${matchedServices.map((s) => s.name).join(', ')}`
         : '';
     const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
-    const dateFilter = params.date ? ` on ${formatDateDisplay(params.date)}` : '';
+    const dateFilter = params.date
+      ? ` on ${formatDateDisplay(params.date)}`
+      : '';
     const timeFilter = hasExplicitTimeWindow(params, prompt)
       ? ` between ${params.timeFrom}–${params.timeTo}`
       : params.timeSlot
@@ -4923,7 +7303,14 @@ export class AiCommandService {
       ]) as any,
     };
 
-    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+    if (
+      !this.applyEmployeeScopeToWhere(
+        where,
+        params,
+        employees,
+        scopedEmployeeId,
+      )
+    ) {
       return [];
     }
     this.applyServiceScopeToWhere(where, params, matchedServices);
@@ -4964,10 +7351,20 @@ export class AiCommandService {
       ]) as any,
     };
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return [];
     }
-    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+    if (
+      !this.applyEmployeeScopeToWhere(
+        where,
+        params,
+        employees,
+        scopedEmployeeId,
+      )
+    ) {
       return [];
     }
     this.applyServiceScopeToWhere(where, params, matchedServices);
@@ -4992,10 +7389,19 @@ export class AiCommandService {
     const matchedServices = this.resolveServices(services, params);
     const where: any = {
       businessId,
-      status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
+      status: Not(
+        In([BookingStatus.CANCELLED, BookingStatus.COMPLETED]),
+      ) as any,
     };
 
-    if (!this.applyEmployeeScopeToWhere(where, params, employees, scopedEmployeeId)) {
+    if (
+      !this.applyEmployeeScopeToWhere(
+        where,
+        params,
+        employees,
+        scopedEmployeeId,
+      )
+    ) {
       return [];
     }
     this.applyServiceScopeToWhere(where, params, matchedServices);
@@ -5019,11 +7425,17 @@ export class AiCommandService {
     else if (params.statusFilter) raw.push(params.statusFilter);
 
     const allowed = new Set(Object.values(BookingStatus));
-    const resolved = raw.filter((s): s is BookingStatus => allowed.has(s as BookingStatus));
+    const resolved = raw.filter((s): s is BookingStatus =>
+      allowed.has(s as BookingStatus),
+    );
     if (resolved.length > 0) return resolved;
 
     if (mode === 'hide') {
-      return [BookingStatus.CANCELLED, BookingStatus.NO_SHOW, BookingStatus.COMPLETED];
+      return [
+        BookingStatus.CANCELLED,
+        BookingStatus.NO_SHOW,
+        BookingStatus.COMPLETED,
+      ];
     }
     return null;
   }
@@ -5071,8 +7483,12 @@ export class AiCommandService {
       const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
       where.startTime = Between(dayStart, dayEnd);
     } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(`${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`);
-      const to = new Date(`${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`);
+      const from = new Date(
+        `${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`,
+      );
+      const to = new Date(
+        `${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`,
+      );
       where.startTime = Between(from, to);
     }
 
@@ -5136,9 +7552,13 @@ export class AiCommandService {
     userId?: string,
   ): Promise<CommandResult> {
     const matchedServices = this.resolveServices(services, params);
-    const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+    const statuses =
+      this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return {
         success: false,
         action: 'hide_appointments_from_calendar',
@@ -5173,7 +7593,8 @@ export class AiCommandService {
           matchedCount: 0,
           filters: {
             statuses,
-            employee: params.employeeName ?? (params.allProviders ? 'all' : null),
+            employee:
+              params.employeeName ?? (params.allProviders ? 'all' : null),
             services: matchedServices.map((s) => s.name),
             date: params.date ? formatDateDisplay(params.date) : null,
           },
@@ -5213,9 +7634,15 @@ export class AiCommandService {
     userId?: string,
   ): Promise<CommandResult> {
     const matchedServices = this.resolveServices(services, params);
-    const statuses = this.resolveCalendarVisibilityStatusFilters(params, 'unhide');
+    const statuses = this.resolveCalendarVisibilityStatusFilters(
+      params,
+      'unhide',
+    );
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return {
         success: false,
         action: 'unhide_appointments_from_calendar',
@@ -5251,10 +7678,13 @@ export class AiCommandService {
           matchedCount: 0,
           filters: {
             statuses: statuses ?? null,
-            employee: params.employeeName ?? (params.allProviders ? 'all' : null),
+            employee:
+              params.employeeName ?? (params.allProviders ? 'all' : null),
             services: matchedServices.map((s) => s.name),
             date: params.date ? formatDateDisplay(params.date) : null,
-            dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : null,
+            dateFrom: params.dateFrom
+              ? formatDateDisplay(params.dateFrom)
+              : null,
             dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : null,
           },
         },
@@ -5268,7 +7698,9 @@ export class AiCommandService {
       {
         employeeName: params.employeeName,
         date: params.date ? formatDateDisplay(params.date) : undefined,
-        dateFrom: params.dateFrom ? formatDateDisplay(params.dateFrom) : undefined,
+        dateFrom: params.dateFrom
+          ? formatDateDisplay(params.dateFrom)
+          : undefined,
         dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : undefined,
         services: matchedServices.map((s) => s.name),
         statuses: statuses ?? undefined,
@@ -5308,7 +7740,11 @@ export class AiCommandService {
         success: false,
         action: 'create_service',
         summary: `A service matching "${draft.name}" already exists: "${existing.name}". Choose a different name or update the existing service in Services.`,
-        details: { params, existingServiceId: existing.id, existingServiceName: existing.name },
+        details: {
+          params,
+          existingServiceId: existing.id,
+          existingServiceName: existing.name,
+        },
       };
     }
 
@@ -5351,7 +7787,8 @@ export class AiCommandService {
       return {
         success: false,
         action: 'create_services',
-        summary: 'Too many services in one request (max 25). Split into smaller batches.',
+        summary:
+          'Too many services in one request (max 25). Split into smaller batches.',
         details: { params, count: rawList.length },
       };
     }
@@ -5365,7 +7802,10 @@ export class AiCommandService {
       const parsed = this.parseServiceDraft(raw ?? {}, defaultCurrency);
 
       if (parsed.errors.length > 0 || !parsed.draft) {
-        skipped.push({ name: label || 'Unnamed', reason: parsed.errors.join(', ') });
+        skipped.push({
+          name: label || 'Unnamed',
+          reason: parsed.errors.join(', '),
+        });
         continue;
       }
 
@@ -5378,7 +7818,10 @@ export class AiCommandService {
 
       const existing = this.resolveService(catalog, draft.name);
       if (existing) {
-        skipped.push({ name: draft.name, reason: `Already exists as "${existing.name}"` });
+        skipped.push({
+          name: draft.name,
+          reason: `Already exists as "${existing.name}"`,
+        });
         continue;
       }
 
@@ -5410,7 +7853,11 @@ export class AiCommandService {
 
     const result = this.toCommandResult(orchResult);
     result.action = 'create_services';
-    result.details = { ...result.details, skipped, createdCount: toCreate.length };
+    result.details = {
+      ...result.details,
+      skipped,
+      createdCount: toCreate.length,
+    };
 
     if (skipped.length > 0) {
       result.summary = [
@@ -5428,7 +7875,9 @@ export class AiCommandService {
     defaultCurrency = 'USD',
   ): { draft: ParsedServiceDraft | null; errors: string[] } {
     const name = (raw.serviceName || raw.name || '').trim();
-    const durationMinutes = this.parseMinutes(raw.durationMinutes ?? raw.duration);
+    const durationMinutes = this.parseMinutes(
+      raw.durationMinutes ?? raw.duration,
+    );
     const price = this.parsePrice(raw.price);
     const bufferMinutes = this.parseMinutes(raw.bufferMinutes) ?? 0;
     const currency = (raw.currency || defaultCurrency).trim().toUpperCase();
@@ -5459,7 +7908,8 @@ export class AiCommandService {
   }
 
   private parseMinutes(value: unknown): number | undefined {
-    if (typeof value === 'number' && !Number.isNaN(value)) return Math.round(value);
+    if (typeof value === 'number' && !Number.isNaN(value))
+      return Math.round(value);
     if (typeof value === 'string') {
       const trimmed = value.trim().toLowerCase();
       const hourMatch = trimmed.match(/([\d.]+)\s*h(?:our|rs?)?/);
@@ -5494,19 +7944,31 @@ export class AiCommandService {
     const matchedServices = this.resolveServices(services, params);
     const requestedServiceLabels = [
       ...(params.serviceNames ?? []),
-      ...(params.serviceName && !params.serviceNames?.length ? [params.serviceName] : []),
+      ...(params.serviceName && !params.serviceNames?.length
+        ? [params.serviceName]
+        : []),
     ].filter(Boolean);
 
-    if (requestedServiceLabels.length > 0 && matchedServices.length === 0 && !params.allAppointments) {
+    if (
+      requestedServiceLabels.length > 0 &&
+      matchedServices.length === 0 &&
+      !params.allAppointments
+    ) {
       return {
         success: false,
         action: 'cancel_bookings',
         summary: `No matching service type(s) found for: ${requestedServiceLabels.join(', ')}. Available: ${services.map((s) => s.name).join(', ')}`,
-        details: { requestedServiceLabels, availableServices: services.map((s) => s.name) },
+        details: {
+          requestedServiceLabels,
+          availableServices: services.map((s) => s.name),
+        },
       };
     }
 
-    if (params.employeeName && !this.resolveEmployee(employees, params.employeeName)) {
+    if (
+      params.employeeName &&
+      !this.resolveEmployee(employees, params.employeeName)
+    ) {
       return {
         success: false,
         action: 'cancel_bookings',
@@ -5528,12 +7990,19 @@ export class AiCommandService {
       return {
         success: true,
         action: 'cancel_bookings',
-        summary: this.buildBulkBookingNoMatchMessage('cancel', params, services, prompt),
+        summary: this.buildBulkBookingNoMatchMessage(
+          'cancel',
+          params,
+          services,
+          prompt,
+        ),
         details: {
           matchedCount: 0,
           filters: {
             employee: params.employeeName ?? null,
-            services: params.allAppointments ? [] : matchedServices.map((s) => s.name),
+            services: params.allAppointments
+              ? []
+              : matchedServices.map((s) => s.name),
             date: params.date ? formatDateDisplay(params.date) : null,
             timeFrom: params.timeFrom ?? null,
             timeTo: params.timeTo ?? null,
@@ -5578,7 +8047,9 @@ export class AiCommandService {
   ): string[] {
     return bookings.map((b) => {
       const time = this.formatBookingTime(b.startTime, b.endTime);
-      const providerPart = options.includeProvider ? ` | ${b.employee?.name || 'Unknown'}` : '';
+      const providerPart = options.includeProvider
+        ? ` | ${b.employee?.name || 'Unknown'}`
+        : '';
       return `  • ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'}${providerPart} | ${b.status}`;
     });
   }
@@ -5599,7 +8070,7 @@ export class AiCommandService {
     const periods = await this.periodRepo.find({
       where: {
         businessId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
       relations: { employee: true },
       order: { startTime: 'ASC' },
@@ -5618,7 +8089,9 @@ export class AiCommandService {
         .forEach((s) => serviceIds.add(s.id));
     }
 
-    const targetTime = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
+    const targetTime = params.timeSlot
+      ? this.snapTo10min(params.timeSlot)
+      : null;
     const targetMs = targetTime
       ? (() => {
           const [h, m] = targetTime.split(':').map(Number);
@@ -5636,7 +8109,10 @@ export class AiCommandService {
         if (ids.length > 0 && !ids.some((id) => serviceIds.has(id))) continue;
       }
       if (targetMs != null) {
-        if (period.startTime.getTime() > targetMs || period.endTime.getTime() <= targetMs) {
+        if (
+          period.startTime.getTime() > targetMs ||
+          period.endTime.getTime() <= targetMs
+        ) {
           continue;
         }
       }
@@ -5648,7 +8124,9 @@ export class AiCommandService {
 
     if (providers.size === 0) return null;
 
-    const serviceLabel = params.serviceName ? String(params.serviceName) : 'service';
+    const serviceLabel = params.serviceName
+      ? String(params.serviceName)
+      : 'service';
     const timeLabel = targetTime ? ` at ${targetTime}` : '';
     const dateLabel = formatDateDisplay(range.start);
     const lines = [
@@ -5672,10 +8150,16 @@ export class AiCommandService {
     if (employeeId) where.employeeId = employeeId;
     if (params.customerId) where.customerId = params.customerId;
 
+    const upcomingOnly = params.upcomingOnly === true;
     const range =
       resolveDateRange(params, prompt) ??
       (() => {
         const iso = params.date || new Date().toISOString().split('T')[0];
+        if (upcomingOnly) {
+          const end = new Date(iso);
+          end.setUTCDate(end.getUTCDate() + 14);
+          return { start: iso, end: end.toISOString().split('T')[0] };
+        }
         return { start: iso, end: iso };
       })();
 
@@ -5702,10 +8186,35 @@ export class AiCommandService {
       ? bookings.filter((b) => b.status === statusFilter)
       : bookings;
 
+    if (upcomingOnly) {
+      const now = new Date();
+      scopedBookings = scopedBookings.filter(
+        (b) =>
+          new Date(b.startTime) >= now && b.status !== BookingStatus.CANCELLED,
+      );
+    }
+
+    if (
+      Array.isArray(params.employeeNames) &&
+      params.employeeNames.length > 0 &&
+      !employeeId
+    ) {
+      const needles = params.employeeNames.map((n: string) => n.toLowerCase());
+      scopedBookings = scopedBookings.filter((b) =>
+        needles.some((needle) =>
+          b.employee?.name?.toLowerCase().includes(needle),
+        ),
+      );
+    }
+
     const matchedServices = params.serviceName
       ? this.resolveServices(catalogServices ?? [], params)
       : [];
-    if (params.serviceName && matchedServices.length === 0 && catalogServices?.length) {
+    if (
+      params.serviceName &&
+      matchedServices.length === 0 &&
+      catalogServices?.length
+    ) {
       const needle = String(params.serviceName).toLowerCase();
       const partialIds = new Set(
         catalogServices
@@ -5713,7 +8222,9 @@ export class AiCommandService {
           .map((s) => s.id),
       );
       if (partialIds.size > 0) {
-        scopedBookings = scopedBookings.filter((b) => b.serviceId && partialIds.has(b.serviceId));
+        scopedBookings = scopedBookings.filter(
+          (b) => b.serviceId && partialIds.has(b.serviceId),
+        );
       } else {
         scopedBookings = scopedBookings.filter((b) =>
           b.service?.name?.toLowerCase().includes(needle),
@@ -5721,7 +8232,9 @@ export class AiCommandService {
       }
     } else if (matchedServices.length > 0) {
       const ids = new Set(matchedServices.map((s) => s.id));
-      scopedBookings = scopedBookings.filter((b) => b.serviceId && ids.has(b.serviceId));
+      scopedBookings = scopedBookings.filter(
+        (b) => b.serviceId && ids.has(b.serviceId),
+      );
     }
 
     if (params.timeSlot) {
@@ -5736,11 +8249,17 @@ export class AiCommandService {
         ? formatDateDisplay(clamped.start)
         : `${formatDateDisplay(clamped.start)} → ${formatDateDisplay(clamped.end)}`;
     const scopeLabel = employeeName || 'all service providers';
-    const customerLabel = params.customerName ? ` for ${params.customerName}` : '';
+    const customerLabel = params.customerName
+      ? ` for ${params.customerName}`
+      : '';
     const statusLabel = statusFilter ? ` (${statusFilter})` : '';
 
-    const activeBookings = scopedBookings.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const cancelledBookings = scopedBookings.filter((b) => b.status === BookingStatus.CANCELLED);
+    const activeBookings = scopedBookings.filter(
+      (b) => b.status !== BookingStatus.CANCELLED,
+    );
+    const cancelledBookings = scopedBookings.filter(
+      (b) => b.status === BookingStatus.CANCELLED,
+    );
     let displayBookings = statusFilter ? scopedBookings : activeBookings;
     const totalMatched = displayBookings.length;
     if (displayBookings.length > MAX_AI_LIST_BOOKINGS) {
@@ -5761,8 +8280,12 @@ export class AiCommandService {
         catalogServices ?? [],
         range,
       );
-      const serviceLabel = params.serviceName ? ` for ${params.serviceName}` : '';
-      const timeLabel = params.timeSlot ? ` at ${this.snapTo10min(params.timeSlot)}` : '';
+      const serviceLabel = params.serviceName
+        ? ` for ${params.serviceName}`
+        : '';
+      const timeLabel = params.timeSlot
+        ? ` at ${this.snapTo10min(params.timeSlot)}`
+        : '';
       summaryBody = scheduleHint
         ? scheduleHint
         : `No appointments found for ${scopeLabel}${customerLabel}${serviceLabel}${timeLabel} on ${rangeLabel}${statusLabel}.`;
@@ -5785,8 +8308,8 @@ export class AiCommandService {
       }
 
       const groupedLines: string[] = [];
-      for (const [name, providerBookings] of [...byProvider.entries()].sort((a, b) =>
-        a[0].localeCompare(b[0]),
+      for (const [name, providerBookings] of [...byProvider.entries()].sort(
+        (a, b) => a[0].localeCompare(b[0]),
       )) {
         groupedLines.push(`\n${name} (${providerBookings.length}):`);
         groupedLines.push(...this.formatBookingLines(providerBookings));
@@ -5810,11 +8333,18 @@ export class AiCommandService {
         count: totalMatched,
         activeCount: activeBookings.length,
         cancelledCount: cancelledBookings.length,
-        date: clamped.start === clamped.end ? formatDateDisplay(clamped.start) : null,
+        date:
+          clamped.start === clamped.end
+            ? formatDateDisplay(clamped.start)
+            : null,
         range: { start: clamped.start, end: clamped.end },
         statusFilter: statusFilter ?? null,
         customer: params.customerName ?? null,
-        scope: employeeId ? 'provider' : params.customerId ? 'customer' : 'all_providers',
+        scope: employeeId
+          ? 'provider'
+          : params.customerId
+            ? 'customer'
+            : 'all_providers',
         employee: employeeName ?? null,
         truncated: totalMatched > MAX_AI_LIST_BOOKINGS || clamped.truncated,
         bookings: displayBookings.map((b) => ({
@@ -5865,7 +8395,12 @@ export class AiCommandService {
     return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
   }
 
-  private timesOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
+  private timesOverlap(
+    startA: Date,
+    endA: Date,
+    startB: Date,
+    endB: Date,
+  ): boolean {
     return startA < endB && endA > startB;
   }
 
@@ -5874,8 +8409,12 @@ export class AiCommandService {
   ): Array<{ start: string; end: string }> {
     if (slots.length === 0) return [];
 
-    const sorted = [...slots].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-    const merged: Array<{ start: Date; end: Date }> = [{ start: sorted[0].startTime, end: sorted[0].endTime }];
+    const sorted = [...slots].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
+    const merged: Array<{ start: Date; end: Date }> = [
+      { start: sorted[0].startTime, end: sorted[0].endTime },
+    ];
 
     for (let i = 1; i < sorted.length; i++) {
       const slot = sorted[i];
@@ -5910,10 +8449,13 @@ export class AiCommandService {
     const dayEnd = new Date(d);
     dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
-    const minGapMinutes = service?.durationMinutes && service.durationMinutes > 0
-      ? service.durationMinutes
-      : 10;
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
+    const minGapMinutes =
+      service?.durationMinutes && service.durationMinutes > 0
+        ? service.durationMinutes
+        : 10;
 
     const [periods, bookings] = await Promise.all([
       this.periodRepo.find({
@@ -5959,7 +8501,12 @@ export class AiCommandService {
     for (const block of serviceBlocks) {
       const occupied = bookings
         .filter((b) =>
-          this.timesOverlap(block.startTime, block.endTime, b.startTime, b.endTime),
+          this.timesOverlap(
+            block.startTime,
+            block.endTime,
+            b.startTime,
+            b.endTime,
+          ),
         )
         .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
 
@@ -6000,7 +8547,12 @@ export class AiCommandService {
     const displayDay = formatDateDisplay(isoDay);
     const timeOfDay = parseTimeOfDayWindow('', params);
 
-    if (employeeId && employeeName && params.serviceName && (params.timeSlot || timeOfDay)) {
+    if (
+      employeeId &&
+      employeeName &&
+      params.serviceName &&
+      (params.timeSlot || timeOfDay)
+    ) {
       const services = await this.serviceRepo.find({ where: { businessId } });
       const service = this.resolveService(services, params.serviceName);
       if (service) {
@@ -6048,13 +8600,14 @@ export class AiCommandService {
           };
         }
 
-        const windowLabel = timeOfDay ? formatTimeOfDayLabel(timeOfDay) : 'the day';
-        const summary =
-          !row.hasSchedule
-            ? `${employeeName} has no schedule on ${displayDay}.`
-            : windowSlots.length === 0
-              ? `No ${service.name} slots for ${employeeName} on ${displayDay} during ${windowLabel}.`
-              : `${employeeName} has ${windowSlots.length} open ${service.name} slot(s) on ${displayDay} during ${windowLabel}: ${windowSlots.map((s) => `${s.start}–${s.end}`).join(', ')}.`;
+        const windowLabel = timeOfDay
+          ? formatTimeOfDayLabel(timeOfDay)
+          : 'the day';
+        const summary = !row.hasSchedule
+          ? `${employeeName} has no schedule on ${displayDay}.`
+          : windowSlots.length === 0
+            ? `No ${service.name} slots for ${employeeName} on ${displayDay} during ${windowLabel}.`
+            : `${employeeName} has ${windowSlots.length} open ${service.name} slot(s) on ${displayDay} during ${windowLabel}: ${windowSlots.map((s) => `${s.start}–${s.end}`).join(', ')}.`;
 
         return {
           success: true,
@@ -6074,10 +8627,15 @@ export class AiCommandService {
     }
 
     const d = new Date(isoDay);
-    const dayStart = new Date(d); dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d); dayEnd.setUTCHours(23, 59, 59, 999);
+    const dayStart = new Date(d);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const where: any = { businessId, startTime: Between(dayStart, dayEnd) as any };
+    const where: any = {
+      businessId,
+      startTime: Between(dayStart, dayEnd) as any,
+    };
     if (employeeId) where.employeeId = employeeId;
 
     const [periods, bookings, openSlots] = await Promise.all([
@@ -6106,16 +8664,17 @@ export class AiCommandService {
         : Promise.resolve([]),
     ]);
 
-    const serviceBlocks = periods.filter((p) => p.type === TemplatePeriodType.SERVICE_BLOCK);
-    const nonService = periods.filter((p) => p.type !== TemplatePeriodType.SERVICE_BLOCK);
-
-    const nameMap = await this.serviceNameMap(
-      businessId,
-      [
-        ...periods.flatMap((p) => p.serviceIds ?? []),
-        ...bookings.map((b) => b.serviceId).filter(Boolean),
-      ],
+    const serviceBlocks = periods.filter(
+      (p) => p.type === TemplatePeriodType.SERVICE_BLOCK,
     );
+    const nonService = periods.filter(
+      (p) => p.type !== TemplatePeriodType.SERVICE_BLOCK,
+    );
+
+    const nameMap = await this.serviceNameMap(businessId, [
+      ...periods.flatMap((p) => p.serviceIds ?? []),
+      ...bookings.map((b) => b.serviceId).filter(Boolean),
+    ]);
 
     const scopeLabel = employeeName || 'all service providers';
 
@@ -6124,7 +8683,13 @@ export class AiCommandService {
         success: true,
         action: 'check_availability',
         summary: `No schedule applied for ${scopeLabel} on ${displayDay}.`,
-        details: { date: displayDay, employee: employeeName ?? null, periods: [], bookings: [], openSlots: [] },
+        details: {
+          date: displayDay,
+          employee: employeeName ?? null,
+          periods: [],
+          bookings: [],
+          openSlots: [],
+        },
       };
     }
 
@@ -6139,26 +8704,33 @@ export class AiCommandService {
     ];
 
     const bookingLines =
-      bookings.length > 0
-        ? this.formatBookingLines(bookings)
-        : ['  (none)'];
+      bookings.length > 0 ? this.formatBookingLines(bookings) : ['  (none)'];
 
     let openSlotRanges = this.mergeOpenSlotRanges(openSlots);
     if (timeOfDay) {
       openSlotRanges = filterSlotsByTimeOfDay(openSlotRanges, timeOfDay);
     }
-    const timeOfDayLabel = timeOfDay ? ` (${formatTimeOfDayLabel(timeOfDay)})` : '';
+    const timeOfDayLabel = timeOfDay
+      ? ` (${formatTimeOfDayLabel(timeOfDay)})`
+      : '';
     const openSlotLines =
       openSlotRanges.length > 0
         ? openSlotRanges.map((r) => `• ${r.start}–${r.end}`)
-        : [`  (none — all bookable time is taken or no open micro-slots${timeOfDayLabel})`];
+        : [
+            `  (none — all bookable time is taken or no open micro-slots${timeOfDayLabel})`,
+          ];
 
     const blockAvailabilityLines = serviceBlocks.map((block) => {
       const from = formatTimeDisplay(block.startTime);
       const to = formatTimeDisplay(block.endTime);
       const services = this.formatPeriodServices(block.serviceIds, nameMap);
       const blockBookings = bookings.filter((b) =>
-        this.timesOverlap(block.startTime, block.endTime, b.startTime, b.endTime),
+        this.timesOverlap(
+          block.startTime,
+          block.endTime,
+          b.startTime,
+          b.endTime,
+        ),
       );
       const blockOpen = openSlots.filter(
         (s) => s.startTime >= block.startTime && s.startTime < block.endTime,
@@ -6208,7 +8780,9 @@ export class AiCommandService {
           label:
             p.type !== TemplatePeriodType.SERVICE_BLOCK
               ? p.placeholderLabel ||
-                (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK ? 'Unavailable' : 'Blocked')
+                (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK
+                  ? 'Unavailable'
+                  : 'Blocked')
               : p.placeholderLabel,
           serviceIds: p.serviceIds ?? [],
         })),
@@ -6235,8 +8809,19 @@ export class AiCommandService {
     const displayDay = formatDateDisplay(isoDay);
 
     const [bookingsResult, availResult] = await Promise.all([
-      this.handleListBookings(businessId, '', { ...params, date: isoDay }, employeeId, employeeName),
-      this.handleCheckAvailability(businessId, { ...params, date: isoDay }, employeeId, employeeName),
+      this.handleListBookings(
+        businessId,
+        '',
+        { ...params, date: isoDay },
+        employeeId,
+        employeeName,
+      ),
+      this.handleCheckAvailability(
+        businessId,
+        { ...params, date: isoDay },
+        employeeId,
+        employeeName,
+      ),
     ]);
 
     const bookings = bookingsResult.details.bookings || [];
@@ -6252,10 +8837,13 @@ export class AiCommandService {
         `  Schedule: ${availResult.details.serviceBlocks || 0} service blocks, ${availResult.details.blockedPeriods || 0} blocked periods`,
         `  Appointments: ${active.length} active, ${cancelled.length} cancelled`,
         active.length > 0 ? `  Active appointments:` : '',
-        ...active.map((b: any) =>
-          `    • ${formatTimeRangeDisplay(b.startTime, b.endTime)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
+        ...active.map(
+          (b: any) =>
+            `    • ${formatTimeRangeDisplay(b.startTime, b.endTime)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
         ),
-      ].filter(Boolean).join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       details: {
         date: displayDay,
         scope: employeeId ? 'provider' : 'all_providers',
@@ -6266,15 +8854,22 @@ export class AiCommandService {
     };
   }
 
-  private pickBookingForReschedule(bookings: Booking[], params: any): Booking | null {
+  private pickBookingForReschedule(
+    bookings: Booking[],
+    params: any,
+  ): Booking | null {
     if (!bookings.length) return null;
 
     const timeZone = params._timeZone ?? 'UTC';
     const isoDay = params.fromDate ? toIsoDay(params.fromDate, timeZone) : null;
-    const slot = params.fromTimeSlot ? this.snapTo10min(params.fromTimeSlot) : null;
+    const slot = params.fromTimeSlot
+      ? this.snapTo10min(params.fromTimeSlot)
+      : null;
 
     const active = bookings.filter(
-      (b) => b.status !== BookingStatus.CANCELLED && b.status !== BookingStatus.COMPLETED,
+      (b) =>
+        b.status !== BookingStatus.CANCELLED &&
+        b.status !== BookingStatus.COMPLETED,
     );
 
     const filtered = active.filter((b) => {
@@ -6302,7 +8897,10 @@ export class AiCommandService {
       .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
     if (candidates.length >= 1) return candidates[0];
 
-    return active.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ?? null;
+    return (
+      active.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ??
+      null
+    );
   }
 
   private async handleRescheduleBooking(
@@ -6311,7 +8909,9 @@ export class AiCommandService {
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const services = await this.serviceRepo.find({ where: { businessId, isActive: true } });
+    const services = await this.serviceRepo.find({
+      where: { businessId, isActive: true },
+    });
     let booking: Booking | null = null;
 
     if (params.bookingId) {
@@ -6320,14 +8920,16 @@ export class AiCommandService {
         relations: { employee: true, service: true, customer: true },
       });
     } else if (params.employeeName) {
-      const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+      const employees = await this.employeeRepo.find({
+        where: { businessId, isActive: true },
+      });
       const employee = this.resolveEmployee(employees, params.employeeName);
       if (employee) {
         const bookings = await this.bookingRepo.find({
           where: {
             businessId,
             employeeId: employee.id,
-            status: Not(BookingStatus.CANCELLED) as any,
+            status: Not(BookingStatus.CANCELLED),
           },
           relations: { employee: true, service: true, customer: true },
           order: { startTime: 'ASC' },
@@ -6335,7 +8937,9 @@ export class AiCommandService {
         booking = this.pickBookingForReschedule(bookings, params);
       }
     } else if (params.customerName) {
-      const customers = await this.customerRepo.find({ where: { businessId, isActive: true } });
+      const customers = await this.customerRepo.find({
+        where: { businessId, isActive: true },
+      });
       const customer = this.resolveCustomer(customers, params.customerName);
       if (customer) {
         const bookings = await this.bookingRepo.find({
@@ -6343,7 +8947,7 @@ export class AiCommandService {
             businessId,
             customerId: customer.id,
             ...(employeeId ? { employeeId } : {}),
-            status: Not(BookingStatus.CANCELLED) as any,
+            status: Not(BookingStatus.CANCELLED),
           },
           relations: { employee: true, service: true, customer: true },
           order: { startTime: 'ASC' },
@@ -6376,7 +8980,11 @@ export class AiCommandService {
       targetService = resolved;
     }
 
-    const hasNewTime = !!(params.date || params.timeSlot || params.bookingFirstAvailable);
+    const hasNewTime = !!(
+      params.date ||
+      params.timeSlot ||
+      params.bookingFirstAvailable
+    );
     const hasServiceChange = targetService.id !== booking.serviceId;
 
     if (!hasNewTime && !hasServiceChange) {
@@ -6384,7 +8992,10 @@ export class AiCommandService {
         success: false,
         action: 'reschedule_booking',
         summary: 'Specify a new service type and/or a new date/time.',
-        details: { bookingId: booking.id, currentService: booking.service?.name },
+        details: {
+          bookingId: booking.id,
+          currentService: booking.service?.name,
+        },
       };
     }
 

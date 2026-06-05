@@ -61,9 +61,13 @@ export function buildRedemptionInstructions(
 ): string[] {
   if (!links) {
     if (card.cardType === 'package' || card.cardType === 'subscription') {
-      return ['Sign in to your account on the booking site and redeem this gift code.'];
+      return [
+        'Sign in to your account on the booking site and redeem this gift code.',
+      ];
     }
-    return ['Book an appointment on the business booking site and enter this code at checkout.'];
+    return [
+      'Book an appointment on the business booking site and enter this code at checkout.',
+    ];
   }
 
   if (card.cardType === 'package' || card.cardType === 'subscription') {
@@ -91,12 +95,17 @@ export function resolveGiftCardSenderName(card: GiftCard): string {
 
   const email = card.purchaserEmail?.trim();
   if (email) {
-    const local = email.split('@')[0]?.replace(/[._-]+/g, ' ').trim();
+    const local = email
+      .split('@')[0]
+      ?.replace(/[._-]+/g, ' ')
+      .trim();
     if (local) {
       return local
         .split(/\s+/)
         .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .map(
+          (part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
+        )
         .join(' ');
     }
   }
@@ -184,9 +193,10 @@ export function buildPurchaserReceiptEmail(
 ): { subject: string; text: string; html: string } | null {
   const businessName = card.business?.name ?? 'the business';
   const accountLinksText = links
-    ? [`View your gift card orders: ${links.accountUrl}`, `Book again or browse gifts: ${links.bookingUrl}`].join(
-        '\n',
-      )
+    ? [
+        `View your gift card orders: ${links.accountUrl}`,
+        `Book again or browse gifts: ${links.bookingUrl}`,
+      ].join('\n')
     : '';
   const accountLinksHtml = links
     ? `<p><a href="${escapeHtml(links.accountUrl)}">View your gift card orders</a> · <a href="${escapeHtml(links.bookingUrl)}">Book an appointment</a></p>`
@@ -212,7 +222,9 @@ export function buildWhatsAppGiftCardSummary(
   if (card.personalMessage) parts.push(card.personalMessage);
   parts.push(...describeGiftCardValue(card));
   parts.push(...buildRedemptionInstructions(card, links));
-  return parts.join(' · ').slice(0, 1024) || 'Redeem your gift on our booking site.';
+  return (
+    parts.join(' · ').slice(0, 1024) || 'Redeem your gift on our booking site.'
+  );
 }
 
 function escapeHtml(value: string): string {

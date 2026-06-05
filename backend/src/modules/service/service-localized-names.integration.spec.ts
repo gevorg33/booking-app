@@ -22,13 +22,22 @@ describe('Service localized names integration', () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value: Record<string, unknown>) => {
       const id = (value.id as string) ?? `cat-${categories.length + 1}`;
-      const saved = { isActive: true, metadata: {}, sortOrder: 0, ...value, id };
+      const saved = {
+        isActive: true,
+        metadata: {},
+        sortOrder: 0,
+        ...value,
+        id,
+      };
       categories.push(saved);
       return saved;
     }),
     find: jest.fn(async () => [...categories]),
-    findOne: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
-      categories.find((c) => c.id === where.id && c.businessId === where.businessId) ?? null,
+    findOne: jest.fn(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        categories.find(
+          (c) => c.id === where.id && c.businessId === where.businessId,
+        ) ?? null,
     ),
     update: jest.fn(),
   };
@@ -67,7 +76,9 @@ describe('Service localized names integration', () => {
     findBySlug: jest.fn(async () => business),
   };
 
-  const stripeIntegrationService = { isConnectReady: jest.fn().mockReturnValue(false) };
+  const stripeIntegrationService = {
+    isConnectReady: jest.fn().mockReturnValue(false),
+  };
   const subscriptionsService = {
     serviceIdsWithActivePlans: jest.fn().mockResolvedValue([]),
   };
@@ -115,7 +126,7 @@ describe('Service localized names integration', () => {
       name: 'Hair care',
       sortOrder: 0,
       localizedNames: { en: ['Hair'], hy: ['Մազերի խնամք'] },
-    } as any);
+    });
 
     await serviceService.create('biz-1', {
       name: 'Haircut',
@@ -123,20 +134,31 @@ describe('Service localized names integration', () => {
       price: 40,
       categoryId: category.id,
       localizedNames: { en: ['Cut & style'], hy: ['Կտրում'] },
-    } as any);
+    });
 
     const dashboardList = await serviceService.findAll('biz-1');
-    expect(dashboardList[0].localizedNames).toEqual({ en: ['Cut & style'], hy: ['Կտրում'] });
+    expect(dashboardList[0].localizedNames).toEqual({
+      en: ['Cut & style'],
+      hy: ['Կտրում'],
+    });
     expect(dashboardList[0].category?.localizedNames).toEqual({
       en: ['Hair'],
       hy: ['Մազերի խնամք'],
     });
 
-    const { services: publicHy } = await publicBookingService.getServices('salon', undefined, 'hy');
+    const { services: publicHy } = await publicBookingService.getServices(
+      'salon',
+      undefined,
+      'hy',
+    );
     expect(publicHy[0].name).toBe('Կտրում');
     expect(publicHy[0].category?.name).toBe('Մազերի խնամք');
 
-    const { services: publicRu } = await publicBookingService.getServices('salon', undefined, 'ru');
+    const { services: publicRu } = await publicBookingService.getServices(
+      'salon',
+      undefined,
+      'ru',
+    );
     expect(publicRu[0].name).toBe('Haircut');
     expect(publicRu[0].category?.name).toBe('Hair care');
   });
@@ -147,7 +169,7 @@ describe('Service localized names integration', () => {
     const category = await categoryService.create('biz-1', {
       name: 'Spa',
       localizedNames: { hy: ['Սպա'] },
-    } as any);
+    });
 
     await serviceService.create('biz-1', {
       name: 'Massage',
@@ -155,7 +177,7 @@ describe('Service localized names integration', () => {
       price: 70,
       categoryId: category.id,
       localizedNames: { hy: ['Մասաժ'] },
-    } as any);
+    });
 
     const { services: publicList } = await publicBookingService.getServices(
       'salon',
@@ -173,12 +195,12 @@ describe('Service localized names integration', () => {
       name: 'Included',
       durationMinutes: 30,
       price: 30,
-    } as any);
+    });
     await serviceService.create('biz-1', {
       name: 'Excluded',
       durationMinutes: 30,
       price: 30,
-    } as any);
+    });
 
     employeeRepo.findOne.mockResolvedValue({
       id: 'emp-1',

@@ -26,14 +26,22 @@ export class SchedulingOptimizationAgent implements AgentHandler {
     if (this.router.useLangGraph(AgentType.SCHEDULING_OPTIMIZATION)) {
       try {
         const result = await this.optimizationGraph.run(context, intent);
-        this.logger.log(`LangGraph schedule optimization: mode=${result.executionMode}`);
+        this.logger.log(
+          `LangGraph schedule optimization: mode=${result.executionMode}`,
+        );
         return result;
       } catch (err: any) {
-        this.logger.warn(`LangGraph schedule optimization failed, falling back: ${err?.message ?? err}`);
+        this.logger.warn(
+          `LangGraph schedule optimization failed, falling back: ${err?.message ?? err}`,
+        );
       }
     }
 
-    const llmResult = await this.llm.buildPlan(AgentType.SCHEDULING_OPTIMIZATION, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.SCHEDULING_OPTIMIZATION,
+      intent,
+      context,
+    );
 
     if (llmResult) {
       return {
@@ -53,7 +61,10 @@ export class SchedulingOptimizationAgent implements AgentHandler {
       };
     }
 
-    return { plan: this.buildFallbackPlan(context, intent), executionMode: 'requires_approval' };
+    return {
+      plan: this.buildFallbackPlan(context, intent),
+      executionMode: 'requires_approval',
+    };
   }
 
   private buildFallbackPlan(context: AgentContext, intent: string): AgentPlan {

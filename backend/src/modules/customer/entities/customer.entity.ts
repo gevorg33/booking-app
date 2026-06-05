@@ -16,7 +16,9 @@ export class Customer {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Business, (business) => business.customers, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Business, (business) => business.customers, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'business_id' })
   business: Business;
 

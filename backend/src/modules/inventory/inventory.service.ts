@@ -17,17 +17,27 @@ export interface ServiceProductLinkView {
 export class InventoryService {
   constructor(
     @InjectRepository(Product) private productRepo: Repository<Product>,
-    @InjectRepository(ServiceProduct) private linkRepo: Repository<ServiceProduct>,
+    @InjectRepository(ServiceProduct)
+    private linkRepo: Repository<ServiceProduct>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
 
-  async listProducts(businessId: string, locationId?: string): Promise<Product[]> {
+  async listProducts(
+    businessId: string,
+    locationId?: string,
+  ): Promise<Product[]> {
     const where: Record<string, unknown> = { businessId, isActive: true };
     if (locationId) where.locationId = locationId;
-    return this.productRepo.find({ where: where as any, order: { name: 'ASC' } });
+    return this.productRepo.find({
+      where: where,
+      order: { name: 'ASC' },
+    });
   }
 
-  async createProduct(businessId: string, dto: Partial<Product>): Promise<Product> {
+  async createProduct(
+    businessId: string,
+    dto: Partial<Product>,
+  ): Promise<Product> {
     return this.productRepo.save(
       this.productRepo.create({
         businessId,
@@ -51,7 +61,9 @@ export class InventoryService {
     await this.ensureService(businessId, serviceId);
     await this.ensureProduct(businessId, productId);
 
-    const existing = await this.linkRepo.findOne({ where: { serviceId, productId } });
+    const existing = await this.linkRepo.findOne({
+      where: { serviceId, productId },
+    });
     if (existing) {
       existing.quantityPerService = quantityPerService;
       return this.linkRepo.save(existing);
@@ -75,10 +87,14 @@ export class InventoryService {
       .addOrderBy('product.name', 'ASC');
 
     if (filters?.serviceId) {
-      qb.andWhere('link.service_id = :serviceId', { serviceId: filters.serviceId });
+      qb.andWhere('link.service_id = :serviceId', {
+        serviceId: filters.serviceId,
+      });
     }
     if (filters?.productId) {
-      qb.andWhere('link.product_id = :productId', { productId: filters.productId });
+      qb.andWhere('link.product_id = :productId', {
+        productId: filters.productId,
+      });
     }
 
     const links = await qb.getMany();
@@ -92,7 +108,10 @@ export class InventoryService {
     }));
   }
 
-  async unlinkServiceProduct(linkId: string, businessId: string): Promise<{ removed: true }> {
+  async unlinkServiceProduct(
+    linkId: string,
+    businessId: string,
+  ): Promise<{ removed: true }> {
     const link = await this.linkRepo.findOne({
       where: { id: linkId },
       relations: { product: true },
@@ -120,14 +139,23 @@ export class InventoryService {
     }
   }
 
-  async adjustStock(productId: string, businessId: string, delta: number): Promise<Product> {
-    const product = await this.productRepo.findOne({ where: { id: productId, businessId } });
+  async adjustStock(
+    productId: string,
+    businessId: string,
+    delta: number,
+  ): Promise<Product> {
+    const product = await this.productRepo.findOne({
+      where: { id: productId, businessId },
+    });
     if (!product) throw new NotFoundException('Product not found');
     product.quantityOnHand = Math.max(0, product.quantityOnHand + delta);
     return this.productRepo.save(product);
   }
 
-  private async ensureProduct(businessId: string, productId: string): Promise<Product> {
+  private async ensureProduct(
+    businessId: string,
+    productId: string,
+  ): Promise<Product> {
     const product = await this.productRepo.findOne({
       where: { id: productId, businessId, isActive: true },
     });
@@ -135,7 +163,10 @@ export class InventoryService {
     return product;
   }
 
-  private async ensureService(businessId: string, serviceId: string): Promise<Service> {
+  private async ensureService(
+    businessId: string,
+    serviceId: string,
+  ): Promise<Service> {
     const service = await this.serviceRepo.findOne({
       where: { id: serviceId, businessId, isActive: true },
     });

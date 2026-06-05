@@ -47,7 +47,13 @@ export class SubscriptionPlan {
   @Column({ name: 'discount_type', default: SubscriptionDiscountType.PERCENT })
   discountType: string;
 
-  @Column({ name: 'discount_value', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'discount_value',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   discountValue: number;
 
   @Column({ name: 'is_active', default: true })
@@ -108,7 +114,13 @@ export class CustomerSubscription {
   @Column({ default: CustomerSubscriptionStatus.ACTIVE })
   status: string;
 
-  @Column({ name: 'price_paid', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'price_paid',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   pricePaid: number;
 
   @Column({ default: 'USD' })

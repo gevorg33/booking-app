@@ -47,7 +47,11 @@ export class SchedulingPeriod {
   @Column({ type: 'timestamptz' })
   endTime: Date;
 
-  @Column({ type: 'enum', enum: TemplatePeriodType, default: TemplatePeriodType.SERVICE_BLOCK })
+  @Column({
+    type: 'enum',
+    enum: TemplatePeriodType,
+    default: TemplatePeriodType.SERVICE_BLOCK,
+  })
   type: TemplatePeriodType;
 
   @Column({ nullable: true })

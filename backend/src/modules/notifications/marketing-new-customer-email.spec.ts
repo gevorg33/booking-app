@@ -18,7 +18,9 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
     { send: jest.fn() } as any,
     { resolveRuntimeConfig: jest.fn() } as any,
     {
-      get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+      get: jest.fn((key: string) =>
+        key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+      ),
     } as any,
   );
 
@@ -46,7 +48,11 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
   });
 
   it('sends profile email to each marketing recipient', async () => {
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'dashboard');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'dashboard',
+    );
     expect(emailService.send).toHaveBeenCalledTimes(1);
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -68,7 +74,11 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
         }),
       },
     });
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'app');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'app',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
@@ -78,19 +88,31 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
       name: 'Glow Salon',
       settings: { notifications: mergeBusinessNotificationSettings({}) },
     });
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'web_booking');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'web_booking',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
   it('skips when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'app');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'app',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
   it('skips when customer is missing', async () => {
     customerRepo.findOne.mockResolvedValue(null);
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'dashboard');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'dashboard',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
@@ -106,7 +128,11 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
         }),
       },
     });
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'web_booking');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'web_booking',
+    );
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
@@ -125,19 +151,33 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
         }),
       },
     });
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'app');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'app',
+    );
     expect(emailService.send).toHaveBeenCalledTimes(2);
   });
 
   it('formats web_booking and app source labels', async () => {
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'web_booking');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'web_booking',
+    );
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({ text: expect.stringContaining('Web booking') }),
     );
     jest.clearAllMocks();
-    await service.sendMarketingNewCustomerRegistration('biz-1', 'cust-1', 'app');
+    await service.sendMarketingNewCustomerRegistration(
+      'biz-1',
+      'cust-1',
+      'app',
+    );
     expect(emailService.send).toHaveBeenCalledWith(
-      expect.objectContaining({ text: expect.stringContaining('Google sign-in') }),
+      expect.objectContaining({
+        text: expect.stringContaining('Google sign-in'),
+      }),
     );
   });
 });

@@ -39,7 +39,10 @@ export class ServiceSubscriptionsController {
     return Promise.all(
       plans.map(async (plan) => ({
         ...plan,
-        preview: this.subscriptionsService.previewFromPlan(plan, Number(plan.service.price)),
+        preview: this.subscriptionsService.previewFromPlan(
+          plan,
+          Number(plan.service.price),
+        ),
       })),
     );
   }
@@ -62,7 +65,7 @@ export class ServiceSubscriptionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.subscriptionsService.updatePlan(businessId, planId, dto as any);
+    return this.subscriptionsService.updatePlan(businessId, planId, dto);
   }
 
   @Patch('plans/:planId/deactivate')
@@ -127,7 +130,10 @@ export class ServiceSubscriptionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.subscriptionsService.listCustomerSubscriptions(businessId, customerId);
+    return this.subscriptionsService.listCustomerSubscriptions(
+      businessId,
+      customerId,
+    );
   }
 
   @Get('customer/:customerId/active')
@@ -138,11 +144,12 @@ export class ServiceSubscriptionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    const subscription = await this.subscriptionsService.getActiveForCustomerService(
-      businessId,
-      customerId,
-      serviceId,
-    );
+    const subscription =
+      await this.subscriptionsService.getActiveForCustomerService(
+        businessId,
+        customerId,
+        serviceId,
+      );
     return { subscription };
   }
 
@@ -153,7 +160,10 @@ export class ServiceSubscriptionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.subscriptionsService.cancelSubscription(businessId, subscriptionId);
+    return this.subscriptionsService.cancelSubscription(
+      businessId,
+      subscriptionId,
+    );
   }
 
   @Get(':subscriptionId/usage')
@@ -163,6 +173,9 @@ export class ServiceSubscriptionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.subscriptionsService.getUsageHistory(businessId, subscriptionId);
+    return this.subscriptionsService.getUsageHistory(
+      businessId,
+      subscriptionId,
+    );
   }
 }

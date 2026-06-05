@@ -37,9 +37,13 @@ export class GiftCardFulfillmentPushListener {
       return;
     }
 
-    const business = await this.businessRepo.findOne({ where: { id: event.businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: event.businessId },
+    });
     const settings = readBusinessGiftCardSettings(business?.settings);
-    const userIds = await this.fulfillmentService.resolveStaffUserIds(settings.cardCreatorStaffIds);
+    const userIds = await this.fulfillmentService.resolveStaffUserIds(
+      settings.cardCreatorStaffIds,
+    );
 
     for (const userId of userIds) {
       await this.pushService.sendToUser(userId, event.businessId, {
@@ -56,10 +60,16 @@ export class GiftCardFulfillmentPushListener {
     if (event.payload?.fulfillmentStatus !== 'ready_for_delivery') return;
     if (!event.businessId) return;
 
-    const business = await this.businessRepo.findOne({ where: { id: event.businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: event.businessId },
+    });
     const settings = readBusinessGiftCardSettings(business?.settings);
-    const userIds = await this.fulfillmentService.resolveStaffUserIds(settings.deliveryStaffIds);
-    const card = await this.giftCardRepo.findOne({ where: { id: event.aggregateId } });
+    const userIds = await this.fulfillmentService.resolveStaffUserIds(
+      settings.deliveryStaffIds,
+    );
+    const card = await this.giftCardRepo.findOne({
+      where: { id: event.aggregateId },
+    });
     if (!card) return;
 
     for (const userId of userIds) {

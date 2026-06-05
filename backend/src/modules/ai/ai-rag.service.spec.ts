@@ -34,14 +34,21 @@ describe('AiRagService', () => {
       },
     });
     const service = new AiRagService(aiSettings as any);
-    const block = await service.buildRagContextBlock('biz-1', 'waitlist slot offer');
+    const block = await service.buildRagContextBlock(
+      'biz-1',
+      'waitlist slot offer',
+    );
     expect(block).toContain('Waitlist SOP');
     expect(aiSettings.getSettings).toHaveBeenCalledWith('biz-1');
   });
 
   it('returns empty block when rag disabled in settings', async () => {
-    aiSettings.getSettings.mockResolvedValue({ rag: { enabled: false, documents: [] } });
+    aiSettings.getSettings.mockResolvedValue({
+      rag: { enabled: false, documents: [] },
+    });
     const service = new AiRagService(aiSettings as any);
-    await expect(service.buildRagContextBlock('biz-1', 'waitlist')).resolves.toBe('');
+    await expect(
+      service.buildRagContextBlock('biz-1', 'waitlist'),
+    ).resolves.toBe('');
   });
 });

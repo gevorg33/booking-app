@@ -17,14 +17,17 @@ export class EmailService {
   constructor(private config: ConfigService) {
     this.apiKey = this.config.get<string>('RESEND_API_KEY');
     this.fromEmail =
-      this.config.get<string>('NOTIFICATION_FROM_EMAIL') || 'onboarding@resend.dev';
+      this.config.get<string>('NOTIFICATION_FROM_EMAIL') ||
+      'onboarding@resend.dev';
   }
 
   get isConfigured(): boolean {
     return Boolean(this.apiKey);
   }
 
-  async send(params: SendEmailParams): Promise<{ ok: boolean; error?: string }> {
+  async send(
+    params: SendEmailParams,
+  ): Promise<{ ok: boolean; error?: string }> {
     if (!this.apiKey) {
       this.logger.warn(
         `[dev] Email to ${params.to} — ${params.subject}\n${params.text || params.html}`,

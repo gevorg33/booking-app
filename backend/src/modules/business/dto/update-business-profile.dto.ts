@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsEmail, ValidateNested, IsHexColor, IsIn, IsBoolean, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  ValidateNested,
+  IsHexColor,
+  IsIn,
+  IsBoolean,
+  IsObject,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PublicProfileLocaleContentDto {
@@ -132,5 +141,8 @@ export class UpdateBusinessProfileDto {
   /** Per-locale overrides for public booking profile text (name, description, tagline, address). */
   @IsOptional()
   @IsObject()
-  publicProfileLocales?: Record<string, PublicProfileLocaleContentDto | undefined>;
+  publicProfileLocales?: Record<
+    string,
+    PublicProfileLocaleContentDto | undefined
+  >;
 }

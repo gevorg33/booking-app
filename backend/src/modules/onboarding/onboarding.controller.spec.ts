@@ -38,8 +38,13 @@ describe('OnboardingController vertical playbook endpoints', () => {
 
     const result = await controller.getVerticalPlaybook('biz-1', user);
 
-    expect(businessService.ensureMember).toHaveBeenCalledWith('biz-1', 'user-1');
-    expect(onboardingService.getVerticalPlaybookPreview).toHaveBeenCalledWith('biz-1');
+    expect(businessService.ensureMember).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
+    expect(onboardingService.getVerticalPlaybookPreview).toHaveBeenCalledWith(
+      'biz-1',
+    );
     expect(result.playbookId).toBe('salon');
   });
 
@@ -53,15 +58,24 @@ describe('OnboardingController vertical playbook endpoints', () => {
 
     const result = await controller.applyPlaybook('biz-1', user);
 
-    expect(onboardingService.applyVerticalPlaybook).toHaveBeenCalledWith('biz-1', 'user-1');
+    expect(onboardingService.applyVerticalPlaybook).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
     expect(result.playbookId).toBe('clinic');
     expect(result.slotsCreated).toBe(40);
   });
 
   it('delegates apply-schedule to default vertical playbook schedule', async () => {
-    onboardingService.applyDefaultSchedule.mockResolvedValue({ playbookId: 'salon', slotsCreated: 24 });
+    onboardingService.applyDefaultSchedule.mockResolvedValue({
+      playbookId: 'salon',
+      slotsCreated: 24,
+    });
     const result = await controller.applySchedule('biz-1', user);
-    expect(onboardingService.applyDefaultSchedule).toHaveBeenCalledWith('biz-1', 'user-1');
+    expect(onboardingService.applyDefaultSchedule).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
     expect(result.playbookId).toBe('salon');
   });
 

@@ -2,7 +2,10 @@ import { ForbiddenException } from '@nestjs/common';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { PlanLimitExceededException } from '../billing/plan-limit.exception.js';
 import { AiGatewayService } from './ai-gateway.service.js';
-import { buildCapabilitiesView, getEffectiveAllowedIntents } from './ai-capability.matrix.js';
+import {
+  buildCapabilitiesView,
+  getEffectiveAllowedIntents,
+} from './ai-capability.matrix.js';
 import {
   isDashboardAiIntentAllowedByPlan,
   getPlanDeniedDashboardIntents,
@@ -11,7 +14,7 @@ import { resolveMergedComplexityRoute } from './ai-command-routing.util.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { IntentDecompositionService } from './intent-decomposition.service.js';
 import { SubscriptionStatus } from '../billing/subscription-status.enum.js';
-import { createAiGatewaySprint25Mocks } from './ai-gateway.test-mocks.js';
+import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
 
 /**
  * Sprint 15 — AI platform & limits (integration-style wiring tests).
@@ -49,26 +52,33 @@ describe('Sprint 15 AI platform integration', () => {
     providerResult?: Record<string, unknown>;
   }) {
     const dashboardCommands = {
-      executeCommand: jest.fn(async () => overrides?.dashboardResult ?? {
-        success: true,
-        action: 'list_bookings',
-        summary: 'ok',
-        details: {},
-      }),
+      executeCommand: jest.fn(
+        async () =>
+          overrides?.dashboardResult ?? {
+            success: true,
+            action: 'list_bookings',
+            summary: 'ok',
+            details: {},
+          },
+      ),
       approveTask: jest.fn(),
       retryWorkflowStep: jest.fn(),
     };
     const providerCommands = {
-      executeCommand: jest.fn(async () => overrides?.providerResult ?? {
-        success: true,
-        action: 'summarize_day',
-        summary: 'ok',
-        details: {},
-      }),
+      executeCommand: jest.fn(
+        async () =>
+          overrides?.providerResult ?? {
+            success: true,
+            action: 'summarize_day',
+            summary: 'ok',
+            details: {},
+          },
+      ),
     };
-    const { aiSettings, sprint25 } = createAiGatewaySprint25Mocks();
+    const { aiSettings, platform } = createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as any,
+      { executeCommand: jest.fn() } as any,
       providerCommands as any,
       {
         buildMemoryContextBlock: jest.fn(async () => ''),
@@ -76,13 +86,16 @@ describe('Sprint 15 AI platform integration', () => {
         learnFromCommand: jest.fn(),
       } as any,
       {
-        prepareHistoryForClassifier: jest.fn(async () => ({ history: [], summaryBlock: '' })),
+        prepareHistoryForClassifier: jest.fn(async () => ({
+          history: [],
+          summaryBlock: '',
+        })),
       } as any,
       { buildRagContextBlock: jest.fn(async () => '') } as any,
       { preflightBlock: jest.fn(() => null) } as any,
       planEntitlements,
       aiSettings as any,
-      sprint25 as any,
+      platform as any,
     );
     return { gateway, dashboardCommands, providerCommands };
   }
@@ -103,7 +116,9 @@ describe('Sprint 15 AI platform integration', () => {
     });
 
     it('starter unlocks advanced intents', () => {
-      expect(isDashboardAiIntentAllowedByPlan('starter', 'optimize_schedule')).toBe(true);
+      expect(
+        isDashboardAiIntentAllowedByPlan('starter', 'optimize_schedule'),
+      ).toBe(true);
       const view = buildCapabilitiesView('dashboard', 'owner', 'starter');
       expect(view.allowedIntents).toContain('optimize_schedule');
     });
@@ -129,7 +144,11 @@ describe('Sprint 15 AI platform integration', () => {
     it('returns capabilities with solo plan denials and usage', async () => {
       businessRepo.findOne.mockResolvedValue(businessSolo);
       const { gateway } = buildGateway();
-      const caps = await gateway.getCapabilities('biz-solo', 'dashboard', 'owner');
+      const caps = await gateway.getCapabilities(
+        'biz-solo',
+        'dashboard',
+        'owner',
+      );
       expect(caps.planTierId).toBe('solo');
       expect(caps.planDeniedIntents).toContain('day_replan');
       expect(caps.usage.aiCommandsThisMonth).toBe(0);

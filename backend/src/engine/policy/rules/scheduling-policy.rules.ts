@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { PolicyRule, PolicyRuleResult, PolicyContext, RiskLevel } from '../policy.interfaces.js';
+import {
+  PolicyRule,
+  PolicyRuleResult,
+  PolicyContext,
+  RiskLevel,
+} from '../policy.interfaces.js';
 
 @Injectable()
 export class MaxBookingsPerDayRule implements PolicyRule {
@@ -8,7 +13,11 @@ export class MaxBookingsPerDayRule implements PolicyRule {
 
   async evaluate(context: PolicyContext): Promise<PolicyRuleResult> {
     if (context.action !== 'create_booking') {
-      return { passed: true, message: 'Not applicable', riskContribution: RiskLevel.LOW };
+      return {
+        passed: true,
+        message: 'Not applicable',
+        riskContribution: RiskLevel.LOW,
+      };
     }
 
     const currentCount = context.params.currentBookingsCount || 0;
@@ -37,7 +46,11 @@ export class MinBufferBetweenBookingsRule implements PolicyRule {
 
   async evaluate(context: PolicyContext): Promise<PolicyRuleResult> {
     if (context.action !== 'create_booking') {
-      return { passed: true, message: 'Not applicable', riskContribution: RiskLevel.LOW };
+      return {
+        passed: true,
+        message: 'Not applicable',
+        riskContribution: RiskLevel.LOW,
+      };
     }
 
     const hasAdjacentConflict = context.params.hasAdjacentConflict || false;
@@ -65,7 +78,11 @@ export class BusinessHoursRule implements PolicyRule {
 
   async evaluate(context: PolicyContext): Promise<PolicyRuleResult> {
     if (context.action !== 'create_booking') {
-      return { passed: true, message: 'Not applicable', riskContribution: RiskLevel.LOW };
+      return {
+        passed: true,
+        message: 'Not applicable',
+        riskContribution: RiskLevel.LOW,
+      };
     }
 
     const withinHours = context.params.withinBusinessHours !== false;
@@ -89,7 +106,8 @@ export class BusinessHoursRule implements PolicyRule {
 @Injectable()
 export class BulkOperationSafetyRule implements PolicyRule {
   name = 'bulk_operation_safety';
-  description = 'Adds risk assessment for operations affecting multiple bookings';
+  description =
+    'Adds risk assessment for operations affecting multiple bookings';
 
   async evaluate(context: PolicyContext): Promise<PolicyRuleResult> {
     const affectedCount = context.params.affectedBookingsCount || 0;

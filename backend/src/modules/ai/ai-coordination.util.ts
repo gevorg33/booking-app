@@ -20,12 +20,17 @@ export function isCoordinationPrompt(prompt: string): boolean {
   return COORDINATION_PROMPT_PATTERNS.some((pattern) => pattern.test(prompt));
 }
 
-export function rescueCoordinationIntent(prompt: string, action: string): string {
+export function rescueCoordinationIntent(
+  prompt: string,
+  action: string,
+): string {
   if (action !== 'unknown' && action !== 'cancel_bookings') return action;
   return isCoordinationPrompt(prompt) ? 'coordinate_waitlist_offer' : action;
 }
 
-export function normalizeCoordinationParams(params: Record<string, unknown>): CoordinationParams {
+export function normalizeCoordinationParams(
+  params: Record<string, unknown>,
+): CoordinationParams {
   return {
     employeeName: (params.employeeName as string | null | undefined) ?? null,
     waitlistCustomerName:
@@ -50,8 +55,10 @@ export function buildCoordinationPreviewSummary(input: {
   bookingLabel: string;
   bookingCount: number;
 }): string {
-  const { employeeName, waitlistCustomerName, bookingLabel, bookingCount } = input;
-  const plural = bookingCount > 1 ? `${bookingCount} appointments` : bookingLabel;
+  const { employeeName, waitlistCustomerName, bookingLabel, bookingCount } =
+    input;
+  const plural =
+    bookingCount > 1 ? `${bookingCount} appointments` : bookingLabel;
   return (
     `If ${employeeName} cancels ${plural}, offer the freed slot to waitlist customer ${waitlistCustomerName}? ` +
     `This will cancel the appointment(s) and create a waitlist offer for ${waitlistCustomerName}.`

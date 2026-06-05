@@ -10,8 +10,14 @@ export interface ScheduleUndoSnapshotInput {
 }
 
 export interface ScheduleUndoDeleteDeps {
-  deletePeriods: (businessId: string, periodIds: string[]) => Promise<number | null | undefined>;
-  deleteSlots: (businessId: string, slotIds: string[]) => Promise<number | null | undefined>;
+  deletePeriods: (
+    businessId: string,
+    periodIds: string[],
+  ) => Promise<number | null | undefined>;
+  deleteSlots: (
+    businessId: string,
+    slotIds: string[],
+  ) => Promise<number | null | undefined>;
 }
 
 export function buildScheduleCreationSnapshot(

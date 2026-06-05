@@ -20,7 +20,11 @@ describe('AiPromptNormalizationService', () => {
   });
 
   it('passes through English unchanged', async () => {
-    const result = await service.normalizeForClassifier('biz-1', 'u1', 'Show appointments today');
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      'Show appointments today',
+    );
     expect(result.method).toBe('passthrough');
     expect(result.normalized).toBe('Show appointments today');
     expect(result.classifierContext).toBeNull();
@@ -45,7 +49,11 @@ describe('AiPromptNormalizationService', () => {
   });
 
   it('preserves conditional Armenian booking text for classifier', async () => {
-    const result = await service.normalizeForClassifier('biz-1', 'u1', HY_CONDITIONAL_BOOK);
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      HY_CONDITIONAL_BOOK,
+    );
     expect(result.method).toBe('multilingual');
     expect(result.normalized).toBe(HY_CONDITIONAL_BOOK);
     expect(result.classifierContext).toContain('facemassage');
@@ -53,7 +61,11 @@ describe('AiPromptNormalizationService', () => {
   });
 
   it('preserves bulk cancel Armenian with time range', async () => {
-    const result = await service.normalizeForClassifier('biz-1', 'u1', HY_BULK_CANCEL);
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      HY_BULK_CANCEL,
+    );
     expect(result.method).toBe('multilingual');
     expect(result.normalized).toBe(HY_BULK_CANCEL);
     expect(result.classifierContext).toContain('16:30');
@@ -61,14 +73,22 @@ describe('AiPromptNormalizationService', () => {
   });
 
   it('preserves complex Russian fallback booking chain', async () => {
-    const result = await service.normalizeForClassifier('biz-2', 'u2', RU_BOOK_FALLBACK);
+    const result = await service.normalizeForClassifier(
+      'biz-2',
+      'u2',
+      RU_BOOK_FALLBACK,
+    );
     expect(result.method).toBe('multilingual');
     expect(result.normalized).toBe(RU_BOOK_FALLBACK);
     expect(result.classifierContext).toContain(RU_BOOK_FALLBACK);
   });
 
   it('handles transliterated multi-step command', async () => {
-    const result = await service.normalizeForClassifier('biz-1', 'u1', TRANSLIT_COMPOUND);
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      TRANSLIT_COMPOUND,
+    );
     expect(result.method).toBe('multilingual');
     expect(result.normalized).toBe(TRANSLIT_COMPOUND);
     expect(result.original).toBe(TRANSLIT_COMPOUND);

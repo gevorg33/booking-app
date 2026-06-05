@@ -14,8 +14,16 @@ import { EventType } from '../../events/event-types.js';
 import type { AgentTask } from './agent-task.entity.js';
 
 function buildTask(
-  planSteps: Array<{ action: string; id?: string; params?: Record<string, unknown> }>,
-  stepResults: Array<{ stepId: string; status: string; result?: Record<string, unknown> }>,
+  planSteps: Array<{
+    action: string;
+    id?: string;
+    params?: Record<string, unknown>;
+  }>,
+  stepResults: Array<{
+    stepId: string;
+    status: string;
+    result?: Record<string, unknown>;
+  }>,
   overrides: Partial<AgentTask> = {},
 ): AgentTask {
   return {
@@ -47,11 +55,17 @@ describe('AgentTaskUndoService', () => {
   };
   const blockScheduleService = { remove: jest.fn() };
   const scheduleService = {
-    revertCreatedSchedule: jest.fn(async () => ({ periodsRemoved: 1, slotsRemoved: 2 })),
+    revertCreatedSchedule: jest.fn(async () => ({
+      periodsRemoved: 1,
+      slotsRemoved: 2,
+    })),
   };
   const employeeService = { update: jest.fn() };
   const eventStore = { publish: jest.fn(), getEvents: jest.fn(async () => []) };
-  const taskRepo = { find: jest.fn(), save: jest.fn(async (t: AgentTask) => t) };
+  const taskRepo = {
+    find: jest.fn(),
+    save: jest.fn(async (t: AgentTask) => t),
+  };
 
   let service: AgentTaskUndoService;
 
@@ -80,7 +94,9 @@ describe('AgentTaskUndoService', () => {
       ],
     }).compile();
 
-    expect(moduleRef.get(AgentTaskUndoService)).toBeInstanceOf(AgentTaskUndoService);
+    expect(moduleRef.get(AgentTaskUndoService)).toBeInstanceOf(
+      AgentTaskUndoService,
+    );
   });
 
   describe('buildUndoPreview', () => {
@@ -102,7 +118,13 @@ describe('AgentTaskUndoService', () => {
     it('ignores plan steps without a completed step result', () => {
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.FAILED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.FAILED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       const preview = service.buildUndoPreview(task);
       expect(preview.undoable).toBe(false);
@@ -169,7 +191,13 @@ describe('AgentTaskUndoService', () => {
       );
       const ok = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
         { id: 'task-2' },
       );
       taskRepo.find.mockResolvedValue([blocked, ok]);
@@ -180,7 +208,13 @@ describe('AgentTaskUndoService', () => {
     it('considers tasks with no result object for undo', async () => {
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       (task as any).result = undefined;
       taskRepo.find.mockResolvedValue([task]);
@@ -191,7 +225,13 @@ describe('AgentTaskUndoService', () => {
     it('skips tasks already undone', async () => {
       const undone = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
         { result: { steps: [], undone: true } },
       );
       taskRepo.find.mockResolvedValue([undone]);
@@ -200,15 +240,21 @@ describe('AgentTaskUndoService', () => {
 
     it('throws when undoLatest has no candidate', async () => {
       taskRepo.find.mockResolvedValue([]);
-      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.undoLatest('biz-1', 'user-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('returns preview for latest undoable task', async () => {
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       taskRepo.find.mockResolvedValue([task]);
       const preview = await service.getLatestUndoPreview('biz-1');
@@ -228,8 +274,15 @@ describe('AgentTaskUndoService', () => {
   });
 
   describe('reverseStep via undoLatest', () => {
-    const undoable = (action: string, result: Record<string, unknown>, params = {}) =>
-      buildTask([{ action, params }], [{ stepId: 'step-0', status: StepStatus.COMPLETED, result }]);
+    const undoable = (
+      action: string,
+      result: Record<string, unknown>,
+      params = {},
+    ) =>
+      buildTask(
+        [{ action, params }],
+        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result }],
+      );
 
     beforeEach(() => {
       taskRepo.find.mockImplementation(async () => {
@@ -239,7 +292,11 @@ describe('AgentTaskUndoService', () => {
 
     it('reverts create_booking', async () => {
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.cancel).toHaveBeenCalledWith('b1', 'Undone AI command', 'user-1');
+      expect(bookingService.cancel).toHaveBeenCalledWith(
+        'b1',
+        'Undone AI command',
+        'user-1',
+      );
       expect(eventStore.publish).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: EventType.AGENT_PLAN_UNDONE }),
       );
@@ -248,7 +305,13 @@ describe('AgentTaskUndoService', () => {
     it('merges undo metadata when task.result was undefined before save', async () => {
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       (task as any).result = undefined;
       jest.spyOn(service, 'buildUndoPreview').mockReturnValue({
@@ -260,7 +323,7 @@ describe('AgentTaskUndoService', () => {
       });
       jest.spyOn(service as any, 'getCompletedMutatingSteps').mockReturnValue([
         {
-          planStep: task.plan!.steps[0],
+          planStep: task.plan.steps[0],
           stepResult: {
             stepId: 'step-0',
             status: StepStatus.COMPLETED,
@@ -276,7 +339,13 @@ describe('AgentTaskUndoService', () => {
     it('merges undo metadata when task.result was null before save', async () => {
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       (task as any).result = null;
       jest.spyOn(service, 'buildUndoPreview').mockReturnValue({
@@ -288,7 +357,7 @@ describe('AgentTaskUndoService', () => {
       });
       jest.spyOn(service as any, 'getCompletedMutatingSteps').mockReturnValue([
         {
-          planStep: task.plan!.steps[0],
+          planStep: task.plan.steps[0],
           stepResult: {
             stepId: 'step-0',
             status: StepStatus.COMPLETED,
@@ -302,9 +371,15 @@ describe('AgentTaskUndoService', () => {
     });
 
     it('reverts execute_reassignment', async () => {
-      taskRepo.find.mockResolvedValue([undoable('execute_reassignment', { bookingId: 'b2' })]);
+      taskRepo.find.mockResolvedValue([
+        undoable('execute_reassignment', { bookingId: 'b2' }),
+      ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.cancel).toHaveBeenCalledWith('b2', 'Undone AI command', 'user-1');
+      expect(bookingService.cancel).toHaveBeenCalledWith(
+        'b2',
+        'Undone AI command',
+        'user-1',
+      );
     });
 
     it('reverts cancel_bookings from result ids', async () => {
@@ -320,7 +395,10 @@ describe('AgentTaskUndoService', () => {
         undoable('cancel_bookings', {}, { bookingIds: ['b5'] }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.restoreCancelled).toHaveBeenCalledWith('b5', 'user-1');
+      expect(bookingService.restoreCancelled).toHaveBeenCalledWith(
+        'b5',
+        'user-1',
+      );
     });
 
     it('reverts hide and unhide calendar visibility', async () => {
@@ -328,13 +406,25 @@ describe('AgentTaskUndoService', () => {
         undoable('hide_appointments_from_calendar', {}, { bookingIds: ['b6'] }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.setHiddenFromCalendar).toHaveBeenCalledWith(['b6'], false, 'user-1');
+      expect(bookingService.setHiddenFromCalendar).toHaveBeenCalledWith(
+        ['b6'],
+        false,
+        'user-1',
+      );
 
       taskRepo.find.mockResolvedValue([
-        undoable('unhide_appointments_from_calendar', {}, { bookingIds: ['b7'] }),
+        undoable(
+          'unhide_appointments_from_calendar',
+          {},
+          { bookingIds: ['b7'] },
+        ),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.setHiddenFromCalendar).toHaveBeenCalledWith(['b7'], true, 'user-1');
+      expect(bookingService.setHiddenFromCalendar).toHaveBeenCalledWith(
+        ['b7'],
+        true,
+        'user-1',
+      );
     });
 
     it('reverts reschedule_booking using result snapshot', async () => {
@@ -356,10 +446,19 @@ describe('AgentTaskUndoService', () => {
 
     it('reverts reschedule_booking using event store when snapshot missing time', async () => {
       eventStore.getEvents.mockResolvedValue([
-        { payload: { oldStartTime: '2026-06-01T10:00:00.000Z', employeeId: 'e2' } },
+        {
+          payload: {
+            oldStartTime: '2026-06-01T10:00:00.000Z',
+            employeeId: 'e2',
+          },
+        },
       ]);
       taskRepo.find.mockResolvedValue([
-        undoable('reschedule_booking', { bookingId: 'b9' }, { bookingId: 'b9' }),
+        undoable(
+          'reschedule_booking',
+          { bookingId: 'b9' },
+          { bookingId: 'b9' },
+        ),
       ]);
       await service.undoLatest('biz-1', 'user-1');
       expect(eventStore.getEvents).toHaveBeenCalled();
@@ -403,7 +502,11 @@ describe('AgentTaskUndoService', () => {
         undoable('create_block_schedule', { blockScheduleId: 'blk-1' }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(blockScheduleService.remove).toHaveBeenCalledWith('biz-1', 'blk-1', 'user-1');
+      expect(blockScheduleService.remove).toHaveBeenCalledWith(
+        'biz-1',
+        'blk-1',
+        'user-1',
+      );
 
       taskRepo.find.mockResolvedValue([
         undoable('assign_employee_services', {
@@ -421,13 +524,19 @@ describe('AgentTaskUndoService', () => {
 
     it('reverts create_direct_schedule snapshot', async () => {
       taskRepo.find.mockResolvedValue([
-        undoable('create_direct_schedule', { periodIds: ['p1'], slotIds: ['s1'] }),
+        undoable('create_direct_schedule', {
+          periodIds: ['p1'],
+          slotIds: ['s1'],
+        }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith('biz-1', {
-        periodIds: ['p1'],
-        slotIds: ['s1'],
-      });
+      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith(
+        'biz-1',
+        {
+          periodIds: ['p1'],
+          slotIds: ['s1'],
+        },
+      );
     });
 
     it('reverts create_direct_schedule with slotIds only', async () => {
@@ -435,10 +544,13 @@ describe('AgentTaskUndoService', () => {
         undoable('create_direct_schedule', { slotIds: ['s1'] }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith('biz-1', {
-        periodIds: [],
-        slotIds: ['s1'],
-      });
+      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith(
+        'biz-1',
+        {
+          periodIds: [],
+          slotIds: ['s1'],
+        },
+      );
     });
 
     it('reverts create_direct_schedule with periodIds only', async () => {
@@ -446,10 +558,13 @@ describe('AgentTaskUndoService', () => {
         undoable('create_direct_schedule', { periodIds: ['p1'] }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith('biz-1', {
-        periodIds: ['p1'],
-        slotIds: [],
-      });
+      expect(scheduleService.revertCreatedSchedule).toHaveBeenCalledWith(
+        'biz-1',
+        {
+          periodIds: ['p1'],
+          slotIds: [],
+        },
+      );
     });
 
     it('reverts reschedule using plan step bookingId', async () => {
@@ -467,15 +582,27 @@ describe('AgentTaskUndoService', () => {
         ),
       ]);
       await service.undoLatest('biz-1', 'user-1');
-      expect(bookingService.update).toHaveBeenCalledWith('b-plan', expect.any(Object), 'user-1');
+      expect(bookingService.update).toHaveBeenCalledWith(
+        'b-plan',
+        expect.any(Object),
+        'user-1',
+      );
     });
 
     it('merges employeeId from reschedule event payload', async () => {
       eventStore.getEvents.mockResolvedValue([
-        { payload: { oldStartTime: '2026-06-01T10:00:00.000Z', employeeId: 'e-from-event' } },
+        {
+          payload: {
+            oldStartTime: '2026-06-01T10:00:00.000Z',
+            employeeId: 'e-from-event',
+          },
+        },
       ]);
       taskRepo.find.mockResolvedValue([
-        undoable('reschedule_booking', { bookingId: 'b9', previousEmployeeId: undefined }),
+        undoable('reschedule_booking', {
+          bookingId: 'b9',
+          previousEmployeeId: undefined,
+        }),
       ]);
       await service.undoLatest('biz-1', 'user-1');
       expect(bookingService.update).toHaveBeenCalledWith(
@@ -491,21 +618,37 @@ describe('AgentTaskUndoService', () => {
       bookingService.cancel.mockRejectedValue(new Error('cancel failed'));
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       taskRepo.find.mockResolvedValue([task]);
 
-      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(/partial reversal/);
+      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(
+        /partial reversal/,
+      );
     });
 
     it('uses String(error) when rejection is not an Error', async () => {
       bookingService.cancel.mockRejectedValue('plain-fail');
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       taskRepo.find.mockResolvedValue([task]);
-      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(/plain-fail/);
+      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(
+        /plain-fail/,
+      );
     });
 
     it('undoTask uses preview reason when provided', async () => {
@@ -519,7 +662,13 @@ describe('AgentTaskUndoService', () => {
       });
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       await expect((service as any).undoTask(task, 'user-1')).rejects.toThrow(
         /Custom undo blocked/,
@@ -537,7 +686,13 @@ describe('AgentTaskUndoService', () => {
       });
       const task = buildTask(
         [{ action: 'create_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       await expect((service as any).undoTask(task, 'user-1')).rejects.toThrow(
         /This command cannot be undone/,
@@ -552,22 +707,35 @@ describe('AgentTaskUndoService', () => {
       ['unhide_appointments_from_calendar', {}, /Missing booking ids to hide/],
       ['reschedule_booking', {}, /Missing booking id to reverse reschedule/],
       ['create_block_schedule', {}, /Missing block schedule id/],
-      ['assign_employee_services', { employeeId: 'e1' }, /Missing previous service assignment/],
+      [
+        'assign_employee_services',
+        { employeeId: 'e1' },
+        /Missing previous service assignment/,
+      ],
       ['create_direct_schedule', {}, /Missing schedule period\/slot snapshot/],
     ] as const)('throws for %s', async (action, result, message) => {
       eventStore.getEvents.mockResolvedValue([]);
-      const task = buildTask([{ action }], [
-        { stepId: 'step-0', status: StepStatus.COMPLETED, result },
-      ]);
+      const task = buildTask(
+        [{ action }],
+        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result }],
+      );
       taskRepo.find.mockResolvedValue([task]);
-      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(message);
+      await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(
+        message,
+      );
     });
 
     it('throws when reschedule undo cannot resolve previous time', async () => {
       eventStore.getEvents.mockResolvedValue([]);
       const task = buildTask(
         [{ action: 'reschedule_booking' }],
-        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: { bookingId: 'b1' } }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
       );
       taskRepo.find.mockResolvedValue([task]);
       await expect(service.undoLatest('biz-1', 'user-1')).rejects.toThrow(
@@ -580,7 +748,12 @@ describe('AgentTaskUndoService', () => {
         (service as any).reverseStep(
           'biz-1',
           'user-1',
-          { action: 'custom_unknown', description: 'x', params: {}, dependsOn: [] },
+          {
+            action: 'custom_unknown',
+            description: 'x',
+            params: {},
+            dependsOn: [],
+          },
           {},
         ),
       ).rejects.toThrow(/Undo is not supported for action: custom_unknown/);

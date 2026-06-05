@@ -17,7 +17,11 @@ describe('command-completion.validator', () => {
   it('requires service for create_booking', () => {
     const result = validateCommand(
       baseCmd({
-        params: { employeeName: 'Gevorg', date: '26_05_2026', timeSlot: '09:00' },
+        params: {
+          employeeName: 'Gevorg',
+          date: '26_05_2026',
+          timeSlot: '09:00',
+        },
         enrichedParams: { employeeId: 'e1' },
         entities: {
           employee: { id: 'e1', name: 'Gevorg' } as any,

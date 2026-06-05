@@ -33,8 +33,12 @@ export function collectContactCandidates(input: {
   addPhone(input.customerPhone);
 
   const metadata = input.metadata ?? {};
-  addEmail(typeof metadata.customerEmail === 'string' ? metadata.customerEmail : null);
-  addPhone(typeof metadata.customerPhone === 'string' ? metadata.customerPhone : null);
+  addEmail(
+    typeof metadata.customerEmail === 'string' ? metadata.customerEmail : null,
+  );
+  addPhone(
+    typeof metadata.customerPhone === 'string' ? metadata.customerPhone : null,
+  );
 
   const guest = metadata.guest;
   if (guest && typeof guest === 'object') {

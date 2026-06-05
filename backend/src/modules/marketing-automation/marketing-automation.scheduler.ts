@@ -17,7 +17,10 @@ export class MarketingAutomationScheduler {
         this.logger.log(`Sent ${sent} re-engagement message(s)`);
       }
     } catch (err) {
-      this.logger.error('Marketing automation job failed', err instanceof Error ? err.stack : err);
+      this.logger.error(
+        'Marketing automation job failed',
+        err instanceof Error ? err.stack : err,
+      );
     }
   }
 }

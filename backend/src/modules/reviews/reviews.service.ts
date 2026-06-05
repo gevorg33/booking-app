@@ -133,8 +133,8 @@ export class ReviewsService {
     for (const employeeId of employeeIds) {
       const summary = result.get(employeeId);
       if (!summary || summary.reviewCount === 0) continue;
-      summary.recentReviews = (recentByEmployee.get(employeeId) ?? []).map((r) =>
-        this.toPublicProviderReview(r),
+      summary.recentReviews = (recentByEmployee.get(employeeId) ?? []).map(
+        (r) => this.toPublicProviderReview(r),
       );
     }
 
@@ -155,7 +155,10 @@ export class ReviewsService {
     });
     if (!employee) throw new NotFoundException('Provider not found');
 
-    const safeLimit = Math.min(Math.max(1, limit), PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE);
+    const safeLimit = Math.min(
+      Math.max(1, limit),
+      PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE,
+    );
     const safePage = Math.max(1, page);
     const skip = (safePage - 1) * safeLimit;
 
@@ -212,7 +215,9 @@ export class ReviewsService {
       .groupBy('r.employee_id')
       .getRawMany<{ employeeId: string; avgRating: string; count: string }>();
 
-    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
     const nameMap = new Map(employees.map((e) => [e.id, e.name]));
 
     return rows.map((r) => ({
@@ -246,7 +251,10 @@ export class ReviewsService {
       const existing = await this.reviewRepo.findOne({
         where: { businessId, bookingId: dto.bookingId },
       });
-      if (existing) throw new ConflictException('A review was already submitted for this appointment');
+      if (existing)
+        throw new ConflictException(
+          'A review was already submitted for this appointment',
+        );
     }
 
     const review = await this.reviewRepo.save(
@@ -281,7 +289,9 @@ export class ReviewsService {
   }
 
   async ensureReviewToken(bookingId: string): Promise<string> {
-    const booking = await this.bookingRepo.findOne({ where: { id: bookingId } });
+    const booking = await this.bookingRepo.findOne({
+      where: { id: bookingId },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
     const metadata = { ...(booking.metadata || {}) };
@@ -318,21 +328,35 @@ export class ReviewsService {
       serviceName: booking.service?.name ?? 'Appointment',
       customerName: booking.customer?.name ?? 'Guest',
       appointmentDate: booking.startTime.toISOString(),
-      alreadySubmitted: Boolean(existing || booking.metadata?.reviewSubmittedAt),
+      alreadySubmitted: Boolean(
+        existing || booking.metadata?.reviewSubmittedAt,
+      ),
     };
   }
 
-  async submitPublic(slug: string, dto: SubmitPublicReviewDto): Promise<Review> {
-    const booking = await this.loadBookingForReview(slug, dto.bookingId, dto.token);
+  async submitPublic(
+    slug: string,
+    dto: SubmitPublicReviewDto,
+  ): Promise<Review> {
+    const booking = await this.loadBookingForReview(
+      slug,
+      dto.bookingId,
+      dto.token,
+    );
 
     if (booking.metadata?.reviewSubmittedAt) {
-      throw new ConflictException('A review was already submitted for this appointment');
+      throw new ConflictException(
+        'A review was already submitted for this appointment',
+      );
     }
 
     const existing = await this.reviewRepo.findOne({
       where: { businessId: booking.businessId, bookingId: booking.id },
     });
-    if (existing) throw new ConflictException('A review was already submitted for this appointment');
+    if (existing)
+      throw new ConflictException(
+        'A review was already submitted for this appointment',
+      );
 
     const review = await this.create(booking.businessId, {
       employeeId: booking.employeeId,
@@ -371,16 +395,23 @@ export class ReviewsService {
 
     if (authenticatedCustomerId) {
       customer = await this.customerRepo.findOne({
-        where: { id: authenticatedCustomerId, businessId: business.id, isActive: true },
+        where: {
+          id: authenticatedCustomerId,
+          businessId: business.id,
+          isActive: true,
+        },
       });
-      if (!customer) throw new UnauthorizedException('Customer session expired');
+      if (!customer)
+        throw new UnauthorizedException('Customer session expired');
       customerName = customer.name;
     } else {
       if (!dto.idToken) {
         throw new BadRequestException('Sign in with Google to submit a review');
       }
       if (!this.firebase.isReady) {
-        throw new BadRequestException('Google sign-in is not configured on the server');
+        throw new BadRequestException(
+          'Google sign-in is not configured on the server',
+        );
       }
 
       let decoded;
@@ -397,12 +428,17 @@ export class ReviewsService {
 
       customerName =
         decoded.name?.trim() ||
-        [decoded.given_name, decoded.family_name].filter(Boolean).join(' ').trim() ||
+        [decoded.given_name, decoded.family_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
         email.split('@')[0];
 
       customer = await this.customerRepo
         .createQueryBuilder('customer')
-        .where('customer.business_id = :businessId', { businessId: business.id })
+        .where('customer.business_id = :businessId', {
+          businessId: business.id,
+        })
         .andWhere('customer.isActive = :isActive', { isActive: true })
         .andWhere('LOWER(customer.email) = :email', { email })
         .getOne();
@@ -450,7 +486,9 @@ export class ReviewsService {
       booking.metadata = {
         ...(booking.metadata || {}),
         reviewSubmittedAt: new Date().toISOString(),
-        reviewSource: authenticatedCustomerId ? 'public_portal_session' : 'public_portal_google',
+        reviewSource: authenticatedCustomerId
+          ? 'public_portal_session'
+          : 'public_portal_google',
       };
       await this.bookingRepo.save(booking);
     }
@@ -458,18 +496,29 @@ export class ReviewsService {
     return this.toPublicProviderReview(review);
   }
 
-  private async loadBookingForReview(slug: string, bookingId: string, token: string): Promise<Booking> {
+  private async loadBookingForReview(
+    slug: string,
+    bookingId: string,
+    token: string,
+  ): Promise<Booking> {
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId: business.id },
-      relations: { employee: true, service: true, customer: true, business: true },
+      relations: {
+        employee: true,
+        service: true,
+        customer: true,
+        business: true,
+      },
     });
     if (!booking) throw new NotFoundException('Appointment not found');
 
     if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Reviews are available after your appointment is completed');
+      throw new BadRequestException(
+        'Reviews are available after your appointment is completed',
+      );
     }
 
     const expected = booking.metadata?.reviewToken;

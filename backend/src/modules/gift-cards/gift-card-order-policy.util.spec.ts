@@ -6,12 +6,22 @@ import {
 } from './gift-card-order-policy.util.js';
 
 describe('gift-card-order-policy.util', () => {
-  const settings = { ...DEFAULT_GIFT_CARD_SETTINGS, cancelModifyEnabled: true, cancelModifyWindowHours: 24 };
+  const settings = {
+    ...DEFAULT_GIFT_CARD_SETTINGS,
+    cancelModifyEnabled: true,
+    cancelModifyWindowHours: 24,
+  };
   const now = new Date('2026-06-02T12:00:00.000Z');
   const createdAt = new Date('2026-06-02T10:00:00.000Z');
 
   it('detects fully redeemed monetary and service cards', () => {
-    expect(isGiftCardFullyRedeemed({ cardType: 'monetary', balance: 0, isActive: true })).toBe(true);
+    expect(
+      isGiftCardFullyRedeemed({
+        cardType: 'monetary',
+        balance: 0,
+        isActive: true,
+      }),
+    ).toBe(true);
     expect(
       isGiftCardFullyRedeemed({
         cardType: 'service',
@@ -19,9 +29,13 @@ describe('gift-card-order-policy.util', () => {
         serviceCredits: [{ quantityRemaining: 0 }],
       }),
     ).toBe(true);
-    expect(isGiftCardFullyRedeemed({ cardType: 'monetary', balance: 10, isActive: true })).toBe(
-      false,
-    );
+    expect(
+      isGiftCardFullyRedeemed({
+        cardType: 'monetary',
+        balance: 10,
+        isActive: true,
+      }),
+    ).toBe(false);
   });
 
   it('allows cancel only inside policy window', () => {
@@ -46,15 +60,32 @@ describe('gift-card-order-policy.util', () => {
 
   it('blocks when policy disabled or window expired', () => {
     expect(
-      evaluateGiftCardOrderPolicy({ createdAt, balance: 50, initialBalance: 50, cardType: 'monetary', isActive: true }, {
-        ...settings,
-        cancelModifyEnabled: false,
-      }, null, now).canCancel,
+      evaluateGiftCardOrderPolicy(
+        {
+          createdAt,
+          balance: 50,
+          initialBalance: 50,
+          cardType: 'monetary',
+          isActive: true,
+        },
+        {
+          ...settings,
+          cancelModifyEnabled: false,
+        },
+        null,
+        now,
+      ).canCancel,
     ).toBe(false);
 
     expect(
       evaluateGiftCardOrderPolicy(
-        { createdAt: new Date('2026-05-01T12:00:00.000Z'), balance: 50, initialBalance: 50, cardType: 'monetary', isActive: true },
+        {
+          createdAt: new Date('2026-05-01T12:00:00.000Z'),
+          balance: 50,
+          initialBalance: 50,
+          cardType: 'monetary',
+          isActive: true,
+        },
         settings,
         null,
         now,
@@ -84,7 +115,14 @@ describe('gift-card-order-policy.util', () => {
   it('blocks when order is cancelled or inactive', () => {
     expect(
       evaluateGiftCardOrderPolicy(
-        { createdAt, fulfillmentStatus: 'cancelled', balance: 50, initialBalance: 50, cardType: 'monetary', isActive: true },
+        {
+          createdAt,
+          fulfillmentStatus: 'cancelled',
+          balance: 50,
+          initialBalance: 50,
+          cardType: 'monetary',
+          isActive: true,
+        },
         settings,
         null,
         now,
@@ -94,7 +132,13 @@ describe('gift-card-order-policy.util', () => {
 
   it('blocks when open request exists', () => {
     const result = evaluateGiftCardOrderPolicy(
-      { createdAt, balance: 50, initialBalance: 50, cardType: 'monetary', isActive: true },
+      {
+        createdAt,
+        balance: 50,
+        initialBalance: 50,
+        cardType: 'monetary',
+        isActive: true,
+      },
       settings,
       { status: 'in_review' },
       now,
@@ -115,7 +159,11 @@ describe('gift-card-order-policy.util', () => {
 
   it('treats service cards without credits as not fully redeemed', () => {
     expect(
-      isGiftCardFullyRedeemed({ cardType: 'service', isActive: true, serviceCredits: [] }),
+      isGiftCardFullyRedeemed({
+        cardType: 'service',
+        isActive: true,
+        serviceCredits: [],
+      }),
     ).toBe(false);
   });
 
@@ -137,20 +185,34 @@ describe('gift-card-order-policy.util', () => {
   });
 
   it('does not treat inactive monetary cards with remaining balance as fully redeemed', () => {
-    expect(isGiftCardFullyRedeemed({ isActive: false, cardType: 'monetary', balance: 50 })).toBe(
-      false,
-    );
+    expect(
+      isGiftCardFullyRedeemed({
+        isActive: false,
+        cardType: 'monetary',
+        balance: 50,
+      }),
+    ).toBe(false);
   });
 
   it('treats inactive service cards without credits as fully redeemed', () => {
-    expect(isGiftCardFullyRedeemed({ isActive: false, cardType: 'service', serviceCredits: [] })).toBe(
-      true,
-    );
+    expect(
+      isGiftCardFullyRedeemed({
+        isActive: false,
+        cardType: 'service',
+        serviceCredits: [],
+      }),
+    ).toBe(true);
   });
 
   it('allows requests when cancel window hours is zero', () => {
     const result = evaluateGiftCardOrderPolicy(
-      { createdAt: new Date('2020-01-01'), balance: 50, initialBalance: 50, cardType: 'monetary', isActive: true },
+      {
+        createdAt: new Date('2020-01-01'),
+        balance: 50,
+        initialBalance: 50,
+        cardType: 'monetary',
+        isActive: true,
+      },
       { ...settings, cancelModifyWindowHours: 0 },
       null,
       now,
@@ -245,7 +307,9 @@ describe('gift-card-order-policy.util', () => {
         claimedAt: new Date('2026-06-01'),
       }),
     ).toBe(true);
-    expect(isGiftCardFullyRedeemed({ cardType: 'package', isActive: true })).toBe(false);
+    expect(
+      isGiftCardFullyRedeemed({ cardType: 'package', isActive: true }),
+    ).toBe(false);
   });
 
   it('blocks cancel when a claimed package gift is fully redeemed', () => {
@@ -280,7 +344,9 @@ describe('gift-card-order-policy.util', () => {
       now,
     );
     expect(result.canCancel).toBe(true);
-    expect(hasGiftCardValueBeenUsed({ cardType: 'package', isActive: true })).toBe(false);
+    expect(
+      hasGiftCardValueBeenUsed({ cardType: 'package', isActive: true }),
+    ).toBe(false);
   });
 
   it('blocks cancel when claimed but still marked active (missing deactivation)', () => {

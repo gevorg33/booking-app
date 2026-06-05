@@ -132,8 +132,13 @@ export class ServicePackagesService {
     Object.assign(pkg, {
       name: dto.name?.trim() ?? pkg.name,
       description:
-        dto.description !== undefined ? dto.description?.trim() || null : pkg.description,
-      imageUrl: dto.imageUrl !== undefined ? dto.imageUrl?.trim() || null : pkg.imageUrl,
+        dto.description !== undefined
+          ? dto.description?.trim() || null
+          : pkg.description,
+      imageUrl:
+        dto.imageUrl !== undefined
+          ? dto.imageUrl?.trim() || null
+          : pkg.imageUrl,
       discountType: dto.discountType ?? pkg.discountType,
       discountValue: dto.discountValue ?? pkg.discountValue,
       displayOrder: dto.displayOrder ?? pkg.displayOrder,
@@ -174,7 +179,9 @@ export class ServicePackagesService {
       throw new BadRequestException('Package is already active');
     }
     if (isPackageOfferExpired(pkg.expiresAt)) {
-      throw new BadRequestException('Cannot activate an expired package. Update the expiration date first.');
+      throw new BadRequestException(
+        'Cannot activate an expired package. Update the expiration date first.',
+      );
     }
     return this.updatePackage(businessId, packageId, { isActive: true });
   }
@@ -182,7 +189,9 @@ export class ServicePackagesService {
   async deletePackage(businessId: string, packageId: string) {
     const pkg = await this.findPackageOrThrow(businessId, packageId);
     if (pkg.isActive) {
-      throw new BadRequestException('Deactivate the package before deleting it');
+      throw new BadRequestException(
+        'Deactivate the package before deleting it',
+      );
     }
 
     const futureBookings = await this.countFutureBookingsForPackage(packageId);
@@ -192,7 +201,9 @@ export class ServicePackagesService {
       );
     }
 
-    const purchasesCount = await this.purchaseRepo.count({ where: { packageId } });
+    const purchasesCount = await this.purchaseRepo.count({
+      where: { packageId },
+    });
     if (purchasesCount > 0) {
       throw new ConflictException(
         'Cannot delete a package that has purchase history. Keep it deactivated instead.',
@@ -280,7 +291,10 @@ export class ServicePackagesService {
     };
   }
 
-  resolveStatus(pkg: ServicePackage, now = new Date()): 'active' | 'inactive' | 'expired' {
+  resolveStatus(
+    pkg: ServicePackage,
+    now = new Date(),
+  ): 'active' | 'inactive' | 'expired' {
     if (!pkg.isActive) return 'inactive';
     if (isPackageOfferExpired(pkg.expiresAt, now)) return 'expired';
     return 'active';
@@ -293,11 +307,19 @@ export class ServicePackagesService {
       order: { displayOrder: 'ASC', createdAt: 'DESC' },
     });
     return packages
-      .filter((pkg) => pkg.items?.length && isPackageBookable(pkg.isActive, pkg.expiresAt, graceHours))
+      .filter(
+        (pkg) =>
+          pkg.items?.length &&
+          isPackageBookable(pkg.isActive, pkg.expiresAt, graceHours),
+      )
       .map((pkg) => this.mapPublicPackage(pkg));
   }
 
-  async getPublicPackage(businessId: string, packageId: string, graceHours = 0) {
+  async getPublicPackage(
+    businessId: string,
+    packageId: string,
+    graceHours = 0,
+  ) {
     const pkg = await this.packageRepo.findOne({
       where: { id: packageId, businessId, isActive: true },
       relations: { items: { service: true } },
@@ -311,7 +333,11 @@ export class ServicePackagesService {
     return this.mapPublicPackage(pkg);
   }
 
-  async assertPackageBookable(businessId: string, packageId: string, graceHours = 0) {
+  async assertPackageBookable(
+    businessId: string,
+    packageId: string,
+    graceHours = 0,
+  ) {
     const pkg = await this.packageRepo.findOne({
       where: { id: packageId, businessId },
       relations: { items: { service: true } },
@@ -320,7 +346,9 @@ export class ServicePackagesService {
       throw new NotFoundException('Service package not found');
     }
     if (!isPackageBookable(pkg.isActive, pkg.expiresAt, graceHours)) {
-      throw new BadRequestException('This package offer is no longer available');
+      throw new BadRequestException(
+        'This package offer is no longer available',
+      );
     }
     return pkg;
   }
@@ -411,11 +439,15 @@ export class ServicePackagesService {
     }
     const serviceIds = items.map((item) => item.serviceId);
     if (new Set(serviceIds).size !== serviceIds.length) {
-      throw new BadRequestException('Duplicate services are not allowed in a package');
+      throw new BadRequestException(
+        'Duplicate services are not allowed in a package',
+      );
     }
     for (const item of items) {
       if (item.quantity < 1) {
-        throw new BadRequestException('Each service quantity must be at least 1');
+        throw new BadRequestException(
+          'Each service quantity must be at least 1',
+        );
       }
     }
 
@@ -427,7 +459,10 @@ export class ServicePackagesService {
     }
   }
 
-  private validateDiscount(discountType: DiscountType | undefined, discountValue: number | undefined) {
+  private validateDiscount(
+    discountType: DiscountType | undefined,
+    discountValue: number | undefined,
+  ) {
     const type = discountType ?? PackageDiscountType.PERCENT;
     const value = discountValue ?? 0;
     if (value < 0) {
@@ -449,7 +484,9 @@ export class ServicePackagesService {
     const now = new Date();
     return this.bookingRepo
       .createQueryBuilder('booking')
-      .where('booking.package_purchase_id IN (:...purchaseIds)', { purchaseIds })
+      .where('booking.package_purchase_id IN (:...purchaseIds)', {
+        purchaseIds,
+      })
       .andWhere('booking.start_time > :now', { now })
       .andWhere('booking.status NOT IN (:...statuses)', {
         statuses: [BookingStatus.CANCELLED, BookingStatus.NO_SHOW],

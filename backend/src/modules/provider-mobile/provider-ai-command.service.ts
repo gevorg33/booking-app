@@ -1,7 +1,17 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { BookingService } from '../booking/booking.service.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
@@ -26,7 +36,10 @@ import {
   isIntentAllowed,
   normalizeActorRole,
 } from '../ai/ai-capability.matrix.js';
-import { resolveAccessTier, type AccessTier } from '../ai/access-control.matrix.js';
+import {
+  resolveAccessTier,
+  type AccessTier,
+} from '../ai/access-control.matrix.js';
 import { CommandOrchestrationService } from '../ai/command-orchestration.service.js';
 import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -65,7 +78,12 @@ import {
   matchWaitlistCustomerByName,
   rescueCoordinationIntent,
 } from './provider-ai-sprint22.util.js';
-import { buildCoordinationDeniedSummary, canRunCoordinationOnProvider } from '../ai/ai-coordination.util.js';
+import {
+  buildCoordinationDeniedSummary,
+  canRunCoordinationOnProvider,
+} from '../ai/ai-coordination.util.js';
+import { AiPushNotificationsService } from '../ai/ai-push-notifications.service.js';
+import { AiProviderBookingService } from '../ai/ai-provider-booking.service.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -88,8 +106,9 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "unknown",
   "params": {
+    "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
     "waitlistCustomerName": "string or null — waitlist customer to offer freed slot (e.g. John)",
     "employeeName": "string or null — provider name for team coordination (e.g. Maria)",
@@ -126,6 +145,10 @@ Rules:
 - reschedule_booking: move an appointment to a new time (own bookings only unless team view).
 - fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
 - coordinate_waitlist_offer: manager team view — cancel provider appointment and offer slot to waitlist customer (e.g. "If Maria cancels, offer slot to waitlist customer John").
+- list_package_appointments_today: READ-ONLY — provider-scoped package appointments on own calendar today. NOT list_package_bookings (dashboard admin).
+- list_my_package_visits: READ-ONLY — provider-scoped package visits on own calendar for a date range.
+- list_my_multi_service_groups: READ-ONLY — provider-scoped multi-service groups/blocks on own calendar.
+- mark_paid: mark a single booking paid (own calendar unless manager team view). NOT payment_sweep (bulk). Set bookingId when known.
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
 - Default date to today when the user says "today" or gives no date for today's context.
 - If unclear, use action "unknown".`;
@@ -145,7 +168,8 @@ export class ProviderAiCommandService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
     private bookingService: BookingService,
     private schedulingEngine: SchedulingEngineService,
     private llm: LlmService,
@@ -156,6 +180,10 @@ export class ProviderAiCommandService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private promptSecurity: AiPromptSecurityService,
+    @Inject(forwardRef(() => AiPushNotificationsService))
+    private pushNotifications: AiPushNotificationsService,
+    @Inject(forwardRef(() => AiProviderBookingService))
+    private providerBooking: AiProviderBookingService,
   ) {}
 
   async executeCommand(
@@ -169,15 +197,23 @@ export class ProviderAiCommandService {
       return {
         success: false,
         action: 'error',
-        summary: 'AI assistant is not configured. Ask your business owner to add an OpenAI API key in Settings.',
+        summary:
+          'AI assistant is not configured. Ask your business owner to add an OpenAI API key in Settings.',
         details: {},
       };
     }
 
-    const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+    const access = await this.providerMobile.resolveMobileAccess(
+      businessId,
+      userId,
+    );
     const actorTier = this.resolveProviderAccessTier(access);
 
-    const blocked = this.promptSecurity.preflightBlock(businessId, prompt, 'provider');
+    const blocked = this.promptSecurity.preflightBlock(
+      businessId,
+      prompt,
+      'provider',
+    );
     if (blocked) {
       return {
         success: blocked.success,
@@ -188,6 +224,45 @@ export class ProviderAiCommandService {
     }
 
     const providerName = access.employee?.name ?? 'Admin';
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    if (this.providerBooking.isProviderBookingCompound(prompt)) {
+      const providerBookingCompound =
+        await this.providerBooking.handleProviderBookingCompound(
+          businessId,
+          prompt,
+          {
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+            userId,
+            ...context,
+          },
+        );
+      if (
+        providerBookingCompound.success ||
+        providerBookingCompound.details?.failedStep
+      ) {
+        return providerBookingCompound;
+      }
+    }
+
+    if (this.pushNotifications.isPushNotificationsCompound(prompt)) {
+      const compound =
+        await this.pushNotifications.handlePushNotificationsCompound(
+          businessId,
+          prompt,
+          {
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+            userId,
+            lastPush: context?.lastPush,
+            offlineQueueCount: context?.offlineQueueCount,
+            online: context?.online,
+          },
+        );
+      if (compound.success || compound.details?.failedStep) {
+        return compound;
+      }
+    }
+
     const parsed = await this.classifyIntent(
       businessId,
       userId,
@@ -211,7 +286,9 @@ export class ProviderAiCommandService {
       context,
     ) as Record<string, unknown>;
     parsed.params = applyProviderEntityMemory(parsed.params, prompt, context);
-    this.completionPipeline.normalizeDateParams(parsed.params as Record<string, any>);
+    this.completionPipeline.normalizeDateParams(
+      parsed.params as Record<string, any>,
+    );
 
     if (shouldValidateProviderAction(parsed.action)) {
       const validation = validateProviderCommand(parsed.action, parsed.params);
@@ -225,7 +302,9 @@ export class ProviderAiCommandService {
         this.aiEvents.emitClarify(businessId, {
           action: parsed.action,
           summary: clarify.summary,
-          missing: Array.isArray(clarify.details.missing) ? clarify.details.missing : undefined,
+          missing: Array.isArray(clarify.details.missing)
+            ? clarify.details.missing
+            : undefined,
         });
         return clarify;
       }
@@ -234,6 +313,9 @@ export class ProviderAiCommandService {
     this.normalizeParams(parsed.params);
     parsed.action = rescueProviderAiIntent(prompt, parsed.action);
     parsed.action = rescueCoordinationIntent(prompt, parsed.action);
+    const providerBookingRescue =
+      this.providerBooking.rescueProviderBookingIntent(prompt, parsed.action);
+    if (providerBookingRescue) parsed.action = providerBookingRescue.action;
 
     if (!isIntentAllowed('provider', actorTier, parsed.action)) {
       return {
@@ -244,13 +326,13 @@ export class ProviderAiCommandService {
       };
     }
 
-    parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<string, unknown>;
+    parsed.params = this.promptSecurity.stripParams(parsed.params);
     parsed.params = this.promptSecurity.applyStaffScope(
       actorTier,
       parsed.action,
       parsed.params,
       this.providerMobile.getScopedEmployeeId(access),
-    ) as Record<string, unknown>;
+    );
 
     const securityDenied = this.promptSecurity.enforceAction(
       businessId,
@@ -269,46 +351,108 @@ export class ProviderAiCommandService {
       };
     }
 
-    this.logger.log(`Provider AI action="${parsed.action}" — ${parsed.reasoning}`);
+    this.logger.log(
+      `Provider AI action="${parsed.action}" — ${parsed.reasoning}`,
+    );
 
     let result: ProviderCommandResult;
 
     switch (parsed.action) {
       case 'cancel_bookings':
-        result = await this.handleCancelBookings(businessId, access, parsed.params, userId);
+        result = await this.handleCancelBookings(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+        );
         break;
       case 'update_bookings':
-        result = await this.handleUpdateBookings(businessId, access, parsed.params, userId);
+        result = await this.handleUpdateBookings(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+        );
         break;
       case 'mark_no_shows':
-        result = await this.handleMarkNoShows(businessId, access, parsed.params, userId);
+        result = await this.handleMarkNoShows(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+        );
         break;
       case 'payment_sweep':
-        result = await this.handlePaymentSweep(businessId, access, parsed.params, userId);
+        result = await this.handlePaymentSweep(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+        );
         break;
       case 'list_bookings':
-        result = await this.handleListBookings(businessId, access, parsed.params);
+        result = await this.handleListBookings(
+          businessId,
+          access,
+          parsed.params,
+        );
         break;
       case 'summarize_day':
-        result = await this.handleSummarizeDay(businessId, access, parsed.params);
+        result = await this.handleSummarizeDay(
+          businessId,
+          access,
+          parsed.params,
+        );
         break;
       case 'reschedule_booking':
-        result = await this.handleRescheduleBooking(businessId, access, parsed.params, userId);
+        result = await this.handleRescheduleBooking(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+        );
         break;
       case 'fill_unused_slots':
-        result = await this.handleFillUnusedSlots(businessId, access, prompt, parsed.params, userId);
+        result = await this.handleFillUnusedSlots(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+          userId,
+        );
         break;
       case 'show_appointments':
-        result = await this.handleShowAppointments(businessId, access, prompt, parsed.params);
+        result = await this.handleShowAppointments(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+        );
         break;
       case 'check_availability':
-        result = await this.handleCheckAvailability(businessId, access, prompt, parsed.params);
+        result = await this.handleCheckAvailability(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+        );
         break;
       case 'block_schedule':
-        result = await this.handleBlockSchedule(businessId, access, prompt, parsed.params, userId);
+        result = await this.handleBlockSchedule(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+          userId,
+        );
         break;
       case 'summarize_utilization':
-        result = await this.handleSummarizeUtilization(businessId, access, prompt, parsed.params);
+        result = await this.handleSummarizeUtilization(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+        );
         break;
       case 'coordinate_waitlist_offer':
         result = await this.handleCoordinateWaitlistOffer(
@@ -317,6 +461,96 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
+        );
+        break;
+      case 'explain_last_push':
+        result = await this.pushNotifications.handleExplainLastPush({
+          ...parsed.params,
+          lastPush: parsed.params.lastPush ?? context?.lastPush,
+        });
+        break;
+      case 'open_booking_from_push':
+        result = await this.pushNotifications.handleOpenBookingFromPush(
+          businessId,
+          {
+            ...parsed.params,
+            lastPush: parsed.params.lastPush ?? context?.lastPush,
+          },
+          prompt,
+        );
+        break;
+      case 'offline_queue_status':
+        result = await this.pushNotifications.handleOfflineQueueStatus({
+          ...parsed.params,
+          offlineQueueCount:
+            parsed.params.offlineQueueCount ?? context?.offlineQueueCount,
+          online: parsed.params.online ?? context?.online,
+        });
+        break;
+      case 'retry_offline_action':
+        result = await this.pushNotifications.handleRetryOfflineAction({
+          ...parsed.params,
+          offlineQueueCount:
+            parsed.params.offlineQueueCount ?? context?.offlineQueueCount,
+          online: parsed.params.online ?? context?.online,
+        });
+        break;
+      case 'dismiss_push':
+        result = await this.pushNotifications.handleDismissPush({
+          ...parsed.params,
+          lastPush: parsed.params.lastPush ?? context?.lastPush,
+        });
+        break;
+      case 'end_of_day_summary':
+        result = await this.pushNotifications.handleEndOfDaySummary(
+          businessId,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
+        );
+        break;
+      case 'new_booking_push_actions':
+        result = await this.pushNotifications.handleNewBookingPushActions();
+        break;
+      case 'list_package_appointments_today':
+        result = await this.providerBooking.handleListPackageAppointmentsToday(
+          businessId,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
+        );
+        break;
+      case 'list_my_package_visits':
+        result = await this.providerBooking.handleListMyPackageVisits(
+          businessId,
+          prompt,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
+        );
+        break;
+      case 'list_my_multi_service_groups':
+        result = await this.providerBooking.handleListMyMultiServiceGroups(
+          businessId,
+          prompt,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
+        );
+        break;
+      case 'mark_paid':
+        result = await this.providerBooking.handleMarkPaid(
+          businessId,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+            _prompt: prompt,
+          },
+          userId,
         );
         break;
       default:
@@ -354,11 +588,12 @@ export class ProviderAiCommandService {
       customerName,
       serviceName: booking.service?.name ?? 'Appointment',
       time: formatTimeRangeDisplay(booking.startTime, booking.endTime),
-      initials: customerName
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('') || '?',
+      initials:
+        customerName
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase() ?? '')
+          .join('') || '?',
     };
   }
 
@@ -371,7 +606,9 @@ export class ProviderAiCommandService {
       ...result,
       details: {
         ...result.details,
-        sessionContext: this.completionPipeline.buildProviderSessionContext(params as Record<string, any>),
+        sessionContext: this.completionPipeline.buildProviderSessionContext(
+          params as Record<string, any>,
+        ),
       },
     };
   }
@@ -381,18 +618,27 @@ export class ProviderAiCommandService {
     userId: string,
     dto: ProviderAiConfirmDto,
   ): Promise<ProviderCommandResult> {
-    const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+    const access = await this.providerMobile.resolveMobileAccess(
+      businessId,
+      userId,
+    );
     const bookings = await this.loadOwnedBookings(
       businessId,
       this.providerMobile.getScopedEmployeeId(access),
       dto.bookingIds,
     );
     if (bookings.length !== dto.bookingIds.length) {
-      throw new BadRequestException('Some appointments were not found or are not yours');
+      throw new BadRequestException(
+        'Some appointments were not found or are not yours',
+      );
     }
 
     if (dto.action === 'cancel_bookings') {
-      const result = await this.executeCancel(bookings, String(dto.params?.reason ?? 'Cancelled by provider'), userId);
+      const result = await this.executeCancel(
+        bookings,
+        String(dto.params?.reason ?? 'Cancelled by provider'),
+        userId,
+      );
       this.aiEvents.emitTaskCompleted(businessId, {
         action: 'cancel_bookings',
         success: result.success,
@@ -400,7 +646,11 @@ export class ProviderAiCommandService {
       });
       return result;
     }
-    if (dto.action === 'update_bookings' || dto.action === 'mark_no_shows' || dto.action === 'payment_sweep') {
+    if (
+      dto.action === 'update_bookings' ||
+      dto.action === 'mark_no_shows' ||
+      dto.action === 'payment_sweep'
+    ) {
       const result = await this.executeUpdate(
         bookings,
         dto.action === 'mark_no_shows'
@@ -460,9 +710,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
-      excludeTerminal: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      params,
+      {
+        excludeTerminal: true,
+      },
+    );
 
     if (bookings.length === 0) {
       return {
@@ -505,14 +760,20 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       return {
         success: false,
         action: 'update_bookings',
-        summary: 'Tell me what to change — e.g. mark as done, set payment to paid.',
+        summary:
+          'Tell me what to change — e.g. mark as done, set payment to paid.',
         details: {},
       };
     }
 
-    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
-      excludeCancelled: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      params,
+      {
+        excludeCancelled: true,
+      },
+    );
 
     if (bookings.length === 0) {
       return {
@@ -556,9 +817,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     params: Record<string, unknown>,
     userId: string,
   ): Promise<ProviderCommandResult> {
-    if (!params.date && !params.dateFrom) params.date = toIsoDay(todayDisplay());
+    if (!params.date && !params.dateFrom)
+      params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findNoShowCandidates(businessId, employeeId, params);
+    const bookings = await this.findNoShowCandidates(
+      businessId,
+      employeeId,
+      params,
+    );
 
     if (bookings.length === 0) {
       return {
@@ -581,7 +847,11 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       };
     }
 
-    const result = await this.executeUpdate(bookings, { status: BookingStatus.NO_SHOW }, userId);
+    const result = await this.executeUpdate(
+      bookings,
+      { status: BookingStatus.NO_SHOW },
+      userId,
+    );
     return { ...result, action: 'mark_no_shows' };
   }
 
@@ -591,9 +861,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     params: Record<string, unknown>,
     userId: string,
   ): Promise<ProviderCommandResult> {
-    if (!params.date && !params.dateFrom) params.date = toIsoDay(todayDisplay());
+    if (!params.date && !params.dateFrom)
+      params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findUnpaidBookings(businessId, employeeId, params);
+    const bookings = await this.findUnpaidBookings(
+      businessId,
+      employeeId,
+      params,
+    );
 
     if (bookings.length === 0) {
       return {
@@ -616,7 +891,11 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       };
     }
 
-    const result = await this.executeUpdate(bookings, { paymentStatus: PaymentStatus.PAID }, userId);
+    const result = await this.executeUpdate(
+      bookings,
+      { paymentStatus: PaymentStatus.PAID },
+      userId,
+    );
     return { ...result, action: 'payment_sweep' };
   }
 
@@ -625,9 +904,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     employeeId: string | undefined,
     params: Record<string, unknown>,
   ): Promise<Booking[]> {
-    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
-      excludeCancelled: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      params,
+      {
+        excludeCancelled: true,
+      },
+    );
     const now = Date.now();
     return bookings.filter(
       (b) =>
@@ -642,15 +926,22 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     employeeId: string | undefined,
     params: Record<string, unknown>,
   ): Promise<Booking[]> {
-    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {
-      excludeCancelled: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      params,
+      {
+        excludeCancelled: true,
+      },
+    );
     return bookings.filter(
       (b) =>
         b.paymentStatus === PaymentStatus.PENDING &&
-        [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.COMPLETED].includes(
-          b.status,
-        ),
+        [
+          BookingStatus.CONFIRMED,
+          BookingStatus.IN_PROGRESS,
+          BookingStatus.COMPLETED,
+        ].includes(b.status),
     );
   }
 
@@ -672,7 +963,10 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
         cancelled === 0
           ? 'No appointments needed cancelling.'
           : `Cancelled ${cancelled} appointment${cancelled === 1 ? '' : 's'}.`,
-      details: { cancelledCount: cancelled, bookingIds: bookings.map((b) => b.id) },
+      details: {
+        cancelledCount: cancelled,
+        bookingIds: bookings.map((b) => b.id),
+      },
     };
   }
 
@@ -687,7 +981,8 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
 
     for (const booking of bookings) {
       if (booking.status === BookingStatus.CANCELLED) continue;
-      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } = {};
+      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } =
+        {};
       if (status) payload.status = status;
       if (paymentStatus) payload.paymentStatus = paymentStatus;
       if (!Object.keys(payload).length) continue;
@@ -776,14 +1071,16 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       return buildNoLinkedEmployeeAvailabilityResult();
     }
 
-    const isoDay = params.date ? toIsoDay(String(params.date)) : toIsoDay(todayDisplay());
+    const isoDay = params.date
+      ? toIsoDay(String(params.date))
+      : toIsoDay(todayDisplay());
     const { day, dayEnd } = resolveAvailabilityDayBounds(isoDay);
 
     const periods = await this.periodRepo.find({
       where: {
         businessId,
         employeeId,
-        startTime: Between(day, dayEnd) as any,
+        startTime: Between(day, dayEnd),
       },
       order: { startTime: 'ASC' },
     });
@@ -803,7 +1100,12 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     if (shouldUseAfternoonAvailability(prompt, params)) {
-      return buildAfternoonAvailabilityResult({ displayDay, gaps, timeFrom, timeTo });
+      return buildAfternoonAvailabilityResult({
+        displayDay,
+        gaps,
+        timeFrom,
+        timeTo,
+      });
     }
 
     return buildGapsAvailabilityResult({ displayDay, gaps, timeFrom, timeTo });
@@ -817,7 +1119,9 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     userId: string,
   ): Promise<ProviderCommandResult> {
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
-    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
     const targets = scopedEmployeeId
       ? employees.filter((e) => e.id === scopedEmployeeId)
       : employees;
@@ -850,13 +1154,15 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     params: Record<string, unknown>,
   ): Promise<ProviderCommandResult> {
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
-    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
     const targets = scopedEmployeeId
       ? employees.filter((e) => e.id === scopedEmployeeId)
       : employees;
 
     const range =
-      resolveDateRange(params as Record<string, any>, prompt) ?? defaultUtilizationWeekRange();
+      resolveDateRange(params, prompt) ?? defaultUtilizationWeekRange();
 
     const start = new Date(range.start);
     start.setUTCHours(0, 0, 0, 0);
@@ -866,7 +1172,11 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const rows = await Promise.all(
       targets.map(async (e) => ({
         employeeName: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+        ...(await this.schedulingEngine.getEmployeeUtilization(
+          e.id,
+          start,
+          end,
+        )),
       })),
     );
 
@@ -893,8 +1203,13 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       };
     }
 
-    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
-    const employee = matchEmployeeByName(employees, String(params.employeeName ?? ''));
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
+    const employee = matchEmployeeByName(
+      employees,
+      String(params.employeeName ?? ''),
+    );
     if (!employee) {
       return {
         success: false,
@@ -926,9 +1241,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       };
     }
 
-    const bookings = await this.findMatchingBookings(businessId, employee.id, params, {
-      excludeTerminal: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employee.id,
+      params,
+      {
+        excludeTerminal: true,
+      },
+    );
 
     if (bookings.length === 0) {
       return {
@@ -970,7 +1290,10 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const plan = this.planBuilder.buildFillSlotFromWaitlistPlan({
       businessId,
       slot,
-      candidate: { customerId: waitlistCustomer.id, customerName: waitlistCustomer.name },
+      candidate: {
+        customerId: waitlistCustomer.id,
+        customerName: waitlistCustomer.name,
+      },
       userId,
     });
 
@@ -986,7 +1309,7 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       action: 'coordinate_waitlist_offer',
       summary: orch.success
         ? `Cancelled ${employee.name}'s appointment and offered the slot to waitlist customer ${waitlistCustomer.name}.`
-        : orch.summary ?? 'Waitlist offer could not be completed.',
+        : (orch.summary ?? 'Waitlist offer could not be completed.'),
       details: {
         cancelledBookingId: target.id,
         waitlistCustomerId: waitlistCustomer.id,
@@ -1003,8 +1326,15 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
   ): Promise<ProviderCommandResult> {
     const merged = { ...params, allAppointments: true };
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findMatchingBookings(businessId, employeeId, merged, {});
-    const dateLabel = params.date ? formatDateDisplay(String(params.date)) : todayDisplay();
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      merged,
+      {},
+    );
+    const dateLabel = params.date
+      ? formatDateDisplay(String(params.date))
+      : todayDisplay();
 
     if (bookings.length === 0) {
       return {
@@ -1019,7 +1349,9 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     for (const b of bookings) {
       byStatus.set(b.status, (byStatus.get(b.status) ?? 0) + 1);
     }
-    const statusSummary = [...byStatus.entries()].map(([s, n]) => `${n} ${s}`).join(', ');
+    const statusSummary = [...byStatus.entries()]
+      .map(([s, n]) => `${n} ${s}`)
+      .join(', ');
     return {
       success: true,
       action: 'summarize_day',
@@ -1042,7 +1374,11 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
 
     if (options.excludeTerminal) {
       where.status = Not(
-        In([BookingStatus.CANCELLED, BookingStatus.COMPLETED, BookingStatus.NO_SHOW]),
+        In([
+          BookingStatus.CANCELLED,
+          BookingStatus.COMPLETED,
+          BookingStatus.NO_SHOW,
+        ]),
       );
     } else if (options.excludeCancelled) {
       where.status = Not(In([BookingStatus.CANCELLED]));
@@ -1054,29 +1390,43 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     }
 
     let bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { customer: true, service: true },
       order: { startTime: 'ASC' },
     });
 
     if (params.customerName) {
       const name = String(params.customerName).toLowerCase();
-      bookings = bookings.filter((b) => b.customer?.name.toLowerCase().includes(name));
+      bookings = bookings.filter((b) =>
+        b.customer?.name.toLowerCase().includes(name),
+      );
     }
 
     if (params.serviceName) {
       const svc = String(params.serviceName).toLowerCase();
-      bookings = bookings.filter((b) => b.service?.name.toLowerCase().includes(svc));
+      bookings = bookings.filter((b) =>
+        b.service?.name.toLowerCase().includes(svc),
+      );
     }
 
     if (params.timeSlot) {
       const slot = this.normalizeTime(String(params.timeSlot));
-      bookings = bookings.filter((b) => formatTimeDisplay(b.startTime) === slot);
+      bookings = bookings.filter(
+        (b) => formatTimeDisplay(b.startTime) === slot,
+      );
     }
 
-    if (params.allAppointments !== true && !params.customerName && !params.timeSlot && !params.serviceName) {
+    if (
+      params.allAppointments !== true &&
+      !params.customerName &&
+      !params.timeSlot &&
+      !params.serviceName
+    ) {
       // Single ambiguous match without "all" — if multiple on day, prefer requiring explicit all
-      if (bookings.length > 1 && (params.status || params.paymentStatus || params.reason)) {
+      if (
+        bookings.length > 1 &&
+        (params.status || params.paymentStatus || params.reason)
+      ) {
         // bulk intent implied by mutation params
         return bookings;
       }
@@ -1092,9 +1442,14 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     userId: string,
   ): Promise<ProviderCommandResult> {
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findMatchingBookings(businessId, scopedEmployeeId, params, {
-      excludeTerminal: true,
-    });
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      scopedEmployeeId,
+      params,
+      {
+        excludeTerminal: true,
+      },
+    );
 
     const booking = bookings[0];
     if (!booking) {
@@ -1110,12 +1465,15 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       return {
         success: false,
         action: 'reschedule_booking',
-        summary: 'Specify the new date and/or time (e.g. "Reschedule to 16:00").',
+        summary:
+          'Specify the new date and/or time (e.g. "Reschedule to 16:00").',
         details: { bookingId: booking.id },
       };
     }
 
-    const isoDay = toIsoDay(String(params.date ?? booking.startTime.toISOString().split('T')[0]));
+    const isoDay = toIsoDay(
+      String(params.date ?? booking.startTime.toISOString().split('T')[0]),
+    );
     const timeSlot = params.timeSlot
       ? this.normalizeTime(String(params.timeSlot))
       : formatTimeDisplay(booking.startTime);
@@ -1200,7 +1558,7 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const where: Record<string, unknown> = { businessId, id: In(bookingIds) };
     if (employeeId) where.employeeId = employeeId;
     return this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { customer: true, service: true },
     });
   }
@@ -1211,7 +1569,10 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     return `${formatTimeRangeDisplay(booking.startTime, booking.endTime)} ${customer} (${service})`;
   }
 
-  private noMatchMessage(_verb: string, params: Record<string, unknown>): string {
+  private noMatchMessage(
+    _verb: string,
+    params: Record<string, unknown>,
+  ): string {
     const parts = [
       params.date ? `on ${formatDateDisplay(String(params.date))}` : null,
       params.customerName ? `for ${params.customerName}` : null,
@@ -1222,7 +1583,8 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
 
   private normalizeParams(params: Record<string, unknown>) {
     if (params.date) params.date = toIsoDay(String(params.date));
-    if (params.timeSlot) params.timeSlot = this.normalizeTime(String(params.timeSlot));
+    if (params.timeSlot)
+      params.timeSlot = this.normalizeTime(String(params.timeSlot));
     if (!params.date && params.allAppointments) {
       params.date = toIsoDay(todayDisplay());
     }
@@ -1248,7 +1610,12 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       pending: BookingStatus.PENDING,
       booked: BookingStatus.PENDING,
     };
-    return map[String(value).toLowerCase()] ?? (Object.values(BookingStatus).includes(value as BookingStatus) ? (value as BookingStatus) : undefined);
+    return (
+      map[String(value).toLowerCase()] ??
+      (Object.values(BookingStatus).includes(value as BookingStatus)
+        ? (value as BookingStatus)
+        : undefined)
+    );
   }
 
   private normalizePaymentStatus(value: unknown): PaymentStatus | undefined {
@@ -1264,10 +1631,17 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       na: PaymentStatus.NOT_APPLICABLE,
       n_a: PaymentStatus.NOT_APPLICABLE,
     };
-    return map[String(value).toLowerCase()] ?? (Object.values(PaymentStatus).includes(value as PaymentStatus) ? (value as PaymentStatus) : undefined);
+    return (
+      map[String(value).toLowerCase()] ??
+      (Object.values(PaymentStatus).includes(value as PaymentStatus)
+        ? (value as PaymentStatus)
+        : undefined)
+    );
   }
 
-  private resolveDateRange(params: Record<string, unknown>): { start: Date; end: Date } | null {
+  private resolveDateRange(
+    params: Record<string, unknown>,
+  ): { start: Date; end: Date } | null {
     if (!params.date) return null;
     const d = new Date(String(params.date));
     if (Number.isNaN(d.getTime())) return null;

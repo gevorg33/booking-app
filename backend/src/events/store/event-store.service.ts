@@ -47,16 +47,24 @@ export class EventStoreService {
     const qb = this.eventRepo.createQueryBuilder('event');
 
     if (filters.aggregateType) {
-      qb.andWhere('event.aggregateType = :aggregateType', { aggregateType: filters.aggregateType });
+      qb.andWhere('event.aggregateType = :aggregateType', {
+        aggregateType: filters.aggregateType,
+      });
     }
     if (filters.aggregateId) {
-      qb.andWhere('event.aggregateId = :aggregateId', { aggregateId: filters.aggregateId });
+      qb.andWhere('event.aggregateId = :aggregateId', {
+        aggregateId: filters.aggregateId,
+      });
     }
     if (filters.eventType) {
-      qb.andWhere('event.eventType = :eventType', { eventType: filters.eventType });
+      qb.andWhere('event.eventType = :eventType', {
+        eventType: filters.eventType,
+      });
     }
     if (filters.businessId) {
-      qb.andWhere('event.businessId = :businessId', { businessId: filters.businessId });
+      qb.andWhere('event.businessId = :businessId', {
+        businessId: filters.businessId,
+      });
     }
     if (filters.startDate && filters.endDate) {
       qb.andWhere('event.createdAt BETWEEN :start AND :end', {
@@ -71,7 +79,9 @@ export class EventStoreService {
     return qb.getMany();
   }
 
-  async getEventsByCorrelation(correlationId: string): Promise<OperationalEvent[]> {
+  async getEventsByCorrelation(
+    correlationId: string,
+  ): Promise<OperationalEvent[]> {
     return this.eventRepo.find({
       where: { correlationId },
       order: { createdAt: 'ASC' },

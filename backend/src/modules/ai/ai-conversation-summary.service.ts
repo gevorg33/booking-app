@@ -32,15 +32,18 @@ export class AiConversationSummaryService {
   async prepareHistoryForClassifier(
     businessId: string,
     history: HistoryMessage[] | undefined,
-    surface: 'dashboard' | 'provider_mobile',
+    surface: 'dashboard' | 'provider_mobile' | 'customer',
   ): Promise<{ history: HistoryMessage[]; summaryBlock?: string }> {
     if (!history?.length) return { history: [] };
 
-    const openAiAvailable = await this.openAi.isAvailableForBusiness(businessId);
+    const openAiAvailable =
+      await this.openAi.isAvailableForBusiness(businessId);
     const split = splitHistoryForSummary(history);
 
     if (!split) {
-      return { history: truncateHistoryForClassifier(history, openAiAvailable) };
+      return {
+        history: truncateHistoryForClassifier(history, openAiAvailable),
+      };
     }
 
     if (!openAiAvailable) {
@@ -71,7 +74,10 @@ Preserve unresolved clarifications and last requested action.`;
 
     return {
       history: split.recent,
-      summaryBlock: formatConversationSummaryBlock(result.summary, result.keyEntities),
+      summaryBlock: formatConversationSummaryBlock(
+        result.summary,
+        result.keyEntities,
+      ),
     };
   }
 }

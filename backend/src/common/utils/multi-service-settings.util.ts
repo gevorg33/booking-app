@@ -29,10 +29,15 @@ export const DEFAULT_MULTI_SERVICE_SETTINGS: MultiServiceSettings = {
 export function resolveMultiServiceSettings(
   settings: Record<string, unknown> | null | undefined,
 ): MultiServiceSettings {
-  const publicBooking = (settings?.publicBooking as Record<string, unknown> | undefined) ?? {};
-  const raw = (publicBooking.multiService as Record<string, unknown> | undefined) ?? {};
+  const publicBooking =
+    (settings?.publicBooking as Record<string, unknown> | undefined) ?? {};
+  const raw =
+    (publicBooking.multiService as Record<string, unknown> | undefined) ?? {};
 
-  const maxServiceCount = parsePositiveInt(raw.maxServiceCount, DEFAULT_MULTI_SERVICE_SETTINGS.maxServiceCount);
+  const maxServiceCount = parsePositiveInt(
+    raw.maxServiceCount,
+    DEFAULT_MULTI_SERVICE_SETTINGS.maxServiceCount,
+  );
   const maxDurationMinutes = parsePositiveInt(
     raw.maxDurationMinutes,
     DEFAULT_MULTI_SERVICE_SETTINGS.maxDurationMinutes,
@@ -56,7 +61,9 @@ export function resolveMultiServiceSettings(
     schedulingMode,
     incompatiblePairMode,
     incompatiblePairs: normalizeIncompatiblePairs(raw.incompatiblePairs),
-    incompatibleCategoryPairs: normalizeIncompatiblePairs(raw.incompatibleCategoryPairs),
+    incompatibleCategoryPairs: normalizeIncompatiblePairs(
+      raw.incompatibleCategoryPairs,
+    ),
   };
 }
 
@@ -68,9 +75,11 @@ export function mergeMultiServiceSettingsPatch(
     enabled: patch.enabled ?? current.enabled,
     maxServiceCount: patch.maxServiceCount ?? current.maxServiceCount,
     maxDurationMinutes: patch.maxDurationMinutes ?? current.maxDurationMinutes,
-    turnoverBufferMinutes: patch.turnoverBufferMinutes ?? current.turnoverBufferMinutes,
+    turnoverBufferMinutes:
+      patch.turnoverBufferMinutes ?? current.turnoverBufferMinutes,
     schedulingMode: patch.schedulingMode ?? current.schedulingMode,
-    incompatiblePairMode: patch.incompatiblePairMode ?? current.incompatiblePairMode,
+    incompatiblePairMode:
+      patch.incompatiblePairMode ?? current.incompatiblePairMode,
     incompatiblePairs: patch.incompatiblePairs ?? current.incompatiblePairs,
     incompatibleCategoryPairs:
       patch.incompatibleCategoryPairs ?? current.incompatibleCategoryPairs,
@@ -81,7 +90,9 @@ export function applyMultiServiceSettingsToBusinessSettings(
   settings: Record<string, unknown>,
   multiService: MultiServiceSettings,
 ): Record<string, unknown> {
-  const publicBooking = { ...((settings.publicBooking as Record<string, unknown>) ?? {}) };
+  const publicBooking = {
+    ...((settings.publicBooking as Record<string, unknown>) ?? {}),
+  };
   publicBooking.multiService = multiService;
   return { ...settings, publicBooking };
 }
@@ -107,7 +118,8 @@ function normalizeIncompatiblePairs(value: unknown): Array<[string, string]> {
     const b = String(entry[1] ?? '').trim();
     if (!a || !b || a === b) continue;
     const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-    if (pairs.some(([x, y]) => (x < y ? `${x}|${y}` : `${y}|${x}`) === key)) continue;
+    if (pairs.some(([x, y]) => (x < y ? `${x}|${y}` : `${y}|${x}`) === key))
+      continue;
     pairs.push(a < b ? [a, b] : [b, a]);
   }
   return pairs;

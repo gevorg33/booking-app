@@ -7,7 +7,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard.js';
-import { ApiBusinessId, CurrentApiKey } from '../../common/decorators/api-key.decorator.js';
+import {
+  ApiBusinessId,
+  CurrentApiKey,
+} from '../../common/decorators/api-key.decorator.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
 import { ServiceService } from '../service/service.service.js';
@@ -34,7 +37,11 @@ export class BusinessApiController {
   }
 
   @Get('bookings/:id')
-  getBooking(@ApiBusinessId() businessId: string, @CurrentApiKey() apiKey: BusinessApiKey, @Param('id') id: string) {
+  getBooking(
+    @ApiBusinessId() businessId: string,
+    @CurrentApiKey() apiKey: BusinessApiKey,
+    @Param('id') id: string,
+  ) {
     this.requireScope(apiKey, 'read:bookings');
     return this.bookingService.findOne(id).then((booking) => {
       if (booking.businessId !== businessId) {
@@ -45,13 +52,19 @@ export class BusinessApiController {
   }
 
   @Get('customers')
-  listCustomers(@ApiBusinessId() businessId: string, @CurrentApiKey() apiKey: BusinessApiKey) {
+  listCustomers(
+    @ApiBusinessId() businessId: string,
+    @CurrentApiKey() apiKey: BusinessApiKey,
+  ) {
     this.requireScope(apiKey, 'read:customers');
     return this.customerService.findAll(businessId);
   }
 
   @Get('services')
-  listServices(@ApiBusinessId() businessId: string, @CurrentApiKey() apiKey: BusinessApiKey) {
+  listServices(
+    @ApiBusinessId() businessId: string,
+    @CurrentApiKey() apiKey: BusinessApiKey,
+  ) {
     this.requireScope(apiKey, 'read:services');
     return this.serviceService.findAll(businessId);
   }

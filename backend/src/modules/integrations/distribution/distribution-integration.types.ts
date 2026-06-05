@@ -63,8 +63,12 @@ export interface GoogleReserveFeed {
 export function getDistributionIntegrations(
   settings?: Record<string, unknown>,
 ): BusinessDistributionIntegrations {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
-  const dist = integrations?.distribution as BusinessDistributionIntegrations | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
+  const dist = integrations?.distribution as
+    | BusinessDistributionIntegrations
+    | undefined;
   return dist || {};
 }
 
@@ -84,7 +88,10 @@ export function buildMessagingLinksForBusiness(
   }
 
   let whatsappUrl: string | null = null;
-  if (messaging.whatsappBookingEnabled && messaging.whatsappBusinessPhone?.trim()) {
+  if (
+    messaging.whatsappBookingEnabled &&
+    messaging.whatsappBusinessPhone?.trim()
+  ) {
     const phone = messaging.whatsappBusinessPhone.replace(/\D/g, '');
     const text =
       messaging.whatsappBookingMessage?.trim() ||

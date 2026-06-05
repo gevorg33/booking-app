@@ -10,7 +10,8 @@ export class PlanLimitExceededException extends ForbiddenException {
     public readonly current?: number,
     public readonly max?: number,
   ) {
-    const message = PLAN_LIMIT_MESSAGES[limit] ?? 'Plan limit reached. Upgrade to continue.';
+    const message =
+      PLAN_LIMIT_MESSAGES[limit] ?? 'Plan limit reached. Upgrade to continue.';
     super({
       statusCode: 403,
       message,

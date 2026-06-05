@@ -34,7 +34,9 @@ export class StripeService implements OnModuleInit {
 
   get client(): StripeClient {
     if (!this.stripe) {
-      throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY in environment.');
+      throw new Error(
+        'Stripe is not configured. Set STRIPE_SECRET_KEY in environment.',
+      );
     }
     return this.stripe;
   }
@@ -53,7 +55,10 @@ export class StripeService implements OnModuleInit {
 
   /** Default country fallback when tenant country is unknown. */
   get connectDefaultCountry(): string {
-    const raw = this.config.get<string>('STRIPE_CONNECT_DEFAULT_COUNTRY')?.trim().toUpperCase();
+    const raw = this.config
+      .get<string>('STRIPE_CONNECT_DEFAULT_COUNTRY')
+      ?.trim()
+      .toUpperCase();
     return raw && /^[A-Z]{2}$/.test(raw) ? raw : 'AE';
   }
 
@@ -63,8 +68,12 @@ export class StripeService implements OnModuleInit {
   }
 
   get connectOAuthRedirectUri(): string {
-    const explicit = this.config.get<string>('STRIPE_CONNECT_OAUTH_REDIRECT_URI')?.trim();
-    return explicit || `${this.frontendUrl}/dashboard/billing?stripe_connect=oauth`;
+    const explicit = this.config
+      .get<string>('STRIPE_CONNECT_OAUTH_REDIRECT_URI')
+      ?.trim();
+    return (
+      explicit || `${this.frontendUrl}/dashboard/billing?stripe_connect=oauth`
+    );
   }
 
   isOAuthConfigured(): boolean {
@@ -73,7 +82,10 @@ export class StripeService implements OnModuleInit {
 
   /** Platform-wide default when tenant has no stored charge model. Direct = tenant receives booking payments. */
   get defaultConnectChargeModel(): 'direct' | 'destination' {
-    const explicit = this.config.get<string>('STRIPE_CONNECT_CHARGE_MODEL')?.trim().toLowerCase();
+    const explicit = this.config
+      .get<string>('STRIPE_CONNECT_CHARGE_MODEL')
+      ?.trim()
+      .toLowerCase();
     if (explicit === 'direct' || explicit === 'destination') return explicit;
     return 'direct';
   }
@@ -106,8 +118,12 @@ export class StripeService implements OnModuleInit {
   }
 
   usesDestinationCharges(settings?: Record<string, unknown>): boolean {
-    const integrations = settings?.integrations as Record<string, unknown> | undefined;
-    const stripe = integrations?.stripe as { connectChargeModel?: string; connectMode?: string } | undefined;
+    const integrations = settings?.integrations as
+      | Record<string, unknown>
+      | undefined;
+    const stripe = integrations?.stripe as
+      | { connectChargeModel?: string; connectMode?: string }
+      | undefined;
     // OAuth = Standard account: always direct charges regardless of what's stored in DB
     if (stripe?.connectMode === 'oauth') return false;
     if (stripe?.connectChargeModel === 'destination') return true;
@@ -116,7 +132,10 @@ export class StripeService implements OnModuleInit {
   }
 
   /** Request options for Stripe API calls scoped to a connected account. */
-  connectRequestOptions(connectAccountId: string, settings?: Record<string, unknown>): ConnectRequestOptions {
+  connectRequestOptions(
+    connectAccountId: string,
+    settings?: Record<string, unknown>,
+  ): ConnectRequestOptions {
     if (this.usesDestinationCharges(settings)) return {};
     return { stripeAccount: connectAccountId };
   }
@@ -156,7 +175,8 @@ export class StripeService implements OnModuleInit {
 
     // Direct charge: charge on tenant's account, platform fee via application_fee_amount
     if (amountCents && amountCents > 0) {
-      const applicationFeeAmount = this.buildDirectChargeApplicationFee(amountCents);
+      const applicationFeeAmount =
+        this.buildDirectChargeApplicationFee(amountCents);
       if (applicationFeeAmount > 0) {
         return {
           payment_intent_data: { application_fee_amount: applicationFeeAmount },
@@ -174,7 +194,11 @@ export class StripeService implements OnModuleInit {
   ): [Record<string, unknown>, ConnectRequestOptions] {
     return [
       {
-        ...this.connectCheckoutSessionParams(connectAccountId, settings, amountCents),
+        ...this.connectCheckoutSessionParams(
+          connectAccountId,
+          settings,
+          amountCents,
+        ),
         ...sessionParams,
       },
       this.connectRequestOptions(connectAccountId, settings),

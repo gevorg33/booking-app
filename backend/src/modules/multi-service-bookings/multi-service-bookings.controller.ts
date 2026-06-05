@@ -6,7 +6,9 @@ import { UpdateMultiServiceSettingsDto } from './dto/update-multi-service-settin
 @Controller('businesses/:businessId/multi-service')
 @UseGuards(JwtAuthGuard)
 export class MultiServiceBookingsController {
-  constructor(private multiServiceBookingsService: MultiServiceBookingsService) {}
+  constructor(
+    private multiServiceBookingsService: MultiServiceBookingsService,
+  ) {}
 
   @Get('settings')
   getSettings(@Param('businessId') businessId: string) {

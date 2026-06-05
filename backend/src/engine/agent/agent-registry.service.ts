@@ -1,5 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { AgentType, AgentContext, AgentResult } from './interfaces/agent.interfaces.js';
+import {
+  AgentType,
+  AgentContext,
+  AgentResult,
+} from './interfaces/agent.interfaces.js';
 
 export interface AgentHandler {
   type: AgentType;

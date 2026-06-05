@@ -11,7 +11,9 @@ describe('Sprint 17 AI dashboard depth integration', () => {
   it('merges default command macros into AI settings', () => {
     const settings = new AiSettingsService({} as any);
     const merged = settings.mergeSettings({});
-    expect(merged.macros.some((m) => m.id === 'monday-morning-setup')).toBe(true);
+    expect(merged.macros.some((m) => m.id === 'monday-morning-setup')).toBe(
+      true,
+    );
     expect(merged.macros.some((m) => m.id === 'end-week-gap-fill')).toBe(true);
     expect(DEFAULT_AI_SETTINGS.macros).toHaveLength(2);
   });
@@ -19,8 +21,18 @@ describe('Sprint 17 AI dashboard depth integration', () => {
   it('taskToResult attaches wizard, policyExplain, and emits alert on approval', async () => {
     const emitAlert = jest.fn();
     const buildPlanDiff = jest.fn(() => [
-      { id: '1', action: 'apply_template', description: 'Apply weekday', impact: 'Team' },
-      { id: '2', action: 'fill_schedule_gaps', description: 'Fill gaps', impact: 'Slots' },
+      {
+        id: '1',
+        action: 'apply_template',
+        description: 'Apply weekday',
+        impact: 'Team',
+      },
+      {
+        id: '2',
+        action: 'fill_schedule_gaps',
+        description: 'Fill gaps',
+        impact: 'Slots',
+      },
     ]);
 
     const orchestrator = {

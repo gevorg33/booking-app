@@ -42,7 +42,9 @@ describe('date-format.util', () => {
       'en',
     );
     expect(range).toMatch(/\d{2}:\d{2}–\d{2}:\d{2}/);
-    expect(formatTimeRangeDisplay('invalid', 'also-invalid', 'en')).toBe('invalid–also-invalid');
+    expect(formatTimeRangeDisplay('invalid', 'also-invalid', 'en')).toBe(
+      'invalid–also-invalid',
+    );
   });
 
   it('formatTimeRangeDisplay falls back without formatRange', () => {
@@ -59,9 +61,15 @@ describe('date-format.util', () => {
   });
 
   it('parseDateInput supports legacy formats', () => {
-    expect(parseDateInput('01_06_2026')?.toISOString()).toBe('2026-06-01T00:00:00.000Z');
-    expect(parseDateInput('01/06/2026')?.toISOString()).toBe('2026-06-01T00:00:00.000Z');
-    expect(parseDateInput('2026-06-01')?.toISOString()).toBe('2026-06-01T00:00:00.000Z');
+    expect(parseDateInput('01_06_2026')?.toISOString()).toBe(
+      '2026-06-01T00:00:00.000Z',
+    );
+    expect(parseDateInput('01/06/2026')?.toISOString()).toBe(
+      '2026-06-01T00:00:00.000Z',
+    );
+    expect(parseDateInput('2026-06-01')?.toISOString()).toBe(
+      '2026-06-01T00:00:00.000Z',
+    );
     expect(parseDateInput('nope')).toBeNull();
   });
 
@@ -89,7 +97,9 @@ describe('date-format.util', () => {
   });
 
   it('resolveRelativeDateKeyword handles tonight', () => {
-    expect(resolveRelativeDateKeyword('tonight', 'UTC')).toBe(getTodayDateKey('UTC'));
+    expect(resolveRelativeDateKeyword('tonight', 'UTC')).toBe(
+      getTodayDateKey('UTC'),
+    );
   });
 
   it('buildUtcStartTimeFromDayAndTime combines day and slot', () => {
@@ -97,7 +107,9 @@ describe('date-format.util', () => {
     expect(iso).toContain('2026-06-04T14:30:00');
     const hourOnly = buildUtcStartTimeFromDayAndTime('2026-06-04', '9');
     expect(hourOnly).toContain('T09:00:00');
-    expect(() => buildUtcStartTimeFromDayAndTime('bad', '10:00')).toThrow(/Invalid booking date/);
+    expect(() => buildUtcStartTimeFromDayAndTime('bad', '10:00')).toThrow(
+      /Invalid booking date/,
+    );
   });
 
   it('parseDateInput parses generic date strings', () => {

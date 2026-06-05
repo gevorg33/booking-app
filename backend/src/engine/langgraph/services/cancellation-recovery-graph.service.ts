@@ -52,8 +52,12 @@ export class CancellationRecoveryGraphService {
   private buildGraph() {
     const graph = new StateGraph(CancellationRecoveryState)
       .addNode('find_freed_slots', (state) => this.nodeFindFreedSlots(state))
-      .addNode('find_rebooking_candidates', (state) => this.nodeFindCandidates(state))
-      .addNode('propose_reassignment', (state) => this.nodeProposeReassignment(state))
+      .addNode('find_rebooking_candidates', (state) =>
+        this.nodeFindCandidates(state),
+      )
+      .addNode('propose_reassignment', (state) =>
+        this.nodeProposeReassignment(state),
+      )
       .addNode('summarize', (state) => this.nodeSummarize(state))
       .addEdge(START, 'find_freed_slots')
       .addConditionalEdges('find_freed_slots', (state) =>
@@ -127,7 +131,8 @@ export class CancellationRecoveryGraphService {
       state.toolContext,
     );
 
-    const proposalCount = (result as { proposalCount?: number })?.proposalCount ?? 0;
+    const proposalCount =
+      (result as { proposalCount?: number })?.proposalCount ?? 0;
     return {
       toolContext: ctx,
       proposalCount,
@@ -147,7 +152,9 @@ export class CancellationRecoveryGraphService {
     state: CancellationRecoveryGraphState,
     baseReasoning: string,
   ): Promise<string | null> {
-    const available = await this.openAi.isAvailableForBusiness(state.businessId);
+    const available = await this.openAi.isAvailableForBusiness(
+      state.businessId,
+    );
     if (!available) return null;
 
     const summary = await this.openAi.completeJson<{ reasoning: string }>(
@@ -174,7 +181,9 @@ Baseline: ${baseReasoning}`,
     intent: string,
     stepIds: RecoveryStepIds,
   ): AgentResult {
-    const dateParams = context.dateRange ? { dateRange: context.dateRange } : {};
+    const dateParams = context.dateRange
+      ? { dateRange: context.dateRange }
+      : {};
 
     return {
       plan: {
@@ -218,7 +227,10 @@ Baseline: ${baseReasoning}`,
           level: state.skipRecovery ? 'low' : 'medium',
           factors: state.skipRecovery
             ? ['Read-only discovery — no slots to recover']
-            : ['Involves customer communication', 'May modify bookings after approval'],
+            : [
+                'Involves customer communication',
+                'May modify bookings after approval',
+              ],
         },
         status: PlanStatus.DRAFT,
         createdAt: new Date(),

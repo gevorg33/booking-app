@@ -1,4 +1,9 @@
-import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -31,9 +36,11 @@ const ACTIVE_STATUSES = [
 export class ProviderMobileService {
   constructor(
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
     private businessService: BusinessService,
     private bookingService: BookingService,
     private llm: LlmService,
@@ -57,8 +64,14 @@ export class ProviderMobileService {
     };
   }
 
-  async resolveMobileAccess(businessId: string, userId: string): Promise<MobileAccess> {
-    const membership = await this.businessService.ensureMember(businessId, userId);
+  async resolveMobileAccess(
+    businessId: string,
+    userId: string,
+  ): Promise<MobileAccess> {
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      userId,
+    );
     const employee = await this.employeeRepo.findOne({
       where: { businessId, userId, isActive: true },
     });
@@ -79,7 +92,9 @@ export class ProviderMobileService {
       };
     }
 
-    throw new ForbiddenException('No provider profile or admin access for this business');
+    throw new ForbiddenException(
+      'No provider profile or admin access for this business',
+    );
   }
 
   async getTodayBookings(businessId: string, userId: string) {
@@ -99,7 +114,7 @@ export class ProviderMobileService {
     }
 
     const bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { service: true, customer: true, employee: true },
       order: { startTime: 'ASC' },
     });
@@ -107,7 +122,9 @@ export class ProviderMobileService {
     return {
       date: today.toISOString().slice(0, 10),
       viewMode: access.viewMode,
-      employee: access.employee ? { id: access.employee.id, name: access.employee.name } : null,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
       bookings: bookings.map((b) => this.toBookingSummary(b)),
     };
   }
@@ -130,7 +147,7 @@ export class ProviderMobileService {
     }
 
     const bookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { service: true, customer: true, employee: true },
       order: { startTime: 'ASC' },
     });
@@ -159,7 +176,7 @@ export class ProviderMobileService {
     }
 
     const slots = await this.slotRepo.find({
-      where: where as any,
+      where: where,
       order: { startTime: 'ASC' },
       take: 500,
     });
@@ -175,13 +192,17 @@ export class ProviderMobileService {
 
     return {
       viewMode: access.viewMode,
-      employee: access.employee ? { id: access.employee.id, name: access.employee.name } : null,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
       days: [...byDay.entries()].map(([date, counts]) => ({ date, ...counts })),
     };
   }
 
   async findEmployeeUserId(employeeId: string): Promise<string | null> {
-    const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId },
+    });
     return employee?.userId ?? null;
   }
 
@@ -195,8 +216,16 @@ export class ProviderMobileService {
     return members.map((m) => m.userId);
   }
 
-  async getBookingDetail(businessId: string, userId: string, bookingId: string) {
-    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
+  async getBookingDetail(
+    businessId: string,
+    userId: string,
+    bookingId: string,
+  ) {
+    const booking = await this.getAccessibleBooking(
+      businessId,
+      userId,
+      bookingId,
+    );
     return this.toBookingDetail(booking);
   }
 
@@ -206,10 +235,16 @@ export class ProviderMobileService {
     bookingId: string,
     dto: UpdateProviderBookingDto,
   ) {
-    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
+    const booking = await this.getAccessibleBooking(
+      businessId,
+      userId,
+      bookingId,
+    );
 
     if (dto.status === BookingStatus.CANCELLED) {
-      throw new BadRequestException('Use the cancel endpoint to cancel an appointment');
+      throw new BadRequestException(
+        'Use the cancel endpoint to cancel an appointment',
+      );
     }
 
     if (booking.status === BookingStatus.CANCELLED) {
@@ -255,12 +290,19 @@ export class ProviderMobileService {
     bookingId: string,
     dto: SuggestCancelNoteDto,
   ) {
-    const booking = await this.getAccessibleBooking(businessId, userId, bookingId);
+    const booking = await this.getAccessibleBooking(
+      businessId,
+      userId,
+      bookingId,
+    );
     const customerName = booking.customer?.name ?? 'the customer';
     const serviceName = booking.service?.name ?? 'appointment';
     const when = booking.startTime.toISOString().slice(0, 16).replace('T', ' ');
 
-    const userInput = dto.prompt?.trim() || dto.draft?.trim() || 'Need to cancel this appointment';
+    const userInput =
+      dto.prompt?.trim() ||
+      dto.draft?.trim() ||
+      'Need to cancel this appointment';
     const fallback = dto.draft?.trim()
       ? dto.draft.trim()
       : `${customerName} cancelled the ${serviceName} scheduled for ${when}.`;
@@ -312,7 +354,7 @@ Write a cancellation note the provider can save.`,
     }
 
     const booking = await this.bookingRepo.findOne({
-      where: where as any,
+      where: where,
       relations: { service: true, customer: true, employee: true },
     });
     if (!booking) {

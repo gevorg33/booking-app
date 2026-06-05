@@ -14,9 +14,14 @@ export class RetailPosController {
   ) {}
 
   @Get('retail-pos/products')
-  async listProducts(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async listProducts(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { products: await this.retailPosService.listSellableProducts(businessId) };
+    return {
+      products: await this.retailPosService.listSellableProducts(businessId),
+    };
   }
 
   @Get('bookings/:bookingId/retail-sales')
@@ -37,6 +42,11 @@ export class RetailPosController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.retailPosService.setBookingRetailSales(businessId, bookingId, user.id, dto);
+    return this.retailPosService.setBookingRetailSales(
+      businessId,
+      bookingId,
+      user.id,
+      dto,
+    );
   }
 }

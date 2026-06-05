@@ -14,14 +14,18 @@ export class ScheduleAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Employee, (employee) => employee.scheduleAssignments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Employee, (employee) => employee.scheduleAssignments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'employee_id' })
   employee: Employee;
 
   @Column({ name: 'employee_id' })
   employeeId: string;
 
-  @ManyToOne(() => ScheduleTemplate, (template) => template.assignments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ScheduleTemplate, (template) => template.assignments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'template_id' })
   template: ScheduleTemplate;
 

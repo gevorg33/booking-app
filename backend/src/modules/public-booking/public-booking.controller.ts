@@ -1,9 +1,37 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
-import { PublicBookingAssistantService } from './public-booking-assistant.service.js';
+import { BusinessService } from '../business/business.service.js';
+import { AiGatewayService } from '../ai/ai-gateway.service.js';
+import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
-import { CreatePublicBookingDto, ConfirmBookingPaymentDto, GetProviderSlotsQueryDto, GetServiceSlotsQueryDto, GetServiceSlotProvidersQueryDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, PackageBlockSlotsQueryDto, PackageBlockProvidersQueryDto, MultiServiceSelectionDto, MultiServiceBlockSlotsQueryDto, MultiServiceBlockProvidersQueryDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto, parseServiceIdsQuery } from './dto/public-booking.dto.js';
+import {
+  CreatePublicBookingDto,
+  ConfirmBookingPaymentDto,
+  GetProviderSlotsQueryDto,
+  GetServiceSlotsQueryDto,
+  GetServiceSlotProvidersQueryDto,
+  PublicBookingQuoteDto,
+  BookPublicPackageDto,
+  PublicPackageQuoteDto,
+  PackageBlockSlotsQueryDto,
+  PackageBlockProvidersQueryDto,
+  MultiServiceSelectionDto,
+  MultiServiceBlockSlotsQueryDto,
+  MultiServiceBlockProvidersQueryDto,
+  BookPublicMultiServiceDto,
+  PublicMultiServiceQuoteDto,
+  parseServiceIdsQuery,
+} from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
 import {
@@ -27,7 +55,8 @@ import { normalizeMultiServiceIds } from '../../common/utils/multi-service-booki
 export class PublicBookingController {
   constructor(
     private publicBookingService: PublicBookingService,
-    private publicAssistantService: PublicBookingAssistantService,
+    private businessService: BusinessService,
+    private aiGateway: AiGatewayService,
     private bookingPaymentService: BookingPaymentService,
     private reviewsService: ReviewsService,
     private publicCustomerAuthService: PublicCustomerAuthService,
@@ -55,7 +84,11 @@ export class PublicBookingController {
     @Param('employeeId') employeeId: string,
     @Query() query: GetProviderSlotsQueryDto,
   ) {
-    return this.publicBookingService.getProviderSlots(slug, employeeId, query.date);
+    return this.publicBookingService.getProviderSlots(
+      slug,
+      employeeId,
+      query.date,
+    );
   }
 
   @Get('providers/:employeeId/reviews')
@@ -65,7 +98,11 @@ export class PublicBookingController {
     @Query('page') page?: string,
   ) {
     const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
-    return this.reviewsService.listPublicProviderReviews(slug, employeeId, pageNum);
+    return this.reviewsService.listPublicProviderReviews(
+      slug,
+      employeeId,
+      pageNum,
+    );
   }
 
   @Get('services')
@@ -84,7 +121,12 @@ export class PublicBookingController {
     @Query('startTime') startTime: string,
     @Query('locale') locale?: string,
   ) {
-    return this.publicBookingService.getServicesForSlot(slug, employeeId, startTime, locale);
+    return this.publicBookingService.getServicesForSlot(
+      slug,
+      employeeId,
+      startTime,
+      locale,
+    );
   }
 
   @Get('services/:serviceId/subscription-plans')
@@ -92,7 +134,10 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @Param('serviceId') serviceId: string,
   ) {
-    return this.publicBookingService.getServiceSubscriptionPlans(slug, serviceId);
+    return this.publicBookingService.getServiceSubscriptionPlans(
+      slug,
+      serviceId,
+    );
   }
 
   @Get('packages')
@@ -101,7 +146,10 @@ export class PublicBookingController {
   }
 
   @Get('packages/:packageId')
-  getPackage(@Param('slug') slug: string, @Param('packageId') packageId: string) {
+  getPackage(
+    @Param('slug') slug: string,
+    @Param('packageId') packageId: string,
+  ) {
     return this.publicBookingService.getPublicPackage(slug, packageId);
   }
 
@@ -127,7 +175,11 @@ export class PublicBookingController {
     @Param('packageId') packageId: string,
     @Query() query: PackageBlockSlotsQueryDto,
   ) {
-    return this.publicBookingService.getPackageBlockDaySlots(slug, packageId, query.date);
+    return this.publicBookingService.getPackageBlockDaySlots(
+      slug,
+      packageId,
+      query.date,
+    );
   }
 
   @Get('packages/:packageId/providers')
@@ -151,7 +203,11 @@ export class PublicBookingController {
     @Body() dto: PublicPackageQuoteDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
-    return this.publicBookingService.quotePackageCheckout(slug, dto, user?.customerId);
+    return this.publicBookingService.quotePackageCheckout(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Post('packages/book')
@@ -171,7 +227,11 @@ export class PublicBookingController {
     @Body() dto: BookPublicPackageDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
-    return this.bookingPaymentService.createPackageCheckoutSession(slug, dto, user?.customerId);
+    return this.bookingPaymentService.createPackageCheckoutSession(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Get('multi-service/settings')
@@ -180,8 +240,14 @@ export class PublicBookingController {
   }
 
   @Post('multi-service/preview')
-  previewMultiService(@Param('slug') slug: string, @Body() dto: MultiServiceSelectionDto) {
-    return this.publicBookingService.previewMultiServiceSelection(slug, dto.serviceIds);
+  previewMultiService(
+    @Param('slug') slug: string,
+    @Body() dto: MultiServiceSelectionDto,
+  ) {
+    return this.publicBookingService.previewMultiServiceSelection(
+      slug,
+      dto.serviceIds,
+    );
   }
 
   @Get('multi-service/block-slots')
@@ -202,7 +268,9 @@ export class PublicBookingController {
     @Query('serviceIds') serviceIdsRaw?: string | string[],
   ) {
     const serviceIds = normalizeMultiServiceIds(
-      parseServiceIdsQuery(Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw),
+      parseServiceIdsQuery(
+        Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw,
+      ),
     );
     return this.publicBookingService.suggestMultiServiceBlock(slug, serviceIds);
   }
@@ -213,9 +281,14 @@ export class PublicBookingController {
     @Query('serviceIds') serviceIdsRaw?: string | string[],
   ) {
     const serviceIds = normalizeMultiServiceIds(
-      parseServiceIdsQuery(Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw),
+      parseServiceIdsQuery(
+        Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw,
+      ),
     );
-    return this.publicBookingService.suggestMultiServicePerServiceLines(slug, serviceIds);
+    return this.publicBookingService.suggestMultiServicePerServiceLines(
+      slug,
+      serviceIds,
+    );
   }
 
   @Get('multi-service/providers')
@@ -238,7 +311,11 @@ export class PublicBookingController {
     @Body() dto: PublicMultiServiceQuoteDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
-    return this.publicBookingService.quoteMultiServiceCheckout(slug, dto, user?.customerId);
+    return this.publicBookingService.quoteMultiServiceCheckout(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Post('multi-service/book')
@@ -248,7 +325,11 @@ export class PublicBookingController {
     @Body() dto: BookPublicMultiServiceDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
-    return this.publicBookingService.bookMultiService(slug, dto, user?.customerId);
+    return this.publicBookingService.bookMultiService(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Post('multi-service/checkout')
@@ -271,7 +352,11 @@ export class PublicBookingController {
     @Param('serviceId') serviceId: string,
     @Query() query: GetServiceSlotsQueryDto,
   ) {
-    return this.publicBookingService.getServiceDaySlots(slug, serviceId, query.date);
+    return this.publicBookingService.getServiceDaySlots(
+      slug,
+      serviceId,
+      query.date,
+    );
   }
 
   @Get('services/:serviceId/providers')
@@ -280,7 +365,11 @@ export class PublicBookingController {
     @Param('serviceId') serviceId: string,
     @Query() query: GetServiceSlotProvidersQueryDto,
   ) {
-    return this.publicBookingService.getProvidersForServiceSlot(slug, serviceId, query.startTime);
+    return this.publicBookingService.getProvidersForServiceSlot(
+      slug,
+      serviceId,
+      query.startTime,
+    );
   }
 
   @Post('bookings/quote')
@@ -310,21 +399,59 @@ export class PublicBookingController {
     @Body() dto: CreatePublicBookingDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
-    return this.bookingPaymentService.createCheckoutSession(slug, dto, user?.customerId);
+    return this.bookingPaymentService.createCheckoutSession(
+      slug,
+      dto,
+      user?.customerId,
+    );
   }
 
   @Post('bookings/confirm-payment')
-  confirmBookingPayment(@Param('slug') slug: string, @Body() dto: ConfirmBookingPaymentDto) {
-    return this.bookingPaymentService.confirmCheckoutSession(slug, dto.sessionId);
+  confirmBookingPayment(
+    @Param('slug') slug: string,
+    @Body() dto: ConfirmBookingPaymentDto,
+  ) {
+    return this.bookingPaymentService.confirmCheckoutSession(
+      slug,
+      dto.sessionId,
+    );
+  }
+
+  @Get('assistant/capabilities')
+  assistantCapabilities(@Param('slug') slug: string) {
+    return this.businessService
+      .findBySlug(slug)
+      .then((business) =>
+        this.aiGateway.getCapabilities(business.id, 'customer', 'client'),
+      );
   }
 
   @Post('assistant')
-  assistant(@Param('slug') slug: string, @Body() dto: PublicAssistantDto) {
-    return this.publicAssistantService.chat(slug, dto.prompt, {
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  async assistant(
+    @Param('slug') slug: string,
+    @Body() dto: PublicAssistantDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    const result = await this.aiGateway.execute({
+      surface: 'customer',
+      businessId: business.id,
+      prompt: dto.prompt,
+      userId: user?.customerId,
+      membershipRole: 'client',
       history: dto.history,
-      context: dto.context,
-      locale: dto.locale,
+      context: {
+        slug,
+        locale: dto.locale,
+        customerId: user?.customerId,
+        userEmail: user?.email ?? undefined,
+        ...dto.context,
+      },
     });
+    return commandResultToPublicAssistantResult(
+      result as import('../ai/command-completion.types.js').CommandResult,
+    );
   }
 
   @Get('reviews/context')
@@ -337,7 +464,10 @@ export class PublicBookingController {
   }
 
   @Post('reviews')
-  submitReview(@Param('slug') slug: string, @Body() dto: SubmitPublicReviewDto) {
+  submitReview(
+    @Param('slug') slug: string,
+    @Body() dto: SubmitPublicReviewDto,
+  ) {
     return this.reviewsService.submitPublic(slug, dto);
   }
 
@@ -358,7 +488,10 @@ export class PublicBookingController {
   }
 
   @Post('auth/google')
-  loginWithGoogle(@Param('slug') slug: string, @Body() dto: PublicCustomerGoogleLoginDto) {
+  loginWithGoogle(
+    @Param('slug') slug: string,
+    @Body() dto: PublicCustomerGoogleLoginDto,
+  ) {
     return this.publicCustomerAuthService.loginWithGoogle(slug, dto.idToken);
   }
 
@@ -384,7 +517,11 @@ export class PublicBookingController {
     @Param('bookingId') bookingId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
-    return this.publicCustomerBookingService.cancelBooking(slug, user.customerId, bookingId);
+    return this.publicCustomerBookingService.cancelBooking(
+      slug,
+      user.customerId,
+      bookingId,
+    );
   }
 
   @Post('me/bookings/:bookingId/reschedule')
@@ -410,7 +547,11 @@ export class PublicBookingController {
     @Param('bookingId') bookingId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
-    return this.publicCustomerBookingService.cancelPackageVisit(slug, user.customerId, bookingId);
+    return this.publicCustomerBookingService.cancelPackageVisit(
+      slug,
+      user.customerId,
+      bookingId,
+    );
   }
 
   @Post('me/bookings/:bookingId/package/reschedule')
@@ -435,7 +576,11 @@ export class PublicBookingController {
     @Query('bookingId') bookingId: string,
     @Query('token') token: string,
   ) {
-    return this.publicCustomerBookingService.getManageContext(slug, bookingId, token);
+    return this.publicCustomerBookingService.getManageContext(
+      slug,
+      bookingId,
+      token,
+    );
   }
 
   @Post('bookings/manage/cancel')
@@ -453,7 +598,13 @@ export class PublicBookingController {
   @Post('bookings/manage/reschedule')
   rescheduleBookingWithManageToken(
     @Param('slug') slug: string,
-    @Body() dto: { bookingId: string; token: string; startTime: string; employeeId?: string },
+    @Body()
+    dto: {
+      bookingId: string;
+      token: string;
+      startTime: string;
+      employeeId?: string;
+    },
   ) {
     return this.publicCustomerBookingService.rescheduleBookingWithToken(
       slug,
@@ -503,7 +654,10 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
-    return this.publicBookingService.getCustomerSubscriptions(slug, user.customerId);
+    return this.publicBookingService.getCustomerSubscriptions(
+      slug,
+      user.customerId,
+    );
   }
 
   @Get('me/subscriptions/active')
@@ -537,12 +691,18 @@ export class PublicBookingController {
   @Get('me/data')
   @UseGuards(PublicCustomerAuthGuard)
   exportMyData(@CurrentUser() user: PublicCustomerRequestUser) {
-    return this.customerPrivacyService.exportCustomerData(user.businessId, user.customerId);
+    return this.customerPrivacyService.exportCustomerData(
+      user.businessId,
+      user.customerId,
+    );
   }
 
   @Delete('me/data')
   @UseGuards(PublicCustomerAuthGuard)
   deleteMyData(@CurrentUser() user: PublicCustomerRequestUser) {
-    return this.customerPrivacyService.deleteCustomerData(user.businessId, user.customerId);
+    return this.customerPrivacyService.deleteCustomerData(
+      user.businessId,
+      user.customerId,
+    );
   }
 }

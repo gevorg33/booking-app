@@ -12,11 +12,16 @@ describe('resolveStripeConnectCountry', () => {
 
   it('infers country from timezone before platform default', () => {
     expect(
-      resolveStripeConnectCountry({ timezone: 'Asia/Yerevan', settings: {} }, 'AE'),
+      resolveStripeConnectCountry(
+        { timezone: 'Asia/Yerevan', settings: {} },
+        'AE',
+      ),
     ).toBe('AM');
   });
 
   it('falls back to platform default when timezone and locale are unknown', () => {
-    expect(resolveStripeConnectCountry({ timezone: 'UTC', settings: {} }, 'AE')).toBe('AE');
+    expect(
+      resolveStripeConnectCountry({ timezone: 'UTC', settings: {} }, 'AE'),
+    ).toBe('AE');
   });
 });

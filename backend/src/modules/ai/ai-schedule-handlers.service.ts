@@ -27,7 +27,11 @@ import {
   inferDirectSchedulePeriods,
   isTeamWideProviderScopePrompt,
 } from './ai-orchestration.helpers.js';
-import { formatDateDisplay, toIsoDay, parseDateInput } from '../../common/utils/date-format.util.js';
+import {
+  formatDateDisplay,
+  toIsoDay,
+  parseDateInput,
+} from '../../common/utils/date-format.util.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -37,22 +41,26 @@ import { TemplatePeriodType } from '../schedule/entities/scheduling-template-per
 import {
   buildBlockScheduleBlockPayloads,
   enhanceSmartBlockParams,
-} from './ai-sprint23.util.js';
-import { AiSprint23Service } from './ai-sprint23.service.js';
+} from './ai-scheduling.util.js';
+import { AiSchedulingService } from './ai-scheduling.service.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
   constructor(
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
-    private sprint23: AiSprint23Service,
+    private scheduling: AiSchedulingService,
   ) {}
 
   private async resolveBusinessLocale(businessId: string): Promise<AppLocale> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     const settings = (business?.settings ?? {}) as Record<string, unknown>;
     const raw = settings.locale;
     return resolveLocale(typeof raw === 'string' ? raw : undefined, 'en');
@@ -125,19 +133,28 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ): Promise<CommandResult> {
-    const plan = await this.prepareBlockSchedulePlan(businessId, prompt, params, employees, userId);
+    const plan = await this.prepareBlockSchedulePlan(
+      businessId,
+      prompt,
+      params,
+      employees,
+      userId,
+    );
     if (!plan) {
       return {
         success: false,
         action: 'block_schedule',
-        summary: 'Specify service provider(s), when to block, and time window (or full day).',
+        summary:
+          'Specify service provider(s), when to block, and time window (or full day).',
         details: { params },
       };
     }
     const allProviders =
       params.allProviders === true ||
       /all providers|everyone|all staff|all employees/i.test(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     return this.executePlan(plan, businessId, userId, targets.length);
   }
 
@@ -153,7 +170,9 @@ export class AiScheduleHandlersService {
       params.allProviders === true ||
       /all providers|everyone|all staff/i.test(prompt);
 
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (targets.length === 0) {
       return {
         success: false,
@@ -208,7 +227,7 @@ export class AiScheduleHandlersService {
           where: {
             businessId,
             employeeId: employee.id,
-            startTime: Between(dayStart, dayEnd) as any,
+            startTime: Between(dayStart, dayEnd),
           },
           order: { startTime: 'ASC' },
         });
@@ -217,7 +236,10 @@ export class AiScheduleHandlersService {
           day,
           window.timeFrom,
           window.timeTo,
-          existingPeriods.map((p) => ({ startTime: p.startTime, endTime: p.endTime })),
+          existingPeriods.map((p) => ({
+            startTime: p.startTime,
+            endTime: p.endTime,
+          })),
         );
 
         for (const gap of gaps) {
@@ -264,12 +286,15 @@ export class AiScheduleHandlersService {
       params.allProviders === true ||
       /all providers|everyone|all staff/i.test(prompt);
 
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (targets.length === 0) {
       return {
         success: false,
         action: 'list_schedule_gaps',
-        summary: 'Specify which service provider to check (e.g. "which days does Gevorg have gaps").',
+        summary:
+          'Specify which service provider to check (e.g. "which days does Gevorg have gaps").',
         details: { params },
       };
     }
@@ -279,7 +304,8 @@ export class AiScheduleHandlersService {
       return {
         success: false,
         action: 'list_schedule_gaps',
-        summary: 'Specify a date range (e.g. "this week" or the same range as your prior question).',
+        summary:
+          'Specify a date range (e.g. "this week" or the same range as your prior question).',
         details: { params },
       };
     }
@@ -288,11 +314,19 @@ export class AiScheduleHandlersService {
     const displayLocale = await this.resolveBusinessLocale(businessId);
     const reports: Array<{
       employeeName: string;
-      days: Array<{ date: string; weekday: string; gaps: Array<{ startTime: string; endTime: string }> }>;
+      days: Array<{
+        date: string;
+        weekday: string;
+        gaps: Array<{ startTime: string; endTime: string }>;
+      }>;
     }> = [];
 
     for (const employee of targets) {
-      const days: Array<{ date: string; weekday: string; gaps: Array<{ startTime: string; endTime: string }> }> = [];
+      const days: Array<{
+        date: string;
+        weekday: string;
+        gaps: Array<{ startTime: string; endTime: string }>;
+      }> = [];
 
       for (const day of enumerateDaysInRange(range)) {
         const isoDay = day.toISOString().split('T')[0];
@@ -305,7 +339,7 @@ export class AiScheduleHandlersService {
           where: {
             businessId,
             employeeId: employee.id,
-            startTime: Between(dayStart, dayEnd) as any,
+            startTime: Between(dayStart, dayEnd),
           },
           order: { startTime: 'ASC' },
         });
@@ -314,13 +348,19 @@ export class AiScheduleHandlersService {
           day,
           window.timeFrom,
           window.timeTo,
-          existingPeriods.map((p) => ({ startTime: p.startTime, endTime: p.endTime })),
+          existingPeriods.map((p) => ({
+            startTime: p.startTime,
+            endTime: p.endTime,
+          })),
         );
 
         if (gaps.length > 0) {
           days.push({
             date: formatDateDisplay(isoDay, displayLocale),
-            weekday: formatWeekdayShortByDayIndex(day.getUTCDay(), displayLocale),
+            weekday: formatWeekdayShortByDayIndex(
+              day.getUTCDay(),
+              displayLocale,
+            ),
             gaps,
           });
         }
@@ -337,7 +377,9 @@ export class AiScheduleHandlersService {
       if (targets.length > 1) {
         lines.push(`${report.employeeName}:`);
       } else {
-        lines.push(`Open gaps for ${report.employeeName} · ${rangeLabel} · ${windowLabel}:`);
+        lines.push(
+          `Open gaps for ${report.employeeName} · ${rangeLabel} · ${windowLabel}:`,
+        );
       }
 
       if (report.days.length === 0) {
@@ -346,7 +388,9 @@ export class AiScheduleHandlersService {
       }
 
       for (const day of report.days) {
-        const slots = day.gaps.map((g) => `${g.startTime}–${g.endTime}`).join(', ');
+        const slots = day.gaps
+          .map((g) => `${g.startTime}–${g.endTime}`)
+          .join(', ');
         lines.push(`• ${day.weekday} ${day.date}: ${slots}`);
       }
     }
@@ -384,7 +428,8 @@ export class AiScheduleHandlersService {
         details: { params },
       };
     }
-    const providerCount = new Set(plan.steps.map((s) => s.params.employeeId)).size;
+    const providerCount = new Set(plan.steps.map((s) => s.params.employeeId))
+      .size;
     return this.executePlan(plan, businessId, userId, providerCount);
   }
 
@@ -400,7 +445,9 @@ export class AiScheduleHandlersService {
 
     const allProviders =
       params.allProviders === true || isTeamWideProviderScopePrompt(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (!targets.length) return null;
 
     if (!params.date && !(params.dateFrom && params.dateTo)) return null;
@@ -417,12 +464,18 @@ export class AiScheduleHandlersService {
       const normalizedPeriods = rawPeriods.map((p: any) => {
         const isUnavailable = p.type === 'unavailable_block';
         const periodServiceParams = {
-          serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : null),
+          serviceNames:
+            p.serviceNames ?? (p.serviceName ? [p.serviceName] : null),
           serviceName: p.serviceName ?? null,
         };
         const matched = isUnavailable
           ? []
-          : resolveScheduleServicesForEmployee(employee, services, periodServiceParams, prompt);
+          : resolveScheduleServicesForEmployee(
+              employee,
+              services,
+              periodServiceParams,
+              prompt,
+            );
 
         return {
           startTime: normalizeTime24(p.startTime),
@@ -453,7 +506,11 @@ export class AiScheduleHandlersService {
 
     if (!plans.length) return null;
     if (plans.length === 1) return plans[0];
-    return this.planBuilder.mergePlans(businessId, 'create_direct_schedule', plans);
+    return this.planBuilder.mergePlans(
+      businessId,
+      'create_direct_schedule',
+      plans,
+    );
   }
 
   async handleClearSchedule(
@@ -493,7 +550,9 @@ export class AiScheduleHandlersService {
 
     const allProviders =
       params.allProviders === true || isTeamWideProviderScopePrompt(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (!targets.length) return null;
 
     const dates = resolveScheduleDates(params, prompt);
@@ -527,12 +586,15 @@ export class AiScheduleHandlersService {
       params.allProviders === true ||
       /all providers|everyone|whole team|all staff/i.test(prompt);
 
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (targets.length === 0) {
       return {
         success: false,
         action: 'setup_week_schedule',
-        summary: 'Specify provider(s) or say "all providers" for template cascade.',
+        summary:
+          'Specify provider(s) or say "all providers" for template cascade.',
         details: { params },
       };
     }
@@ -563,7 +625,10 @@ export class AiScheduleHandlersService {
 
     const applyDays = parseWeekdaysFromParams(params, prompt);
     const repeatWeeksCount = params.repeatWeeksCount ?? 1;
-    const window = parseTimeWindow(params, prompt, { timeFrom: '09:00', timeTo: '19:00' });
+    const window = parseTimeWindow(params, prompt, {
+      timeFrom: '09:00',
+      timeTo: '19:00',
+    });
 
     const applyParams = {
       businessId,
@@ -596,7 +661,10 @@ export class AiScheduleHandlersService {
       userId,
     };
 
-    const plan = this.planBuilder.buildTemplateCascadePlan(applyParams, fillParams);
+    const plan = this.planBuilder.buildTemplateCascadePlan(
+      applyParams,
+      fillParams,
+    );
     return this.executePlan(plan, businessId, userId, targets.length);
   }
 
@@ -611,7 +679,9 @@ export class AiScheduleHandlersService {
     const allProviders =
       params.allProviders === true ||
       /all providers|everyone|whole team|all staff/i.test(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (!targets.length) return null;
 
     const range = resolveDateRange(params, prompt);
@@ -624,7 +694,10 @@ export class AiScheduleHandlersService {
     const template = resolveTemplate(templates, params.templateName);
     if (!template) return null;
 
-    const window = parseTimeWindow(params, prompt, { timeFrom: '09:00', timeTo: '19:00' });
+    const window = parseTimeWindow(params, prompt, {
+      timeFrom: '09:00',
+      timeTo: '19:00',
+    });
     const applyParams = {
       businessId,
       templateId: template.id,
@@ -697,7 +770,9 @@ export class AiScheduleHandlersService {
     const allProviders =
       params.allProviders === true ||
       /all providers|everyone|all staff/i.test(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, params);
     if (!targets.length) return null;
     const range = resolveDateRange(params, prompt);
     if (!range) return null;
@@ -732,12 +807,17 @@ export class AiScheduleHandlersService {
     const allProviders =
       enriched.allProviders === true ||
       /all providers|everyone|all staff|all employees/i.test(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, enriched);
+    const targets = allProviders
+      ? employees
+      : resolveEmployees(employees, enriched);
     if (!targets.length) return null;
 
     const range = resolveDateRange(enriched, prompt);
     const fullDay = isFullDayBlock(enriched, prompt);
-    const window = parseTimeWindow(enriched, prompt, { timeFrom: '00:00', timeTo: '23:59' });
+    const window = parseTimeWindow(enriched, prompt, {
+      timeFrom: '00:00',
+      timeTo: '23:59',
+    });
     const applyDays = parseWeekdaysFromParams(enriched, prompt);
     const placeholder =
       (enriched.reason as string | undefined) ||
@@ -746,14 +826,24 @@ export class AiScheduleHandlersService {
       'Blocked';
     const isRepetitive =
       !!range && range.start !== range.end && !fullDay && applyDays.length < 7;
-    const singleDate = range?.start ?? (enriched.date ? toIsoDay(String(enriched.date)) : null);
-    if (!isRepetitive && !singleDate && !(enriched.weeksCount || enriched.repeatWeeksCount)) {
+    const singleDate =
+      range?.start ?? (enriched.date ? toIsoDay(String(enriched.date)) : null);
+    if (
+      !isRepetitive &&
+      !singleDate &&
+      !(enriched.weeksCount || enriched.repeatWeeksCount)
+    ) {
       return null;
     }
 
-    const businessHolidays = await this.sprint23.resolveHolidayDatesForBusiness(businessId);
-    const paramHolidays = Array.isArray(enriched.holidayDates) ? enriched.holidayDates : [];
-    const holidayDates = [...new Set([...businessHolidays, ...paramHolidays.map(String)])];
+    const businessHolidays =
+      await this.scheduling.resolveHolidayDatesForBusiness(businessId);
+    const paramHolidays = Array.isArray(enriched.holidayDates)
+      ? enriched.holidayDates
+      : [];
+    const holidayDates = [
+      ...new Set([...businessHolidays, ...paramHolidays.map(String)]),
+    ];
 
     const blockPayloads = buildBlockScheduleBlockPayloads({
       targets,
@@ -817,7 +907,7 @@ export class AiScheduleHandlersService {
           where: {
             businessId,
             employeeId: employee.id,
-            startTime: Between(dayStart, dayEnd) as any,
+            startTime: Between(dayStart, dayEnd),
           },
           order: { startTime: 'ASC' },
         });
@@ -856,7 +946,11 @@ export class AiScheduleHandlersService {
       plan,
       businessId,
       userId,
-      autoExecute: shouldAutoExecute(plan.intent, plan.steps.length, providerCount),
+      autoExecute: shouldAutoExecute(
+        plan.intent,
+        plan.steps.length,
+        providerCount,
+      ),
     });
 
     return {
@@ -947,7 +1041,9 @@ export class AiScheduleHandlersService {
     const timePeriods = rawPeriods.map((p: any) => {
       const isUnavailable = p.type === 'unavailable_block';
       const periodServiceParams = {
-        serviceNames: p.serviceNames ?? (p.serviceName ? [p.serviceName] : params.serviceNames),
+        serviceNames:
+          p.serviceNames ??
+          (p.serviceName ? [p.serviceName] : params.serviceNames),
         serviceName: p.serviceName ?? params.serviceName ?? null,
       };
       const matched = isUnavailable

@@ -20,7 +20,10 @@ export function intlLocaleTag(locale: AppLocale): string {
 }
 
 /** 0 = Sunday (Date#getDay / dayjs.day). */
-export function formatWeekdayShortByDayIndex(dayIndex: number, locale: AppLocale): string {
+export function formatWeekdayShortByDayIndex(
+  dayIndex: number,
+  locale: AppLocale,
+): string {
   const anchor = dayjs.utc('2024-01-07').add(dayIndex, 'day').toDate();
   return new Intl.DateTimeFormat(intlLocaleTag(locale), {
     weekday: 'short',
@@ -37,9 +40,18 @@ export function formatDateKeyStripParts(
   const instant = dayjs.tz(dateKey, tz).toDate();
   const intl = intlLocaleTag(locale);
   return {
-    weekday: new Intl.DateTimeFormat(intl, { weekday: 'short', timeZone: tz }).format(instant),
-    dayNum: new Intl.DateTimeFormat(intl, { day: 'numeric', timeZone: tz }).format(instant),
-    month: new Intl.DateTimeFormat(intl, { month: 'short', timeZone: tz }).format(instant),
+    weekday: new Intl.DateTimeFormat(intl, {
+      weekday: 'short',
+      timeZone: tz,
+    }).format(instant),
+    dayNum: new Intl.DateTimeFormat(intl, {
+      day: 'numeric',
+      timeZone: tz,
+    }).format(instant),
+    month: new Intl.DateTimeFormat(intl, {
+      month: 'short',
+      timeZone: tz,
+    }).format(instant),
   };
 }
 

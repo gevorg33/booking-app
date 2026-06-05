@@ -7,8 +7,12 @@ import {
 
 describe('subscription-checkout.util', () => {
   it('resolves checkout kind', () => {
-    expect(resolvePublicCheckoutKind({ purchasePlanId: 'p1' })).toBe('subscription_purchase');
-    expect(resolvePublicCheckoutKind({ useSubscriptionId: 's1' })).toBe('subscription_credit');
+    expect(resolvePublicCheckoutKind({ purchasePlanId: 'p1' })).toBe(
+      'subscription_purchase',
+    );
+    expect(resolvePublicCheckoutKind({ useSubscriptionId: 's1' })).toBe(
+      'subscription_credit',
+    );
     expect(resolvePublicCheckoutKind({})).toBe('service_prepayment');
   });
 
@@ -20,9 +24,14 @@ describe('subscription-checkout.util', () => {
         purchasePlanId: 'plan-1',
       }),
     ).toBe('package_purchase');
-    expect(resolvePublicCheckoutKind({ serviceIds: ['a', 'b'] })).toBe('multi_service_booking');
+    expect(resolvePublicCheckoutKind({ serviceIds: ['a', 'b'] })).toBe(
+      'multi_service_booking',
+    );
     expect(
-      resolvePublicCheckoutKind({ purchasePlanId: 'plan-1', useSubscriptionId: 'sub-1' }),
+      resolvePublicCheckoutKind({
+        purchasePlanId: 'plan-1',
+        useSubscriptionId: 'sub-1',
+      }),
     ).toBe('subscription_purchase');
   });
 
@@ -53,6 +62,8 @@ describe('subscription-checkout.util', () => {
       name: 'Multi-service appointment',
       description: '2 services in one visit',
     });
-    expect(buildMultiServiceLineItem(3).description).toBe('3 services in one visit');
+    expect(buildMultiServiceLineItem(3).description).toBe(
+      '3 services in one visit',
+    );
   });
 });

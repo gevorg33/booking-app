@@ -27,7 +27,11 @@ export class SchedulingTemplatePeriod {
   @Column({ name: 'template_id' })
   templateId: string;
 
-  @Column({ type: 'enum', enum: TemplatePeriodType, default: TemplatePeriodType.SERVICE_BLOCK })
+  @Column({
+    type: 'enum',
+    enum: TemplatePeriodType,
+    default: TemplatePeriodType.SERVICE_BLOCK,
+  })
   type: TemplatePeriodType;
 
   @Column()

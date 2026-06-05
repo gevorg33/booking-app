@@ -82,7 +82,8 @@ export const DEFAULT_WHATSAPP_INTEGRATION: Required<
 export function mergeBusinessWhatsAppIntegration(
   raw?: Record<string, unknown>,
 ): BusinessWhatsAppIntegration {
-  const { defaultCountryCode: _legacy, ...rest } = (raw || {}) as BusinessWhatsAppIntegration & {
+  const { defaultCountryCode: _legacy, ...rest } = (raw ||
+    {}) as BusinessWhatsAppIntegration & {
     defaultCountryCode?: string;
   };
   return {
@@ -94,6 +95,10 @@ export function mergeBusinessWhatsAppIntegration(
 export function getBusinessWhatsAppIntegration(
   settings?: Record<string, unknown>,
 ): BusinessWhatsAppIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
-  return mergeBusinessWhatsAppIntegration(integrations?.whatsapp as Record<string, unknown>);
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
+  return mergeBusinessWhatsAppIntegration(
+    integrations?.whatsapp as Record<string, unknown>,
+  );
 }

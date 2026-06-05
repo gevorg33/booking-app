@@ -16,7 +16,11 @@ export class ScheduleApplyAgent implements AgentHandler {
   constructor(private llm: LlmService) {}
 
   async handle(context: AgentContext, intent: string): Promise<AgentResult> {
-    const llmResult = await this.llm.buildPlan(AgentType.SCHEDULING_OPTIMIZATION, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.SCHEDULING_OPTIMIZATION,
+      intent,
+      context,
+    );
 
     if (llmResult) {
       return {
@@ -36,19 +40,28 @@ export class ScheduleApplyAgent implements AgentHandler {
       };
     }
 
-    return { plan: this.buildFallbackPlan(context, intent), executionMode: 'requires_approval' };
+    return {
+      plan: this.buildFallbackPlan(context, intent),
+      executionMode: 'requires_approval',
+    };
   }
 
-  async analyzeTemplateApplication(context: AgentContext & {
-    templateName?: string;
-    employeeId?: string;
-    startDate?: string;
-    endDate?: string;
-    applyDays?: number[];
-  }): Promise<AgentResult> {
+  async analyzeTemplateApplication(
+    context: AgentContext & {
+      templateName?: string;
+      employeeId?: string;
+      startDate?: string;
+      endDate?: string;
+      applyDays?: number[];
+    },
+  ): Promise<AgentResult> {
     const intent = `Analyze and optimize template application: "${context.templateName}" for employee ${context.employeeId} from ${context.startDate} to ${context.endDate} on days ${context.applyDays?.join(',')}`;
 
-    const llmResult = await this.llm.buildPlan(AgentType.SCHEDULING_OPTIMIZATION, intent, context);
+    const llmResult = await this.llm.buildPlan(
+      AgentType.SCHEDULING_OPTIMIZATION,
+      intent,
+      context,
+    );
 
     if (llmResult) {
       return {
@@ -74,7 +87,10 @@ export class ScheduleApplyAgent implements AgentHandler {
     };
   }
 
-  private buildTemplateApplyPlan(context: AgentContext, intent: string): AgentPlan {
+  private buildTemplateApplyPlan(
+    context: AgentContext,
+    intent: string,
+  ): AgentPlan {
     const s1 = crypto.randomUUID();
     const s2 = crypto.randomUUID();
     const s3 = crypto.randomUUID();
@@ -84,20 +100,26 @@ export class ScheduleApplyAgent implements AgentHandler {
       agentType: AgentType.SCHEDULING_OPTIMIZATION,
       businessId: context.businessId,
       intent,
-      reasoning: 'Analyzing template application for optimal scheduling. Checking for conflicts, utilization, and slot distribution.',
+      reasoning:
+        'Analyzing template application for optimal scheduling. Checking for conflicts, utilization, and slot distribution.',
       steps: [
         {
           id: s1,
           action: 'analyze_existing_schedule',
-          description: 'Check for existing bookings and slots that would be affected',
-          params: { businessId: context.businessId, dateRange: context.dateRange },
+          description:
+            'Check for existing bookings and slots that would be affected',
+          params: {
+            businessId: context.businessId,
+            dateRange: context.dateRange,
+          },
           dependsOn: [],
           estimatedImpact: 'Read-only analysis',
         },
         {
           id: s2,
           action: 'validate_template_coverage',
-          description: 'Verify template covers all required service types and has proper time distribution',
+          description:
+            'Verify template covers all required service types and has proper time distribution',
           params: { businessId: context.businessId },
           dependsOn: [s1],
           estimatedImpact: 'Read-only validation',
@@ -105,7 +127,8 @@ export class ScheduleApplyAgent implements AgentHandler {
         {
           id: s3,
           action: 'apply_template_with_optimization',
-          description: 'Apply template and generate slots with optimization recommendations',
+          description:
+            'Apply template and generate slots with optimization recommendations',
           params: { businessId: context.businessId },
           dependsOn: [s2],
           estimatedImpact: 'Creates scheduling slots',
@@ -118,7 +141,10 @@ export class ScheduleApplyAgent implements AgentHandler {
       ],
       riskAssessment: {
         level: 'low',
-        factors: ['Template application is a standard operation', 'Existing bookings are preserved'],
+        factors: [
+          'Template application is a standard operation',
+          'Existing bookings are preserved',
+        ],
       },
       status: PlanStatus.DRAFT,
       createdAt: new Date(),
@@ -143,7 +169,11 @@ export class ScheduleApplyAgent implements AgentHandler {
       id: s2,
       action: 'identify_schedule_gaps',
       description: 'Identify underutilized time slots and scheduling gaps',
-      params: { businessId: context.businessId, dateRange: context.dateRange, minUtilizationThreshold: 0.6 },
+      params: {
+        businessId: context.businessId,
+        dateRange: context.dateRange,
+        minUtilizationThreshold: 0.6,
+      },
       dependsOn: [s1],
       estimatedImpact: 'Read-only analysis',
     });

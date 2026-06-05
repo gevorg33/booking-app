@@ -24,7 +24,12 @@ describe('ServiceSubscriptionsService', () => {
     create: jest.fn(),
     count: jest.fn(),
   };
-  const usageRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const usageRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
   const serviceRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
 
@@ -59,11 +64,23 @@ describe('ServiceSubscriptionsService', () => {
     planRepo.create.mockImplementation((v) => v);
     planRepo.save.mockImplementation(async (v) => ({ id: 'plan-1', ...v }));
     subscriptionRepo.create.mockImplementation((v) => v);
-    subscriptionRepo.save.mockImplementation(async (v) => ({ id: 'sub-1', ...v }));
+    subscriptionRepo.save.mockImplementation(async (v) => ({
+      id: 'sub-1',
+      ...v,
+    }));
     usageRepo.create.mockImplementation((v) => v);
     usageRepo.save.mockImplementation(async (v) => ({ id: 'usage-1', ...v }));
-    serviceRepo.findOne.mockResolvedValue({ id: 'svc-1', businessId: 'biz-1', price: 25, currency: 'USD' });
-    customerRepo.findOne.mockResolvedValue({ id: 'cust-1', businessId: 'biz-1', isActive: true });
+    serviceRepo.findOne.mockResolvedValue({
+      id: 'svc-1',
+      businessId: 'biz-1',
+      price: 25,
+      currency: 'USD',
+    });
+    customerRepo.findOne.mockResolvedValue({
+      id: 'cust-1',
+      businessId: 'biz-1',
+      isActive: true,
+    });
   });
 
   it('creates subscription plan', async () => {
@@ -104,7 +121,9 @@ describe('ServiceSubscriptionsService', () => {
     planRepo.find.mockResolvedValue([]);
     await service.listPlans('biz-1', 'svc-1');
     expect(planRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { businessId: 'biz-1', isActive: true, serviceId: 'svc-1' } }),
+      expect.objectContaining({
+        where: { businessId: 'biz-1', isActive: true, serviceId: 'svc-1' },
+      }),
     );
   });
 
@@ -177,7 +196,9 @@ describe('ServiceSubscriptionsService', () => {
 
   it('skips restore when no consume record', async () => {
     usageRepo.findOne.mockResolvedValue(null);
-    await expect(service.restoreCreditForBooking('booking-x')).resolves.toBeNull();
+    await expect(
+      service.restoreCreditForBooking('booking-x'),
+    ).resolves.toBeNull();
   });
 
   it('previews plan pricing from database', async () => {
@@ -247,8 +268,15 @@ describe('ServiceSubscriptionsService', () => {
   });
 
   it('lists service ids with active plans', async () => {
-    planRepo.find.mockResolvedValue([{ serviceId: 'svc-1' }, { serviceId: 'svc-2' }, { serviceId: 'svc-1' }]);
-    await expect(service.serviceIdsWithActivePlans('biz-1')).resolves.toEqual(['svc-1', 'svc-2']);
+    planRepo.find.mockResolvedValue([
+      { serviceId: 'svc-1' },
+      { serviceId: 'svc-2' },
+      { serviceId: 'svc-1' },
+    ]);
+    await expect(service.serviceIdsWithActivePlans('biz-1')).resolves.toEqual([
+      'svc-1',
+      'svc-2',
+    ]);
   });
 
   it('lists customer subscriptions with synced status', async () => {
@@ -277,26 +305,43 @@ describe('ServiceSubscriptionsService', () => {
         plan: { serviceId: 'svc-1' },
       },
     ]);
-    const sub = await service.getActiveForCustomerService('biz-1', 'cust-1', 'svc-1');
+    const sub = await service.getActiveForCustomerService(
+      'biz-1',
+      'cust-1',
+      'svc-1',
+    );
     expect(sub?.id).toBe('sub-1');
   });
 
   it('updates plan', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', name: 'Old' });
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      name: 'Old',
+    });
     planRepo.save.mockImplementation(async (v) => v);
-    const updated = await service.updatePlan('biz-1', 'plan-1', { name: 'New' });
+    const updated = await service.updatePlan('biz-1', 'plan-1', {
+      name: 'New',
+    });
     expect(updated.name).toBe('New');
   });
 
   it('returns usage history', async () => {
-    subscriptionRepo.findOne.mockResolvedValue({ id: 'sub-1', plan: { service: { name: 'Cut' } } });
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      plan: { service: { name: 'Cut' } },
+    });
     usageRepo.find.mockResolvedValue([{ id: 'u1' }]);
     const result = await service.getUsageHistory('biz-1', 'sub-1');
     expect(result.usage).toEqual([{ id: 'u1' }]);
   });
 
   it('deactivates plan', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      isActive: true,
+    });
     planRepo.save.mockImplementation(async (v) => v);
     const updated = await service.deactivatePlan('biz-1', 'plan-1');
     expect(updated.isActive).toBe(false);
@@ -304,19 +349,36 @@ describe('ServiceSubscriptionsService', () => {
 
   it('activates deactivated plan', async () => {
     planRepo.findOne
-      .mockResolvedValueOnce({ id: 'plan-1', businessId: 'biz-1', serviceId: 'svc-1', isActive: false })
-      .mockResolvedValueOnce({ id: 'plan-1', businessId: 'biz-1', isActive: false });
+      .mockResolvedValueOnce({
+        id: 'plan-1',
+        businessId: 'biz-1',
+        serviceId: 'svc-1',
+        isActive: false,
+      })
+      .mockResolvedValueOnce({
+        id: 'plan-1',
+        businessId: 'biz-1',
+        isActive: false,
+      });
     planRepo.save.mockImplementation(async (v) => ({ ...v, isActive: true }));
     const updated = await service.activatePlan('biz-1', 'plan-1');
     expect(updated.isActive).toBe(true);
     expect(serviceRepo.findOne).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'svc-1', businessId: 'biz-1', isActive: true } }),
+      expect.objectContaining({
+        where: { id: 'svc-1', businessId: 'biz-1', isActive: true },
+      }),
     );
   });
 
   it('rejects activating already active plan', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
-    await expect(service.activatePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      isActive: true,
+    });
+    await expect(
+      service.activatePlan('biz-1', 'plan-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects activating when linked service is inactive', async () => {
@@ -327,7 +389,9 @@ describe('ServiceSubscriptionsService', () => {
       isActive: false,
     });
     serviceRepo.findOne.mockResolvedValue(null);
-    await expect(service.activatePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.activatePlan('biz-1', 'plan-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('deletes deactivated plan with no customer subscriptions', async () => {
@@ -341,24 +405,40 @@ describe('ServiceSubscriptionsService', () => {
   });
 
   it('rejects deleting active plan', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: true });
-    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      isActive: true,
+    });
+    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects deleting plan with customer subscriptions', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', isActive: false });
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      isActive: false,
+    });
     subscriptionRepo.count.mockResolvedValue(2);
-    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.deletePlan('biz-1', 'plan-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('throws when deleting missing plan', async () => {
     planRepo.findOne.mockResolvedValue(null);
-    await expect(service.deletePlan('biz-1', 'plan-x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.deletePlan('biz-1', 'plan-x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('throws when activating missing plan', async () => {
     planRepo.findOne.mockResolvedValue(null);
-    await expect(service.activatePlan('biz-1', 'plan-x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.activatePlan('biz-1', 'plan-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('assertCanConsume rejects zero remaining when status stays active', async () => {
@@ -385,43 +465,52 @@ describe('ServiceSubscriptionsService', () => {
       }),
     };
     await expect(
-      service.consumeCreditInTransaction(manager as any, 'sub-1', 'b1', 'svc-1'),
+      service.consumeCreditInTransaction(
+        manager as any,
+        'sub-1',
+        'b1',
+        'svc-1',
+      ),
     ).rejects.toThrow('Subscription has no remaining appointments');
     jest.restoreAllMocks();
   });
 
   it('cancelSubscription throws when missing', async () => {
     subscriptionRepo.findOne.mockResolvedValue(null);
-    await expect(service.cancelSubscription('biz-1', 'sub-x')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.cancelSubscription('biz-1', 'sub-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('getPlanCheckoutDetails throws when plan inactive or missing', async () => {
-    planRepo.findOne.mockResolvedValueOnce(basePlan).mockResolvedValueOnce(null);
-    await expect(service.getPlanCheckoutDetails('biz-1', 'plan-x')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    planRepo.findOne
+      .mockResolvedValueOnce(basePlan)
+      .mockResolvedValueOnce(null);
+    await expect(
+      service.getPlanCheckoutDetails('biz-1', 'plan-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('assignSubscription throws when plan missing', async () => {
     planRepo.findOne.mockResolvedValue(null);
-    await expect(service.assignSubscription('biz-1', 'cust-1', 'plan-x')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.assignSubscription('biz-1', 'cust-1', 'plan-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('assignSubscription throws when customer missing', async () => {
     planRepo.findOne.mockResolvedValue(basePlan);
     customerRepo.findOne.mockResolvedValue(null);
-    await expect(service.assignSubscription('biz-1', 'cust-1', 'plan-1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.assignSubscription('biz-1', 'cust-1', 'plan-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('getUsageHistory throws when subscription missing', async () => {
     subscriptionRepo.findOne.mockResolvedValue(null);
-    await expect(service.getUsageHistory('biz-1', 'sub-x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.getUsageHistory('biz-1', 'sub-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('syncStatus keeps future start subscriptions non-active', () => {
@@ -436,7 +525,11 @@ describe('ServiceSubscriptionsService', () => {
   });
 
   it('cancels customer subscription', async () => {
-    subscriptionRepo.findOne.mockResolvedValue({ id: 'sub-1', businessId: 'biz-1', status: 'active' });
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      businessId: 'biz-1',
+      status: 'active',
+    });
     subscriptionRepo.save.mockImplementation(async (v) => v);
     const updated = await service.cancelSubscription('biz-1', 'sub-1');
     expect(updated.status).toBe(CustomerSubscriptionStatus.CANCELLED);
@@ -469,7 +562,11 @@ describe('ServiceSubscriptionsService', () => {
       appointmentsRemaining: 2,
     });
     usageRepo.find.mockResolvedValue([{ id: 'u1', action: 'consume' }]);
-    const result = await service.getCustomerSubscriptionUsage('biz-1', 'cust-1', 'sub-1');
+    const result = await service.getCustomerSubscriptionUsage(
+      'biz-1',
+      'cust-1',
+      'sub-1',
+    );
     expect(result.usage).toHaveLength(1);
   });
 
@@ -504,7 +601,11 @@ describe('ServiceSubscriptionsService', () => {
   });
 
   it('updatePlan validates service when serviceId changes', async () => {
-    planRepo.findOne.mockResolvedValue({ id: 'plan-1', businessId: 'biz-1', name: 'Old' });
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      name: 'Old',
+    });
     serviceRepo.findOne.mockResolvedValue(null);
     await expect(
       service.updatePlan('biz-1', 'plan-1', { serviceId: 'svc-x' }),
@@ -544,7 +645,12 @@ describe('ServiceSubscriptionsService', () => {
   it('consume throws when subscription missing in transaction', async () => {
     const manager = { findOne: jest.fn().mockResolvedValue(null) };
     await expect(
-      service.consumeCreditInTransaction(manager as any, 'sub-x', 'b1', 'svc-1'),
+      service.consumeCreditInTransaction(
+        manager as any,
+        'sub-x',
+        'b1',
+        'svc-1',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -559,7 +665,12 @@ describe('ServiceSubscriptionsService', () => {
       }),
     };
     await expect(
-      service.consumeCreditInTransaction(manager as any, 'sub-1', 'b1', 'svc-1'),
+      service.consumeCreditInTransaction(
+        manager as any,
+        'sub-1',
+        'b1',
+        'svc-1',
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -597,15 +708,25 @@ describe('ServiceSubscriptionsService', () => {
       }),
     };
     await expect(
-      service.consumeCreditInTransaction(manager as any, 'sub-1', 'b1', 'svc-1'),
+      service.consumeCreditInTransaction(
+        manager as any,
+        'sub-1',
+        'b1',
+        'svc-1',
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('skips restore when restore already recorded', async () => {
     usageRepo.findOne
-      .mockResolvedValueOnce({ subscriptionId: 'sub-1', action: SubscriptionUsageAction.CONSUME })
+      .mockResolvedValueOnce({
+        subscriptionId: 'sub-1',
+        action: SubscriptionUsageAction.CONSUME,
+      })
       .mockResolvedValueOnce({ action: SubscriptionUsageAction.RESTORE });
-    await expect(service.restoreCreditForBooking('booking-1')).resolves.toBeNull();
+    await expect(
+      service.restoreCreditForBooking('booking-1'),
+    ).resolves.toBeNull();
   });
 
   it('syncStatus leaves cancelled unchanged', () => {
@@ -634,8 +755,8 @@ describe('ServiceSubscriptionsService', () => {
 
   it('throws when plan missing on preview', async () => {
     planRepo.findOne.mockResolvedValue(null);
-    await expect(service.previewPlanPricing('biz-1', 'plan-x')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.previewPlanPricing('biz-1', 'plan-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

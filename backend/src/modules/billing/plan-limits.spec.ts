@@ -17,16 +17,28 @@ describe('plan-limits', () => {
   });
 
   it('resolves starter when subscription is active', () => {
-    expect(resolvePlanTier('starter', SubscriptionStatus.ACTIVE)).toBe('starter');
+    expect(resolvePlanTier('starter', SubscriptionStatus.ACTIVE)).toBe(
+      'starter',
+    );
     expect(resolvePlanTier('starter', undefined)).toBe('solo');
-    expect(resolvePlanTier('starter', SubscriptionStatus.INACTIVE)).toBe('solo');
-    expect(resolvePlanTier('starter', SubscriptionStatus.TRIALING)).toBe('starter');
-    expect(resolvePlanTier('starter', SubscriptionStatus.PAST_DUE)).toBe('solo');
+    expect(resolvePlanTier('starter', SubscriptionStatus.INACTIVE)).toBe(
+      'solo',
+    );
+    expect(resolvePlanTier('starter', SubscriptionStatus.TRIALING)).toBe(
+      'starter',
+    );
+    expect(resolvePlanTier('starter', SubscriptionStatus.PAST_DUE)).toBe(
+      'solo',
+    );
   });
 
   it('resolves business tier for growth/business plan ids', () => {
-    expect(resolvePlanTier('business', SubscriptionStatus.ACTIVE)).toBe('business');
-    expect(resolvePlanTier('growth', SubscriptionStatus.TRIALING)).toBe('business');
+    expect(resolvePlanTier('business', SubscriptionStatus.ACTIVE)).toBe(
+      'business',
+    );
+    expect(resolvePlanTier('growth', SubscriptionStatus.TRIALING)).toBe(
+      'business',
+    );
     expect(getLimitsForTier('business').flags.memberships).toBe(true);
     expect(getLimitsForTier('business').flags.giftCards).toBe(true);
   });

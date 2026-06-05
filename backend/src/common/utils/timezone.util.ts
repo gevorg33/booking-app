@@ -17,7 +17,9 @@ export function resolveTimezone(tz?: string | null): string {
   }
 }
 
-export function pickTimezone(...candidates: (string | null | undefined)[]): string {
+export function pickTimezone(
+  ...candidates: (string | null | undefined)[]
+): string {
   for (const candidate of candidates) {
     if (candidate != null && String(candidate).trim() !== '') {
       return resolveTimezone(String(candidate).trim());
@@ -43,8 +45,15 @@ export function getUtcBoundsForDateKey(
   };
 }
 
-export function addDaysToDateKey(dateKey: string, days: number, timeZone: string): string {
-  return dayjs.tz(dateKey, resolveTimezone(timeZone)).add(days, 'day').format('YYYY-MM-DD');
+export function addDaysToDateKey(
+  dateKey: string,
+  days: number,
+  timeZone: string,
+): string {
+  return dayjs
+    .tz(dateKey, resolveTimezone(timeZone))
+    .add(days, 'day')
+    .format('YYYY-MM-DD');
 }
 
 /** e.g. "27 May, Tuesday" in business timezone (localized when locale is en/hy/ru). */
@@ -55,8 +64,7 @@ export function formatZonedDateLabel(
 ): string {
   const tz = resolveTimezone(timeZone);
   const instant = dayjs.tz(dateKey, tz).toDate();
-  const intl =
-    locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-GB';
+  const intl = locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-GB';
   const monthDay = new Intl.DateTimeFormat(intl, {
     day: 'numeric',
     month: 'long',
@@ -69,12 +77,18 @@ export function formatZonedDateLabel(
   return `${monthDay}, ${weekday}`;
 }
 
-export function formatZonedTime(instant: Date | string, timeZone: string): string {
+export function formatZonedTime(
+  instant: Date | string,
+  timeZone: string,
+): string {
   return dayjs(instant).tz(resolveTimezone(timeZone)).format('HH:mm');
 }
 
 /** Wall-clock "now" in business timezone (date + minutes since midnight). */
-export function getWallClockNow(timeZone: string): { dateKey: string; minutes: number } {
+export function getWallClockNow(timeZone: string): {
+  dateKey: string;
+  minutes: number;
+} {
   const d = dayjs().tz(resolveTimezone(timeZone));
   return {
     dateKey: d.format('YYYY-MM-DD'),
@@ -91,7 +105,10 @@ function wallClockMinutesFromTimeSlot(timeSlot: string): number {
  * Bookings store UTC date/time components as wall-clock values (13:00 UTC = 13:00 on the calendar).
  * Compare against business-local now, not real UTC instants.
  */
-export function isWallClockStartInPast(startTime: Date, timeZone: string): boolean {
+export function isWallClockStartInPast(
+  startTime: Date,
+  timeZone: string,
+): boolean {
   const isoDay = startTime.toISOString().split('T')[0];
   const slotMinutes = startTime.getUTCHours() * 60 + startTime.getUTCMinutes();
   const now = getWallClockNow(timeZone);
@@ -109,7 +126,9 @@ export function isWallClockSlotBookable(
 ): boolean {
   const now = getWallClockNow(timeZone);
   const slotMin = wallClockMinutesFromTimeSlot(timeSlot);
-  const notBeforeMin = notBeforeTime ? wallClockMinutesFromTimeSlot(notBeforeTime) : null;
+  const notBeforeMin = notBeforeTime
+    ? wallClockMinutesFromTimeSlot(notBeforeTime)
+    : null;
 
   if (isoDay < now.dateKey) return false;
 

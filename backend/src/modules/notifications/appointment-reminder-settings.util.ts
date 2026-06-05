@@ -12,11 +12,12 @@ export interface CustomerReminderChoiceSettings {
 
 export const DEFAULT_CUSTOMER_REMINDER_OPTIONS_HOURS = [24, 1];
 
-export const DEFAULT_CUSTOMER_REMINDER_CHOICE_SETTINGS: CustomerReminderChoiceSettings = {
-  allowCustomerReminderChoice: false,
-  customerReminderOptionsHours: DEFAULT_CUSTOMER_REMINDER_OPTIONS_HOURS,
-  defaultCustomerReminderHours: 24,
-};
+export const DEFAULT_CUSTOMER_REMINDER_CHOICE_SETTINGS: CustomerReminderChoiceSettings =
+  {
+    allowCustomerReminderChoice: false,
+    customerReminderOptionsHours: DEFAULT_CUSTOMER_REMINDER_OPTIONS_HOURS,
+    defaultCustomerReminderHours: 24,
+  };
 
 export function normalizeReminderOptionsHours(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [...DEFAULT_CUSTOMER_REMINDER_OPTIONS_HOURS];
@@ -37,13 +38,18 @@ export function normalizeReminderOptionsHours(raw: unknown): number[] {
 export function mergeCustomerReminderChoiceSettings(
   raw?: Partial<CustomerReminderChoiceSettings> | Record<string, unknown>,
 ): CustomerReminderChoiceSettings {
-  const options = normalizeReminderOptionsHours(raw?.customerReminderOptionsHours);
+  const options = normalizeReminderOptionsHours(
+    raw?.customerReminderOptionsHours,
+  );
   const defaultHoursRaw = raw?.defaultCustomerReminderHours;
   let defaultCustomerReminderHours: number | null =
     defaultHoursRaw === null || defaultHoursRaw === undefined
       ? options[0]
       : Math.round(Number(defaultHoursRaw));
-  if (!Number.isFinite(defaultCustomerReminderHours) || !options.includes(defaultCustomerReminderHours)) {
+  if (
+    !Number.isFinite(defaultCustomerReminderHours) ||
+    !options.includes(defaultCustomerReminderHours)
+  ) {
     defaultCustomerReminderHours = options[0];
   }
 
@@ -54,8 +60,9 @@ export function mergeCustomerReminderChoiceSettings(
   };
 }
 
-
-export function readBookingReminderHoursBefore(metadata?: Record<string, unknown>): number | null | undefined {
+export function readBookingReminderHoursBefore(
+  metadata?: Record<string, unknown>,
+): number | null | undefined {
   if (!metadata || !('reminderHoursBefore' in metadata)) return undefined;
   const raw = metadata.reminderHoursBefore;
   if (raw === null) return null;
@@ -74,7 +81,9 @@ export function resolveBookingReminderHoursBefore(
   }
   if (stored === null) return null;
   if (stored !== undefined) {
-    return settings.customerReminderOptionsHours.includes(stored) ? stored : settings.defaultCustomerReminderHours;
+    return settings.customerReminderOptionsHours.includes(stored)
+      ? stored
+      : settings.defaultCustomerReminderHours;
   }
   return settings.defaultCustomerReminderHours;
 }
@@ -124,12 +133,16 @@ export function resolveReminderChannelFlags(
 
 export function buildPublicAppointmentReminderSettings(
   settings?: Record<string, unknown>,
-): {
-  enabled: boolean;
-  optionsHours: number[];
-  defaultHours: number | null;
-} | undefined {
-  const merged = mergeCustomerReminderChoiceSettings(settings?.notifications as Record<string, unknown>);
+):
+  | {
+      enabled: boolean;
+      optionsHours: number[];
+      defaultHours: number | null;
+    }
+  | undefined {
+  const merged = mergeCustomerReminderChoiceSettings(
+    settings?.notifications as Record<string, unknown>,
+  );
   if (!merged.allowCustomerReminderChoice) return undefined;
   return {
     enabled: true,

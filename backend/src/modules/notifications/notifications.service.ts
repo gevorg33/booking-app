@@ -18,8 +18,15 @@ import {
   type NotificationKind,
 } from './notification.types.js';
 import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
-import { resolveLocale, t, type AppLocale } from '../../common/i18n/messages.js';
-import { formatDateDisplay, formatTimeRangeDisplay } from '../../common/utils/date-format.util.js';
+import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
+import {
+  formatDateDisplay,
+  formatTimeRangeDisplay,
+} from '../../common/utils/date-format.util.js';
 import {
   buildBookingManageUrl,
   ensureBookingManageToken,
@@ -57,7 +64,8 @@ export class NotificationsService {
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
-    @InjectRepository(NotificationLog) private logRepo: Repository<NotificationLog>,
+    @InjectRepository(NotificationLog)
+    private logRepo: Repository<NotificationLog>,
     private emailService: EmailService,
     private smsService: SmsService,
     private whatsappService: WhatsAppService,
@@ -65,8 +73,12 @@ export class NotificationsService {
     private configService: ConfigService,
   ) {}
 
-  async getBusinessSettings(businessId: string): Promise<BusinessNotificationSettings> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getBusinessSettings(
+    businessId: string,
+  ): Promise<BusinessNotificationSettings> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return mergeBusinessNotificationSettings(business.settings?.notifications);
   }
@@ -75,7 +87,9 @@ export class NotificationsService {
     businessId: string,
     patch: Partial<BusinessNotificationSettings>,
   ): Promise<BusinessNotificationSettings> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     business.settings = {
       ...business.settings,
@@ -89,7 +103,8 @@ export class NotificationsService {
   }
 
   getProviderStatus(settings?: Record<string, unknown>) {
-    const whatsappConfig = this.whatsappIntegrationService.resolveRuntimeConfig(settings);
+    const whatsappConfig =
+      this.whatsappIntegrationService.resolveRuntimeConfig(settings);
     return {
       emailConfigured: this.emailService.isConfigured,
       smsConfigured: this.smsService.isConfigured,
@@ -159,7 +174,12 @@ export class NotificationsService {
         business: ctx.business,
         businessSettings: ctx.businessSettings,
       };
-      await this.dispatchWhatsApp(immediateCtx, 'reminder_immediate', customer.phone, 0);
+      await this.dispatchWhatsApp(
+        immediateCtx,
+        'reminder_immediate',
+        customer.phone,
+        0,
+      );
     }
   }
 
@@ -177,7 +197,12 @@ export class NotificationsService {
 
     const manageLink = await this.resolveManageLinkForBooking(ctx);
 
-    if (businessSettings.sendConfirmationEmail && businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
+    if (
+      businessSettings.sendConfirmationEmail &&
+      businessSettings.emailEnabled &&
+      prefs.emailReminders &&
+      customer.email
+    ) {
       await this.dispatch(ctx, 'confirmation', 'email', customer.email, () =>
         this.buildConfirmationEmail(ctx, manageLink),
       );
@@ -209,7 +234,10 @@ export class NotificationsService {
     }
   }
 
-  async sendBookingCancellation(bookingId: string, reason?: string): Promise<void> {
+  async sendBookingCancellation(
+    bookingId: string,
+    reason?: string,
+  ): Promise<void> {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
 
@@ -222,7 +250,11 @@ export class NotificationsService {
     const prefs = getCustomerNotificationPreferences(customer.metadata);
     const cancelReason = reason || 'Your appointment was cancelled';
 
-    if (businessSettings.emailEnabled && prefs.emailReminders && customer.email) {
+    if (
+      businessSettings.emailEnabled &&
+      prefs.emailReminders &&
+      customer.email
+    ) {
       await this.dispatch(ctx, 'cancellation', 'email', customer.email, () =>
         this.buildCancellationEmail(ctx, cancelReason),
       );
@@ -234,8 +266,18 @@ export class NotificationsService {
       );
     }
 
-    if (businessSettings.whatsappEnabled && prefs.whatsappReminders && customer.phone) {
-      await this.dispatchWhatsApp(ctx, 'cancellation', customer.phone, undefined, cancelReason);
+    if (
+      businessSettings.whatsappEnabled &&
+      prefs.whatsappReminders &&
+      customer.phone
+    ) {
+      await this.dispatchWhatsApp(
+        ctx,
+        'cancellation',
+        customer.phone,
+        undefined,
+        cancelReason,
+      );
     }
   }
 
@@ -256,9 +298,14 @@ export class NotificationsService {
 
     const locale = this.businessLocale(business.settings);
     const customerName = booking.customer?.name ?? 'A customer';
-    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const serviceName =
+      booking.service?.name ?? t(locale, 'email.defaultServiceName');
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
 
     let summary: string;
     if (change === 'cancelled') {
@@ -275,7 +322,9 @@ export class NotificationsService {
 
     await this.dispatch(
       ctx,
-      change === 'cancelled' ? 'business_booking_cancelled' : 'business_booking_rescheduled',
+      change === 'cancelled'
+        ? 'business_booking_cancelled'
+        : 'business_booking_rescheduled',
       'email',
       recipient,
       () => ({
@@ -291,10 +340,14 @@ export class NotificationsService {
     customerId: string,
     source: CustomerRegistrationSource,
   ): Promise<void> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return;
 
-    const settings = mergeBusinessNotificationSettings(business.settings?.notifications);
+    const settings = mergeBusinessNotificationSettings(
+      business.settings?.notifications,
+    );
     if (!settings.emailOnNewCustomerRegistration) return;
     if (!settings.emailEnabled) return;
     if (settings.marketingTeamEmails.length === 0) return;
@@ -304,7 +357,8 @@ export class NotificationsService {
     });
     if (!customer) return;
 
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const profileUrl = `${frontendUrl.replace(/\/$/, '')}/dashboard/customers?search=${encodeURIComponent(customer.name)}`;
     const sourceLabel = formatCustomerRegistrationSourceLabel(source);
     const subject = `New customer — ${customer.name}`;
@@ -389,7 +443,11 @@ export class NotificationsService {
     return sent;
   }
 
-  private isWithinReminderWindow(now: Date, startTime: Date, minutesBefore: number): boolean {
+  private isWithinReminderWindow(
+    now: Date,
+    startTime: Date,
+    minutesBefore: number,
+  ): boolean {
     const windowMs = 5 * 60 * 1000;
     const target = startTime.getTime() - minutesBefore * 60 * 1000;
     return Math.abs(now.getTime() - target) <= windowMs;
@@ -413,14 +471,20 @@ export class NotificationsService {
     let sent = 0;
     for (const booking of bookings) {
       if (!booking.business) continue;
-      const businessSettings = mergeBusinessNotificationSettings(booking.business.settings?.notifications);
+      const businessSettings = mergeBusinessNotificationSettings(
+        booking.business.settings?.notifications,
+      );
       if (!businessSettings.allowCustomerReminderChoice) continue;
 
-      const leadHours = resolveBookingReminderHoursBefore(booking.metadata, businessSettings);
+      const leadHours = resolveBookingReminderHoursBefore(
+        booking.metadata,
+        businessSettings,
+      );
       if (leadHours == null) continue;
 
       const minutesBefore = leadHours * 60;
-      if (!this.isWithinReminderWindow(now, booking.startTime, minutesBefore)) continue;
+      if (!this.isWithinReminderWindow(now, booking.startTime, minutesBefore))
+        continue;
 
       const ctx: BookingNotificationContext = {
         booking,
@@ -431,17 +495,30 @@ export class NotificationsService {
       if (!customer) continue;
 
       const prefs = getCustomerNotificationPreferences(customer.metadata);
-      const channelFlags = resolveReminderChannelFlags(businessSettings, leadHours);
+      const channelFlags = resolveReminderChannelFlags(
+        businessSettings,
+        leadHours,
+      );
       const kind = reminderNotificationKind(leadHours) as NotificationKind;
 
-      if (businessSettings.emailEnabled && channelFlags.email && prefs.emailReminders && customer.email) {
+      if (
+        businessSettings.emailEnabled &&
+        channelFlags.email &&
+        prefs.emailReminders &&
+        customer.email
+      ) {
         const ok = await this.dispatch(ctx, kind, 'email', customer.email, () =>
           this.buildReminderEmail(ctx, minutesBefore),
         );
         if (ok) sent++;
       }
 
-      if (businessSettings.smsEnabled && channelFlags.sms && prefs.smsReminders && customer.phone) {
+      if (
+        businessSettings.smsEnabled &&
+        channelFlags.sms &&
+        prefs.smsReminders &&
+        customer.phone
+      ) {
         const ok = await this.dispatch(ctx, kind, 'sms', customer.phone, () =>
           this.buildReminderSms(ctx, minutesBefore),
         );
@@ -454,7 +531,12 @@ export class NotificationsService {
         prefs.whatsappReminders &&
         customer.phone
       ) {
-        const ok = await this.dispatchWhatsApp(ctx, kind, customer.phone, minutesBefore);
+        const ok = await this.dispatchWhatsApp(
+          ctx,
+          kind,
+          customer.phone,
+          minutesBefore,
+        );
         if (ok) sent++;
       }
     }
@@ -488,7 +570,9 @@ export class NotificationsService {
       const ctx: BookingNotificationContext = {
         booking,
         business: booking.business,
-        businessSettings: mergeBusinessNotificationSettings(booking.business?.settings?.notifications),
+        businessSettings: mergeBusinessNotificationSettings(
+          booking.business?.settings?.notifications,
+        ),
       };
       if (ctx.businessSettings.allowCustomerReminderChoice) continue;
 
@@ -510,22 +594,42 @@ export class NotificationsService {
           ? businessSettings.reminder24hWhatsapp
           : businessSettings.reminder1hWhatsapp;
 
-      if (businessSettings.emailEnabled && emailEnabled && prefs.emailReminders && customer.email) {
+      if (
+        businessSettings.emailEnabled &&
+        emailEnabled &&
+        prefs.emailReminders &&
+        customer.email
+      ) {
         const ok = await this.dispatch(ctx, kind, 'email', customer.email, () =>
           this.buildReminderEmail(ctx, minutesBefore),
         );
         if (ok) sent++;
       }
 
-      if (businessSettings.smsEnabled && smsEnabled && prefs.smsReminders && customer.phone) {
+      if (
+        businessSettings.smsEnabled &&
+        smsEnabled &&
+        prefs.smsReminders &&
+        customer.phone
+      ) {
         const ok = await this.dispatch(ctx, kind, 'sms', customer.phone, () =>
           this.buildReminderSms(ctx, minutesBefore),
         );
         if (ok) sent++;
       }
 
-      if (businessSettings.whatsappEnabled && whatsappEnabled && prefs.whatsappReminders && customer.phone) {
-        const ok = await this.dispatchWhatsApp(ctx, kind, customer.phone, minutesBefore);
+      if (
+        businessSettings.whatsappEnabled &&
+        whatsappEnabled &&
+        prefs.whatsappReminders &&
+        customer.phone
+      ) {
+        const ok = await this.dispatchWhatsApp(
+          ctx,
+          kind,
+          customer.phone,
+          minutesBefore,
+        );
         if (ok) sent++;
       }
     }
@@ -533,17 +637,26 @@ export class NotificationsService {
     return sent;
   }
 
-  private async loadContext(bookingId: string): Promise<BookingNotificationContext | null> {
+  private async loadContext(
+    bookingId: string,
+  ): Promise<BookingNotificationContext | null> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
-      relations: { customer: true, employee: true, service: true, business: true },
+      relations: {
+        customer: true,
+        employee: true,
+        service: true,
+        business: true,
+      },
     });
     if (!booking?.business) return null;
 
     return {
       booking,
       business: booking.business,
-      businessSettings: mergeBusinessNotificationSettings(booking.business.settings?.notifications),
+      businessSettings: mergeBusinessNotificationSettings(
+        booking.business.settings?.notifications,
+      ),
     };
   }
 
@@ -596,14 +709,20 @@ export class NotificationsService {
     );
 
     if (!ok) {
-      this.logger.warn(`Failed ${kind} ${channel} for booking ${ctx.booking.id}: ${error}`);
+      this.logger.warn(
+        `Failed ${kind} ${channel} for booking ${ctx.booking.id}: ${error}`,
+      );
     }
 
     return ok;
   }
 
-  private async shouldSkipImmediateWhatsApp(ctx: BookingNotificationContext): Promise<boolean> {
-    const config = this.whatsappIntegrationService.resolveRuntimeConfig(ctx.business.settings);
+  private async shouldSkipImmediateWhatsApp(
+    ctx: BookingNotificationContext,
+  ): Promise<boolean> {
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(
+      ctx.business.settings,
+    );
     if (!config) return true;
     return this.whatsappService.shouldSkipImmediateAfterConfirmation(config);
   }
@@ -624,16 +743,24 @@ export class NotificationsService {
     });
     if (existing) return false;
 
-    const config = this.whatsappIntegrationService.resolveRuntimeConfig(ctx.business.settings);
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(
+      ctx.business.settings,
+    );
     if (!config) {
-      this.logger.warn(`WhatsApp not configured for business ${ctx.business.id}`);
+      this.logger.warn(
+        `WhatsApp not configured for business ${ctx.business.id}`,
+      );
       return false;
     }
 
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const dateLabel = formatDateDisplay(booking.startTime, locale);
-    const timeLabel = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const timeLabel = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
     const reminderLabel =
       kind === 'reminder_immediate'
         ? t(locale, 'email.reminderNow')
@@ -645,10 +772,13 @@ export class NotificationsService {
       {
         toPhone: phone,
         kind,
-        customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+        customerName:
+          booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
         businessName: business.name,
-        serviceName: booking.service?.name ?? t(locale, 'email.defaultServiceName'),
-        providerName: booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
+        serviceName:
+          booking.service?.name ?? t(locale, 'email.defaultServiceName'),
+        providerName:
+          booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
         dateLabel,
         timeLabel,
         reminderLabel,
@@ -670,34 +800,56 @@ export class NotificationsService {
     );
 
     if (!result.ok) {
-      this.logger.warn(`Failed ${kind} whatsapp for booking ${ctx.booking.id}: ${result.error}`);
+      this.logger.warn(
+        `Failed ${kind} whatsapp for booking ${ctx.booking.id}: ${result.error}`,
+      );
     }
 
     return result.ok;
   }
 
-  private buildCancellationEmail(ctx: BookingNotificationContext, reason: string) {
+  private buildCancellationEmail(
+    ctx: BookingNotificationContext,
+    reason: string,
+  ) {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
-    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
+    const serviceName =
+      booking.service?.name ?? t(locale, 'email.defaultServiceName');
 
-    return renderBusinessEmailTemplate(business.settings, 'booking_cancellation', {
-      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
-      businessName: business.name,
-      serviceName,
-      dateLabel: when,
-      timeLabel: time,
-      cancelReason: reason,
-    });
+    return renderBusinessEmailTemplate(
+      business.settings,
+      'booking_cancellation',
+      {
+        customerName:
+          booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+        businessName: business.name,
+        serviceName,
+        dateLabel: when,
+        timeLabel: time,
+        cancelReason: reason,
+      },
+    );
   }
 
-  private buildCancellationSms(ctx: BookingNotificationContext, reason: string) {
+  private buildCancellationSms(
+    ctx: BookingNotificationContext,
+    reason: string,
+  ) {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
     return {
       text: `${business.name}: Your ${booking.service?.name ?? 'appointment'} on ${when} at ${time} was cancelled. ${reason}`,
     };
@@ -713,7 +865,12 @@ export class NotificationsService {
 
     return this.bookingRepo.find({
       where: { businessId: anchor.businessId, ...groupFilter },
-      relations: { customer: true, employee: true, service: true, business: true },
+      relations: {
+        customer: true,
+        employee: true,
+        service: true,
+        business: true,
+      },
       order: { startTime: 'ASC' },
     });
   }
@@ -724,7 +881,8 @@ export class NotificationsService {
       typeof meta.packageName === 'string' ? meta.packageName.trim() : '';
     if (packageName) return packageName;
 
-    const groupLabel = typeof meta.groupLabel === 'string' ? meta.groupLabel.trim() : '';
+    const groupLabel =
+      typeof meta.groupLabel === 'string' ? meta.groupLabel.trim() : '';
     if (groupLabel) return groupLabel;
 
     const names = bookings
@@ -733,9 +891,7 @@ export class NotificationsService {
     return names.length ? names.join(' + ') : `${bookings.length} appointments`;
   }
 
-  private async buildGroupedAppointmentLines(
-    bookings: Booking[],
-  ): Promise<
+  private async buildGroupedAppointmentLines(bookings: Booking[]): Promise<
     Array<{
       serviceName: string;
       providerName: string;
@@ -745,16 +901,20 @@ export class NotificationsService {
       manageLabel: string | null;
     }>
   > {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const slug = bookings[0]?.business?.slug ?? '';
-    const selfService = resolveCustomerSelfServiceSettings(bookings[0]?.business?.settings);
+    const selfService = resolveCustomerSelfServiceSettings(
+      bookings[0]?.business?.settings,
+    );
     const locale = this.businessLocale(bookings[0]?.business?.settings);
 
     return Promise.all(
       bookings.map(async (b) => {
         const line = {
           serviceName: b.service?.name ?? t(locale, 'email.defaultServiceName'),
-          providerName: b.employee?.name ?? t(locale, 'email.defaultProviderName'),
+          providerName:
+            b.employee?.name ?? t(locale, 'email.defaultProviderName'),
           when: formatDateDisplay(b.startTime, locale),
           time: formatTimeRangeDisplay(b.startTime, b.endTime),
           manageUrl: null as string | null,
@@ -790,7 +950,10 @@ export class NotificationsService {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const count = lines.length;
-    const appointmentWord = t(locale, count === 1 ? 'email.appointment' : 'email.appointments');
+    const appointmentWord = t(
+      locale,
+      count === 1 ? 'email.appointment' : 'email.appointments',
+    );
     const intro = `Hi ${booking.customer?.name ?? t(locale, 'email.defaultCustomerName')},\n\nYour ${appointmentWord} at ${business.name} are confirmed${groupLabel ? ` (${groupLabel})` : ''}.`;
     const detailLines = lines.map((line) => {
       const base = `• ${line.serviceName} with ${line.providerName}\n  ${line.when} · ${line.time}`;
@@ -809,16 +972,21 @@ export class NotificationsService {
       })
       .join('');
 
-    return renderBusinessEmailTemplate(business.settings, 'booking_confirmation_grouped', {
-      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
-      businessName: business.name,
-      appointmentCount: String(count),
-      appointmentWord,
-      groupLabelSuffix: groupLabel ? ` (${groupLabel})` : '',
-      appointmentsListText: detailLines.join('\n\n'),
-      appointmentsListHtml: `<ul>${htmlLines}</ul>`,
-      footerNote: t(locale, 'email.footerNote'),
-    });
+    return renderBusinessEmailTemplate(
+      business.settings,
+      'booking_confirmation_grouped',
+      {
+        customerName:
+          booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+        businessName: business.name,
+        appointmentCount: String(count),
+        appointmentWord,
+        groupLabelSuffix: groupLabel ? ` (${groupLabel})` : '',
+        appointmentsListText: detailLines.join('\n\n'),
+        appointmentsListHtml: `<ul>${htmlLines}</ul>`,
+        footerNote: t(locale, 'email.footerNote'),
+      },
+    );
   }
 
   private buildGroupedConfirmationSms(
@@ -850,7 +1018,9 @@ export class NotificationsService {
         ? lines[0].when
         : `${lines[0].when} (${lines.length} visits)`;
     const timeLabel =
-      lines.length === 1 ? lines[0].time : lines.map((l) => `${l.serviceName}: ${l.time}`).join('; ');
+      lines.length === 1
+        ? lines[0].time
+        : lines.map((l) => `${l.serviceName}: ${l.time}`).join('; ');
 
     const existing = await this.logRepo.findOne({
       where: {
@@ -861,7 +1031,9 @@ export class NotificationsService {
     });
     if (existing) return;
 
-    const config = this.whatsappIntegrationService.resolveRuntimeConfig(ctx.business.settings);
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(
+      ctx.business.settings,
+    );
     if (!config) return;
 
     const customer = ctx.booking.customer;
@@ -871,10 +1043,20 @@ export class NotificationsService {
       {
         toPhone: customer.phone,
         kind: 'confirmation',
-        customerName: customer.name ?? t(this.businessLocale(ctx.business.settings), 'email.defaultCustomerName'),
+        customerName:
+          customer.name ??
+          t(
+            this.businessLocale(ctx.business.settings),
+            'email.defaultCustomerName',
+          ),
         businessName: ctx.business.name,
         serviceName: groupLabel || lines.map((l) => l.serviceName).join(', '),
-        providerName: first.employee?.name ?? t(this.businessLocale(ctx.business.settings), 'email.defaultProviderName'),
+        providerName:
+          first.employee?.name ??
+          t(
+            this.businessLocale(ctx.business.settings),
+            'email.defaultProviderName',
+          ),
         dateLabel,
         timeLabel,
       },
@@ -901,9 +1083,15 @@ export class NotificationsService {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
-    const serviceName = booking.service?.name ?? t(locale, 'email.defaultServiceName');
-    const providerName = booking.employee?.name ?? t(locale, 'email.defaultProviderName');
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
+    const serviceName =
+      booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const providerName =
+      booking.employee?.name ?? t(locale, 'email.defaultProviderName');
     const manageLinkText = manageLink
       ? `\n\n${formatBookingManageLinkText(manageLink.label, manageLink.url)}`
       : '';
@@ -911,17 +1099,22 @@ export class NotificationsService {
       ? `<br/><br/>${formatBookingManageLinkHtml(manageLink.label, manageLink.url)}`
       : '';
 
-    return renderBusinessEmailTemplate(business.settings, 'booking_confirmation', {
-      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
-      businessName: business.name,
-      serviceName,
-      providerName,
-      dateLabel: when,
-      timeLabel: time,
-      manageLinkText,
-      manageLinkHtml,
-      footerNote: t(locale, 'email.footerNote'),
-    });
+    return renderBusinessEmailTemplate(
+      business.settings,
+      'booking_confirmation',
+      {
+        customerName:
+          booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+        businessName: business.name,
+        serviceName,
+        providerName,
+        dateLabel: when,
+        timeLabel: time,
+        manageLinkText,
+        manageLinkHtml,
+        footerNote: t(locale, 'email.footerNote'),
+      },
+    );
   }
 
   private async resolveManageLinkForBooking(
@@ -947,49 +1140,79 @@ export class NotificationsService {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
     return {
       text: `${business.name}: Confirmed ${booking.service?.name ?? 'appointment'} on ${when} at ${time}.`,
     };
   }
 
-  private buildReminderEmail(ctx: BookingNotificationContext, minutesBefore: number) {
+  private buildReminderEmail(
+    ctx: BookingNotificationContext,
+    minutesBefore: number,
+  ) {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
 
     return renderBusinessEmailTemplate(business.settings, 'booking_reminder', {
-      customerName: booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+      customerName:
+        booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
       businessName: business.name,
-      serviceName: booking.service?.name ?? t(locale, 'email.defaultServiceName'),
-      providerName: booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
+      serviceName:
+        booking.service?.name ?? t(locale, 'email.defaultServiceName'),
+      providerName:
+        booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
       dateLabel: when,
       timeLabel: time,
       reminderLabel: this.reminderLabel(locale, minutesBefore),
     });
   }
 
-  private buildReminderSms(ctx: BookingNotificationContext, minutesBefore: number) {
+  private buildReminderSms(
+    ctx: BookingNotificationContext,
+    minutesBefore: number,
+  ) {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
     const when = formatDateDisplay(booking.startTime, locale);
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime, locale);
+    const time = formatTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      locale,
+    );
     const label = this.reminderLabel(locale, minutesBefore);
     return {
       text: `${business.name}: Reminder — ${booking.service?.name ?? 'appointment'} in ${label} (${when} ${time}).`,
     };
   }
 
-  private resolveReviewEmailRecipient(customerEmail?: string | null): string | null {
-    const override = this.configService.get<string>('REVIEW_REQUEST_EMAIL_OVERRIDE')?.trim();
+  private resolveReviewEmailRecipient(
+    customerEmail?: string | null,
+  ): string | null {
+    const override = this.configService
+      .get<string>('REVIEW_REQUEST_EMAIL_OVERRIDE')
+      ?.trim();
     if (override) return override;
     const email = customerEmail?.trim();
     return email || null;
   }
 
-  private buildReviewUrl(businessSlug: string, bookingId: string, token: string): string {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+  private buildReviewUrl(
+    businessSlug: string,
+    bookingId: string,
+    token: string,
+  ): string {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     return `${frontendUrl}/book/${businessSlug}/review?bookingId=${bookingId}&token=${token}`;
   }
 
@@ -1006,7 +1229,9 @@ export class NotificationsService {
 
   private reminderLabel(locale: AppLocale, minutesBefore: number): string {
     if (minutesBefore >= 60) {
-      return t(locale, 'email.reminderHours', { count: Math.round(minutesBefore / 60) });
+      return t(locale, 'email.reminderHours', {
+        count: Math.round(minutesBefore / 60),
+      });
     }
     return t(locale, 'email.reminderMinutes', { count: minutesBefore });
   }
@@ -1021,23 +1246,35 @@ export class NotificationsService {
       .join('');
   }
 
-  private buildReviewRequestEmail(ctx: BookingNotificationContext, reviewUrl: string) {
+  private buildReviewRequestEmail(
+    ctx: BookingNotificationContext,
+    reviewUrl: string,
+  ) {
     const { booking, business } = ctx;
     const locale = this.businessLocale(business.settings);
-    const customerName = booking.customer?.name ?? t(locale, 'email.defaultCustomerName');
-    const providerName = booking.employee?.name ?? t(locale, 'email.defaultProviderName');
+    const customerName =
+      booking.customer?.name ?? t(locale, 'email.defaultCustomerName');
+    const providerName =
+      booking.employee?.name ?? t(locale, 'email.defaultProviderName');
     const starLinks = this.buildStarRatingLinks(reviewUrl);
 
-    return renderBusinessEmailTemplate(ctx.business.settings, 'review_request', {
-      customerName,
-      businessName: business.name,
-      providerName,
-      reviewUrl,
-      starRatingHtml: `<p style="text-align:center;font-size:15px;color:#374151;margin:8px 0 4px;">Tap a star to rate your visit</p><div style="text-align:center;margin:16px 0 24px;">${starLinks}</div><p style="text-align:center;font-size:14px;"><a href="${reviewUrl}" style="color:#7c3aed;">Leave a written review</a></p>`,
-    });
+    return renderBusinessEmailTemplate(
+      ctx.business.settings,
+      'review_request',
+      {
+        customerName,
+        businessName: business.name,
+        providerName,
+        reviewUrl,
+        starRatingHtml: `<p style="text-align:center;font-size:15px;color:#374151;margin:8px 0 4px;">Tap a star to rate your visit</p><div style="text-align:center;margin:16px 0 24px;">${starLinks}</div><p style="text-align:center;font-size:14px;"><a href="${reviewUrl}" style="color:#7c3aed;">Leave a written review</a></p>`,
+      },
+    );
   }
 
-  private buildReviewRequestSms(ctx: BookingNotificationContext, reviewUrl: string) {
+  private buildReviewRequestSms(
+    ctx: BookingNotificationContext,
+    reviewUrl: string,
+  ) {
     const { business } = ctx;
     return {
       text: `${business.name}: Thanks for visiting! Leave a review: ${reviewUrl}`,

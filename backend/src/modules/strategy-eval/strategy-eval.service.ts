@@ -22,11 +22,16 @@ import type {
   StoredStrategyEval,
 } from './strategy-eval.types.js';
 import { readStoredStrategyEval } from './strategy-eval.types.js';
-import { SubmitHipaaEvalDto, SubmitMarketplaceEvalDto } from './dto/submit-strategy-eval.dto.js';
+import {
+  SubmitHipaaEvalDto,
+  SubmitMarketplaceEvalDto,
+} from './dto/submit-strategy-eval.dto.js';
 
 @Injectable()
 export class StrategyEvalService {
-  constructor(@InjectRepository(Business) private businessRepo: Repository<Business>) {}
+  constructor(
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
+  ) {}
 
   getHipaaFramework() {
     return {
@@ -36,7 +41,11 @@ export class StrategyEvalService {
         blockerOnYes: item.blockerOnYes,
       })),
       readinessMax: HIPAA_READINESS_MAX,
-      decisions: ['defer', 'wellness_only', 'pursue_baa'] as HipaaEvalDecision[],
+      decisions: [
+        'defer',
+        'wellness_only',
+        'pursue_baa',
+      ] as HipaaEvalDecision[],
     };
   }
 
@@ -47,7 +56,12 @@ export class StrategyEvalService {
         id: profile.id,
         labelKey: `strategyEval.marketplace.option.${profile.id}`,
       })),
-      decisions: ['software_only', 'partner_directory', 'full_marketplace', 'undecided'] as const,
+      decisions: [
+        'software_only',
+        'partner_directory',
+        'full_marketplace',
+        'undecided',
+      ] as const,
     };
   }
 
@@ -58,7 +72,10 @@ export class StrategyEvalService {
     return this.buildHipaaResult(stored.hipaa.answers, stored.hipaa);
   }
 
-  async submitHipaaEval(businessId: string, dto: SubmitHipaaEvalDto): Promise<HipaaEvalResult> {
+  async submitHipaaEval(
+    businessId: string,
+    dto: SubmitHipaaEvalDto,
+  ): Promise<HipaaEvalResult> {
     const business = await this.findBusiness(businessId);
     const result = this.buildHipaaResult(dto.answers, {
       notes: dto.notes ?? null,
@@ -67,18 +84,27 @@ export class StrategyEvalService {
     });
 
     const final: HipaaEvalResult = dto.decision
-      ? { ...result, recommendation: dto.decision, recommendationKey: HIPAA_RECOMMENDATION_KEYS[dto.decision] }
+      ? {
+          ...result,
+          recommendation: dto.decision,
+          recommendationKey: HIPAA_RECOMMENDATION_KEYS[dto.decision],
+        }
       : result;
 
     await this.persistEval(business, { hipaa: final });
     return final;
   }
 
-  async getMarketplaceEval(businessId: string): Promise<MarketplaceEvalResult | null> {
+  async getMarketplaceEval(
+    businessId: string,
+  ): Promise<MarketplaceEvalResult | null> {
     const business = await this.findBusiness(businessId);
     const stored = readStoredStrategyEval(business.settings);
     if (!stored.marketplace?.criterionWeights) return null;
-    return this.buildMarketplaceResult(stored.marketplace.criterionWeights, stored.marketplace);
+    return this.buildMarketplaceResult(
+      stored.marketplace.criterionWeights,
+      stored.marketplace,
+    );
   }
 
   async submitMarketplaceEval(
@@ -89,7 +115,10 @@ export class StrategyEvalService {
     const result = this.buildMarketplaceResult(dto.criterionWeights, {
       directoryOptIn: dto.directoryOptIn ?? null,
       notes: dto.notes ?? null,
-      decidedAt: dto.decision && dto.decision !== 'undecided' ? new Date().toISOString() : null,
+      decidedAt:
+        dto.decision && dto.decision !== 'undecided'
+          ? new Date().toISOString()
+          : null,
       recommendation: dto.decision,
     });
 
@@ -120,7 +149,8 @@ export class StrategyEvalService {
         hipaa?.recommendation === 'defer' ||
         hipaa?.recommendation === 'wellness_only',
       marketplaceDecisionLocked:
-        marketplace?.recommendation != null && marketplace.recommendation !== 'undecided',
+        marketplace?.recommendation != null &&
+        marketplace.recommendation !== 'undecided',
     };
   }
 
@@ -151,11 +181,15 @@ export class StrategyEvalService {
     } else if (!usPatients) {
       recommendation = 'wellness_only';
     } else {
-      const readinessPercent = Math.round((readinessPoints / HIPAA_READINESS_MAX) * 100);
+      const readinessPercent = Math.round(
+        (readinessPoints / HIPAA_READINESS_MAX) * 100,
+      );
       recommendation = readinessPercent >= 70 ? 'pursue_baa' : 'defer';
     }
 
-    const readinessPercent = Math.round((readinessPoints / HIPAA_READINESS_MAX) * 100);
+    const readinessPercent = Math.round(
+      (readinessPoints / HIPAA_READINESS_MAX) * 100,
+    );
 
     return {
       answers,
@@ -195,11 +229,15 @@ export class StrategyEvalService {
     };
   }
 
-  normalizeCriterionWeights(raw: Record<string, number>): Record<string, number> {
+  normalizeCriterionWeights(
+    raw: Record<string, number>,
+  ): Record<string, number> {
     const weights: Record<string, number> = {};
     for (const criterion of MARKETPLACE_CRITERIA) {
       const value = raw[criterion.id];
-      const weight = Number.isFinite(value) ? Math.min(5, Math.max(1, Math.round(value))) : criterion.defaultWeight;
+      const weight = Number.isFinite(value)
+        ? Math.min(5, Math.max(1, Math.round(value)))
+        : criterion.defaultWeight;
       weights[criterion.id] = weight;
     }
     return weights;
@@ -208,7 +246,10 @@ export class StrategyEvalService {
   scoreMarketplaceOptions(
     criterionWeights: Record<string, number>,
   ): Record<Exclude<MarketplacePositioningDecision, 'undecided'>, number> {
-    const totals: Record<Exclude<MarketplacePositioningDecision, 'undecided'>, number> = {
+    const totals: Record<
+      Exclude<MarketplacePositioningDecision, 'undecided'>,
+      number
+    > = {
       software_only: 0,
       partner_directory: 0,
       full_marketplace: 0,
@@ -231,7 +272,10 @@ export class StrategyEvalService {
   }
 
   recommendMarketplacePosition(
-    optionScores: Record<Exclude<MarketplacePositioningDecision, 'undecided'>, number>,
+    optionScores: Record<
+      Exclude<MarketplacePositioningDecision, 'undecided'>,
+      number
+    >,
   ): MarketplacePositioningDecision {
     const entries = Object.entries(optionScores) as Array<
       [Exclude<MarketplacePositioningDecision, 'undecided'>, number]
@@ -257,7 +301,9 @@ export class StrategyEvalService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

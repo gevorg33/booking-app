@@ -1,6 +1,13 @@
+import type { CommandSurface } from '../ai-command-registry.types.js';
 import type { ComplexityRoute } from '../command-complexity-router.service.js';
+import type { DecompositionSource } from '../intent-decomposition.types.js';
 
 export type AiEvalLocale = 'en' | 'hy' | 'ru' | 'translit';
+
+export interface CompoundStepParamExpectation {
+  stepIndex: number;
+  paramsPartial?: Record<string, unknown>;
+}
 
 export interface AiCommandEvalExpectation {
   /** Expected intent action when classify output is simulated or skipped */
@@ -17,6 +24,22 @@ export interface AiCommandEvalExpectation {
   needsMultilingual?: boolean;
   /** Intent rescue should change unknown → this action */
   rescuedAction?: string;
+  /** Compound decomposition surface (ai-cmd-0.4). */
+  compoundSurface?: CommandSurface;
+  /** Exact ordered sub-intent actions from deterministic/golden decomposition. */
+  compoundSteps?: string[];
+  /** Subset of required sub-intent actions (any order). */
+  compoundActionsContains?: string[];
+  /** Minimum sub-intent count when order is unstable. */
+  compoundMinSteps?: number;
+  /** Decomposition should not yield multi-step result. */
+  compoundExpectEmpty?: boolean;
+  /** Expected decomposition source when stable. */
+  compoundSource?: DecompositionSource;
+  /** Expected compound recipe id when stable. */
+  compoundRecipeId?: string;
+  /** Per-step param subset checks after decomposition. */
+  compoundStepParams?: CompoundStepParamExpectation[];
 }
 
 export interface AiCommandEvalCase {

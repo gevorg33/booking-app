@@ -24,17 +24,22 @@ export interface StripeIntegrationPublicView {
 export function getBusinessStripeIntegration(
   settings?: Record<string, unknown>,
 ): BusinessStripeIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
   const raw = integrations?.stripe as BusinessStripeIntegration | undefined;
   return {
     connectAccountId: raw?.connectAccountId?.trim() || undefined,
     connectCountry: raw?.connectCountry?.trim().toUpperCase() || undefined,
     connectMode:
-      raw?.connectMode === 'oauth' || raw?.connectMode === 'express' || raw?.connectMode === 'manual'
+      raw?.connectMode === 'oauth' ||
+      raw?.connectMode === 'express' ||
+      raw?.connectMode === 'manual'
         ? raw.connectMode
         : undefined,
     connectChargeModel:
-      raw?.connectChargeModel === 'direct' || raw?.connectChargeModel === 'destination'
+      raw?.connectChargeModel === 'direct' ||
+      raw?.connectChargeModel === 'destination'
         ? raw.connectChargeModel
         : undefined,
   };

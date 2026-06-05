@@ -29,7 +29,9 @@ export function calculatePackagePricing(
     quantity: item.quantity,
     lineTotal: roundMoney(item.unitPrice * item.quantity),
   }));
-  const regularTotal = roundMoney(lineItems.reduce((sum, line) => sum + line.lineTotal, 0));
+  const regularTotal = roundMoney(
+    lineItems.reduce((sum, line) => sum + line.lineTotal, 0),
+  );
 
   let packagePrice = regularTotal;
   if (discountType === 'percent') {
@@ -65,8 +67,12 @@ export function allocatePackageLinePricing(
   items: PackageLineItemInput[],
   packagePrice: number,
 ): PackageLineAllocation[] {
-  const lineTotals = items.map((item) => roundMoney(item.unitPrice * item.quantity));
-  const regularTotal = roundMoney(lineTotals.reduce((sum, total) => sum + total, 0));
+  const lineTotals = items.map((item) =>
+    roundMoney(item.unitPrice * item.quantity),
+  );
+  const regularTotal = roundMoney(
+    lineTotals.reduce((sum, total) => sum + total, 0),
+  );
 
   if (regularTotal <= 0 || items.length === 0) {
     return items.map(() => ({
@@ -87,11 +93,15 @@ export function allocatePackageLinePricing(
   const discountedLines = lineTotals.map((lineTotal) =>
     roundMoney((lineTotal / regularTotal) * packagePrice),
   );
-  const allocatedSum = roundMoney(discountedLines.reduce((sum, total) => sum + total, 0));
+  const allocatedSum = roundMoney(
+    discountedLines.reduce((sum, total) => sum + total, 0),
+  );
   const remainder = roundMoney(packagePrice - allocatedSum);
   if (remainder !== 0) {
     const lastIndex = discountedLines.length - 1;
-    discountedLines[lastIndex] = roundMoney(discountedLines[lastIndex] + remainder);
+    discountedLines[lastIndex] = roundMoney(
+      discountedLines[lastIndex] + remainder,
+    );
   }
 
   return lineTotals.map((lineTotal, index) => {
@@ -104,7 +114,10 @@ export function allocatePackageLinePricing(
   });
 }
 
-export function isPackageOfferExpired(expiresAt: Date | string | null | undefined, now = new Date()): boolean {
+export function isPackageOfferExpired(
+  expiresAt: Date | string | null | undefined,
+  now = new Date(),
+): boolean {
   if (!expiresAt) return false;
   return new Date(expiresAt) < now;
 }
@@ -117,8 +130,12 @@ export function isPackagePubliclyVisible(
   return isActive && !isPackageOfferExpired(expiresAt, now);
 }
 
-export function resolvePackageCheckoutGraceHours(settings: Record<string, unknown> | null | undefined): number {
-  const publicBooking = settings?.publicBooking as Record<string, unknown> | undefined;
+export function resolvePackageCheckoutGraceHours(
+  settings: Record<string, unknown> | null | undefined,
+): number {
+  const publicBooking = settings?.publicBooking as
+    | Record<string, unknown>
+    | undefined;
   const value = Number(publicBooking?.packageCheckoutGraceHours ?? 0);
   return Number.isFinite(value) && value > 0 ? value : 0;
 }

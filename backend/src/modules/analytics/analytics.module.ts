@@ -11,7 +11,13 @@ import { AnalyticsController } from './analytics.controller.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, Employee, Service, Expense, CommissionRule]),
+    TypeOrmModule.forFeature([
+      Booking,
+      Employee,
+      Service,
+      Expense,
+      CommissionRule,
+    ]),
     BusinessModule,
   ],
   controllers: [AnalyticsController],

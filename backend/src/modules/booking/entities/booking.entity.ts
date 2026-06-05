@@ -64,7 +64,9 @@ export class Booking {
   @Column({ name: 'service_id' })
   serviceId: string;
 
-  @ManyToOne(() => Customer, (customer) => customer.bookings, { nullable: true })
+  @ManyToOne(() => Customer, (customer) => customer.bookings, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 

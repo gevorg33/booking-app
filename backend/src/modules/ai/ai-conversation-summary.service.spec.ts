@@ -28,7 +28,9 @@ describe('AiConversationSummaryService', () => {
         { provide: OpenAiGatewayService, useValue: openAi },
       ],
     }).compile();
-    expect(moduleRef.get(AiConversationSummaryService)).toBeInstanceOf(AiConversationSummaryService);
+    expect(moduleRef.get(AiConversationSummaryService)).toBeInstanceOf(
+      AiConversationSummaryService,
+    );
   });
 
   it('returns empty history when input is missing', async () => {
@@ -43,7 +45,11 @@ describe('AiConversationSummaryService', () => {
   it('truncates short threads without summarization', async () => {
     openAi.isAvailableForBusiness.mockResolvedValue(true);
     const short = longHistory.slice(0, 5);
-    const result = await service.prepareHistoryForClassifier('biz-1', short, 'dashboard');
+    const result = await service.prepareHistoryForClassifier(
+      'biz-1',
+      short,
+      'dashboard',
+    );
     expect(result.history).toHaveLength(5);
     expect(result.summaryBlock).toBeUndefined();
     expect(openAi.completeJson).not.toHaveBeenCalled();
@@ -55,11 +61,18 @@ describe('AiConversationSummaryService', () => {
       summary: 'User asked to cancel Maria appointment',
       keyEntities: { employeeName: 'Maria' },
     });
-    const result = await service.prepareHistoryForClassifier('biz-1', longHistory, 'dashboard');
+    const result = await service.prepareHistoryForClassifier(
+      'biz-1',
+      longHistory,
+      'dashboard',
+    );
     expect(result.history).toHaveLength(4);
     expect(result.summaryBlock).toContain('Maria');
     expect(openAi.completeJson).toHaveBeenCalledWith(
-      expect.objectContaining({ surface: 'dashboard', operation: 'conversation_summary' }),
+      expect.objectContaining({
+        surface: 'dashboard',
+        operation: 'conversation_summary',
+      }),
       expect.any(String),
       expect.any(String),
       expect.any(Object),
@@ -68,7 +81,9 @@ describe('AiConversationSummaryService', () => {
 
   it('summarizes provider_mobile threads', async () => {
     openAi.isAvailableForBusiness.mockResolvedValue(true);
-    openAi.completeJson.mockResolvedValue({ summary: 'Mobile handoff context' });
+    openAi.completeJson.mockResolvedValue({
+      summary: 'Mobile handoff context',
+    });
     const result = await service.prepareHistoryForClassifier(
       'biz-1',
       longHistory,
@@ -85,7 +100,11 @@ describe('AiConversationSummaryService', () => {
 
   it('falls back to truncated history when OpenAI unavailable', async () => {
     openAi.isAvailableForBusiness.mockResolvedValue(false);
-    const result = await service.prepareHistoryForClassifier('biz-1', longHistory, 'dashboard');
+    const result = await service.prepareHistoryForClassifier(
+      'biz-1',
+      longHistory,
+      'dashboard',
+    );
     expect(result.history).toHaveLength(6);
     expect(result.summaryBlock).toBeUndefined();
   });
@@ -93,7 +112,11 @@ describe('AiConversationSummaryService', () => {
   it('returns recent tail when summarization returns no summary', async () => {
     openAi.isAvailableForBusiness.mockResolvedValue(true);
     openAi.completeJson.mockResolvedValue({});
-    const result = await service.prepareHistoryForClassifier('biz-1', longHistory, 'dashboard');
+    const result = await service.prepareHistoryForClassifier(
+      'biz-1',
+      longHistory,
+      'dashboard',
+    );
     expect(result.history).toHaveLength(4);
     expect(result.summaryBlock).toBeUndefined();
   });

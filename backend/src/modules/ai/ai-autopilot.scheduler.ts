@@ -56,9 +56,14 @@ export class AiAutopilotScheduler {
 
         try {
           this.logger.log(`Autopilot [${businessId}] rule "${rule.name}"`);
-          await this.aiCommand.executeCommand(businessId, rule.prompt, undefined, {
-            context: { source: 'autopilot', ruleId: rule.id },
-          });
+          await this.aiCommand.executeCommand(
+            businessId,
+            rule.prompt,
+            undefined,
+            {
+              context: { source: 'autopilot', ruleId: rule.id },
+            },
+          );
           await this.aiSettings.markAutopilotRun(businessId, rule.id);
         } catch (err: any) {
           this.logger.warn(`Autopilot rule failed: ${err.message}`);

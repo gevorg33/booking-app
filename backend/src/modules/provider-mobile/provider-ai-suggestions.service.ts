@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { User } from '../user/entities/user.entity.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -18,22 +22,38 @@ import {
 export class ProviderAiSuggestionsService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private providerMobile: ProviderMobileService,
   ) {}
 
-  async getSuggestions(businessId: string, userId: string): Promise<AiSuggestion[]> {
-    const access = await this.providerMobile.resolveMobileAccess(businessId, userId);
+  async getSuggestions(
+    businessId: string,
+    userId: string,
+  ): Promise<AiSuggestion[]> {
+    const access = await this.providerMobile.resolveMobileAccess(
+      businessId,
+      userId,
+    );
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
 
     const [user, business] = await Promise.all([
-      this.userRepo.findOne({ where: { id: userId }, select: { locale: true } }),
-      this.businessRepo.findOne({ where: { id: businessId }, select: { settings: true } }),
+      this.userRepo.findOne({
+        where: { id: userId },
+        select: { locale: true },
+      }),
+      this.businessRepo.findOne({
+        where: { id: businessId },
+        select: { settings: true },
+      }),
     ]);
     const settings = business?.settings as { locale?: string } | undefined;
-    const locale = resolveProviderSuggestionsLocale(user?.locale, settings?.locale);
+    const locale = resolveProviderSuggestionsLocale(
+      user?.locale,
+      settings?.locale,
+    );
     const ts = (key: string, vars?: Record<string, string | number>) =>
       providerSuggestionText(locale, key, vars);
 
@@ -52,12 +72,14 @@ export class ProviderAiSuggestionsService {
     if (employeeId) where.employeeId = employeeId;
 
     const todayBookings = await this.bookingRepo.find({
-      where: where as any,
+      where: where,
       relations: { customer: true, service: true },
       order: { startTime: 'ASC' },
     });
 
-    const pendingConfirm = todayBookings.filter((b) => b.status === BookingStatus.PENDING);
+    const pendingConfirm = todayBookings.filter(
+      (b) => b.status === BookingStatus.PENDING,
+    );
     if (pendingConfirm.length > 0) {
       suggestions.push({
         id: 'confirm-pending',
@@ -70,7 +92,8 @@ export class ProviderAiSuggestionsService {
 
     const unpaid = todayBookings.filter(
       (b) =>
-        (b.status === BookingStatus.COMPLETED || b.status === BookingStatus.IN_PROGRESS) &&
+        (b.status === BookingStatus.COMPLETED ||
+          b.status === BookingStatus.IN_PROGRESS) &&
         b.paymentStatus === PaymentStatus.PENDING,
     );
     if (unpaid.length > 0) {
@@ -88,7 +111,7 @@ export class ProviderAiSuggestionsService {
         where: {
           businessId,
           employeeId,
-          startTime: Between(today, dayEnd) as any,
+          startTime: Between(today, dayEnd),
         },
       });
       const gaps = findScheduleGapsInWindow(today, '09:00', '19:00', periods);

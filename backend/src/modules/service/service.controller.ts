@@ -1,6 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { ServiceService } from './service.service.js';
-import { CreateServiceDto, UpdateServiceDto } from './dto/create-service.dto.js';
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+} from './dto/create-service.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -30,7 +43,11 @@ export class ServiceController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateServiceDto, @CurrentUser() user: any) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateServiceDto,
+    @CurrentUser() user: any,
+  ) {
     return this.serviceService.update(id, dto, user?.id);
   }
 

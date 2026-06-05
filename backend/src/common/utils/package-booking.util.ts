@@ -68,7 +68,9 @@ export function validatePackageSameDayBlock(
     }
   }
 
-  const employeeIds = lines.map((line) => line.employeeId).filter(Boolean) as string[];
+  const employeeIds = lines
+    .map((line) => line.employeeId)
+    .filter(Boolean) as string[];
   if (employeeIds.length > 0) {
     const primaryEmployeeId = employeeIds[0];
     for (const employeeId of employeeIds) {
@@ -79,12 +81,18 @@ export function validatePackageSameDayBlock(
   }
 
   const blockStart = new Date(lines[0].startTime);
-  const expected = buildSequentialAppointments(orderedServices, blockStart, turnoverBufferMinutes);
+  const expected = buildSequentialAppointments(
+    orderedServices,
+    blockStart,
+    turnoverBufferMinutes,
+  );
   for (let i = 0; i < expected.length; i++) {
     const expectedTime = expected[i].startTime.toISOString();
     const actualTime = new Date(lines[i].startTime).toISOString();
     if (expectedTime !== actualTime) {
-      throw new Error('Package services must be scheduled back-to-back on the same visit');
+      throw new Error(
+        'Package services must be scheduled back-to-back on the same visit',
+      );
     }
   }
 }

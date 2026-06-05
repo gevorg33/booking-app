@@ -80,7 +80,8 @@ export class ConflictResolutionGraphService {
       state.toolContext,
     );
 
-    const conflictCount = (result as { conflicts?: unknown[] })?.conflicts?.length ?? 0;
+    const conflictCount =
+      (result as { conflicts?: unknown[] })?.conflicts?.length ?? 0;
     return {
       toolContext: ctx,
       conflictCount,
@@ -95,14 +96,19 @@ export class ConflictResolutionGraphService {
         action: 'analyze_resolution_options',
         params: {
           businessId: state.businessId,
-          strategies: ['reschedule', 'reassign_employee', 'cancel_lower_priority'],
+          strategies: [
+            'reschedule',
+            'reassign_employee',
+            'cancel_lower_priority',
+          ],
         },
         dependsOn: [state.stepIds.detect],
       },
       state.toolContext,
     );
 
-    const optionCount = (result as { options?: unknown[] })?.options?.length ?? 0;
+    const optionCount =
+      (result as { options?: unknown[] })?.options?.length ?? 0;
     return { toolContext: ctx, optionCount };
   }
 
@@ -117,7 +123,8 @@ export class ConflictResolutionGraphService {
       state.toolContext,
     );
 
-    const proposalCount = (result as { proposals?: unknown[] })?.proposals?.length ?? 0;
+    const proposalCount =
+      (result as { proposals?: unknown[] })?.proposals?.length ?? 0;
     return { toolContext: ctx, proposalCount };
   }
 
@@ -130,8 +137,12 @@ export class ConflictResolutionGraphService {
     return { reasoning: enriched ?? base };
   }
 
-  private async enrichReasoning(state: ConflictResolutionGraphState, base: string): Promise<string | null> {
-    if (!(await this.openAi.isAvailableForBusiness(state.businessId))) return null;
+  private async enrichReasoning(
+    state: ConflictResolutionGraphState,
+    base: string,
+  ): Promise<string | null> {
+    if (!(await this.openAi.isAvailableForBusiness(state.businessId)))
+      return null;
 
     const summary = await this.openAi.completeJson<{ reasoning: string }>(
       {
@@ -166,7 +177,8 @@ export class ConflictResolutionGraphService {
           {
             id: stepIds.detect,
             action: 'detect_conflicts',
-            description: 'Scan schedules for overlapping or conflicting bookings',
+            description:
+              'Scan schedules for overlapping or conflicting bookings',
             params: { businessId: context.businessId, ...dateParams },
             dependsOn: [],
             estimatedImpact: 'Read-only scan',
@@ -174,10 +186,15 @@ export class ConflictResolutionGraphService {
           {
             id: stepIds.analyze,
             action: 'analyze_resolution_options',
-            description: 'Evaluate possible resolution strategies for each conflict',
+            description:
+              'Evaluate possible resolution strategies for each conflict',
             params: {
               businessId: context.businessId,
-              strategies: ['reschedule', 'reassign_employee', 'cancel_lower_priority'],
+              strategies: [
+                'reschedule',
+                'reassign_employee',
+                'cancel_lower_priority',
+              ],
             },
             dependsOn: [stepIds.detect],
             estimatedImpact: 'Read-only analysis',
@@ -186,7 +203,10 @@ export class ConflictResolutionGraphService {
             id: stepIds.propose,
             action: 'propose_resolutions',
             description: 'Propose optimal conflict resolutions',
-            params: { businessId: context.businessId, preferMinimalDisruption: true },
+            params: {
+              businessId: context.businessId,
+              preferMinimalDisruption: true,
+            },
             dependsOn: [stepIds.analyze],
             estimatedImpact: 'Generates proposals for review',
           },
@@ -198,7 +218,13 @@ export class ConflictResolutionGraphService {
         ],
         riskAssessment: state.noConflicts
           ? { level: 'low', factors: ['No conflicts found — read-only scan'] }
-          : { level: 'medium', factors: ['May require booking modifications', 'Customer impact possible'] },
+          : {
+              level: 'medium',
+              factors: [
+                'May require booking modifications',
+                'Customer impact possible',
+              ],
+            },
         status: PlanStatus.DRAFT,
         createdAt: new Date(),
       },

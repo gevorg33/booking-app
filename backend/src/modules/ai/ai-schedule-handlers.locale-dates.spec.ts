@@ -22,7 +22,7 @@ describe('AiScheduleHandlersService locale dates', () => {
     findOne: jest.fn().mockResolvedValue(business),
   };
 
-  const sprint23 = {
+  const scheduling = {
     resolveHolidayDatesForBusiness: jest.fn().mockResolvedValue([]),
   };
 
@@ -32,7 +32,7 @@ describe('AiScheduleHandlersService locale dates', () => {
     businessRepo as any,
     {} as any,
     {} as any,
-    sprint23 as any,
+    scheduling as any,
   );
 
   it('localizes weekday and date in schedule gap summaries', async () => {
@@ -45,6 +45,8 @@ describe('AiScheduleHandlersService locale dates', () => {
 
     expect(result.success).toBe(true);
     expect(result.summary).toMatch(/հնգ|Ալեքս|Alex/i);
-    expect(businessRepo.findOne).toHaveBeenCalledWith({ where: { id: 'biz-1' } });
+    expect(businessRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+    });
   });
 });

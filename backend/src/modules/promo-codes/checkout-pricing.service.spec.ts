@@ -40,11 +40,12 @@ describe('CheckoutPricingService loyalty earn', () => {
     loyaltyService.getOrCreate.mockResolvedValue({ pointsBalance: 100 });
     loyaltyService.pointsToCurrency.mockImplementation((p: number) => p);
     loyaltyService.calculateEarnPoints.mockImplementation(
-      (cash: number, percent: number) => Math.round((cash * percent) / 100 * 100) / 100,
+      (cash: number, percent: number) =>
+        Math.round(((cash * percent) / 100) * 100) / 100,
     );
     promoCodesService.findValidForCheckout.mockResolvedValue(promo);
-    promoCodesService.calculateDiscount.mockImplementation((_promo, amount: number) =>
-      Math.min(20, amount),
+    promoCodesService.calculateDiscount.mockImplementation(
+      (_promo, amount: number) => Math.min(20, amount),
     );
   });
 
@@ -80,7 +81,10 @@ describe('CheckoutPricingService loyalty earn', () => {
       earnPercentCashback: 5,
     });
 
-    expect(giftCardsService.validate).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234');
+    expect(giftCardsService.validate).toHaveBeenCalledWith(
+      'biz-1',
+      'GC-ABCD1234',
+    );
     expect(promoCodesService.findValidForCheckout).not.toHaveBeenCalled();
     expect(result.giftCardCode).toBe('GC-ABCD1234');
     expect(result.giftCardDiscount).toBe(50);
@@ -158,8 +162,8 @@ describe('CheckoutPricingService loyalty earn', () => {
   });
 
   it('applies promo to subscription plan subtotal', async () => {
-    promoCodesService.calculateDiscount.mockImplementation((_promo, amount: number) =>
-      Math.min(12, amount),
+    promoCodesService.calculateDiscount.mockImplementation(
+      (_promo, amount: number) => Math.min(12, amount),
     );
 
     const result = await service.calculate({
@@ -171,7 +175,11 @@ describe('CheckoutPricingService loyalty earn', () => {
       earnPercentCashback: 5,
     });
 
-    expect(promoCodesService.findValidForCheckout).toHaveBeenCalledWith('biz-1', 'SAVE12', 684);
+    expect(promoCodesService.findValidForCheckout).toHaveBeenCalledWith(
+      'biz-1',
+      'SAVE12',
+      684,
+    );
     expect(result.subtotal).toBe(684);
     expect(result.promoDiscount).toBe(12);
     expect(result.amountDue).toBe(672);
@@ -238,7 +246,14 @@ describe('CheckoutPricingService loyalty earn', () => {
       cardType: 'service',
       balance: 0,
       currency: 'USD',
-      serviceCredits: [{ serviceId: 'svc-baby', serviceName: 'Baby haircut', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        {
+          serviceId: 'svc-baby',
+          serviceName: 'Baby haircut',
+          quantityRemaining: 1,
+          quantityTotal: 1,
+        },
+      ],
     });
 
     const result = await service.calculate({
@@ -256,7 +271,9 @@ describe('CheckoutPricingService loyalty earn', () => {
 
     expect(result.giftCardDiscount).toBe(25);
     expect(result.amountDue).toBe(70);
-    expect(result.giftCardServiceRedemptions).toEqual([{ serviceId: 'svc-baby', units: 1 }]);
+    expect(result.giftCardServiceRedemptions).toEqual([
+      { serviceId: 'svc-baby', units: 1 },
+    ]);
   });
 
   it('rejects service gift cards with no matching services in cart', async () => {
@@ -266,7 +283,14 @@ describe('CheckoutPricingService loyalty earn', () => {
       cardType: 'service',
       balance: 0,
       currency: 'USD',
-      serviceCredits: [{ serviceId: 'svc-baby', serviceName: 'Baby haircut', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        {
+          serviceId: 'svc-baby',
+          serviceName: 'Baby haircut',
+          quantityRemaining: 1,
+          quantityTotal: 1,
+        },
+      ],
     });
 
     await expect(
@@ -326,9 +350,19 @@ describe('CheckoutPricingService.applyRedemptions', () => {
       'booking-1',
     );
 
-    expect(loyaltyService.redeem).toHaveBeenCalledWith('biz-1', 'cust-1', 20, 'booking-1');
+    expect(loyaltyService.redeem).toHaveBeenCalledWith(
+      'biz-1',
+      'cust-1',
+      20,
+      'booking-1',
+    );
     expect(promoCodesService.recordUse).toHaveBeenCalledWith('promo-1');
-    expect(giftCardsService.redeem).toHaveBeenCalledWith('biz-1', 'GC-ABCD1234', 15, 'booking-1');
+    expect(giftCardsService.redeem).toHaveBeenCalledWith(
+      'biz-1',
+      'GC-ABCD1234',
+      15,
+      'booking-1',
+    );
   });
 
   it('redeems service gift card credits after checkout', async () => {

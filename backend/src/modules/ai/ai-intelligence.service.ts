@@ -85,7 +85,10 @@ Return JSON: { "headline": "short title", "explanation": "2-3 sentences", "riskL
       riskAssessment: plan.riskAssessment,
       violations,
       policyPreview,
-      steps: plan.steps?.map((s) => ({ action: s.action, description: s.description })),
+      steps: plan.steps?.map((s) => ({
+        action: s.action,
+        description: s.description,
+      })),
     });
 
     return this.openAi.completeJson<PolicyExplainResult>(
@@ -153,7 +156,10 @@ Return JSON: { "tier": "read_only"|"simple_mutate"|"orchestration"|"compound", "
   async generateWeeklyReport(
     businessId: string,
     snapshot: Record<string, unknown>,
-  ): Promise<{ title: string; sections: Array<{ heading: string; body: string }> } | null> {
+  ): Promise<{
+    title: string;
+    sections: Array<{ heading: string; body: string }>;
+  } | null> {
     if (!(await this.openAi.isAvailableForBusiness(businessId))) return null;
 
     const system = `Write a concise weekly operations report for a salon booking business.

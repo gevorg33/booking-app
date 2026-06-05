@@ -14,7 +14,11 @@ export class CommandReasoningService {
     result: CommandResult,
     meta?: { graphPath?: string; subIntents?: string[] },
   ): Promise<CommandResult> {
-    if (!result.success || result.action === 'error' || result.details?.needsClarification) {
+    if (
+      !result.success ||
+      result.action === 'error' ||
+      result.details?.needsClarification
+    ) {
       return result;
     }
 
@@ -23,7 +27,10 @@ export class CommandReasoningService {
     }
 
     try {
-      const enriched = await this.openAi.completeJson<{ summary: string; reasoning: string }>(
+      const enriched = await this.openAi.completeJson<{
+        summary: string;
+        reasoning: string;
+      }>(
         {
           businessId,
           surface: 'dashboard',

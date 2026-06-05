@@ -6,7 +6,11 @@ import { WebhooksService } from '../webhooks.service.js';
 describe('ZapierIntegrationService', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
   const webhooksService = { createSubscription: jest.fn() };
-  const config = { get: jest.fn((key: string) => (key === 'API_PUBLIC_URL' ? 'https://api.test' : undefined)) };
+  const config = {
+    get: jest.fn((key: string) =>
+      key === 'API_PUBLIC_URL' ? 'https://api.test' : undefined,
+    ),
+  };
 
   const service = new ZapierIntegrationService(
     businessRepo as any,
@@ -18,7 +22,10 @@ describe('ZapierIntegrationService', () => {
     jest.clearAllMocks();
     businessRepo.save.mockImplementation(async (b: unknown) => b);
     businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: {} });
-    webhooksService.createSubscription.mockResolvedValue({ id: 'wh-1', secret: 'sec' });
+    webhooksService.createSubscription.mockResolvedValue({
+      id: 'wh-1',
+      secret: 'sec',
+    });
   });
 
   it('returns connector settings', async () => {
@@ -30,7 +37,9 @@ describe('ZapierIntegrationService', () => {
 
   it('throws when business missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getPublicSettings('x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getPublicSettings('x')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('updates zapier settings', async () => {
@@ -43,23 +52,27 @@ describe('ZapierIntegrationService', () => {
   });
 
   it('creates webhook via webhooks service', async () => {
-    const result = await service.createZapierWebhook('biz-1', 'https://hooks.zapier.com/x', [
-      'booking.created',
-    ]);
+    const result = await service.createZapierWebhook(
+      'biz-1',
+      'https://hooks.zapier.com/x',
+      ['booking.created'],
+    );
     expect(webhooksService.createSubscription).toHaveBeenCalled();
     expect(result.secret).toBe('sec');
   });
 
   it('clears hook description when empty', async () => {
-    const view = await service.updateSettings('biz-1', { hookDescription: '   ' });
+    const view = await service.updateSettings('biz-1', {
+      hookDescription: '   ',
+    });
     expect(view.hookDescription).toBeUndefined();
   });
 
   it('throws on update when business missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.updateSettings('x', { enabled: true })).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.updateSettings('x', { enabled: true }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('uses default api url when env unset', async () => {

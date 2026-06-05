@@ -1,9 +1,18 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import { EventType } from '../../events/event-types.js';
 
 describe('ReviewsService', () => {
-  const reviewRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const reviewRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
   const employeeRepo = { findOne: jest.fn() };
   const bookingRepo = { findOne: jest.fn(), save: jest.fn() };
   const businessRepo = { findOne: jest.fn() };
@@ -25,7 +34,10 @@ describe('ReviewsService', () => {
     jest.clearAllMocks();
     reviewRepo.create.mockImplementation((v) => v);
     reviewRepo.save.mockImplementation(async (v) => ({ id: 'rev-1', ...v }));
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-1', businessId: 'biz-1' });
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-1',
+      businessId: 'biz-1',
+    });
   });
 
   it('creates review and publishes review.received event', async () => {
@@ -64,7 +76,11 @@ describe('ReviewsService', () => {
   it('rejects duplicate booking review', async () => {
     reviewRepo.findOne.mockResolvedValue({ id: 'existing' });
     await expect(
-      service.create('biz-1', { employeeId: 'emp-1', rating: 4, bookingId: 'book-1' }),
+      service.create('biz-1', {
+        employeeId: 'emp-1',
+        rating: 4,
+        bookingId: 'book-1',
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });

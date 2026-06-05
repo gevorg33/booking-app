@@ -9,7 +9,9 @@ export function formatBookingOverlapConflict(opts?: {
   const time =
     opts?.startTime != null
       ? formatTimeDisplay(
-          opts.startTime instanceof Date ? opts.startTime : new Date(opts.startTime),
+          opts.startTime instanceof Date
+            ? opts.startTime
+            : new Date(opts.startTime),
         )
       : null;
   const customer = opts?.existingCustomerName?.trim();

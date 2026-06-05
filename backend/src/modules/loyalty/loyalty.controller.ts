@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { LoyaltyService } from './loyalty.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -46,7 +54,9 @@ export class LoyaltyController {
       ...(business.settings || {}),
       loyalty,
     };
-    await this.businessService.update(businessId, { settings: business.settings });
+    await this.businessService.update(businessId, {
+      settings: business.settings,
+    });
     return getLoyaltySettingsResponse(business.settings);
   }
 
@@ -68,7 +78,12 @@ export class LoyaltyController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.loyaltyService.adjust(businessId, customerId, dto.points, dto.note);
+    return this.loyaltyService.adjust(
+      businessId,
+      customerId,
+      dto.points,
+      dto.note,
+    );
   }
 
   @Post('customer/:customerId/redeem')
@@ -79,6 +94,11 @@ export class LoyaltyController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.loyaltyService.redeem(businessId, customerId, dto.points, dto.bookingId);
+    return this.loyaltyService.redeem(
+      businessId,
+      customerId,
+      dto.points,
+      dto.bookingId,
+    );
   }
 }

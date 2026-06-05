@@ -30,7 +30,8 @@ export function resolveEmployeeLabel(
   const rawName = employeeName?.trim();
   if (rawName && !isUuid(rawName)) return rawName;
 
-  const id = employeeId?.trim() || (rawName && isUuid(rawName) ? rawName : undefined);
+  const id =
+    employeeId?.trim() || (rawName && isUuid(rawName) ? rawName : undefined);
   if (id) {
     const match = ctx.employees.find((e) => e.id === id);
     if (match?.name?.trim()) return match.name.trim();
@@ -41,9 +42,16 @@ export function resolveEmployeeLabel(
 
 export function withResolvedEmployeeParams(
   ctx: BookingToolRunContext,
-  params: { employeeId?: string; employeeName?: string } & Record<string, unknown>,
+  params: { employeeId?: string; employeeName?: string } & Record<
+    string,
+    unknown
+  >,
 ): Record<string, unknown> {
-  const label = resolveEmployeeLabel(ctx, params.employeeId, params.employeeName);
+  const label = resolveEmployeeLabel(
+    ctx,
+    params.employeeId,
+    params.employeeName,
+  );
   return { ...params, employeeName: label };
 }
 
@@ -89,7 +97,9 @@ export function proposeStep(
   const chainPrevious = options?.chainPrevious !== false;
   const dependsOn =
     options?.dependsOn ??
-    (chainPrevious && ctx.proposals.length ? [ctx.proposals[ctx.proposals.length - 1]!.id] : []);
+    (chainPrevious && ctx.proposals.length
+      ? [ctx.proposals[ctx.proposals.length - 1].id]
+      : []);
 
   const step: AgentPlanStep = {
     id: stepId,
@@ -136,7 +146,10 @@ export function proposeManySteps(
   });
 }
 
-export function priorStepId(ctx: BookingToolRunContext, action: string): string[] {
+export function priorStepId(
+  ctx: BookingToolRunContext,
+  action: string,
+): string[] {
   const id = ctx.lastStepByAction[action];
   return id ? [id] : [];
 }
@@ -206,19 +219,26 @@ export function buildDirectScheduleProposalSteps(
 }> {
   const dates = resolveDirectScheduleDateKeys({
     ...input,
-    ...buildDateParams(input as { date?: string; dateFrom?: string; dateTo?: string }),
+    ...buildDateParams(input),
   });
   if (!dates.length) {
-    throw new Error('Direct schedule requires date, dates, or dateFrom/dateTo (YYYY-MM-DD).');
+    throw new Error(
+      'Direct schedule requires date, dates, or dateFrom/dateTo (YYYY-MM-DD).',
+    );
   }
 
   const employee = ctx.employees.find((e) => e.id === provider.employeeId);
   const periods = normalizeDirectSchedulePeriods(
-    provider.periods ?? (input.periods as DirectSchedulePeriodInput[] | undefined),
+    provider.periods ??
+      (input.periods as DirectSchedulePeriodInput[] | undefined),
     input,
     employee?.serviceIds,
   );
-  const label = resolveEmployeeLabel(ctx, provider.employeeId, provider.employeeName);
+  const label = resolveEmployeeLabel(
+    ctx,
+    provider.employeeId,
+    provider.employeeName,
+  );
 
   return dates.map((date, index) => ({
     action: 'create_direct_schedule',
@@ -246,7 +266,11 @@ function resolveClearScheduleProviders(
   if (input.providers?.length) {
     return input.providers.map((provider) => ({
       employeeId: provider.employeeId,
-      employeeName: resolveEmployeeLabel(ctx, provider.employeeId, provider.employeeName),
+      employeeName: resolveEmployeeLabel(
+        ctx,
+        provider.employeeId,
+        provider.employeeName,
+      ),
     }));
   }
 
@@ -258,7 +282,10 @@ function resolveClearScheduleProviders(
   const resolved: Array<{ employeeId?: string; employeeName: string }> = [];
   const seen = new Set<string>();
 
-  const addEmployee = (employeeId: string | undefined, employeeName: string) => {
+  const addEmployee = (
+    employeeId: string | undefined,
+    employeeName: string,
+  ) => {
     const key = employeeId ?? employeeName.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
@@ -297,12 +324,7 @@ export function buildClearScheduleProposalSteps(
   params: Record<string, unknown>;
   chainPrevious?: boolean;
 }> {
-  const providers = resolveClearScheduleProviders(ctx, input as {
-    employeeId?: string;
-    employeeName?: string;
-    employeeNames?: string[];
-    providers?: Array<{ employeeId?: string; employeeName?: string }>;
-  });
+  const providers = resolveClearScheduleProviders(ctx, input);
   if (!providers.length) {
     throw new Error('Clear schedule requires at least one provider.');
   }
@@ -310,13 +332,15 @@ export function buildClearScheduleProposalSteps(
   const dates = resolveScheduleDates(
     {
       ...input,
-      ...buildDateParams(input as { date?: string; dateFrom?: string; dateTo?: string }),
+      ...buildDateParams(input),
       _timeZone: ctx.timeZone,
     },
     ctx.prompt,
   );
   if (!dates.length) {
-    throw new Error('Clear schedule requires date, dates, dateFrom/dateTo, or a month in the prompt.');
+    throw new Error(
+      'Clear schedule requires date, dates, dateFrom/dateTo, or a month in the prompt.',
+    );
   }
 
   const steps: Array<{

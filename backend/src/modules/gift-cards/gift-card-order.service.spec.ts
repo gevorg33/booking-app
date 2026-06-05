@@ -36,7 +36,11 @@ describe('GiftCardOrderService', () => {
     id: 'biz-1',
     name: 'Spa',
     settings: {
-      giftCards: { cancelModifyEnabled: true, cancelModifyWindowHours: 48, physicalCancelBeforeReady: true },
+      giftCards: {
+        cancelModifyEnabled: true,
+        cancelModifyWindowHours: 48,
+        physicalCancelBeforeReady: true,
+      },
     },
   };
 
@@ -65,7 +69,10 @@ describe('GiftCardOrderService', () => {
     jest.clearAllMocks();
     giftCardRepo.create = jest.fn((v) => v);
     changeRequestRepo.create.mockImplementation((v) => v);
-    changeRequestRepo.save.mockImplementation(async (v) => ({ id: 'req-1', ...v }));
+    changeRequestRepo.save.mockImplementation(async (v) => ({
+      id: 'req-1',
+      ...v,
+    }));
     businessRepo.findOne.mockResolvedValue(business);
     giftCardRepo.findOne.mockResolvedValue({
       ...baseCard,
@@ -73,7 +80,10 @@ describe('GiftCardOrderService', () => {
       business,
     });
     giftCardRepo.save.mockImplementation(async (v) => v);
-    zendeskService.createGiftCardChangeTicket.mockResolvedValue({ ticketId: 999, url: 'https://zd/t/999' });
+    zendeskService.createGiftCardChangeTicket.mockResolvedValue({
+      ticketId: 999,
+      url: 'https://zd/t/999',
+    });
     emailService.send.mockResolvedValue({ ok: true });
     whatsappIntegrationService.resolveRuntimeConfig.mockReturnValue(null);
     refundService.refundPurchase.mockResolvedValue('skipped');
@@ -90,15 +100,27 @@ describe('GiftCardOrderService', () => {
 
   it('cancels customer order immediately and refunds', async () => {
     refundService.refundPurchase.mockResolvedValue('refunded');
-    const result = await service.submitCancelRequest('biz-1', 'cust-1', 'gc-1', 'Changed my mind');
+    const result = await service.submitCancelRequest(
+      'biz-1',
+      'cust-1',
+      'gc-1',
+      'Changed my mind',
+    );
 
     expect(zendeskService.createGiftCardChangeTicket).not.toHaveBeenCalled();
-    expect(refundService.refundPurchase).toHaveBeenCalledWith(business, expect.objectContaining({ id: 'gc-1' }));
+    expect(refundService.refundPurchase).toHaveBeenCalledWith(
+      business,
+      expect.objectContaining({ id: 'gc-1' }),
+    );
     expect(result.request.requestType).toBe('cancel');
     expect(result.request.status).toBe('completed');
     expect(result.refundStatus).toBe('refunded');
     expect(giftCardRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ fulfillmentStatus: 'cancelled', isActive: false, balance: 0 }),
+      expect.objectContaining({
+        fulfillmentStatus: 'cancelled',
+        isActive: false,
+        balance: 0,
+      }),
     );
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -109,10 +131,14 @@ describe('GiftCardOrderService', () => {
   });
 
   it('rejects cancel when policy blocks', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 0, isActive: false });
-    await expect(service.submitCancelRequest('biz-1', 'cust-1', 'gc-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      balance: 0,
+      isActive: false,
+    });
+    await expect(
+      service.submitCancelRequest('biz-1', 'cust-1', 'gc-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects customer modify requests', async () => {
@@ -133,9 +159,9 @@ describe('GiftCardOrderService', () => {
       serviceCredits: [],
       business,
     });
-    await expect(service.submitCancelRequest('biz-1', 'cust-1', 'gc-1')).rejects.toThrow(
-      'already been used',
-    );
+    await expect(
+      service.submitCancelRequest('biz-1', 'cust-1', 'gc-1'),
+    ).rejects.toThrow('already been used');
   });
 
   it('rejects cancel when a service credit has been partially redeemed', async () => {
@@ -146,9 +172,9 @@ describe('GiftCardOrderService', () => {
       serviceCredits: [{ quantityTotal: 2, quantityRemaining: 1 }],
       business,
     });
-    await expect(service.submitCancelRequest('biz-1', 'cust-1', 'gc-1')).rejects.toThrow(
-      'already been used',
-    );
+    await expect(
+      service.submitCancelRequest('biz-1', 'cust-1', 'gc-1'),
+    ).rejects.toThrow('already been used');
   });
 
   it('rejects cancel when a package gift was claimed on account', async () => {
@@ -162,9 +188,9 @@ describe('GiftCardOrderService', () => {
       serviceCredits: [],
       business,
     });
-    await expect(service.submitCancelRequest('biz-1', 'cust-1', 'gc-1')).rejects.toThrow(
-      'fully redeemed',
-    );
+    await expect(
+      service.submitCancelRequest('biz-1', 'cust-1', 'gc-1'),
+    ).rejects.toThrow('fully redeemed');
   });
 
   it('allows cancel for unclaimed package gifts inside the window', async () => {
@@ -178,7 +204,9 @@ describe('GiftCardOrderService', () => {
       serviceCredits: [],
       business,
     });
-    await expect(service.submitCancelRequest('biz-1', 'cust-1', 'gc-1')).resolves.toBeDefined();
+    await expect(
+      service.submitCancelRequest('biz-1', 'cust-1', 'gc-1'),
+    ).resolves.toBeDefined();
   });
 
   it('approves legacy cancel request and refunds when possible', async () => {
@@ -189,10 +217,18 @@ describe('GiftCardOrderService', () => {
       requestType: 'cancel',
       status: 'in_review',
     });
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, stripeSessionId: 'sess_refund' });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      stripeSessionId: 'sess_refund',
+    });
     refundService.refundPurchase.mockResolvedValue('refunded');
 
-    const result = await service.resolveChangeRequest('biz-1', 'req-1', 'approve', 'Approved');
+    const result = await service.resolveChangeRequest(
+      'biz-1',
+      'req-1',
+      'approve',
+      'Approved',
+    );
     expect(result.request.status).toBe('completed');
     expect(result.card.fulfillmentStatus).toBe('cancelled');
     expect(result.refundStatus).toBe('refunded');
@@ -217,7 +253,9 @@ describe('GiftCardOrderService', () => {
       purchaserEmail: null,
       recipientPhone: '+37499123456',
     });
-    whatsappIntegrationService.resolveRuntimeConfig.mockReturnValue({ templateGiftCard: 'gift' });
+    whatsappIntegrationService.resolveRuntimeConfig.mockReturnValue({
+      templateGiftCard: 'gift',
+    });
     await expect(
       service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', {
         modifyPayload: { recipientName: 'Alex' },
@@ -227,14 +265,29 @@ describe('GiftCardOrderService', () => {
   });
 
   it('deduplicates open change requests per card when listing orders', async () => {
-    giftCardRepo.find.mockResolvedValue([baseCard, { ...baseCard, id: 'gc-2' }]);
+    giftCardRepo.find.mockResolvedValue([
+      baseCard,
+      { ...baseCard, id: 'gc-2' },
+    ]);
     const qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([
-        { giftCardId: 'gc-1', id: 'req-a', requestType: 'modify', status: 'pending', createdAt: new Date() },
-        { giftCardId: 'gc-1', id: 'req-b', requestType: 'cancel', status: 'in_review', createdAt: new Date(0) },
+        {
+          giftCardId: 'gc-1',
+          id: 'req-a',
+          requestType: 'modify',
+          status: 'pending',
+          createdAt: new Date(),
+        },
+        {
+          giftCardId: 'gc-1',
+          id: 'req-b',
+          requestType: 'cancel',
+          status: 'in_review',
+          createdAt: new Date(0),
+        },
       ]),
     };
     changeRequestRepo.createQueryBuilder.mockReturnValue(qb);
@@ -252,7 +305,10 @@ describe('GiftCardOrderService', () => {
   });
 
   it('rejects modify requests even when card already has a zendesk ticket id', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, zendeskTicketId: 'existing-ticket' });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      zendeskTicketId: 'existing-ticket',
+    });
     await expect(
       service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', {
         modifyPayload: { recipientName: 'Alex' },
@@ -269,29 +325,33 @@ describe('GiftCardOrderService', () => {
 
   it('returns empty map when listing orders for customer with no cards', async () => {
     giftCardRepo.find.mockResolvedValue([]);
-    await expect(service.listCustomerOrders('biz-1', 'cust-1')).resolves.toEqual([]);
+    await expect(
+      service.listCustomerOrders('biz-1', 'cust-1'),
+    ).resolves.toEqual([]);
   });
 
   it('returns split account view with orders and redeemed gift cards', async () => {
-    giftCardRepo.find.mockImplementation(async (opts: { where?: Record<string, unknown> }) => {
-      if (opts.where?.claimedByCustomerId) {
-        return [
-          {
-            ...baseCard,
-            id: 'gc-redeemed',
-            code: 'GCP-CLAIMED',
-            cardType: 'package',
-            packageId: 'pkg-1',
-            claimedAt: new Date('2026-06-01'),
-            claimedByCustomerId: 'cust-1',
-            isActive: false,
-            serviceCredits: [],
-          },
-        ];
-      }
-      if (opts.where?.purchaserCustomerId) return [baseCard];
-      return [];
-    });
+    giftCardRepo.find.mockImplementation(
+      async (opts: { where?: Record<string, unknown> }) => {
+        if (opts.where?.claimedByCustomerId) {
+          return [
+            {
+              ...baseCard,
+              id: 'gc-redeemed',
+              code: 'GCP-CLAIMED',
+              cardType: 'package',
+              packageId: 'pkg-1',
+              claimedAt: new Date('2026-06-01'),
+              claimedByCustomerId: 'cust-1',
+              isActive: false,
+              serviceCredits: [],
+            },
+          ];
+        }
+        if (opts.where?.purchaserCustomerId) return [baseCard];
+        return [];
+      },
+    );
     const qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -300,7 +360,10 @@ describe('GiftCardOrderService', () => {
     };
     changeRequestRepo.createQueryBuilder.mockReturnValue(qb);
 
-    const account = await service.listCustomerGiftCardAccount('biz-1', 'cust-1');
+    const account = await service.listCustomerGiftCardAccount(
+      'biz-1',
+      'cust-1',
+    );
     expect(account.orders).toHaveLength(1);
     expect(account.redeemed).toHaveLength(1);
     expect(account.redeemed[0]).toMatchObject({
@@ -323,13 +386,20 @@ describe('GiftCardOrderService', () => {
         serviceCredits: [],
       },
     ]);
-    const redeemed = await service.listCustomerRedeemedGiftCards('biz-1', 'cust-1');
+    const redeemed = await service.listCustomerRedeemedGiftCards(
+      'biz-1',
+      'cust-1',
+    );
     expect(redeemed[0].subscriptionPlanId).toBe('plan-1');
     expect(redeemed[0].claimedAt).toContain('2026');
   });
 
   it('rejects modify when policy blocks', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 0, isActive: false });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      balance: 0,
+      isActive: false,
+    });
     await expect(
       service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', {
         modifyPayload: { recipientName: 'X' },
@@ -364,9 +434,9 @@ describe('GiftCardOrderService', () => {
       status: 'pending',
     });
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.resolveChangeRequest('biz-1', 'req-5', 'approve')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.resolveChangeRequest('biz-1', 'req-5', 'approve'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('lists customer orders and change requests', async () => {
@@ -378,7 +448,9 @@ describe('GiftCardOrderService', () => {
       getMany: jest.fn().mockResolvedValue([]),
     };
     changeRequestRepo.createQueryBuilder.mockReturnValue(qb);
-    await expect(service.listCustomerOrders('biz-1', 'cust-1')).resolves.toHaveLength(1);
+    await expect(
+      service.listCustomerOrders('biz-1', 'cust-1'),
+    ).resolves.toHaveLength(1);
     changeRequestRepo.find.mockResolvedValue([
       {
         id: 'req-1',
@@ -401,7 +473,9 @@ describe('GiftCardOrderService', () => {
   });
 
   it('rejects customer modify requests even when Zendesk would fail', async () => {
-    zendeskService.createGiftCardChangeTicket.mockRejectedValue(new Error('zendesk down'));
+    zendeskService.createGiftCardChangeTicket.mockRejectedValue(
+      new Error('zendesk down'),
+    );
     await expect(
       service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', {
         modifyPayload: { recipientName: 'Alex' },
@@ -417,9 +491,14 @@ describe('GiftCardOrderService', () => {
       requestType: 'cancel',
       status: 'pending',
     });
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, stripeSessionId: 'sess_bad' });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      stripeSessionId: 'sess_bad',
+    });
     refundService.refundPurchase.mockResolvedValue('failed');
-    await expect(service.resolveChangeRequest('biz-1', 'req-4', 'approve')).resolves.toMatchObject({
+    await expect(
+      service.resolveChangeRequest('biz-1', 'req-4', 'approve'),
+    ).resolves.toMatchObject({
       request: { status: 'completed' },
       refundStatus: 'failed',
     });
@@ -430,7 +509,9 @@ describe('GiftCardOrderService', () => {
     await service.submitCancelRequest('biz-1', 'cust-1', 'gc-1');
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: expect.stringContaining('could not process your refund automatically'),
+        text: expect.stringContaining(
+          'could not process your refund automatically',
+        ),
       }),
     );
   });
@@ -443,22 +524,29 @@ describe('GiftCardOrderService', () => {
       requestType: 'cancel',
       status: 'completed',
     });
-    await expect(service.resolveChangeRequest('biz-1', 'req-done', 'approve')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.resolveChangeRequest('biz-1', 'req-done', 'approve'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects missing change request', async () => {
     changeRequestRepo.findOne.mockResolvedValue(null);
-    await expect(service.resolveChangeRequest('biz-1', 'missing', 'approve')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.resolveChangeRequest('biz-1', 'missing', 'approve'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('returns customer order view with credits and open request', async () => {
     giftCardRepo.findOne.mockResolvedValue({
       ...baseCard,
-      serviceCredits: [{ serviceId: 'svc-1', serviceName: 'Facial', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        {
+          serviceId: 'svc-1',
+          serviceName: 'Facial',
+          quantityRemaining: 1,
+          quantityTotal: 1,
+        },
+      ],
     });
     const qb = {
       where: jest.fn().mockReturnThis(),
@@ -486,8 +574,15 @@ describe('GiftCardOrderService', () => {
       status: 'pending',
       modifyPayload: { recipientEmail: 'new@test.com' },
     });
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, business: undefined });
-    const resolved = await service.resolveChangeRequest('biz-1', 'req-6', 'approve');
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      business: undefined,
+    });
+    const resolved = await service.resolveChangeRequest(
+      'biz-1',
+      'req-6',
+      'approve',
+    );
     expect(resolved.card.recipientEmail).toBe('new@test.com');
   });
 
@@ -499,9 +594,16 @@ describe('GiftCardOrderService', () => {
       requestType: 'cancel',
       status: 'pending',
     });
-    giftCardRepo.findOne.mockResolvedValue({ ...baseCard, stripeSessionId: 'sess_no_pi' });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      stripeSessionId: 'sess_no_pi',
+    });
     refundService.refundPurchase.mockResolvedValue('skipped');
-    const result = await service.resolveChangeRequest('biz-1', 'req-7', 'approve');
+    const result = await service.resolveChangeRequest(
+      'biz-1',
+      'req-7',
+      'approve',
+    );
     expect(result.refundStatus).toBe('skipped');
   });
 
@@ -558,14 +660,16 @@ describe('GiftCardOrderService', () => {
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.listCustomerOrders('biz-1', 'cust-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.listCustomerOrders('biz-1', 'cust-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects missing customer order', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.getCustomerOrder('biz-1', 'cust-1', 'missing')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getCustomerOrder('biz-1', 'cust-1', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('marks request as needs_info or denied', async () => {
@@ -576,7 +680,12 @@ describe('GiftCardOrderService', () => {
       requestType: 'modify',
       status: 'in_review',
     });
-    const needsInfo = await service.resolveChangeRequest('biz-1', 'req-2', 'needs_info', 'Need address');
+    const needsInfo = await service.resolveChangeRequest(
+      'biz-1',
+      'req-2',
+      'needs_info',
+      'Need address',
+    );
     expect(needsInfo.request.status).toBe('needs_info');
 
     changeRequestRepo.findOne.mockResolvedValue({
@@ -586,7 +695,12 @@ describe('GiftCardOrderService', () => {
       requestType: 'cancel',
       status: 'pending',
     });
-    const denied = await service.resolveChangeRequest('biz-1', 'req-3', 'deny', 'Too late');
+    const denied = await service.resolveChangeRequest(
+      'biz-1',
+      'req-3',
+      'deny',
+      'Too late',
+    );
     expect(denied.request.status).toBe('denied');
   });
 
@@ -599,7 +713,11 @@ describe('GiftCardOrderService', () => {
       status: 'pending',
       modifyPayload: { personalMessage: 'Enjoy your spa day!' },
     });
-    const resolved = await service.resolveChangeRequest('biz-1', 'req-mod', 'approve');
+    const resolved = await service.resolveChangeRequest(
+      'biz-1',
+      'req-mod',
+      'approve',
+    );
     expect(resolved.card.personalMessage).toBe('Enjoy your spa day!');
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -643,8 +761,15 @@ describe('GiftCardOrderService', () => {
       purchaserEmail: null,
       recipientPhone: '+37499123456',
     });
-    whatsappIntegrationService.resolveRuntimeConfig.mockReturnValue({ templateGiftCard: 'gift' });
-    await service.resolveChangeRequest('biz-1', 'req-wa', 'needs_info', 'Need address');
+    whatsappIntegrationService.resolveRuntimeConfig.mockReturnValue({
+      templateGiftCard: 'gift',
+    });
+    await service.resolveChangeRequest(
+      'biz-1',
+      'req-wa',
+      'needs_info',
+      'Need address',
+    );
     expect(whatsappService.sendGiftCardMessage).toHaveBeenCalled();
   });
 
@@ -670,7 +795,9 @@ describe('GiftCardOrderService', () => {
 
   it('rejects modify without payload', async () => {
     await expect(
-      service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', { modifyPayload: {} }),
+      service.submitModifyRequest('biz-1', 'cust-1', 'gc-1', {
+        modifyPayload: {},
+      }),
     ).rejects.toThrow('cannot be modified');
   });
 
@@ -688,7 +815,9 @@ describe('GiftCardOrderService', () => {
         resolvedAt: new Date(),
       },
     ]);
-    giftCardRepo.find.mockResolvedValue([{ ...baseCard, stripeRefundId: 're_1', stripeSessionId: 'sess_1' }]);
+    giftCardRepo.find.mockResolvedValue([
+      { ...baseCard, stripeRefundId: 're_1', stripeSessionId: 'sess_1' },
+    ]);
     const items = await service.listChangeRequests('biz-1');
     expect(items[0].refundStatus).toBe('refunded');
   });

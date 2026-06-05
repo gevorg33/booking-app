@@ -37,7 +37,7 @@ export class AiEntityMemoryService {
     prompt: string,
     action: string,
     resolved: Record<string, unknown>,
-    surface: 'dashboard' | 'provider_mobile' = 'dashboard',
+    surface: 'dashboard' | 'provider_mobile' | 'customer' = 'dashboard',
   ): Promise<void> {
     if (!(await this.openAi.isAvailableForBusiness(businessId))) return;
 
@@ -63,7 +63,9 @@ Only add aliases clearly implied. Max 3 new aliases per turn.`;
     if (!result?.aliases || Object.keys(result.aliases).length === 0) return;
 
     await this.aiSettings.mergeEntityMemory(businessId, result.aliases);
-    this.logger.debug(`Entity memory updated: ${Object.keys(result.aliases).join(', ')}`);
+    this.logger.debug(
+      `Entity memory updated: ${Object.keys(result.aliases).join(', ')}`,
+    );
   }
 
   /** LLM resolves ambiguous mention using memory + catalog. */
@@ -87,7 +89,9 @@ Return JSON: { "employeeName": string|null, "serviceName": string|null, "custome
       catalog: catalogSummary,
     });
 
-    const result = await this.openAi.completeJson<EntityMemoryEntry & { confidence?: number }>(
+    const result = await this.openAi.completeJson<
+      EntityMemoryEntry & { confidence?: number }
+    >(
       {
         businessId,
         surface: 'dashboard',

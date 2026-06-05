@@ -30,7 +30,20 @@ import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engin
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, BusinessMember, Booking, Business, User, GiftCard, SchedulingSlot, SchedulingPeriod, PushSubscription, NativePushToken, Service, Customer]),
+    TypeOrmModule.forFeature([
+      Employee,
+      BusinessMember,
+      Booking,
+      Business,
+      User,
+      GiftCard,
+      SchedulingSlot,
+      SchedulingPeriod,
+      PushSubscription,
+      NativePushToken,
+      Service,
+      Customer,
+    ]),
     BusinessModule,
     forwardRef(() => BookingModule),
     forwardRef(() => GiftCardsModule),
@@ -39,7 +52,21 @@ import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engin
     forwardRef(() => AiModule),
   ],
   controllers: [ProviderMobileController],
-  providers: [ProviderMobileService, ProviderAiCommandService, ProviderAiSuggestionsService, PushService, ProviderPushListener, GiftCardFulfillmentPushListener, ProviderPushActionService, ProviderEndOfDayPushScheduler],
-  exports: [ProviderMobileService, PushService, ProviderPushActionService, ProviderAiCommandService],
+  providers: [
+    ProviderMobileService,
+    ProviderAiCommandService,
+    ProviderAiSuggestionsService,
+    PushService,
+    ProviderPushListener,
+    GiftCardFulfillmentPushListener,
+    ProviderPushActionService,
+    ProviderEndOfDayPushScheduler,
+  ],
+  exports: [
+    ProviderMobileService,
+    PushService,
+    ProviderPushActionService,
+    ProviderAiCommandService,
+  ],
 })
 export class ProviderMobileModule {}

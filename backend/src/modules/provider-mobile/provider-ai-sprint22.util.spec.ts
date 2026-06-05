@@ -11,16 +11,24 @@ import {
 
 describe('provider-ai-sprint22.util', () => {
   it('rescues coordination intents', () => {
-    expect(rescueCoordinationIntent('If Maria cancels offer waitlist John', 'unknown')).toBe(
-      'coordinate_waitlist_offer',
-    );
+    expect(
+      rescueCoordinationIntent(
+        'If Maria cancels offer waitlist John',
+        'unknown',
+      ),
+    ).toBe('coordinate_waitlist_offer');
   });
 
   it('applies provider entity memory from gateway aliases', () => {
     const params = applyProviderEntityMemory(
       {},
       'book facemassage for gevorg',
-      { _entityMemoryAliases: { gevorg: { employeeName: 'Gevorg' }, facemassage: { serviceName: 'Face massage' } } },
+      {
+        _entityMemoryAliases: {
+          gevorg: { employeeName: 'Gevorg' },
+          facemassage: { serviceName: 'Face massage' },
+        },
+      },
     );
     expect(params.employeeName).toBe('Gevorg');
     expect(params.serviceName).toBe('Face massage');
@@ -33,9 +41,12 @@ describe('provider-ai-sprint22.util', () => {
         _conversationSummary: 'summary',
       }),
     ).toContain('summary');
-    expect(buildProviderSessionContextBlock({ confirmed: true, _ragContextBlock: 'rag' })).toContain(
-      'confirmed',
-    );
+    expect(
+      buildProviderSessionContextBlock({
+        confirmed: true,
+        _ragContextBlock: 'rag',
+      }),
+    ).toContain('confirmed');
     expect(
       formatProviderHistoryBlock([{ role: 'user', content: 'hello' }]),
     ).toContain('user: hello');
@@ -45,20 +56,30 @@ describe('provider-ai-sprint22.util', () => {
     const employees = [{ name: 'Maria Lopez' }];
     const customers = [{ name: 'John Smith' }];
     expect(matchEmployeeByName(employees, 'maria')).toEqual(employees[0]);
-    expect(matchWaitlistCustomerByName(customers, 'john')).toEqual(customers[0]);
+    expect(matchWaitlistCustomerByName(customers, 'john')).toEqual(
+      customers[0],
+    );
     expect(matchEmployeeByName(employees, '')).toBeNull();
     expect(matchWaitlistCustomerByName(customers, undefined)).toBeNull();
     expect(matchEmployeeByName(employees, 'unknown')).toBeNull();
-    expect(matchWaitlistCustomerByName([{ name: 'Johnny Walker' }], 'johnny')).toEqual({
+    expect(
+      matchWaitlistCustomerByName([{ name: 'Johnny Walker' }], 'johnny'),
+    ).toEqual({
       name: 'Johnny Walker',
     });
-    expect(matchWaitlistCustomerByName([{ name: 'John Smith' }], 'john smith')).toEqual({
+    expect(
+      matchWaitlistCustomerByName([{ name: 'John Smith' }], 'john smith'),
+    ).toEqual({
       name: 'John Smith',
     });
-    expect(matchEmployeeByName([{ name: 'Maria Lopez' }], 'maria lopez')).toEqual({
+    expect(
+      matchEmployeeByName([{ name: 'Maria Lopez' }], 'maria lopez'),
+    ).toEqual({
       name: 'Maria Lopez',
     });
-    expect(matchWaitlistCustomerByName([{ name: 'Jonathan' }], 'athan')).toEqual({
+    expect(
+      matchWaitlistCustomerByName([{ name: 'Jonathan' }], 'athan'),
+    ).toEqual({
       name: 'Jonathan',
     });
   });
@@ -70,15 +91,23 @@ describe('provider-ai-sprint22.util', () => {
   });
 
   it('skips entity memory when aliases missing', () => {
-    expect(applyProviderEntityMemory({ date: 'today' }, 'gevorg')).toEqual({ date: 'today' });
-    expect(applyProviderEntityMemory({ date: 'today' }, 'gevorg', {})).toEqual({ date: 'today' });
+    expect(applyProviderEntityMemory({ date: 'today' }, 'gevorg')).toEqual({
+      date: 'today',
+    });
+    expect(applyProviderEntityMemory({ date: 'today' }, 'gevorg', {})).toEqual({
+      date: 'today',
+    });
     expect(
-      applyProviderEntityMemory({ date: 'today' }, 'gevorg', { _entityMemoryAliases: {} }),
+      applyProviderEntityMemory({ date: 'today' }, 'gevorg', {
+        _entityMemoryAliases: {},
+      }),
     ).toEqual({ date: 'today' });
   });
 
   it('omits session block when only intelligence keys are present', () => {
-    expect(buildProviderSessionContextBlock({ _entityMemoryBlock: 'memory only' })).toBe('');
+    expect(
+      buildProviderSessionContextBlock({ _entityMemoryBlock: 'memory only' }),
+    ).toBe('');
     expect(buildProviderSessionContextBlock({ note: '' })).toBe('');
   });
 

@@ -41,14 +41,21 @@ describe('IntegrationsController platform maturity endpoints', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     businessService.ensureMember.mockResolvedValue(membership);
-    zapierIntegrationService.getPublicSettings.mockResolvedValue({ enabled: true });
-    accountingIntegrationService.generateExport.mockResolvedValue({ filename: 'x.csv', content: 'a' });
+    zapierIntegrationService.getPublicSettings.mockResolvedValue({
+      enabled: true,
+    });
+    accountingIntegrationService.generateExport.mockResolvedValue({
+      filename: 'x.csv',
+      content: 'a',
+    });
   });
 
   it('delegates zapier settings', async () => {
     await controller.getZapierIntegration('biz-1', user);
     await controller.updateZapierIntegration('biz-1', { enabled: true }, user);
-    expect(zapierIntegrationService.getPublicSettings).toHaveBeenCalledWith('biz-1');
+    expect(zapierIntegrationService.getPublicSettings).toHaveBeenCalledWith(
+      'biz-1',
+    );
     expect(zapierIntegrationService.updateSettings).toHaveBeenCalled();
   });
 
@@ -63,8 +70,17 @@ describe('IntegrationsController platform maturity endpoints', () => {
 
   it('delegates accounting settings and export', async () => {
     await controller.getAccountingIntegration('biz-1', user);
-    await controller.updateAccountingIntegration('biz-1', { provider: 'xero' }, user);
-    await controller.exportAccounting('biz-1', '2026-01-01', '2026-01-31', user);
+    await controller.updateAccountingIntegration(
+      'biz-1',
+      { provider: 'xero' },
+      user,
+    );
+    await controller.exportAccounting(
+      'biz-1',
+      '2026-01-01',
+      '2026-01-31',
+      user,
+    );
     expect(accountingIntegrationService.generateExport).toHaveBeenCalledWith(
       'biz-1',
       '2026-01-01',

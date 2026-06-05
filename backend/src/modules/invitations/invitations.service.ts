@@ -1,9 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { BusinessInvitation } from './entities/business-invitation.entity.js';
-import { BusinessMember, MemberRole } from '../business/entities/business-member.entity.js';
+import {
+  BusinessMember,
+  MemberRole,
+} from '../business/entities/business-member.entity.js';
 import { User, UserRole } from '../user/entities/user.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { EmailService } from '../notifications/email.service.js';
@@ -18,8 +27,10 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class InvitationsService {
   constructor(
-    @InjectRepository(BusinessInvitation) private inviteRepo: Repository<BusinessInvitation>,
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessInvitation)
+    private inviteRepo: Repository<BusinessInvitation>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private emailService: EmailService,
@@ -36,7 +47,12 @@ export class InvitationsService {
   async create(
     businessId: string,
     createdByUserId: string,
-    dto: { email: string; role?: MemberRole; employeeName?: string; employeeId?: string },
+    dto: {
+      email: string;
+      role?: MemberRole;
+      employeeName?: string;
+      employeeId?: string;
+    },
   ): Promise<BusinessInvitation> {
     if (dto.role === MemberRole.OWNER) {
       throw new BadRequestException('Cannot invite someone as business owner');
@@ -46,16 +62,25 @@ export class InvitationsService {
         where: { businessId, userId: createdByUserId },
       });
       if (!creator || creator.role !== MemberRole.OWNER) {
-        throw new ForbiddenException('Only the business owner can invite admin or manager roles');
+        throw new ForbiddenException(
+          'Only the business owner can invite admin or manager roles',
+        );
       }
     }
     const email = dto.email.trim().toLowerCase();
 
     if (dto.employeeId) {
-      return this.sendEmployeeAppAccess(businessId, dto.employeeId, createdByUserId);
+      return this.sendEmployeeAppAccess(
+        businessId,
+        dto.employeeId,
+        createdByUserId,
+      );
     }
 
-    await this.tenantContactService.assertEmailAvailableForInvite(businessId, email);
+    await this.tenantContactService.assertEmailAvailableForInvite(
+      businessId,
+      email,
+    );
 
     await this.expirePendingInvites(businessId, email);
 
@@ -91,17 +116,25 @@ export class InvitationsService {
     });
     if (!employee) throw new NotFoundException('Employee not found');
     if (!employee.email?.trim()) {
-      throw new BadRequestException('Add an email to this employee profile first');
+      throw new BadRequestException(
+        'Add an email to this employee profile first',
+      );
     }
     if (employee.userId) {
-      throw new ConflictException('This employee already has app access. They can sign in or use Forgot password.');
+      throw new ConflictException(
+        'This employee already has app access. They can sign in or use Forgot password.',
+      );
     }
 
     const email = employee.email.trim().toLowerCase();
 
-    await this.tenantContactService.assertEmailAvailableInTenant(businessId, email, {
-      employeeId: employee.id,
-    });
+    await this.tenantContactService.assertEmailAvailableInTenant(
+      businessId,
+      email,
+      {
+        employeeId: employee.id,
+      },
+    );
 
     await this.expirePendingInvites(businessId, email, employeeId);
 
@@ -132,10 +165,16 @@ export class InvitationsService {
       relations: { business: true },
     });
     if (!invite) throw new NotFoundException('Invitation not found');
-    if (invite.acceptedAt) throw new BadRequestException('Invitation already accepted');
-    if (invite.expiresAt < new Date()) throw new BadRequestException('Invitation expired');
-    const existingUser = await this.userRepo.findOne({ where: { email: invite.email } });
-    const settings = invite.business.settings as Record<string, unknown> | undefined;
+    if (invite.acceptedAt)
+      throw new BadRequestException('Invitation already accepted');
+    if (invite.expiresAt < new Date())
+      throw new BadRequestException('Invitation expired');
+    const existingUser = await this.userRepo.findOne({
+      where: { email: invite.email },
+    });
+    const settings = invite.business.settings as
+      | Record<string, unknown>
+      | undefined;
     return {
       email: invite.email,
       businessName: invite.business.name,
@@ -143,7 +182,10 @@ export class InvitationsService {
       employeeName: invite.employeeName,
       isAppAccess: Boolean(invite.employeeId),
       hasExistingAccount: Boolean(existingUser),
-      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, invite.business.timezone),
+      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(
+        settings,
+        invite.business.timezone,
+      ),
     };
   }
 
@@ -153,8 +195,10 @@ export class InvitationsService {
       relations: { business: true },
     });
     if (!invite) throw new NotFoundException('Invitation not found');
-    if (invite.acceptedAt) throw new BadRequestException('Invitation already accepted');
-    if (invite.expiresAt < new Date()) throw new BadRequestException('Invitation expired');
+    if (invite.acceptedAt)
+      throw new BadRequestException('Invitation already accepted');
+    if (invite.expiresAt < new Date())
+      throw new BadRequestException('Invitation expired');
 
     let user = await this.userRepo.findOne({ where: { email: invite.email } });
     if (!user) {
@@ -192,12 +236,20 @@ export class InvitationsService {
     let employee: Employee | null = null;
     if (invite.employeeId) {
       employee = await this.employeeRepo.findOne({
-        where: { id: invite.employeeId, businessId: invite.businessId, isActive: true },
+        where: {
+          id: invite.employeeId,
+          businessId: invite.businessId,
+          isActive: true,
+        },
       });
     }
     if (!employee) {
       employee = await this.employeeRepo.findOne({
-        where: { businessId: invite.businessId, email: invite.email, isActive: true },
+        where: {
+          businessId: invite.businessId,
+          email: invite.email,
+          isActive: true,
+        },
       });
     }
 
@@ -221,7 +273,9 @@ export class InvitationsService {
     if (dto.phone?.trim()) {
       const normalizedPhone = normalizeStoredPhone(dto.phone);
       if (!normalizedPhone) {
-        throw new BadRequestException('Enter a valid phone number with country code');
+        throw new BadRequestException(
+          'Enter a valid phone number with country code',
+        );
       }
       await this.tenantContactService.assertPhoneAvailableInTenant(
         invite.businessId,
@@ -267,7 +321,8 @@ export class InvitationsService {
     });
 
     const toExpire = pending.filter(
-      (inv) => !employeeId || inv.employeeId === employeeId || inv.employeeId === null,
+      (inv) =>
+        !employeeId || inv.employeeId === employeeId || inv.employeeId === null,
     );
 
     if (toExpire.length === 0) return;

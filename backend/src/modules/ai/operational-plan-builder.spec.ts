@@ -27,7 +27,7 @@ describe('OperationalPlanBuilderService', () => {
     const plan = builder.buildUpdateBookingsPlan({
       businessId: 'biz-1',
       bookingIds: ['b1', 'b2'],
-      status: 'no_show' as any,
+      status: 'no_show',
       userId: 'user-1',
       label: 'Mark 2 as no-show',
     });
@@ -40,7 +40,7 @@ describe('OperationalPlanBuilderService', () => {
     const plan = builder.buildUpdateBookingsPlan({
       businessId: 'biz-1',
       bookingIds: ['b1'],
-      paymentStatus: 'paid' as any,
+      paymentStatus: 'paid',
       userId: 'user-1',
       label: 'Mark unpaid as paid',
     });

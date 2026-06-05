@@ -12,7 +12,7 @@ import { resolveDateRange } from './ai-orchestration.helpers.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { isDashboardAiIntentAllowedByPlan } from '../billing/plan-dashboard-ai-intents.util.js';
 import { AiSettingsService } from './ai-settings.service.js';
-import { AiSprint25Service } from './ai-sprint25.service.js';
+import { AiPlatformService } from './ai-platform.service.js';
 
 export interface AiSuggestion {
   id: string;
@@ -42,16 +42,22 @@ export class AiSuggestionsService {
   constructor(
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(BlockSchedule)
+    private blockScheduleRepo: Repository<BlockSchedule>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
     private schedulingEngine: SchedulingEngineService,
     private planEntitlements: PlanEntitlementsService,
     private aiSettings: AiSettingsService,
-    private sprint25: AiSprint25Service,
+    private platform: AiPlatformService,
   ) {}
 
-  async getSuggestions(businessId: string, context?: AiSuggestionsContext): Promise<AiSuggestion[]> {
+  async getSuggestions(
+    businessId: string,
+    context?: AiSuggestionsContext,
+  ): Promise<AiSuggestion[]> {
     const suggestions: AiSuggestion[] = [];
     const range = resolveDateRange({}, 'this week');
     if (!range) return suggestions;
@@ -61,21 +67,24 @@ export class AiSuggestionsService {
     const end = new Date(range.end);
     end.setUTCHours(23, 59, 59, 999);
 
-    const [employees, templates, periods, bookings, conflicts] = await Promise.all([
-      this.employeeRepo.find({ where: { businessId, isActive: true } }),
-      this.templateRepo.find({ where: { businessId, isDeleted: false, isActive: true } }),
-      this.periodRepo.find({
-        where: { businessId, startTime: Between(start, end) as any },
-      }),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          startTime: Between(start, end) as any,
-          status: Not(BookingStatus.CANCELLED) as any,
-        },
-      }),
-      this.schedulingEngine.findConflicts(businessId, { start, end }),
-    ]);
+    const [employees, templates, periods, bookings, conflicts] =
+      await Promise.all([
+        this.employeeRepo.find({ where: { businessId, isActive: true } }),
+        this.templateRepo.find({
+          where: { businessId, isDeleted: false, isActive: true },
+        }),
+        this.periodRepo.find({
+          where: { businessId, startTime: Between(start, end) as any },
+        }),
+        this.bookingRepo.find({
+          where: {
+            businessId,
+            startTime: Between(start, end) as any,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+        }),
+        this.schedulingEngine.findConflicts(businessId, { start, end }),
+      ]);
 
     if (templates.length > 0 && employees.length > 0) {
       const template = templates[0];
@@ -91,16 +100,28 @@ export class AiSuggestionsService {
 
     const employeesWithGaps: string[] = [];
     for (const employee of employees) {
-      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      for (
+        let d = new Date(start);
+        d <= end;
+        d.setUTCDate(d.getUTCDate() + 1)
+      ) {
         const day = new Date(d);
         const dayStart = new Date(day);
         dayStart.setUTCHours(0, 0, 0, 0);
         const dayEnd = new Date(day);
         dayEnd.setUTCHours(23, 59, 59, 999);
         const dayPeriods = periods.filter(
-          (p) => p.employeeId === employee.id && p.startTime >= dayStart && p.startTime <= dayEnd,
+          (p) =>
+            p.employeeId === employee.id &&
+            p.startTime >= dayStart &&
+            p.startTime <= dayEnd,
         );
-        const gaps = findScheduleGapsInWindow(day, '09:00', '19:00', dayPeriods);
+        const gaps = findScheduleGapsInWindow(
+          day,
+          '09:00',
+          '19:00',
+          dayPeriods,
+        );
         if (gaps.length > 0) {
           employeesWithGaps.push(employee.name);
           break;
@@ -135,7 +156,7 @@ export class AiSuggestionsService {
       where: {
         businessId,
         status: BookingStatus.CANCELLED,
-        startTime: Between(start, end) as any,
+        startTime: Between(start, end),
       },
     });
     if (cancelled > 0) {
@@ -152,7 +173,11 @@ export class AiSuggestionsService {
     const util = await Promise.all(
       employees.map(async (e) => ({
         name: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+        ...(await this.schedulingEngine.getEmployeeUtilization(
+          e.id,
+          start,
+          end,
+        )),
       })),
     );
     const lowUtil = util.filter((u) => (u.utilizationPercent ?? 100) < 50);
@@ -177,7 +202,8 @@ export class AiSuggestionsService {
       });
     }
 
-    const entitlements = await this.planEntitlements.getEntitlements(businessId);
+    const entitlements =
+      await this.planEntitlements.getEntitlements(businessId);
     const planFiltered = suggestions.filter(
       (s) =>
         !s.intentHint ||
@@ -186,7 +212,7 @@ export class AiSuggestionsService {
 
     const filtered = this.filterForContext(planFiltered.slice(0, 6), context);
     const settings = await this.aiSettings.getSettings(businessId);
-    const { suggestions: abSuggestions } = this.sprint25.applyAbToSuggestions(
+    const { suggestions: abSuggestions } = this.platform.applyAbToSuggestions(
       businessId,
       filtered,
       settings,
@@ -194,14 +220,19 @@ export class AiSuggestionsService {
     return abSuggestions;
   }
 
-  private filterForContext(suggestions: AiSuggestion[], context?: AiSuggestionsContext): AiSuggestion[] {
+  private filterForContext(
+    suggestions: AiSuggestion[],
+    context?: AiSuggestionsContext,
+  ): AiSuggestion[] {
     if (!context?.route || suggestions.length === 0) return suggestions;
 
     const categories = ROUTE_CATEGORY_PRIORITY[context.route];
     if (!categories) return suggestions;
 
     const prioritized = [
-      ...categories.flatMap((cat) => suggestions.filter((s) => s.category === cat)),
+      ...categories.flatMap((cat) =>
+        suggestions.filter((s) => s.category === cat),
+      ),
       ...suggestions.filter((s) => !categories.includes(s.category)),
     ];
 

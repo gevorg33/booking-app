@@ -38,7 +38,9 @@ export class PromoCodesService {
     const code = dto.code.trim().toUpperCase();
     if (!code) throw new BadRequestException('Promo code is required');
 
-    const existing = await this.promoRepo.findOne({ where: { businessId, code } });
+    const existing = await this.promoRepo.findOne({
+      where: { businessId, code },
+    });
     if (existing) throw new BadRequestException('Promo code already exists');
 
     this.assertDiscountValue(dto.discountType, dto.discountValue);
@@ -71,16 +73,22 @@ export class PromoCodesService {
     orderAmount: number,
   ): Promise<PromoCode> {
     const normalized = code.trim().toUpperCase();
-    const promo = await this.promoRepo.findOne({ where: { businessId, code: normalized } });
+    const promo = await this.promoRepo.findOne({
+      where: { businessId, code: normalized },
+    });
     if (!promo) throw new BadRequestException('Invalid promo code');
-    if (!promo.isActive) throw new BadRequestException('Promo code is no longer active');
+    if (!promo.isActive)
+      throw new BadRequestException('Promo code is no longer active');
     if (promo.expiresAt && promo.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('Promo code has expired');
     }
     if (promo.maxUses != null && promo.usedCount >= promo.maxUses) {
       throw new BadRequestException('Promo code has reached its usage limit');
     }
-    if (promo.minOrderAmount != null && orderAmount < Number(promo.minOrderAmount)) {
+    if (
+      promo.minOrderAmount != null &&
+      orderAmount < Number(promo.minOrderAmount)
+    ) {
       throw new BadRequestException(
         `Minimum order amount is ${Number(promo.minOrderAmount)}`,
       );
@@ -92,7 +100,8 @@ export class PromoCodesService {
     const base = Math.max(0, amount);
     let discount = 0;
     if (promo.discountType === PromoDiscountType.PERCENT) {
-      discount = Math.round(base * (Number(promo.discountValue) / 100) * 100) / 100;
+      discount =
+        Math.round(base * (Number(promo.discountValue) / 100) * 100) / 100;
     } else {
       discount = Number(promo.discountValue);
     }
@@ -104,7 +113,8 @@ export class PromoCodesService {
   }
 
   private assertDiscountValue(type: PromoDiscountType, value: number) {
-    if (value <= 0) throw new BadRequestException('Discount value must be positive');
+    if (value <= 0)
+      throw new BadRequestException('Discount value must be positive');
     if (type === PromoDiscountType.PERCENT && value > 100) {
       throw new BadRequestException('Percent discount cannot exceed 100');
     }

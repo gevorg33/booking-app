@@ -18,7 +18,10 @@ describe('IntegrationsController growth endpoints', () => {
     assertAdminRole: jest.fn(),
   };
   const webhooksService = { getEventOptions: jest.fn() };
-  const openAiIntegrationService = { getPublicSettings: jest.fn(), updateSettings: jest.fn() };
+  const openAiIntegrationService = {
+    getPublicSettings: jest.fn(),
+    updateSettings: jest.fn(),
+  };
   const openAiGateway = { invalidateBusiness: jest.fn() };
   const zendeskIntegrationService = {
     getPublicSettings: jest.fn(),
@@ -45,7 +48,12 @@ describe('IntegrationsController growth endpoints', () => {
     {} as AccountingIntegrationService,
   );
 
-  const user = { id: 'user-1', email: 'owner@test.com', firstName: 'Owner', lastName: 'One' };
+  const user = {
+    id: 'user-1',
+    email: 'owner@test.com',
+    firstName: 'Owner',
+    lastName: 'One',
+  };
   const membership = { role: 'owner' };
 
   beforeEach(() => {
@@ -56,14 +64,22 @@ describe('IntegrationsController growth endpoints', () => {
       settings: { integrations: { zendesk: { widgetKey: 'wk' } } },
     });
     zendeskIntegrationService.getDashboardWidgetKey.mockReturnValue('wk');
-    zendeskIntegrationService.createSupportTicket.mockResolvedValue({ ticketId: 1, url: 'x' });
+    zendeskIntegrationService.createSupportTicket.mockResolvedValue({
+      ticketId: 1,
+      url: 'x',
+    });
     zendeskIntegrationService.syncCustomerIfEnabled.mockResolvedValue(null);
-    distributionIntegrationService.getGoogleReserveFeed.mockResolvedValue({ services: [] });
+    distributionIntegrationService.getGoogleReserveFeed.mockResolvedValue({
+      services: [],
+    });
   });
 
   it('returns dashboard zendesk widget key for members', async () => {
     const result = await controller.getZendeskWidgetKey('biz-1', user);
-    expect(businessService.ensureMember).toHaveBeenCalledWith('biz-1', 'user-1');
+    expect(businessService.ensureMember).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
     expect(result).toEqual({ widgetKey: 'wk' });
   });
 
@@ -82,7 +98,11 @@ describe('IntegrationsController growth endpoints', () => {
   });
 
   it('returns synced false when manual customer sync skipped', async () => {
-    const result = await controller.syncCustomerToZendesk('biz-1', 'cust-1', user);
+    const result = await controller.syncCustomerToZendesk(
+      'biz-1',
+      'cust-1',
+      user,
+    );
     expect(apiKeyService.assertAdminRole).toHaveBeenCalledWith(membership);
     expect(result).toEqual({
       synced: false,
@@ -96,7 +116,11 @@ describe('IntegrationsController growth endpoints', () => {
       url: 'https://x.zendesk.com/users/9',
       created: true,
     });
-    const result = await controller.syncCustomerToZendesk('biz-1', 'cust-1', user);
+    const result = await controller.syncCustomerToZendesk(
+      'biz-1',
+      'cust-1',
+      user,
+    );
     expect(result).toEqual({
       synced: true,
       userId: 9,
@@ -106,17 +130,32 @@ describe('IntegrationsController growth endpoints', () => {
   });
 
   it('delegates distribution settings read/write and feed export', async () => {
-    distributionIntegrationService.getPublicSettings.mockResolvedValue({ googleReserve: { enabled: true } });
-    distributionIntegrationService.updateSettings.mockResolvedValue({ googleReserve: { enabled: false } });
+    distributionIntegrationService.getPublicSettings.mockResolvedValue({
+      googleReserve: { enabled: true },
+    });
+    distributionIntegrationService.updateSettings.mockResolvedValue({
+      googleReserve: { enabled: false },
+    });
 
     await controller.getDistributionIntegration('biz-1', user);
-    await controller.updateDistributionIntegration('biz-1', { googleReserveEnabled: false }, user);
+    await controller.updateDistributionIntegration(
+      'biz-1',
+      { googleReserveEnabled: false },
+      user,
+    );
     await controller.getGoogleReserveFeed('biz-1', user);
 
-    expect(distributionIntegrationService.getPublicSettings).toHaveBeenCalledWith('biz-1');
-    expect(distributionIntegrationService.updateSettings).toHaveBeenCalledWith('biz-1', {
-      googleReserveEnabled: false,
-    });
-    expect(distributionIntegrationService.getGoogleReserveFeed).toHaveBeenCalledWith('biz-1');
+    expect(
+      distributionIntegrationService.getPublicSettings,
+    ).toHaveBeenCalledWith('biz-1');
+    expect(distributionIntegrationService.updateSettings).toHaveBeenCalledWith(
+      'biz-1',
+      {
+        googleReserveEnabled: false,
+      },
+    );
+    expect(
+      distributionIntegrationService.getGoogleReserveFeed,
+    ).toHaveBeenCalledWith('biz-1');
   });
 });

@@ -31,7 +31,10 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     giftCardRepo.save.mockImplementation(async (v) => v);
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-creator', userId: 'user-creator' });
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-creator',
+      userId: 'user-creator',
+    });
     employeeRepo.find.mockResolvedValue([
       { id: 'emp-creator', userId: 'user-creator' },
       { id: 'emp-driver', userId: 'user-driver' },
@@ -44,14 +47,20 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
     expect(queue).toHaveLength(1);
     expect(giftCardRepo.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ fulfillmentStatus: 'awaiting_card_creation' }),
+        where: expect.objectContaining({
+          fulfillmentStatus: 'awaiting_card_creation',
+        }),
       }),
     );
   });
 
   it('marks card ready and notifies delivery staff pipeline', async () => {
     giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder });
-    const ready = await service.markCardReady('biz-1', 'order-1', 'user-creator');
+    const ready = await service.markCardReady(
+      'biz-1',
+      'order-1',
+      'user-creator',
+    );
     expect(ready.fulfillmentStatus).toBe('ready_for_delivery');
     expect(ready.codeRevealed).toBe(true);
     expect(eventEmitter.emit).toHaveBeenCalled();
@@ -62,9 +71,16 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
       ...physicalOrder,
       fulfillmentStatus: 'ready_for_delivery',
     });
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-driver', userId: 'user-driver' });
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-driver',
+      userId: 'user-driver',
+    });
 
-    const out = await service.markOutForDelivery('biz-1', 'order-1', 'user-driver');
+    const out = await service.markOutForDelivery(
+      'biz-1',
+      'order-1',
+      'user-driver',
+    );
     expect(out.fulfillmentStatus).toBe('out_for_delivery');
     expect(out.deliveryStaffId).toBe('emp-driver');
   });
@@ -88,10 +104,9 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   });
 
   it('resolves staff user ids for push notifications', async () => {
-    await expect(service.resolveStaffUserIds(['emp-creator', 'emp-driver'])).resolves.toEqual([
-      'user-creator',
-      'user-driver',
-    ]);
+    await expect(
+      service.resolveStaffUserIds(['emp-creator', 'emp-driver']),
+    ).resolves.toEqual(['user-creator', 'user-driver']);
   });
 
   it('rejects card ready when order is not awaiting creation', async () => {
@@ -99,9 +114,9 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
       ...physicalOrder,
       fulfillmentStatus: 'delivered',
     });
-    await expect(service.markCardReady('biz-1', 'order-1', 'user-creator')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.markCardReady('biz-1', 'order-1', 'user-creator'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('marks shipped with tracking and filters dashboard orders', async () => {
@@ -120,7 +135,12 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
     };
     giftCardRepo.createQueryBuilder.mockReturnValue(qb);
 
-    const shipped = await service.markShipped('biz-1', 'order-1', 'DHL', 'TRACK123');
+    const shipped = await service.markShipped(
+      'biz-1',
+      'order-1',
+      'DHL',
+      'TRACK123',
+    );
     expect(shipped.fulfillmentStatus).toBe('shipped');
     expect(shipped.trackingNumber).toBe('TRACK123');
 
@@ -133,10 +153,13 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   });
 
   it('rejects delivery pickup when not ready', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder, fulfillmentStatus: 'awaiting_card_creation' });
-    await expect(service.markOutForDelivery('biz-1', 'order-1', 'user-driver')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    giftCardRepo.findOne.mockResolvedValue({
+      ...physicalOrder,
+      fulfillmentStatus: 'awaiting_card_creation',
+    });
+    await expect(
+      service.markOutForDelivery('biz-1', 'order-1', 'user-driver'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('lists all fulfillment orders when status filter is omitted', async () => {
@@ -171,7 +194,10 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   });
 
   it('loads a single dashboard order with relations', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder, code: 'GCS-TEST' });
+    giftCardRepo.findOne.mockResolvedValue({
+      ...physicalOrder,
+      code: 'GCS-TEST',
+    });
     const order = await service.getDashboardOrder('biz-1', 'order-1');
     expect(order.code).toBe('GCS-TEST');
   });
@@ -179,14 +205,20 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   it('lists delivery queue including ready and out-for-delivery orders', async () => {
     giftCardRepo.find.mockResolvedValue([
       { ...physicalOrder, fulfillmentStatus: 'ready_for_delivery' },
-      { ...physicalOrder, id: 'order-2', fulfillmentStatus: 'out_for_delivery' },
+      {
+        ...physicalOrder,
+        id: 'order-2',
+        fulfillmentStatus: 'out_for_delivery',
+      },
     ]);
     await expect(service.listDeliveryQueue('biz-1')).resolves.toHaveLength(2);
   });
 
   it('throws when physical order is missing', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.markDelivered('biz-1', 'missing')).rejects.toThrow('not found');
+    await expect(service.markDelivered('biz-1', 'missing')).rejects.toThrow(
+      'not found',
+    );
   });
 
   it('returns empty staff user ids when no employees are configured', async () => {
@@ -196,7 +228,11 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
   it('allows card ready when staff employee record is missing', async () => {
     giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder });
     employeeRepo.findOne.mockResolvedValue(null);
-    const ready = await service.markCardReady('biz-1', 'order-1', 'unknown-user');
+    const ready = await service.markCardReady(
+      'biz-1',
+      'order-1',
+      'unknown-user',
+    );
     expect(ready.cardCreatorStaffId).toBeNull();
   });
 
@@ -205,8 +241,8 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
       ...physicalOrder,
       deliveryMethod: 'digital',
     });
-    await expect(service.markCardReady('biz-1', 'order-1', 'user-creator')).rejects.toThrow(
-      'Not a physical',
-    );
+    await expect(
+      service.markCardReady('biz-1', 'order-1', 'user-creator'),
+    ).rejects.toThrow('Not a physical');
   });
 });

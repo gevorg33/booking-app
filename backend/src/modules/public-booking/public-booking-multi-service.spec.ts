@@ -9,7 +9,9 @@ describe('PublicBookingService multi-service profile', () => {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
   const multiServiceBookingsService = new MultiServiceBookingsService(
     { create: jest.fn(), save: jest.fn() } as any,

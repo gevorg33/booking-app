@@ -9,21 +9,33 @@ import {
 
 describe('ai-coordination.util', () => {
   it('detects coordination prompts', () => {
-    expect(isCoordinationPrompt('If Maria cancels, offer slot to waitlist customer John')).toBe(true);
+    expect(
+      isCoordinationPrompt(
+        'If Maria cancels, offer slot to waitlist customer John',
+      ),
+    ).toBe(true);
     expect(isCoordinationPrompt('Show my appointments')).toBe(false);
   });
 
   it('rescues unknown/cancel intents to coordination', () => {
     expect(
-      rescueCoordinationIntent('If Maria cancels offer waitlist customer John', 'unknown'),
+      rescueCoordinationIntent(
+        'If Maria cancels offer waitlist customer John',
+        'unknown',
+      ),
     ).toBe('coordinate_waitlist_offer');
-    expect(rescueCoordinationIntent('Cancel Maria at 14:00', 'cancel_bookings')).toBe(
-      'cancel_bookings',
-    );
     expect(
-      rescueCoordinationIntent('If Maria cancels offer waitlist customer John', 'cancel_bookings'),
+      rescueCoordinationIntent('Cancel Maria at 14:00', 'cancel_bookings'),
+    ).toBe('cancel_bookings');
+    expect(
+      rescueCoordinationIntent(
+        'If Maria cancels offer waitlist customer John',
+        'cancel_bookings',
+      ),
     ).toBe('coordinate_waitlist_offer');
-    expect(rescueCoordinationIntent('list bookings', 'list_bookings')).toBe('list_bookings');
+    expect(rescueCoordinationIntent('list bookings', 'list_bookings')).toBe(
+      'list_bookings',
+    );
   });
 
   it('normalizes coordination params', () => {

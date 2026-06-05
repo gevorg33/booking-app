@@ -62,7 +62,8 @@ export class GiftCardPurchaseService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(GiftCard) private giftCardRepo: Repository<GiftCard>,
-    @InjectRepository(GiftCardServiceCredit) private creditRepo: Repository<GiftCardServiceCredit>,
+    @InjectRepository(GiftCardServiceCredit)
+    private creditRepo: Repository<GiftCardServiceCredit>,
     private packagesService: ServicePackagesService,
     private subscriptionsService: ServiceSubscriptionsService,
     private claimService: GiftCardClaimService,
@@ -77,10 +78,11 @@ export class GiftCardPurchaseService {
       return { purchaseEnabled: false, settings: null };
     }
 
-    const [purchasablePackages, purchasableSubscriptionPlans] = await Promise.all([
-      this.buildPublicPackageCatalog(businessId, settings),
-      this.buildPublicSubscriptionPlanCatalog(businessId, settings),
-    ]);
+    const [purchasablePackages, purchasableSubscriptionPlans] =
+      await Promise.all([
+        this.buildPublicPackageCatalog(businessId, settings),
+        this.buildPublicSubscriptionPlanCatalog(businessId, settings),
+      ]);
 
     return {
       purchaseEnabled: true,
@@ -92,19 +94,26 @@ export class GiftCardPurchaseService {
         purchasablePackages,
         purchasableSubscriptionPlans,
         bundles: settings.bundles,
-        shippingMethods: settings.physicalDeliveryEnabled ? settings.shippingMethods : [],
+        shippingMethods: settings.physicalDeliveryEnabled
+          ? settings.shippingMethods
+          : [],
         cancelModifyEnabled: settings.cancelModifyEnabled,
         cancelModifyWindowHours: settings.cancelModifyWindowHours,
         physicalCancelBeforeReady: settings.physicalCancelBeforeReady,
-        acceptCashPayments: resolvePublicPaymentSettings(business.settings).acceptCashPayments,
+        acceptCashPayments: resolvePublicPaymentSettings(business.settings)
+          .acceptCashPayments,
       },
     };
   }
 
-  async quotePurchase(businessId: string, input: PurchaseGiftCardInput): Promise<GiftCardPurchaseQuote> {
+  async quotePurchase(
+    businessId: string,
+    input: PurchaseGiftCardInput,
+  ): Promise<GiftCardPurchaseQuote> {
     const business = await this.findBusiness(businessId);
     const settings = readBusinessGiftCardSettings(business.settings);
-    if (!settings.purchaseEnabled) throw new BadRequestException('Gift card purchase is not enabled');
+    if (!settings.purchaseEnabled)
+      throw new BadRequestException('Gift card purchase is not enabled');
 
     this.assertDeliveryAllowed(settings, input.deliveryMethod);
     const quote = await this.resolveQuote(businessId, settings, input);
@@ -132,19 +141,28 @@ export class GiftCardPurchaseService {
     const wantsCash = input.paymentMethod === 'cash';
     if (wantsCash) {
       if (!resolvePublicPaymentSettings(business.settings).acceptCashPayments) {
-        throw new BadRequestException('Cash payment is not accepted for gift card purchases');
+        throw new BadRequestException(
+          'Cash payment is not accepted for gift card purchases',
+        );
       }
       if (stripeSessionId) {
-        throw new BadRequestException('Cash gift card purchases cannot include an online payment session');
+        throw new BadRequestException(
+          'Cash gift card purchases cannot include an online payment session',
+        );
       }
     }
 
     const quote = await this.quotePurchase(businessId, input);
 
-    const purchaserCustomerId = await this.resolvePurchaserCustomerId(businessId, input);
+    const purchaserCustomerId = await this.resolvePurchaserCustomerId(
+      businessId,
+      input,
+    );
 
     const expiresAt = settings.defaultExpiryMonths
-      ? new Date(Date.now() + settings.defaultExpiryMonths * 30 * 24 * 60 * 60 * 1000)
+      ? new Date(
+          Date.now() + settings.defaultExpiryMonths * 30 * 24 * 60 * 60 * 1000,
+        )
       : null;
 
     const code = generateGiftCardCode(input.cardType);
@@ -174,13 +192,18 @@ export class GiftCardPurchaseService {
         purchaseAmount: quote.total,
         shippingFee: quote.shippingFee,
         serviceId:
-          quote.cardType === 'service' ? (this.normalizePurchasableServiceIds(input)[0] ?? null) : null,
-        packageId: quote.cardType === 'package' ? (input.packageId ?? null) : null,
+          quote.cardType === 'service'
+            ? (this.normalizePurchasableServiceIds(input)[0] ?? null)
+            : null,
+        packageId:
+          quote.cardType === 'package' ? (input.packageId ?? null) : null,
         subscriptionPlanId:
-          quote.cardType === 'subscription' ? (input.subscriptionPlanId ?? null) : null,
+          quote.cardType === 'subscription'
+            ? (input.subscriptionPlanId ?? null)
+            : null,
         purchaserCustomerId,
         codeRevealed: !isPhysical,
-        stripeSessionId: wantsCash ? null : stripeSessionId ?? null,
+        stripeSessionId: wantsCash ? null : (stripeSessionId ?? null),
         cardCreatorStaffId: settings.cardCreatorStaffIds[0] ?? null,
         deliveryStaffId: settings.deliveryStaffIds[0] ?? null,
       }),
@@ -224,8 +247,10 @@ export class GiftCardPurchaseService {
     ) {
       await this.claimService.claimCard(businessId, card, purchaserCustomerId);
       savedCard =
-        (await this.giftCardRepo.findOne({ where: { id: card.id }, relations: { serviceCredits: true } })) ??
-        card;
+        (await this.giftCardRepo.findOne({
+          where: { id: card.id },
+          relations: { serviceCredits: true },
+        })) ?? card;
     }
 
     this.eventEmitter.emit(EventType.PAYMENT_RECEIVED, {
@@ -262,29 +287,46 @@ export class GiftCardPurchaseService {
     businessId: string,
     settings: ReturnType<typeof readBusinessGiftCardSettings>,
     input: PurchaseGiftCardInput,
-  ): Promise<Omit<GiftCardPurchaseQuote, 'shippingFee' | 'total' | 'currency'>> {
+  ): Promise<
+    Omit<GiftCardPurchaseQuote, 'shippingFee' | 'total' | 'currency'>
+  > {
     if (input.cardType === 'monetary') {
       const amount = Number(input.amount);
       if (!Number.isFinite(amount) || amount <= 0) {
         throw new BadRequestException('Valid amount is required');
       }
-      return { cardType: 'monetary', subtotal: amount, label: `Gift card $${amount}` };
+      return {
+        cardType: 'monetary',
+        subtotal: amount,
+        label: `Gift card $${amount}`,
+      };
     }
 
     if (input.cardType === 'service') {
-      return this.buildServiceGiftQuote(businessId, settings, this.normalizePurchasableServiceIds(input));
+      return this.buildServiceGiftQuote(
+        businessId,
+        settings,
+        this.normalizePurchasableServiceIds(input),
+      );
     }
 
     if (input.cardType === 'package') {
-      if (!input.packageId) throw new BadRequestException('packageId is required');
-      const pkg = await this.packagesService.assertPackageBookable(businessId, input.packageId);
+      if (!input.packageId)
+        throw new BadRequestException('packageId is required');
+      const pkg = await this.packagesService.assertPackageBookable(
+        businessId,
+        input.packageId,
+      );
       const preview = this.packagesService.previewFromPackage(pkg);
       const pricing = this.resolvePackageGiftPricing(
         settings,
         input.packageId,
         Number(preview.pricing.packagePrice),
       );
-      if (!pricing.allowed) throw new BadRequestException('Package is not available as a gift card');
+      if (!pricing.allowed)
+        throw new BadRequestException(
+          'Package is not available as a gift card',
+        );
       return {
         cardType: 'package',
         subtotal: pricing.subtotal,
@@ -306,7 +348,9 @@ export class GiftCardPurchaseService {
         Number(preview.pricing.subscriptionPrice),
       );
       if (!pricing.allowed) {
-        throw new BadRequestException('Subscription plan is not available as a gift card');
+        throw new BadRequestException(
+          'Subscription plan is not available as a gift card',
+        );
       }
       return {
         cardType: 'subscription',
@@ -326,9 +370,12 @@ export class GiftCardPurchaseService {
     };
   }
 
-  private normalizePurchasableServiceIds(input: PurchaseGiftCardInput): string[] {
+  private normalizePurchasableServiceIds(
+    input: PurchaseGiftCardInput,
+  ): string[] {
     const fromList = (input.serviceIds ?? []).filter(Boolean);
-    const ids = fromList.length > 0 ? fromList : input.serviceId ? [input.serviceId] : [];
+    const ids =
+      fromList.length > 0 ? fromList : input.serviceId ? [input.serviceId] : [];
     return [...new Set(ids)];
   }
 
@@ -336,7 +383,9 @@ export class GiftCardPurchaseService {
     businessId: string,
     settings: ReturnType<typeof readBusinessGiftCardSettings>,
     serviceIds: string[],
-  ): Promise<Omit<GiftCardPurchaseQuote, 'shippingFee' | 'total' | 'currency'>> {
+  ): Promise<
+    Omit<GiftCardPurchaseQuote, 'shippingFee' | 'total' | 'currency'>
+  > {
     if (!serviceIds.length) {
       throw new BadRequestException('At least one service is required');
     }
@@ -346,16 +395,26 @@ export class GiftCardPurchaseService {
     const names: string[] = [];
 
     for (const id of serviceIds) {
-      const configured = settings.purchasableServices.find((entry) => entry.serviceId === id);
+      const configured = settings.purchasableServices.find(
+        (entry) => entry.serviceId === id,
+      );
       if (!configured) {
-        throw new BadRequestException('Service is not available as a gift card');
+        throw new BadRequestException(
+          'Service is not available as a gift card',
+        );
       }
-      const service = await this.serviceRepo.findOne({ where: { id, businessId } });
+      const service = await this.serviceRepo.findOne({
+        where: { id, businessId },
+      });
       if (!service) throw new NotFoundException('Service not found');
       const price = Number(configured.price ?? service.price);
       subtotal += price;
       names.push(service.name);
-      lines.push({ serviceId: service.id, serviceName: service.name, quantity: 1 });
+      lines.push({
+        serviceId: service.id,
+        serviceName: service.name,
+        quantity: 1,
+      });
     }
 
     if (serviceIds.length === 1) {
@@ -393,7 +452,9 @@ export class GiftCardPurchaseService {
     settings: ReturnType<typeof readBusinessGiftCardSettings>,
     methodId?: string,
   ): number {
-    const method = settings.shippingMethods.find((m) => m.id === methodId) ?? settings.shippingMethods[0];
+    const method =
+      settings.shippingMethods.find((m) => m.id === methodId) ??
+      settings.shippingMethods[0];
     if (!method) throw new BadRequestException('Shipping method is required');
     return Number(method.fee);
   }
@@ -438,7 +499,8 @@ export class GiftCardPurchaseService {
   ) {
     const configured = settings.purchasablePackages;
     if (configured.length > 0) return configured;
-    const publicPackages = await this.packagesService.listPublicPackages(businessId);
+    const publicPackages =
+      await this.packagesService.listPublicPackages(businessId);
     return publicPackages.map((pkg) => ({ packageId: pkg.id, price: null }));
   }
 
@@ -449,7 +511,9 @@ export class GiftCardPurchaseService {
     const configured = settings.purchasableSubscriptionPlans;
     if (configured.length > 0) return configured;
     const plans = await this.subscriptionsService.listPlans(businessId);
-    return plans.filter((plan) => plan.isActive).map((plan) => ({ planId: plan.id, price: null }));
+    return plans
+      .filter((plan) => plan.isActive)
+      .map((plan) => ({ planId: plan.id, price: null }));
   }
 
   private async buildPublicPackageCatalog(
@@ -470,7 +534,10 @@ export class GiftCardPurchaseService {
     const entries = await this.listPackageGiftEntries(businessId, settings);
     for (const entry of entries) {
       try {
-        const pkg = await this.packagesService.getPublicPackage(businessId, entry.packageId);
+        const pkg = await this.packagesService.getPublicPackage(
+          businessId,
+          entry.packageId,
+        );
         const pricing = this.resolvePackageGiftPricing(
           settings,
           entry.packageId,
@@ -516,13 +583,19 @@ export class GiftCardPurchaseService {
 
     const activePlans = await this.subscriptionsService.listPlans(businessId);
     const planById = new Map(activePlans.map((plan) => [plan.id, plan]));
-    const entries = await this.listSubscriptionGiftEntries(businessId, settings);
+    const entries = await this.listSubscriptionGiftEntries(
+      businessId,
+      settings,
+    );
 
     for (const entry of entries) {
       const match = planById.get(entry.planId);
       if (!match?.isActive) continue;
       try {
-        const preview = await this.subscriptionsService.previewPlanPricing(businessId, entry.planId);
+        const preview = await this.subscriptionsService.previewPlanPricing(
+          businessId,
+          entry.planId,
+        );
         const pricing = this.resolveSubscriptionGiftPricing(
           settings,
           entry.planId,
@@ -582,18 +655,26 @@ export class GiftCardPurchaseService {
 
     const name =
       input.purchaserName?.trim() ||
-      email.split('@')[0]?.replace(/[._-]+/g, ' ').trim() ||
+      email
+        .split('@')[0]
+        ?.replace(/[._-]+/g, ' ')
+        .trim() ||
       'Guest';
 
-    const { customer } = await this.customerService.findOrCreateByContact(businessId, {
-      name,
-      email,
-    });
+    const { customer } = await this.customerService.findOrCreateByContact(
+      businessId,
+      {
+        name,
+        email,
+      },
+    );
     return customer.id;
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
