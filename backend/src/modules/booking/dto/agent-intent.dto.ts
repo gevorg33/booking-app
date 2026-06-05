@@ -1,4 +1,10 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsBoolean,
+} from 'class-validator';
 import { AgentType } from '../../../engine/agent/interfaces/agent.interfaces.js';
 
 export class AgentIntentDto {

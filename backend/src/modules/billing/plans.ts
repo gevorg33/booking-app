@@ -1,4 +1,7 @@
-import { annualPriceMonthlyEquivalent, ANNUAL_BILLING_DISCOUNT } from './plan-limits.js';
+import {
+  annualPriceMonthlyEquivalent,
+  ANNUAL_BILLING_DISCOUNT,
+} from './plan-limits.js';
 
 /**
  * Subscription plan registry — add new plans here as the product grows.
@@ -21,7 +24,9 @@ export interface SubscriptionPlan {
 
 export { ANNUAL_BILLING_DISCOUNT };
 
-export function withAnnualPricing(plan: Omit<SubscriptionPlan, 'priceAnnual'>): SubscriptionPlan {
+export function withAnnualPricing(
+  plan: Omit<SubscriptionPlan, 'priceAnnual'>,
+): SubscriptionPlan {
   return {
     ...plan,
     priceAnnual: annualPriceMonthlyEquivalent(plan.priceMonthly),

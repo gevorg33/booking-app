@@ -6,7 +6,10 @@ import { PublicCustomerJwtPayload } from './public-customer-auth.types.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
 
 @Injectable()
-export class PublicCustomerJwtStrategy extends PassportStrategy(Strategy, 'public-customer-jwt') {
+export class PublicCustomerJwtStrategy extends PassportStrategy(
+  Strategy,
+  'public-customer-jwt',
+) {
   constructor(
     configService: ConfigService,
     private publicCustomerAuthService: PublicCustomerAuthService,

@@ -43,14 +43,26 @@ describe('ServicePackagesService', () => {
       serviceId: 'svc-1',
       quantity: 1,
       sortOrder: 0,
-      service: { id: 'svc-1', name: 'Massage', price: 80, currency: 'USD', durationMinutes: 60 },
+      service: {
+        id: 'svc-1',
+        name: 'Massage',
+        price: 80,
+        currency: 'USD',
+        durationMinutes: 60,
+      },
     },
     {
       id: 'item-2',
       serviceId: 'svc-2',
       quantity: 1,
       sortOrder: 1,
-      service: { id: 'svc-2', name: 'Facial', price: 60, currency: 'USD', durationMinutes: 45 },
+      service: {
+        id: 'svc-2',
+        name: 'Facial',
+        price: 60,
+        currency: 'USD',
+        durationMinutes: 45,
+      },
     },
   ];
 
@@ -74,14 +86,16 @@ describe('ServicePackagesService', () => {
     packageRepo.save.mockImplementation(async (v) => ({ id: 'pkg-1', ...v }));
     itemRepo.create.mockImplementation((v) => v);
     itemRepo.save.mockResolvedValue([]);
-    serviceRepo.find.mockImplementation(async (opts: { where: { id: any } }) => {
-      const ids = opts.where.id?.value ?? opts.where.id;
-      const all = [
-        { id: 'svc-1', businessId: 'biz-1', isActive: true },
-        { id: 'svc-2', businessId: 'biz-1', isActive: true },
-      ];
-      return all.filter((svc) => ids.includes(svc.id));
-    });
+    serviceRepo.find.mockImplementation(
+      async (opts: { where: { id: any } }) => {
+        const ids = opts.where.id?.value ?? opts.where.id;
+        const all = [
+          { id: 'svc-1', businessId: 'biz-1', isActive: true },
+          { id: 'svc-2', businessId: 'biz-1', isActive: true },
+        ];
+        return all.filter((svc) => ids.includes(svc.id));
+      },
+    );
     packageRepo.findOne.mockImplementation(async () => ({
       ...basePackage,
       items: baseItems.map((item) => ({
@@ -112,7 +126,10 @@ describe('ServicePackagesService', () => {
     );
 
     await expect(
-      service.updatePackage('biz-1', 'pkg-1', { discountValue: 150, discountType: 'percent' }),
+      service.updatePackage('biz-1', 'pkg-1', {
+        discountValue: 150,
+        discountType: 'percent',
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -170,7 +187,9 @@ describe('ServicePackagesService', () => {
   });
 
   it('rejects missing services and invalid discounts', async () => {
-    serviceRepo.find.mockResolvedValue([{ id: 'svc-1', businessId: 'biz-1', isActive: true }]);
+    serviceRepo.find.mockResolvedValue([
+      { id: 'svc-1', businessId: 'biz-1', isActive: true },
+    ]);
     await expect(
       service.createPackage('biz-1', {
         name: 'Bad',
@@ -190,7 +209,9 @@ describe('ServicePackagesService', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    serviceRepo.find.mockResolvedValue([{ id: 'svc-1', businessId: 'biz-1', isActive: true }]);
+    serviceRepo.find.mockResolvedValue([
+      { id: 'svc-1', businessId: 'biz-1', isActive: true },
+    ]);
     await expect(
       service.createPackage('biz-1', {
         name: 'Bad',
@@ -235,7 +256,9 @@ describe('ServicePackagesService', () => {
 
   it('deactivates and activates packages', async () => {
     await service.deactivatePackage('biz-1', 'pkg-1');
-    expect(packageRepo.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
+    expect(packageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: false }),
+    );
 
     packageRepo.findOne.mockImplementation(async () => ({
       ...basePackage,
@@ -243,13 +266,15 @@ describe('ServicePackagesService', () => {
       items: baseItems,
     }));
     await service.activatePackage('biz-1', 'pkg-1');
-    expect(packageRepo.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
+    expect(packageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: true }),
+    );
   });
 
   it('rejects activating already active or expired packages', async () => {
-    await expect(service.activatePackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.activatePackage('biz-1', 'pkg-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
 
     packageRepo.findOne.mockImplementationOnce(async () => ({
       ...basePackage,
@@ -257,9 +282,9 @@ describe('ServicePackagesService', () => {
       expiresAt: new Date('2020-01-01'),
       items: baseItems,
     }));
-    await expect(service.activatePackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.activatePackage('biz-1', 'pkg-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('deletes inactive package without purchases or bookings', async () => {
@@ -270,15 +295,15 @@ describe('ServicePackagesService', () => {
   });
 
   it('blocks delete when active, has purchases, or future bookings', async () => {
-    await expect(service.deletePackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.deletePackage('biz-1', 'pkg-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
 
     packageRepo.findOne.mockResolvedValue({ ...basePackage, isActive: false });
     purchaseRepo.count.mockResolvedValue(2);
-    await expect(service.deletePackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.deletePackage('biz-1', 'pkg-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
 
     purchaseRepo.count.mockResolvedValue(0);
     purchaseRepo.find.mockResolvedValue([{ id: 'purchase-1' }]);
@@ -287,16 +312,19 @@ describe('ServicePackagesService', () => {
       andWhere: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(1),
     });
-    await expect(service.deletePackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.deletePackage('biz-1', 'pkg-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('duplicates package as copy', async () => {
     packageRepo.findOne
       .mockImplementationOnce(async () => ({
         ...basePackage,
-        items: baseItems.map((item) => ({ ...item, service: { ...item.service } })),
+        items: baseItems.map((item) => ({
+          ...item,
+          service: { ...item.service },
+        })),
       }))
       .mockImplementationOnce(async () => ({
         ...basePackage,
@@ -324,14 +352,20 @@ describe('ServicePackagesService', () => {
 
   it('throws when package is missing or has no items', async () => {
     packageRepo.findOne.mockResolvedValue(null);
-    await expect(service.getPackage('biz-1', 'missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getPackage('biz-1', 'missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
 
     packageRepo.findOne.mockResolvedValue({ ...basePackage, items: [] });
-    await expect(service.getPackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.getPackage('biz-1', 'pkg-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('enriches package status and visibility', () => {
-    expect(service.resolveStatus({ ...basePackage, isActive: false } as any)).toBe('inactive');
+    expect(
+      service.resolveStatus({ ...basePackage, isActive: false } as any),
+    ).toBe('inactive');
     expect(
       service.resolveStatus({
         ...basePackage,
@@ -410,7 +444,9 @@ describe('ServicePackagesService', () => {
   it('lists active-only packages by default for all filter', async () => {
     await service.listPackages('biz-1', 'all', false);
     expect(packageRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { businessId: 'biz-1', isActive: true } }),
+      expect.objectContaining({
+        where: { businessId: 'biz-1', isActive: true },
+      }),
     );
   });
 
@@ -427,7 +463,12 @@ describe('ServicePackagesService', () => {
         {
           serviceId: 'svc-1',
           quantity: 2,
-          service: { name: 'Massage', price: 80, currency: 'USD', durationMinutes: 90 },
+          service: {
+            name: 'Massage',
+            price: 80,
+            currency: 'USD',
+            durationMinutes: 90,
+          },
         },
       ],
     } as any);
@@ -499,7 +540,12 @@ describe('ServicePackagesService', () => {
         {
           serviceId: 'svc-1',
           quantity: 1,
-          service: { name: 'Massage', price: 80, currency: 'EUR', durationMinutes: 60 },
+          service: {
+            name: 'Massage',
+            price: 80,
+            currency: 'EUR',
+            durationMinutes: 60,
+          },
         },
       ],
     } as any);
@@ -552,14 +598,14 @@ describe('ServicePackagesService', () => {
       ...basePackage,
       expiresAt: new Date('2020-01-01'),
     });
-    await expect(service.getPublicPackage('biz-1', 'pkg-1', 0)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getPublicPackage('biz-1', 'pkg-1', 0),
+    ).rejects.toBeInstanceOf(NotFoundException);
 
     packageRepo.findOne.mockResolvedValueOnce(null);
-    await expect(service.getPublicPackage('biz-1', 'missing', 0)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getPublicPackage('biz-1', 'missing', 0),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('asserts package is bookable for checkout', async () => {
@@ -571,18 +617,21 @@ describe('ServicePackagesService', () => {
       ...basePackage,
       isActive: false,
     });
-    await expect(service.assertPackageBookable('biz-1', 'pkg-1', 0)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.assertPackageBookable('biz-1', 'pkg-1', 0),
+    ).rejects.toBeInstanceOf(BadRequestException);
 
     packageRepo.findOne.mockResolvedValueOnce({ ...basePackage, items: [] });
-    await expect(service.assertPackageBookable('biz-1', 'pkg-1', 0)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.assertPackageBookable('biz-1', 'pkg-1', 0),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('expands expected line service ids and creates purchases', async () => {
-    expect(service.expectedLineServiceIds(basePackage as any)).toEqual(['svc-1', 'svc-2']);
+    expect(service.expectedLineServiceIds(basePackage as any)).toEqual([
+      'svc-1',
+      'svc-2',
+    ]);
     const purchase = await service.createPackagePurchase(
       'biz-1',
       'pkg-1',

@@ -6,10 +6,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
 import {
-  applyCustomerSelfServiceToBusinessSettings,
-} from '../../common/utils/customer-self-service.util.js';
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
+import { applyCustomerSelfServiceToBusinessSettings } from '../../common/utils/customer-self-service.util.js';
 
 describe('Public customer auth integration', () => {
   const futureStart = new Date(Date.now() + 72 * 60 * 60 * 1000);
@@ -17,13 +18,16 @@ describe('Public customer auth integration', () => {
     id: 'biz-1',
     slug: 'salon',
     isActive: true,
-    settings: applyCustomerSelfServiceToBusinessSettings({}, {
-      allowCancel: true,
-      allowReschedule: true,
-      minimumNoticeHours: 24,
-      maxReschedulesPerBooking: 3,
-      allowProviderChangeOnReschedule: false,
-    }),
+    settings: applyCustomerSelfServiceToBusinessSettings(
+      {},
+      {
+        allowCancel: true,
+        allowReschedule: true,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 3,
+        allowProviderChangeOnReschedule: false,
+      },
+    ),
   };
 
   const customers = new Map<string, Record<string, unknown>>();
@@ -43,7 +47,9 @@ describe('Public customer auth integration', () => {
     verifyIdToken: jest.fn(),
   };
 
-  const jwtService = { sign: jest.fn(() => 'signed-jwt') } as unknown as JwtService;
+  const jwtService = {
+    sign: jest.fn(() => 'signed-jwt'),
+  } as unknown as JwtService;
 
   const bookingRepo = {
     find: jest.fn(async () => bookings),
@@ -200,23 +206,26 @@ describe('Public customer auth integration', () => {
 
   it('rejects Google login when Firebase is not configured', async () => {
     firebase.isReady = false;
-    await expect(service.loginWithGoogle('salon', 'token')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.loginWithGoogle('salon', 'token'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects invalid Google token', async () => {
     firebase.verifyIdToken.mockRejectedValue(new Error('bad token'));
-    await expect(service.loginWithGoogle('salon', 'bad')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.loginWithGoogle('salon', 'bad'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects Google account without email', async () => {
-    firebase.verifyIdToken.mockResolvedValue({ uid: 'sub', name: 'No Email User' });
-    await expect(service.loginWithGoogle('salon', 'token')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    firebase.verifyIdToken.mockResolvedValue({
+      uid: 'sub',
+      name: 'No Email User',
+    });
+    await expect(
+      service.loginWithGoogle('salon', 'token'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('returns profile and validates active customer session', async () => {
@@ -237,12 +246,14 @@ describe('Public customer auth integration', () => {
       phone: '+15551234567',
     });
 
-    await expect(service.getCustomerById(business.id, 'cust-1')).resolves.toMatchObject({
+    await expect(
+      service.getCustomerById(business.id, 'cust-1'),
+    ).resolves.toMatchObject({
       id: 'cust-1',
     });
-    await expect(service.getCustomerById(business.id, 'missing')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.getCustomerById(business.id, 'missing'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('lists bookings for authenticated customer and rejects inactive business', async () => {
@@ -272,14 +283,19 @@ describe('Public customer auth integration', () => {
     expect(publicCustomerBookingService.enrichBookingItem).toHaveBeenCalled();
 
     business.isActive = false;
-    await expect(service.listBookings('salon', 'cust-1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.listBookings('salon', 'cust-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('signs JWT with normalized email', () => {
     const token = service.signToken(
-      { id: 'cust-9', name: 'Jane', email: 'Jane@Test.com', phone: null } as any,
+      {
+        id: 'cust-9',
+        name: 'Jane',
+        email: 'Jane@Test.com',
+        phone: null,
+      } as any,
       business.id,
       'Jane@Test.com',
     );
@@ -308,7 +324,11 @@ describe('Public customer auth integration', () => {
       name: 'Jane Doe',
       email: 'jane@example.com',
       isActive: true,
-      metadata: { googleSub: 'google-sub-1', authProvider: 'google', photoUrl: 'https://photo.test/jane.jpg' },
+      metadata: {
+        googleSub: 'google-sub-1',
+        authProvider: 'google',
+        photoUrl: 'https://photo.test/jane.jpg',
+      },
     });
 
     firebase.verifyIdToken.mockResolvedValue({
@@ -391,7 +411,10 @@ describe('Public customer auth integration', () => {
       employee: { name: 'Alex' },
       service: { name: 'Haircut' },
     });
-    reviewRepo.find.mockResolvedValue([{ bookingId: null }, { bookingId: 'book-9' }]);
+    reviewRepo.find.mockResolvedValue([
+      { bookingId: null },
+      { bookingId: 'book-9' },
+    ]);
 
     const listed = await service.listBookings('salon', 'cust-1');
     expect(listed.bookings).toHaveLength(1);

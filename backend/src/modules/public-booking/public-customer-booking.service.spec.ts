@@ -57,7 +57,10 @@ describe('PublicCustomerBookingService', () => {
       settings: {},
     });
     bookingRepo.findOne.mockResolvedValue({ ...baseBooking });
-    bookingService.cancel.mockResolvedValue({ ...baseBooking, status: BookingStatus.CANCELLED });
+    bookingService.cancel.mockResolvedValue({
+      ...baseBooking,
+      status: BookingStatus.CANCELLED,
+    });
     bookingService.update.mockResolvedValue({
       ...baseBooking,
       startTime: new Date(futureStart.getTime() + 86400000),
@@ -113,10 +116,9 @@ describe('PublicCustomerBookingService', () => {
       'customer:cust-1',
     );
     expect(notificationsService.sendBookingCancellation).toHaveBeenCalled();
-    expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalledWith(
-      'book-1',
-      'cancelled',
-    );
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).toHaveBeenCalledWith('book-1', 'cancelled');
     expect(result.booking.status).toBe(BookingStatus.CANCELLED);
   });
 
@@ -127,25 +129,36 @@ describe('PublicCustomerBookingService', () => {
       'Cancelled by customer',
       'customer:cust-1',
     );
-    expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalled();
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).toHaveBeenCalled();
   });
 
   it('rejects cancel with invalid manage token', async () => {
-    await expect(service.cancelBookingWithToken('salon', 'book-1', 'wrong')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.cancelBookingWithToken('salon', 'book-1', 'wrong'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('reschedules with manage token', async () => {
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
-    const result = await service.rescheduleBookingWithToken('salon', 'book-1', 'tok-abc', {
-      startTime: newStart,
-    });
+    const result = await service.rescheduleBookingWithToken(
+      'salon',
+      'book-1',
+      'tok-abc',
+      {
+        startTime: newStart,
+      },
+    );
     expect(result.previousStartTime).toBe(baseBooking.startTime.toISOString());
-    expect(notificationsService.sendBusinessCustomerBookingChange).toHaveBeenCalledWith(
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).toHaveBeenCalledWith(
       'book-1',
       'rescheduled',
-      expect.objectContaining({ previousStartTime: baseBooking.startTime.toISOString() }),
+      expect.objectContaining({
+        previousStartTime: baseBooking.startTime.toISOString(),
+      }),
     );
   });
 
@@ -160,9 +173,9 @@ describe('PublicCustomerBookingService', () => {
 
   it('rejects cancel when booking not owned', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
-    await expect(service.cancelBooking('salon', 'cust-2', 'book-1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.cancelBooking('salon', 'cust-2', 'book-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects cancel inside notice window', async () => {
@@ -170,14 +183,16 @@ describe('PublicCustomerBookingService', () => {
       ...baseBooking,
       startTime: new Date(Date.now() + 60 * 60 * 1000),
     });
-    await expect(service.cancelBooking('salon', 'cust-1', 'book-1')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.cancelBooking('salon', 'cust-1', 'book-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('reschedules owned booking and increments count', async () => {
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
-    await service.rescheduleBooking('salon', 'cust-1', 'book-1', { startTime: newStart });
+    await service.rescheduleBooking('salon', 'cust-1', 'book-1', {
+      startTime: newStart,
+    });
     expect(bookingService.update).toHaveBeenCalledWith(
       'book-1',
       expect.objectContaining({
@@ -209,9 +224,9 @@ describe('PublicCustomerBookingService', () => {
   });
 
   it('rejects invalid manage token', async () => {
-    await expect(service.getManageContext('salon', 'book-1', 'wrong')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getManageContext('salon', 'book-1', 'wrong'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects manage context when business inactive', async () => {
@@ -221,16 +236,16 @@ describe('PublicCustomerBookingService', () => {
       isActive: false,
       settings: {},
     });
-    await expect(service.getManageContext('salon', 'book-1', 'tok-abc')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getManageContext('salon', 'book-1', 'tok-abc'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects manage context when booking missing', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
-    await expect(service.getManageContext('salon', 'book-1', 'tok-abc')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getManageContext('salon', 'book-1', 'tok-abc'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects loadBookingForAction when neither customer id nor token is provided', async () => {
@@ -293,7 +308,11 @@ describe('PublicCustomerBookingService', () => {
     const packageBooking = {
       ...baseBooking,
       packagePurchaseId: 'purchase-1',
-      metadata: { manageToken: 'tok-abc', packageId: 'pkg-1', packageName: 'Glow package' },
+      metadata: {
+        manageToken: 'tok-abc',
+        packageId: 'pkg-1',
+        packageName: 'Glow package',
+      },
       service: { name: 'Facial', durationMinutes: 30, bufferMinutes: 0 },
     };
     const second = {
@@ -310,7 +329,11 @@ describe('PublicCustomerBookingService', () => {
       status: BookingStatus.CANCELLED,
     }));
 
-    const result = await service.cancelPackageVisitWithToken('salon', 'book-1', 'tok-abc');
+    const result = await service.cancelPackageVisitWithToken(
+      'salon',
+      'book-1',
+      'tok-abc',
+    );
 
     expect(result.bookings).toHaveLength(2);
     expect(bookingService.cancel).toHaveBeenCalledTimes(2);
@@ -386,7 +409,9 @@ describe('PublicCustomerBookingService', () => {
     bookingRepo.findOne.mockResolvedValue(packageBooking);
     bookingRepo.find.mockResolvedValue([packageBooking]);
 
-    const summary = await service.getPackageVisitSummary('salon', 'book-1', { customerId: 'cust-1' });
+    const summary = await service.getPackageVisitSummary('salon', 'book-1', {
+      customerId: 'cust-1',
+    });
     expect(summary.packageName).toBe('Glow');
     expect(summary.appointments).toHaveLength(1);
   });
@@ -411,10 +436,15 @@ describe('PublicCustomerBookingService', () => {
     await expect(
       service.reschedulePackageVisit('salon', 'cust-1', 'book-1', {
         lines: [
-          { bookingId: 'book-1', startTime: new Date(futureStart.getTime() + 86400000).toISOString() },
+          {
+            bookingId: 'book-1',
+            startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
+          },
           {
             bookingId: 'book-2',
-            startTime: new Date(futureStart.getTime() + 86400000 + 35 * 60 * 1000).toISOString(),
+            startTime: new Date(
+              futureStart.getTime() + 86400000 + 35 * 60 * 1000,
+            ).toISOString(),
           },
         ],
       }),
@@ -442,7 +472,11 @@ describe('PublicCustomerBookingService', () => {
 
     const newBlock = new Date(futureStart.getTime() + 86400000);
     const lines = [
-      { bookingId: 'book-1', startTime: newBlock.toISOString(), employeeId: 'emp-1' },
+      {
+        bookingId: 'book-1',
+        startTime: newBlock.toISOString(),
+        employeeId: 'emp-1',
+      },
       {
         bookingId: 'book-2',
         startTime: new Date(newBlock.getTime() + 35 * 60 * 1000).toISOString(),
@@ -456,7 +490,12 @@ describe('PublicCustomerBookingService', () => {
       { ...second, startTime: new Date(newBlock.getTime() + 35 * 60 * 1000) },
     ]);
 
-    const result = await service.reschedulePackageVisit('salon', 'cust-1', 'book-1', { lines });
+    const result = await service.reschedulePackageVisit(
+      'salon',
+      'cust-1',
+      'book-1',
+      { lines },
+    );
     expect(result.bookings).toHaveLength(2);
     expect(bookingService.validateMultiServiceBlockFits).toHaveBeenCalledWith(
       'biz-1',
@@ -482,9 +521,9 @@ describe('PublicCustomerBookingService', () => {
       .spyOn(customerSelfService, 'evaluateCustomerBookingPolicy')
       .mockReturnValue({ allowed: false });
 
-    await expect(service.cancelBooking('salon', 'cust-1', 'book-1')).rejects.toThrow(
-      'Cancellation is not allowed',
-    );
+    await expect(
+      service.cancelBooking('salon', 'cust-1', 'book-1'),
+    ).rejects.toThrow('Cancellation is not allowed');
     await expect(
       service.rescheduleBooking('salon', 'cust-1', 'book-1', {
         startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
@@ -504,14 +543,16 @@ describe('PublicCustomerBookingService', () => {
     bookingRepo.findOne.mockResolvedValue(packageBooking);
     bookingRepo.find.mockResolvedValue([packageBooking]);
 
-    const visitPolicySpy = jest.spyOn(packageVisitUtil, 'evaluatePackageVisitPolicy').mockReturnValue({
-      canCancelAll: false,
-      canRescheduleAll: true,
-      policyMessage: null,
-    });
-    await expect(service.cancelPackageVisit('salon', 'cust-1', 'book-1')).rejects.toThrow(
-      'Cancellation is not allowed for this visit',
-    );
+    const visitPolicySpy = jest
+      .spyOn(packageVisitUtil, 'evaluatePackageVisitPolicy')
+      .mockReturnValue({
+        canCancelAll: false,
+        canRescheduleAll: true,
+        policyMessage: null,
+      });
+    await expect(
+      service.cancelPackageVisit('salon', 'cust-1', 'book-1'),
+    ).rejects.toThrow('Cancellation is not allowed for this visit');
 
     visitPolicySpy.mockReturnValue({
       canCancelAll: true,

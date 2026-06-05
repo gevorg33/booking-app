@@ -7,7 +7,9 @@ describe('ZendeskReviewListener', () => {
     createTicketFromReviewIfEnabled: jest.fn(),
   };
 
-  const listener = new ZendeskReviewListener(zendesk as unknown as ZendeskIntegrationService);
+  const listener = new ZendeskReviewListener(
+    zendesk as unknown as ZendeskIntegrationService,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -30,15 +32,18 @@ describe('ZendeskReviewListener', () => {
       },
     } as any);
 
-    expect(zendesk.createTicketFromReviewIfEnabled).toHaveBeenCalledWith('biz-1', {
-      reviewId: 'rev-1',
-      employeeId: 'emp-1',
-      rating: 2,
-      comment: 'Waited too long',
-      customerId: 'cust-1',
-      bookingId: 'book-1',
-      customerName: 'Jane Doe',
-    });
+    expect(zendesk.createTicketFromReviewIfEnabled).toHaveBeenCalledWith(
+      'biz-1',
+      {
+        reviewId: 'rev-1',
+        employeeId: 'emp-1',
+        rating: 2,
+        comment: 'Waited too long',
+        customerId: 'cust-1',
+        bookingId: 'book-1',
+        customerName: 'Jane Doe',
+      },
+    );
   });
 
   it('skips when business id missing', async () => {
@@ -50,7 +55,9 @@ describe('ZendeskReviewListener', () => {
   });
 
   it('swallows errors without rethrowing', async () => {
-    zendesk.createTicketFromReviewIfEnabled.mockRejectedValue(new Error('Zendesk down'));
+    zendesk.createTicketFromReviewIfEnabled.mockRejectedValue(
+      new Error('Zendesk down'),
+    );
     await expect(
       listener.handleReviewReceived({
         aggregateId: 'rev-1',

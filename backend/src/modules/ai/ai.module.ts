@@ -5,6 +5,30 @@ import { AiCommandController } from './ai-command.controller.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { AiSchedulingService } from './ai-scheduling.service.js';
+import { AiOperationsService } from './ai-operations.service.js';
+import { AiPlatformService } from './ai-platform.service.js';
+import { AiPlatformScheduler } from './ai-platform.scheduler.js';
+import { AiBookingDepthService } from './ai-booking-depth.service.js';
+import { AiCatalogService } from './ai-catalog.service.js';
+import { AiCustomerCrmService } from './ai-customer-crm.service.js';
+import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
+import { AiPaymentsService } from './ai-payments.service.js';
+import { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
+import { AiIntegrationsService } from './ai-integrations.service.js';
+import { AiRetailFinanceService } from './ai-retail-finance.service.js';
+import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
+import { AiPushNotificationsService } from './ai-push-notifications.service.js';
+import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
+import { AiProviderBookingService } from './ai-provider-booking.service.js';
+import { PublicBookingModule } from '../public-booking/public-booking.module.js';
+import { ServiceModule } from '../service/service.module.js';
+import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
+import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
+import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
+import { GiftCardChangeRequest } from '../gift-cards/entities/gift-card-change-request.entity.js';
+import { CustomerSubscription } from '../service-subscriptions/entities/subscription.entity.js';
+import { AgentTask } from '../../engine/agent/agent-task.entity.js';
 import { AiSuggestionsService } from './ai-suggestions.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { Booking } from '../booking/entities/booking.entity.js';
@@ -16,6 +40,7 @@ import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../schedule/entities/block-schedule.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
@@ -35,15 +60,38 @@ import { CompoundCommandGraphService } from './compound-command-graph.service.js
 import { CommandReasoningService } from './command-reasoning.service.js';
 import { ReactResultCompilerService } from './react-result-compiler.service.js';
 import { AiGatewayService } from './ai-gateway.service.js';
+import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
+import { AiRagService } from './ai-rag.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
+import { AiWeeklyReportService } from './ai-weekly-report.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { AiCommandRegistryService } from './ai-command-registry.service.js';
+import { AiCommandEntityParamsService } from './ai-command-entity-params.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.js';
 import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
+import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
+import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
+import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
+import { ResourcesModule } from '../resources/resources.module.js';
+import { SchedulingResource } from '../resources/entities/scheduling-resource.entity.js';
+import { IntegrationsModule } from '../integrations/integrations.module.js';
+import { CommissionsModule } from '../commissions/commissions.module.js';
+import { InventoryModule } from '../inventory/inventory.module.js';
+import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
+import { ExpensesModule } from '../expenses/expenses.module.js';
+import { AnalyticsModule } from '../analytics/analytics.module.js';
+import { Product } from '../inventory/entities/inventory.entity.js';
+import { MarketingAutomationModule } from '../marketing-automation/marketing-automation.module.js';
+import { BillingModule } from '../billing/billing.module.js';
+import { LoyaltyModule } from '../loyalty/loyalty.module.js';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
+import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
 
 @Module({
   imports: [
@@ -58,16 +106,43 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
       ScheduleTemplate,
       BlockSchedule,
       Business,
+      ServicePackage,
+      CustomerSubscription,
+      GiftCard,
+      GiftCardChangeRequest,
+      SchedulingResource,
+      AgentTask,
+      Product,
+      NotificationLog,
     ]),
-    BookingModule,
-    AgentModule,
+    forwardRef(() => BookingModule),
+    forwardRef(() => AgentModule),
     SchedulingEngineModule,
     OpenAiModule,
     WebSocketModule,
     EventStoreModule,
     CustomerModule,
-    LangGraphModule,
+    forwardRef(() => LangGraphModule),
     forwardRef(() => ProviderMobileModule),
+    ServiceSubscriptionsModule,
+    ServicePackagesModule,
+    MultiServiceBookingsModule,
+    ResourcesModule,
+    IntegrationsModule,
+    CommissionsModule,
+    InventoryModule,
+    RetailPosModule,
+    ExpensesModule,
+    AnalyticsModule,
+    MarketingAutomationModule,
+    BillingModule,
+    LoyaltyModule,
+    PromoCodesModule,
+    NotificationsModule,
+    forwardRef(() => PublicBookingModule),
+    ServiceModule,
+    GiftCardsModule,
+    ZendeskModule,
   ],
   controllers: [AiCommandController],
   providers: [
@@ -75,6 +150,22 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandOrchestrationService,
     OperationalPlanBuilderService,
     AiScheduleHandlersService,
+    AiSchedulingService,
+    AiOperationsService,
+    AiPlatformService,
+    AiPlatformScheduler,
+    AiBookingDepthService,
+    AiCatalogService,
+    AiCustomerCrmService,
+    AiScheduleResourcesService,
+    AiPaymentsService,
+    AiGiftFulfillmentService,
+    AiIntegrationsService,
+    AiRetailFinanceService,
+    AiMarketingGrowthService,
+    AiPushNotificationsService,
+    AiSelfServiceBookingService,
+    AiProviderBookingService,
     AiSuggestionsService,
     CommandCompletionPipelineService,
     AiEventsService,
@@ -88,15 +179,23 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandReasoningService,
     ReactResultCompilerService,
     AiGatewayService,
+    CustomerAiCommandService,
     AiEntityMemoryService,
     AiConversationSummaryService,
+    AiRagService,
     AiIntelligenceService,
+    AiWeeklyReportService,
     CommandComplexityRouterService,
     AiIntentRescueService,
+    AiCommandRegistryService,
+    AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
   ],
   exports: [
+    AiPlatformService,
+    AiPushNotificationsService,
+    AiProviderBookingService,
     CommandCompletionPipelineService,
     AiEventsService,
     AiSuggestionsService,
@@ -105,9 +204,12 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandOrchestrationService,
     AiSettingsService,
     AiGatewayService,
+    CustomerAiCommandService,
     AiIntelligenceService,
     CommandComplexityRouterService,
     AiIntentRescueService,
+    AiCommandRegistryService,
+    AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
   ],

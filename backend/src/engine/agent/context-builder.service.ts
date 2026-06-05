@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { Employee } from '../../modules/employee/entities/employee.entity.js';
 import { Service } from '../../modules/service/entities/service.entity.js';
-import { Booking, BookingStatus } from '../../modules/booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+} from '../../modules/booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../../modules/schedule/entities/scheduling-period.entity.js';
 import { ScheduleTemplate } from '../../modules/schedule/entities/schedule-template.entity.js';
 import { BlockSchedule } from '../../modules/schedule/entities/block-schedule.entity.js';
@@ -16,9 +19,12 @@ export class ContextBuilderService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
-    @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(BlockSchedule)
+    private blockScheduleRepo: Repository<BlockSchedule>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
   ) {}
 
@@ -47,8 +53,15 @@ export class ContextBuilderService {
     };
     if (options?.employeeId) periodWhere.employeeId = options.employeeId;
 
-    const [employees, services, bookings, schedules, templates, blockSchedules, business] =
-      await Promise.all([
+    const [
+      employees,
+      services,
+      bookings,
+      schedules,
+      templates,
+      blockSchedules,
+      business,
+    ] = await Promise.all([
       this.employeeRepo.find({ where: employeeWhere }),
       this.serviceRepo.find({ where: { businessId } }),
       this.bookingRepo.find({
@@ -57,8 +70,14 @@ export class ContextBuilderService {
         order: { startTime: 'ASC' },
       }),
       this.periodRepo.find({ where: periodWhere, order: { startTime: 'ASC' } }),
-      this.templateRepo.find({ where: { businessId, isDeleted: false }, order: { name: 'ASC' } }),
-      this.blockScheduleRepo.find({ where: { businessId, isDeleted: false }, take: 20 }),
+      this.templateRepo.find({
+        where: { businessId, isDeleted: false },
+        order: { name: 'ASC' },
+      }),
+      this.blockScheduleRepo.find({
+        where: { businessId, isDeleted: false },
+        take: 20,
+      }),
       this.businessRepo.findOne({ where: { id: businessId } }),
     ]);
 
@@ -69,7 +88,8 @@ export class ContextBuilderService {
       ? Math.round(buffers.reduce((a, b) => a + b, 0) / buffers.length)
       : 10;
 
-    const hours = business?.settings?.hours ?? business?.settings?.businessHours;
+    const hours =
+      business?.settings?.hours ?? business?.settings?.businessHours;
     const businessHoursLabel =
       typeof hours === 'string'
         ? hours

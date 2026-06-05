@@ -15,7 +15,10 @@ export class InvitationsController {
   ) {}
 
   @Get()
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.invitationsService.list(businessId);
   }

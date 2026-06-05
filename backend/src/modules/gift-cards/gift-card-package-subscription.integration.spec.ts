@@ -10,8 +10,14 @@ import {
   hasGiftCardValueBeenUsed,
   isGiftCardFullyRedeemed,
 } from './gift-card-order-policy.util.js';
-import { DEFAULT_GIFT_CARD_SETTINGS, type GiftCardBusinessSettings } from './gift-card.types.js';
-import { generateGiftCardCode, giftCardCodePrefix } from './gift-card-code.util.js';
+import {
+  DEFAULT_GIFT_CARD_SETTINGS,
+  type GiftCardBusinessSettings,
+} from './gift-card.types.js';
+import {
+  generateGiftCardCode,
+  giftCardCodePrefix,
+} from './gift-card-code.util.js';
 
 /**
  * Integration tests for gifting existing service packages and subscription plans.
@@ -80,10 +86,12 @@ describe('Gift card package & subscription integration', () => {
     subscriptionsService as any,
   );
   const customerService = {
-    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
-      customer: { id: 'cust-linked', name: dto.name, email: dto.email },
-      created: true,
-    })),
+    findOrCreateByContact: jest.fn(
+      async (_businessId: string, dto: { name: string; email: string }) => ({
+        customer: { id: 'cust-linked', name: dto.name, email: dto.email },
+        created: true,
+      }),
+    ),
   };
 
   const purchaseService = new GiftCardPurchaseService(
@@ -106,7 +114,9 @@ describe('Gift card package & subscription integration', () => {
   );
 
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
-  const whatsappService = { sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }) };
+  const whatsappService = {
+    sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }),
+  };
   const whatsappIntegrationService = {
     resolveRuntimeConfig: jest.fn().mockReturnValue({
       templateGiftCard: 'gift_card_delivery',
@@ -115,7 +125,9 @@ describe('Gift card package & subscription integration', () => {
     }),
   };
   const configService = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
   const deliveryService = new GiftCardDeliveryService(
     giftCardRepo as any,
@@ -148,12 +160,19 @@ describe('Gift card package & subscription integration', () => {
 
   function hydrateCard(raw: Record<string, unknown>) {
     const id = (raw.id as string) ?? `gc-${++cardSeq}`;
-    const saved = { ...raw, id, business, createdAt: raw.createdAt ?? new Date() };
+    const saved = {
+      ...raw,
+      id,
+      business,
+      createdAt: raw.createdAt ?? new Date(),
+    };
     cards.set(id, saved);
     return saved;
   }
 
-  function setBusinessGiftSettings(overrides: Partial<GiftCardBusinessSettings>) {
+  function setBusinessGiftSettings(
+    overrides: Partial<GiftCardBusinessSettings>,
+  ) {
     businessRepo.findOne.mockResolvedValue({
       ...business,
       settings: {
@@ -183,34 +202,48 @@ describe('Gift card package & subscription integration', () => {
     cardSeq = 0;
     businessRepo.findOne.mockResolvedValue(business);
 
-    giftCardRepo.save.mockImplementation(async (raw: Record<string, unknown>) => hydrateCard(raw));
-    giftCardRepo.findOne.mockImplementation(async (opts: { where: Record<string, unknown>; relations?: Record<string, boolean> }) => {
-      if (opts.where.id) {
-        const card = cards.get(opts.where.id as string);
-        if (!card) return null;
-        const copy = { ...card };
-        if (opts.relations?.serviceCredits) {
-          (copy as Record<string, unknown>).serviceCredits = [];
+    giftCardRepo.save.mockImplementation(async (raw: Record<string, unknown>) =>
+      hydrateCard(raw),
+    );
+    giftCardRepo.findOne.mockImplementation(
+      async (opts: {
+        where: Record<string, unknown>;
+        relations?: Record<string, boolean>;
+      }) => {
+        if (opts.where.id) {
+          const card = cards.get(opts.where.id as string);
+          if (!card) return null;
+          const copy = { ...card };
+          if (opts.relations?.serviceCredits) {
+            (copy as Record<string, unknown>).serviceCredits = [];
+          }
+          return copy;
         }
-        return copy;
-      }
-      if (opts.where.code) {
-        const code = String(opts.where.code).trim().toUpperCase();
-        const card = [...cards.values()].find(
-          (c) => String(c.code).toUpperCase() === code && c.businessId === opts.where.businessId,
-        );
-        return card ? { ...card } : null;
-      }
-      return null;
-    });
-    giftCardRepo.find.mockImplementation(async (opts: { where: Record<string, unknown> }) =>
-      [...cards.values()].filter((c) => {
-        if (opts.where.businessId && c.businessId !== opts.where.businessId) return false;
-        if (opts.where.purchaserCustomerId && c.purchaserCustomerId !== opts.where.purchaserCustomerId) {
-          return false;
+        if (opts.where.code) {
+          const code = String(opts.where.code).trim().toUpperCase();
+          const card = [...cards.values()].find(
+            (c) =>
+              String(c.code).toUpperCase() === code &&
+              c.businessId === opts.where.businessId,
+          );
+          return card ? { ...card } : null;
         }
-        return true;
-      }),
+        return null;
+      },
+    );
+    giftCardRepo.find.mockImplementation(
+      async (opts: { where: Record<string, unknown> }) =>
+        [...cards.values()].filter((c) => {
+          if (opts.where.businessId && c.businessId !== opts.where.businessId)
+            return false;
+          if (
+            opts.where.purchaserCustomerId &&
+            c.purchaserCustomerId !== opts.where.purchaserCustomerId
+          ) {
+            return false;
+          }
+          return true;
+        }),
     );
 
     packagesService.assertPackageBookable.mockResolvedValue(pkgEntity);
@@ -223,7 +256,9 @@ describe('Gift card package & subscription integration', () => {
       pricing: { packagePrice: 180, regularTotal: 200, savingsPercent: 10 },
       items: [{ serviceName: 'Facial', quantity: 1 }],
     });
-    packagesService.createPackagePurchase.mockResolvedValue({ id: 'purchase-1' });
+    packagesService.createPackagePurchase.mockResolvedValue({
+      id: 'purchase-1',
+    });
 
     subscriptionsService.previewPlanPricing.mockResolvedValue(planPreview);
     subscriptionsService.listPlans.mockResolvedValue([
@@ -273,16 +308,26 @@ describe('Gift card package & subscription integration', () => {
           id: 'pkg-haircut',
           name: 'haricut package',
           currency: 'USD',
-          pricing: { packagePrice: 80.75, regularTotal: 95, savingsPercent: 15 },
+          pricing: {
+            packagePrice: 80.75,
+            regularTotal: 95,
+            savingsPercent: 15,
+          },
           items: [{ serviceName: 'Baby haircut', quantity: 1 }],
         },
       ]);
-      packagesService.getPublicPackage.mockImplementation(async (_biz: string, id: string) => ({
-        name: id === 'pkg-haircut' ? 'haricut package' : 'Summer glow',
-        currency: 'USD',
-        pricing: { packagePrice: 80.75, regularTotal: 95, savingsPercent: 15 },
-        items: [{ serviceName: 'Baby haircut', quantity: 1 }],
-      }));
+      packagesService.getPublicPackage.mockImplementation(
+        async (_biz: string, id: string) => ({
+          name: id === 'pkg-haircut' ? 'haricut package' : 'Summer glow',
+          currency: 'USD',
+          pricing: {
+            packagePrice: 80.75,
+            regularTotal: 95,
+            savingsPercent: 15,
+          },
+          items: [{ serviceName: 'Baby haircut', quantity: 1 }],
+        }),
+      );
       subscriptionsService.listPlans.mockResolvedValue([
         {
           id: 'plan-baby',
@@ -291,16 +336,21 @@ describe('Gift card package & subscription integration', () => {
           service: { name: 'Baby haircut', currency: 'USD' },
         },
       ]);
-      subscriptionsService.previewPlanPricing.mockImplementation(async (_biz: string, planId: string) => ({
-        plan: {
-          id: planId,
-          name: 'baby haircut subscribe',
-          includedAppointments: 12,
-          durationMonths: 12,
-        },
-        pricing: { subscriptionPrice: 255, regularTotal: 300, savings: 45 },
-      }));
-      setBusinessGiftSettings({ purchasablePackages: [], purchasableSubscriptionPlans: [] });
+      subscriptionsService.previewPlanPricing.mockImplementation(
+        async (_biz: string, planId: string) => ({
+          plan: {
+            id: planId,
+            name: 'baby haircut subscribe',
+            includedAppointments: 12,
+            durationMonths: 12,
+          },
+          pricing: { subscriptionPrice: 255, regularTotal: 300, savings: 45 },
+        }),
+      );
+      setBusinessGiftSettings({
+        purchasablePackages: [],
+        purchasableSubscriptionPlans: [],
+      });
 
       const catalog = await purchaseService.getPublicCatalog('biz-1');
       expect(catalog.settings?.purchasablePackages?.[0]).toMatchObject({
@@ -308,44 +358,65 @@ describe('Gift card package & subscription integration', () => {
         name: 'haricut package',
         packagePrice: 80.75,
       });
-      expect(catalog.settings?.purchasableSubscriptionPlans?.[0]).toMatchObject({
-        planId: 'plan-baby',
-        serviceName: 'Baby haircut',
-        subscriptionPrice: 255,
-        savings: 45,
-      });
+      expect(catalog.settings?.purchasableSubscriptionPlans?.[0]).toMatchObject(
+        {
+          planId: 'plan-baby',
+          serviceName: 'Baby haircut',
+          subscriptionPrice: 255,
+          savings: 45,
+        },
+      );
     });
 
     it('only lists admin-selected packages that are still public', async () => {
-      packagesService.getPublicPackage.mockImplementation(async (_biz: string, packageId: string) => {
-        if (packageId !== 'pkg-1') throw new NotFoundException();
-        return {
-          name: 'Summer glow',
-          currency: 'USD',
-          pricing: { packagePrice: 180, regularTotal: 200, savingsPercent: 10 },
-          items: [{ serviceName: 'Facial', quantity: 1 }],
-        };
-      });
+      packagesService.getPublicPackage.mockImplementation(
+        async (_biz: string, packageId: string) => {
+          if (packageId !== 'pkg-1') throw new NotFoundException();
+          return {
+            name: 'Summer glow',
+            currency: 'USD',
+            pricing: {
+              packagePrice: 180,
+              regularTotal: 200,
+              savingsPercent: 10,
+            },
+            items: [{ serviceName: 'Facial', quantity: 1 }],
+          };
+        },
+      );
       setBusinessGiftSettings({
-        purchasablePackages: [{ packageId: 'pkg-1' }, { packageId: 'pkg-other' }],
+        purchasablePackages: [
+          { packageId: 'pkg-1' },
+          { packageId: 'pkg-other' },
+        ],
       });
 
       const catalog = await purchaseService.getPublicCatalog('biz-1');
       expect(catalog.settings?.purchasablePackages).toHaveLength(1);
-      expect(catalog.settings?.purchasablePackages?.[0].packageId).toBe('pkg-1');
+      expect(catalog.settings?.purchasablePackages?.[0].packageId).toBe(
+        'pkg-1',
+      );
     });
 
     it('omits inactive subscription plans from catalog', async () => {
       subscriptionsService.listPlans.mockResolvedValue([
-        { id: 'plan-1', isActive: false, service: { name: 'Facial', currency: 'USD' } },
+        {
+          id: 'plan-1',
+          isActive: false,
+          service: { name: 'Facial', currency: 'USD' },
+        },
       ]);
       const catalog = await purchaseService.getPublicCatalog('biz-1');
       expect(catalog.settings?.purchasableSubscriptionPlans).toEqual([]);
     });
 
     it('omits catalog entries when underlying product is no longer available', async () => {
-      packagesService.getPublicPackage.mockRejectedValueOnce(new NotFoundException());
-      subscriptionsService.previewPlanPricing.mockRejectedValueOnce(new NotFoundException());
+      packagesService.getPublicPackage.mockRejectedValueOnce(
+        new NotFoundException(),
+      );
+      subscriptionsService.previewPlanPricing.mockRejectedValueOnce(
+        new NotFoundException(),
+      );
 
       const catalog = await purchaseService.getPublicCatalog('biz-1');
       expect(catalog.settings?.purchasablePackages).toEqual([]);
@@ -370,7 +441,10 @@ describe('Gift card package & subscription integration', () => {
 
     it('quotes default package price when allowlist is empty', async () => {
       setBusinessGiftSettings({ purchasablePackages: [] });
-      const quote = await purchaseService.quotePurchase('biz-1', digitalPackagePurchase);
+      const quote = await purchaseService.quotePurchase(
+        'biz-1',
+        digitalPackagePurchase,
+      );
       expect(quote.subtotal).toBe(180);
     });
 
@@ -407,12 +481,16 @@ describe('Gift card package & subscription integration', () => {
         }),
       ).rejects.toThrow('not available');
 
-      setBusinessGiftSettings({ purchasablePackages: [{ packageId: 'pkg-allowed-only' }] });
+      setBusinessGiftSettings({
+        purchasablePackages: [{ packageId: 'pkg-allowed-only' }],
+      });
       await expect(
         purchaseService.quotePurchase('biz-1', digitalPackagePurchase),
       ).rejects.toThrow('not available');
 
-      packagesService.assertPackageBookable.mockRejectedValueOnce(new NotFoundException('gone'));
+      packagesService.assertPackageBookable.mockRejectedValueOnce(
+        new NotFoundException('gone'),
+      );
       setBusinessGiftSettings({ purchasablePackages: [] });
       await expect(
         purchaseService.quotePurchase('biz-1', digitalPackagePurchase),
@@ -426,7 +504,9 @@ describe('Gift card package & subscription integration', () => {
         'sess_pkg',
       );
 
-      expect(card.code).toMatch(new RegExp(`^${giftCardCodePrefix('package')}-`));
+      expect(card.code).toMatch(
+        new RegExp(`^${giftCardCodePrefix('package')}-`),
+      );
       expect(card.packageId).toBe('pkg-1');
       expect(card.codeRevealed).toBe(true);
       expect(card.claimedAt).toBeFalsy();
@@ -435,7 +515,10 @@ describe('Gift card package & subscription integration', () => {
       expect(events.emit).toHaveBeenCalledWith(
         EventType.PAYMENT_RECEIVED,
         expect.objectContaining({
-          payload: expect.objectContaining({ cardType: 'package', paymentMethod: 'online' }),
+          payload: expect.objectContaining({
+            cardType: 'package',
+            paymentMethod: 'online',
+          }),
         }),
       );
     });
@@ -454,7 +537,9 @@ describe('Gift card package & subscription integration', () => {
         expect.any(Number),
         'USD',
       );
-      const stored = [...cards.values()].find((c) => c.purchaserCustomerId === 'cust-self');
+      const stored = [...cards.values()].find(
+        (c) => c.purchaserCustomerId === 'cust-self',
+      );
       expect(stored?.claimedByCustomerId).toBe('cust-self');
       expect(stored?.isActive).toBe(false);
     });
@@ -509,7 +594,10 @@ describe('Gift card package & subscription integration', () => {
         purchaserCustomerId: 'cust-buyer',
       });
 
-      const orders = await purchaseService.listCustomerOrders('biz-1', 'cust-buyer');
+      const orders = await purchaseService.listCustomerOrders(
+        'biz-1',
+        'cust-buyer',
+      );
       expect(orders).toHaveLength(1);
       expect(orders[0].cardType).toBe('package');
     });
@@ -517,7 +605,10 @@ describe('Gift card package & subscription integration', () => {
 
   describe('Subscription purchase (buyer)', () => {
     it('quotes plan price and savings from preview', async () => {
-      const quote = await purchaseService.quotePurchase('biz-1', digitalSubscriptionPurchase);
+      const quote = await purchaseService.quotePurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
       expect(quote).toMatchObject({
         cardType: 'subscription',
         subtotal: 240,
@@ -529,13 +620,19 @@ describe('Gift card package & subscription integration', () => {
       setBusinessGiftSettings({
         purchasableSubscriptionPlans: [{ planId: 'plan-1', price: 220 }],
       });
-      const quote = await purchaseService.quotePurchase('biz-1', digitalSubscriptionPurchase);
+      const quote = await purchaseService.quotePurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
       expect(quote.subtotal).toBe(220);
     });
 
     it('quotes default plan price when allowlist is empty', async () => {
       setBusinessGiftSettings({ purchasableSubscriptionPlans: [] });
-      const quote = await purchaseService.quotePurchase('biz-1', digitalSubscriptionPurchase);
+      const quote = await purchaseService.quotePurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
       expect(quote.subtotal).toBe(240);
     });
 
@@ -555,7 +652,9 @@ describe('Gift card package & subscription integration', () => {
         }),
       ).rejects.toThrow('not available');
 
-      setBusinessGiftSettings({ purchasableSubscriptionPlans: [{ planId: 'other-plan' }] });
+      setBusinessGiftSettings({
+        purchasableSubscriptionPlans: [{ planId: 'other-plan' }],
+      });
       await expect(
         purchaseService.quotePurchase('biz-1', digitalSubscriptionPurchase),
       ).rejects.toThrow('not available');
@@ -567,7 +666,9 @@ describe('Gift card package & subscription integration', () => {
         recipientEmail: 'friend@test.com',
       });
 
-      expect(card.code).toMatch(new RegExp(`^${giftCardCodePrefix('subscription')}-`));
+      expect(card.code).toMatch(
+        new RegExp(`^${giftCardCodePrefix('subscription')}-`),
+      );
       expect(card.subscriptionPlanId).toBe('plan-1');
       expect(card.claimedAt).toBeFalsy();
       expect(subscriptionsService.assignSubscription).not.toHaveBeenCalled();
@@ -592,7 +693,9 @@ describe('Gift card package & subscription integration', () => {
         'plan-1',
         expect.objectContaining({ pricePaid: quote.total, currency: 'USD' }),
       );
-      const stored = [...cards.values()].find((c) => c.purchaserCustomerId === 'cust-self');
+      const stored = [...cards.values()].find(
+        (c) => c.purchaserCustomerId === 'cust-self',
+      );
       expect(stored?.isActive).toBe(false);
     });
 
@@ -611,7 +714,11 @@ describe('Gift card package & subscription integration', () => {
         recipientEmail: 'friend@test.com',
       });
 
-      const result = await claimService.claimByCode('biz-1', card.code as string, 'cust-recipient');
+      const result = await claimService.claimByCode(
+        'biz-1',
+        card.code,
+        'cust-recipient',
+      );
       expect(result).toEqual({
         giftCardId: card.id,
         cardType: 'package',
@@ -625,15 +732,22 @@ describe('Gift card package & subscription integration', () => {
         card.currency,
       );
 
-      const stored = cards.get(card.id as string);
+      const stored = cards.get(card.id);
       expect(stored?.claimedByCustomerId).toBe('cust-recipient');
       expect(stored?.isActive).toBe(false);
     });
 
     it('claims subscription gift and assigns plan to recipient', async () => {
-      const card = await purchaseService.fulfillPurchase('biz-1', digitalSubscriptionPurchase);
+      const card = await purchaseService.fulfillPurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
 
-      const result = await claimService.claimByCode('biz-1', card.code as string, 'cust-recipient');
+      const result = await claimService.claimByCode(
+        'biz-1',
+        card.code,
+        'cust-recipient',
+      );
       expect(result.subscriptionId).toBe('sub-1');
       expect(subscriptionsService.assignSubscription).toHaveBeenCalledWith(
         'biz-1',
@@ -644,9 +758,9 @@ describe('Gift card package & subscription integration', () => {
     });
 
     it('rejects claim when code is missing, expired, unrevealed, wrong type, or already claimed', async () => {
-      await expect(claimService.claimByCode('biz-1', 'GCP-MISSING', 'cust-1')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        claimService.claimByCode('biz-1', 'GCP-MISSING', 'cust-1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
 
       const unrevealed = hydrateCard({
         businessId: 'biz-1',
@@ -658,9 +772,9 @@ describe('Gift card package & subscription integration', () => {
         currency: 'USD',
         purchaseAmount: 100,
       });
-      await expect(claimService.claimCard('biz-1', unrevealed as any, 'cust-1')).rejects.toThrow(
-        'not yet active',
-      );
+      await expect(
+        claimService.claimCard('biz-1', unrevealed as any, 'cust-1'),
+      ).rejects.toThrow('not yet active');
 
       const expired = hydrateCard({
         businessId: 'biz-1',
@@ -673,9 +787,9 @@ describe('Gift card package & subscription integration', () => {
         currency: 'USD',
         purchaseAmount: 80,
       });
-      await expect(claimService.claimCard('biz-1', expired as any, 'cust-1')).rejects.toThrow(
-        'expired',
-      );
+      await expect(
+        claimService.claimCard('biz-1', expired as any, 'cust-1'),
+      ).rejects.toThrow('expired');
 
       const monetary = hydrateCard({
         businessId: 'biz-1',
@@ -687,9 +801,9 @@ describe('Gift card package & subscription integration', () => {
         codeRevealed: true,
         currency: 'USD',
       });
-      await expect(claimService.claimCard('biz-1', monetary as any, 'cust-1')).rejects.toThrow(
-        'Monetary gift cards are redeemed at booking checkout',
-      );
+      await expect(
+        claimService.claimCard('biz-1', monetary as any, 'cust-1'),
+      ).rejects.toThrow('Monetary gift cards are redeemed at booking checkout');
 
       const missingPackageRef = hydrateCard({
         businessId: 'biz-1',
@@ -717,33 +831,47 @@ describe('Gift card package & subscription integration', () => {
         claimService.claimCard('biz-1', missingPlanRef as any, 'cust-1'),
       ).rejects.toThrow('missing subscription plan reference');
 
-      const subscriptionCard = await purchaseService.fulfillPurchase('biz-1', digitalSubscriptionPurchase);
-      await claimService.claimByCode('biz-1', subscriptionCard.code as string, 'cust-1');
+      const subscriptionCard = await purchaseService.fulfillPurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
+      await claimService.claimByCode('biz-1', subscriptionCard.code, 'cust-1');
       await expect(
-        claimService.claimByCode('biz-1', subscriptionCard.code as string, 'cust-2'),
+        claimService.claimByCode('biz-1', subscriptionCard.code, 'cust-2'),
       ).rejects.toThrow('no longer active');
     });
 
     it('rejects claim when package is no longer bookable', async () => {
-      const card = await purchaseService.fulfillPurchase('biz-1', digitalPackagePurchase);
-      packagesService.assertPackageBookable.mockRejectedValueOnce(new NotFoundException('removed'));
+      const card = await purchaseService.fulfillPurchase(
+        'biz-1',
+        digitalPackagePurchase,
+      );
+      packagesService.assertPackageBookable.mockRejectedValueOnce(
+        new NotFoundException('removed'),
+      );
 
       await expect(
-        claimService.claimByCode('biz-1', card.code as string, 'cust-late'),
+        claimService.claimByCode('biz-1', card.code, 'cust-late'),
       ).rejects.toThrow('removed');
     });
   });
 
   describe('Checkout validation & order policy', () => {
     it('routes checkout validation to account claim for package and subscription cards', async () => {
-      const packageCard = await purchaseService.fulfillPurchase('biz-1', digitalPackagePurchase);
+      const packageCard = await purchaseService.fulfillPurchase(
+        'biz-1',
+        digitalPackagePurchase,
+      );
       await expect(
-        giftCardsService.validate('biz-1', packageCard.code as string),
+        giftCardsService.validate('biz-1', packageCard.code),
       ).rejects.toThrow('Claim this gift card from your account');
 
-      const subscriptionCard = await purchaseService.fulfillPurchase('biz-1', digitalSubscriptionPurchase);
+      const subscriptionCard = await purchaseService.fulfillPurchase(
+        'biz-1',
+        digitalSubscriptionPurchase,
+      );
       await expect(
-        giftCardsService.validate('biz-1', subscriptionCard.code as string),
+        giftCardsService.validate('biz-1', subscriptionCard.code),
       ).rejects.toThrow('Claim this gift card from your account');
     });
 
@@ -753,7 +881,9 @@ describe('Gift card package & subscription integration', () => {
         recipientEmail: 'friend@test.com',
       });
 
-      expect(isGiftCardFullyRedeemed({ cardType: 'package', isActive: true })).toBe(false);
+      expect(
+        isGiftCardFullyRedeemed({ cardType: 'package', isActive: true }),
+      ).toBe(false);
       expect(hasGiftCardValueBeenUsed({ cardType: 'package' })).toBe(false);
 
       const policyBefore = evaluateGiftCardOrderPolicy(
@@ -769,14 +899,20 @@ describe('Gift card package & subscription integration', () => {
       );
       expect(policyBefore.canCancel).toBe(true);
 
-      await claimService.claimByCode('biz-1', card.code as string, 'cust-1');
-      const stored = cards.get(card.id as string);
-      expect(isGiftCardFullyRedeemed({ cardType: 'package', claimedAt: stored?.claimedAt })).toBe(
-        true,
-      );
-      expect(hasGiftCardValueBeenUsed({ cardType: 'package', claimedAt: stored?.claimedAt })).toBe(
-        true,
-      );
+      await claimService.claimByCode('biz-1', card.code, 'cust-1');
+      const stored = cards.get(card.id);
+      expect(
+        isGiftCardFullyRedeemed({
+          cardType: 'package',
+          claimedAt: stored?.claimedAt,
+        }),
+      ).toBe(true);
+      expect(
+        hasGiftCardValueBeenUsed({
+          cardType: 'package',
+          claimedAt: stored?.claimedAt,
+        }),
+      ).toBe(true);
 
       const policyAfter = evaluateGiftCardOrderPolicy(
         {
@@ -791,7 +927,9 @@ describe('Gift card package & subscription integration', () => {
         null,
       );
       expect(policyAfter.canCancel).toBe(false);
-      expect(policyAfter.blockReason).toMatch(/fully redeemed|already been used/);
+      expect(policyAfter.blockReason).toMatch(
+        /fully redeemed|already been used/,
+      );
     });
   });
 
@@ -808,11 +946,13 @@ describe('Gift card package & subscription integration', () => {
         business,
         serviceCredits: [],
       });
-      await deliveryService.deliverDigitalGiftCard(card.id as string);
+      await deliveryService.deliverDigitalGiftCard(card.id);
 
       expect(emailService.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          html: expect.stringMatching(/book\/.*\/account|Redeem in your account/),
+          html: expect.stringMatching(
+            /book\/.*\/account|Redeem in your account/,
+          ),
         }),
       );
     });
@@ -831,14 +971,16 @@ describe('Gift card package & subscription integration', () => {
         business,
         serviceCredits: [],
       });
-      await deliveryService.deliverDigitalGiftCard(card.id as string);
+      await deliveryService.deliverDigitalGiftCard(card.id);
 
       expect(emailService.send).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining('https://app.test/book/glow-salon'),
         }),
       );
-      expect(whatsappService.sendGiftCardMessage.mock.calls[0][0]).toMatchObject({
+      expect(
+        whatsappService.sendGiftCardMessage.mock.calls[0][0],
+      ).toMatchObject({
         toPhone: '+15551234567',
         giftCardCode: card.code,
       });

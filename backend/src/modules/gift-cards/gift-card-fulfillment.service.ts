@@ -78,7 +78,8 @@ export class GiftCardFulfillmentService {
   ): Promise<PaginatedGiftCardFulfillmentResult> {
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(Math.max(query.pageSize ?? 20, 1), 100);
-    const sortOrder: 'ASC' | 'DESC' = query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    const sortOrder: 'ASC' | 'DESC' =
+      query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
     const qb = this.giftCardRepo
       .createQueryBuilder('card')
@@ -99,9 +100,15 @@ export class GiftCardFulfillmentService {
         new Brackets((sub) => {
           sub
             .where('LOWER(card.code) LIKE :search', { search: `%${search}%` })
-            .orWhere('LOWER(card.recipientName) LIKE :search', { search: `%${search}%` })
-            .orWhere('LOWER(card.recipientEmail) LIKE :search', { search: `%${search}%` })
-            .orWhere('LOWER(card.purchaserEmail) LIKE :search', { search: `%${search}%` });
+            .orWhere('LOWER(card.recipientName) LIKE :search', {
+              search: `%${search}%`,
+            })
+            .orWhere('LOWER(card.recipientEmail) LIKE :search', {
+              search: `%${search}%`,
+            })
+            .orWhere('LOWER(card.purchaserEmail) LIKE :search', {
+              search: `%${search}%`,
+            });
         }),
       );
     }
@@ -115,7 +122,10 @@ export class GiftCardFulfillmentService {
     return { orders, total, page, pageSize };
   }
 
-  async getDashboardOrder(businessId: string, giftCardId: string): Promise<GiftCard> {
+  async getDashboardOrder(
+    businessId: string,
+    giftCardId: string,
+  ): Promise<GiftCard> {
     const card = await this.giftCardRepo.findOne({
       where: { id: giftCardId, businessId },
       relations: { serviceCredits: true, purchaser: true },
@@ -175,7 +185,10 @@ export class GiftCardFulfillmentService {
     return this.giftCardRepo.save(card);
   }
 
-  async markDelivered(businessId: string, giftCardId: string): Promise<GiftCard> {
+  async markDelivered(
+    businessId: string,
+    giftCardId: string,
+  ): Promise<GiftCard> {
     const card = await this.findPhysicalOrder(businessId, giftCardId);
     card.fulfillmentStatus = 'delivered';
     card.deliveredAt = new Date();
@@ -185,11 +198,16 @@ export class GiftCardFulfillmentService {
 
   async resolveStaffUserIds(employeeIds: string[]): Promise<string[]> {
     if (!employeeIds.length) return [];
-    const employees = await this.employeeRepo.find({ where: { id: In(employeeIds) } });
-    return employees.map((e) => e.userId).filter(Boolean) as string[];
+    const employees = await this.employeeRepo.find({
+      where: { id: In(employeeIds) },
+    });
+    return employees.map((e) => e.userId).filter(Boolean);
   }
 
-  private async findPhysicalOrder(businessId: string, giftCardId: string): Promise<GiftCard> {
+  private async findPhysicalOrder(
+    businessId: string,
+    giftCardId: string,
+  ): Promise<GiftCard> {
     const card = await this.giftCardRepo.findOne({
       where: { id: giftCardId, businessId },
       relations: { serviceCredits: true },
@@ -201,12 +219,20 @@ export class GiftCardFulfillmentService {
     return card;
   }
 
-  private async resolveEmployeeId(userId: string, businessId: string): Promise<string | null> {
-    const employee = await this.employeeRepo.findOne({ where: { userId, businessId } });
+  private async resolveEmployeeId(
+    userId: string,
+    businessId: string,
+  ): Promise<string | null> {
+    const employee = await this.employeeRepo.findOne({
+      where: { userId, businessId },
+    });
     return employee?.id ?? null;
   }
 
-  private emitFulfillmentEvent(card: GiftCard, status: GiftCardFulfillmentStatus) {
+  private emitFulfillmentEvent(
+    card: GiftCard,
+    status: GiftCardFulfillmentStatus,
+  ) {
     this.eventEmitter.emit(EventType.PAYMENT_RECEIVED, {
       eventType: EventType.PAYMENT_RECEIVED,
       aggregateType: 'gift_card_fulfillment',

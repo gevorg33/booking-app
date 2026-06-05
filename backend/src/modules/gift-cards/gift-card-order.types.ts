@@ -1,5 +1,8 @@
 import type { GiftCardShippingAddress } from './gift-card.types.js';
-import type { GiftCardChangeRequestStatus, GiftCardChangeRequestType } from './entities/gift-card-change-request.entity.js';
+import type {
+  GiftCardChangeRequestStatus,
+  GiftCardChangeRequestType,
+} from './entities/gift-card-change-request.entity.js';
 
 export interface GiftCardModifyPayload {
   amount?: number;
@@ -82,12 +85,13 @@ export interface SubmitGiftCardModifyInput {
   customerNotes?: string;
 }
 
-export type GiftCardChangeRequestResolution =
-  | 'approve'
-  | 'deny'
-  | 'needs_info';
+export type GiftCardChangeRequestResolution = 'approve' | 'deny' | 'needs_info';
 
-export type GiftCardRefundStatus = 'refunded' | 'failed' | 'skipped' | 'already_refunded';
+export type GiftCardRefundStatus =
+  | 'refunded'
+  | 'failed'
+  | 'skipped'
+  | 'already_refunded';
 
 export interface GiftCardChangeRequestListItem {
   id: string;

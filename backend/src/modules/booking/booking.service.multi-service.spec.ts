@@ -111,16 +111,22 @@ describe('BookingService same-visit multi-service create', () => {
           'The service provider does not offer this service for the entire requested time window.',
         ),
       );
-    jest.spyOn(service as any, 'validateEmployeeCanPerformService').mockResolvedValue(undefined);
-    jest.spyOn(service as any, 'reconcileStuckSlotsInWindow').mockResolvedValue(undefined);
-    findSlotsInWindow = jest.spyOn(service as any, 'findSlotsInWindow').mockResolvedValue([
-      {
-        id: 'slot-1',
-        appointmentCount: 0,
-        maxAppointmentCount: 1,
-        status: SlotStatus.AVAILABLE,
-      },
-    ]);
+    jest
+      .spyOn(service as any, 'validateEmployeeCanPerformService')
+      .mockResolvedValue(undefined);
+    jest
+      .spyOn(service as any, 'reconcileStuckSlotsInWindow')
+      .mockResolvedValue(undefined);
+    findSlotsInWindow = jest
+      .spyOn(service as any, 'findSlotsInWindow')
+      .mockResolvedValue([
+        {
+          id: 'slot-1',
+          appointmentCount: 0,
+          maxAppointmentCount: 1,
+          status: SlotStatus.AVAILABLE,
+        },
+      ]);
     jest.spyOn(service, 'findOne').mockResolvedValue(savedBooking as any);
 
     const defaultService = {
@@ -205,7 +211,9 @@ describe('BookingService same-visit multi-service create', () => {
 
   it('skips per-segment schedule validation when rescheduling a same-visit block segment', async () => {
     validateBookingWindow.mockResolvedValue(undefined);
-    jest.spyOn(service as any, 'releaseSlotsByWindow').mockResolvedValue(undefined);
+    jest
+      .spyOn(service as any, 'releaseSlotsByWindow')
+      .mockResolvedValue(undefined);
     const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const segmentStart = new Date(futureStart.getTime() + 65 * 60 * 1000);
     const segmentEnd = new Date(segmentStart.getTime() + 30 * 60 * 1000);
@@ -225,7 +233,10 @@ describe('BookingService same-visit multi-service create', () => {
         employeeId: 'emp-1',
       },
       'user-1',
-      { sameVisitBlockSegment: true, excludeBookingIds: ['booking-1', 'booking-2'] },
+      {
+        sameVisitBlockSegment: true,
+        excludeBookingIds: ['booking-1', 'booking-2'],
+      },
     );
 
     expect(validateBookingWindow).not.toHaveBeenCalled();

@@ -17,6 +17,13 @@ import {
   useIonActionSheet,
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
+import {
+  applyOptimisticBookingPatches,
+  captureBookingCaches,
+  restoreBookingCaches,
+  type BookingOptimisticPatch,
+} from '../lib/provider-booking-optimistic.util';
+import { isOfflineQueuedResponse } from '../lib/provider-offline-response.util';
 import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '../lib/date-format';
 import { DatePicker } from './DatePicker';
 import {
@@ -163,18 +170,38 @@ export default function BookingDetailModal({
       startTime?: string;
       expectedUpdatedAt?: string;
     }) => {
-      const { data: res } = await api.put(
+      const response = await api.put(
         `/businesses/${businessId}/provider/bookings/${bookingId}`,
         payload,
       );
-      return unwrap<BookingDetail>(res);
+      if (isOfflineQueuedResponse(response.data, response.status)) {
+        return { kind: 'queued' as const };
+      }
+      return { kind: 'ok' as const, booking: unwrap<BookingDetail>(response.data) };
     },
-    onSuccess: (updated) => {
+    onMutate: async (payload) => {
+      if (!bookingId) return;
+      const patch: BookingOptimisticPatch = {};
+      if (payload.status) patch.status = payload.status;
+      if (payload.paymentStatus) patch.paymentStatus = payload.paymentStatus;
+      if (payload.notes !== undefined) patch.notes = payload.notes;
+      if (payload.paymentStatus === 'paid' && !payload.status) {
+        patch.status = 'completed';
+      }
+      const snapshot = captureBookingCaches(queryClient, businessId, bookingId);
+      applyOptimisticBookingPatches(queryClient, businessId, [bookingId], patch);
+      return { snapshot };
+    },
+    onSuccess: (result) => {
       setVersionConflict(false);
-      syncFromBooking(updated);
+      if (result.kind === 'queued') return;
+      syncFromBooking(result.booking);
       invalidateLists();
     },
-    onError: (err) => {
+    onError: (err, _payload, context) => {
+      if (context?.snapshot && bookingId) {
+        restoreBookingCaches(queryClient, businessId, bookingId, context.snapshot);
+      }
       if (readErrorCode(err) === 'BOOKING_VERSION_CONFLICT') {
         setVersionConflict(true);
         void refetch();

@@ -69,6 +69,14 @@ import { CustomerSubscription } from '../service-subscriptions/entities/subscrip
     AccountingIntegrationService,
     IntegrationsDocsService,
   ],
-  exports: [ApiKeyService, WebhooksService, OpenAiModule, ZendeskModule, DistributionIntegrationService, ZapierIntegrationService, AccountingIntegrationService],
+  exports: [
+    ApiKeyService,
+    WebhooksService,
+    OpenAiModule,
+    ZendeskModule,
+    DistributionIntegrationService,
+    ZapierIntegrationService,
+    AccountingIntegrationService,
+  ],
 })
 export class IntegrationsModule {}

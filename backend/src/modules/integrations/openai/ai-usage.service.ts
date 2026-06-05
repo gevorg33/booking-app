@@ -12,7 +12,10 @@ import {
 } from './openai.types.js';
 
 /** OpenAI list pricing (USD per 1M tokens) — platform-key billing estimates only */
-const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
+const MODEL_PRICING: Record<
+  string,
+  { inputPer1M: number; outputPer1M: number }
+> = {
   [DEFAULT_OPENAI_MODEL]: { inputPer1M: 0.75, outputPer1M: 4.5 },
   'gpt-5.4-mini-2026-03-17': { inputPer1M: 0.75, outputPer1M: 4.5 },
   // Legacy logs / overrides
@@ -45,9 +48,15 @@ export class AiUsageService {
     completionTokens: number;
     keySource: AiKeySource;
   }): Promise<void> {
-    const { context, model, promptTokens, completionTokens, keySource } = params;
+    const { context, model, promptTokens, completionTokens, keySource } =
+      params;
     const totalTokens = promptTokens + completionTokens;
-    const estimatedCostUsd = this.estimateCostUsd(model, promptTokens, completionTokens, keySource);
+    const estimatedCostUsd = this.estimateCostUsd(
+      model,
+      promptTokens,
+      completionTokens,
+      keySource,
+    );
 
     await this.usageRepo.save(
       this.usageRepo.create({
@@ -68,8 +77,12 @@ export class AiUsageService {
 
   async getMonthlySummary(businessId: string): Promise<AiUsageSummary> {
     const now = new Date();
-    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    const periodStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const periodEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+    );
 
     const logs = await this.usageRepo.find({
       where: {
@@ -79,8 +92,14 @@ export class AiUsageService {
       order: { createdAt: 'DESC' },
     });
 
-    const bySurfaceMap = new Map<AiUsageSurface, { requests: number; totalTokens: number; platformCostUsd: number }>();
-    const byActorMap = new Map<AiActorType, { requests: number; totalTokens: number }>();
+    const bySurfaceMap = new Map<
+      AiUsageSurface,
+      { requests: number; totalTokens: number; platformCostUsd: number }
+    >();
+    const byActorMap = new Map<
+      AiActorType,
+      { requests: number; totalTokens: number }
+    >();
 
     let promptTokens = 0;
     let completionTokens = 0;
@@ -101,7 +120,10 @@ export class AiUsageService {
       surfaceEntry.platformCostUsd += Number(log.estimatedCostUsd);
       bySurfaceMap.set(log.surface, surfaceEntry);
 
-      const actorEntry = byActorMap.get(log.actorType) ?? { requests: 0, totalTokens: 0 };
+      const actorEntry = byActorMap.get(log.actorType) ?? {
+        requests: 0,
+        totalTokens: 0,
+      };
       actorEntry.requests += 1;
       actorEntry.totalTokens += log.totalTokens;
       byActorMap.set(log.actorType, actorEntry);

@@ -30,7 +30,10 @@ export class BusinessApiKey {
   @Column({ name: 'key_hash' })
   keyHash: string;
 
-  @Column({ type: 'simple-array', default: 'read:bookings,read:customers,read:services' })
+  @Column({
+    type: 'simple-array',
+    default: 'read:bookings,read:customers,read:services',
+  })
   scopes: string[];
 
   @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })

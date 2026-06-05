@@ -18,7 +18,9 @@ const PREVIEW_PARAM_KEYS = [
   'bookingFirstAvailable',
 ] as const;
 
-export function sanitizeParamsForPreview(params: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeParamsForPreview(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
   const preview: Record<string, unknown> = {};
   for (const key of PREVIEW_PARAM_KEYS) {
     const value = params[key];
@@ -36,7 +38,8 @@ export function buildExecutionConfirmationResult(
   const humanAction = action.replace(/_/g, ' ');
   const previewParams = sanitizeParamsForPreview(params);
   const detailLines = Object.entries(previewParams).map(
-    ([k, v]) => `${k.replace(/([A-Z])/g, ' $1').toLowerCase()}: ${Array.isArray(v) ? v.join(', ') : v}`,
+    ([k, v]) =>
+      `${k.replace(/([A-Z])/g, ' $1').toLowerCase()}: ${Array.isArray(v) ? v.join(', ') : v}`,
   );
 
   return {

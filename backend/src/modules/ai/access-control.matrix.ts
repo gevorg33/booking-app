@@ -80,22 +80,30 @@ export function resolveAccessTier(membershipRole?: string | null): AccessTier {
   }
 }
 
-export function canAccessDataCategory(tier: AccessTier, category: DataCategory): boolean {
+export function canAccessDataCategory(
+  tier: AccessTier,
+  category: DataCategory,
+): boolean {
   return TIER_DATA_ACCESS[tier].has(category);
 }
 
 export function tierAccessSummary(tier: AccessTier): string {
   const labels: Record<AccessTier, string> = {
     client: 'Client — own bookings and public services only',
-    staff: 'Staff — assigned bookings and limited customer info; no revenue or owner data',
+    staff:
+      'Staff — assigned bookings and limited customer info; no revenue or owner data',
     manager: 'Manager — revenue, staff schedules, analytics, CRM insights',
-    owner: 'Owner — full business access including financials and owner operations',
+    owner:
+      'Owner — full business access including financials and owner operations',
   };
   return labels[tier];
 }
 
 /** Dashboard AI intents blocked per tier (deny-list). */
-export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> = {
+export const DASHBOARD_DENIED_BY_TIER: Record<
+  AccessTier,
+  ReadonlySet<string>
+> = {
   client: new Set([
     'create_booking',
     'create_service',
@@ -132,12 +140,23 @@ export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> =
     'summarize_utilization',
     'summarize_customers',
     'setup_week_schedule',
+    'swap_schedules',
+    'rebalance_capacity',
+    'holiday_mode',
+    'onboard_provider_schedule',
     'resolve_conflicts',
     'reassign_cancelled',
     'mark_no_shows',
+    'no_show_recovery',
     'payment_sweep',
     'update_bookings',
     'day_replan',
+    'sick_day_replan',
+    'import_services_from_menu',
+    'update_service_prices',
+    'staff_service_matrix',
+    'check_schedule_compliance',
+    'revenue_forecast',
   ]),
   staff: new Set([
     'list_employees',
@@ -154,9 +173,14 @@ export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> =
     'resolve_conflicts',
     'reassign_cancelled',
     'day_replan',
+    'sick_day_replan',
     'payment_sweep',
     'mark_no_shows',
+    'no_show_recovery',
     'update_bookings',
+    'import_services_from_menu',
+    'update_service_prices',
+    'staff_service_matrix',
     'list_templates',
     'create_schedule_template',
     'bulk_smart_cancel',
@@ -168,7 +192,10 @@ export const DASHBOARD_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> =
 };
 
 /** Provider mobile intents blocked per tier. */
-export const PROVIDER_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> = {
+export const PROVIDER_DENIED_BY_TIER: Record<
+  AccessTier,
+  ReadonlySet<string>
+> = {
   client: new Set([
     'cancel_bookings',
     'update_bookings',
@@ -182,19 +209,53 @@ export const PROVIDER_DENIED_BY_TIER: Record<AccessTier, ReadonlySet<string>> = 
     'mark_no_shows',
     'payment_sweep',
   ]),
-  staff: new Set(['payment_sweep', 'summarize_utilization']),
+  staff: new Set([
+    'payment_sweep',
+    'summarize_utilization',
+    'coordinate_waitlist_offer',
+  ]),
   manager: new Set(),
   owner: new Set(),
 };
 
-export function isDashboardIntentAllowed(tier: AccessTier, action: string): boolean {
-  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+export function isDashboardIntentAllowed(
+  tier: AccessTier,
+  action: string,
+): boolean {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  )
+    return true;
   return !DASHBOARD_DENIED_BY_TIER[tier].has(action);
 }
 
-export function isProviderIntentAllowed(tier: AccessTier, action: string): boolean {
-  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+export function isProviderIntentAllowed(
+  tier: AccessTier,
+  action: string,
+): boolean {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  )
+    return true;
   return !PROVIDER_DENIED_BY_TIER[tier].has(action);
+}
+
+/** Logged-in customer self-service — client tier only (ai-cmd-0.2). */
+export function isCustomerIntentAllowed(
+  tier: AccessTier,
+  action: string,
+): boolean {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  )
+    return true;
+  return tier === 'client';
 }
 
 /** Revenue / financial intents or metrics — manager+ only. */
@@ -207,10 +268,19 @@ export function isRevenueRelatedRequest(
   if (action === 'summarize_bookings') {
     const metric = String(params.bookingMetric ?? '').toLowerCase();
     if (metric === 'revenue' || metric === 'unpaid') return true;
-    if (/revenue|unpaid|how much.*(made|earned)|total.*(\$|usd)/i.test(prompt)) return true;
+    if (
+      /revenue|earnings?|unpaid|how much.*(made|earned)|total.*(\$|usd)/i.test(
+        prompt,
+      )
+    )
+      return true;
   }
   if (action === 'analyze_services') {
-    if (params.serviceMetric === 'top_revenue' || /revenue|sales|earned/i.test(prompt)) return true;
+    if (
+      params.serviceMetric === 'top_revenue' ||
+      /revenue|sales|earned/i.test(prompt)
+    )
+      return true;
   }
   if (action === 'summarize_staff') return true;
   if (action === 'summarize_customers') return true;

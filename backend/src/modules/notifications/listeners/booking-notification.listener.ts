@@ -21,12 +21,18 @@ export class BookingNotificationListener {
     try {
       const booking = await this.bookingRepo.findOne({
         where: { id: event.aggregateId },
-        select: { id: true, packagePurchaseId: true, multiServiceGroupId: true },
+        select: {
+          id: true,
+          packagePurchaseId: true,
+          multiServiceGroupId: true,
+        },
       });
       if (booking?.packagePurchaseId || booking?.multiServiceGroupId) {
         return;
       }
-      await this.notificationsService.sendBookingConfirmation(event.aggregateId);
+      await this.notificationsService.sendBookingConfirmation(
+        event.aggregateId,
+      );
     } catch (err) {
       this.logger.warn(
         `Confirmation notification failed for booking ${event.aggregateId}`,

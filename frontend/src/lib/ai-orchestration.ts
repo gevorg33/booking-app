@@ -294,9 +294,11 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Who is the busiest provider today?',
   ],
   '/dashboard/customers': [
-    'Top 10 customers who paid the most',
+    'Find customers with the most no-shows',
+    'Re-engage inactive customers',
     'Which customer has the most no-shows?',
     'Show at-risk customers',
+    'Top 10 customers who paid the most',
     'Show new customers',
     'Who are our VIP customers?',
     'Which customers cancel the most?',
@@ -320,6 +322,7 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'Who can do facemassage?',
   ],
   '/dashboard/reports': [
+    "Explain this week's drop in utilization",
     'Summarize utilization this week',
     'How many appointments this week?',
     'Total revenue this month',
@@ -428,6 +431,51 @@ export const AI_PAGE_SUGGESTION_GROUPS: Record<string, AiPageSuggestionGroup[]> 
       ],
     },
   ],
+  '/dashboard/customers': [
+    {
+      id: 'retention',
+      label: 'Retention & re-engagement',
+      items: [
+        'Find customers with the most no-shows',
+        'Re-engage inactive customers',
+        'Which customer has the most no-shows?',
+        'Show at-risk customers',
+      ],
+    },
+    {
+      id: 'segments',
+      label: 'Segments & rankings',
+      items: [
+        'Top 10 customers who paid the most',
+        'Show new customers',
+        'Who are our VIP customers?',
+        'Which customers cancel the most?',
+        'How many customers on the waitlist?',
+        'Show waitlist customers',
+      ],
+    },
+  ],
+  '/dashboard/reports': [
+    {
+      id: 'insights',
+      label: 'Utilization & revenue',
+      items: [
+        "Explain this week's drop in utilization",
+        'Summarize utilization this week',
+        'How many appointments this week?',
+        'Total revenue this month',
+      ],
+    },
+    {
+      id: 'rankings',
+      label: 'Top performers',
+      items: [
+        'Top services by revenue this month',
+        'Top 10 customers who paid the most',
+        'Who is the busiest provider today?',
+      ],
+    },
+  ],
 };
 
 export function getAiPageSuggestionGroups(
@@ -463,7 +511,9 @@ export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
   '/dashboard/services':
     'Prefer: list_services, create_service, create_services, analyze_services, lookup_service_assignment providers_for_service.',
   '/dashboard/reports':
-    'Prefer: summarize_utilization, summarize_bookings revenue/count, summarize_customers top_spenders.',
+    'Prefer: summarize_utilization (compare weeks when user asks about drops or changes), summarize_bookings revenue/count, summarize_customers top_spenders.',
+  '/dashboard/onboarding':
+    'Prefer: list_services, create_services, apply_schedule, setup_week_schedule, list_schedule_templates. User is setting up a new business — suggest catalog and schedule steps.',
   '/dashboard/ai-ops':
     'Prefer: optimize_schedule, resolve_conflicts, reassign_cancelled, fill_unused_slots.',
   '/dashboard/reviews':

@@ -1,6 +1,6 @@
 /**
  * Detection helpers for multilingual AI commands (Armenian, Russian, transliteration).
- * Normalization is performed by AiPromptNormalizationService (LLM), not manual phrase maps.
+ * Non-English prompts are passed through to classify_intent with a context hint (no extra LLM normalize step).
  */
 
 /** Armenian or Cyrillic script. */
@@ -22,7 +22,7 @@ export function looksLikeTransliteration(text: string): boolean {
   return TRANSLITERATION_HINT.test(text);
 }
 
-/** Whether to run the automated normalization pipeline before intent classification. */
+/** Whether the prompt needs a multilingual classifier context hint before intent classification. */
 export function needsMultilingualNormalization(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (!trimmed) return false;
@@ -68,7 +68,9 @@ function collectServiceTermMatches(
 }
 
 /** Extract Armenian, Russian, or Latin service-type tokens mentioned in a command. */
-export function recognizeServiceTypeTerms(prompt: string): RecognizedServiceTypeTerm[] {
+export function recognizeServiceTypeTerms(
+  prompt: string,
+): RecognizedServiceTypeTerm[] {
   const trimmed = prompt.trim();
   if (!trimmed) return [];
 
@@ -100,17 +102,17 @@ export function promptMentionsNativeServiceType(prompt: string): boolean {
 
 export const CLASSIFIER_MULTILINGUAL_RULES = `Multilingual commands: Users may write in Armenian, Russian, English, or Latin transliteration. Interpret the same operational intents (book, cancel, show appointments, fill slots, reschedule, utilization, waitlist, etc.). Extract employeeName, customerName, and serviceName exactly as written in the user message (fuzzy-match to Available lists). Use DD/MM/YYYY for dates and HH:mm 24h for times.`;
 
-/** Context block for classify_intent when the prompt was normalized or is non-English. */
+/** Context block for classify_intent when the prompt is non-English. */
 export function buildMultilingualClassifierContext(
   original: string,
   normalized: string,
-  method: 'passthrough' | 'llm' | 'fallback',
+  method: 'passthrough' | 'multilingual',
 ): string | null {
   if (!needsMultilingualNormalization(original) && original === normalized) {
     return null;
   }
-  if (method === 'llm' && normalized !== original) {
-    return `User command (original): "${original}"\nNormalized for classification: "${normalized}"`;
+  if (method === 'passthrough') {
+    return null;
   }
   return `User command (may be Armenian/Russian/transliteration): "${original}"`;
 }

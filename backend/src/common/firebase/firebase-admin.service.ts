@@ -24,13 +24,19 @@ export class FirebaseAdminService implements OnModuleInit {
       if (jsonInline) {
         serviceAccount = JSON.parse(jsonInline) as admin.ServiceAccount;
       } else if (jsonPath) {
-        serviceAccount = JSON.parse(readFileSync(jsonPath, 'utf8')) as admin.ServiceAccount;
+        serviceAccount = JSON.parse(
+          readFileSync(jsonPath, 'utf8'),
+        ) as admin.ServiceAccount;
       } else {
-        this.logger.warn('Firebase not configured — set FIREBASE_SERVICE_ACCOUNT_PATH');
+        this.logger.warn(
+          'Firebase not configured — set FIREBASE_SERVICE_ACCOUNT_PATH',
+        );
         return;
       }
 
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
       this.ready = true;
       this.logger.log('Firebase Admin initialized');
     } catch (err: unknown) {

@@ -51,7 +51,9 @@ export function formatBookingSnapshotLine(
   return when ? `${label} — ${when}` : label;
 }
 
-export function formatBookingCreatedLine(result: BookingSnapshot & { bookingId?: string }): string {
+export function formatBookingCreatedLine(
+  result: BookingSnapshot & { bookingId?: string },
+): string {
   if (result.employeeName && result.startTime && result.endTime) {
     return `• Booking created: ${formatBookingSnapshotLine(result)}`;
   }
@@ -69,7 +71,9 @@ export function appendBookingListLines(
   if (snapshots.length === 0) return;
   lines.push(`${header} (${snapshots.length}):`);
   for (const snap of snapshots.slice(0, maxList)) {
-    lines.push(`  • ${formatBookingSnapshotLine(snap, { includeCustomer: true })}`);
+    lines.push(
+      `  • ${formatBookingSnapshotLine(snap, { includeCustomer: true })}`,
+    );
   }
   if (snapshots.length > maxList) {
     lines.push(`  • …and ${snapshots.length - maxList} more`);

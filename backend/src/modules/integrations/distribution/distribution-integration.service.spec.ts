@@ -8,7 +8,9 @@ describe('DistributionIntegrationService', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
   const serviceRepo = { find: jest.fn() };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
 
   const service = new DistributionIntegrationService(
@@ -33,14 +35,18 @@ describe('DistributionIntegrationService', () => {
   describe('getPublicSettings', () => {
     it('throws when business not found', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.getPublicSettings('missing')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getPublicSettings('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('returns defaults for empty distribution settings', async () => {
       businessRepo.findOne.mockResolvedValue(baseBusiness);
       const view = await service.getPublicSettings('biz-1');
       expect(view.googleReserve.enabled).toBe(false);
-      expect(view.metaBooking.bookingUrl).toBe('https://app.test/book/test-salon');
+      expect(view.metaBooking.bookingUrl).toBe(
+        'https://app.test/book/test-salon',
+      );
       expect(view.metaBooking.bookingButtonLabel).toBe('Book online');
       expect(view.messaging.telegramUrl).toBeNull();
     });
@@ -54,7 +60,9 @@ describe('DistributionIntegrationService', () => {
       );
       businessRepo.findOne.mockResolvedValue(baseBusiness);
       const view = await localService.getPublicSettings('biz-1');
-      expect(view.metaBooking.bookingUrl).toBe('http://localhost:3000/book/test-salon');
+      expect(view.metaBooking.bookingUrl).toBe(
+        'http://localhost:3000/book/test-salon',
+      );
     });
 
     it('returns configured channels', async () => {
@@ -79,7 +87,7 @@ describe('DistributionIntegrationService', () => {
             },
           },
         },
-      } as Business);
+      });
 
       const view = await service.getPublicSettings('biz-1');
       expect(view.googleReserve.merchantId).toBe('gm-1');
@@ -128,14 +136,18 @@ describe('DistributionIntegrationService', () => {
   describe('getGoogleReserveFeed', () => {
     it('throws when business not found', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.getGoogleReserveFeed('missing')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.getGoogleReserveFeed('missing'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('builds feed from active services', async () => {
       businessRepo.findOne.mockResolvedValue({
         ...baseBusiness,
         settings: {
-          integrations: { distribution: { googleReserve: { merchantId: 'gm-42' } } },
+          integrations: {
+            distribution: { googleReserve: { merchantId: 'gm-42' } },
+          },
         },
       });
       serviceRepo.find.mockResolvedValue([
@@ -181,7 +193,9 @@ describe('DistributionIntegrationService', () => {
       expect(service.getPublicMetaBooking(undefined, 'slug')).toBeNull();
       expect(
         service.getPublicMetaBooking(
-          { integrations: { distribution: { metaBooking: { enabled: false } } } },
+          {
+            integrations: { distribution: { metaBooking: { enabled: false } } },
+          },
           'slug',
         ),
       ).toBeNull();
@@ -237,7 +251,7 @@ describe('DistributionIntegrationService', () => {
             },
           },
         },
-      } as Business);
+      });
 
       const view = await service.updateSettings('biz-1', {
         telegramEnabled: true,
@@ -260,7 +274,7 @@ describe('DistributionIntegrationService', () => {
             },
           },
         },
-      } as Business);
+      });
 
       const view = await service.updateSettings('biz-1', {
         googlePartnerNotes: '   ',
@@ -285,12 +299,17 @@ describe('DistributionIntegrationService', () => {
         settings: {
           integrations: {
             distribution: {
-              metaBooking: { enabled: true, facebookPageUrl: 'https://fb.com/x' },
+              metaBooking: {
+                enabled: true,
+                facebookPageUrl: 'https://fb.com/x',
+              },
             },
           },
         },
       } as Business;
-      expect(service.getPublicMessagingLinks(business)?.facebookBookingUrl).toBe('https://fb.com/x');
+      expect(
+        service.getPublicMessagingLinks(business)?.facebookBookingUrl,
+      ).toBe('https://fb.com/x');
     });
 
     it('getPublicMessagingLinks returns links when whatsapp enabled', () => {
@@ -307,7 +326,9 @@ describe('DistributionIntegrationService', () => {
           },
         },
       } as Business;
-      expect(service.getPublicMessagingLinks(business)?.whatsappUrl).toContain('wa.me');
+      expect(service.getPublicMessagingLinks(business)?.whatsappUrl).toContain(
+        'wa.me',
+      );
     });
 
     it('buildMessagingLinks delegates to shared helper', () => {

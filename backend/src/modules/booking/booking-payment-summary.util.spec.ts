@@ -5,7 +5,9 @@ import {
 
 describe('resolveBookingPaymentSummary', () => {
   it('returns null when no checkout pricing was recorded', () => {
-    expect(resolveBookingPaymentSummary({ metadata: {}, service: { price: 100 } })).toBeNull();
+    expect(
+      resolveBookingPaymentSummary({ metadata: {}, service: { price: 100 } }),
+    ).toBeNull();
   });
 
   it('parses promo + loyalty + cash from pricing metadata', () => {
@@ -21,8 +23,18 @@ describe('resolveBookingPaymentSummary', () => {
           loyaltyPointsRedeemed: 30,
           promoCode: 'SAVE20',
           adjustments: [
-            { type: 'promo', code: 'SAVE20', label: 'Promo SAVE20', amount: 20 },
-            { type: 'loyalty', label: 'Loyalty points', amount: 30, points: 30 },
+            {
+              type: 'promo',
+              code: 'SAVE20',
+              label: 'Promo SAVE20',
+              amount: 20,
+            },
+            {
+              type: 'loyalty',
+              label: 'Loyalty points',
+              amount: 30,
+              points: 30,
+            },
           ],
         },
         amountPaid: 0,
@@ -118,7 +130,12 @@ describe('resolveBookingPaymentSummary', () => {
 
     expect(withGiftCard?.cashPaid).toBe(85);
     expect(withGiftCard?.adjustments).toEqual([
-      { type: 'gift_card', label: 'Gift card GIFT15', code: 'GIFT15', amount: 15 },
+      {
+        type: 'gift_card',
+        label: 'Gift card GIFT15',
+        code: 'GIFT15',
+        amount: 15,
+      },
     ]);
   });
 
@@ -219,7 +236,10 @@ describe('resolveBookingPaymentSummary', () => {
 
   it('handles null metadata on booking source', () => {
     expect(
-      resolveBookingPaymentSummary({ metadata: null, service: { price: 100 } }, []),
+      resolveBookingPaymentSummary(
+        { metadata: null, service: { price: 100 } },
+        [],
+      ),
     ).toBeNull();
   });
 });

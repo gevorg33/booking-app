@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentPlan, AgentContext, AgentType } from './interfaces/agent.interfaces.js';
+import {
+  AgentPlan,
+  AgentContext,
+  AgentType,
+} from './interfaces/agent.interfaces.js';
 import { OpenAiGatewayService } from '../../modules/integrations/openai/openai-gateway.service.js';
 import { AiCallContext } from '../../modules/integrations/openai/openai.types.js';
 
@@ -60,7 +64,10 @@ export class LlmService {
     maxTokens = 2000,
   ): Promise<T | null> {
     const context: AiCallContext = { businessId, ...meta };
-    return this.openAi.completeJson<T>(context, systemPrompt, userPrompt, { temperature, maxTokens });
+    return this.openAi.completeJson<T>(context, systemPrompt, userPrompt, {
+      temperature,
+      maxTokens,
+    });
   }
 
   async buildPlan(
@@ -98,15 +105,15 @@ ${PLAN_SCHEMA}`;
       constraints: string[];
       riskAssessment: AgentPlan['riskAssessment'];
       executionMode: 'suggestion' | 'requires_approval' | 'autonomous';
-    }>(
-      callContext,
-      systemPrompt,
-      `User intent: "${intent}"`,
-      { temperature: 0.2, maxTokens: 1000 },
-    );
+    }>(callContext, systemPrompt, `User intent: "${intent}"`, {
+      temperature: 0.2,
+      maxTokens: 1000,
+    });
 
     if (!result) {
-      this.logger.warn(`LLM plan generation returned null for business ${context.businessId}`);
+      this.logger.warn(
+        `LLM plan generation returned null for business ${context.businessId}`,
+      );
     }
 
     return result;

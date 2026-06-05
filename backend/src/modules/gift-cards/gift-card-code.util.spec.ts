@@ -1,4 +1,7 @@
-import { generateGiftCardCode, giftCardCodePrefix } from './gift-card-code.util.js';
+import {
+  generateGiftCardCode,
+  giftCardCodePrefix,
+} from './gift-card-code.util.js';
 
 describe('gift-card-code.util', () => {
   it('generates typed prefixes for monetary, service, bundle, package, and subscription cards', () => {

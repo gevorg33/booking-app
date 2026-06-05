@@ -13,7 +13,10 @@ export class MembershipsController {
   ) {}
 
   @Get('plans')
-  async listPlans(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async listPlans(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.membershipsService.listPlans(businessId);
   }
@@ -25,7 +28,7 @@ export class MembershipsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.membershipsService.createPlan(businessId, dto as any);
+    return this.membershipsService.createPlan(businessId, dto);
   }
 
   @Post('assign')
@@ -35,7 +38,11 @@ export class MembershipsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.membershipsService.assignPlan(businessId, dto.customerId, dto.planId);
+    return this.membershipsService.assignPlan(
+      businessId,
+      dto.customerId,
+      dto.planId,
+    );
   }
 
   @Get('customer/:customerId')
@@ -45,6 +52,9 @@ export class MembershipsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.membershipsService.getCustomerMembership(businessId, customerId);
+    return this.membershipsService.getCustomerMembership(
+      businessId,
+      customerId,
+    );
   }
 }

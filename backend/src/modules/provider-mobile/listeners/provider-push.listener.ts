@@ -4,7 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventType } from '../../../events/event-types.js';
 import type { OperationalEvent } from '../../../events/store/event-store.entity.js';
-import { formatDateDisplay, formatTimeDisplay } from '../../../common/utils/date-format.util.js';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+} from '../../../common/utils/date-format.util.js';
 import { PushService } from '../push.service.js';
 import { ProviderMobileService } from '../provider-mobile.service.js';
 import { ProviderPushActionService } from '../provider-push-action.service.js';
@@ -23,8 +26,11 @@ export class ProviderPushListener {
 
   @OnEvent(EventType.BOOKING_CREATED, { async: true })
   async handleNewBooking(event: OperationalEvent): Promise<void> {
-    await this.notifyForBooking(event, 'created', 'New appointment', (ctx) =>
-      `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
+    await this.notifyForBooking(
+      event,
+      'created',
+      'New appointment',
+      (ctx) => `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
     );
   }
 
@@ -32,11 +38,16 @@ export class ProviderPushListener {
   async handleCancelledBooking(event: OperationalEvent): Promise<void> {
     const customerInitiated =
       event.payload?.reason === 'Cancelled by customer' ||
-      (typeof event.userId === 'string' && event.userId.startsWith('customer:'));
-    await this.notifyForBooking(event, 'cancelled', 'Appointment cancelled', (ctx) =>
-      customerInitiated
-        ? `${ctx.customerName} cancelled ${ctx.serviceName} at ${ctx.whenShort}`
-        : `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
+      (typeof event.userId === 'string' &&
+        event.userId.startsWith('customer:'));
+    await this.notifyForBooking(
+      event,
+      'cancelled',
+      'Appointment cancelled',
+      (ctx) =>
+        customerInitiated
+          ? `${ctx.customerName} cancelled ${ctx.serviceName} at ${ctx.whenShort}`
+          : `${ctx.customerName} — ${ctx.serviceName} at ${ctx.when}`,
     );
   }
 
@@ -52,16 +63,21 @@ export class ProviderPushListener {
         : null;
     const customerInitiated =
       typeof event.userId === 'string' && event.userId.startsWith('customer:');
-    await this.notifyForBooking(event, 'rescheduled', 'Appointment rescheduled', (ctx) => {
-      const newLabel = newStart
-        ? `${formatDateDisplay(newStart)} ${formatTimeDisplay(newStart)}`
-        : ctx.whenShort;
-      if (customerInitiated && oldStart) {
-        const oldLabel = `${formatDateDisplay(oldStart)} ${formatTimeDisplay(oldStart)}`;
-        return `${ctx.customerName} rescheduled from ${oldLabel} to ${newLabel}`;
-      }
-      return `${ctx.customerName} rescheduled to ${newLabel}`;
-    });
+    await this.notifyForBooking(
+      event,
+      'rescheduled',
+      'Appointment rescheduled',
+      (ctx) => {
+        const newLabel = newStart
+          ? `${formatDateDisplay(newStart)} ${formatTimeDisplay(newStart)}`
+          : ctx.whenShort;
+        if (customerInitiated && oldStart) {
+          const oldLabel = `${formatDateDisplay(oldStart)} ${formatTimeDisplay(oldStart)}`;
+          return `${ctx.customerName} rescheduled from ${oldLabel} to ${newLabel}`;
+        }
+        return `${ctx.customerName} rescheduled to ${newLabel}`;
+      },
+    );
   }
 
   @OnEvent(EventType.PAYMENT_RECEIVED, { async: true })
@@ -70,7 +86,9 @@ export class ProviderPushListener {
 
     try {
       const bookingId =
-        typeof event.payload?.bookingId === 'string' ? event.payload.bookingId : event.aggregateId;
+        typeof event.payload?.bookingId === 'string'
+          ? event.payload.bookingId
+          : event.aggregateId;
       const booking = await this.bookingRepo.findOne({
         where: { id: bookingId },
         relations: { employee: true, service: true, customer: true },
@@ -82,7 +100,9 @@ export class ProviderPushListener {
           ? event.payload.amount
           : Number(event.payload?.amount ?? 0);
       const currency =
-        typeof event.payload?.currency === 'string' ? event.payload.currency : 'USD';
+        typeof event.payload?.currency === 'string'
+          ? event.payload.currency
+          : 'USD';
       const customerName = booking.customer?.name ?? 'A customer';
       const serviceName = booking.service?.name ?? 'Appointment';
       const providerName = booking.employee?.name ?? 'Provider';
@@ -91,34 +111,50 @@ export class ProviderPushListener {
       const url = `/provider/today?bookingId=${bookingId}`;
 
       const notified = new Set<string>();
-      const providerUserId = await this.providerMobileService.findEmployeeUserId(booking.employeeId);
+      const providerUserId =
+        await this.providerMobileService.findEmployeeUserId(booking.employeeId);
       if (providerUserId) {
-        const sent = await this.pushService.sendToUser(providerUserId, event.businessId, {
-          title,
-          body,
-          url,
-          bookingId,
-        });
+        const sent = await this.pushService.sendToUser(
+          providerUserId,
+          event.businessId,
+          {
+            title,
+            body,
+            url,
+            bookingId,
+          },
+        );
         if (sent > 0) {
           notified.add(providerUserId);
-          this.logger.log(`Provider push (payment) for booking ${bookingId} (${sent} device(s))`);
+          this.logger.log(
+            `Provider push (payment) for booking ${bookingId} (${sent} device(s))`,
+          );
         }
       }
 
-      const managerUserIds = await this.providerMobileService.findMobileManagerUserIds(event.businessId);
+      const managerUserIds =
+        await this.providerMobileService.findMobileManagerUserIds(
+          event.businessId,
+        );
       for (const managerUserId of managerUserIds) {
         if (notified.has(managerUserId)) continue;
-        const sent = await this.pushService.sendToUser(managerUserId, event.businessId, {
-          title,
-          body: `${providerName}: ${body}`,
-          url,
-          bookingId,
-        });
+        const sent = await this.pushService.sendToUser(
+          managerUserId,
+          event.businessId,
+          {
+            title,
+            body: `${providerName}: ${body}`,
+            url,
+            bookingId,
+          },
+        );
         if (sent > 0) notified.add(managerUserId);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Provider push (payment) for ${event.aggregateId} failed: ${message}`);
+      this.logger.warn(
+        `Provider push (payment) for ${event.aggregateId} failed: ${message}`,
+      );
     }
   }
 
@@ -144,23 +180,34 @@ export class ProviderPushListener {
 
       const employeeId =
         booking?.employeeId ||
-        (typeof event.payload?.employeeId === 'string' ? event.payload.employeeId : undefined);
+        (typeof event.payload?.employeeId === 'string'
+          ? event.payload.employeeId
+          : undefined);
       if (!employeeId) return;
 
       const startTime =
         booking?.startTime ??
-        (event.payload?.startTime ? new Date(String(event.payload.startTime)) : new Date());
+        (event.payload?.startTime
+          ? new Date(String(event.payload.startTime))
+          : new Date());
       const when = startTime.toISOString().slice(0, 16).replace('T', ' ');
       const whenShort = `${formatDateDisplay(startTime)} ${formatTimeDisplay(startTime)}`;
       const customerName = booking?.customer?.name ?? 'A customer';
       const serviceName = booking?.service?.name ?? 'Appointment';
       const providerName = booking?.employee?.name ?? 'Provider';
-      const body = bodyFn({ customerName, serviceName, providerName, when, whenShort });
+      const body = bodyFn({
+        customerName,
+        serviceName,
+        providerName,
+        when,
+        whenShort,
+      });
       const url = `/provider/today?bookingId=${event.aggregateId}`;
 
       const notified = new Set<string>();
 
-      const providerUserId = await this.providerMobileService.findEmployeeUserId(employeeId);
+      const providerUserId =
+        await this.providerMobileService.findEmployeeUserId(employeeId);
       if (providerUserId) {
         const sent =
           kind === 'created'
@@ -170,37 +217,53 @@ export class ProviderPushListener {
                 event.aggregateId,
                 title,
                 body,
+                { timeLabel: whenShort, customerName },
               )
-            : await this.pushService.sendToUser(providerUserId, event.businessId, {
-                title,
-                body,
-                url,
-                bookingId: event.aggregateId,
-              });
+            : await this.pushService.sendToUser(
+                providerUserId,
+                event.businessId,
+                {
+                  title,
+                  body,
+                  url,
+                  bookingId: event.aggregateId,
+                },
+              );
         if (sent > 0) {
           notified.add(providerUserId);
-          this.logger.log(`Provider push (${kind}) for booking ${event.aggregateId} (${sent} device(s))`);
+          this.logger.log(
+            `Provider push (${kind}) for booking ${event.aggregateId} (${sent} device(s))`,
+          );
         }
       }
 
-      const managerUserIds = await this.providerMobileService.findMobileManagerUserIds(event.businessId);
+      const managerUserIds =
+        await this.providerMobileService.findMobileManagerUserIds(
+          event.businessId,
+        );
       for (const managerUserId of managerUserIds) {
         if (notified.has(managerUserId)) continue;
         const managerBody =
           kind === 'created'
             ? `${providerName}: ${body}`
             : `${providerName}: ${customerName} — ${serviceName} at ${when}`;
-        const sent = await this.pushService.sendToUser(managerUserId, event.businessId, {
-          title: kind === 'created' ? 'New booking' : title,
-          body: managerBody,
-          url,
-          bookingId: event.aggregateId,
-        });
+        const sent = await this.pushService.sendToUser(
+          managerUserId,
+          event.businessId,
+          {
+            title: kind === 'created' ? 'New booking' : title,
+            body: managerBody,
+            url,
+            bookingId: event.aggregateId,
+          },
+        );
         if (sent > 0) notified.add(managerUserId);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Provider push (${kind}) for booking ${event.aggregateId} failed: ${message}`);
+      this.logger.warn(
+        `Provider push (${kind}) for booking ${event.aggregateId} failed: ${message}`,
+      );
     }
   }
 }

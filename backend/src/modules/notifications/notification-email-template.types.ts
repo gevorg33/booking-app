@@ -29,13 +29,17 @@ export interface TenantEmailTemplateOverride {
 
 export interface TenantEmailTemplatesSettings {
   customVariables?: TenantCustomEmailVariable[];
-  templates?: Partial<Record<NotificationEmailTemplateKey, TenantEmailTemplateOverride>>;
+  templates?: Partial<
+    Record<NotificationEmailTemplateKey, TenantEmailTemplateOverride>
+  >;
 }
 
 /** Normalized settings returned by readTenantEmailTemplatesSettings — always has defaults. */
 export interface NormalizedTenantEmailTemplatesSettings {
   customVariables: TenantCustomEmailVariable[];
-  templates: Partial<Record<NotificationEmailTemplateKey, TenantEmailTemplateOverride>>;
+  templates: Partial<
+    Record<NotificationEmailTemplateKey, TenantEmailTemplateOverride>
+  >;
 }
 
 export interface ResolvedEmailTemplate {

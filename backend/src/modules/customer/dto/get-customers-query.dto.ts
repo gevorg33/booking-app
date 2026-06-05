@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '../../booking/entities/booking.entity.js';
 import { CUSTOMER_TAGS } from '../customer-tag.constants.js';

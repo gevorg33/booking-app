@@ -10,8 +10,14 @@ import {
   buildUtcStartTimeFromDayAndTime,
   applyRelativeDateFromPrompt,
 } from '../../common/utils/date-format.util.js';
-import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
-import { addDaysToDateKey, resolveTimezone } from '../../common/utils/timezone.util.js';
+import {
+  normalizeTime24,
+  timeToMinutes,
+} from '../../common/utils/time-format.util.js';
+import {
+  addDaysToDateKey,
+  resolveTimezone,
+} from '../../common/utils/timezone.util.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -25,13 +31,37 @@ export interface DateRange {
 }
 
 const MONTH_NAME_MAP: Record<string, number> = {
-  january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3, april: 4, apr: 4,
-  may: 5, june: 6, jun: 6, july: 7, jul: 7, august: 8, aug: 8,
-  september: 9, sep: 9, sept: 9, october: 10, oct: 10, november: 11, nov: 11,
-  december: 12, dec: 12,
+  january: 1,
+  jan: 1,
+  february: 2,
+  feb: 2,
+  march: 3,
+  mar: 3,
+  april: 4,
+  apr: 4,
+  may: 5,
+  june: 6,
+  jun: 6,
+  july: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  october: 10,
+  oct: 10,
+  november: 11,
+  nov: 11,
+  december: 12,
+  dec: 12,
 };
 
-function inferYearForMonthDay(day: number, month: number, timeZone: string): number {
+function inferYearForMonthDay(
+  day: number,
+  month: number,
+  timeZone: string,
+): number {
   const tz = resolveTimezone(timeZone);
   const todayKey = getTodayDateKey(tz);
   const today = dayjs.tz(todayKey, tz);
@@ -52,21 +82,29 @@ function parseMonthDayToken(token: string, timeZone: string): string | null {
   const trimmed = token.trim();
   const lower = trimmed.toLowerCase();
 
-  const dayMonth = lower.match(/^(\d{1,2})(?:st|nd|rd|th)?(?:\s+of\s+|\s+)([a-z]+)(?:\s+(\d{4}))?$/);
+  const dayMonth = lower.match(
+    /^(\d{1,2})(?:st|nd|rd|th)?(?:\s+of\s+|\s+)([a-z]+)(?:\s+(\d{4}))?$/,
+  );
   if (dayMonth) {
     const month = MONTH_NAME_MAP[dayMonth[2]];
     if (!month) return null;
     const day = parseInt(dayMonth[1], 10);
-    const year = dayMonth[3] ? parseInt(dayMonth[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    const year = dayMonth[3]
+      ? parseInt(dayMonth[3], 10)
+      : inferYearForMonthDay(day, month, timeZone);
     return buildIsoDay(year, month, day);
   }
 
-  const monthDay = lower.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/);
+  const monthDay = lower.match(
+    /^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/,
+  );
   if (monthDay) {
     const month = MONTH_NAME_MAP[monthDay[1]];
     if (!month) return null;
     const day = parseInt(monthDay[2], 10);
-    const year = monthDay[3] ? parseInt(monthDay[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    const year = monthDay[3]
+      ? parseInt(monthDay[3], 10)
+      : inferYearForMonthDay(day, month, timeZone);
     return buildIsoDay(year, month, day);
   }
 
@@ -74,7 +112,9 @@ function parseMonthDayToken(token: string, timeZone: string): string | null {
   if (slash) {
     const day = parseInt(slash[1], 10);
     const month = parseInt(slash[2], 10);
-    let year = slash[3] ? parseInt(slash[3], 10) : inferYearForMonthDay(day, month, timeZone);
+    let year = slash[3]
+      ? parseInt(slash[3], 10)
+      : inferYearForMonthDay(day, month, timeZone);
     if (year < 100) year += 2000;
     return buildIsoDay(year, month, day);
   }
@@ -83,7 +123,10 @@ function parseMonthDayToken(token: string, timeZone: string): string | null {
 }
 
 /** Parse explicit date ranges from natural language (e.g. "June 2-June 10", "from 02/06 to 10/06"). */
-export function extractDateRangeFromPrompt(prompt: string, timeZone = 'UTC'): DateRange | null {
+export function extractDateRangeFromPrompt(
+  prompt: string,
+  timeZone = 'UTC',
+): DateRange | null {
   const lower = prompt.toLowerCase();
 
   const sameMonth = lower.match(
@@ -110,7 +153,10 @@ export function extractDateRangeFromPrompt(prompt: string, timeZone = 'UTC'): Da
     const endDay = parseInt(crossMonth[4], 10);
     const startYear = inferYearForMonthDay(startDay, startMonth, timeZone);
     let endYear = startYear;
-    if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
+    if (
+      endMonth < startMonth ||
+      (endMonth === startMonth && endDay < startDay)
+    ) {
       endYear += 1;
     }
     return {
@@ -132,7 +178,10 @@ export function extractDateRangeFromPrompt(prompt: string, timeZone = 'UTC'): Da
 }
 
 /** Single calendar day from prompt (e.g. "on June 5th", "05/06/2026") — not ranges. */
-export function extractSingleIsoDayFromPrompt(prompt: string, timeZone = 'UTC'): string | null {
+export function extractSingleIsoDayFromPrompt(
+  prompt: string,
+  timeZone = 'UTC',
+): string | null {
   const range = extractDateRangeFromPrompt(prompt, timeZone);
   if (range) {
     return range.start === range.end ? range.start : null;
@@ -244,7 +293,10 @@ export function getRequestedEmployeeNames(params: {
   return [];
 }
 
-export function fuzzyMatchByName<T extends { name: string }>(items: T[], name: string): T | undefined {
+export function fuzzyMatchByName<T extends { name: string }>(
+  items: T[],
+  name: string,
+): T | undefined {
   const normalized = normalizeEmployeeNameToken(name);
   const lower = normalized.toLowerCase();
   if (!lower) return undefined;
@@ -257,7 +309,10 @@ export function fuzzyMatchByName<T extends { name: string }>(items: T[], name: s
       item.name
         .toLowerCase()
         .split(/\s+/)
-        .some((part) => part === lower || part.startsWith(lower) || lower.startsWith(part)),
+        .some(
+          (part) =>
+            part === lower || part.startsWith(lower) || lower.startsWith(part),
+        ),
     )
   );
 }
@@ -278,7 +333,9 @@ export function fuzzyMatchServiceByName<T extends { name: string }>(
   const exact = items.find((item) => item.name.toLowerCase() === lower);
   if (exact) return exact;
 
-  const exactNorm = items.find((item) => normalizeServiceLookup(item.name) === normalized);
+  const exactNorm = items.find(
+    (item) => normalizeServiceLookup(item.name) === normalized,
+  );
   if (exactNorm) return exactNorm;
 
   let best: T | undefined;
@@ -335,7 +392,10 @@ export function matchServicesByQuery<T extends { id: string; name: string }>(
     normalizeServiceLookup(item.name).includes(normalizedQuery),
   );
 
-  const queryWords = cleaned.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+  const queryWords = cleaned
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
   const isSingleBroadToken = queryWords.length === 1;
 
   if (tokenMatches.length > 1 && isSingleBroadToken) {
@@ -345,7 +405,9 @@ export function matchServicesByQuery<T extends { id: string; name: string }>(
   if (queryWords.length > 1 && tokenMatches.length > 1) {
     const wordMatches = tokenMatches.filter((item) => {
       const norm = normalizeServiceLookup(item.name);
-      return queryWords.every((word) => norm.includes(normalizeServiceLookup(word)));
+      return queryWords.every((word) =>
+        norm.includes(normalizeServiceLookup(word)),
+      );
     });
     if (wordMatches.length > 1) {
       return [...wordMatches].sort((a, b) => a.name.localeCompare(b.name));
@@ -363,10 +425,9 @@ export function matchServicesByQuery<T extends { id: string; name: string }>(
 }
 
 /** Extract service(s) from top-rated / recommend specialist prompts. */
-export function extractRecommendServicesFromPrompt<T extends { id: string; name: string }>(
-  prompt: string,
-  services: T[],
-): T[] {
+export function extractRecommendServicesFromPrompt<
+  T extends { id: string; name: string },
+>(prompt: string, services: T[]): T[] {
   const patterns = [
     /\b(?:who\s+is\s+)?(?:the\s+)?(?:best|top|highest(?:\s+-?\s*rated)?)\s+(.+?)(?:\s+specialists?|\s+therapists?|\?|$)/i,
     /\b(?:suggest|recommend)\s+(?:\w+\s+){0,4}(?:specialists?|therapists?)\s+(?:for|for\s+a)?\s+(.+?)(?:\?|$)/i,
@@ -382,7 +443,10 @@ export function extractRecommendServicesFromPrompt<T extends { id: string; name:
     }
   }
 
-  const single = fuzzyMatchServiceByName(services, stripServiceRoleNoise(prompt));
+  const single = fuzzyMatchServiceByName(
+    services,
+    stripServiceRoleNoise(prompt),
+  );
   if (single) {
     const broad = matchServicesByQuery(services, single.name);
     return broad.length ? broad : [single];
@@ -401,7 +465,9 @@ export function inferServiceGroupLabel(
   const normalizedQuery = cleaned ? normalizeServiceLookup(cleaned) : '';
   if (
     normalizedQuery.length >= 4 &&
-    services.every((s) => normalizeServiceLookup(s.name).includes(normalizedQuery))
+    services.every((s) =>
+      normalizeServiceLookup(s.name).includes(normalizedQuery),
+    )
   ) {
     return `${cleaned} services`;
   }
@@ -470,7 +536,10 @@ export function resolveServices(
   return resolved;
 }
 
-export function getEmployeeServices(employee: Employee, catalog: Service[]): Service[] {
+export function getEmployeeServices(
+  employee: Employee,
+  catalog: Service[],
+): Service[] {
   if (employee.serviceIds?.length) {
     const allowed = new Set(employee.serviceIds);
     return catalog.filter((s) => allowed.has(s.id));
@@ -479,7 +548,10 @@ export function getEmployeeServices(employee: Employee, catalog: Service[]): Ser
 }
 
 /** Services explicitly assigned on the employee profile (empty when none assigned). */
-export function getEmployeeAssignedServices(employee: Employee, catalog: Service[]): Service[] {
+export function getEmployeeAssignedServices(
+  employee: Employee,
+  catalog: Service[],
+): Service[] {
   if (!employee.serviceIds?.length) {
     return [];
   }
@@ -523,7 +595,9 @@ export function resolveScheduleServicesForEmployee(
   prompt?: string,
 ): Service[] {
   const assigned = getEmployeeAssignedServices(employee, catalog);
-  const ownServicesPrompt = prompt ? isProviderOwnServicesPrompt(prompt) : false;
+  const ownServicesPrompt = prompt
+    ? isProviderOwnServicesPrompt(prompt)
+    : false;
   const fromParams = resolveServices(catalog, params);
 
   if (ownServicesPrompt || fromParams.length === 0) {
@@ -604,7 +678,10 @@ export function resolveDateRange(
   if (namedMonth) {
     const month = MONTH_NAME_MAP[namedMonth[1]];
     const year = inferYearForMonthDay(1, month, tz);
-    const monthStart = dayjs.tz(`${year}-${String(month).padStart(2, '0')}-01`, tz);
+    const monthStart = dayjs.tz(
+      `${year}-${String(month).padStart(2, '0')}-01`,
+      tz,
+    );
     return {
       start: monthStart.startOf('month').format('YYYY-MM-DD'),
       end: monthStart.endOf('month').format('YYYY-MM-DD'),
@@ -612,11 +689,26 @@ export function resolveDateRange(
   }
 
   const weekdayMap: Record<string, number> = {
-    sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2,
-    wednesday: 3, wed: 3, thursday: 4, thu: 4, thurs: 4,
-    friday: 5, fri: 5, saturday: 6, sat: 6,
+    sunday: 0,
+    sun: 0,
+    monday: 1,
+    mon: 1,
+    tuesday: 2,
+    tue: 2,
+    tues: 2,
+    wednesday: 3,
+    wed: 3,
+    thursday: 4,
+    thu: 4,
+    thurs: 4,
+    friday: 5,
+    fri: 5,
+    saturday: 6,
+    sat: 6,
   };
-  const nextDayMatch = lower.match(/\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/);
+  const nextDayMatch = lower.match(
+    /\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/,
+  );
   if (nextDayMatch) {
     const target = weekdayMap[nextDayMatch[1]];
     const cur = today.day();
@@ -649,6 +741,13 @@ export function resolveDateRange(
     return { start: iso, end: iso };
   }
 
+  if (/\ball[\s-]?(?:time|times)\b/i.test(lower)) {
+    return {
+      start: today.subtract(10, 'year').format('YYYY-MM-DD'),
+      end: todayKey,
+    };
+  }
+
   if (params.date) {
     const iso = toIsoDay(params.date, tz);
     return { start: iso, end: iso };
@@ -658,7 +757,10 @@ export function resolveDateRange(
 }
 
 /** Extract single date hint from prompt for params.date (display format). */
-export function extractSingleDateFromPrompt(prompt: string, timeZone = 'UTC'): string | null {
+export function extractSingleDateFromPrompt(
+  prompt: string,
+  timeZone = 'UTC',
+): string | null {
   const iso = extractSingleIsoDayFromPrompt(prompt, timeZone);
   return iso ? formatDateDisplay(iso) : null;
 }
@@ -694,17 +796,23 @@ export function resolveScheduleDates(
 
   const promptRange = extractDateRangeFromPrompt(prompt ?? '', timeZone);
   if (promptRange) {
-    return enumerateDaysInRange(promptRange).map((d) => d.toISOString().split('T')[0]);
+    return enumerateDaysInRange(promptRange).map(
+      (d) => d.toISOString().split('T')[0],
+    );
   }
   if (params.dateFrom && params.dateTo) {
     const range = resolveDateRange(params, prompt, timeZone);
     if (range) {
-      return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+      return enumerateDaysInRange(range).map(
+        (d) => d.toISOString().split('T')[0],
+      );
     }
   }
   const range = resolveDateRange(params, prompt, timeZone);
   if (range) {
-    return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+    return enumerateDaysInRange(range).map(
+      (d) => d.toISOString().split('T')[0],
+    );
   }
   if (params.date) {
     return [toIsoDay(params.date, timeZone)];
@@ -713,7 +821,9 @@ export function resolveScheduleDates(
 }
 
 /** ISO day keys for direct schedule workflow steps (single day, list, or range). */
-export function resolveDirectScheduleDateKeys(params: Record<string, unknown>): string[] {
+export function resolveDirectScheduleDateKeys(
+  params: Record<string, unknown>,
+): string[] {
   const listed = params.dates;
   if (Array.isArray(listed) && listed.length > 0) {
     return listed.map((d) => String(d).trim()).filter(Boolean);
@@ -721,7 +831,9 @@ export function resolveDirectScheduleDateKeys(params: Record<string, unknown>): 
 
   const range = params.dateRange as DateRange | undefined;
   if (range?.start && range?.end) {
-    return enumerateDaysInRange(range).map((d) => d.toISOString().split('T')[0]);
+    return enumerateDaysInRange(range).map(
+      (d) => d.toISOString().split('T')[0],
+    );
   }
 
   if (params.dateFrom && params.dateTo) {
@@ -745,19 +857,28 @@ export function parseWeekdaysFromParams(
 ): number[] {
   if (params.applyDays?.length) return params.applyDays;
 
-  const text = [
-    ...(params.weekdays ?? []),
-    prompt ?? '',
-  ].join(' ').toLowerCase();
+  const text = [...(params.weekdays ?? []), prompt ?? '']
+    .join(' ')
+    .toLowerCase();
 
   const map: Record<string, number> = {
-    sunday: 0, sun: 0,
-    monday: 1, mon: 1,
-    tuesday: 2, tue: 2, tues: 2,
-    wednesday: 3, wed: 3,
-    thursday: 4, thu: 4, thur: 4, thurs: 4,
-    friday: 5, fri: 5,
-    saturday: 6, sat: 6,
+    sunday: 0,
+    sun: 0,
+    monday: 1,
+    mon: 1,
+    tuesday: 2,
+    tue: 2,
+    tues: 2,
+    wednesday: 3,
+    wed: 3,
+    thursday: 4,
+    thu: 4,
+    thur: 4,
+    thurs: 4,
+    friday: 5,
+    fri: 5,
+    saturday: 6,
+    sat: 6,
   };
 
   const found = new Set<number>();
@@ -813,12 +934,17 @@ export function parseTimeWindow(
 }
 
 /** Earliest bookable time from phrasing like "after 16:00" or "from 16:00 onwards". */
-export function parseEarliestBookingTimeFromPrompt(prompt: string): string | null {
+export function parseEarliestBookingTimeFromPrompt(
+  prompt: string,
+): string | null {
   const after = prompt.match(/\bafter\s+(\d{1,2})(?::(\d{2}))?\b/i);
   if (after) return normalizeTime24(`${after[1]}:${after[2] ?? '00'}`);
 
-  const fromOnwards = prompt.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s+onwards\b/i);
-  if (fromOnwards) return normalizeTime24(`${fromOnwards[1]}:${fromOnwards[2] ?? '00'}`);
+  const fromOnwards = prompt.match(
+    /\bfrom\s+(\d{1,2})(?::(\d{2}))?\s+onwards\b/i,
+  );
+  if (fromOnwards)
+    return normalizeTime24(`${fromOnwards[1]}:${fromOnwards[2] ?? '00'}`);
 
   return null;
 }
@@ -829,16 +955,25 @@ export function bookingOverlapsTimeWindow(
   timeFrom: string,
   timeTo: string,
 ): boolean {
-  const windowStart = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeFrom));
+  const windowStart = new Date(
+    buildUtcStartTimeFromDayAndTime(isoDay, timeFrom),
+  );
   const windowEnd = new Date(buildUtcStartTimeFromDayAndTime(isoDay, timeTo));
   const start =
-    booking.startTime instanceof Date ? booking.startTime : new Date(booking.startTime);
-  const end = booking.endTime instanceof Date ? booking.endTime : new Date(booking.endTime);
+    booking.startTime instanceof Date
+      ? booking.startTime
+      : new Date(booking.startTime);
+  const end =
+    booking.endTime instanceof Date
+      ? booking.endTime
+      : new Date(booking.endTime);
   return start < windowEnd && end > windowStart;
 }
 
 /** Narrow bookings to an explicit timeSlot or timeFrom–timeTo window (overlap, not start-only). */
-export function filterBookingsByTimeConstraints<T extends { startTime: Date; endTime: Date }>(
+export function filterBookingsByTimeConstraints<
+  T extends { startTime: Date; endTime: Date },
+>(
   bookings: T[],
   params: {
     timeSlot?: string | null;
@@ -855,7 +990,12 @@ export function filterBookingsByTimeConstraints<T extends { startTime: Date; end
       const start =
         b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
       const isoDay = start.toISOString().split('T')[0];
-      return bookingOverlapsTimeWindow(b, isoDay, window.timeFrom, window.timeTo);
+      return bookingOverlapsTimeWindow(
+        b,
+        isoDay,
+        window.timeFrom,
+        window.timeTo,
+      );
     });
   }
 
@@ -868,23 +1008,32 @@ export function filterBookingsByTimeConstraints<T extends { startTime: Date; end
 }
 
 export function isScheduleTemplateCreationPrompt(prompt?: string): boolean {
-  return /\bcreate\b[\s\S]{0,80}\b(?:schedule\s+)?template\b/i.test(prompt ?? '');
+  return /\bcreate\b[\s\S]{0,80}\b(?:schedule\s+)?template\b/i.test(
+    prompt ?? '',
+  );
 }
 
 /** cleanup / clear / wipe / reset provider schedule (not appointments). */
 export function isClearSchedulePrompt(prompt?: string): boolean {
   const lower = (prompt ?? '').toLowerCase();
   if (!/\bschedule\b/.test(lower)) return false;
-  if (/\b(from calendar|appointment|booking)s?\b/.test(lower) && !/\bschedule\b/.test(lower)) {
+  if (
+    /\b(from calendar|appointment|booking)s?\b/.test(lower) &&
+    !/\bschedule\b/.test(lower)
+  ) {
     return false;
   }
   return (
     /\b(clean\s*up|clear|reset|wipe)\b/.test(lower) ||
-    (/\bremove\b/.test(lower) && !/\b(from calendar|appointment|booking)/.test(lower))
+    (/\bremove\b/.test(lower) &&
+      !/\b(from calendar|appointment|booking)/.test(lower))
   );
 }
 
-export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt?: string): boolean {
+export function isFullDayBlock(
+  params: { blockFullDay?: boolean | null },
+  prompt?: string,
+): boolean {
   if (params.blockFullDay) return true;
   const lower = (prompt ?? '').toLowerCase();
   return (
@@ -892,13 +1041,18 @@ export function isFullDayBlock(params: { blockFullDay?: boolean | null }, prompt
     lower.includes('entire day') ||
     lower.includes('whole day') ||
     lower.includes('block the day') ||
-    !!lower.match(/block\s+\d{1,2}[/_]\d{1,2}[/_]\d{4}\s*(entirely|completely)?/)
+    !!lower.match(
+      /block\s+\d{1,2}[/_]\d{1,2}[/_]\d{4}\s*(entirely|completely)?/,
+    )
   );
 }
 
 export type EmployeeNameRef = Pick<Employee, 'id' | 'name'>;
 
-function employeeMentionedInPrompt(prompt: string, employee: EmployeeNameRef): boolean {
+function employeeMentionedInPrompt(
+  prompt: string,
+  employee: EmployeeNameRef,
+): boolean {
   const lower = prompt.toLowerCase();
   if (lower.includes(employee.name.toLowerCase())) return true;
 
@@ -917,7 +1071,11 @@ function employeeMentionedInPrompt(prompt: string, employee: EmployeeNameRef): b
   }
 
   const first = parts[0]?.toLowerCase();
-  return !!(first && first.length >= 3 && new RegExp(`\\b${first}\\b`).test(lower));
+  return !!(
+    first &&
+    first.length >= 3 &&
+    new RegExp(`\\b${first}\\b`).test(lower)
+  );
 }
 
 /** All providers named in the prompt (e.g. "Mary and Jujo"). Longest names matched first. */
@@ -952,8 +1110,7 @@ export function isTeamWideProviderScopePrompt(prompt: string): boolean {
   return (
     /\b(?:all|every)\s+(?:the\s+)?(?:employees?|providers?|staff|team|specialists?)\b/i.test(
       prompt,
-    ) ||
-    /\ball providers\b|\beveryone\b|\bwhole team\b/i.test(prompt)
+    ) || /\ball providers\b|\beveryone\b|\bwhole team\b/i.test(prompt)
   );
 }
 
@@ -1013,7 +1170,10 @@ function resolveUnavailableLabel(
 ): string {
   if (/lunch/i.test(matchText)) return 'Lunch';
   const lower = text.toLowerCase();
-  if (/\blunch\b/.test(lower) && lower.includes(`${from.split(':')[0]}-${to.split(':')[0]}`)) {
+  if (
+    /\blunch\b/.test(lower) &&
+    lower.includes(`${from.split(':')[0]}-${to.split(':')[0]}`)
+  ) {
     return 'Lunch';
   }
   return 'Unavailable';
@@ -1023,7 +1183,8 @@ function resolveUnavailableLabel(
 export function extractUnavailableBlocksFromPrompt(
   text: string,
 ): Array<{ from: string; to: string; label: string }> {
-  const unavailableBlocks: Array<{ from: string; to: string; label: string }> = [];
+  const unavailableBlocks: Array<{ from: string; to: string; label: string }> =
+    [];
 
   const patterns = [
     /\b(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(?:unavailable|off|blocked|break)\b/gi,
@@ -1055,10 +1216,14 @@ export function extractUnavailableBlocksFromPrompt(
     unavailableBlocks.push({ from: '12:00', to: '13:00', label: 'Lunch' });
   }
 
-  return unavailableBlocks.sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
+  return unavailableBlocks.sort(
+    (a, b) => timeToMinutes(a.from) - timeToMinutes(b.from),
+  );
 }
 
-function normalizeSchedulePeriod(period: Record<string, any>): Record<string, any> {
+function normalizeSchedulePeriod(
+  period: Record<string, any>,
+): Record<string, any> {
   return {
     ...period,
     startTime: normalizeTime24(String(period.startTime)),
@@ -1127,7 +1292,8 @@ export function applyUnavailableBlocksToPeriods(
     }
 
     result = next.filter(
-      (p) => timeToMinutes(String(p.endTime)) > timeToMinutes(String(p.startTime)),
+      (p) =>
+        timeToMinutes(String(p.endTime)) > timeToMinutes(String(p.startTime)),
     );
   }
 
@@ -1154,7 +1320,8 @@ export function applyUnavailableBlocksToPeriods(
   }
 
   return result.sort(
-    (a, b) => timeToMinutes(String(a.startTime)) - timeToMinutes(String(b.startTime)),
+    (a, b) =>
+      timeToMinutes(String(a.startTime)) - timeToMinutes(String(b.startTime)),
   );
 }
 
@@ -1170,10 +1337,19 @@ export function inferDirectSchedulePeriods(
     return applyUnavailableBlocksToPeriods(params.periods, unavailableBlocks);
   }
 
-  const window = parseTimeWindow(params, text, { timeFrom: '09:00', timeTo: '19:00' });
+  const window = parseTimeWindow(params, text, {
+    timeFrom: '09:00',
+    timeTo: '19:00',
+  });
 
   if (unavailableBlocks.length === 0) {
-    return [{ startTime: window.timeFrom, endTime: window.timeTo, type: 'service_block' }];
+    return [
+      {
+        startTime: window.timeFrom,
+        endTime: window.timeTo,
+        type: 'service_block',
+      },
+    ];
   }
 
   const periods: Array<Record<string, any>> = [];
@@ -1181,7 +1357,11 @@ export function inferDirectSchedulePeriods(
 
   for (const block of unavailableBlocks) {
     if (timeToMinutes(block.from) > timeToMinutes(cursor)) {
-      periods.push({ startTime: cursor, endTime: block.from, type: 'service_block' });
+      periods.push({
+        startTime: cursor,
+        endTime: block.from,
+        type: 'service_block',
+      });
     }
     periods.push({
       startTime: block.from,
@@ -1193,7 +1373,11 @@ export function inferDirectSchedulePeriods(
   }
 
   if (timeToMinutes(window.timeTo) > timeToMinutes(cursor)) {
-    periods.push({ startTime: cursor, endTime: window.timeTo, type: 'service_block' });
+    periods.push({
+      startTime: cursor,
+      endTime: window.timeTo,
+      type: 'service_block',
+    });
   }
 
   return periods;
@@ -1225,7 +1409,10 @@ export function resolvePublicAvailabilityDateKeys(
   applyRelativeDateFromPrompt(enriched, prompt ?? '', tz);
 
   const weekdays = parseWeekdaysFromParams(enriched, prompt);
-  const hasWeekdayFilter = hasExplicitWeekdayInAvailabilityPrompt(enriched, prompt);
+  const hasWeekdayFilter = hasExplicitWeekdayInAvailabilityPrompt(
+    enriched,
+    prompt,
+  );
   const todayKey = getTodayDateKey(tz);
 
   const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
@@ -1285,13 +1472,32 @@ export function applyAvailabilityDateFromPrompt(
   applyPromptDateOverride(params, prompt, timeZone);
 }
 
-export function shouldAutoExecute(action: string, stepCount: number, providerCount: number): boolean {
+export function shouldAutoExecute(
+  action: string,
+  stepCount: number,
+  providerCount: number,
+): boolean {
   const readOnly = [
-    'list_bookings', 'show_appointments', 'check_availability', 'summarize_day',
-    'summarize_bookings', 'list_services', 'analyze_services', 'summarize_staff',
-    'lookup_customer', 'summarize_waitlist', 'lookup_service_assignment', 'list_employees', 'list_templates', 'optimize_schedule',
-    'summarize_utilization', 'list_schedule_gaps', 'summarize_customers',
-    'analyze_appointments', 'resolve_conflicts', 'reassign_cancelled',
+    'list_bookings',
+    'show_appointments',
+    'check_availability',
+    'summarize_day',
+    'summarize_bookings',
+    'list_services',
+    'analyze_services',
+    'summarize_staff',
+    'lookup_customer',
+    'summarize_waitlist',
+    'lookup_service_assignment',
+    'list_employees',
+    'list_templates',
+    'optimize_schedule',
+    'summarize_utilization',
+    'list_schedule_gaps',
+    'summarize_customers',
+    'analyze_appointments',
+    'resolve_conflicts',
+    'reassign_cancelled',
   ];
   if (readOnly.includes(action)) return false;
 
@@ -1311,5 +1517,9 @@ export function resolveAutoExecute(params: {
     if (params.confidence < params.thresholds.low) return false;
     if (params.confidence < params.thresholds.high) return false;
   }
-  return shouldAutoExecute(params.action, params.stepCount, params.providerCount);
+  return shouldAutoExecute(
+    params.action,
+    params.stepCount,
+    params.providerCount,
+  );
 }

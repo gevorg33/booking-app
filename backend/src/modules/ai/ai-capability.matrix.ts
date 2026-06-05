@@ -1,144 +1,148 @@
 import {
   type AccessTier,
+  isCustomerIntentAllowed,
   isDashboardIntentAllowed,
   isProviderIntentAllowed,
   resolveAccessTier,
   tierAccessSummary,
 } from './access-control.matrix.js';
+import {
+  CUSTOMER_INTENTS,
+  CUSTOMER_MUTATING_INTENTS,
+  DASHBOARD_INTENTS,
+  DASHBOARD_MUTATING_INTENTS,
+  PROVIDER_INTENTS,
+  PROVIDER_MUTATING_INTENTS,
+  PUBLIC_ASSISTANT_INTENTS,
+  PUBLIC_INTENTS,
+} from './ai-command-registry.build.js';
+import {
+  getPlanDeniedDashboardIntents,
+  isDashboardAiIntentAllowedByPlan,
+} from '../billing/plan-dashboard-ai-intents.util.js';
+import type { PlanTierId } from '../billing/plan-limits.js';
 
 export type { AccessTier } from './access-control.matrix.js';
 
-export type AiSurface = 'dashboard' | 'provider';
+export type AiSurface = 'dashboard' | 'provider' | 'customer' | 'public';
 
 /** @deprecated Use AccessTier — kept for backward-compatible exports */
 export type AiActorRole = AccessTier;
 
-/** Dashboard intents (full Orchestrix). */
-export const DASHBOARD_INTENTS = [
-  'create_booking',
-  'create_service',
-  'create_services',
-  'cancel_bookings',
-  'bulk_smart_cancel',
-  'hide_appointments_from_calendar',
-  'unhide_appointments_from_calendar',
-  'fill_slot_from_waitlist',
-  'list_bookings',
-  'show_appointments',
-  'check_availability',
-  'reschedule_booking',
-  'summarize_day',
-  'summarize_bookings',
-  'analyze_appointments',
-  'analyze_services',
-  'summarize_staff',
-  'lookup_customer',
-  'summarize_waitlist',
-  'lookup_service_assignment',
-  'list_services',
-  'list_employees',
-  'list_templates',
-  'create_schedule_template',
-  'optimize_schedule',
-  'fill_unused_slots',
-  'list_schedule_gaps',
-  'apply_schedule',
-  'block_schedule',
-  'clear_schedule',
-  'create_direct_schedule',
-  'assign_employee_services',
-  'summarize_utilization',
-  'summarize_customers',
-  'setup_week_schedule',
-  'resolve_conflicts',
-  'reassign_cancelled',
-  'mark_no_shows',
-  'payment_sweep',
-  'update_bookings',
-  'day_replan',
-  'unknown',
-] as const;
+const DASHBOARD_MUTATING = new Set(DASHBOARD_MUTATING_INTENTS);
+const PROVIDER_MUTATING = new Set(PROVIDER_MUTATING_INTENTS);
+const CUSTOMER_MUTATING = new Set(CUSTOMER_MUTATING_INTENTS);
 
-/** Provider mobile intents. */
-export const PROVIDER_INTENTS = [
-  'cancel_bookings',
-  'update_bookings',
-  'list_bookings',
-  'summarize_day',
-  'reschedule_booking',
-  'fill_unused_slots',
-  'check_availability',
-  'block_schedule',
-  'summarize_utilization',
-  'mark_no_shows',
-  'payment_sweep',
-  'unknown',
+/** Customer gateway includes logged-in self-service + anonymous public booking assistant intents (ai-cmd-0.5). */
+const CUSTOMER_SURFACE_INTENTS = [
+  ...new Set([...CUSTOMER_INTENTS, ...PUBLIC_INTENTS]),
 ] as const;
-
-const DASHBOARD_MUTATING = new Set([
-  'create_booking',
-  'create_service',
-  'create_services',
-  'cancel_bookings',
-  'bulk_smart_cancel',
-  'hide_appointments_from_calendar',
-  'unhide_appointments_from_calendar',
-  'fill_slot_from_waitlist',
-  'reschedule_booking',
-  'fill_unused_slots',
-  'apply_schedule',
-  'create_schedule_template',
-  'block_schedule',
-  'clear_schedule',
-  'create_direct_schedule',
-  'setup_week_schedule',
-  'assign_employee_services',
-  'optimize_schedule',
-  'resolve_conflicts',
-  'reassign_cancelled',
-  'mark_no_shows',
-  'payment_sweep',
-  'update_bookings',
-  'day_replan',
-]);
 
 /** Map JWT membershipRole (or legacy role string) to access tier. */
 export function normalizeActorRole(role?: string | null): AccessTier {
   return resolveAccessTier(role);
 }
 
-export function getAllowedIntents(surface: AiSurface, tier: AccessTier): readonly string[] {
-  const base = surface === 'dashboard' ? DASHBOARD_INTENTS : PROVIDER_INTENTS;
-  const allowed = (action: string) =>
-    surface === 'dashboard'
-      ? isDashboardIntentAllowed(tier, action)
-      : isProviderIntentAllowed(tier, action);
-  return base.filter((a) => allowed(a));
+export function getAllowedIntents(
+  surface: AiSurface,
+  tier: AccessTier,
+): readonly string[] {
+  if (surface === 'public') return PUBLIC_INTENTS;
+  if (surface === 'customer') {
+    return CUSTOMER_SURFACE_INTENTS.filter((action) =>
+      isCustomerIntentAllowed(tier, action),
+    );
+  }
+  if (surface === 'dashboard') {
+    return DASHBOARD_INTENTS.filter((action) =>
+      isDashboardIntentAllowed(tier, action),
+    );
+  }
+  return PROVIDER_INTENTS.filter((action) =>
+    isProviderIntentAllowed(tier, action),
+  );
 }
 
-export function isIntentAllowed(surface: AiSurface, tier: AccessTier, action: string): boolean {
-  if (action === 'unknown' || action === 'error' || action === 'security_blocked') return true;
+export function getEffectiveAllowedIntents(
+  surface: AiSurface,
+  accessTier: AccessTier,
+  planTierId: PlanTierId = 'solo',
+): readonly string[] {
+  return getAllowedIntents(surface, accessTier).filter((action) =>
+    surface === 'dashboard'
+      ? isDashboardAiIntentAllowedByPlan(planTierId, action)
+      : true,
+  );
+}
+
+export interface AiCapabilitiesView {
+  surface: AiSurface;
+  accessTier: AccessTier;
+  planTierId: PlanTierId;
+  allowedIntents: readonly string[];
+  planDeniedIntents: readonly string[];
+  hints: string;
+}
+
+export function buildCapabilitiesView(
+  surface: AiSurface,
+  membershipRole: string | undefined,
+  planTierId: PlanTierId,
+): AiCapabilitiesView {
+  const accessTier = normalizeActorRole(membershipRole);
+  return {
+    surface,
+    accessTier,
+    planTierId,
+    allowedIntents: getEffectiveAllowedIntents(surface, accessTier, planTierId),
+    planDeniedIntents:
+      surface === 'dashboard' ? getPlanDeniedDashboardIntents(planTierId) : [],
+    hints: capabilityMatrixForPrompt(surface, accessTier),
+  };
+}
+
+export function isIntentAllowed(
+  surface: AiSurface,
+  tier: AccessTier,
+  action: string,
+): boolean {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  )
+    return true;
+  if (surface === 'public') {
+    return PUBLIC_INTENTS.includes(action);
+  }
+  if (surface === 'customer') {
+    return (
+      isCustomerIntentAllowed(tier, action) &&
+      CUSTOMER_SURFACE_INTENTS.includes(action)
+    );
+  }
   return surface === 'dashboard'
     ? isDashboardIntentAllowed(tier, action)
     : isProviderIntentAllowed(tier, action);
 }
 
 export function isMutatingIntent(surface: AiSurface, action: string): boolean {
-  if (surface === 'provider') {
-    return [
-      'cancel_bookings',
-      'update_bookings',
-      'reschedule_booking',
-      'fill_unused_slots',
-      'block_schedule',
-      'mark_no_shows',
-      'payment_sweep',
-    ].includes(action);
-  }
+  if (surface === 'provider') return PROVIDER_MUTATING.has(action);
+  if (surface === 'customer') return CUSTOMER_MUTATING.has(action);
   return DASHBOARD_MUTATING.has(action);
 }
 
-export function capabilityMatrixForPrompt(surface: AiSurface, tier: AccessTier): string {
+export function capabilityMatrixForPrompt(
+  surface: AiSurface,
+  tier: AccessTier,
+): string {
+  if (surface === 'public') {
+    return `Public booking assistant. Allowed actions: ${PUBLIC_INTENTS.join(', ')}`;
+  }
+  if (surface === 'customer') {
+    const allowed = getAllowedIntents(surface, tier);
+    return `Customer booking assistant (public web + consumer app). Allowed actions (${surface}): ${allowed.join(', ')}`;
+  }
   const allowed = getAllowedIntents(surface, tier);
   return `${tierAccessSummary(tier)}. Allowed AI actions (${surface}): ${allowed.join(', ')}`;
 }

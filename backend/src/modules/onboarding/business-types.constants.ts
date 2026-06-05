@@ -19,14 +19,46 @@ export interface BusinessTypeOption {
 }
 
 export const BUSINESS_TYPE_OPTIONS: BusinessTypeOption[] = [
-  { id: 'hair_salon', labelKey: 'onboarding.types.hairSalon', descriptionKey: 'onboarding.types.hairSalonDesc' },
-  { id: 'barbershop', labelKey: 'onboarding.types.barbershop', descriptionKey: 'onboarding.types.barbershopDesc' },
-  { id: 'nail_salon', labelKey: 'onboarding.types.nailSalon', descriptionKey: 'onboarding.types.nailSalonDesc' },
-  { id: 'spa', labelKey: 'onboarding.types.spa', descriptionKey: 'onboarding.types.spaDesc' },
-  { id: 'beauty_clinic', labelKey: 'onboarding.types.beautyClinic', descriptionKey: 'onboarding.types.beautyClinicDesc' },
-  { id: 'massage', labelKey: 'onboarding.types.massage', descriptionKey: 'onboarding.types.massageDesc' },
-  { id: 'dental', labelKey: 'onboarding.types.dental', descriptionKey: 'onboarding.types.dentalDesc' },
-  { id: 'other', labelKey: 'onboarding.types.other', descriptionKey: 'onboarding.types.otherDesc' },
+  {
+    id: 'hair_salon',
+    labelKey: 'onboarding.types.hairSalon',
+    descriptionKey: 'onboarding.types.hairSalonDesc',
+  },
+  {
+    id: 'barbershop',
+    labelKey: 'onboarding.types.barbershop',
+    descriptionKey: 'onboarding.types.barbershopDesc',
+  },
+  {
+    id: 'nail_salon',
+    labelKey: 'onboarding.types.nailSalon',
+    descriptionKey: 'onboarding.types.nailSalonDesc',
+  },
+  {
+    id: 'spa',
+    labelKey: 'onboarding.types.spa',
+    descriptionKey: 'onboarding.types.spaDesc',
+  },
+  {
+    id: 'beauty_clinic',
+    labelKey: 'onboarding.types.beautyClinic',
+    descriptionKey: 'onboarding.types.beautyClinicDesc',
+  },
+  {
+    id: 'massage',
+    labelKey: 'onboarding.types.massage',
+    descriptionKey: 'onboarding.types.massageDesc',
+  },
+  {
+    id: 'dental',
+    labelKey: 'onboarding.types.dental',
+    descriptionKey: 'onboarding.types.dentalDesc',
+  },
+  {
+    id: 'other',
+    labelKey: 'onboarding.types.other',
+    descriptionKey: 'onboarding.types.otherDesc',
+  },
 ];
 
 const FALLBACK_CATALOGS: Record<string, CatalogCategoryDraft[]> = {
@@ -101,7 +133,11 @@ const FALLBACK_CATALOGS: Record<string, CatalogCategoryDraft[]> = {
         { name: 'Consultation', durationMinutes: 30, price: 0 },
         { name: 'Botox treatment', durationMinutes: 30, price: 250 },
         { name: 'Dermal filler', durationMinutes: 45, price: 350 },
-        { name: 'Laser hair removal (small area)', durationMinutes: 30, price: 80 },
+        {
+          name: 'Laser hair removal (small area)',
+          durationMinutes: 30,
+          price: 80,
+        },
       ],
     },
   ],
@@ -139,7 +175,9 @@ const FALLBACK_CATALOGS: Record<string, CatalogCategoryDraft[]> = {
   ],
 };
 
-export function getFallbackCatalog(businessType: string): CatalogCategoryDraft[] {
+export function getFallbackCatalog(
+  businessType: string,
+): CatalogCategoryDraft[] {
   return FALLBACK_CATALOGS[businessType] ?? FALLBACK_CATALOGS.other;
 }
 

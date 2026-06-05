@@ -137,11 +137,23 @@ describe('ai assistant i18n integration', () => {
     expect(grouped[0].items.length).toBe(3);
     expect(grouped[2].items.some((item) => item.includes('ամրագր'))).toBe(true);
 
-    const flat = getLocalizedAiPageSuggestionGroups('/dashboard/customers', hy);
-    expect(flat).toHaveLength(1);
-    expect(flat[0].id).toBe('commands');
-    expect(flat[0].label).toBe(hy('ai.quickCommands'));
-    expect(flat[0].items.length).toBeGreaterThan(5);
+    const customers = getLocalizedAiPageSuggestionGroups('/dashboard/customers', hy);
+    expect(customers).toHaveLength(2);
+    expect(customers[0].label).toBe(hy('ai.groupLabels.customersRetention'));
+    expect(customers[0].items.some((item) => item.includes('չհայտնված') || item.includes('no-show'))).toBe(
+      true,
+    );
+    expect(
+      customers[0].items.some((item) => item.includes('անգործուն') || item.toLowerCase().includes('inactive')),
+    ).toBe(true);
+
+    const reports = getLocalizedAiPageSuggestionGroups('/dashboard/reports', hy);
+    expect(reports[0].items[0]).toBe(hy('ai.prompts.explainUtilizationDrop'));
+
+    const guide = getLocalizedAiPageSuggestionGroups('/dashboard/guide', hy);
+    expect(guide).toHaveLength(1);
+    expect(guide[0].id).toBe('commands');
+    expect(guide[0].label).toBe(hy('ai.quickCommands'));
   });
 
   it('exports stable key registries', () => {

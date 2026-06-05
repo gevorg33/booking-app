@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  toNativePushDataFields,
+  type ProviderPushType,
+} from './provider-push-payload.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -6,7 +10,10 @@ import webpush from 'web-push';
 import { FirebaseAdminService } from '../../common/firebase/firebase-admin.service.js';
 import { PushSubscription } from './entities/push-subscription.entity.js';
 import { NativePushToken } from './entities/native-push-token.entity.js';
-import { SubscribePushDto, RegisterNativePushDto } from './dto/provider-mobile.dto.js';
+import {
+  SubscribePushDto,
+  RegisterNativePushDto,
+} from './dto/provider-mobile.dto.js';
 
 @Injectable()
 export class PushService {
@@ -23,7 +30,9 @@ export class PushService {
   ) {
     const publicKey = this.config.get<string>('VAPID_PUBLIC_KEY');
     const privateKey = this.config.get<string>('VAPID_PRIVATE_KEY');
-    const subject = this.config.get<string>('VAPID_SUBJECT') || 'mailto:support@optischedule.app';
+    const subject =
+      this.config.get<string>('VAPID_SUBJECT') ||
+      'mailto:support@optischedule.app';
     if (publicKey && privateKey) {
       webpush.setVapidDetails(subject, publicKey, privateKey);
       this.vapidConfigured = true;
@@ -38,7 +47,12 @@ export class PushService {
     return this.config.get<string>('VAPID_PUBLIC_KEY') ?? null;
   }
 
-  async subscribe(userId: string, businessId: string, dto: SubscribePushDto, userAgent?: string) {
+  async subscribe(
+    userId: string,
+    businessId: string,
+    dto: SubscribePushDto,
+    userAgent?: string,
+  ) {
     await this.subRepo.delete({ userId, businessId, endpoint: dto.endpoint });
     const saved = await this.subRepo.save(
       this.subRepo.create({
@@ -58,8 +72,16 @@ export class PushService {
     return { unsubscribed: true };
   }
 
-  async registerNativeToken(userId: string, businessId: string, dto: RegisterNativePushDto) {
-    await this.nativeTokenRepo.delete({ userId, businessId, platform: dto.platform });
+  async registerNativeToken(
+    userId: string,
+    businessId: string,
+    dto: RegisterNativePushDto,
+  ) {
+    await this.nativeTokenRepo.delete({
+      userId,
+      businessId,
+      platform: dto.platform,
+    });
     await this.nativeTokenRepo.save(
       this.nativeTokenRepo.create({
         userId,
@@ -93,6 +115,9 @@ export class PushService {
       actions?: Array<{ id: string; label: string }>;
       bookingId?: string;
       businessId?: string;
+      aiPrompt?: string;
+      pushType?: ProviderPushType;
+      foregroundHint?: string;
     },
   ): Promise<number> {
     let sent = 0;
@@ -132,9 +157,14 @@ export class PushService {
       url?: string;
       actions?: Array<{ id: string; label: string }>;
       bookingId?: string;
+      aiPrompt?: string;
+      pushType?: ProviderPushType;
+      foregroundHint?: string;
     },
   ): Promise<number> {
-    const tokens = await this.nativeTokenRepo.find({ where: { userId, businessId } });
+    const tokens = await this.nativeTokenRepo.find({
+      where: { userId, businessId },
+    });
     if (tokens.length === 0) return 0;
 
     if (!this.firebase.isReady) {
@@ -151,27 +181,40 @@ export class PushService {
           token: entry.token,
           notification: { title: payload.title, body: payload.body },
           data: {
-            ...(payload.url ? { url: payload.url } : {}),
-            ...(payload.bookingId ? { bookingId: payload.bookingId } : {}),
             businessId,
             ...(payload.actions?.length
               ? { actions: JSON.stringify(payload.actions) }
               : {}),
+            ...toNativePushDataFields({
+              url: payload.url,
+              bookingId: payload.bookingId,
+              businessId,
+              aiPrompt: payload.aiPrompt,
+              pushType: payload.pushType,
+              foregroundHint: payload.foregroundHint,
+            }),
           },
           android: {
             priority: 'high',
-            notification: { channelId: 'booking_alerts', clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
+            notification: {
+              channelId: 'booking_alerts',
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            },
           },
         });
         sent += 1;
-        this.logger.log(`FCM push sent to ${entry.platform} device ${entry.id}`);
+        this.logger.log(
+          `FCM push sent to ${entry.platform} device ${entry.id}`,
+        );
       } catch (err: unknown) {
         const code = (err as { code?: string }).code;
         if (
           code === 'messaging/registration-token-not-registered' ||
           code === 'messaging/invalid-registration-token'
         ) {
-          this.logger.warn(`Removing invalid FCM token ${entry.id} for user ${userId}`);
+          this.logger.warn(
+            `Removing invalid FCM token ${entry.id} for user ${userId}`,
+          );
           await this.nativeTokenRepo.delete({ id: entry.id });
         } else {
           const message = err instanceof Error ? err.message : String(err);

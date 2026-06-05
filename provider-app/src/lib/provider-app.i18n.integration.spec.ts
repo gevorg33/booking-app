@@ -3,6 +3,7 @@ import { translate } from '@shared-i18n/translate';
 import type { AppLocale } from '@shared-i18n/types';
 import { getMessages } from '../i18n/catalog';
 import { allProviderAppI18nKeys } from './provider-app-i18n';
+import { providerQuickChipI18nKeys } from './provider-ai-quick-chips';
 import { buildProviderAiExamples } from './provider-ai-examples';
 
 const LOCALES: AppLocale[] = ['en', 'hy', 'ru'];
@@ -18,7 +19,7 @@ function expectNonEmpty(value: string, key: string, locale: AppLocale) {
 
 describe('provider app i18n integration', () => {
   it('resolves every wired provider app key in en, hy, and ru', () => {
-    const keys = allProviderAppI18nKeys();
+    const keys = [...new Set([...allProviderAppI18nKeys(), ...providerQuickChipI18nKeys()])];
     expect(keys.length).toBeGreaterThan(100);
 
     for (const locale of LOCALES) {

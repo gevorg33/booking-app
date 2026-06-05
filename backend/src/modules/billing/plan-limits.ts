@@ -1,4 +1,7 @@
-import { isSubscriptionUsable, SubscriptionStatus } from './subscription-status.enum.js';
+import {
+  isSubscriptionUsable,
+  SubscriptionStatus,
+} from './subscription-status.enum.js';
 
 /** ~20% off when billed annually (2 months free). */
 export const ANNUAL_BILLING_DISCOUNT = 0.2;
@@ -95,6 +98,12 @@ export function getLimitsForTier(tierId: PlanTierId): PlanLimits {
   return PLAN_LIMITS[tierId];
 }
 
+export {
+  SOLO_DENIED_DASHBOARD_AI_INTENTS,
+  getPlanDeniedDashboardIntents,
+  isDashboardAiIntentAllowedByPlan,
+} from './plan-dashboard-ai-intents.util.js';
+
 export type PlanLimitKind = 'provider_seats' | 'ai_commands' | PlanFeatureFlag;
 
 export const PLAN_LIMIT_MESSAGES: Record<PlanLimitKind, string> = {
@@ -104,7 +113,9 @@ export const PLAN_LIMIT_MESSAGES: Record<PlanLimitKind, string> = {
     'Monthly AI command limit reached for your plan. Upgrade for more AI capacity.',
   stripeConnect: 'Stripe Connect requires a Starter subscription.',
   promoCodes: 'Promo codes require a Starter subscription.',
-  loyalty: 'Loyalty points require a Growth plan or higher (coming soon). Upgrade to Starter for promo codes and payments.',
-  memberships: 'Customer membership plans require a Growth plan or higher (coming soon).',
+  loyalty:
+    'Loyalty points require a Growth plan or higher (coming soon). Upgrade to Starter for promo codes and payments.',
+  memberships:
+    'Customer membership plans require a Growth plan or higher (coming soon).',
   giftCards: 'Gift cards require a Business plan or higher (coming soon).',
 };

@@ -4,19 +4,26 @@ import {
   readRescheduleCount,
   type CustomerSelfServiceSettings,
 } from '../../common/utils/customer-self-service.util.js';
-import type { PackageBookingLineInput, PackageServiceLineInput } from '../../common/utils/package-booking.util.js';
+import type {
+  PackageBookingLineInput,
+  PackageServiceLineInput,
+} from '../../common/utils/package-booking.util.js';
 
 export const PACKAGE_VISIT_ACTIVE_STATUSES: BookingStatus[] = [
   BookingStatus.CONFIRMED,
   BookingStatus.PENDING,
 ];
 
-export function readPackageIdFromMetadata(metadata?: Record<string, unknown> | null): string | null {
+export function readPackageIdFromMetadata(
+  metadata?: Record<string, unknown> | null,
+): string | null {
   const raw = metadata?.packageId;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
 }
 
-export function readPackageNameFromMetadata(metadata?: Record<string, unknown> | null): string | null {
+export function readPackageNameFromMetadata(
+  metadata?: Record<string, unknown> | null,
+): string | null {
   const raw = metadata?.packageName;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
 }
@@ -26,10 +33,14 @@ export function isPackageVisitBooking(booking: Booking): boolean {
 }
 
 export function sortPackageVisitBookings(bookings: Booking[]): Booking[] {
-  return [...bookings].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  return [...bookings].sort(
+    (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+  );
 }
 
-export function toPackageServiceLines(bookings: Booking[]): PackageServiceLineInput[] {
+export function toPackageServiceLines(
+  bookings: Booking[],
+): PackageServiceLineInput[] {
   return sortPackageVisitBookings(bookings).map((booking) => ({
     serviceId: booking.serviceId,
     durationMinutes: booking.service?.durationMinutes ?? 30,
@@ -65,7 +76,9 @@ export function evaluatePackageVisitPolicy(
   bookings: Booking[],
   settings: CustomerSelfServiceSettings,
 ): PackageVisitPolicySummary {
-  const active = bookings.filter((b) => PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status));
+  const active = bookings.filter((b) =>
+    PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status),
+  );
   if (active.length === 0) {
     return {
       canCancelAll: false,
@@ -80,7 +93,11 @@ export function evaluatePackageVisitPolicy(
 
   for (const booking of active) {
     const cancel = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
-    const reschedule = evaluateCustomerBookingPolicy(booking, settings, 'reschedule');
+    const reschedule = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'reschedule',
+    );
     if (!cancel.allowed) {
       canCancelAll = false;
       policyMessage ??= cancel.reason ?? null;

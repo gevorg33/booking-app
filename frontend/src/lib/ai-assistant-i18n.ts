@@ -1,3 +1,6 @@
+import { onboardingPromptI18nKeys } from './ai-onboarding.util';
+import { AI_DASHBOARD_SURFACE_KEYS } from './dashboard-surfaces.i18n';
+
 export interface AiExampleTenantContext {
   employees: Array<{ id: string; name: string; serviceIds?: string[]; isActive?: boolean }>;
   services: Array<{ id: string; name: string; isActive?: boolean }>;
@@ -90,9 +93,11 @@ const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
     'busiestProviderToday',
   ],
   '/dashboard/customers': [
-    'top10CustomersPaid',
+    'findNoShowsCustomers',
+    'reengageInactiveCustomers',
     'customerMostNoShows',
     'showAtRiskCustomers',
+    'top10CustomersPaid',
     'showNewCustomers',
     'vipCustomers',
     'customersCancelMost',
@@ -116,6 +121,7 @@ const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
     'whoCanDoService',
   ],
   '/dashboard/reports': [
+    'explainUtilizationDrop',
     'summarizeUtilizationWeek',
     'howManyAppointmentsWeek',
     'revenueMonth',
@@ -188,6 +194,47 @@ const ROUTE_GROUP_DEFS: Record<
       itemKeys: ['blockLunchAllProviders', 'fillGapsToday', 'openSlotsThisWeek'],
     },
   ],
+  '/dashboard/customers': [
+    {
+      id: 'retention',
+      labelKey: 'customersRetention',
+      itemKeys: [
+        'findNoShowsCustomers',
+        'reengageInactiveCustomers',
+        'customerMostNoShows',
+        'showAtRiskCustomers',
+      ],
+    },
+    {
+      id: 'segments',
+      labelKey: 'customersSegments',
+      itemKeys: [
+        'top10CustomersPaid',
+        'showNewCustomers',
+        'vipCustomers',
+        'customersCancelMost',
+        'waitlistCount',
+        'showWaitlistCustomers',
+      ],
+    },
+  ],
+  '/dashboard/reports': [
+    {
+      id: 'insights',
+      labelKey: 'reportsInsights',
+      itemKeys: [
+        'explainUtilizationDrop',
+        'summarizeUtilizationWeek',
+        'howManyAppointmentsWeek',
+        'revenueMonth',
+      ],
+    },
+    {
+      id: 'rankings',
+      labelKey: 'reportsRankings',
+      itemKeys: ['topServicesRevenueMonth', 'top10CustomersPaid', 'busiestProviderToday'],
+    },
+  ],
 };
 
 const FALLBACK_PROMPT_KEYS = [
@@ -224,6 +271,9 @@ export function getLocalizedAiPageSuggestionGroups(
   return [{ id: 'commands', label: t('ai.quickCommands'), items: flat }];
 }
 
+export { getOnboardingPageSuggestionGroups, getOnboardingCommandBarExamples } from './ai-onboarding.util';
+export type { OnboardingAiStep } from './ai-onboarding.util';
+
 export function allAiAssistantPromptKeys(): string[] {
   const keys = new Set<string>();
   Object.values(ROUTE_PROMPT_KEYS).flat().forEach((k) => keys.add(`ai.prompts.${k}`));
@@ -245,10 +295,15 @@ export function allAiAssistantPromptKeys(): string[] {
   return [...keys];
 }
 
-import { AI_DASHBOARD_SURFACE_KEYS } from './dashboard-surfaces.i18n';
-
 export const AI_ASSISTANT_UI_KEYS = [
+  'ai.commandPlaceholder',
   'ai.thinking',
+  'ai.clarifySubmit',
+  'ai.assistantClarifyTry',
+  'ai.suggestionRun',
+  'ai.suggestionEdit',
+  'ai.undoPromptBanner',
+  'ai.undoNow',
   'ai.assistantTitle',
   'ai.emptyHint',
   'ai.inputPlaceholderExample',
@@ -267,6 +322,34 @@ export const AI_ASSISTANT_UI_KEYS = [
   'ai.runWithAi',
   'ai.opportunitiesTitle',
   'ai.opportunitiesOnPage',
+  'ai.examples',
+  'ai.undoLatest',
+  'ai.undoLatestHint',
+  'ai.undoLatestNone',
+  'ai.undoLatestConfirm',
+  'ai.undoing',
+  'ai.undoSuccess',
+  'ai.undoFailed',
+  'ai.riskLevelLabel',
+  'ai.wizardTitle',
+  'ai.wizardStepOf',
+  'ai.wizardNext',
+  'ai.wizardApproveAll',
+  'ai.macrosTitle',
+  'ai.macrosEmpty',
+  'ai.macroAddHint',
+  'ai.macroNamePlaceholder',
+  'ai.macroPromptPlaceholder',
+  'ai.macroSave',
+  'ai.macroDelete',
+  'ai.weeklyReportTitle',
+  'ai.weeklyReportLoading',
+  'ai.weeklyReportRefresh',
+  'ai.weeklyReportFallback',
+  'ai.weeklyReportActionGaps',
+  'ai.notificationsTitle',
+  'ai.notificationsEmpty',
+  'ai.notificationTapResolve',
 ] as const;
 
 /** Registry of every AI assistant empty-state / suggestion i18n key. */
@@ -276,6 +359,8 @@ export function allAiAssistantI18nKeys(): string[] {
       ...AI_ASSISTANT_UI_KEYS,
       ...AI_DASHBOARD_SURFACE_KEYS,
       ...allAiAssistantPromptKeys(),
+      ...onboardingPromptI18nKeys(),
+      'reports.aiInsightsTitle',
     ]),
   ];
 }

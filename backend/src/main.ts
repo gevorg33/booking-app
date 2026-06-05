@@ -6,7 +6,9 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -35,7 +37,11 @@ async function bootstrap() {
       }
       // Allow tenant subdomains in dev/production, e.g. gloss.localhost:3000
       const rootDomain = process.env.ROOT_DOMAIN || 'localhost:3000';
-      if (origin.endsWith(`.${rootDomain}`) || origin === `http://${rootDomain}` || origin === `https://${rootDomain}`) {
+      if (
+        origin.endsWith(`.${rootDomain}`) ||
+        origin === `http://${rootDomain}` ||
+        origin === `https://${rootDomain}`
+      ) {
         callback(null, true);
         return;
       }

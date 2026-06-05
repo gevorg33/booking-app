@@ -30,19 +30,30 @@ describe('business-public-profile-locales.util', () => {
     });
 
     it('skips unsupported locales in non-strict mode', () => {
-      expect(normalizePublicProfileLocales({ de: { name: 'X' }, en: { name: 'Y' } }, { strict: false })).toEqual({
+      expect(
+        normalizePublicProfileLocales(
+          { de: { name: 'X' }, en: { name: 'Y' } },
+          { strict: false },
+        ),
+      ).toEqual({
         en: { name: 'Y' },
       });
     });
 
     it('rejects unsupported locales in strict mode', () => {
-      expect(() => normalizePublicProfileLocales({ de: { name: 'X' } })).toThrow(
-        new BadRequestException('Unsupported locale in publicProfileLocales: de'),
+      expect(() =>
+        normalizePublicProfileLocales({ de: { name: 'X' } }),
+      ).toThrow(
+        new BadRequestException(
+          'Unsupported locale in publicProfileLocales: de',
+        ),
       );
     });
 
     it('rejects non-object locale entries', () => {
-      expect(() => normalizePublicProfileLocales({ en: ['bad'] as any })).toThrow(
+      expect(() =>
+        normalizePublicProfileLocales({ en: ['bad'] as any }),
+      ).toThrow(
         new BadRequestException('publicProfileLocales.en must be an object'),
       );
     });
@@ -50,12 +61,18 @@ describe('business-public-profile-locales.util', () => {
     it('rejects non-string field values', () => {
       expect(() =>
         normalizePublicProfileLocales({ en: { name: 1 as any } }),
-      ).toThrow(new BadRequestException('publicProfileLocales.en.name must be a string'));
+      ).toThrow(
+        new BadRequestException(
+          'publicProfileLocales.en.name must be a string',
+        ),
+      );
     });
 
     it('rejects fields that exceed max length', () => {
       const tooLong = 'x'.repeat(PUBLIC_PROFILE_FIELD_MAX.name + 1);
-      expect(() => normalizePublicProfileLocales({ en: { name: tooLong } })).toThrow(
+      expect(() =>
+        normalizePublicProfileLocales({ en: { name: tooLong } }),
+      ).toThrow(
         new BadRequestException(
           `publicProfileLocales.en.name must be at most ${PUBLIC_PROFILE_FIELD_MAX.name} characters`,
         ),
@@ -84,7 +101,9 @@ describe('business-public-profile-locales.util', () => {
   describe('applyPublicProfileLocalesToSettings', () => {
     it('returns settings unchanged when locales are undefined', () => {
       const settings = { locale: 'en' };
-      expect(applyPublicProfileLocalesToSettings(settings, undefined)).toBe(settings);
+      expect(applyPublicProfileLocalesToSettings(settings, undefined)).toBe(
+        settings,
+      );
     });
 
     it('clears settings when empty object is sent', () => {
@@ -108,7 +127,11 @@ describe('business-public-profile-locales.util', () => {
     it('returns undefined for missing or invalid settings', () => {
       expect(extractPublicProfileLocalesFromSettings(null)).toBeUndefined();
       expect(extractPublicProfileLocalesFromSettings({})).toBeUndefined();
-      expect(extractPublicProfileLocalesFromSettings({ publicProfileLocales: 'bad' })).toBeUndefined();
+      expect(
+        extractPublicProfileLocalesFromSettings({
+          publicProfileLocales: 'bad',
+        }),
+      ).toBeUndefined();
     });
 
     it('extracts locales from settings', () => {
@@ -131,13 +154,21 @@ describe('business-public-profile-locales.util', () => {
   describe('resolvePublicProfileField', () => {
     it('prefers localized value over fallback', () => {
       const locales = { hy: { name: 'Հայերեն' } };
-      expect(resolvePublicProfileField('English', locales, 'hy', 'name')).toBe('Հայերեն');
-      expect(resolvePublicProfileField('English', locales, 'en', 'name')).toBe('English');
+      expect(resolvePublicProfileField('English', locales, 'hy', 'name')).toBe(
+        'Հայերեն',
+      );
+      expect(resolvePublicProfileField('English', locales, 'en', 'name')).toBe(
+        'English',
+      );
     });
 
     it('returns undefined when fallback and localized values are empty', () => {
-      expect(resolvePublicProfileField('', undefined, 'en', 'name')).toBeUndefined();
-      expect(resolvePublicProfileField(null, { en: { name: '  ' } }, 'en', 'name')).toBeUndefined();
+      expect(
+        resolvePublicProfileField('', undefined, 'en', 'name'),
+      ).toBeUndefined();
+      expect(
+        resolvePublicProfileField(null, { en: { name: '  ' } }, 'en', 'name'),
+      ).toBeUndefined();
     });
   });
 });

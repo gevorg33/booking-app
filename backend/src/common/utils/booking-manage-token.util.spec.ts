@@ -9,8 +9,15 @@ import {
 
 describe('booking-manage-token.util', () => {
   it('buildBookingManageUrl strips trailing slash and encodes params', () => {
-    const url = buildBookingManageUrl('https://app.test/', 'salon', 'book-1', 'tok-abc');
-    expect(url).toBe('https://app.test/book/salon/manage?bookingId=book-1&token=tok-abc');
+    const url = buildBookingManageUrl(
+      'https://app.test/',
+      'salon',
+      'book-1',
+      'tok-abc',
+    );
+    expect(url).toBe(
+      'https://app.test/book/salon/manage?bookingId=book-1&token=tok-abc',
+    );
   });
 
   it('formatBookingManageLinkHtml uses underlined here anchor', () => {
@@ -42,12 +49,20 @@ describe('booking-manage-token.util', () => {
   });
 
   it('validateBookingManageToken rejects missing or wrong token', () => {
-    expect(validateBookingManageToken({ metadata: {} } as any, 'secret')).toBe(false);
+    expect(validateBookingManageToken({ metadata: {} } as any, 'secret')).toBe(
+      false,
+    );
     expect(
-      validateBookingManageToken({ metadata: { manageToken: 'a' } } as any, 'b'),
+      validateBookingManageToken(
+        { metadata: { manageToken: 'a' } } as any,
+        'b',
+      ),
     ).toBe(false);
     expect(
-      validateBookingManageToken({ metadata: { manageToken: 123 } } as any, '123'),
+      validateBookingManageToken(
+        { metadata: { manageToken: 123 } } as any,
+        '123',
+      ),
     ).toBe(false);
   });
 
@@ -98,9 +113,12 @@ describe('booking-manage-token.util', () => {
   });
 
   it('ensureBookingManageToken throws when booking missing', async () => {
-    const bookingRepo = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn() };
-    await expect(ensureBookingManageToken(bookingRepo as any, 'missing')).rejects.toThrow(
-      'Booking not found',
-    );
+    const bookingRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    await expect(
+      ensureBookingManageToken(bookingRepo as any, 'missing'),
+    ).rejects.toThrow('Booking not found');
   });
 });

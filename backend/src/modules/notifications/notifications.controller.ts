@@ -1,8 +1,21 @@
-import { Controller, Get, Put, Body, Param, UseGuards, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto.js';
 import { UpdateWhatsAppIntegrationDto } from './dto/update-whatsapp-integration.dto.js';
-import { UpdateEmailTemplateDto, ReplaceCustomEmailVariablesDto, EMAIL_TEMPLATE_KEYS } from './dto/update-email-template.dto.js';
+import {
+  UpdateEmailTemplateDto,
+  ReplaceCustomEmailVariablesDto,
+  EMAIL_TEMPLATE_KEYS,
+} from './dto/update-email-template.dto.js';
 import { WhatsAppIntegrationService } from './whatsapp-integration.service.js';
 import { NotificationEmailTemplateService } from './notification-email-template.service.js';
 import type { NotificationEmailTemplateKey } from './notification-email-template.types.js';
@@ -26,9 +39,12 @@ export class NotificationsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.ensureMember(businessId, user.id);
-    const settings = await this.notificationsService.getBusinessSettings(businessId);
+    const settings =
+      await this.notificationsService.getBusinessSettings(businessId);
     const business = await this.businessService.findOne(businessId);
-    const providers = this.notificationsService.getProviderStatus(business?.settings);
+    const providers = this.notificationsService.getProviderStatus(
+      business?.settings,
+    );
     return { settings, providers };
   }
 
@@ -39,9 +55,14 @@ export class NotificationsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.ensureMember(businessId, user.id);
-    const settings = await this.notificationsService.updateBusinessSettings(businessId, dto);
+    const settings = await this.notificationsService.updateBusinessSettings(
+      businessId,
+      dto,
+    );
     const business = await this.businessService.findOne(businessId);
-    const providers = this.notificationsService.getProviderStatus(business?.settings);
+    const providers = this.notificationsService.getProviderStatus(
+      business?.settings,
+    );
     return { settings, providers };
   }
 
@@ -98,7 +119,10 @@ export class NotificationsController {
   ) {
     await this.ensureMember(businessId, user.id);
     this.assertEmailTemplateKey(templateKey);
-    const template = await this.emailTemplateService.resetTemplate(businessId, templateKey);
+    const template = await this.emailTemplateService.resetTemplate(
+      businessId,
+      templateKey,
+    );
     return { template };
   }
 
@@ -116,7 +140,9 @@ export class NotificationsController {
     return { variables };
   }
 
-  private assertEmailTemplateKey(key: string): asserts key is NotificationEmailTemplateKey {
+  private assertEmailTemplateKey(
+    key: string,
+  ): asserts key is NotificationEmailTemplateKey {
     if (!EMAIL_TEMPLATE_KEYS.includes(key as NotificationEmailTemplateKey)) {
       throw new BadRequestException('Unknown email template key');
     }

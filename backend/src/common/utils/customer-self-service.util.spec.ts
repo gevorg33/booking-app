@@ -15,8 +15,12 @@ describe('customer-self-service.util', () => {
   const futureStart = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
   it('resolves defaults when settings missing', () => {
-    expect(resolveCustomerSelfServiceSettings(null)).toEqual(DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS);
-    expect(resolvePublicPaymentSettings(null)).toEqual({ acceptCashPayments: false });
+    expect(resolveCustomerSelfServiceSettings(null)).toEqual(
+      DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
+    );
+    expect(resolvePublicPaymentSettings(null)).toEqual({
+      acceptCashPayments: false,
+    });
   });
 
   it('merges stored self-service settings and falls back invalid numbers', () => {
@@ -39,7 +43,9 @@ describe('customer-self-service.util', () => {
       maxReschedulesPerBooking: 3,
     });
     expect(
-      resolvePublicPaymentSettings({ publicBooking: { acceptCashPayments: true } }),
+      resolvePublicPaymentSettings({
+        publicBooking: { acceptCashPayments: true },
+      }),
     ).toEqual({ acceptCashPayments: true });
   });
 
@@ -51,7 +57,9 @@ describe('customer-self-service.util', () => {
       maxReschedulesPerBooking: 2,
       allowProviderChangeOnReschedule: false,
     };
-    expect(mergeCustomerSelfServiceSettingsPatch(current, { allowReschedule: true })).toEqual({
+    expect(
+      mergeCustomerSelfServiceSettingsPatch(current, { allowReschedule: true }),
+    ).toEqual({
       allowCancel: true,
       allowReschedule: true,
       minimumNoticeHours: 12,
@@ -76,13 +84,20 @@ describe('customer-self-service.util', () => {
 
   it('applyCustomerSelfServiceToBusinessSettings and payment patch preserve other keys', () => {
     const settings = { locale: 'en', publicBooking: { enabled: true } };
-    const nextCss = { ...DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS, minimumNoticeHours: 6 };
-    expect(applyCustomerSelfServiceToBusinessSettings(settings, nextCss)).toEqual({
+    const nextCss = {
+      ...DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
+      minimumNoticeHours: 6,
+    };
+    expect(
+      applyCustomerSelfServiceToBusinessSettings(settings, nextCss),
+    ).toEqual({
       locale: 'en',
       publicBooking: { enabled: true, customerSelfService: nextCss },
     });
     expect(
-      applyPublicPaymentSettingsToBusinessSettings(settings, { acceptCashPayments: true }),
+      applyPublicPaymentSettingsToBusinessSettings(settings, {
+        acceptCashPayments: true,
+      }),
     ).toEqual({
       locale: 'en',
       publicBooking: { enabled: true, acceptCashPayments: true },
@@ -129,8 +144,11 @@ describe('customer-self-service.util', () => {
       allowReschedule: false,
     };
     expect(
-      evaluateCustomerBookingPolicy({ status: 'confirmed', startTime: futureStart }, disabled, 'cancel')
-        .reason,
+      evaluateCustomerBookingPolicy(
+        { status: 'confirmed', startTime: futureStart },
+        disabled,
+        'cancel',
+      ).reason,
     ).toContain('cancellation');
     expect(
       evaluateCustomerBookingPolicy(
@@ -180,7 +198,12 @@ describe('customer-self-service.util', () => {
       allowCancel: false,
       allowReschedule: false,
     };
-    expect(canCustomerManageBookingOnline(booking, DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS)).toBe(true);
+    expect(
+      canCustomerManageBookingOnline(
+        booking,
+        DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
+      ),
+    ).toBe(true);
     expect(canCustomerManageBookingOnline(booking, disabled)).toBe(false);
     expect(
       canCustomerManageBookingOnline(booking, {
@@ -193,9 +216,12 @@ describe('customer-self-service.util', () => {
 
   it('builds manage link label for allowed actions only', () => {
     const booking = { status: 'confirmed', startTime: futureStart };
-    expect(resolveBookingManageLinkLabel(booking, DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS)).toBe(
-      'Manage your booking (reschedule or cancel)',
-    );
+    expect(
+      resolveBookingManageLinkLabel(
+        booking,
+        DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,
+      ),
+    ).toBe('Manage your booking (reschedule or cancel)');
     expect(
       resolveBookingManageLinkLabel(booking, {
         ...DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS,

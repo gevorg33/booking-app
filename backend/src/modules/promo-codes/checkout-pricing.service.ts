@@ -39,13 +39,18 @@ export class CheckoutPricingService {
 
     if (code) {
       if (isGiftCardCode(code)) {
-        const card = await this.giftCardsService.validate(input.businessId, code);
+        const card = await this.giftCardsService.validate(
+          input.businessId,
+          code,
+        );
         if (
           card.currency &&
           input.currency &&
           card.currency.toUpperCase() !== input.currency.toUpperCase()
         ) {
-          throw new BadRequestException('Gift card currency does not match this booking');
+          throw new BadRequestException(
+            'Gift card currency does not match this booking',
+          );
         }
         giftCardId = card.id;
         giftCardCode = card.code;
@@ -57,7 +62,10 @@ export class CheckoutPricingService {
               'Service gift cards can only be applied to a service booking checkout',
             );
           }
-          const resolved = resolveServiceGiftCardDiscount(card.serviceCredits ?? [], lineItems);
+          const resolved = resolveServiceGiftCardDiscount(
+            card.serviceCredits ?? [],
+            lineItems,
+          );
           giftCardDiscount = resolved.discount;
           giftCardServiceRedemptions = resolved.redemptions;
           if (giftCardDiscount <= 0) {
@@ -66,7 +74,10 @@ export class CheckoutPricingService {
             );
           }
         } else {
-          giftCardDiscount = resolveGiftCardRedemption(Number(card.balance), subtotal);
+          giftCardDiscount = resolveGiftCardRedemption(
+            Number(card.balance),
+            subtotal,
+          );
           if (giftCardDiscount <= 0) {
             throw new BadRequestException('Gift card has no remaining balance');
           }
@@ -87,7 +98,10 @@ export class CheckoutPricingService {
           code,
           servicePrice,
         );
-        promoDiscount = this.promoCodesService.calculateDiscount(promo, subtotal);
+        promoDiscount = this.promoCodesService.calculateDiscount(
+          promo,
+          subtotal,
+        );
         promoCodeId = promo.id;
         promoCode = promo.code;
         if (promoDiscount > 0) {
@@ -120,13 +134,18 @@ export class CheckoutPricingService {
       );
       loyaltyPointsBalance = account.pointsBalance;
 
-      if (input.loyaltyPointsToRedeem != null && input.loyaltyPointsToRedeem > 0) {
+      if (
+        input.loyaltyPointsToRedeem != null &&
+        input.loyaltyPointsToRedeem > 0
+      ) {
         loyaltyPointsToRedeem = resolveLoyaltyRedemption(
           input.loyaltyPointsToRedeem,
           account.pointsBalance,
           totalsAfterGift.afterGiftCard,
         );
-        loyaltyDiscount = this.loyaltyService.pointsToCurrency(loyaltyPointsToRedeem);
+        loyaltyDiscount = this.loyaltyService.pointsToCurrency(
+          loyaltyPointsToRedeem,
+        );
         if (loyaltyDiscount > 0) {
           adjustments.push({
             type: 'loyalty',
@@ -136,7 +155,10 @@ export class CheckoutPricingService {
           });
         }
       }
-    } else if (input.loyaltyPointsToRedeem != null && input.loyaltyPointsToRedeem > 0) {
+    } else if (
+      input.loyaltyPointsToRedeem != null &&
+      input.loyaltyPointsToRedeem > 0
+    ) {
       throw new BadRequestException('Sign in to use loyalty points');
     }
 

@@ -43,7 +43,13 @@ describe('LoyaltyCustomerMatcherService', () => {
 
   it('matches guest booking by normalized email', async () => {
     customerRepo.find.mockResolvedValue([
-      { id: 'cust-email', businessId: 'biz-1', isActive: true, email: 'guest@test.com', phone: null },
+      {
+        id: 'cust-email',
+        businessId: 'biz-1',
+        isActive: true,
+        email: 'guest@test.com',
+        phone: null,
+      },
     ] as Customer[]);
 
     const result = await matcher.resolveForBooking(
@@ -59,7 +65,13 @@ describe('LoyaltyCustomerMatcherService', () => {
 
   it('matches guest booking by normalized phone', async () => {
     customerRepo.find.mockResolvedValue([
-      { id: 'cust-phone', businessId: 'biz-1', isActive: true, email: null, phone: '+37491234567' },
+      {
+        id: 'cust-phone',
+        businessId: 'biz-1',
+        isActive: true,
+        email: null,
+        phone: '+37491234567',
+      },
     ] as Customer[]);
 
     const result = await matcher.resolveForBooking(
@@ -75,8 +87,20 @@ describe('LoyaltyCustomerMatcherService', () => {
 
   it('flags ambiguous matches when email and phone map to different customers', async () => {
     customerRepo.find.mockResolvedValue([
-      { id: 'cust-a', businessId: 'biz-1', isActive: true, email: 'a@test.com', phone: null },
-      { id: 'cust-b', businessId: 'biz-1', isActive: true, email: null, phone: '+37491234567' },
+      {
+        id: 'cust-a',
+        businessId: 'biz-1',
+        isActive: true,
+        email: 'a@test.com',
+        phone: null,
+      },
+      {
+        id: 'cust-b',
+        businessId: 'biz-1',
+        isActive: true,
+        email: null,
+        phone: '+37491234567',
+      },
     ] as Customer[]);
 
     const result = await matcher.resolveForBooking(

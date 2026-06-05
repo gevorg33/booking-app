@@ -29,11 +29,16 @@ export class OpenAiGatewayService {
   ) {}
 
   private resolveDefaultModel(): string {
-    return this.config.get<string>('OPENAI_MODEL')?.trim() || DEFAULT_OPENAI_MODEL;
+    return (
+      this.config.get<string>('OPENAI_MODEL')?.trim() || DEFAULT_OPENAI_MODEL
+    );
   }
 
   /** GPT-5+ and o-series models use max_completion_tokens instead of max_tokens. */
-  private completionTokenLimit(model: string, maxTokens: number): Record<string, number> {
+  private completionTokenLimit(
+    model: string,
+    maxTokens: number,
+  ): Record<string, number> {
     if (/^gpt-5|^o[1-9]/i.test(model)) {
       return { max_completion_tokens: maxTokens };
     }
@@ -52,11 +57,17 @@ export class OpenAiGatewayService {
     return this.integrationService.isAvailableForBusiness(businessId);
   }
 
-  private async getClient(businessId: string): Promise<{ client: OpenAI; source: 'platform' | 'business' } | null> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  private async getClient(
+    businessId: string,
+  ): Promise<{ client: OpenAI; source: 'platform' | 'business' } | null> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return null;
 
-    const runtime = this.integrationService.resolveRuntimeConfig(business.settings);
+    const runtime = this.integrationService.resolveRuntimeConfig(
+      business.settings,
+    );
     if (!runtime) return null;
 
     const cacheKey = `${businessId}:${runtime.source}`;
@@ -131,7 +142,9 @@ export class OpenAiGatewayService {
     try {
       return JSON.parse(raw) as T;
     } catch {
-      this.logger.warn(`Failed to parse JSON from OpenAI response [${context.operation}]`);
+      this.logger.warn(
+        `Failed to parse JSON from OpenAI response [${context.operation}]`,
+      );
       return null;
     }
   }

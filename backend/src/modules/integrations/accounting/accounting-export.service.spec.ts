@@ -39,7 +39,9 @@ describe('AccountingExportService', () => {
   });
 
   it('builds quickbooks iif export', () => {
-    const result = service.buildExport('quickbooks', rows, { incomeAccountName: 'Sales' });
+    const result = service.buildExport('quickbooks', rows, {
+      incomeAccountName: 'Sales',
+    });
     expect(result.format).toBe('iif');
     expect(result.content).toContain('Sales');
     expect(result.content).toContain('ENDTRNS');

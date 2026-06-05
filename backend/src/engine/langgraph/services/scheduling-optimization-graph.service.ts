@@ -52,11 +52,16 @@ export class SchedulingOptimizationGraphService {
     return new StateGraph(SchedulingOptimizationState)
       .addNode('analyze_utilization', (state) => this.nodeAnalyze(state))
       .addNode('identify_schedule_gaps', (state) => this.nodeGaps(state))
-      .addNode('generate_optimization_recommendations', (state) => this.nodeRecommend(state))
+      .addNode('generate_optimization_recommendations', (state) =>
+        this.nodeRecommend(state),
+      )
       .addNode('summarize', (state) => this.nodeSummarize(state))
       .addEdge(START, 'analyze_utilization')
       .addEdge('analyze_utilization', 'identify_schedule_gaps')
-      .addEdge('identify_schedule_gaps', 'generate_optimization_recommendations')
+      .addEdge(
+        'identify_schedule_gaps',
+        'generate_optimization_recommendations',
+      )
       .addEdge('generate_optimization_recommendations', 'summarize')
       .addEdge('summarize', END)
       .compile();
@@ -76,7 +81,8 @@ export class SchedulingOptimizationGraphService {
       state.toolContext,
     );
 
-    const employeeCount = (result as { utilization?: unknown[] })?.utilization?.length ?? 0;
+    const employeeCount =
+      (result as { utilization?: unknown[] })?.utilization?.length ?? 0;
     return { toolContext: ctx, employeeCount };
   }
 
@@ -96,7 +102,8 @@ export class SchedulingOptimizationGraphService {
     );
 
     const gapCount =
-      (result as { underutilizedEmployees?: unknown[] })?.underutilizedEmployees?.length ?? 0;
+      (result as { underutilizedEmployees?: unknown[] })?.underutilizedEmployees
+        ?.length ?? 0;
     return { toolContext: ctx, gapCount };
   }
 
@@ -105,7 +112,10 @@ export class SchedulingOptimizationGraphService {
       {
         stepId: state.stepIds.recommend,
         action: 'generate_optimization_recommendations',
-        params: { businessId: state.businessId, optimizationGoal: state.intent },
+        params: {
+          businessId: state.businessId,
+          optimizationGoal: state.intent,
+        },
         dependsOn: [state.stepIds.gaps],
       },
       state.toolContext,
@@ -157,7 +167,8 @@ export class SchedulingOptimizationGraphService {
           {
             id: stepIds.analyze,
             action: 'analyze_utilization',
-            description: 'Analyze current schedule utilization across all employees',
+            description:
+              'Analyze current schedule utilization across all employees',
             params: { businessId: context.businessId, ...dateParams },
             dependsOn: [],
             estimatedImpact: 'Read-only analysis',
@@ -165,7 +176,8 @@ export class SchedulingOptimizationGraphService {
           {
             id: stepIds.gaps,
             action: 'identify_schedule_gaps',
-            description: 'Identify underutilized time slots and scheduling gaps',
+            description:
+              'Identify underutilized time slots and scheduling gaps',
             params: {
               businessId: context.businessId,
               ...dateParams,
@@ -177,8 +189,12 @@ export class SchedulingOptimizationGraphService {
           {
             id: stepIds.recommend,
             action: 'generate_optimization_recommendations',
-            description: 'Generate scheduling recommendations based on analysis',
-            params: { businessId: context.businessId, optimizationGoal: intent },
+            description:
+              'Generate scheduling recommendations based on analysis',
+            params: {
+              businessId: context.businessId,
+              optimizationGoal: intent,
+            },
             dependsOn: [stepIds.gaps],
             estimatedImpact: 'Generates suggestions only',
           },

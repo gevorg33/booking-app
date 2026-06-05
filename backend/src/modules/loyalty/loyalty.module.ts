@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { LoyaltyAccount, LoyaltyTransaction } from './entities/loyalty-account.entity.js';
+import {
+  LoyaltyAccount,
+  LoyaltyTransaction,
+} from './entities/loyalty-account.entity.js';
 import { LoyaltyService } from './loyalty.service.js';
 import { LoyaltyController } from './loyalty.controller.js';
 import { LoyaltyAwardService } from './loyalty-award.service.js';
@@ -22,7 +25,11 @@ import { Customer } from '../customer/entities/customer.entity.js';
     PlanEntitlementsModule,
   ],
   controllers: [LoyaltyController],
-  providers: [LoyaltyService, LoyaltyAwardService, LoyaltyCustomerMatcherService],
+  providers: [
+    LoyaltyService,
+    LoyaltyAwardService,
+    LoyaltyCustomerMatcherService,
+  ],
   exports: [LoyaltyService, LoyaltyAwardService, LoyaltyCustomerMatcherService],
 })
 export class LoyaltyModule {}

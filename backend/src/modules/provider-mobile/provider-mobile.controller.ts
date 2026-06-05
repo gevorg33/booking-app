@@ -15,8 +15,18 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
-import { SubscribePushDto, RegisterNativePushDto, UpdateProviderBookingDto, CancelProviderBookingDto, SuggestCancelNoteDto } from './dto/provider-mobile.dto.js';
-import { ProviderAiCommandDto, ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
+import {
+  SubscribePushDto,
+  RegisterNativePushDto,
+  UpdateProviderBookingDto,
+  CancelProviderBookingDto,
+  SuggestCancelNoteDto,
+} from './dto/provider-mobile.dto.js';
+import {
+  ProviderAiCommandDto,
+  ProviderAiConfirmDto,
+} from './dto/provider-ai-command.dto.js';
+import { AiGatewayService } from '../ai/ai-gateway.service.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
@@ -27,29 +37,50 @@ export class ProviderMobileController {
   constructor(
     private providerService: ProviderMobileService,
     private pushService: PushService,
+    private aiGateway: AiGatewayService,
     private providerAi: ProviderAiCommandService,
     private providerAiSuggestions: ProviderAiSuggestionsService,
     private pushActions: ProviderPushActionService,
   ) {}
 
   @Get('context')
-  getContext(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  getContext(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     return this.providerService.getContext(businessId, user.id);
+  }
+
+  @Get('ai/capabilities')
+  getAiCapabilities(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string; membershipRole?: string },
+  ) {
+    return this.aiGateway.getCapabilities(
+      businessId,
+      'provider',
+      user.membershipRole,
+    );
   }
 
   @Post('ai/command')
   runAiCommand(
     @Param('businessId') businessId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser()
+    user: { id: string; membershipRole?: string; employeeId?: string },
     @Body() dto: ProviderAiCommandDto,
   ) {
-    return this.providerAi.executeCommand(
+    return this.aiGateway.execute({
+      surface: 'provider',
       businessId,
-      user.id,
-      dto.prompt,
-      dto.history,
-      dto.context,
-    );
+      prompt: dto.prompt,
+      userId: user.id,
+      membershipRole: user.membershipRole,
+      employeeId: user.employeeId ?? null,
+      history: dto.history,
+      context: dto.context,
+      confirmed: dto.context?.confirmed === true,
+    });
   }
 
   @Post('ai/command/confirm')
@@ -70,7 +101,10 @@ export class ProviderMobileController {
   }
 
   @Get('bookings/today')
-  getToday(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  getToday(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     return this.providerService.getTodayBookings(businessId, user.id);
   }
 
@@ -90,7 +124,11 @@ export class ProviderMobileController {
     @Param('bookingId') bookingId: string,
     @CurrentUser() user: { id: string },
   ) {
-    return this.providerService.getBookingDetail(businessId, user.id, bookingId);
+    return this.providerService.getBookingDetail(
+      businessId,
+      user.id,
+      bookingId,
+    );
   }
 
   @Put('bookings/:bookingId')
@@ -100,7 +138,12 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
     @Body() dto: UpdateProviderBookingDto,
   ) {
-    return this.providerService.updateBooking(businessId, user.id, bookingId, dto);
+    return this.providerService.updateBooking(
+      businessId,
+      user.id,
+      bookingId,
+      dto,
+    );
   }
 
   @Put('bookings/:bookingId/cancel')
@@ -110,7 +153,12 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
     @Body() dto: CancelProviderBookingDto,
   ) {
-    return this.providerService.cancelBooking(businessId, user.id, bookingId, dto);
+    return this.providerService.cancelBooking(
+      businessId,
+      user.id,
+      bookingId,
+      dto,
+    );
   }
 
   @Post('bookings/:bookingId/cancel/suggest-note')
@@ -120,7 +168,12 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
     @Body() dto: SuggestCancelNoteDto,
   ) {
-    return this.providerService.suggestCancelNote(businessId, user.id, bookingId, dto);
+    return this.providerService.suggestCancelNote(
+      businessId,
+      user.id,
+      bookingId,
+      dto,
+    );
   }
 
   @Get('schedule/summary')
@@ -135,7 +188,10 @@ export class ProviderMobileController {
 
   @Get('push/vapid-public-key')
   getVapidKey() {
-    return { publicKey: this.pushService.getPublicKey(), configured: this.pushService.isConfigured };
+    return {
+      publicKey: this.pushService.getPublicKey(),
+      configured: this.pushService.isConfigured,
+    };
   }
 
   @Post('push/subscribe')
@@ -184,7 +240,11 @@ export class ProviderMobileController {
   handlePushAction(
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
-    @Body() body: { actionId: 'confirm' | 'mark_paid' | 'suggest_reschedule'; bookingId: string },
+    @Body()
+    body: {
+      actionId: 'confirm' | 'mark_paid' | 'suggest_reschedule';
+      bookingId: string;
+    },
   ) {
     return this.pushActions.handleAction(businessId, user.id, {
       actionId: body.actionId,

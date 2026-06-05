@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   IonCard,
@@ -14,22 +15,36 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
-import { formatDateDisplay, todayDisplay } from '../lib/date-format';
+import { formatDateDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
 import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
-import ProviderAiAssistant from '../components/ProviderAiAssistant';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
+import { ProviderOfflineBanner } from '../components/ProviderOfflineBanner';
 import { useOperationalEvents } from '../lib/use-operational-events';
-import { buildProviderAiScreenContext } from '../lib/provider-ai-context';
 import { useI18n } from '../i18n';
+import { PROVIDER_OPEN_BOOKING_EVENT } from '../lib/provider-push-deep-link.util';
 
 export default function TodayPage() {
   const { t } = useI18n();
   const { business, user } = useAuthStore();
   const queryClient = useQueryClient();
+  const location = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [seedPrompt, setSeedPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const bookingId = new URLSearchParams(location.search).get('bookingId');
+    if (bookingId) setSelectedId(bookingId);
+  }, [location.search]);
+
+  useEffect(() => {
+    const onOpenBooking = (e: Event) => {
+      const bookingId = (e as CustomEvent<{ bookingId?: string }>).detail?.bookingId;
+      if (bookingId) setSelectedId(bookingId);
+    };
+    window.addEventListener(PROVIDER_OPEN_BOOKING_EVENT, onOpenBooking);
+    return () => window.removeEventListener(PROVIDER_OPEN_BOOKING_EVENT, onOpenBooking);
+  }, []);
 
   const refreshBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', business?.id] });
@@ -82,22 +97,16 @@ export default function TodayPage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
+        <ProviderOfflineBanner />
         {business?.id && (
           <>
             <ProviderAiSuggestions
               businessId={business.id}
-              onSelectPrompt={(prompt) => setSeedPrompt(prompt)}
-            />
-            <ProviderAiAssistant
-              businessId={business.id}
-              seedPrompt={seedPrompt}
-              onSeedPromptConsumed={() => setSeedPrompt(null)}
-              screenContext={buildProviderAiScreenContext(
-                'today',
-                { date: todayDisplay() },
-                data?.bookings ?? [],
-                selectedId,
-              )}
+              onSelectPrompt={(prompt) => {
+                window.dispatchEvent(
+                  new CustomEvent('provider:ai-prompt', { detail: { prompt } }),
+                );
+              }}
             />
           </>
         )}
@@ -151,7 +160,11 @@ export default function TodayPage() {
             businessId={business.id}
             bookingId={selectedId}
             onClose={() => setSelectedId(null)}
-            onAiPrompt={(prompt) => setSeedPrompt(prompt)}
+            onAiPrompt={(prompt) => {
+              window.dispatchEvent(
+                new CustomEvent('provider:ai-prompt', { detail: { prompt } }),
+              );
+            }}
           />
         )}
       </IonContent>

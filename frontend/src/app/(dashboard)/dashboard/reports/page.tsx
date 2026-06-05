@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AiPagePanel } from '@/components/ai-page-panel';
+import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
@@ -140,6 +141,14 @@ export default function ReportsPage() {
       <DashboardPageShell
         ai={
           <AiSuggestionsStack>
+            <AiContextualSuggestions
+              context={{
+                route: '/dashboard/reports',
+                dateFrom: formatDateDisplay(range.from, locale),
+                dateTo: formatDateDisplay(range.to, locale),
+              }}
+              title={t('reports.aiInsightsTitle')}
+            />
             <AiPagePanel
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/reports']}
               context={{

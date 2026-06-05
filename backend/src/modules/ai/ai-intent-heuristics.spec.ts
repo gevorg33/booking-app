@@ -1,15 +1,24 @@
 import {
   extractProviderFallbackFromPrompt,
   extractServiceFromPrompt,
+  resolveCustomerMetric,
+  resolveBookingMetric,
+  resolveStaffMetric,
   extractRescheduleTargetDate,
   extractRescheduleSourceDate,
   extractRescheduleSourceTime,
+  extractRescheduleTargetTime,
+  parseAmPmClockTime,
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
   isBulkAllAppointmentsPrompt,
   isRecommendSpecialistsPrompt,
 } from './ai-intent-heuristics.js';
+import {
+  isTotalEarningsPrompt,
+  isTopStaffRevenuePrompt,
+} from './dashboard-revenue-analytics.util.js';
 
 describe('ai-intent-heuristics', () => {
   const employees = [
@@ -48,6 +57,40 @@ describe('ai-intent-heuristics', () => {
     });
   });
 
+  describe('AM/PM reschedule parsing', () => {
+    it('parses 9 AM destination', () => {
+      expect(
+        extractRescheduleTargetTime(
+          "Move Maria's appointment to tomorrow at 9 AM",
+          'UTC',
+        ),
+      ).toBe('09:00');
+    });
+
+    it('parses 2:30 pm destination', () => {
+      expect(
+        extractRescheduleTargetTime(
+          'Reschedule Jujo to Friday at 2:30 pm',
+          'UTC',
+        ),
+      ).toBe('14:30');
+    });
+
+    it('parses move to tomorrow at 3pm', () => {
+      expect(
+        extractRescheduleTargetTime(
+          'Move the 16:00 appointment to tomorrow at 3pm',
+          'UTC',
+        ),
+      ).toBe('15:00');
+    });
+
+    it('normalizes noon and midnight via parseAmPmClockTime', () => {
+      expect(parseAmPmClockTime(12, 0, 'pm')).toBe('12:00');
+      expect(parseAmPmClockTime(12, 0, 'am')).toBe('00:00');
+    });
+  });
+
   describe('reschedule nearest free time parsing', () => {
     const prompt =
       'Move Jujos appointment on June 10 from 16-17 to june 11th nearest free time';
@@ -79,10 +122,12 @@ describe('ai-intent-heuristics', () => {
       "Move Gevorg's appointment on June 15 to June 16th nearest free time";
 
     it('treats Gevorg as provider, not customer', () => {
-      expect(extractProviderPossessiveFromReschedulePrompt(prompt, employees)?.name).toBe(
-        'Gevorg Gasparyan',
-      );
-      expect(extractCustomerFromReschedulePrompt(prompt, customers, employees)).toBeUndefined();
+      expect(
+        extractProviderPossessiveFromReschedulePrompt(prompt, employees)?.name,
+      ).toBe('Gevorg Gasparyan');
+      expect(
+        extractCustomerFromReschedulePrompt(prompt, customers, employees),
+      ).toBeUndefined();
     });
 
     it('parses source and destination month-day dates', () => {
@@ -97,7 +142,10 @@ describe('ai-intent-heuristics', () => {
         'Book facemassage on Gevorg tomorrow at 9; if not available then Mary; if not whoever is free',
         employees,
       );
-      expect(result.providerFallbackNames).toEqual(['Gevorg Gasparyan', 'Mary Torgomyan']);
+      expect(result.providerFallbackNames).toEqual([
+        'Gevorg Gasparyan',
+        'Mary Torgomyan',
+      ]);
       expect(result.fallbackAnyProvider).toBe(true);
     });
 
@@ -114,13 +162,74 @@ describe('ai-intent-heuristics', () => {
   describe('isBulkAllAppointmentsPrompt', () => {
     it('detects cancel all appointments for provider', () => {
       expect(
-        isBulkAllAppointmentsPrompt('cancel any/all appointments for gevorg on 01_06_2026'),
+        isBulkAllAppointmentsPrompt(
+          'cancel any/all appointments for gevorg on 01_06_2026',
+        ),
       ).toBe(true);
     });
 
     it('does not treat service-specific cancel as bulk all', () => {
       expect(
-        isBulkAllAppointmentsPrompt('cancel hot stone massage for gevorg on 01_06_2026'),
+        isBulkAllAppointmentsPrompt(
+          'cancel hot stone massage for gevorg on 01_06_2026',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('resolveCustomerMetric', () => {
+    it('maps retention prompts to CRM metrics', () => {
+      expect(
+        resolveCustomerMetric({}, 'Find customers with the most no-shows'),
+      ).toBe('most_no_shows');
+      expect(resolveCustomerMetric({}, 'Re-engage inactive customers')).toBe(
+        'at_risk',
+      );
+      expect(resolveCustomerMetric({}, 'Show at-risk customers')).toBe(
+        'at_risk',
+      );
+    });
+  });
+
+  describe('earnings and specialist revenue heuristics', () => {
+    it('detects total earnings prompts', () => {
+      expect(isTotalEarningsPrompt('Calculate total earnings for today')).toBe(
+        true,
+      );
+      expect(isTotalEarningsPrompt('How much did we earn last month?')).toBe(
+        true,
+      );
+      expect(isTotalEarningsPrompt('What is total revenue this week')).toBe(
+        true,
+      );
+      expect(
+        resolveBookingMetric({}, 'Calculate total earnings for last week'),
+      ).toBe('revenue');
+    });
+
+    it('detects top specialist revenue prompts', () => {
+      expect(
+        isTopStaffRevenuePrompt('Which specialist earned the most today?'),
+      ).toBe(true);
+      expect(
+        isTopStaffRevenuePrompt('Top 3 specialists by revenue last week'),
+      ).toBe(true);
+      expect(
+        isTopStaffRevenuePrompt('Who brought in the most revenue all time?'),
+      ).toBe(true);
+      expect(
+        resolveStaffMetric({}, 'Top 5 specialists by revenue last month'),
+      ).toBe('most_revenue');
+    });
+
+    it('does not treat customer recommend-specialists as staff revenue analytics', () => {
+      expect(
+        isTopStaffRevenuePrompt(
+          'Suggest top specialists for haircut on Monday',
+        ),
+      ).toBe(false);
+      expect(
+        isTotalEarningsPrompt('Top 3 specialists by revenue last week'),
       ).toBe(false);
     });
   });
@@ -128,15 +237,21 @@ describe('ai-intent-heuristics', () => {
   describe('isRecommendSpecialistsPrompt', () => {
     it('detects best rated specialists queries', () => {
       expect(
-        isRecommendSpecialistsPrompt('best rated specialists for massage this week'),
+        isRecommendSpecialistsPrompt(
+          'best rated specialists for massage this week',
+        ),
       ).toBe(true);
       expect(
-        isRecommendSpecialistsPrompt('suggest top specialists for haircut on Monday'),
+        isRecommendSpecialistsPrompt(
+          'suggest top specialists for haircut on Monday',
+        ),
       ).toBe(true);
     });
 
     it('does not match plain availability', () => {
-      expect(isRecommendSpecialistsPrompt('free slots on Monday for Gevorg')).toBe(false);
+      expect(
+        isRecommendSpecialistsPrompt('free slots on Monday for Gevorg'),
+      ).toBe(false);
     });
   });
 });

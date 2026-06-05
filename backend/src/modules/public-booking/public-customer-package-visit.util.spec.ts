@@ -27,8 +27,12 @@ describe('public-customer-package-visit.util', () => {
     expect(readPackageIdFromMetadata({})).toBeNull();
     expect(readPackageNameFromMetadata({ packageName: 'Glow' })).toBe('Glow');
     expect(readPackageNameFromMetadata(null)).toBeNull();
-    expect(isPackageVisitBooking({ packagePurchaseId: 'p1' } as any)).toBe(true);
-    expect(isPackageVisitBooking({ packagePurchaseId: null } as any)).toBe(false);
+    expect(isPackageVisitBooking({ packagePurchaseId: 'p1' } as any)).toBe(
+      true,
+    );
+    expect(isPackageVisitBooking({ packagePurchaseId: null } as any)).toBe(
+      false,
+    );
   });
 
   it('sorts visit bookings by start time', () => {
@@ -39,7 +43,13 @@ describe('public-customer-package-visit.util', () => {
 
   it('evaluates inactive visit', () => {
     const policy = evaluatePackageVisitPolicy(
-      [{ status: BookingStatus.CANCELLED, startTime: future, metadata: {} } as any],
+      [
+        {
+          status: BookingStatus.CANCELLED,
+          startTime: future,
+          metadata: {},
+        } as any,
+      ],
       settings,
     );
     expect(policy).toEqual({
@@ -76,14 +86,26 @@ describe('public-customer-package-visit.util', () => {
   it('blocks cancel or reschedule when individual policy fails', () => {
     const soon = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const cancelBlocked = evaluatePackageVisitPolicy(
-      [{ status: BookingStatus.CONFIRMED, startTime: soon, metadata: {} } as any],
+      [
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: soon,
+          metadata: {},
+        } as any,
+      ],
       settings,
     );
     expect(cancelBlocked.canCancelAll).toBe(false);
     expect(cancelBlocked.policyMessage).toContain('24 hours');
 
     const rescheduleDisabled = evaluatePackageVisitPolicy(
-      [{ status: BookingStatus.CONFIRMED, startTime: future, metadata: {} } as any],
+      [
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: future,
+          metadata: {},
+        } as any,
+      ],
       { ...settings, allowReschedule: false },
     );
     expect(rescheduleDisabled.canRescheduleAll).toBe(false);
@@ -94,8 +116,16 @@ describe('public-customer-package-visit.util', () => {
     const soon = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const policy = evaluatePackageVisitPolicy(
       [
-        { status: BookingStatus.CONFIRMED, startTime: soon, metadata: {} } as any,
-        { status: BookingStatus.CONFIRMED, startTime: soon, metadata: {} } as any,
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: soon,
+          metadata: {},
+        } as any,
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: soon,
+          metadata: {},
+        } as any,
       ],
       settings,
     );
@@ -107,7 +137,11 @@ describe('public-customer-package-visit.util', () => {
     const soon = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const policy = evaluatePackageVisitPolicy(
       [
-        { status: BookingStatus.CONFIRMED, startTime: soon, metadata: {} } as any,
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: soon,
+          metadata: {},
+        } as any,
         {
           status: BookingStatus.CONFIRMED,
           startTime: future,
@@ -121,9 +155,11 @@ describe('public-customer-package-visit.util', () => {
   });
 
   it('uses default service durations when relation is missing', () => {
-    expect(toPackageServiceLines([{ serviceId: 's1', startTime: future, service: {} } as any])).toEqual([
-      { serviceId: 's1', durationMinutes: 30, bufferMinutes: 0 },
-    ]);
+    expect(
+      toPackageServiceLines([
+        { serviceId: 's1', startTime: future, service: {} } as any,
+      ]),
+    ).toEqual([{ serviceId: 's1', durationMinutes: 30, bufferMinutes: 0 }]);
   });
 
   it('maps reschedule lines to package line inputs in visit order', () => {
@@ -145,7 +181,10 @@ describe('public-customer-package-visit.util', () => {
     ] as any[];
 
     const lines = toPackageLineInputs(bookings, [
-      { bookingId: 'b2', startTime: new Date(future.getTime() + 86400000).toISOString() },
+      {
+        bookingId: 'b2',
+        startTime: new Date(future.getTime() + 86400000).toISOString(),
+      },
       { bookingId: 'b1', startTime: future.toISOString() },
     ]);
 
@@ -160,7 +199,17 @@ describe('public-customer-package-visit.util', () => {
 
   it('throws when a package line is missing for an appointment', () => {
     expect(() =>
-      toPackageLineInputs([{ id: 'b1', serviceId: 's1', employeeId: 'e1', startTime: future } as any], []),
+      toPackageLineInputs(
+        [
+          {
+            id: 'b1',
+            serviceId: 's1',
+            employeeId: 'e1',
+            startTime: future,
+          } as any,
+        ],
+        [],
+      ),
     ).toThrow('Each package appointment must have a new time');
   });
 
@@ -190,7 +239,13 @@ describe('public-customer-package-visit.util', () => {
       .mockReturnValue({ allowed: false });
 
     const policy = evaluatePackageVisitPolicy(
-      [{ status: BookingStatus.CONFIRMED, startTime: future, metadata: {} } as any],
+      [
+        {
+          status: BookingStatus.CONFIRMED,
+          startTime: future,
+          metadata: {},
+        } as any,
+      ],
       settings,
     );
     expect(policy.canCancelAll).toBe(false);

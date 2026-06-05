@@ -41,7 +41,10 @@ describe('Gift card end-to-end integration', () => {
     },
   };
 
-  const servicesById: Record<string, { id: string; name: string; price: number }> = {
+  const servicesById: Record<
+    string,
+    { id: string; name: string; price: number }
+  > = {
     'svc-1': { id: 'svc-1', name: 'Facial', price: 45 },
     'svc-2': { id: 'svc-2', name: 'Massage', price: 80 },
   };
@@ -56,7 +59,10 @@ describe('Gift card end-to-end integration', () => {
 
   const businessRepo = { findOne: jest.fn() };
   const serviceRepo = {
-    findOne: jest.fn(async ({ where }: { where: { id: string } }) => servicesById[where.id] ?? null),
+    findOne: jest.fn(
+      async ({ where }: { where: { id: string } }) =>
+        servicesById[where.id] ?? null,
+    ),
   };
   const giftCardRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
@@ -113,9 +119,11 @@ describe('Gift card end-to-end integration', () => {
         Object.entries(where).every(([key, value]) => r[key] === value),
       ),
     ),
-    findOne: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
-      changeRequests.find((r) => Object.entries(where).every(([key, value]) => r[key] === value)) ??
-      null,
+    findOne: jest.fn(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        changeRequests.find((r) =>
+          Object.entries(where).every(([key, value]) => r[key] === value),
+        ) ?? null,
     ),
     createQueryBuilder: jest.fn(() => {
       let giftCardId: string | undefined;
@@ -133,19 +141,28 @@ describe('Gift card end-to-end integration', () => {
         getOne: jest.fn(async () => {
           const open = changeRequests
             .filter((r) => !giftCardId || r.giftCardId === giftCardId)
-            .filter((r) => ['pending', 'in_review', 'needs_info'].includes(String(r.status)))
-            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+            .filter((r) =>
+              ['pending', 'in_review', 'needs_info'].includes(String(r.status)),
+            )
+            .sort((a, b) =>
+              String(b.createdAt).localeCompare(String(a.createdAt)),
+            );
           return open[0] ?? null;
         }),
         getMany: jest.fn(async () => {
           const open = changeRequests
             .filter((r) => {
-              if (cardIds?.length) return cardIds.includes(String(r.giftCardId));
+              if (cardIds?.length)
+                return cardIds.includes(String(r.giftCardId));
               if (giftCardId) return r.giftCardId === giftCardId;
               return true;
             })
-            .filter((r) => ['pending', 'in_review', 'needs_info'].includes(String(r.status)))
-            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+            .filter((r) =>
+              ['pending', 'in_review', 'needs_info'].includes(String(r.status)),
+            )
+            .sort((a, b) =>
+              String(b.createdAt).localeCompare(String(a.createdAt)),
+            );
           return open;
         }),
       };
@@ -153,11 +170,16 @@ describe('Gift card end-to-end integration', () => {
     }),
   };
   const zendeskService = {
-    createGiftCardChangeTicket: jest.fn().mockResolvedValue({ ticketId: 501, url: 'https://zd/501' }),
+    createGiftCardChangeTicket: jest
+      .fn()
+      .mockResolvedValue({ ticketId: 501, url: 'https://zd/501' }),
   };
   const stripeService = {
     isConfigured: false,
-    client: { checkout: { sessions: { retrieve: jest.fn() } }, refunds: { create: jest.fn() } },
+    client: {
+      checkout: { sessions: { retrieve: jest.fn() } },
+      refunds: { create: jest.fn() },
+    },
     connectRequestOptions: jest.fn(),
   };
   const stripeIntegrationService = { resolveConnectAccountId: jest.fn() };
@@ -168,7 +190,9 @@ describe('Gift card end-to-end integration', () => {
   );
   const employeeRepo = { findOne: jest.fn(), find: jest.fn() };
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
-  const whatsappService = { sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }) };
+  const whatsappService = {
+    sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }),
+  };
   const whatsappIntegrationService = {
     resolveRuntimeConfig: jest.fn().mockReturnValue({
       templateGiftCard: 'gift_card_delivery',
@@ -191,10 +215,12 @@ describe('Gift card end-to-end integration', () => {
   };
   const claimService = { claimCard: jest.fn() };
   const customerService = {
-    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
-      customer: { id: 'cust-linked', name: dto.name, email: dto.email },
-      created: true,
-    })),
+    findOrCreateByContact: jest.fn(
+      async (_businessId: string, dto: { name: string; email: string }) => ({
+        customer: { id: 'cust-linked', name: dto.name, email: dto.email },
+        created: true,
+      }),
+    ),
   };
 
   const purchaseService = new GiftCardPurchaseService(
@@ -214,7 +240,9 @@ describe('Gift card end-to-end integration', () => {
     fulfillmentEvents as unknown as EventEmitter2,
   );
   const deliveryConfigService = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'http://localhost:3000' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'http://localhost:3000' : undefined,
+    ),
   };
   const deliveryService = new GiftCardDeliveryService(
     giftCardRepo as any,
@@ -241,7 +269,9 @@ describe('Gift card end-to-end integration', () => {
   );
 
   function attachCredits(cardId: string) {
-    const cardCredits = [...credits.values()].filter((c) => c.giftCardId === cardId);
+    const cardCredits = [...credits.values()].filter(
+      (c) => c.giftCardId === cardId,
+    );
     return cardCredits;
   }
 
@@ -269,52 +299,80 @@ describe('Gift card end-to-end integration', () => {
     creditSeq = 0;
 
     businessRepo.findOne.mockResolvedValue(business);
-    employeeRepo.findOne.mockImplementation(async ({ where }: { where: { userId: string } }) => {
-      if (where.userId === 'user-creator') return { id: 'emp-creator', userId: 'user-creator' };
-      if (where.userId === 'user-driver') return { id: 'emp-driver', userId: 'user-driver' };
-      return null;
-    });
+    employeeRepo.findOne.mockImplementation(
+      async ({ where }: { where: { userId: string } }) => {
+        if (where.userId === 'user-creator')
+          return { id: 'emp-creator', userId: 'user-creator' };
+        if (where.userId === 'user-driver')
+          return { id: 'emp-driver', userId: 'user-driver' };
+        return null;
+      },
+    );
     employeeRepo.find.mockResolvedValue([
       { id: 'emp-creator', userId: 'user-creator' },
       { id: 'emp-driver', userId: 'user-driver' },
     ]);
 
-    giftCardRepo.save.mockImplementation(async (raw: Record<string, unknown>) => hydrateCard(raw));
-    giftCardRepo.findOne.mockImplementation(async (opts: { where: Record<string, unknown>; relations?: Record<string, boolean> }) => {
-      const { where } = opts;
-      if (where.id) {
-        const card = cards.get(where.id as string);
-        if (!card) return null;
-        if (where.businessId && card.businessId !== where.businessId) return null;
-        if (
-          where.purchaserCustomerId &&
-          card.purchaserCustomerId !== where.purchaserCustomerId
-        ) {
-          return null;
+    giftCardRepo.save.mockImplementation(async (raw: Record<string, unknown>) =>
+      hydrateCard(raw),
+    );
+    giftCardRepo.findOne.mockImplementation(
+      async (opts: {
+        where: Record<string, unknown>;
+        relations?: Record<string, boolean>;
+      }) => {
+        const { where } = opts;
+        if (where.id) {
+          const card = cards.get(where.id as string);
+          if (!card) return null;
+          if (where.businessId && card.businessId !== where.businessId)
+            return null;
+          if (
+            where.purchaserCustomerId &&
+            card.purchaserCustomerId !== where.purchaserCustomerId
+          ) {
+            return null;
+          }
+          return { ...card, serviceCredits: attachCredits(card.id as string) };
         }
-        return { ...card, serviceCredits: attachCredits(card.id as string) };
-      }
-      if (where.code) {
-        const code = String(where.code).trim().toUpperCase();
-        const card = [...cards.values()].find(
-          (c) => String(c.code).toUpperCase() === code && c.businessId === where.businessId,
-        );
-        if (!card) return null;
-        return { ...card, serviceCredits: attachCredits(card.id as string) };
-      }
-      return null;
-    });
-    giftCardRepo.find.mockImplementation(async (opts: { where: Record<string, unknown> }) => {
-      const { where } = opts;
-      return [...cards.values()]
-        .filter((c) => {
-          if (where.businessId && c.businessId !== where.businessId) return false;
-          if (where.purchaserCustomerId && c.purchaserCustomerId !== where.purchaserCustomerId) return false;
-          if (where.fulfillmentStatus && c.fulfillmentStatus !== where.fulfillmentStatus) return false;
-          return true;
-        })
-        .map((c) => ({ ...c, serviceCredits: attachCredits(c.id as string) }));
-    });
+        if (where.code) {
+          const code = String(where.code).trim().toUpperCase();
+          const card = [...cards.values()].find(
+            (c) =>
+              String(c.code).toUpperCase() === code &&
+              c.businessId === where.businessId,
+          );
+          if (!card) return null;
+          return { ...card, serviceCredits: attachCredits(card.id as string) };
+        }
+        return null;
+      },
+    );
+    giftCardRepo.find.mockImplementation(
+      async (opts: { where: Record<string, unknown> }) => {
+        const { where } = opts;
+        return [...cards.values()]
+          .filter((c) => {
+            if (where.businessId && c.businessId !== where.businessId)
+              return false;
+            if (
+              where.purchaserCustomerId &&
+              c.purchaserCustomerId !== where.purchaserCustomerId
+            )
+              return false;
+            if (
+              where.fulfillmentStatus &&
+              c.fulfillmentStatus !== where.fulfillmentStatus
+            )
+              return false;
+            return true;
+          })
+          .map((c) => ({
+            ...c,
+            serviceCredits: attachCredits(c.id as string),
+          }));
+      },
+    );
 
     giftCardRepo.createQueryBuilder.mockImplementation(() => {
       const state: { businessId: string; status?: string } = { businessId: '' };
@@ -334,8 +392,13 @@ describe('Gift card end-to-end integration', () => {
         getManyAndCount: jest.fn(async () => {
           const list = [...cards.values()]
             .filter((c) => c.businessId === state.businessId)
-            .filter((c) => (state.status ? c.fulfillmentStatus === state.status : true))
-            .map((c) => ({ ...c, serviceCredits: attachCredits(c.id as string) }));
+            .filter((c) =>
+              state.status ? c.fulfillmentStatus === state.status : true,
+            )
+            .map((c) => ({
+              ...c,
+              serviceCredits: attachCredits(c.id as string),
+            }));
           return [list, list.length];
         }),
       };
@@ -382,7 +445,9 @@ describe('Gift card end-to-end integration', () => {
     expect(orders).toHaveLength(1);
     expect(purchaseEvents.emit).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ payload: expect.objectContaining({ stripeSessionId: 'sess_list' }) }),
+      expect.objectContaining({
+        payload: expect.objectContaining({ stripeSessionId: 'sess_list' }),
+      }),
     );
   });
 
@@ -398,13 +463,13 @@ describe('Gift card end-to-end integration', () => {
       personalMessage: 'Enjoy!',
     });
 
-    await deliveryService.deliverDigitalGiftCard(purchased.id as string);
+    await deliveryService.deliverDigitalGiftCard(purchased.id);
 
     expect(emailService.send).toHaveBeenCalledTimes(2);
     expect(whatsappService.sendGiftCardMessage).toHaveBeenCalled();
-    expect(cards.get(purchased.id as string)?.fulfillmentStatus).toBe('delivered');
+    expect(cards.get(purchased.id)?.fulfillmentStatus).toBe('delivered');
 
-    const code = purchased.code as string;
+    const code = purchased.code;
     await giftCardsService.redeem('biz-1', code, 20, 'booking-1');
     const partial = await giftCardsService.getBalanceView('biz-1', code);
     expect(partial.balance).toBe(30);
@@ -415,7 +480,7 @@ describe('Gift card end-to-end integration', () => {
     expect(exhausted.balance).toBe(0);
     expect(exhausted.isActive).toBe(false);
 
-    const history = await giftCardsService.listRedemptions(purchased.id as string);
+    const history = await giftCardsService.listRedemptions(purchased.id);
     expect(history).toHaveLength(2);
   });
 
@@ -430,11 +495,16 @@ describe('Gift card end-to-end integration', () => {
 
     expect(credits.size).toBe(1);
 
-    await deliveryService.deliverDigitalGiftCard(purchased.id as string);
+    await deliveryService.deliverDigitalGiftCard(purchased.id);
 
-    const code = purchased.code as string;
+    const code = purchased.code;
     await giftCardsService.validate('biz-1', code, 'svc-1');
-    const redeemed = await giftCardsService.redeemServiceCredit('biz-1', code, 'svc-1', 'booking-svc');
+    const redeemed = await giftCardsService.redeemServiceCredit(
+      'biz-1',
+      code,
+      'svc-1',
+      'booking-svc',
+    );
     expect(redeemed.isActive).toBe(false);
   });
 
@@ -458,17 +528,33 @@ describe('Gift card end-to-end integration', () => {
     expect(purchased.fulfillmentStatus).toBe('awaiting_card_creation');
     expect(credits.size).toBe(2);
 
-    const ready = await fulfillmentService.markCardReady('biz-1', purchased.id as string, 'user-creator');
+    const ready = await fulfillmentService.markCardReady(
+      'biz-1',
+      purchased.id,
+      'user-creator',
+    );
     expect(ready.fulfillmentStatus).toBe('ready_for_delivery');
 
-    const out = await fulfillmentService.markOutForDelivery('biz-1', purchased.id as string, 'user-driver');
+    const out = await fulfillmentService.markOutForDelivery(
+      'biz-1',
+      purchased.id,
+      'user-driver',
+    );
     expect(out.fulfillmentStatus).toBe('out_for_delivery');
 
-    const shipped = await fulfillmentService.markShipped('biz-1', purchased.id as string, 'DHL', 'TRACK-99');
+    const shipped = await fulfillmentService.markShipped(
+      'biz-1',
+      purchased.id,
+      'DHL',
+      'TRACK-99',
+    );
     expect(shipped.fulfillmentStatus).toBe('shipped');
     expect(shipped.trackingNumber).toBe('TRACK-99');
 
-    const delivered = await fulfillmentService.markDelivered('biz-1', purchased.id as string);
+    const delivered = await fulfillmentService.markDelivered(
+      'biz-1',
+      purchased.id,
+    );
     expect(delivered.fulfillmentStatus).toBe('delivered');
     expect(delivered.codeRevealed).toBe(true);
   });
@@ -482,13 +568,26 @@ describe('Gift card end-to-end integration', () => {
       recipientEmail: 'friend@test.com',
     });
 
-    const code = purchased.code as string;
-    await giftCardsService.redeemServiceCredit('biz-1', code, 'svc-1', 'booking-1');
+    const code = purchased.code;
+    await giftCardsService.redeemServiceCredit(
+      'biz-1',
+      code,
+      'svc-1',
+      'booking-1',
+    );
     const mid = await giftCardsService.getBalanceView('biz-1', code);
     expect(mid.isActive).toBe(true);
-    expect(mid.serviceCredits.find((c) => c.serviceId === 'svc-1')?.quantityRemaining).toBe(0);
+    expect(
+      mid.serviceCredits.find((c) => c.serviceId === 'svc-1')
+        ?.quantityRemaining,
+    ).toBe(0);
 
-    await giftCardsService.redeemServiceCredit('biz-1', code, 'svc-2', 'booking-2');
+    await giftCardsService.redeemServiceCredit(
+      'biz-1',
+      code,
+      'svc-2',
+      'booking-2',
+    );
     const done = await giftCardsService.getBalanceView('biz-1', code);
     expect(done.isActive).toBe(false);
   });
@@ -532,18 +631,21 @@ describe('Gift card end-to-end integration', () => {
       recipientName: 'Phone Only',
     });
 
-    const stored = cards.get(purchased.id as string)!;
+    const stored = cards.get(purchased.id)!;
     stored.recipientEmail = null;
     stored.purchaserEmail = null;
 
-    await deliveryService.deliverDigitalGiftCard(purchased.id as string);
+    await deliveryService.deliverDigitalGiftCard(purchased.id);
 
     expect(emailService.send).not.toHaveBeenCalled();
     expect(whatsappService.sendGiftCardMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ toPhone: '+37499123456', giftCardCode: purchased.code }),
+      expect.objectContaining({
+        toPhone: '+37499123456',
+        giftCardCode: purchased.code,
+      }),
       expect.any(Object),
     );
-    expect(cards.get(purchased.id as string)?.fulfillmentStatus).toBe('delivered');
+    expect(cards.get(purchased.id)?.fulfillmentStatus).toBe('delivered');
   });
 
   it('masks hidden codes in balance view until physical card is revealed', async () => {
@@ -562,11 +664,21 @@ describe('Gift card end-to-end integration', () => {
       },
     });
 
-    const hidden = await giftCardsService.getBalanceView('biz-1', purchased.code as string);
+    const hidden = await giftCardsService.getBalanceView(
+      'biz-1',
+      purchased.code,
+    );
     expect(hidden.code).toBe('****');
 
-    await fulfillmentService.markCardReady('biz-1', purchased.id as string, 'user-creator');
-    const revealed = await giftCardsService.getBalanceView('biz-1', purchased.code as string);
+    await fulfillmentService.markCardReady(
+      'biz-1',
+      purchased.id,
+      'user-creator',
+    );
+    const revealed = await giftCardsService.getBalanceView(
+      'biz-1',
+      purchased.code,
+    );
     expect(revealed.code).toBe(purchased.code);
   });
 
@@ -579,9 +691,9 @@ describe('Gift card end-to-end integration', () => {
       recipientEmail: 'friend@test.com',
     });
 
-    await deliveryService.deliverDigitalGiftCard(purchased.id as string);
-    const code = purchased.code as string;
-    const cardId = purchased.id as string;
+    await deliveryService.deliverDigitalGiftCard(purchased.id);
+    const code = purchased.code;
+    const cardId = purchased.id;
 
     await giftCardsService.updateExpiration(
       'biz-1',
@@ -589,7 +701,9 @@ describe('Gift card end-to-end integration', () => {
       { expiresAt: '2020-01-01', note: 'Backdated for test' },
       'admin-1',
     );
-    await expect(giftCardsService.validate('biz-1', code)).rejects.toThrow('expired');
+    await expect(giftCardsService.validate('biz-1', code)).rejects.toThrow(
+      'expired',
+    );
 
     const extended = await giftCardsService.updateExpiration(
       'biz-1',
@@ -600,14 +714,22 @@ describe('Gift card end-to-end integration', () => {
     expect(extended.expiresAt!.getTime()).toBeGreaterThan(Date.now());
     await giftCardsService.validate('biz-1', code);
 
-    await giftCardsService.updateExpiration('biz-1', cardId, { expiresAt: null }, 'admin-1');
+    await giftCardsService.updateExpiration(
+      'biz-1',
+      cardId,
+      { expiresAt: null },
+      'admin-1',
+    );
     const cleared = cards.get(cardId)!;
     expect(cleared.expiresAt).toBeNull();
     await giftCardsService.redeem('biz-1', code, 10);
 
     const audit = await giftCardsService.listExpirationAudit(cardId);
     expect(audit.map((e) => e.action)).toEqual(['clear', 'extend', 'set']);
-    expect(audit[2]).toMatchObject({ adminUserId: 'admin-1', note: 'Backdated for test' });
+    expect(audit[2]).toMatchObject({
+      adminUserId: 'admin-1',
+      note: 'Backdated for test',
+    });
   });
 
   it('lists customer orders, blocks modify, cancels with immediate deactivation, and blocks partial use cancel', async () => {
@@ -630,8 +752,11 @@ describe('Gift card end-to-end integration', () => {
     expect(listed[0].policy.canModify).toBe(false);
 
     await expect(
-      orderService.submitModifyRequest('biz-1', 'cust-1', purchased.id as string, {
-        modifyPayload: { recipientName: 'Updated Name', personalMessage: 'New note' },
+      orderService.submitModifyRequest('biz-1', 'cust-1', purchased.id, {
+        modifyPayload: {
+          recipientName: 'Updated Name',
+          personalMessage: 'New note',
+        },
         customerNotes: 'Please update recipient details',
       }),
     ).rejects.toThrow('cannot be modified');
@@ -651,13 +776,13 @@ describe('Gift card end-to-end integration', () => {
     const cancelResult = await orderService.submitCancelRequest(
       'biz-1',
       'cust-1',
-      purchased2.id as string,
+      purchased2.id,
       'Please cancel',
     );
     expect(cancelResult.request.status).toBe('completed');
     expect(cancelResult.refundStatus).toBe('skipped');
-    expect(cards.get(purchased2.id as string)?.fulfillmentStatus).toBe('cancelled');
-    expect(cards.get(purchased2.id as string)?.isActive).toBe(false);
+    expect(cards.get(purchased2.id)?.fulfillmentStatus).toBe('cancelled');
+    expect(cards.get(purchased2.id)?.isActive).toBe(false);
 
     const purchased3 = await purchaseService.fulfillPurchase(
       'biz-1',
@@ -670,12 +795,12 @@ describe('Gift card end-to-end integration', () => {
       },
       'sess_gc_partial',
     );
-    const partialCard = cards.get(purchased3.id as string)!;
+    const partialCard = cards.get(purchased3.id)!;
     partialCard.balance = 45;
-    cards.set(purchased3.id as string, partialCard);
+    cards.set(purchased3.id, partialCard);
 
     await expect(
-      orderService.submitCancelRequest('biz-1', 'cust-1', purchased3.id as string),
+      orderService.submitCancelRequest('biz-1', 'cust-1', purchased3.id),
     ).rejects.toThrow('already been used');
   });
 

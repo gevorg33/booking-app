@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AgentOrchestratorService } from '../agent/agent-orchestrator.service.js';
 import { ScheduleApplyAgent } from '../agent/agents/schedule-apply.agent.js';
-import { AgentType, AgentContext } from '../agent/interfaces/agent.interfaces.js';
+import {
+  AgentType,
+  AgentContext,
+} from '../agent/interfaces/agent.interfaces.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 
@@ -54,7 +57,8 @@ export class SchedulingAgentService {
 
       const intent = `Optimize template "${params.templateName}" application for employee ${params.employeeId} from ${params.startDate} to ${params.endDate}. Days: ${params.applyDays.join(',')}. Analyze utilization, check for conflicts, and suggest optimal slot distribution.`;
 
-      const agentResult = await this.scheduleApplyAgent.analyzeTemplateApplication(context);
+      const agentResult =
+        await this.scheduleApplyAgent.analyzeTemplateApplication(context);
       const task = await this.agentOrchestrator.processPlan({
         plan: agentResult.plan,
         businessId: params.businessId,
@@ -89,7 +93,9 @@ export class SchedulingAgentService {
         businessId: params.businessId,
         dateRange: {
           start: new Date(params.startTime),
-          end: new Date(new Date(params.startTime).getTime() + 24 * 60 * 60 * 1000),
+          end: new Date(
+            new Date(params.startTime).getTime() + 24 * 60 * 60 * 1000,
+          ),
         },
       };
 

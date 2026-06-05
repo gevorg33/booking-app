@@ -6,10 +6,17 @@ describe('MarketingAutomationService', () => {
   const businessRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const customerRepo = { find: jest.fn() };
   const bookingRepo = { createQueryBuilder: jest.fn() };
-  const logRepo = { count: jest.fn(), findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
+  const logRepo = {
+    count: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
   const emailService = { send: jest.fn() };
   const smsService = { send: jest.fn() };
-  const configService = { get: jest.fn().mockReturnValue('http://localhost:3000') };
+  const configService = {
+    get: jest.fn().mockReturnValue('http://localhost:3000'),
+  };
 
   const service = new MarketingAutomationService(
     businessRepo as any,
@@ -53,7 +60,9 @@ describe('MarketingAutomationService', () => {
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getSettings('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getSettings('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('updates settings on business record', async () => {
@@ -65,22 +74,32 @@ describe('MarketingAutomationService', () => {
     expect(businessRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({
-          marketingAutomation: expect.objectContaining({ reEngagementPromoCode: 'WINBACK' }),
+          marketingAutomation: expect.objectContaining({
+            reEngagementPromoCode: 'WINBACK',
+          }),
         }),
       }),
     );
   });
 
   it('reads post-visit review toggle from settings', () => {
-    expect(service.isPostVisitReviewEnabled({ marketingAutomation: { postVisitReviewEnabled: false } })).toBe(
-      false,
-    );
+    expect(
+      service.isPostVisitReviewEnabled({
+        marketingAutomation: { postVisitReviewEnabled: false },
+      }),
+    ).toBe(false);
     expect(service.isPostVisitReviewEnabled(undefined)).toBe(true);
   });
 
   it('returns summary with eligible count', async () => {
     jest.spyOn(service, 'findReEngagementCandidates').mockResolvedValue([
-      { customerId: 'c1', name: 'Ann', email: 'a@x.com', phone: null, lastCompletedAt: null },
+      {
+        customerId: 'c1',
+        name: 'Ann',
+        email: 'a@x.com',
+        phone: null,
+        lastCompletedAt: null,
+      },
     ]);
     await expect(service.getSummary('biz-1')).resolves.toEqual({
       settings: expect.objectContaining({ reEngagementEnabled: true }),
@@ -159,9 +178,13 @@ describe('MarketingAutomationService', () => {
       andWhere: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ lastEnd: oldDate }),
     });
-    logRepo.findOne.mockResolvedValue({ sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) });
+    logRepo.findOne.mockResolvedValue({
+      sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    });
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual([]);
+    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual(
+      [],
+    );
   });
 
   it('excludes customers with a recent completed visit', async () => {
@@ -185,7 +208,9 @@ describe('MarketingAutomationService', () => {
     });
     logRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual([]);
+    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual(
+      [],
+    );
   });
 
   it('sends re-engagement sms when enabled', async () => {
@@ -211,7 +236,10 @@ describe('MarketingAutomationService', () => {
     ]);
 
     await expect(service.processBusinessReEngagement('biz-1')).resolves.toBe(1);
-    expect(smsService.send).toHaveBeenCalledWith('+15551234567', expect.stringContaining('Demo Salon'));
+    expect(smsService.send).toHaveBeenCalledWith(
+      '+15551234567',
+      expect.stringContaining('Demo Salon'),
+    );
   });
 
   it('logs failed email dispatch', async () => {
@@ -236,7 +264,9 @@ describe('MarketingAutomationService', () => {
     businessRepo.find.mockResolvedValue([{ id: 'biz-1', isActive: true }]);
     jest.spyOn(service, 'processBusinessReEngagement').mockResolvedValue(1);
     await expect(service.processAllBusinesses()).resolves.toBe(1);
-    expect(businessRepo.find).toHaveBeenCalledWith({ where: { isActive: true } });
+    expect(businessRepo.find).toHaveBeenCalledWith({
+      where: { isActive: true },
+    });
   });
 
   it('sends re-engagement email and logs success', async () => {
@@ -267,7 +297,9 @@ describe('MarketingAutomationService', () => {
   });
 
   it('updates settings clearing promo code with null', async () => {
-    const next = await service.updateSettings('biz-1', { reEngagementPromoCode: null });
+    const next = await service.updateSettings('biz-1', {
+      reEngagementPromoCode: null,
+    });
     expect(next.reEngagementPromoCode).toBeNull();
   });
 
@@ -296,9 +328,13 @@ describe('MarketingAutomationService', () => {
       andWhere: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ lastEnd: oldDate }),
     });
-    logRepo.findOne.mockResolvedValue({ sentAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) });
+    logRepo.findOne.mockResolvedValue({
+      sentAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+    });
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toHaveLength(1);
+    await expect(
+      service.findReEngagementCandidates('biz-1'),
+    ).resolves.toHaveLength(1);
   });
 
   it('skips customers who never completed a visit', async () => {
@@ -319,7 +355,9 @@ describe('MarketingAutomationService', () => {
       getRawOne: jest.fn().mockResolvedValue({ lastEnd: null }),
     });
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual([]);
+    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual(
+      [],
+    );
   });
 
   it('appends promo code to re-engagement message body', async () => {
@@ -403,7 +441,11 @@ describe('MarketingAutomationService', () => {
 
     await expect(service.processBusinessReEngagement('biz-1')).resolves.toBe(0);
     expect(logRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ channel: 'sms', status: 'failed', error: 'invalid number' }),
+      expect.objectContaining({
+        channel: 'sms',
+        status: 'failed',
+        error: 'invalid number',
+      }),
     );
   });
 
@@ -456,7 +498,9 @@ describe('MarketingAutomationService', () => {
 
   it('reads post-visit review toggle when marketing settings are non-object', () => {
     expect(
-      service.isPostVisitReviewEnabled({ marketingAutomation: 'invalid' as unknown as Record<string, unknown> }),
+      service.isPostVisitReviewEnabled({
+        marketingAutomation: 'invalid' as unknown as Record<string, unknown>,
+      }),
     ).toBe(true);
   });
 
@@ -465,7 +509,9 @@ describe('MarketingAutomationService', () => {
       ...business,
       settings: { marketingAutomation: { reEngagementPromoCode: 'KEEP' } },
     });
-    const next = await service.updateSettings('biz-1', { reEngagementPromoCode: null });
+    const next = await service.updateSettings('biz-1', {
+      reEngagementPromoCode: null,
+    });
     expect(next.reEngagementPromoCode).toBeNull();
   });
 
@@ -504,7 +550,9 @@ describe('MarketingAutomationService', () => {
 
   it('uses default settings when finding candidates without explicit settings arg', async () => {
     customerRepo.find.mockResolvedValue([]);
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual([]);
+    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual(
+      [],
+    );
     expect(customerRepo.find).toHaveBeenCalled();
   });
 
@@ -536,9 +584,9 @@ describe('MarketingAutomationService', () => {
   });
 
   it('excludes customer exactly on inactivity threshold boundary', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-05T12:00:00.000Z') });
     const thresholdDays = 90;
-    const lastEnd = new Date();
-    lastEnd.setDate(lastEnd.getDate() - thresholdDays);
+    const lastEnd = new Date('2026-03-07T12:00:00.000Z');
 
     customerRepo.find.mockResolvedValue([
       {
@@ -558,7 +606,10 @@ describe('MarketingAutomationService', () => {
     });
     logRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual([]);
+    await expect(service.findReEngagementCandidates('biz-1')).resolves.toEqual(
+      [],
+    );
+    jest.useRealTimers();
   });
 
   it('includes customer just past inactivity threshold boundary', async () => {
@@ -583,7 +634,9 @@ describe('MarketingAutomationService', () => {
     });
     logRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.findReEngagementCandidates('biz-1')).resolves.toHaveLength(1);
+    await expect(
+      service.findReEngagementCandidates('biz-1'),
+    ).resolves.toHaveLength(1);
   });
 
   it('preserves existing promo when update omits promo field', async () => {
@@ -591,7 +644,9 @@ describe('MarketingAutomationService', () => {
       ...business,
       settings: { marketingAutomation: { reEngagementPromoCode: 'SAVE20' } },
     });
-    const next = await service.updateSettings('biz-1', { reEngagementEnabled: true });
+    const next = await service.updateSettings('biz-1', {
+      reEngagementEnabled: true,
+    });
     expect(next.reEngagementPromoCode).toBe('SAVE20');
   });
 
@@ -600,7 +655,9 @@ describe('MarketingAutomationService', () => {
       ...business,
       settings: { marketingAutomation: { reEngagementPromoCode: 'OLD' } },
     });
-    const next = await service.updateSettings('biz-1', { reEngagementPromoCode: '   ' });
+    const next = await service.updateSettings('biz-1', {
+      reEngagementPromoCode: '   ',
+    });
     expect(next.reEngagementPromoCode).toBe('OLD');
   });
 
@@ -609,7 +666,9 @@ describe('MarketingAutomationService', () => {
       ...business,
       settings: { marketingAutomation: { reEngagementPromoCode: 'OLD' } },
     });
-    const next = await service.updateSettings('biz-1', { reEngagementPromoCode: '  NEWCODE  ' });
+    const next = await service.updateSettings('biz-1', {
+      reEngagementPromoCode: '  NEWCODE  ',
+    });
     expect(next.reEngagementPromoCode).toBe('NEWCODE');
   });
 

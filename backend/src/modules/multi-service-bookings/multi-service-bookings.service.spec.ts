@@ -72,23 +72,35 @@ describe('MultiServiceBookingsService', () => {
       ...business,
       settings: JSON.parse(JSON.stringify(business.settings)),
     });
-    serviceRepo.find.mockImplementation(async (opts: { where?: { id?: unknown } }) => {
-      const idFilter = opts?.where?.id as { _value?: string[] } | string | undefined;
-      let ids: string[] | undefined;
-      if (Array.isArray(idFilter)) ids = idFilter;
-      else if (idFilter && typeof idFilter === 'object' && Array.isArray(idFilter._value)) {
-        ids = idFilter._value;
-      } else if (typeof idFilter === 'string') ids = [idFilter];
-      if (!ids) return loadedServices;
-      return loadedServices.filter((svc) => ids!.includes(svc.id));
-    });
+    serviceRepo.find.mockImplementation(
+      async (opts: { where?: { id?: unknown } }) => {
+        const idFilter = opts?.where?.id as
+          | { _value?: string[] }
+          | string
+          | undefined;
+        let ids: string[] | undefined;
+        if (Array.isArray(idFilter)) ids = idFilter;
+        else if (
+          idFilter &&
+          typeof idFilter === 'object' &&
+          Array.isArray(idFilter._value)
+        ) {
+          ids = idFilter._value;
+        } else if (typeof idFilter === 'string') ids = [idFilter];
+        if (!ids) return loadedServices;
+        return loadedServices.filter((svc) => ids.includes(svc.id));
+      },
+    );
   });
 
   it('returns and updates settings', async () => {
     const settings = await service.getSettings('biz-1');
     expect(settings.enabled).toBe(true);
 
-    const updated = await service.updateSettings('biz-1', { enabled: true, maxServiceCount: 4 });
+    const updated = await service.updateSettings('biz-1', {
+      enabled: true,
+      maxServiceCount: 4,
+    });
     expect(updated.maxServiceCount).toBe(4);
     expect(businessRepo.save).toHaveBeenCalled();
   });
@@ -105,9 +117,9 @@ describe('MultiServiceBookingsService', () => {
       ...business,
       settings: { publicBooking: { multiService: { enabled: false } } },
     });
-    await expect(service.validateSelection('biz-1', ['svc-1', 'svc-2'])).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.validateSelection('biz-1', ['svc-1', 'svc-2']),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('creates booking groups', async () => {
@@ -131,20 +143,27 @@ describe('MultiServiceBookingsService', () => {
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getSettings('missing')).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it('validates selection directly and rejects invalid preview', async () => {
-    const validation = await service.validateSelection('biz-1', ['svc-1', 'svc-2']);
-    expect(validation.valid).toBe(true);
-
-    await expect(service.previewTotals('biz-1', ['svc-1'])).rejects.toBeInstanceOf(
-      BadRequestException,
+    await expect(service.getSettings('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
     );
   });
 
+  it('validates selection directly and rejects invalid preview', async () => {
+    const validation = await service.validateSelection('biz-1', [
+      'svc-1',
+      'svc-2',
+    ]);
+    expect(validation.valid).toBe(true);
+
+    await expect(
+      service.previewTotals('biz-1', ['svc-1']),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('exposes settings from a business entity', () => {
-    expect(service.resolveSettingsFromBusiness(business as any).enabled).toBe(true);
+    expect(service.resolveSettingsFromBusiness(business as any).enabled).toBe(
+      true,
+    );
   });
 
   it('updates all settings fields', async () => {
@@ -152,7 +171,7 @@ describe('MultiServiceBookingsService', () => {
       enabled: true,
       maxServiceCount: 5,
       maxDurationMinutes: 200,
-      turnoverBufferMinutes:  8,
+      turnoverBufferMinutes: 8,
       schedulingMode: 'per_service',
       incompatiblePairMode: 'category',
       incompatiblePairs: [['svc-1', 'svc-2']],
@@ -193,16 +212,19 @@ describe('MultiServiceBookingsService', () => {
       },
     });
 
-    const validation = await service.validateSelection('biz-1', ['svc-1', 'svc-3']);
+    const validation = await service.validateSelection('biz-1', [
+      'svc-1',
+      'svc-3',
+    ]);
     expect(validation.valid).toBe(false);
     expect(validation.errors[0]).toContain('cannot be booked together');
   });
 
   it('rejects preview when a selected service is missing', async () => {
     serviceRepo.find.mockResolvedValue([loadedServices[0]]);
-    await expect(service.previewTotals('biz-1', ['svc-1', 'svc-2'])).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.previewTotals('biz-1', ['svc-1', 'svc-2']),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects service-pair incompatible selections', async () => {
@@ -224,7 +246,10 @@ describe('MultiServiceBookingsService', () => {
       },
     });
 
-    const validation = await service.validateSelection('biz-1', ['svc-1', 'svc-3']);
+    const validation = await service.validateSelection('biz-1', [
+      'svc-1',
+      'svc-3',
+    ]);
     expect(validation.valid).toBe(false);
     expect(validation.errors[0]).toContain('cannot be booked together');
   });
@@ -234,12 +259,18 @@ describe('MultiServiceBookingsService', () => {
       { ...loadedServices[0], categoryId: null },
       loadedServices[1],
     ]);
-    const loaded = await service.loadServicesForSelection('biz-1', ['svc-1', 'svc-2']);
+    const loaded = await service.loadServicesForSelection('biz-1', [
+      'svc-1',
+      'svc-2',
+    ]);
     expect(loaded[0].categoryId).toBeNull();
   });
 
   it('updates settings when business settings are empty', async () => {
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: undefined });
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: undefined,
+    });
     await service.updateSettings('biz-1', { enabled: true });
     expect(businessRepo.save).toHaveBeenCalled();
   });
@@ -262,9 +293,9 @@ describe('MultiServiceBookingsService', () => {
 
   it('throws when updating settings for missing business', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.updateSettings('missing', { enabled: true })).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.updateSettings('missing', { enabled: true }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('handles empty service id lists and default service currency', async () => {

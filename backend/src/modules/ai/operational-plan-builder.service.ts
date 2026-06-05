@@ -5,6 +5,16 @@ import {
   AgentType,
   PlanStatus,
 } from '../../engine/agent/interfaces/agent.interfaces.js';
+import {
+  buildHolidayModePlanMeta,
+  buildOnboardProviderPlanMeta,
+  buildRebalanceCapacityPlanMeta,
+  buildRebalanceCapacityPlanSteps,
+  buildSwapSchedulesPlanMeta,
+  buildSwapSchedulesPlanSteps,
+  mergeHolidayModeSteps,
+  mergeOnboardProviderSteps,
+} from './ai-scheduling-plan.util.js';
 
 export interface ResolvedBookingParams {
   businessId: string;
@@ -19,6 +29,13 @@ export interface ResolvedBookingParams {
   customerName?: string;
   date: string;
   timeSlot: string;
+  useSubscriptionId?: string;
+  metadata?: Record<string, unknown>;
+  paymentStatus?: string;
+  packagePurchaseId?: string;
+  multiServiceGroupId?: string;
+  resourceIds?: string[];
+  sameVisitMultiService?: boolean;
 }
 
 export interface ResolvedCreateServiceParams {
@@ -200,14 +217,19 @@ export class OperationalPlanBuilderService {
       });
     }
 
-    const providerNames = [...new Set(params.periods.map((p) => p.employeeName))].join(', ');
+    const providerNames = [
+      ...new Set(params.periods.map((p) => p.employeeName)),
+    ].join(', ');
     const periodCount = params.periods.length;
 
     return this.wrapPlan(params.businessId, 'fill_unused_slots', steps, {
       reasoning: `Fill ${periodCount} schedule gap(s) for ${providerNames} between ${params.timeFrom}–${params.timeTo}.`,
       risk: {
         level: periodCount > 10 ? 'medium' : 'low',
-        factors: [`Adds ${periodCount} schedule period(s)`, 'Does not modify existing bookings'],
+        factors: [
+          `Adds ${periodCount} schedule period(s)`,
+          'Does not modify existing bookings',
+        ],
       },
     });
   }
@@ -235,7 +257,10 @@ export class OperationalPlanBuilderService {
       reasoning: `Apply template "${params.templateName}" to ${params.employeeNames.join(', ')} from ${params.startDate} to ${params.endDate}.`,
       risk: {
         level: steps.length > 2 ? 'high' : steps.length > 1 ? 'medium' : 'low',
-        factors: [`Affects ${steps.length} provider(s)`, 'Replaces existing schedule on applied days'],
+        factors: [
+          `Affects ${steps.length} provider(s)`,
+          'Replaces existing schedule on applied days',
+        ],
       },
     });
   }
@@ -262,7 +287,10 @@ export class OperationalPlanBuilderService {
       reasoning: `Block schedule for ${params.blocks.map((b) => b.employeeName).join(', ')}.`,
       risk: {
         level: steps.length > 3 ? 'high' : steps.length > 1 ? 'medium' : 'low',
-        factors: [`${steps.length} block schedule(s)`, 'May split existing service periods'],
+        factors: [
+          `${steps.length} block schedule(s)`,
+          'May split existing service periods',
+        ],
       },
     });
   }
@@ -285,13 +313,19 @@ export class OperationalPlanBuilderService {
     }));
 
     const dayLabel =
-      dates.length === 1 ? dates[0] : `${dates.length} days (${dates[0]} → ${dates[dates.length - 1]})`;
+      dates.length === 1
+        ? dates[0]
+        : `${dates.length} days (${dates[0]} → ${dates[dates.length - 1]})`;
 
     return this.wrapPlan(params.businessId, 'create_direct_schedule', steps, {
       reasoning: `Direct schedule for ${params.employeeName} on ${dayLabel} (${params.periods.length} period(s) per day).`,
       risk: {
-        level: dates.length > 3 ? 'high' : dates.length > 1 ? 'medium' : 'medium',
-        factors: [`Replaces schedule for ${dates.length} day(s)`, 'Replaces entire day schedule for provider'],
+        level:
+          dates.length > 3 ? 'high' : dates.length > 1 ? 'medium' : 'medium',
+        factors: [
+          `Replaces schedule for ${dates.length} day(s)`,
+          'Replaces entire day schedule for provider',
+        ],
       },
     });
   }
@@ -311,19 +345,26 @@ export class OperationalPlanBuilderService {
       estimatedImpact: `Removes schedule periods and slots for ${entry.employeeName}`,
     }));
 
-    const who = [...new Set(params.clears.map((c) => c.employeeName))].join(', ');
+    const who = [...new Set(params.clears.map((c) => c.employeeName))].join(
+      ', ',
+    );
     const days = [...new Set(params.clears.map((c) => c.date))].length;
 
     return this.wrapPlan(params.businessId, 'clear_schedule', steps, {
       reasoning: `Clear applied schedule for ${who} (${days} day(s)) — removes periods and micro-slots; bookings are not cancelled.`,
       risk: {
         level: steps.length > 3 ? 'medium' : 'low',
-        factors: [`Clears ${steps.length} schedule day(s)`, 'Does not cancel existing appointments'],
+        factors: [
+          `Clears ${steps.length} schedule day(s)`,
+          'Does not cancel existing appointments',
+        ],
       },
     });
   }
 
-  buildRescheduleBookingPlan(params: ResolvedRescheduleBookingParams): AgentPlan {
+  buildRescheduleBookingPlan(
+    params: ResolvedRescheduleBookingParams,
+  ): AgentPlan {
     const stepId = crypto.randomUUID();
     const steps: AgentPlanStep[] = [
       {
@@ -349,7 +390,9 @@ export class OperationalPlanBuilderService {
     });
   }
 
-  buildAssignEmployeeServicesPlan(params: ResolvedAssignServicesParams): AgentPlan {
+  buildAssignEmployeeServicesPlan(
+    params: ResolvedAssignServicesParams,
+  ): AgentPlan {
     const stepId = crypto.randomUUID();
     const steps: AgentPlanStep[] = [
       {
@@ -373,7 +416,9 @@ export class OperationalPlanBuilderService {
     });
   }
 
-  buildCreateScheduleTemplatePlan(params: ResolvedCreateScheduleTemplateParams): AgentPlan {
+  buildCreateScheduleTemplatePlan(
+    params: ResolvedCreateScheduleTemplateParams,
+  ): AgentPlan {
     const stepId = crypto.randomUUID();
     const steps: AgentPlanStep[] = [
       {
@@ -474,7 +519,11 @@ export class OperationalPlanBuilderService {
         description: 'Evaluate conflict resolution strategies',
         params: {
           businessId: params.businessId,
-          strategies: ['reschedule', 'reassign_employee', 'cancel_lower_priority'],
+          strategies: [
+            'reschedule',
+            'reassign_employee',
+            'cancel_lower_priority',
+          ],
         },
         dependsOn: [detectId],
         estimatedImpact: 'Read-only resolution analysis',
@@ -513,7 +562,10 @@ export class OperationalPlanBuilderService {
         id: recId,
         action: 'generate_optimization_recommendations',
         description: 'Generate replan recommendations',
-        params: { businessId: params.businessId, optimizationGoal: 'replan day' },
+        params: {
+          businessId: params.businessId,
+          optimizationGoal: 'replan day',
+        },
         dependsOn: [gapsId, detectId],
         estimatedImpact: 'Read-only recommendations',
       },
@@ -524,7 +576,10 @@ export class OperationalPlanBuilderService {
         'Analyze schedule conflicts and gaps, auto-reschedule overlaps where possible, then recommend further fixes.',
       risk: {
         level: 'medium',
-        factors: ['May reschedule conflicting bookings', 'Multi-step day replan'],
+        factors: [
+          'May reschedule conflicting bookings',
+          'Multi-step day replan',
+        ],
       },
     });
   }
@@ -544,6 +599,13 @@ export class OperationalPlanBuilderService {
           startTime: params.startTime,
           notes: params.notes,
           userId: params.userId,
+          useSubscriptionId: params.useSubscriptionId,
+          metadata: params.metadata,
+          paymentStatus: params.paymentStatus,
+          packagePurchaseId: params.packagePurchaseId,
+          multiServiceGroupId: params.multiServiceGroupId,
+          resourceIds: params.resourceIds,
+          sameVisitMultiService: params.sameVisitMultiService,
         },
         dependsOn: [],
         estimatedImpact: 'Creates one confirmed booking',
@@ -580,7 +642,10 @@ export class OperationalPlanBuilderService {
 
     return this.wrapPlan(params.businessId, 'create_service', steps, {
       reasoning: `Create service "${params.name}" (${params.durationMinutes} min, ${params.currency ?? 'USD'} ${params.price}).`,
-      risk: { level: 'low' as const, factors: ['Single service catalog mutation'] },
+      risk: {
+        level: 'low' as const,
+        factors: ['Single service catalog mutation'],
+      },
     });
   }
 
@@ -621,7 +686,12 @@ export class OperationalPlanBuilderService {
     bookingIds: string[],
     reason: string,
     userId?: string,
-    meta?: { employeeName?: string; date?: string; services?: string[]; notifyCustomers?: boolean },
+    meta?: {
+      employeeName?: string;
+      date?: string;
+      services?: string[];
+      notifyCustomers?: boolean;
+    },
   ): AgentPlan {
     const cancelId = crypto.randomUUID();
     const steps: AgentPlanStep[] = [
@@ -642,7 +712,8 @@ export class OperationalPlanBuilderService {
         description: `Notify ${bookingIds.length} customer(s) about cancellation`,
         params: { bookingIds, reason, businessId },
         dependsOn: [cancelId],
-        estimatedImpact: 'Sends cancellation notifications (email, SMS, WhatsApp)',
+        estimatedImpact:
+          'Sends cancellation notifications (email, SMS, WhatsApp)',
       });
     }
 
@@ -657,7 +728,12 @@ export class OperationalPlanBuilderService {
     return this.wrapPlan(businessId, 'cancel_bookings', steps, {
       reasoning: `Cancel ${bookingIds.length} booking(s)${filterDesc ? `: ${filterDesc}` : ''}. Reason: ${reason}`,
       risk: {
-        level: bookingIds.length > 5 ? 'high' : bookingIds.length > 1 ? 'medium' : 'low',
+        level:
+          bookingIds.length > 5
+            ? 'high'
+            : bookingIds.length > 1
+              ? 'medium'
+              : 'low',
         factors: [`Affects ${bookingIds.length} booking(s)`],
       },
     });
@@ -699,7 +775,9 @@ export class OperationalPlanBuilderService {
       reasoning: `Hide ${bookingIds.length} appointment(s) from calendar${filterDesc ? `: ${filterDesc}` : ''}. Records remain in the database.`,
       risk: {
         level: bookingIds.length > 10 ? 'medium' : 'low',
-        factors: [`Hides ${bookingIds.length} appointment(s) from calendar view only`],
+        factors: [
+          `Hides ${bookingIds.length} appointment(s) from calendar view only`,
+        ],
       },
     });
   }
@@ -742,13 +820,20 @@ export class OperationalPlanBuilderService {
       .filter(Boolean)
       .join(' · ');
 
-    return this.wrapPlan(businessId, 'unhide_appointments_from_calendar', steps, {
-      reasoning: `Restore ${bookingIds.length} hidden appointment(s) to calendar${filterDesc ? `: ${filterDesc}` : ''}.`,
-      risk: {
-        level: 'low',
-        factors: [`Restores ${bookingIds.length} appointment(s) to calendar view only`],
+    return this.wrapPlan(
+      businessId,
+      'unhide_appointments_from_calendar',
+      steps,
+      {
+        reasoning: `Restore ${bookingIds.length} hidden appointment(s) to calendar${filterDesc ? `: ${filterDesc}` : ''}.`,
+        risk: {
+          level: 'low',
+          factors: [
+            `Restores ${bookingIds.length} appointment(s) to calendar view only`,
+          ],
+        },
       },
-    });
+    );
   }
 
   buildBulkSmartCancelPlan(
@@ -756,7 +841,12 @@ export class OperationalPlanBuilderService {
     bookingIds: string[],
     reason: string,
     userId?: string,
-    meta?: { employeeName?: string; date?: string; services?: string[]; dateRange?: { start: string; end: string } },
+    meta?: {
+      employeeName?: string;
+      date?: string;
+      services?: string[];
+      dateRange?: { start: string; end: string };
+    },
   ): AgentPlan {
     const cancelId = crypto.randomUUID();
     const notifyId = crypto.randomUUID();
@@ -811,7 +901,11 @@ export class OperationalPlanBuilderService {
       },
     ];
 
-    const filterDesc = [meta?.employeeName, meta?.services?.join(', '), meta?.date]
+    const filterDesc = [
+      meta?.employeeName,
+      meta?.services?.join(', '),
+      meta?.date,
+    ]
       .filter(Boolean)
       .join(' · ');
 
@@ -870,6 +964,100 @@ export class OperationalPlanBuilderService {
     });
   }
 
+  buildSwapSchedulesPlan(params: {
+    businessId: string;
+    swaps: Array<{
+      date: string;
+      employeeA: {
+        id: string;
+        name: string;
+        periods: ResolvedDirectScheduleParams['periods'];
+      };
+      employeeB: {
+        id: string;
+        name: string;
+        periods: ResolvedDirectScheduleParams['periods'];
+      };
+    }>;
+    userId?: string;
+  }): AgentPlan {
+    const steps = buildSwapSchedulesPlanSteps(params);
+    const meta = buildSwapSchedulesPlanMeta(params.swaps, steps);
+    return this.wrapPlan(params.businessId, 'swap_schedules', steps, meta);
+  }
+
+  buildRebalanceCapacityPlan(params: {
+    businessId: string;
+    fromName: string;
+    toName: string;
+    serviceName: string;
+    date: string;
+    moves: Array<{
+      bookingId: string;
+      label: string;
+      startTime: string;
+      employeeId: string;
+      serviceId: string;
+    }>;
+    userId?: string;
+  }): AgentPlan {
+    const steps = buildRebalanceCapacityPlanSteps(params);
+    const meta = buildRebalanceCapacityPlanMeta({
+      fromName: params.fromName,
+      toName: params.toName,
+      serviceName: params.serviceName,
+      date: params.date,
+      movesCount: params.moves.length,
+    });
+    return this.wrapPlan(params.businessId, 'rebalance_capacity', steps, meta);
+  }
+
+  buildHolidayModePlan(params: {
+    businessId: string;
+    blockPlan: AgentPlan;
+    extendPlans: AgentPlan[];
+    closeDates: string[];
+    extendDate?: string;
+  }): AgentPlan {
+    const allSteps = mergeHolidayModeSteps({
+      blockSteps: params.blockPlan.steps,
+      extendPlans: params.extendPlans,
+    });
+    const meta = buildHolidayModePlanMeta({
+      closeDates: params.closeDates,
+      extendDate: params.extendDate,
+      allStepsCount: allSteps.length,
+    });
+    return this.wrapPlan(params.businessId, 'holiday_mode', allSteps, meta);
+  }
+
+  buildOnboardProviderSchedulePlan(params: {
+    businessId: string;
+    employeeName: string;
+    templateName: string;
+    serviceNames: string[];
+    applyPlan: AgentPlan;
+    assignPlan: AgentPlan | null;
+  }): AgentPlan {
+    const allSteps = mergeOnboardProviderSteps({
+      applySteps: params.applyPlan.steps,
+      assignSteps: params.assignPlan?.steps ?? [],
+    });
+    const meta = buildOnboardProviderPlanMeta({
+      employeeName: params.employeeName,
+      templateName: params.templateName,
+      serviceNames: params.serviceNames,
+      hasAssignPlan: !!params.assignPlan,
+      allStepsCount: allSteps.length,
+    });
+    return this.wrapPlan(
+      params.businessId,
+      'onboard_provider_schedule',
+      allSteps,
+      meta,
+    );
+  }
+
   buildTemplateCascadePlan(
     applyParams: ResolvedApplyScheduleParams,
     fillParams: ResolvedFillScheduleGapsParams,
@@ -885,19 +1073,33 @@ export class OperationalPlanBuilderService {
     const allSteps = [...applyPlan.steps, ...fillSteps];
     const providerNames = applyParams.employeeNames.join(', ');
 
-    return this.wrapPlan(applyParams.businessId, 'setup_week_schedule', allSteps, {
-      reasoning: `Template cascade: apply "${applyParams.templateName}" to ${providerNames}, then fill ${fillParams.periods.length} gap(s) between ${fillParams.timeFrom}–${fillParams.timeTo}.`,
-      risk: {
-        level: allSteps.length > 6 ? 'high' : allSteps.length > 3 ? 'medium' : 'low',
-        factors: [
-          `${applyPlan.steps.length} template apply step(s)`,
-          `${fillSteps.length} gap fill step(s)`,
-        ],
+    return this.wrapPlan(
+      applyParams.businessId,
+      'setup_week_schedule',
+      allSteps,
+      {
+        reasoning: `Template cascade: apply "${applyParams.templateName}" to ${providerNames}, then fill ${fillParams.periods.length} gap(s) between ${fillParams.timeFrom}–${fillParams.timeTo}.`,
+        risk: {
+          level:
+            allSteps.length > 6
+              ? 'high'
+              : allSteps.length > 3
+                ? 'medium'
+                : 'low',
+          factors: [
+            `${applyPlan.steps.length} template apply step(s)`,
+            `${fillSteps.length} gap fill step(s)`,
+          ],
+        },
       },
-    });
+    );
   }
 
-  mergePlans(businessId: string, intent: string, plans: AgentPlan[]): AgentPlan {
+  mergePlans(
+    businessId: string,
+    intent: string,
+    plans: AgentPlan[],
+  ): AgentPlan {
     const allSteps: AgentPlanStep[] = [];
     let priorIds: string[] = [];
 
@@ -914,14 +1116,32 @@ export class OperationalPlanBuilderService {
     const riskOrder = { low: 0, medium: 1, high: 2 };
     const maxRisk = plans.reduce(
       (max, p) =>
-        riskOrder[p.riskAssessment.level] > riskOrder[max.riskAssessment.level] ? p : max,
+        riskOrder[p.riskAssessment.level] > riskOrder[max.riskAssessment.level]
+          ? p
+          : max,
       plans[0],
     );
 
     return this.wrapPlan(businessId, intent, allSteps, {
-      reasoning: plans.map((p) => p.reasoning).filter(Boolean).join(' → '),
+      reasoning: plans
+        .map((p) => p.reasoning)
+        .filter(Boolean)
+        .join(' → '),
       risk: maxRisk.riskAssessment,
     });
+  }
+
+  wrapOperationsPlan(
+    businessId: string,
+    intent: string,
+    steps: AgentPlanStep[],
+    meta: {
+      reasoning: string;
+      risk: { level: 'low' | 'medium' | 'high'; factors: string[] };
+      requiresApproval?: boolean;
+    },
+  ): AgentPlan {
+    return this.wrapPlan(businessId, intent, steps, meta);
   }
 
   private wrapPlan(
@@ -931,6 +1151,7 @@ export class OperationalPlanBuilderService {
     meta: {
       reasoning: string;
       risk: { level: 'low' | 'medium' | 'high'; factors: string[] };
+      requiresApproval?: boolean;
     },
   ): AgentPlan {
     return {

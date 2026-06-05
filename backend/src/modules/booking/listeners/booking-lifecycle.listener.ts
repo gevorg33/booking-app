@@ -25,7 +25,9 @@ export class BookingLifecycleListener {
     event: OperationalEvent,
     reason: string,
   ): Promise<void> {
-    this.logger.log(`Booking ${event.aggregateId} — ${reason}, refreshing availability`);
+    this.logger.log(
+      `Booking ${event.aggregateId} — ${reason}, refreshing availability`,
+    );
 
     await this.eventStore.publish({
       eventType: EventType.AVAILABILITY_UPDATED,

@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -6,7 +13,10 @@ import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../user/entities/user.entity.js';
 import { Business } from '../business/entities/business.entity.js';
-import { BusinessMember, MemberRole } from '../business/entities/business-member.entity.js';
+import {
+  BusinessMember,
+  MemberRole,
+} from '../business/entities/business-member.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { PasswordResetToken } from './entities/password-reset-token.entity.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -28,9 +38,11 @@ export class AuthService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
-    @InjectRepository(PasswordResetToken) private resetTokenRepo: Repository<PasswordResetToken>,
+    @InjectRepository(PasswordResetToken)
+    private resetTokenRepo: Repository<PasswordResetToken>,
     private jwtService: JwtService,
     private eventStore: EventStoreService,
     private emailService: EmailService,
@@ -38,7 +50,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    const existing = await this.userRepo.findOne({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -54,7 +68,13 @@ export class AuthService {
     );
 
     const businessName = dto.businessName || `${dto.firstName}'s Business`;
-    const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + user.id.slice(0, 8);
+    const slug =
+      businessName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') +
+      '-' +
+      user.id.slice(0, 8);
 
     const business = await this.businessRepo.save(
       this.businessRepo.create({
@@ -125,7 +145,9 @@ export class AuthService {
 
   async loginWithGoogle(idToken: string, hint?: TenantHint) {
     if (!this.firebase.isReady) {
-      throw new BadRequestException('Google sign-in is not configured on the server');
+      throw new BadRequestException(
+        'Google sign-in is not configured on the server',
+      );
     }
 
     let decoded;
@@ -146,10 +168,13 @@ export class AuthService {
       });
     }
 
-    const user = await this.userRepo.findOne({ where: { email, isActive: true } });
+    const user = await this.userRepo.findOne({
+      where: { email, isActive: true },
+    });
     if (!user) {
       throw new UnauthorizedException({
-        message: 'No provider account for this Google email. Ask your admin to send app access.',
+        message:
+          'No provider account for this Google email. Ask your admin to send app access.',
         code: 'ACCOUNT_NOT_FOUND',
       });
     }
@@ -157,8 +182,13 @@ export class AuthService {
     return this.buildAuthResponse(user, hint);
   }
 
-  async switchBusiness(userId: string, businessId: string): Promise<AuthResponse> {
-    const user = await this.userRepo.findOne({ where: { id: userId, isActive: true } });
+  async switchBusiness(
+    userId: string,
+    businessId: string,
+  ): Promise<AuthResponse> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId, isActive: true },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     const memberships = await this.loadMemberships(userId);
@@ -173,7 +203,9 @@ export class AuthService {
   }
 
   async getMe(userId: string, activeBusinessId?: string | null) {
-    const user = await this.userRepo.findOne({ where: { id: userId, isActive: true } });
+    const user = await this.userRepo.findOne({
+      where: { id: userId, isActive: true },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     const memberships = await this.loadMemberships(userId);
@@ -183,7 +215,13 @@ export class AuthService {
       if (summaries.length === 1) {
         const membership = memberships[0];
         const employee = summaries[0].employee;
-        return this.toAuthResponse(user, membership, employee, summaries, false);
+        return this.toAuthResponse(
+          user,
+          membership,
+          employee,
+          summaries,
+          false,
+        );
       }
       return {
         user: this.toPublicUser(user),
@@ -195,7 +233,9 @@ export class AuthService {
       } satisfies AuthResponse;
     }
 
-    const membership = memberships.find((m) => m.businessId === activeBusinessId);
+    const membership = memberships.find(
+      (m) => m.businessId === activeBusinessId,
+    );
     if (!membership) {
       return {
         user: this.toPublicUser(user),
@@ -226,7 +266,10 @@ export class AuthService {
     } satisfies AuthResponse;
   }
 
-  private async buildAuthResponse(user: User, hint?: TenantHint): Promise<AuthResponse> {
+  private async buildAuthResponse(
+    user: User,
+    hint?: TenantHint,
+  ): Promise<AuthResponse> {
     const memberships = await this.loadMemberships(user.id);
     const summaries = await this.buildSummaries(memberships);
 
@@ -279,7 +322,9 @@ export class AuthService {
     }
 
     const slug = hint.businessSlug!.trim().toLowerCase();
-    const match = memberships.find((m) => m.business.slug.toLowerCase() === slug);
+    const match = memberships.find(
+      (m) => m.business.slug.toLowerCase() === slug,
+    );
     if (!match) {
       throw new ForbiddenException('You do not have access to this business');
     }
@@ -294,10 +339,15 @@ export class AuthService {
     });
   }
 
-  private async buildSummaries(memberships: BusinessMember[]): Promise<BusinessAuthSummary[]> {
+  private async buildSummaries(
+    memberships: BusinessMember[],
+  ): Promise<BusinessAuthSummary[]> {
     const summaries: BusinessAuthSummary[] = [];
     for (const membership of memberships) {
-      const employee = await this.findLinkedEmployee(membership.businessId, membership.userId);
+      const employee = await this.findLinkedEmployee(
+        membership.businessId,
+        membership.userId,
+      );
       summaries.push(this.membershipToSummary(membership, employee));
     }
     return summaries;
@@ -335,7 +385,9 @@ export class AuthService {
       },
       employee,
       businesses: summaries,
-      token: issueToken ? this.signToken(user, membership, employee?.id ?? null) : null,
+      token: issueToken
+        ? this.signToken(user, membership, employee?.id ?? null)
+        : null,
       requiresBusinessSelection: false,
     };
   }
@@ -368,9 +420,14 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const normalized = email.trim().toLowerCase();
-    const user = await this.userRepo.findOne({ where: { email: normalized, isActive: true } });
+    const user = await this.userRepo.findOne({
+      where: { email: normalized, isActive: true },
+    });
     if (!user) {
-      return { ok: true, message: 'If an account exists, a reset link was sent.' };
+      return {
+        ok: true,
+        message: 'If an account exists, a reset link was sent.',
+      };
     }
 
     const token = randomBytes(32).toString('hex');
@@ -398,15 +455,22 @@ export class AuthService {
       text: `Set a new password: ${link}`,
     });
 
-    return { ok: true, message: 'If an account exists, a reset link was sent.' };
+    return {
+      ok: true,
+      message: 'If an account exists, a reset link was sent.',
+    };
   }
 
   async getResetPasswordInfo(token: string) {
     const reset = await this.resetTokenRepo.findOne({ where: { token } });
-    if (!reset || reset.usedAt) throw new NotFoundException('Reset link not found');
-    if (reset.expiresAt < new Date()) throw new BadRequestException('Reset link expired');
+    if (!reset || reset.usedAt)
+      throw new NotFoundException('Reset link not found');
+    if (reset.expiresAt < new Date())
+      throw new BadRequestException('Reset link expired');
 
-    const user = await this.userRepo.findOne({ where: { id: reset.userId, isActive: true } });
+    const user = await this.userRepo.findOne({
+      where: { id: reset.userId, isActive: true },
+    });
     if (!user) throw new NotFoundException('User not found');
 
     return { email: user.email };
@@ -414,10 +478,14 @@ export class AuthService {
 
   async resetPassword(token: string, password: string) {
     const reset = await this.resetTokenRepo.findOne({ where: { token } });
-    if (!reset || reset.usedAt) throw new NotFoundException('Reset link not found');
-    if (reset.expiresAt < new Date()) throw new BadRequestException('Reset link expired');
+    if (!reset || reset.usedAt)
+      throw new NotFoundException('Reset link not found');
+    if (reset.expiresAt < new Date())
+      throw new BadRequestException('Reset link expired');
 
-    const user = await this.userRepo.findOne({ where: { id: reset.userId, isActive: true } });
+    const user = await this.userRepo.findOne({
+      where: { id: reset.userId, isActive: true },
+    });
     if (!user) throw new NotFoundException('User not found');
 
     user.passwordHash = await bcrypt.hash(password, 10);

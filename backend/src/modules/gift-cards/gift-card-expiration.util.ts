@@ -43,8 +43,7 @@ export function resolveGiftCardExpirationUpdate(
   now: Date = new Date(),
 ): GiftCardExpirationUpdateResult {
   const hasExtend =
-    input.extendMonths !== undefined ||
-    input.extendDays !== undefined;
+    input.extendMonths !== undefined || input.extendDays !== undefined;
   const hasSet = input.expiresAt !== undefined && input.expiresAt !== null;
   const wantsClear = input.expiresAt === null && !hasExtend;
 
@@ -55,19 +54,32 @@ export function resolveGiftCardExpirationUpdate(
   if (hasExtend) {
     const months = Number(input.extendMonths ?? 0);
     const days = Number(input.extendDays ?? 0);
-    if (!Number.isFinite(months) || !Number.isFinite(days) || months < 0 || days < 0) {
-      throw new BadRequestException('extendMonths and extendDays must be non-negative numbers');
+    if (
+      !Number.isFinite(months) ||
+      !Number.isFinite(days) ||
+      months < 0 ||
+      days < 0
+    ) {
+      throw new BadRequestException(
+        'extendMonths and extendDays must be non-negative numbers',
+      );
     }
     if (months === 0 && days === 0) {
-      throw new BadRequestException('Provide extendMonths or extendDays to extend expiration');
+      throw new BadRequestException(
+        'Provide extendMonths or extendDays to extend expiration',
+      );
     }
     if (hasSet) {
-      throw new BadRequestException('Use either expiresAt or extendMonths/extendDays, not both');
+      throw new BadRequestException(
+        'Use either expiresAt or extendMonths/extendDays, not both',
+      );
     }
 
     const base =
       previous && previous.getTime() > now.getTime() ? previous : now;
-    const expiresAt = new Date(base.getTime() + months * MONTH_MS + days * DAY_MS);
+    const expiresAt = new Date(
+      base.getTime() + months * MONTH_MS + days * DAY_MS,
+    );
     return { expiresAt, action: 'extend' };
   }
 

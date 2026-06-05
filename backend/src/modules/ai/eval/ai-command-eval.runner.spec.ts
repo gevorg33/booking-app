@@ -1,0 +1,325 @@
+import * as decompositionUtil from '../intent-decomposition.util.js';
+import {
+  evaluateDeterministicEvalCase,
+  runDeterministicEvalSuite,
+} from './ai-command-eval.runner.js';
+import type { AiCommandEvalCase } from './ai-command-eval.types.js';
+import { AiIntentRescueService } from '../ai-intent-rescue.service.js';
+
+describe('ai-command-eval.runner', () => {
+  it('reports needsMultilingual mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'x',
+      prompt: 'Show appointments today',
+      expect: { needsMultilingual: true },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/needsMultilingual/);
+  });
+
+  it('reports routeTier mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'x',
+      prompt: 'Optimize schedule for tomorrow',
+      expect: { routeTier: 'read_only' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/routeTier/);
+  });
+
+  it('checks rescheduleFromTimeSlot', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'from-time',
+      prompt:
+        'Move Jujos appointment on June 10 from 16-17 to june 11th nearest free time',
+      expect: { rescheduleFromTimeSlot: '16:00' },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports rescheduleTimeSlot mismatch when time not in prompt', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'time-miss',
+      prompt: 'Move appointment to tomorrow',
+      expect: { rescheduleTimeSlot: '09:00' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescheduleTimeSlot/);
+  });
+
+  it('reports rescheduleFromTimeSlot mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'from-miss',
+      prompt: 'Move appointment to tomorrow at 9 AM',
+      expect: { rescheduleFromTimeSlot: '16:00' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescheduleFromTimeSlot/);
+  });
+
+  it('passes when paramsPartial matches parsed params', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'params-ok',
+      prompt: "Move Maria's appointment to tomorrow at 9 AM",
+      expect: { paramsPartial: { timeSlot: '09:00' } },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports when rescue does not apply to prompt', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'no-rescue',
+      prompt: 'Show appointments today',
+      expect: { rescuedAction: 'clear_schedule' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescuedAction/);
+  });
+
+  it('passes when rescuedAction matches rescue', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-ok',
+      prompt: 'Clear Gevorg schedule for tomorrow',
+      expect: { rescuedAction: 'clear_schedule' },
+    });
+    expect(result.passed).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('passes when rescuedAction and paramsPartial match rescue output', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-params',
+      prompt: 'Calculate total earnings for today',
+      expect: {
+        rescuedAction: 'summarize_bookings',
+        paramsPartial: { bookingMetric: 'revenue' },
+      },
+    });
+    expect(result.passed).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('reports rescuedAction when rescue omits action field', () => {
+    jest.spyOn(AiIntentRescueService.prototype, 'rescue').mockReturnValueOnce({
+      rescued: true,
+    } as ReturnType<AiIntentRescueService['rescue']>);
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-no-action',
+      prompt: 'anything',
+      expect: { rescuedAction: 'clear_schedule' },
+    });
+    expect(result.errors[0]).toContain('got none');
+    jest.restoreAllMocks();
+  });
+
+  it('reports rescuedAction when rescue returns different action', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-wrong',
+      prompt: 'Clear Gevorg schedule for tomorrow',
+      expect: { rescuedAction: 'payment_sweep' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescuedAction/);
+  });
+
+  it('reports paramsPartial mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'params',
+      prompt: "Move Maria's appointment to tomorrow at 9 AM",
+      expect: { paramsPartial: { timeSlot: '10:00' } },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.startsWith('params.'))).toBe(true);
+  });
+
+  it('errors when action set without rescuedAction or requiresLlm', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'action',
+      prompt: 'Book haircut',
+      expect: { action: 'create_booking' },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/requiresLlm/);
+  });
+
+  it('passes compound golden decomposition expectations', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-ok',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        routeTier: 'compound',
+        compoundSurface: 'dashboard',
+        compoundSteps: ['cancel_package_visit', 'fill_slot_from_waitlist'],
+        compoundSource: 'golden',
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports compoundMinSteps when decomposition returns no steps', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-min-steps-miss',
+      prompt: 'List bookings today',
+      expect: {
+        compoundSurface: 'dashboard',
+        compoundMinSteps: 2,
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/compoundMinSteps/);
+  });
+
+  it('reports compoundSteps mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-bad-steps',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        compoundSurface: 'dashboard',
+        compoundSteps: ['create_booking', 'list_bookings'],
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/compoundSteps/);
+  });
+
+  it('reports compoundExpectEmpty when decomposition succeeds', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-should-empty',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        compoundSurface: 'dashboard',
+        compoundExpectEmpty: true,
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/compoundExpectEmpty/);
+  });
+
+  it('reports compoundActionsContains and compoundStepParams mismatches', () => {
+    const missingAction = evaluateDeterministicEvalCase({
+      id: 'compound-missing-action',
+      prompt: 'Book spa day package and apply promo code WELCOME',
+      expect: {
+        compoundSurface: 'customer',
+        compoundActionsContains: ['not_a_real_intent'],
+      },
+    });
+    expect(missingAction.errors[0]).toMatch(/compoundActionsContains/);
+
+    const badParam = evaluateDeterministicEvalCase({
+      id: 'compound-bad-param',
+      prompt: 'Book spa day package and apply promo code WELCOME',
+      expect: {
+        compoundSurface: 'customer',
+        compoundStepParams: [
+          { stepIndex: 1, paramsPartial: { promoCode: 'WRONG' } },
+        ],
+      },
+    });
+    expect(badParam.errors[0]).toMatch(/compoundStepParams/);
+  });
+
+  it('defaults compound surface to dashboard when omitted', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-default-surface',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        compoundMinSteps: 2,
+        compoundSteps: ['cancel_package_visit', 'fill_slot_from_waitlist'],
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports compoundRecipeId mismatch when recipe id is absent', () => {
+    const spy = jest.spyOn(
+      decompositionUtil,
+      'decomposeDeterministicForSurface',
+    );
+    spy.mockReturnValueOnce({
+      surface: 'dashboard',
+      source: 'deterministic',
+      steps: [
+        { action: 'cancel_package_visit', params: {}, reasoning: 'a' },
+        { action: 'fill_slot_from_waitlist', params: {}, reasoning: 'b' },
+      ],
+    });
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-no-recipe-id',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        compoundSurface: 'dashboard',
+        compoundSteps: ['cancel_package_visit', 'fill_slot_from_waitlist'],
+        compoundRecipeId: 'dashboard_operational_compound',
+      },
+    });
+    expect(result.errors[0]).toContain('got none');
+    spy.mockRestore();
+  });
+
+  it('accepts compoundStepParams entries without paramsPartial', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-step-no-params',
+      prompt: 'Book spa day package and apply promo code WELCOME',
+      expect: {
+        compoundSurface: 'customer',
+        compoundSteps: ['book_package', 'promo_code_help'],
+        compoundStepParams: [{ stepIndex: 0 }],
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports missing compoundStepParams step index', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-missing-step',
+      prompt: 'Book spa day package and apply promo code WELCOME',
+      expect: {
+        compoundSurface: 'customer',
+        compoundStepParams: [
+          { stepIndex: 9, paramsPartial: { promoCode: 'WELCOME' } },
+        ],
+      },
+    });
+    expect(result.errors[0]).toMatch(
+      /compoundStepParams: missing step at index 9/,
+    );
+  });
+
+  it('reports compoundSource and compoundRecipeId mismatches', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'compound-wrong-source',
+      prompt: 'Cancel package visit and notify waitlist for Anna',
+      expect: {
+        compoundSurface: 'dashboard',
+        compoundSteps: ['cancel_package_visit', 'fill_slot_from_waitlist'],
+        compoundSource: 'llm',
+        compoundRecipeId: 'wrong_recipe',
+      },
+    });
+    expect(result.errors.some((e) => e.includes('compoundSource'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('compoundRecipeId'))).toBe(
+      true,
+    );
+  });
+
+  it('runDeterministicEvalSuite skips requiresLlm and counts failures', () => {
+    const cases: AiCommandEvalCase[] = [
+      {
+        id: 'ok',
+        prompt: 'Show appointments today',
+        expect: { routeTier: 'read_only' },
+      },
+      {
+        id: 'bad',
+        prompt: 'Show appointments today',
+        expect: { routeTier: 'compound' },
+      },
+      { id: 'llm', prompt: 'x', requiresLlm: true, expect: { action: 'x' } },
+    ];
+    const summary = runDeterministicEvalSuite(cases);
+    expect(summary.results).toHaveLength(2);
+    expect(summary.failed).toBe(1);
+    expect(summary.passed).toBe(1);
+  });
+});

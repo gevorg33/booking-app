@@ -1,4 +1,12 @@
-import { Controller, Get, Put, Body, Param, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -14,9 +22,14 @@ export class MarketingAutomationController {
   ) {}
 
   @Get('settings')
-  async getSettings(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getSettings(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.ensureMember(businessId, user.id);
-    return { settings: await this.marketingAutomationService.getSettings(businessId) };
+    return {
+      settings: await this.marketingAutomationService.getSettings(businessId),
+    };
   }
 
   @Put('settings')
@@ -26,11 +39,19 @@ export class MarketingAutomationController {
     @CurrentUser() user: { id: string },
   ) {
     await this.ensureMember(businessId, user.id);
-    return { settings: await this.marketingAutomationService.updateSettings(businessId, dto) };
+    return {
+      settings: await this.marketingAutomationService.updateSettings(
+        businessId,
+        dto,
+      ),
+    };
   }
 
   @Get('summary')
-  async getSummary(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getSummary(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.ensureMember(businessId, user.id);
     return this.marketingAutomationService.getSummary(businessId);
   }

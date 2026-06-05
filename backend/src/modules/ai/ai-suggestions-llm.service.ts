@@ -29,9 +29,12 @@ export class AiSuggestionsLlmService {
   constructor(
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(BlockSchedule)
+    private blockScheduleRepo: Repository<BlockSchedule>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
     private schedulingEngine: SchedulingEngineService,
     private openAi: OpenAiGatewayService,
   ) {}
@@ -77,22 +80,25 @@ Use real employee/service/template names from data. Prioritize conflicts, gaps, 
     const end = range ? new Date(range.end) : new Date();
     end.setUTCHours(23, 59, 59, 999);
 
-    const [employees, templates, periods, bookings, conflicts] = await Promise.all([
-      this.employeeRepo.find({ where: { businessId, isActive: true } }),
-      this.templateRepo.find({ where: { businessId, isDeleted: false, isActive: true } }),
-      this.periodRepo.find({
-        where: { businessId, startTime: Between(start, end) as any },
-      }),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          startTime: Between(start, end) as any,
-          status: Not(BookingStatus.CANCELLED) as any,
-        },
-        take: 200,
-      }),
-      this.schedulingEngine.findConflicts(businessId, { start, end }),
-    ]);
+    const [employees, templates, periods, bookings, conflicts] =
+      await Promise.all([
+        this.employeeRepo.find({ where: { businessId, isActive: true } }),
+        this.templateRepo.find({
+          where: { businessId, isDeleted: false, isActive: true },
+        }),
+        this.periodRepo.find({
+          where: { businessId, startTime: Between(start, end) as any },
+        }),
+        this.bookingRepo.find({
+          where: {
+            businessId,
+            startTime: Between(start, end) as any,
+            status: Not(BookingStatus.CANCELLED) as any,
+          },
+          take: 200,
+        }),
+        this.schedulingEngine.findConflicts(businessId, { start, end }),
+      ]);
 
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
@@ -114,8 +120,11 @@ Use real employee/service/template names from data. Prioritize conflicts, gaps, 
       todayBookingCount: todayBookings.length,
       conflictCount: conflicts.length,
       conflicts: conflicts.slice(0, 5),
-      unpaidToday: todayBookings.filter((b) => b.paymentStatus === 'pending').length,
-      cancelledToday: todayBookings.filter((b) => b.status === BookingStatus.CANCELLED).length,
+      unpaidToday: todayBookings.filter((b) => b.paymentStatus === 'pending')
+        .length,
+      cancelledToday: todayBookings.filter(
+        (b) => b.status === BookingStatus.CANCELLED,
+      ).length,
     };
   }
 }

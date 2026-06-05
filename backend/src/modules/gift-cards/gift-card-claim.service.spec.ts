@@ -35,13 +35,18 @@ describe('GiftCardClaimService', () => {
     };
     giftCardRepo.findOne.mockResolvedValue(card);
     packagesService.assertPackageBookable.mockResolvedValue({ id: 'pkg-1' });
-    packagesService.createPackagePurchase.mockResolvedValue({ id: 'purchase-1' });
+    packagesService.createPackagePurchase.mockResolvedValue({
+      id: 'purchase-1',
+    });
 
     const result = await service.claimByCode('biz-1', 'GCP-ABC', 'cust-1');
 
     expect(result.packagePurchaseId).toBe('purchase-1');
     expect(giftCardRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ claimedByCustomerId: 'cust-1', isActive: false }),
+      expect.objectContaining({
+        claimedByCustomerId: 'cust-1',
+        isActive: false,
+      }),
     );
   });
 
@@ -81,9 +86,9 @@ describe('GiftCardClaimService', () => {
       claimedAt: new Date(),
     });
 
-    await expect(service.claimByCode('biz-1', 'GCP-DONE', 'cust-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.claimByCode('biz-1', 'GCP-DONE', 'cust-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects inactive gift cards', async () => {
@@ -96,14 +101,16 @@ describe('GiftCardClaimService', () => {
       claimedAt: null,
     });
 
-    await expect(service.claimByCode('biz-1', 'GCP-INACTIVE', 'cust-1')).rejects.toThrow(
-      'no longer active',
-    );
+    await expect(
+      service.claimByCode('biz-1', 'GCP-INACTIVE', 'cust-1'),
+    ).rejects.toThrow('no longer active');
   });
 
   it('rejects claim when card is not found by code', async () => {
     giftCardRepo.findOne.mockResolvedValue(null);
-    await expect(service.claimByCode('biz-1', 'GCP-NOPE', 'cust-1')).rejects.toThrow('not found');
+    await expect(
+      service.claimByCode('biz-1', 'GCP-NOPE', 'cust-1'),
+    ).rejects.toThrow('not found');
   });
 
   it('rejects monetary gift cards on account claim', async () => {
@@ -115,9 +122,9 @@ describe('GiftCardClaimService', () => {
       balance: 50,
     });
 
-    await expect(service.claimByCode('biz-1', 'GCM-CASH', 'cust-1')).rejects.toThrow(
-      'Monetary gift cards are redeemed at booking checkout',
-    );
+    await expect(
+      service.claimByCode('biz-1', 'GCM-CASH', 'cust-1'),
+    ).rejects.toThrow('Monetary gift cards are redeemed at booking checkout');
   });
 
   it('links a service gift card to the customer account without deactivating it', async () => {
@@ -130,14 +137,19 @@ describe('GiftCardClaimService', () => {
       codeRevealed: true,
       claimedAt: null,
       claimedByCustomerId: null,
-      serviceCredits: [{ serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        { serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 },
+      ],
     });
 
     const result = await service.claimByCode('biz-1', 'GCS-FACIAL', 'cust-1');
 
     expect(result.cardType).toBe('service');
     expect(giftCardRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ claimedByCustomerId: 'cust-1', isActive: true }),
+      expect.objectContaining({
+        claimedByCustomerId: 'cust-1',
+        isActive: true,
+      }),
     );
   });
 
@@ -160,7 +172,10 @@ describe('GiftCardClaimService', () => {
 
     expect(result.cardType).toBe('bundle');
     expect(giftCardRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ claimedByCustomerId: 'cust-1', isActive: true }),
+      expect.objectContaining({
+        claimedByCustomerId: 'cust-1',
+        isActive: true,
+      }),
     );
   });
 
@@ -174,7 +189,9 @@ describe('GiftCardClaimService', () => {
       codeRevealed: true,
       claimedAt: new Date('2026-06-01'),
       claimedByCustomerId: 'cust-1',
-      serviceCredits: [{ serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        { serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 },
+      ],
     });
 
     const result = await service.claimByCode('biz-1', 'GCS-FACIAL', 'cust-1');
@@ -192,11 +209,13 @@ describe('GiftCardClaimService', () => {
       isActive: true,
       codeRevealed: true,
       claimedByCustomerId: 'cust-other',
-      serviceCredits: [{ serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 }],
+      serviceCredits: [
+        { serviceId: 'svc-1', quantityRemaining: 1, quantityTotal: 1 },
+      ],
     });
 
-    await expect(service.claimByCode('biz-1', 'GCS-FACIAL', 'cust-1')).rejects.toThrow(
-      'already been claimed by another account',
-    );
+    await expect(
+      service.claimByCode('biz-1', 'GCS-FACIAL', 'cust-1'),
+    ).rejects.toThrow('already been claimed by another account');
   });
 });

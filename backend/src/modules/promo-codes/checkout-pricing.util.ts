@@ -15,15 +15,24 @@ export function isGiftCardCode(code: string): boolean {
 }
 
 /** Promo first, then gift card, then loyalty. */
-export function computeAfterPromo(subtotal: number, promoDiscount: number): number {
+export function computeAfterPromo(
+  subtotal: number,
+  promoDiscount: number,
+): number {
   return roundMoney(Math.max(0, subtotal - promoDiscount));
 }
 
-export function computeAfterGiftCard(afterPromo: number, giftCardDiscount: number): number {
+export function computeAfterGiftCard(
+  afterPromo: number,
+  giftCardDiscount: number,
+): number {
   return roundMoney(Math.max(0, afterPromo - giftCardDiscount));
 }
 
-export function resolveGiftCardRedemption(balance: number, amountDue: number): number {
+export function resolveGiftCardRedemption(
+  balance: number,
+  amountDue: number,
+): number {
   const due = roundMoney(Math.max(0, amountDue));
   if (due <= 0 || balance <= 0) return 0;
   return roundMoney(Math.min(balance, due));
@@ -33,7 +42,10 @@ export function resolveGiftCardRedemption(balance: number, amountDue: number): n
 export function resolveServiceGiftCardDiscount(
   credits: Array<{ serviceId: string; quantityRemaining: number }>,
   lineItems: Array<{ serviceId: string; amount: number }>,
-): { discount: number; redemptions: Array<{ serviceId: string; units: number }> } {
+): {
+  discount: number;
+  redemptions: Array<{ serviceId: string; units: number }>;
+} {
   const available = new Map<string, number>();
   for (const credit of credits) {
     if (credit.quantityRemaining <= 0) continue;
@@ -47,7 +59,8 @@ export function resolveServiceGiftCardDiscount(
   let discount = 0;
 
   for (const line of lineItems) {
-    const remaining = (available.get(line.serviceId) ?? 0) - (used.get(line.serviceId) ?? 0);
+    const remaining =
+      (available.get(line.serviceId) ?? 0) - (used.get(line.serviceId) ?? 0);
     if (remaining <= 0 || line.amount <= 0) continue;
     discount = roundMoney(discount + line.amount);
     used.set(line.serviceId, (used.get(line.serviceId) ?? 0) + 1);
@@ -95,6 +108,9 @@ export function computeCheckoutTotals(input: {
   };
 }
 
-export function computePointsToEarn(amountDue: number, earnPercentCashback?: number): number {
+export function computePointsToEarn(
+  amountDue: number,
+  earnPercentCashback?: number,
+): number {
   return calculateEarnPoints(amountDue, earnPercentCashback ?? 0);
 }

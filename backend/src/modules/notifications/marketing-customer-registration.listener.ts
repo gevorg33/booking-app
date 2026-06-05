@@ -8,7 +8,9 @@ import {
 
 @Injectable()
 export class MarketingCustomerRegistrationListener {
-  private readonly logger = new Logger(MarketingCustomerRegistrationListener.name);
+  private readonly logger = new Logger(
+    MarketingCustomerRegistrationListener.name,
+  );
   private notificationsService!: NotificationsService;
 
   constructor(notificationsService: NotificationsService) {

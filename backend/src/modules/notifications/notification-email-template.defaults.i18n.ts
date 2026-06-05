@@ -7,7 +7,9 @@ export interface LocalizedEmailTemplateContent {
   bodyHtml: string;
 }
 
-const hy: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>> = {
+const hy: Partial<
+  Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>
+> = {
   booking_confirmation: {
     subject: 'Հաստատված՝ {{serviceName}} {{businessName}}-ում',
     bodyText:
@@ -16,7 +18,8 @@ const hy: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateCon
       '<p>Բարև {{customerName}},</p><p>Ձեր հանդիպումը {{businessName}}-ում հաստատված է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
-    subject: 'Հաստատված՝ {{appointmentCount}} {{appointmentWord}} {{businessName}}-ում',
+    subject:
+      'Հաստատված՝ {{appointmentCount}} {{appointmentWord}} {{businessName}}-ում',
     bodyText:
       'Բարև {{customerName}},\n\nՁեր {{appointmentWord}}-ը {{businessName}}-ում հաստատված են{{groupLabelSuffix}}.\n\n{{appointmentsListText}}\n\n{{footerNote}}',
     bodyHtml:
@@ -59,7 +62,9 @@ const hy: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateCon
   },
 };
 
-const ru: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>> = {
+const ru: Partial<
+  Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>
+> = {
   booking_confirmation: {
     subject: 'Подтверждено: {{serviceName}} в {{businessName}}',
     bodyText:
@@ -68,7 +73,8 @@ const ru: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateCon
       '<p>Здравствуйте, {{customerName}}!</p><p>Ваша запись в {{businessName}} подтверждена.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
-    subject: 'Подтверждено: {{appointmentCount}} {{appointmentWord}} в {{businessName}}',
+    subject:
+      'Подтверждено: {{appointmentCount}} {{appointmentWord}} в {{businessName}}',
     bodyText:
       'Здравствуйте, {{customerName}}!\n\nВаши {{appointmentWord}} в {{businessName}} подтверждены{{groupLabelSuffix}}.\n\n{{appointmentsListText}}\n\n{{footerNote}}',
     bodyHtml:
@@ -111,7 +117,12 @@ const ru: Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateCon
   },
 };
 
-const BY_LOCALE: Partial<Record<AppLocale, Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>>>> = {
+const BY_LOCALE: Partial<
+  Record<
+    AppLocale,
+    Partial<Record<NotificationEmailTemplateKey, LocalizedEmailTemplateContent>>
+  >
+> = {
   hy,
   ru,
 };

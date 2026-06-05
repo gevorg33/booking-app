@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GiftCard } from './entities/gift-card.entity.js';
@@ -33,8 +37,10 @@ export interface GiftCardBalanceView {
 export class GiftCardsService {
   constructor(
     @InjectRepository(GiftCard) private giftCardRepo: Repository<GiftCard>,
-    @InjectRepository(GiftCardServiceCredit) private creditRepo: Repository<GiftCardServiceCredit>,
-    @InjectRepository(GiftCardRedemption) private redemptionRepo: Repository<GiftCardRedemption>,
+    @InjectRepository(GiftCardServiceCredit)
+    private creditRepo: Repository<GiftCardServiceCredit>,
+    @InjectRepository(GiftCardRedemption)
+    private redemptionRepo: Repository<GiftCardRedemption>,
     @InjectRepository(GiftCardExpirationAudit)
     private expirationAuditRepo: Repository<GiftCardExpirationAudit>,
     private planEntitlements: PlanEntitlementsService,
@@ -82,9 +88,14 @@ export class GiftCardsService {
     });
   }
 
-  async validate(businessId: string, code: string, serviceId?: string): Promise<GiftCard> {
+  async validate(
+    businessId: string,
+    code: string,
+    serviceId?: string,
+  ): Promise<GiftCard> {
     const card = await this.findByCode(businessId, code);
-    if (!card || !card.isActive) throw new NotFoundException('Gift card not found');
+    if (!card || !card.isActive)
+      throw new NotFoundException('Gift card not found');
     if (!card.codeRevealed) {
       throw new BadRequestException('Gift card code is not yet active');
     }
@@ -93,7 +104,8 @@ export class GiftCardsService {
     }
 
     if (card.cardType === 'monetary') {
-      if (Number(card.balance) <= 0) throw new BadRequestException('Gift card has no balance');
+      if (Number(card.balance) <= 0)
+        throw new BadRequestException('Gift card has no balance');
       return card;
     }
 
@@ -108,21 +120,34 @@ export class GiftCardsService {
 
     const credits = card.serviceCredits ?? [];
     if (serviceId) {
-      const match = credits.find((c) => c.serviceId === serviceId && c.quantityRemaining > 0);
+      const match = credits.find(
+        (c) => c.serviceId === serviceId && c.quantityRemaining > 0,
+      );
       if (!match) {
-        throw new BadRequestException('Gift card has no remaining credit for this service');
+        throw new BadRequestException(
+          'Gift card has no remaining credit for this service',
+        );
       }
     } else if (!credits.some((c) => c.quantityRemaining > 0)) {
-      throw new BadRequestException('Gift card has no remaining service credits');
+      throw new BadRequestException(
+        'Gift card has no remaining service credits',
+      );
     }
 
     return card;
   }
 
-  async redeem(businessId: string, code: string, amount: number, bookingId?: string): Promise<GiftCard> {
+  async redeem(
+    businessId: string,
+    code: string,
+    amount: number,
+    bookingId?: string,
+  ): Promise<GiftCard> {
     const card = await this.validate(businessId, code);
     if (card.cardType !== 'monetary') {
-      throw new BadRequestException('Use service credit redemption for this gift card type');
+      throw new BadRequestException(
+        'Use service credit redemption for this gift card type',
+      );
     }
     if (amount > Number(card.balance)) {
       throw new BadRequestException('Insufficient gift card balance');
@@ -155,7 +180,9 @@ export class GiftCardsService {
   ): Promise<GiftCard> {
     const card = await this.validate(businessId, code, serviceId);
     if (card.cardType === 'monetary') {
-      throw new BadRequestException('Monetary gift cards must be redeemed by amount');
+      throw new BadRequestException(
+        'Monetary gift cards must be redeemed by amount',
+      );
     }
 
     const credit = (card.serviceCredits ?? []).find(
@@ -186,7 +213,10 @@ export class GiftCardsService {
     return this.giftCardRepo.save(card);
   }
 
-  async getBalanceView(businessId: string, code: string): Promise<GiftCardBalanceView> {
+  async getBalanceView(
+    businessId: string,
+    code: string,
+  ): Promise<GiftCardBalanceView> {
     const card = await this.findByCode(businessId, code);
     if (!card) throw new NotFoundException('Gift card not found');
 
@@ -220,7 +250,9 @@ export class GiftCardsService {
     input: UpdateGiftCardExpirationInput,
     adminUserId: string,
   ): Promise<GiftCard> {
-    const card = await this.giftCardRepo.findOne({ where: { id: giftCardId, businessId } });
+    const card = await this.giftCardRepo.findOne({
+      where: { id: giftCardId, businessId },
+    });
     if (!card) throw new NotFoundException('Gift card not found');
 
     const previousExpiresAt = card.expiresAt;
@@ -251,7 +283,9 @@ export class GiftCardsService {
     return saved;
   }
 
-  async listExpirationAudit(giftCardId: string): Promise<GiftCardExpirationAudit[]> {
+  async listExpirationAudit(
+    giftCardId: string,
+  ): Promise<GiftCardExpirationAudit[]> {
     return this.expirationAuditRepo.find({
       where: { giftCardId },
       order: { createdAt: 'DESC' },

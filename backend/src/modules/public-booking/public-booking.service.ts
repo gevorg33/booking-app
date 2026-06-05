@@ -18,11 +18,21 @@ import { ensureBookingManageToken } from '../../common/utils/booking-manage-toke
 import { resolveCheckoutPaymentStatus } from '../booking/booking-payment-status.util.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
-import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
-import { CreatePublicBookingDto, PublicBookingQuoteDto, BookPublicPackageDto, PublicPackageQuoteDto, BookPublicMultiServiceDto, PublicMultiServiceQuoteDto } from './dto/public-booking.dto.js';
+import {
+  CreatePublicBookingDto,
+  PublicBookingQuoteDto,
+  BookPublicPackageDto,
+  PublicPackageQuoteDto,
+  BookPublicMultiServiceDto,
+  PublicMultiServiceQuoteDto,
+} from './dto/public-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
@@ -39,7 +49,10 @@ import {
   isWallClockSlotBookable,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
-import { formatTimeDisplay, toIsoDay } from '../../common/utils/date-format.util.js';
+import {
+  formatTimeDisplay,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import {
   extractPublicProfileLocalesFromSettings,
@@ -63,7 +76,10 @@ import { resolvePublicAssetUrl } from '../../common/utils/public-asset-url.util.
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { resolvePackageCheckoutGraceHours } from '../../common/utils/package-pricing.util.js';
-import { validatePackageBookingLines, validatePackageSameDayBlock } from '../../common/utils/package-booking.util.js';
+import {
+  validatePackageBookingLines,
+  validatePackageSameDayBlock,
+} from '../../common/utils/package-booking.util.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import {
   buildSequentialAppointments,
@@ -258,8 +274,10 @@ export class PublicBookingService {
     private configService: ConfigService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
-    @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingPeriod)
+    private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
   ) {}
 
@@ -272,14 +290,22 @@ export class PublicBookingService {
   }
 
   private publicApiBaseUrl(): string {
-    return this.configService.get<string>('PUBLIC_API_URL') || 'http://localhost:3001';
+    return (
+      this.configService.get<string>('PUBLIC_API_URL') ||
+      'http://localhost:3001'
+    );
   }
 
-  private resolvePublicMediaUrl(url: string | undefined | null): string | undefined {
+  private resolvePublicMediaUrl(
+    url: string | undefined | null,
+  ): string | undefined {
     return resolvePublicAssetUrl(url, this.publicApiBaseUrl());
   }
 
-  toPublicProfile(business: Business, displayLocale?: AppLocale): PublicBusinessProfile {
+  toPublicProfile(
+    business: Business,
+    displayLocale?: AppLocale,
+  ): PublicBusinessProfile {
     const settings = business.settings || {};
     const locale =
       displayLocale ?? this.resolvePublicDisplayLocale(business, null);
@@ -292,15 +318,21 @@ export class PublicBookingService {
     const location = settings.location || {};
     const zendesk = getBusinessZendeskIntegration(settings);
     const dist = getDistributionIntegrations(settings);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const bookingUrl = `${frontendUrl.replace(/\/$/, '')}/book/${business.slug}`;
 
     const zendeskWidgetKey =
-      zendesk.enabled && zendesk.widgetEnabledOnPublicBooking && zendesk.widgetKey?.trim()
+      zendesk.enabled &&
+      zendesk.widgetEnabledOnPublicBooking &&
+      zendesk.widgetKey?.trim()
         ? zendesk.widgetKey.trim()
         : undefined;
 
-    const messagingLinks = buildMessagingLinksForBusiness(business, frontendUrl);
+    const messagingLinks = buildMessagingLinksForBusiness(
+      business,
+      frontendUrl,
+    );
     const hasMessaging =
       messagingLinks.telegramUrl ||
       messagingLinks.whatsappUrl ||
@@ -309,7 +341,13 @@ export class PublicBookingService {
 
     return {
       id: business.id,
-      name: resolvePublicProfileField(business.name, profileLocales, locale, 'name') ?? business.name,
+      name:
+        resolvePublicProfileField(
+          business.name,
+          profileLocales,
+          locale,
+          'name',
+        ) ?? business.name,
       slug: business.slug,
       description: resolvePublicProfileField(
         business.description,
@@ -319,13 +357,23 @@ export class PublicBookingService {
       ),
       phone: business.phone ?? undefined,
       email: business.email ?? undefined,
-      address: resolvePublicProfileField(business.address, profileLocales, locale, 'address'),
+      address: resolvePublicProfileField(
+        business.address,
+        profileLocales,
+        locale,
+        'address',
+      ),
       timezone: business.timezone,
       locale: settings.locale || 'en',
       branding: {
         logoUrl: this.resolvePublicMediaUrl(branding.logoUrl),
         primaryColor: branding.primaryColor || '#7c3aed',
-        tagline: resolvePublicProfileField(branding.tagline, profileLocales, locale, 'tagline'),
+        tagline: resolvePublicProfileField(
+          branding.tagline,
+          profileLocales,
+          locale,
+          'tagline',
+        ),
       },
       social: {
         website: social.website,
@@ -340,11 +388,17 @@ export class PublicBookingService {
         mapEmbedHtml: location.mapEmbedHtml,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
-      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(settings, business.timezone),
-      onlinePaymentsEnabled: this.stripeIntegrationService.isConnectReady(settings),
-      acceptCashPayments: resolvePublicPaymentSettings(settings).acceptCashPayments,
+      defaultPhoneCountryCode: inferDefaultPhoneCountryCode(
+        settings,
+        business.timezone,
+      ),
+      onlinePaymentsEnabled:
+        this.stripeIntegrationService.isConnectReady(settings),
+      acceptCashPayments:
+        resolvePublicPaymentSettings(settings).acceptCashPayments,
       customerSelfService: resolveCustomerSelfServiceSettings(settings),
-      giftCardsPurchaseEnabled: readBusinessGiftCardSettings(settings).purchaseEnabled,
+      giftCardsPurchaseEnabled:
+        readBusinessGiftCardSettings(settings).purchaseEnabled,
       ...(zendeskWidgetKey ? { support: { zendeskWidgetKey } } : {}),
       ...(dist.metaBooking?.enabled
         ? {
@@ -359,7 +413,10 @@ export class PublicBookingService {
       ...(hasMessaging ? { messaging: messagingLinks } : {}),
       ...this.mapPublicMultiServiceSettings(business),
       ...(buildPublicAppointmentReminderSettings(settings)
-        ? { appointmentReminders: buildPublicAppointmentReminderSettings(settings)! }
+        ? {
+            appointmentReminders:
+              buildPublicAppointmentReminderSettings(settings)!,
+          }
         : {}),
     };
   }
@@ -368,13 +425,22 @@ export class PublicBookingService {
     business: Business,
     contact: CreatePublicBookingDto['customer'],
   ): Record<string, number | null> {
-    const reminderSettings = mergeCustomerReminderChoiceSettings(business.settings?.notifications);
-    assertValidCustomerReminderHours(contact.reminderHoursBefore, reminderSettings);
-    return buildBookingReminderMetadata(contact.reminderHoursBefore, reminderSettings);
+    const reminderSettings = mergeCustomerReminderChoiceSettings(
+      business.settings?.notifications,
+    );
+    assertValidCustomerReminderHours(
+      contact.reminderHoursBefore,
+      reminderSettings,
+    );
+    return buildBookingReminderMetadata(
+      contact.reminderHoursBefore,
+      reminderSettings,
+    );
   }
 
   private mapPublicMultiServiceSettings(business: Business) {
-    const ms = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const ms =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
     if (!ms.enabled) return {};
     return {
       multiService: {
@@ -404,7 +470,11 @@ export class PublicBookingService {
 
     return {
       id: service.id,
-      name: resolveLocalizedDisplayName(service.name, serviceNames, displayLocale),
+      name: resolveLocalizedDisplayName(
+        service.name,
+        serviceNames,
+        displayLocale,
+      ),
       description: service.description,
       durationMinutes: service.durationMinutes,
       bufferMinutes: service.bufferMinutes,
@@ -412,7 +482,8 @@ export class PublicBookingService {
       currency: service.currency,
       prepaymentMode: service.prepaymentMode,
       onlinePaymentEnabled: onlinePaymentsEnabled && wantsOnline,
-      depositAmount: service.depositAmount != null ? Number(service.depositAmount) : null,
+      depositAmount:
+        service.depositAmount != null ? Number(service.depositAmount) : null,
       hasSubscriptionPlans,
       category: service.category
         ? {
@@ -428,9 +499,12 @@ export class PublicBookingService {
     };
   }
 
-  private sortPublicServices<T extends { category?: { sortOrder: number; name: string } | null; name: string }>(
-    services: T[],
-  ): T[] {
+  private sortPublicServices<
+    T extends {
+      category?: { sortOrder: number; name: string } | null;
+      name: string;
+    },
+  >(services: T[]): T[] {
     return [...services].sort((a, b) => {
       const aOrder = a.category?.sortOrder ?? 9999;
       const bOrder = b.category?.sortOrder ?? 9999;
@@ -450,9 +524,15 @@ export class PublicBookingService {
     return resolveLocale(preferred, resolveLocale(settings.locale, 'en'));
   }
 
-  async getProfile(slug: string, preferredLocale?: string | null): Promise<PublicBusinessProfile> {
+  async getProfile(
+    slug: string,
+    preferredLocale?: string | null,
+  ): Promise<PublicBusinessProfile> {
     const business = await this.resolveBusiness(slug);
-    const displayLocale = this.resolvePublicDisplayLocale(business, preferredLocale);
+    const displayLocale = this.resolvePublicDisplayLocale(
+      business,
+      preferredLocale,
+    );
     return this.toPublicProfile(business, displayLocale);
   }
 
@@ -475,10 +555,11 @@ export class PublicBookingService {
     // Scan from business-local today, but date keys align with UTC schedule days
     const startDateKey = date?.match(/^\d{4}-\d{2}-\d{2}$/) ? date : todayKey;
 
-    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
-      business.id,
-      employees.map((e) => e.id),
-    );
+    const reviewSummaries =
+      await this.reviewsService.getPublicReviewsByEmployees(
+        business.id,
+        employees.map((e) => e.id),
+      );
 
     const providers = await Promise.all(
       employees.map(async (employee) => {
@@ -536,17 +617,20 @@ export class PublicBookingService {
 
       employees = employees.filter((employee) =>
         matchedServices.some(
-          (service) => !employee.serviceIds?.length || employee.serviceIds.includes(service.id),
+          (service) =>
+            !employee.serviceIds?.length ||
+            employee.serviceIds.includes(service.id),
         ),
       );
     }
 
     if (!employees.length) return { providers: [] };
 
-    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
-      business.id,
-      employees.map((e) => e.id),
-    );
+    const reviewSummaries =
+      await this.reviewsService.getPublicReviewsByEmployees(
+        business.id,
+        employees.map((e) => e.id),
+      );
 
     const sortedDateKeys = [...options.dateKeys].sort();
     const candidates: RecommendedProvider[] = [];
@@ -559,11 +643,18 @@ export class PublicBookingService {
 
       for (const dateKey of sortedDateKeys) {
         for (const service of matchedServices.length ? matchedServices : []) {
-          if (employee.serviceIds?.length && !employee.serviceIds.includes(service.id)) {
+          if (
+            employee.serviceIds?.length &&
+            !employee.serviceIds.includes(service.id)
+          ) {
             continue;
           }
 
-          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+          const rawSlots = await this.getEmployeeStartTimes(
+            business.id,
+            employee,
+            dateKey,
+          );
           const upcoming = rawSlots.filter((startTime) =>
             isWallClockSlotBookable(
               dateKey,
@@ -590,13 +681,19 @@ export class PublicBookingService {
           ) {
             earliestDateKey = dateKey;
             earliestStartTime = bookable[0].toISOString();
-            previewTimes = bookable.slice(0, 4).map((s) => formatTimeDisplay(s));
+            previewTimes = bookable
+              .slice(0, 4)
+              .map((s) => formatTimeDisplay(s));
             matchedService = service;
           }
         }
 
         if (matchedServices.length === 0) {
-          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+          const rawSlots = await this.getEmployeeStartTimes(
+            business.id,
+            employee,
+            dateKey,
+          );
           const upcoming = rawSlots.filter((startTime) =>
             isWallClockSlotBookable(
               dateKey,
@@ -621,7 +718,9 @@ export class PublicBookingService {
           ) {
             earliestDateKey = dateKey;
             earliestStartTime = bookable[0].toISOString();
-            previewTimes = bookable.slice(0, 4).map((s) => formatTimeDisplay(s));
+            previewTimes = bookable
+              .slice(0, 4)
+              .map((s) => formatTimeDisplay(s));
           }
         }
       }
@@ -640,7 +739,8 @@ export class PublicBookingService {
         earliestStartTime,
         previewTimes,
         matchedServiceId: matchedService?.id ?? matchedServices[0]?.id ?? '',
-        matchedServiceName: matchedService?.name ?? matchedServices[0]?.name ?? '',
+        matchedServiceName:
+          matchedService?.name ?? matchedServices[0]?.name ?? '',
       });
     }
 
@@ -671,20 +771,42 @@ export class PublicBookingService {
     if (!employee) throw new NotFoundException('Provider not found');
 
     const tz = resolveTimezone(business.timezone);
-    const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
+    const rawSlots = await this.getEmployeeStartTimes(
+      business.id,
+      employee,
+      date,
+    );
     const upcoming = rawSlots.filter((startTime) =>
-      isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, options?.notBeforeTime ?? null),
+      isWallClockSlotBookable(
+        date,
+        formatTimeDisplay(startTime),
+        tz,
+        options?.notBeforeTime ?? null,
+      ),
     );
 
     let slots: Date[];
     if (options?.serviceId) {
       const service = await this.serviceRepo.findOne({
-        where: { id: options.serviceId, businessId: business.id, isActive: true },
+        where: {
+          id: options.serviceId,
+          businessId: business.id,
+          isActive: true,
+        },
       });
       if (!service) throw new NotFoundException('Service not found');
-      slots = await this.filterStartTimesWithService(business.id, employee, upcoming, service);
+      slots = await this.filterStartTimesWithService(
+        business.id,
+        employee,
+        upcoming,
+        service,
+      );
     } else {
-      slots = await this.filterStartTimesWithAnyBookableService(business.id, employee, upcoming);
+      slots = await this.filterStartTimesWithAnyBookableService(
+        business.id,
+        employee,
+        upcoming,
+      );
     }
 
     return {
@@ -693,7 +815,9 @@ export class PublicBookingService {
       employeeName: employee.name,
       slots: slots.map((startTime) => ({
         startTime: startTime.toISOString(),
-        endTime: new Date(startTime.getTime() + SLOT_STEP_MINUTES * 60000).toISOString(),
+        endTime: new Date(
+          startTime.getTime() + SLOT_STEP_MINUTES * 60000,
+        ).toISOString(),
       })),
     };
   }
@@ -731,17 +855,32 @@ export class PublicBookingService {
     const slotMap = new Map<string, PublicServiceDaySlot>();
 
     for (const employee of employees) {
-      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
-      const upcoming = rawSlots.filter((startTime) =>
-        isWallClockSlotBookable(date, formatTimeDisplay(startTime), tz, options?.notBeforeTime ?? null),
+      const rawSlots = await this.getEmployeeStartTimes(
+        business.id,
+        employee,
+        date,
       );
-      const bookable = await this.filterStartTimesWithService(business.id, employee, upcoming, service);
+      const upcoming = rawSlots.filter((startTime) =>
+        isWallClockSlotBookable(
+          date,
+          formatTimeDisplay(startTime),
+          tz,
+          options?.notBeforeTime ?? null,
+        ),
+      );
+      const bookable = await this.filterStartTimesWithService(
+        business.id,
+        employee,
+        upcoming,
+        service,
+      );
 
       for (const startTime of bookable) {
         const key = startTime.toISOString();
         if (slotMap.has(key)) continue;
         const endTime = new Date(
-          startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+          startTime.getTime() +
+            (service.durationMinutes + service.bufferMinutes) * 60000,
         );
         slotMap.set(key, {
           startTime: key,
@@ -752,7 +891,9 @@ export class PublicBookingService {
       }
     }
 
-    const slots = [...slotMap.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const slots = [...slotMap.values()].sort((a, b) =>
+      a.startTime.localeCompare(b.startTime),
+    );
 
     return {
       date,
@@ -767,7 +908,11 @@ export class PublicBookingService {
     serviceId: string,
     startTime: string,
   ): Promise<{ employeeId: string; employeeName: string } | null> {
-    const { providers } = await this.getProvidersForServiceSlot(slug, serviceId, startTime);
+    const { providers } = await this.getProvidersForServiceSlot(
+      slug,
+      serviceId,
+      startTime,
+    );
     if (!providers.length) return null;
     return { employeeId: providers[0].id, employeeName: providers[0].name };
   }
@@ -800,15 +945,18 @@ export class PublicBookingService {
       return employee.serviceIds.includes(service.id);
     });
 
-    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
-      business.id,
-      employees.map((e) => e.id),
-    );
+    const reviewSummaries =
+      await this.reviewsService.getPublicReviewsByEmployees(
+        business.id,
+        employees.map((e) => e.id),
+      );
 
     const providers: PublicServiceSlotProvider[] = [];
 
     for (const employee of employees) {
-      if (!(await this.canBookServiceAt(business.id, employee.id, start, service))) {
+      if (
+        !(await this.canBookServiceAt(business.id, employee.id, start, service))
+      ) {
         continue;
       }
 
@@ -848,14 +996,22 @@ export class PublicBookingService {
       }
     }
 
-    const planServiceIds = await this.subscriptionsService.serviceIdsWithActivePlans(business.id);
+    const planServiceIds =
+      await this.subscriptionsService.serviceIdsWithActivePlans(business.id);
     const planSet = new Set(planServiceIds);
-    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(
+      business.settings,
+    );
 
     return {
       services: this.sortPublicServices(
         services.map((s) =>
-          this.mapPublicService(s, paymentsReady, planSet.has(s.id), displayLocale),
+          this.mapPublicService(
+            s,
+            paymentsReady,
+            planSet.has(s.id),
+            displayLocale,
+          ),
         ),
       ),
     };
@@ -864,17 +1020,26 @@ export class PublicBookingService {
   async getServiceSubscriptionPlans(slug: string, serviceId: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    const plans = await this.subscriptionsService.listPlans(business.id, serviceId);
+    const plans = await this.subscriptionsService.listPlans(
+      business.id,
+      serviceId,
+    );
     return plans.map((plan) => ({
       ...plan,
-      preview: this.subscriptionsService.previewFromPlan(plan, Number(plan.service.price)),
+      preview: this.subscriptionsService.previewFromPlan(
+        plan,
+        Number(plan.service.price),
+      ),
     }));
   }
 
   async getCustomerSubscriptions(slug: string, customerId: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    return this.subscriptionsService.listCustomerSubscriptions(business.id, customerId);
+    return this.subscriptionsService.listCustomerSubscriptions(
+      business.id,
+      customerId,
+    );
   }
 
   async getActiveCustomerSubscriptionForService(
@@ -987,7 +1152,11 @@ export class PublicBookingService {
     let employees: Employee[];
     if (options.employeeId) {
       const employee = await this.employeeRepo.findOne({
-        where: { id: options.employeeId, businessId: business.id, isActive: true },
+        where: {
+          id: options.employeeId,
+          businessId: business.id,
+          isActive: true,
+        },
       });
       if (!employee) return null;
       employees = [employee];
@@ -1004,22 +1173,35 @@ export class PublicBookingService {
     });
     if (!employees.length) return null;
 
-    let best: { employee: Employee; dateKey: string; startTime: Date } | null = null;
+    let best: { employee: Employee; dateKey: string; startTime: Date } | null =
+      null;
 
     for (let offset = 0; offset < SCAN_DAYS; offset++) {
       const dateKey = addDaysToDateKey(startKey, offset, tz);
 
       for (const employee of employees) {
-        const daySlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+        const daySlots = await this.getEmployeeStartTimes(
+          business.id,
+          employee,
+          dateKey,
+        );
 
         for (const startTime of daySlots) {
           const timeSlot = formatTimeDisplay(startTime);
-          if (!isWallClockSlotBookable(dateKey, timeSlot, tz, options.notBeforeTime ?? null)) {
+          if (
+            !isWallClockSlotBookable(
+              dateKey,
+              timeSlot,
+              tz,
+              options.notBeforeTime ?? null,
+            )
+          ) {
             continue;
           }
 
           const endTime = new Date(
-            startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+            startTime.getTime() +
+              (service.durationMinutes + service.bufferMinutes) * 60000,
           );
           try {
             await this.bookingService.validateServiceFitsWindow(
@@ -1069,7 +1251,9 @@ export class PublicBookingService {
       });
     }
 
-    const customer = await this.customerService.findOne(authenticatedCustomerId);
+    const customer = await this.customerService.findOne(
+      authenticatedCustomerId,
+    );
     if (customer.businessId !== businessId || !customer.isActive) {
       throw new UnauthorizedException('Customer session expired');
     }
@@ -1084,7 +1268,9 @@ export class PublicBookingService {
     });
 
     if (saved.customer.id !== customer.id) {
-      throw new BadRequestException('Contact details do not match your signed-in account');
+      throw new BadRequestException(
+        'Contact details do not match your signed-in account',
+      );
     }
 
     return { customer: saved.customer, created: false };
@@ -1120,11 +1306,18 @@ export class PublicBookingService {
 
   async getCustomerLoyalty(slug: string, customerId: string) {
     const business = await this.resolveBusiness(slug);
-    const account = await this.loyaltyService.getOrCreate(business.id, customerId);
+    const account = await this.loyaltyService.getOrCreate(
+      business.id,
+      customerId,
+    );
     return this.loyaltyService.getPublicSummary(account, business.settings);
   }
 
-  async getCustomerSubscriptionUsage(slug: string, customerId: string, subscriptionId: string) {
+  async getCustomerSubscriptionUsage(
+    slug: string,
+    customerId: string,
+    subscriptionId: string,
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     return this.subscriptionsService.getCustomerSubscriptionUsage(
@@ -1138,7 +1331,10 @@ export class PublicBookingService {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const graceHours = resolvePackageCheckoutGraceHours(business.settings);
-    const packages = await this.packagesService.listPublicPackages(business.id, graceHours);
+    const packages = await this.packagesService.listPublicPackages(
+      business.id,
+      graceHours,
+    );
     return { packages };
   }
 
@@ -1146,7 +1342,11 @@ export class PublicBookingService {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const graceHours = resolvePackageCheckoutGraceHours(business.settings);
-    const pkg = await this.packagesService.getPublicPackage(business.id, packageId, graceHours);
+    const pkg = await this.packagesService.getPublicPackage(
+      business.id,
+      packageId,
+      graceHours,
+    );
     return { package: pkg };
   }
 
@@ -1156,7 +1356,9 @@ export class PublicBookingService {
     try {
       block = await this.suggestPackageBlock(slug, packageId);
     } catch {
-      throw new BadRequestException('No available same-day block found for this package');
+      throw new BadRequestException(
+        'No available same-day block found for this package',
+      );
     }
 
     const sequential = buildSequentialAppointments(
@@ -1164,7 +1366,9 @@ export class PublicBookingService {
       new Date(block.startTime),
       ctx.settings.turnoverBufferMinutes,
     );
-    const nameByServiceId = new Map(ctx.services.map((svc) => [svc.serviceId, svc.name ?? '']));
+    const nameByServiceId = new Map(
+      ctx.services.map((svc) => [svc.serviceId, svc.name ?? '']),
+    );
 
     return {
       dateKey: block.dateKey,
@@ -1180,12 +1384,18 @@ export class PublicBookingService {
   }
 
   async suggestPackageBlock(slug: string, packageId: string) {
-    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
+    const { serviceIds } = await this.resolvePackageBlockContext(
+      slug,
+      packageId,
+    );
     return this.suggestMultiServiceBlock(slug, serviceIds);
   }
 
   async getPackageBlockDaySlots(slug: string, packageId: string, date: string) {
-    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
+    const { serviceIds } = await this.resolvePackageBlockContext(
+      slug,
+      packageId,
+    );
     return this.getMultiServiceBlockDaySlots(slug, serviceIds, date);
   }
 
@@ -1195,8 +1405,16 @@ export class PublicBookingService {
     startTime: string,
     includeLaterDays = false,
   ) {
-    const { serviceIds } = await this.resolvePackageBlockContext(slug, packageId);
-    return this.getMultiServiceBlockProviders(slug, serviceIds, startTime, includeLaterDays);
+    const { serviceIds } = await this.resolvePackageBlockContext(
+      slug,
+      packageId,
+    );
+    return this.getMultiServiceBlockProviders(
+      slug,
+      serviceIds,
+      startTime,
+      includeLaterDays,
+    );
   }
 
   async quotePackageCheckout(
@@ -1237,17 +1455,28 @@ export class PublicBookingService {
     );
 
     try {
-      validatePackageBookingLines(this.packagesService.expectedLineServiceIds(pkg), dto.lines);
+      validatePackageBookingLines(
+        this.packagesService.expectedLineServiceIds(pkg),
+        dto.lines,
+      );
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
 
     const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
-    const services = await this.loadOrderedMultiServiceLines(business.id, serviceIds);
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const services = await this.loadOrderedMultiServiceLines(
+      business.id,
+      serviceIds,
+    );
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
 
     try {
-      validatePackageSameDayBlock(services, dto.lines, settings.turnoverBufferMinutes);
+      validatePackageSameDayBlock(
+        services,
+        dto.lines,
+        settings.turnoverBufferMinutes,
+      );
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
@@ -1260,7 +1489,9 @@ export class PublicBookingService {
           line.startTime,
         );
         if (!resolved) {
-          throw new BadRequestException('One or more selected time slots are no longer available');
+          throw new BadRequestException(
+            'One or more selected time slots are no longer available',
+          );
         }
         line.employeeId = resolved.employeeId;
       }
@@ -1283,14 +1514,17 @@ export class PublicBookingService {
       throw new BadRequestException('That time block is no longer available');
     }
 
-    const pricing = await this.bookingPaymentService.resolvePackageCheckoutPricing(
-      business.id,
-      dto.packageId,
-      dto,
-      authenticatedCustomerId,
-    );
+    const pricing =
+      await this.bookingPaymentService.resolvePackageCheckoutPricing(
+        business.id,
+        dto.packageId,
+        dto,
+        authenticatedCustomerId,
+      );
 
-    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(
+      business.settings,
+    );
     if (paymentsReady && pricing.amountDue > 0 && !dto.markPaid) {
       throw new BadRequestException(
         'Online payment is required for this package. Complete payment at checkout.',
@@ -1312,7 +1546,9 @@ export class PublicBookingService {
       preview.currency,
     );
 
-    const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
+    const paymentStatus = dto.markPaid
+      ? PaymentStatus.PAID
+      : PaymentStatus.NOT_APPLICABLE;
     const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
     const sameVisitMultiService = dto.lines.length > 1;
     for (const line of dto.lines) {
@@ -1330,7 +1566,10 @@ export class PublicBookingService {
             packageId: pkg.id,
             packageName: pkg.name,
             packagePurchaseId: purchase.id,
-            ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
+            ...this.resolvePublicBookingReminderMetadata(
+              business,
+              dto.customer,
+            ),
           },
         },
         undefined,
@@ -1361,25 +1600,46 @@ export class PublicBookingService {
   async getMultiServiceSettings(slug: string) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    return this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    return this.multiServiceBookingsService.resolveSettingsFromBusiness(
+      business,
+    );
   }
 
   async previewMultiServiceSelection(slug: string, serviceIds: string[]) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    return this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
+    return this.multiServiceBookingsService.previewTotals(
+      business.id,
+      serviceIds,
+    );
   }
 
-  async getMultiServiceBlockDaySlots(slug: string, serviceIds: string[], date: string) {
+  async getMultiServiceBlockDaySlots(
+    slug: string,
+    serviceIds: string[],
+    date: string,
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const normalizedIds = normalizeMultiServiceIds(serviceIds);
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
-    const preview = await this.multiServiceBookingsService.previewTotals(business.id, normalizedIds);
-    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
-    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      normalizedIds,
+    );
+    const services = await this.loadOrderedMultiServiceLines(
+      business.id,
+      normalizedIds,
+    );
+    const employees = await this.findQualifiedMultiServiceEmployees(
+      business.id,
+      normalizedIds,
+    );
     if (!employees.length) {
-      throw new BadRequestException('No provider can perform all selected services');
+      throw new BadRequestException(
+        'No provider can perform all selected services',
+      );
     }
 
     const tz = resolveTimezone(business.timezone);
@@ -1424,7 +1684,9 @@ export class PublicBookingService {
       date,
       serviceIds: normalizedIds,
       totalDurationMinutes: preview.totals!.blockDurationMinutes,
-      slots: [...slotMap.values()].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      slots: [...slotMap.values()].sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      ),
     };
   }
 
@@ -1432,18 +1694,34 @@ export class PublicBookingService {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const normalizedIds = normalizeMultiServiceIds(serviceIds);
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
-    const preview = await this.multiServiceBookingsService.previewTotals(business.id, normalizedIds);
-    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
-    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      normalizedIds,
+    );
+    const services = await this.loadOrderedMultiServiceLines(
+      business.id,
+      normalizedIds,
+    );
+    const employees = await this.findQualifiedMultiServiceEmployees(
+      business.id,
+      normalizedIds,
+    );
     if (!employees.length) {
-      throw new BadRequestException('No provider can perform all selected services');
+      throw new BadRequestException(
+        'No provider can perform all selected services',
+      );
     }
     const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const blockDurationMinutes = preview.totals!.blockDurationMinutes;
 
-    type BlockSuggestion = { employee: Employee; dateKey: string; startTime: Date };
+    type BlockSuggestion = {
+      employee: Employee;
+      dateKey: string;
+      startTime: Date;
+    };
     let blockSuggestion: BlockSuggestion | undefined;
 
     outer: for (let offset = 0; offset < SCAN_DAYS; offset++) {
@@ -1457,7 +1735,15 @@ export class PublicBookingService {
           blockDurationMinutes,
         );
         for (const startTime of daySlots) {
-          if (!isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), tz, null)) continue;
+          if (
+            !isWallClockSlotBookable(
+              dateKey,
+              formatTimeDisplay(startTime),
+              tz,
+              null,
+            )
+          )
+            continue;
           const fits = await this.validateMultiServiceBlockAt(
             business.id,
             employee.id,
@@ -1466,7 +1752,10 @@ export class PublicBookingService {
             settings.turnoverBufferMinutes,
           );
           if (!fits) continue;
-          if (!blockSuggestion || startTime.getTime() < blockSuggestion.startTime.getTime()) {
+          if (
+            !blockSuggestion ||
+            startTime.getTime() < blockSuggestion.startTime.getTime()
+          ) {
             blockSuggestion = { employee, dateKey, startTime };
           }
         }
@@ -1475,7 +1764,9 @@ export class PublicBookingService {
     }
 
     if (!blockSuggestion) {
-      throw new BadRequestException('No available block found for the selected services');
+      throw new BadRequestException(
+        'No available block found for the selected services',
+      );
     }
 
     return {
@@ -1495,20 +1786,30 @@ export class PublicBookingService {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const normalizedIds = normalizeMultiServiceIds(serviceIds);
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
-    const services = await this.loadOrderedMultiServiceLines(business.id, normalizedIds);
-    const employees = await this.findQualifiedMultiServiceEmployees(business.id, normalizedIds);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const services = await this.loadOrderedMultiServiceLines(
+      business.id,
+      normalizedIds,
+    );
+    const employees = await this.findQualifiedMultiServiceEmployees(
+      business.id,
+      normalizedIds,
+    );
     const start = new Date(startTime);
     if (Number.isNaN(start.getTime())) {
       throw new BadRequestException('Invalid start time');
     }
 
-    const reviewSummaries = await this.reviewsService.getPublicReviewsByEmployees(
-      business.id,
-      employees.map((e) => e.id),
-    );
+    const reviewSummaries =
+      await this.reviewsService.getPublicReviewsByEmployees(
+        business.id,
+        employees.map((e) => e.id),
+      );
 
-    const providers: Array<PublicServiceSlotProvider & { earliestStartTime?: string }> = [];
+    const providers: Array<
+      PublicServiceSlotProvider & { earliestStartTime?: string }
+    > = [];
 
     for (const employee of employees) {
       if (includeLaterDays) {
@@ -1521,7 +1822,11 @@ export class PublicBookingService {
         );
         if (!earliest) continue;
         providers.push(
-          this.mapMultiServiceProvider(employee, reviewSummaries, earliest.startTime),
+          this.mapMultiServiceProvider(
+            employee,
+            reviewSummaries,
+            earliest.startTime,
+          ),
         );
         continue;
       }
@@ -1543,7 +1848,10 @@ export class PublicBookingService {
   async suggestMultiServicePerServiceLines(slug: string, serviceIds: string[]) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    await this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
+    await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      serviceIds,
+    );
 
     const suggestions: Array<{
       serviceId: string;
@@ -1607,22 +1915,32 @@ export class PublicBookingService {
       throw new BadRequestException('Email or phone number is required');
     }
 
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
     const preview = await this.multiServiceBookingsService.previewTotals(
       business.id,
       dto.serviceIds,
     );
-    const services = await this.loadOrderedMultiServiceLines(business.id, dto.serviceIds);
-    const serviceNames = await this.loadMultiServiceNames(business.id, dto.serviceIds);
-
-    const pricing = await this.bookingPaymentService.resolveMultiServiceCheckoutPricing(
+    const services = await this.loadOrderedMultiServiceLines(
       business.id,
       dto.serviceIds,
-      dto,
-      authenticatedCustomerId,
+    );
+    const serviceNames = await this.loadMultiServiceNames(
+      business.id,
+      dto.serviceIds,
     );
 
-    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
+    const pricing =
+      await this.bookingPaymentService.resolveMultiServiceCheckoutPricing(
+        business.id,
+        dto.serviceIds,
+        dto,
+        authenticatedCustomerId,
+      );
+
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(
+      business.settings,
+    );
     if (paymentsReady && pricing.amountDue > 0 && !dto.markPaid) {
       throw new BadRequestException(
         'Online payment is required for this booking. Complete payment at checkout.',
@@ -1635,13 +1953,19 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
 
-    let appointments: Array<{ serviceId: string; employeeId: string; startTime: string }> = [];
+    let appointments: Array<{
+      serviceId: string;
+      employeeId: string;
+      startTime: string;
+    }> = [];
     let blockStartTime: Date | null = null;
     let primaryEmployeeId: string | null = null;
 
     if (settings.schedulingMode === 'per_service') {
       if (!dto.lines?.length) {
-        throw new BadRequestException('Schedule each selected service before checkout');
+        throw new BadRequestException(
+          'Schedule each selected service before checkout',
+        );
       }
       try {
         validatePerServiceLines(dto.serviceIds, dto.lines);
@@ -1656,7 +1980,9 @@ export class PublicBookingService {
             line.startTime,
           );
           if (!resolved) {
-            throw new BadRequestException('One or more selected time slots are no longer available');
+            throw new BadRequestException(
+              'One or more selected time slots are no longer available',
+            );
           }
           line.employeeId = resolved.employeeId;
         }
@@ -1679,7 +2005,9 @@ export class PublicBookingService {
           false,
         );
         if (!providers.providers.length) {
-          throw new BadRequestException('That time block is no longer available');
+          throw new BadRequestException(
+            'That time block is no longer available',
+          );
         }
         employeeId = providers.providers[0].id;
       }
@@ -1705,7 +2033,7 @@ export class PublicBookingService {
       primaryEmployeeId = employeeId;
       appointments = sequential.map((line) => ({
         serviceId: line.serviceId,
-        employeeId: employeeId!,
+        employeeId: employeeId,
         startTime: line.startTime.toISOString(),
       }));
     }
@@ -1731,7 +2059,9 @@ export class PublicBookingService {
       },
     });
 
-    const paymentStatus = dto.markPaid ? PaymentStatus.PAID : PaymentStatus.NOT_APPLICABLE;
+    const paymentStatus = dto.markPaid
+      ? PaymentStatus.PAID
+      : PaymentStatus.NOT_APPLICABLE;
     const bookings: Awaited<ReturnType<BookingService['create']>>[] = [];
     const sameVisitMultiService =
       settings.schedulingMode === 'same_visit' && appointments.length > 1;
@@ -1751,7 +2081,10 @@ export class PublicBookingService {
             multiServiceGroupId: group.id,
             groupLabel: serviceNames.join(' + '),
             schedulingMode: settings.schedulingMode,
-            ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
+            ...this.resolvePublicBookingReminderMetadata(
+              business,
+              dto.customer,
+            ),
           },
         },
         undefined,
@@ -1789,12 +2122,24 @@ export class PublicBookingService {
       graceHours,
     );
     const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
-    const settings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
-    const preview = await this.multiServiceBookingsService.previewTotals(business.id, serviceIds);
-    const services = await this.loadOrderedMultiServiceLines(business.id, serviceIds);
-    const employees = await this.findQualifiedMultiServiceEmployees(business.id, serviceIds);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const preview = await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      serviceIds,
+    );
+    const services = await this.loadOrderedMultiServiceLines(
+      business.id,
+      serviceIds,
+    );
+    const employees = await this.findQualifiedMultiServiceEmployees(
+      business.id,
+      serviceIds,
+    );
     if (!employees.length) {
-      throw new BadRequestException('No provider can perform all included package services');
+      throw new BadRequestException(
+        'No provider can perform all included package services',
+      );
     }
     return {
       business,
@@ -1807,11 +2152,15 @@ export class PublicBookingService {
     };
   }
 
-  private async loadOrderedMultiServiceLines(businessId: string, serviceIds: string[]) {
-    const loaded = await this.multiServiceBookingsService.loadServicesForSelection(
-      businessId,
-      serviceIds,
-    );
+  private async loadOrderedMultiServiceLines(
+    businessId: string,
+    serviceIds: string[],
+  ) {
+    const loaded =
+      await this.multiServiceBookingsService.loadServicesForSelection(
+        businessId,
+        serviceIds,
+      );
     const byId = new Map(loaded.map((svc) => [svc.serviceId, svc]));
     return serviceIds.map((id) => {
       const svc = byId.get(id);
@@ -1820,12 +2169,21 @@ export class PublicBookingService {
     });
   }
 
-  private async loadMultiServiceNames(businessId: string, serviceIds: string[]) {
-    const lines = await this.loadOrderedMultiServiceLines(businessId, serviceIds);
+  private async loadMultiServiceNames(
+    businessId: string,
+    serviceIds: string[],
+  ) {
+    const lines = await this.loadOrderedMultiServiceLines(
+      businessId,
+      serviceIds,
+    );
     return lines.map((line) => line.name ?? line.serviceId);
   }
 
-  private async findQualifiedMultiServiceEmployees(businessId: string, serviceIds: string[]) {
+  private async findQualifiedMultiServiceEmployees(
+    businessId: string,
+    serviceIds: string[],
+  ) {
     const employees = await this.employeeRepo.find({
       where: { businessId, isActive: true },
       order: { name: 'ASC' },
@@ -1839,10 +2197,18 @@ export class PublicBookingService {
     businessId: string,
     employeeId: string,
     blockStart: Date,
-    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
+    services: Array<{
+      serviceId: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+    }>,
     turnoverBufferMinutes: number,
   ): Promise<boolean> {
-    const sequential = buildSequentialAppointments(services, blockStart, turnoverBufferMinutes);
+    const sequential = buildSequentialAppointments(
+      services,
+      blockStart,
+      turnoverBufferMinutes,
+    );
     if (!sequential.length) return false;
 
     const blockEnd = sequential[sequential.length - 1].endTime;
@@ -1865,8 +2231,16 @@ export class PublicBookingService {
   private async assertMultiServiceAppointmentsAvailable(
     businessId: string,
     settings: MultiServiceSettings,
-    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
-    appointments: Array<{ serviceId: string; employeeId: string; startTime: string }>,
+    services: Array<{
+      serviceId: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+    }>,
+    appointments: Array<{
+      serviceId: string;
+      employeeId: string;
+      startTime: string;
+    }>,
   ): Promise<void> {
     if (settings.schedulingMode === 'same_visit' && appointments.length > 1) {
       const blockStart = new Date(appointments[0].startTime);
@@ -1886,10 +2260,15 @@ export class PublicBookingService {
 
     for (const appt of appointments) {
       const svc = services.find((entry) => entry.serviceId === appt.serviceId);
-      if (!svc) throw new BadRequestException('One or more selected services are unavailable');
+      if (!svc)
+        throw new BadRequestException(
+          'One or more selected services are unavailable',
+        );
 
       const start = new Date(appt.startTime);
-      const end = new Date(start.getTime() + (svc.durationMinutes + svc.bufferMinutes) * 60_000);
+      const end = new Date(
+        start.getTime() + (svc.durationMinutes + svc.bufferMinutes) * 60_000,
+      );
       try {
         await this.bookingService.validateServiceFitsWindow(
           businessId,
@@ -1899,14 +2278,19 @@ export class PublicBookingService {
           appt.serviceId,
         );
       } catch {
-        throw new BadRequestException('One or more selected time slots are no longer available');
+        throw new BadRequestException(
+          'One or more selected time slots are no longer available',
+        );
       }
     }
   }
 
   private mapMultiServiceProvider(
     employee: Employee,
-    reviewSummaries: Map<string, { averageRating: number | null; reviewCount: number }>,
+    reviewSummaries: Map<
+      string,
+      { averageRating: number | null; reviewCount: number }
+    >,
     earliestStartTime?: string,
   ): PublicServiceSlotProvider & { earliestStartTime?: string } {
     const summary = reviewSummaries.get(employee.id);
@@ -1926,15 +2310,23 @@ export class PublicBookingService {
     business: Business,
     employee: Employee,
     serviceIds: string[],
-    services: Array<{ serviceId: string; durationMinutes: number; bufferMinutes: number }>,
+    services: Array<{
+      serviceId: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+    }>,
     settings: MultiServiceSettings,
   ): Promise<{ startTime: string } | null> {
     const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
 
     const blockDurationMinutes =
-      services.reduce((sum, svc) => sum + svc.durationMinutes + svc.bufferMinutes, 0) +
-      Math.max(0, services.length - 1) * Math.max(0, settings.turnoverBufferMinutes);
+      services.reduce(
+        (sum, svc) => sum + svc.durationMinutes + svc.bufferMinutes,
+        0,
+      ) +
+      Math.max(0, services.length - 1) *
+        Math.max(0, settings.turnoverBufferMinutes);
 
     for (let offset = 0; offset < SCAN_DAYS; offset++) {
       const dateKey = addDaysToDateKey(todayKey, offset, tz);
@@ -1946,7 +2338,15 @@ export class PublicBookingService {
         blockDurationMinutes,
       );
       for (const startTime of daySlots) {
-        if (!isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), tz, null)) continue;
+        if (
+          !isWallClockSlotBookable(
+            dateKey,
+            formatTimeDisplay(startTime),
+            tz,
+            null,
+          )
+        )
+          continue;
         const fits = await this.validateMultiServiceBlockAt(
           business.id,
           employee.id,
@@ -1977,8 +2377,11 @@ export class PublicBookingService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
-    const paymentsReady = this.stripeIntegrationService.isConnectReady(business.settings);
-    const prepaymentRequired = paymentsReady && service.prepaymentMode !== PrepaymentMode.NONE;
+    const paymentsReady = this.stripeIntegrationService.isConnectReady(
+      business.settings,
+    );
+    const prepaymentRequired =
+      paymentsReady && service.prepaymentMode !== PrepaymentMode.NONE;
 
     let useSubscriptionId = dto.useSubscriptionId;
 
@@ -1990,7 +2393,12 @@ export class PublicBookingService {
     );
 
     const subscriptionCoversVisit = Boolean(useSubscriptionId);
-    if (subscriptionCoversVisit && prepaymentRequired && pricing.amountDue > 0 && !dto.markPaid) {
+    if (
+      subscriptionCoversVisit &&
+      prepaymentRequired &&
+      pricing.amountDue > 0 &&
+      !dto.markPaid
+    ) {
       // Subscription credit — no service fee due
     } else if (
       prepaymentRequired &&
@@ -2006,7 +2414,11 @@ export class PublicBookingService {
 
     let employeeId = dto.employeeId;
     if (!employeeId) {
-      const resolved = await this.resolveEmployeeForServiceSlot(slug, dto.serviceId, dto.startTime);
+      const resolved = await this.resolveEmployeeForServiceSlot(
+        slug,
+        dto.serviceId,
+        dto.startTime,
+      );
       if (!resolved) {
         throw new BadRequestException('That time slot is no longer available');
       }
@@ -2047,16 +2459,26 @@ export class PublicBookingService {
       );
     }
 
-    const cashPaymentsAllowed = resolvePublicPaymentSettings(business.settings).acceptCashPayments;
+    const cashPaymentsAllowed = resolvePublicPaymentSettings(
+      business.settings,
+    ).acceptCashPayments;
     const wantsCash = dto.paymentMethod === 'cash';
     if (wantsCash) {
       if (!cashPaymentsAllowed) {
-        throw new BadRequestException('Cash payments are not accepted for online booking');
+        throw new BadRequestException(
+          'Cash payments are not accepted for online booking',
+        );
       }
       if (dto.purchasePlanId) {
-        throw new BadRequestException('Subscription purchases require online payment');
+        throw new BadRequestException(
+          'Subscription purchases require online payment',
+        );
       }
-      if (prepaymentRequired && pricing.amountDue > 0 && !subscriptionCoversVisit) {
+      if (
+        prepaymentRequired &&
+        pricing.amountDue > 0 &&
+        !subscriptionCoversVisit
+      ) {
         throw new BadRequestException(
           'This service requires online prepayment; pay in cash is not available',
         );
@@ -2100,7 +2522,10 @@ export class PublicBookingService {
       booking.id,
     );
 
-    const manageToken = await ensureBookingManageToken(this.bookingRepo, booking.id);
+    const manageToken = await ensureBookingManageToken(
+      this.bookingRepo,
+      booking.id,
+    );
 
     return {
       booking,
@@ -2115,7 +2540,9 @@ export class PublicBookingService {
   private assertPublicBookingEnabled(business: Business) {
     const enabled = business.settings?.publicBooking?.enabled;
     if (enabled === false) {
-      throw new ForbiddenException('Public booking is disabled for this business');
+      throw new ForbiddenException(
+        'Public booking is disabled for this business',
+      );
     }
   }
 
@@ -2129,7 +2556,14 @@ export class PublicBookingService {
 
     const bookable: Date[] = [];
     for (const startTime of startTimes) {
-      if (await this.canBookAnyServiceAt(businessId, employee.id, startTime, services)) {
+      if (
+        await this.canBookAnyServiceAt(
+          businessId,
+          employee.id,
+          startTime,
+          services,
+        )
+      ) {
         bookable.push(startTime);
       }
     }
@@ -2142,13 +2576,18 @@ export class PublicBookingService {
     startTimes: Date[],
     service: Service,
   ): Promise<Date[]> {
-    if (employee.serviceIds?.length && !employee.serviceIds.includes(service.id)) {
+    if (
+      employee.serviceIds?.length &&
+      !employee.serviceIds.includes(service.id)
+    ) {
       return [];
     }
 
     const bookable: Date[] = [];
     for (const startTime of startTimes) {
-      if (await this.canBookServiceAt(businessId, employee.id, startTime, service)) {
+      if (
+        await this.canBookServiceAt(businessId, employee.id, startTime, service)
+      ) {
         bookable.push(startTime);
       }
     }
@@ -2171,7 +2610,8 @@ export class PublicBookingService {
     }
 
     const end = new Date(
-      startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+      startTime.getTime() +
+        (service.durationMinutes + service.bufferMinutes) * 60000,
     );
     try {
       await this.bookingService.validateServiceFitsWindow(
@@ -2202,11 +2642,14 @@ export class PublicBookingService {
       return false;
     }
     const candidates =
-      allowedIds === null ? services : services.filter((s) => allowedIds.includes(s.id));
+      allowedIds === null
+        ? services
+        : services.filter((s) => allowedIds.includes(s.id));
 
     for (const service of candidates) {
       const end = new Date(
-        startTime.getTime() + (service.durationMinutes + service.bufferMinutes) * 60000,
+        startTime.getTime() +
+          (service.durationMinutes + service.bufferMinutes) * 60000,
       );
       try {
         await this.bookingService.validateServiceFitsWindow(
@@ -2231,16 +2674,27 @@ export class PublicBookingService {
     todayDateKey: string,
     timeZone: string,
     displayLocale: AppLocale,
-  ): Promise<Omit<PublicProvider, 'averageRating' | 'reviewCount' | 'recentReviews'>> {
+  ): Promise<
+    Omit<PublicProvider, 'averageRating' | 'reviewCount' | 'recentReviews'>
+  > {
     const metadata = employee.metadata || {};
     let nearestDateKey: string | null = null;
     let slots: Date[] = [];
 
     for (let offset = 0; offset < SCAN_DAYS; offset++) {
       const dateKey = addDaysToDateKey(fromDateKey, offset, timeZone);
-      const daySlots = await this.getEmployeeStartTimes(businessId, employee, dateKey);
+      const daySlots = await this.getEmployeeStartTimes(
+        businessId,
+        employee,
+        dateKey,
+      );
       const upcoming = daySlots.filter((startTime) =>
-        isWallClockSlotBookable(dateKey, formatTimeDisplay(startTime), timeZone, null),
+        isWallClockSlotBookable(
+          dateKey,
+          formatTimeDisplay(startTime),
+          timeZone,
+          null,
+        ),
       );
       const bookable = await this.filterStartTimesWithAnyBookableService(
         businessId,
@@ -2261,11 +2715,18 @@ export class PublicBookingService {
       avatarUrl: this.resolvePublicMediaUrl(metadata.avatarUrl),
       nearestDate: nearestDateKey,
       nearestDateLabel: nearestDateKey
-        ? formatNearestSlotDateLabel(nearestDateKey, todayDateKey, timeZone, displayLocale)
+        ? formatNearestSlotDateLabel(
+            nearestDateKey,
+            todayDateKey,
+            timeZone,
+            displayLocale,
+          )
         : null,
       slots: slots.map((startTime) => ({
         startTime: startTime.toISOString(),
-        endTime: new Date(startTime.getTime() + SLOT_STEP_MINUTES * 60000).toISOString(),
+        endTime: new Date(
+          startTime.getTime() + SLOT_STEP_MINUTES * 60000,
+        ).toISOString(),
       })),
     };
   }
@@ -2290,9 +2751,16 @@ export class PublicBookingService {
 
     addTimes(await this.getEmployeeStartTimes(businessId, employee, dateKey));
 
-    const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(dateKey, 'UTC');
+    const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(
+      dateKey,
+      'UTC',
+    );
     for (const serviceId of serviceIds) {
-      if (employee.serviceIds?.length && !employee.serviceIds.includes(serviceId)) continue;
+      if (
+        employee.serviceIds?.length &&
+        !employee.serviceIds.includes(serviceId)
+      )
+        continue;
       try {
         const engineSlots = await this.schedulingEngine.getAvailableSlots({
           businessId,
@@ -2321,7 +2789,11 @@ export class PublicBookingService {
     for (const period of dayPeriods) {
       if (period.type !== TemplatePeriodType.SERVICE_BLOCK) continue;
       const allowedIds = period.serviceIds;
-      if (allowedIds?.length && !serviceIds.every((id) => allowedIds.includes(id))) continue;
+      if (
+        allowedIds?.length &&
+        !serviceIds.every((id) => allowedIds.includes(id))
+      )
+        continue;
 
       let cursor = period.startTime.getTime();
       const periodEnd = period.endTime.getTime();
@@ -2351,7 +2823,10 @@ export class PublicBookingService {
     dateKey: string,
   ): Promise<Date[]> {
     // Schedule micro-slots are stored on UTC calendar days (wall-clock HH:mm as UTC)
-    const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(dateKey, 'UTC');
+    const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(
+      dateKey,
+      'UTC',
+    );
 
     const microSlots = await this.slotRepo.find({
       where: {
@@ -2375,7 +2850,9 @@ export class PublicBookingService {
     if (services.length === 0) return [];
 
     const shortest = services.reduce((a, b) =>
-      a.durationMinutes + a.bufferMinutes <= b.durationMinutes + b.bufferMinutes ? a : b,
+      a.durationMinutes + a.bufferMinutes <= b.durationMinutes + b.bufferMinutes
+        ? a
+        : b,
     );
 
     const engineSlots = await this.schedulingEngine.getAvailableSlots({
@@ -2388,7 +2865,10 @@ export class PublicBookingService {
     return this.snapToGrid(engineSlots.map((s) => s.startTime));
   }
 
-  private async getEmployeeServices(businessId: string, employee: Employee): Promise<Service[]> {
+  private async getEmployeeServices(
+    businessId: string,
+    employee: Employee,
+  ): Promise<Service[]> {
     const services = await this.serviceRepo.find({
       where: { businessId, isActive: true },
     });
@@ -2403,7 +2883,8 @@ export class PublicBookingService {
     for (const time of times.sort((a, b) => a.getTime() - b.getTime())) {
       // UTC wall-clock matches dashboard schedule times (10:00 stored as 10:00 UTC)
       const minutes = time.getUTCHours() * 60 + time.getUTCMinutes();
-      const snappedMin = Math.floor(minutes / SLOT_STEP_MINUTES) * SLOT_STEP_MINUTES;
+      const snappedMin =
+        Math.floor(minutes / SLOT_STEP_MINUTES) * SLOT_STEP_MINUTES;
       const snapped = new Date(time);
       snapped.setUTCHours(Math.floor(snappedMin / 60), snappedMin % 60, 0, 0);
       const key = snapped.toISOString();

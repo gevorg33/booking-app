@@ -23,7 +23,9 @@ export class PolicyEngineService {
         try {
           return await rule.evaluate(context);
         } catch (error: any) {
-          this.logger.error(`Policy rule ${rule.name} failed: ${error.message}`);
+          this.logger.error(
+            `Policy rule ${rule.name} failed: ${error.message}`,
+          );
           return {
             passed: false,
             message: `Rule evaluation failed: ${rule.name}`,
@@ -33,9 +35,7 @@ export class PolicyEngineService {
       }),
     );
 
-    const violations = results
-      .filter((r) => !r.passed)
-      .map((r) => r.message);
+    const violations = results.filter((r) => !r.passed).map((r) => r.message);
 
     const riskLevel = this.calculateOverallRisk(
       results.map((r) => r.riskContribution),
@@ -55,14 +55,20 @@ export class PolicyEngineService {
       riskLevel,
       reasons: results.map((r) => r.message),
       violations,
-      requiredApprovals: decision === PolicyDecision.REQUIRES_APPROVAL
-        ? ['business_admin']
-        : undefined,
+      requiredApprovals:
+        decision === PolicyDecision.REQUIRES_APPROVAL
+          ? ['business_admin']
+          : undefined,
     };
   }
 
   private calculateOverallRisk(levels: RiskLevel[]): RiskLevel {
-    const riskOrder: RiskLevel[] = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL];
+    const riskOrder: RiskLevel[] = [
+      RiskLevel.LOW,
+      RiskLevel.MEDIUM,
+      RiskLevel.HIGH,
+      RiskLevel.CRITICAL,
+    ];
     let maxIndex = 0;
     for (const level of levels) {
       const idx = riskOrder.indexOf(level);

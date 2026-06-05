@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -24,7 +32,10 @@ export class ReviewsController {
 
   @Get('summary')
   @UseGuards(JwtAuthGuard)
-  async summary(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async summary(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.reviewsService.summary(businessId);
   }

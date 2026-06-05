@@ -10,7 +10,9 @@ describe('PublicBookingService appointment reminder profile', () => {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
   const multiServiceBookingsService = new MultiServiceBookingsService(
     { create: jest.fn(), save: jest.fn() } as any,
@@ -73,12 +75,14 @@ describe('PublicBookingService appointment reminder profile', () => {
         ...baseBusiness.settings,
         notifications: { allowCustomerReminderChoice: false },
       },
-    } as Business);
+    });
     expect(profile.appointmentReminders).toBeUndefined();
   });
 
   it('builds booking reminder metadata and validates customer selection', () => {
-    const resolve = (service as any).resolvePublicBookingReminderMetadata.bind(service);
+    const resolve = (service as any).resolvePublicBookingReminderMetadata.bind(
+      service,
+    );
 
     expect(
       resolve(baseBusiness, { name: 'Alex', reminderHoursBefore: 6 }),
@@ -88,9 +92,9 @@ describe('PublicBookingService appointment reminder profile', () => {
       resolve(baseBusiness, { name: 'Alex', reminderHoursBefore: null }),
     ).toEqual({ reminderHoursBefore: null });
 
-    expect(() => resolve(baseBusiness, { name: 'Alex', reminderHoursBefore: 99 })).toThrow(
-      BadRequestException,
-    );
+    expect(() =>
+      resolve(baseBusiness, { name: 'Alex', reminderHoursBefore: 99 }),
+    ).toThrow(BadRequestException);
 
     const disabledBusiness = {
       ...baseBusiness,
@@ -99,6 +103,8 @@ describe('PublicBookingService appointment reminder profile', () => {
         notifications: { allowCustomerReminderChoice: false },
       },
     } as Business;
-    expect(resolve(disabledBusiness, { name: 'Alex', reminderHoursBefore: 6 })).toEqual({});
+    expect(
+      resolve(disabledBusiness, { name: 'Alex', reminderHoursBefore: 6 }),
+    ).toEqual({});
   });
 });

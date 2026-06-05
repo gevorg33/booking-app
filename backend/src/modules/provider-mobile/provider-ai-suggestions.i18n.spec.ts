@@ -27,7 +27,12 @@ describe('provider-ai-suggestions i18n', () => {
     it('resolves every suggestion key in en, hy, and ru', () => {
       for (const key of keys) {
         for (const locale of ['en', 'hy', 'ru'] as const) {
-          const text = providerSuggestionText(locale, key, { count: 2, customer: 'Anna', time: '13:00', date: '2026-06-02' });
+          const text = providerSuggestionText(locale, key, {
+            count: 2,
+            customer: 'Anna',
+            time: '13:00',
+            date: '2026-06-02',
+          });
           expect(text).not.toBe(`providerSuggestions.${key}`);
           expect(text.trim().length).toBeGreaterThan(0);
         }
@@ -35,15 +40,20 @@ describe('provider-ai-suggestions i18n', () => {
     });
 
     it('interpolates count and names in Armenian', () => {
-      const title = providerSuggestionText('hy', 'confirmPendingTitle', { count: 3 });
+      const title = providerSuggestionText('hy', 'confirmPendingTitle', {
+        count: 3,
+      });
       expect(title).toContain('3');
-      const next = providerSuggestionText('hy', 'nextUpTitle', { customer: 'Anna', time: '14:00' });
+      const next = providerSuggestionText('hy', 'nextUpTitle', {
+        customer: 'Anna',
+        time: '14:00',
+      });
       expect(next).toContain('Anna');
       expect(next).toContain('14:00');
     });
 
     it('falls back to English for unknown keys', () => {
-      const text = providerSuggestionText('hy', 'nonexistentKey' as 'confirmPendingTitle');
+      const text = providerSuggestionText('hy', 'nonexistentKey');
       expect(text).toBe('providerSuggestions.nonexistentKey');
     });
   });

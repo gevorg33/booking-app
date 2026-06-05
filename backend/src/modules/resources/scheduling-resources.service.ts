@@ -61,7 +61,12 @@ export class SchedulingResourcesService {
   async updateResource(
     businessId: string,
     resourceId: string,
-    dto: Partial<{ name: string; resourceType: string; locationId: string | null; isActive: boolean }>,
+    dto: Partial<{
+      name: string;
+      resourceType: string;
+      locationId: string | null;
+      isActive: boolean;
+    }>,
   ) {
     const resource = await this.resourceRepo.findOne({
       where: { id: resourceId, businessId },
@@ -103,12 +108,20 @@ export class SchedulingResourcesService {
     if (uniqueIds.length === 0) return [];
 
     const rows = uniqueIds.map((resourceId) =>
-      this.requirementRepo.create({ businessId, serviceId, resourceId, quantity: 1 }),
+      this.requirementRepo.create({
+        businessId,
+        serviceId,
+        resourceId,
+        quantity: 1,
+      }),
     );
     return this.requirementRepo.save(rows);
   }
 
-  async getRequiredResourceIds(businessId: string, serviceId: string): Promise<string[]> {
+  async getRequiredResourceIds(
+    businessId: string,
+    serviceId: string,
+  ): Promise<string[]> {
     const reqs = await this.requirementRepo.find({
       where: { businessId, serviceId },
     });
@@ -128,7 +141,9 @@ export class SchedulingResourcesService {
       where: { id: In(resourceIds), businessId, isActive: true },
     });
     if (resources.length !== resourceIds.length) {
-      throw new BadRequestException('One or more resources are invalid or inactive');
+      throw new BadRequestException(
+        'One or more resources are invalid or inactive',
+      );
     }
 
     const conflicts = await this.findConflictingResourceIds(
@@ -160,7 +175,9 @@ export class SchedulingResourcesService {
       .innerJoin('bookings', 'booking', 'booking.id = br.booking_id')
       .where('br.resource_id IN (:...resourceIds)', { resourceIds })
       .andWhere('booking.business_id = :businessId', { businessId })
-      .andWhere('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
+      .andWhere('booking.status != :cancelled', {
+        cancelled: BookingStatus.CANCELLED,
+      })
       .andWhere('booking.start_time < :endTime', { endTime })
       .andWhere('booking.end_time > :startTime', { startTime });
 
@@ -173,7 +190,12 @@ export class SchedulingResourcesService {
       .addSelect('booking.id', 'bookingId')
       .addSelect('booking.start_time', 'startTime')
       .addSelect('booking.end_time', 'endTime')
-      .getRawMany<{ resourceId: string; bookingId: string; startTime: Date; endTime: Date }>();
+      .getRawMany<{
+        resourceId: string;
+        bookingId: string;
+        startTime: Date;
+        endTime: Date;
+      }>();
 
     const existing: ResourceBookingWindow[] = rows.map((row) => ({
       resourceIds: [row.resourceId],
@@ -214,7 +236,9 @@ export class SchedulingResourcesService {
   }
 
   private async assertService(businessId: string, serviceId: string) {
-    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
     if (!service) throw new NotFoundException('Service not found');
     return service;
   }

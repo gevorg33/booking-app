@@ -25,14 +25,21 @@ export function buildMultiServiceLineItem(serviceCount: number) {
   };
 }
 
-export function buildPackageLineItem(packageName: string, serviceCount: number) {
+export function buildPackageLineItem(
+  packageName: string,
+  serviceCount: number,
+) {
   return {
     name: packageName,
     description: `Bundle of ${serviceCount} appointment${serviceCount === 1 ? '' : 's'}`,
   };
 }
 
-export function buildSubscriptionLineItem(planName: string, appointments: number, months: number) {
+export function buildSubscriptionLineItem(
+  planName: string,
+  appointments: number,
+  months: number,
+) {
   return {
     name: `${planName} subscription`,
     description: `${appointments} appointments over ${months} months`,

@@ -1,10 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockSchedule } from '../entities/block-schedule.entity.js';
 import { BlockScheduleInstance } from '../entities/block-schedule-instance.entity.js';
 import { SchedulingPeriod } from '../entities/scheduling-period.entity.js';
-import { SchedulingSlot, SlotStatus } from '../entities/scheduling-slot.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../entities/scheduling-slot.entity.js';
 import { TemplatePeriodType } from '../entities/scheduling-template-period.entity.js';
 import { Employee } from '../../employee/entities/employee.entity.js';
 import {
@@ -29,10 +37,14 @@ export class BlockScheduleService {
   private readonly logger = new Logger(BlockScheduleService.name);
 
   constructor(
-    @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
-    @InjectRepository(BlockScheduleInstance) private instanceRepo: Repository<BlockScheduleInstance>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(BlockSchedule)
+    private blockScheduleRepo: Repository<BlockSchedule>,
+    @InjectRepository(BlockScheduleInstance)
+    private instanceRepo: Repository<BlockScheduleInstance>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private eventStore: EventStoreService,
   ) {}
@@ -59,7 +71,11 @@ export class BlockScheduleService {
     return this.toDetail(schedule);
   }
 
-  async create(businessId: string, dto: CreateBlockScheduleDto, userId?: string) {
+  async create(
+    businessId: string,
+    dto: CreateBlockScheduleDto,
+    userId?: string,
+  ) {
     await this.ensureEmployee(businessId, dto.employeeId);
     this.validateDto(dto);
 
@@ -104,12 +120,21 @@ export class BlockScheduleService {
       );
     }
 
-    await this.publishAvailabilityUpdated(businessId, schedule.employeeId, userId);
+    await this.publishAvailabilityUpdated(
+      businessId,
+      schedule.employeeId,
+      userId,
+    );
 
     return this.getOne(businessId, schedule.id);
   }
 
-  async update(businessId: string, id: string, dto: UpdateBlockScheduleDto, userId?: string) {
+  async update(
+    businessId: string,
+    id: string,
+    dto: UpdateBlockScheduleDto,
+    userId?: string,
+  ) {
     const existing = await this.blockScheduleRepo.findOne({
       where: { id, businessId, isDeleted: false },
       relations: { instances: true },
@@ -165,7 +190,11 @@ export class BlockScheduleService {
       );
     }
 
-    await this.publishAvailabilityUpdated(businessId, existing.employeeId, userId);
+    await this.publishAvailabilityUpdated(
+      businessId,
+      existing.employeeId,
+      userId,
+    );
     return this.getOne(businessId, id);
   }
 
@@ -181,7 +210,11 @@ export class BlockScheduleService {
     schedule.isDeleted = true;
     await this.blockScheduleRepo.save(schedule);
 
-    await this.publishAvailabilityUpdated(businessId, schedule.employeeId, userId);
+    await this.publishAvailabilityUpdated(
+      businessId,
+      schedule.employeeId,
+      userId,
+    );
     return { deleted: true };
   }
 
@@ -201,7 +234,10 @@ export class BlockScheduleService {
       await this.slotRepo.save(slot);
     }
 
-    await this.mergeAdjacentServicePeriods(schedule.businessId, schedule.employeeId);
+    await this.mergeAdjacentServicePeriods(
+      schedule.businessId,
+      schedule.employeeId,
+    );
   }
 
   /** Apply a block window: split service periods and mark micro-slots blocked. */
@@ -327,8 +363,13 @@ export class BlockScheduleService {
       .getMany();
 
     for (const slot of existing) {
-      if (slot.status === SlotStatus.BLOCKED || slot.status === SlotStatus.UNAVAILABLE) continue;
-      if (slot.appointmentCount > 0 || slot.status === SlotStatus.BOOKED) continue;
+      if (
+        slot.status === SlotStatus.BLOCKED ||
+        slot.status === SlotStatus.UNAVAILABLE
+      )
+        continue;
+      if (slot.appointmentCount > 0 || slot.status === SlotStatus.BOOKED)
+        continue;
       slot.status = SlotStatus.BLOCKED;
       slot.placeholderLabel = placeholderLabel;
       slot.blockScheduleId = blockScheduleId;
@@ -338,8 +379,13 @@ export class BlockScheduleService {
     if (existing.length === 0) {
       let current = new Date(blockStart);
       const slotsToSave: Partial<SchedulingSlot>[] = [];
-      while (current.getTime() + SLOT_DURATION_MINUTES * 60000 <= blockEnd.getTime()) {
-        const slotEnd = new Date(current.getTime() + SLOT_DURATION_MINUTES * 60000);
+      while (
+        current.getTime() + SLOT_DURATION_MINUTES * 60000 <=
+        blockEnd.getTime()
+      ) {
+        const slotEnd = new Date(
+          current.getTime() + SLOT_DURATION_MINUTES * 60000,
+        );
         slotsToSave.push({
           businessId,
           employeeId,
@@ -359,7 +405,10 @@ export class BlockScheduleService {
     }
   }
 
-  private async mergeAdjacentServicePeriods(businessId: string, employeeId: string) {
+  private async mergeAdjacentServicePeriods(
+    businessId: string,
+    employeeId: string,
+  ) {
     const periods = await this.periodRepo.find({
       where: {
         businessId,
@@ -387,10 +436,16 @@ export class BlockScheduleService {
     }
   }
 
-  private async buildInstances(schedule: BlockSchedule): Promise<BlockScheduleInstance[]> {
+  private async buildInstances(
+    schedule: BlockSchedule,
+  ): Promise<BlockScheduleInstance[]> {
     const instances: BlockScheduleInstance[] = [];
 
-    if (!schedule.isRepetitive && schedule.singleStartTime && schedule.singleEndTime) {
+    if (
+      !schedule.isRepetitive &&
+      schedule.singleStartTime &&
+      schedule.singleEndTime
+    ) {
       instances.push(
         this.instanceRepo.create({
           blockScheduleId: schedule.id,
@@ -403,7 +458,12 @@ export class BlockScheduleService {
       return instances;
     }
 
-    if (!schedule.startDay || !schedule.endDay || !schedule.blockStartTime || !schedule.blockEndTime) {
+    if (
+      !schedule.startDay ||
+      !schedule.endDay ||
+      !schedule.blockStartTime ||
+      !schedule.blockEndTime
+    ) {
       return instances;
     }
 
@@ -450,32 +510,52 @@ export class BlockScheduleService {
   private validateDto(dto: CreateBlockScheduleDto) {
     if (dto.isRepetitive) {
       if (!dto.repetitiveBlock) {
-        throw new BadRequestException('repetitiveBlock is required when isRepetitive is true');
+        throw new BadRequestException(
+          'repetitiveBlock is required when isRepetitive is true',
+        );
       }
-      const { startDay, endDay, startTime, endTime, weeksCount } = dto.repetitiveBlock;
+      const { startDay, endDay, startTime, endTime, weeksCount } =
+        dto.repetitiveBlock;
       if (new Date(endDay) < new Date(startDay)) {
         throw new BadRequestException('End day must be on or after start day');
       }
-      if (buildUtcDateTime(endDay, endTime) <= buildUtcDateTime(startDay, startTime) && startDay === endDay) {
-        throw new BadRequestException('Block end time must be after start time');
+      if (
+        buildUtcDateTime(endDay, endTime) <=
+          buildUtcDateTime(startDay, startTime) &&
+        startDay === endDay
+      ) {
+        throw new BadRequestException(
+          'Block end time must be after start time',
+        );
       }
-      if (weeksCount < 1) throw new BadRequestException('weeksCount must be at least 1');
+      if (weeksCount < 1)
+        throw new BadRequestException('weeksCount must be at least 1');
     } else {
       if (!dto.singleBlock) {
-        throw new BadRequestException('singleBlock is required when isRepetitive is false');
+        throw new BadRequestException(
+          'singleBlock is required when isRepetitive is false',
+        );
       }
       const start = new Date(dto.singleBlock.startTime);
       const end = new Date(dto.singleBlock.endTime);
-      if (end <= start) throw new BadRequestException('Block end must be after start');
+      if (end <= start)
+        throw new BadRequestException('Block end must be after start');
       if (start < new Date()) {
-        throw new BadRequestException('Cannot create a block schedule in the past');
+        throw new BadRequestException(
+          'Cannot create a block schedule in the past',
+        );
       }
     }
   }
 
   private validateScheduleEntity(schedule: BlockSchedule) {
     if (schedule.isRepetitive) {
-      if (!schedule.startDay || !schedule.endDay || !schedule.blockStartTime || !schedule.blockEndTime) {
+      if (
+        !schedule.startDay ||
+        !schedule.endDay ||
+        !schedule.blockStartTime ||
+        !schedule.blockEndTime
+      ) {
         throw new BadRequestException('Incomplete repetitive block schedule');
       }
     } else if (!schedule.singleStartTime || !schedule.singleEndTime) {
@@ -484,11 +564,17 @@ export class BlockScheduleService {
   }
 
   private async ensureEmployee(businessId: string, employeeId: string) {
-    const employee = await this.employeeRepo.findOne({ where: { id: employeeId, businessId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId },
+    });
     if (!employee) throw new NotFoundException('Employee not found');
   }
 
-  private async publishAvailabilityUpdated(businessId: string, employeeId: string, userId?: string) {
+  private async publishAvailabilityUpdated(
+    businessId: string,
+    employeeId: string,
+    userId?: string,
+  ) {
     await this.eventStore.publish({
       eventType: EventType.AVAILABILITY_UPDATED,
       aggregateType: 'availability',
@@ -502,7 +588,9 @@ export class BlockScheduleService {
   private toSummary(schedule: BlockSchedule) {
     return {
       id: schedule.id,
-      employee: schedule.employee ? { id: schedule.employee.id, name: schedule.employee.name } : null,
+      employee: schedule.employee
+        ? { id: schedule.employee.id, name: schedule.employee.name }
+        : null,
       placeholderLabel: schedule.placeholderLabel,
       isRepetitive: schedule.isRepetitive,
       startDay: schedule.startDay,

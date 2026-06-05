@@ -5,7 +5,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 describe('Gift card purchase + fulfillment integration', () => {
   const businessRepo = { findOne: jest.fn() };
   const serviceRepo = { findOne: jest.fn() };
-  const giftCardRepo = { save: jest.fn(), create: jest.fn(), findOne: jest.fn() };
+  const giftCardRepo = {
+    save: jest.fn(),
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
   const creditRepo = { save: jest.fn(), create: jest.fn() };
   const employeeRepo = { findOne: jest.fn(), find: jest.fn() };
   const purchaseEvents = { emit: jest.fn() };
@@ -18,10 +22,12 @@ describe('Gift card purchase + fulfillment integration', () => {
   const subscriptionsService = { listPlans: jest.fn().mockResolvedValue([]) };
   const claimService = { claimCard: jest.fn() };
   const customerService = {
-    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
-      customer: { id: 'cust-linked', name: dto.name, email: dto.email },
-      created: true,
-    })),
+    findOrCreateByContact: jest.fn(
+      async (_businessId: string, dto: { name: string; email: string }) => ({
+        customer: { id: 'cust-linked', name: dto.name, email: dto.email },
+        created: true,
+      }),
+    ),
   };
 
   const purchaseService = new GiftCardPurchaseService(
@@ -64,7 +70,9 @@ describe('Gift card purchase + fulfillment integration', () => {
               ],
             },
           ],
-          shippingMethods: [{ id: 'standard', label: 'Standard', fee: 8, estimatedDays: '5d' }],
+          shippingMethods: [
+            { id: 'standard', label: 'Standard', fee: 8, estimatedDays: '5d' },
+          ],
           cardCreatorStaffIds: ['emp-creator'],
           deliveryStaffIds: ['emp-driver'],
         },
@@ -78,8 +86,13 @@ describe('Gift card purchase + fulfillment integration', () => {
     giftCardRepo.findOne.mockImplementation(async () => savedCard);
     creditRepo.create.mockImplementation((v) => v);
     creditRepo.save.mockResolvedValue(undefined);
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-creator', userId: 'user-creator' });
-    employeeRepo.find.mockResolvedValue([{ id: 'emp-driver', userId: 'user-driver' }]);
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-creator',
+      userId: 'user-creator',
+    });
+    employeeRepo.find.mockResolvedValue([
+      { id: 'emp-driver', userId: 'user-driver' },
+    ]);
   });
 
   it('runs physical bundle order through card maker then delivery driver', async () => {
@@ -102,14 +115,28 @@ describe('Gift card purchase + fulfillment integration', () => {
     expect(savedCard.fulfillmentStatus).toBe('awaiting_card_creation');
     expect(creditRepo.save).toHaveBeenCalledTimes(2);
 
-    const ready = await fulfillmentService.markCardReady('biz-1', 'order-1', 'user-creator');
+    const ready = await fulfillmentService.markCardReady(
+      'biz-1',
+      'order-1',
+      'user-creator',
+    );
     expect(ready.fulfillmentStatus).toBe('ready_for_delivery');
 
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-driver', userId: 'user-driver' });
-    const out = await fulfillmentService.markOutForDelivery('biz-1', 'order-1', 'user-driver');
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-driver',
+      userId: 'user-driver',
+    });
+    const out = await fulfillmentService.markOutForDelivery(
+      'biz-1',
+      'order-1',
+      'user-driver',
+    );
     expect(out.fulfillmentStatus).toBe('out_for_delivery');
 
-    const delivered = await fulfillmentService.markDelivered('biz-1', 'order-1');
+    const delivered = await fulfillmentService.markDelivered(
+      'biz-1',
+      'order-1',
+    );
     expect(delivered.fulfillmentStatus).toBe('delivered');
     expect(delivered.codeRevealed).toBe(true);
   });

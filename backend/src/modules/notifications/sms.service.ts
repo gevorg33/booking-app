@@ -18,7 +18,10 @@ export class SmsService {
     return Boolean(this.accountSid && this.authToken && this.fromNumber);
   }
 
-  async send(to: string, body: string): Promise<{ ok: boolean; error?: string }> {
+  async send(
+    to: string,
+    body: string,
+  ): Promise<{ ok: boolean; error?: string }> {
     if (!this.isConfigured) {
       this.logger.warn(`[dev] SMS to ${to}: ${body}`);
       return { ok: true };
@@ -33,7 +36,9 @@ export class SmsService {
 
     try {
       const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
-      const auth = Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
+      const auth = Buffer.from(`${this.accountSid}:${this.authToken}`).toString(
+        'base64',
+      );
       const form = new URLSearchParams({
         To: toE164,
         From: this.fromNumber!,

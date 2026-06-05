@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Location } from './entities/location.entity.js';
 
 @Injectable()
 export class LocationsService {
-  constructor(@InjectRepository(Location) private locationRepo: Repository<Location>) {}
+  constructor(
+    @InjectRepository(Location) private locationRepo: Repository<Location>,
+  ) {}
 
   async findAll(businessId: string): Promise<Location[]> {
     return this.locationRepo.find({
@@ -16,12 +22,20 @@ export class LocationsService {
 
   async create(
     businessId: string,
-    dto: { name: string; address?: string; phone?: string; timezone?: string; isDefault?: boolean },
+    dto: {
+      name: string;
+      address?: string;
+      phone?: string;
+      timezone?: string;
+      isDefault?: boolean;
+    },
   ): Promise<Location> {
     if (dto.isDefault) {
       await this.locationRepo.update({ businessId }, { isDefault: false });
     }
-    const count = await this.locationRepo.count({ where: { businessId, isActive: true } });
+    const count = await this.locationRepo.count({
+      where: { businessId, isActive: true },
+    });
     return this.locationRepo.save(
       this.locationRepo.create({
         businessId,
@@ -34,7 +48,11 @@ export class LocationsService {
     );
   }
 
-  async update(id: string, businessId: string, dto: Partial<Location>): Promise<Location> {
+  async update(
+    id: string,
+    businessId: string,
+    dto: Partial<Location>,
+  ): Promise<Location> {
     const loc = await this.locationRepo.findOne({ where: { id, businessId } });
     if (!loc) throw new NotFoundException('Location not found');
     if (dto.isDefault) {
@@ -55,9 +73,14 @@ export class LocationsService {
   }
 
   async ensureDefaultLocation(businessId: string): Promise<Location> {
-    let loc = await this.locationRepo.findOne({ where: { businessId, isDefault: true, isActive: true } });
+    let loc = await this.locationRepo.findOne({
+      where: { businessId, isDefault: true, isActive: true },
+    });
     if (!loc) {
-      loc = await this.create(businessId, { name: 'Main location', isDefault: true });
+      loc = await this.create(businessId, {
+        name: 'Main location',
+        isDefault: true,
+      });
     }
     return loc;
   }

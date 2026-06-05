@@ -36,7 +36,9 @@ describe('update-email-template.dto', () => {
     expect(replaceDto.variables).toHaveLength(1);
 
     const transformed = plainToInstance(ReplaceCustomEmailVariablesDto, {
-      variables: [{ key: 'promo_line', label: 'Promo', defaultValue: '10% off' }],
+      variables: [
+        { key: 'promo_line', label: 'Promo', defaultValue: '10% off' },
+      ],
     });
     expect(transformed.variables[0]).toBeInstanceOf(CustomEmailVariableDto);
   });

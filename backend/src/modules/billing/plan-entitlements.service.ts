@@ -50,7 +50,10 @@ export class PlanEntitlementsService {
 
   async getEntitlements(businessId: string): Promise<PlanEntitlementsView> {
     const business = await this.findBusiness(businessId);
-    const tierId = resolvePlanTier(business.subscriptionPlanId, business.subscriptionStatus);
+    const tierId = resolvePlanTier(
+      business.subscriptionPlanId,
+      business.subscriptionStatus,
+    );
     const limits = getLimitsForTier(tierId);
     const providerSeats = await this.countActiveProviderSeats(businessId);
     const aiCommandsThisMonth = await this.countDashboardAiCommands(businessId);
@@ -103,10 +106,13 @@ export class PlanEntitlementsService {
     }
   }
 
-  async assertFeature(businessId: string, feature: PlanFeatureFlag): Promise<void> {
+  async assertFeature(
+    businessId: string,
+    feature: PlanFeatureFlag,
+  ): Promise<void> {
     const view = await this.getEntitlements(businessId);
     if (!view.flags[feature]) {
-      throw new PlanLimitExceededException(feature as PlanLimitKind);
+      throw new PlanLimitExceededException(feature);
     }
   }
 
@@ -123,7 +129,9 @@ export class PlanEntitlementsService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) {
       throw new NotFoundException('Business not found');
     }

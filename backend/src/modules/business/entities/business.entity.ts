@@ -56,7 +56,11 @@ export class Business {
   @Column({ type: 'varchar', nullable: true, name: 'subscription_plan_id' })
   subscriptionPlanId: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true, name: 'subscription_current_period_end' })
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    name: 'subscription_current_period_end',
+  })
   subscriptionCurrentPeriodEnd: Date | null;
 
   @OneToMany(() => BusinessMember, (member) => member.business)

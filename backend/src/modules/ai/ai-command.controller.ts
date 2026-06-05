@@ -1,9 +1,23 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Put } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Put,
+} from '@nestjs/common';
 import { AiGatewayService } from './ai-gateway.service.js';
-import { AiSuggestionsService, type AiSuggestionsContext } from './ai-suggestions.service.js';
+import {
+  AiSuggestionsService,
+  type AiSuggestionsContext,
+} from './ai-suggestions.service.js';
 import { AiBriefingService } from './ai-briefing.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiAuditService } from './ai-audit.service.js';
+import { AiWeeklyReportService } from './ai-weekly-report.service.js';
+import { AiPlatformService } from './ai-platform.service.js';
 import { AiCommandDto } from './dto/ai-command.dto.js';
 import type { AiSettings } from './ai-settings.types.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -18,7 +32,21 @@ export class AiCommandController {
     private briefingService: AiBriefingService,
     private aiSettings: AiSettingsService,
     private auditService: AiAuditService,
+    private weeklyReportService: AiWeeklyReportService,
+    private platform: AiPlatformService,
   ) {}
+
+  @Get('capabilities')
+  getCapabilities(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { membershipRole?: string },
+  ) {
+    return this.aiGateway.getCapabilities(
+      businessId,
+      'dashboard',
+      user?.membershipRole,
+    );
+  }
 
   @Get('suggestions')
   getSuggestions(
@@ -39,6 +67,22 @@ export class AiCommandController {
     return this.briefingService.getMorningBriefing(businessId);
   }
 
+  @Get('weekly-report')
+  getWeeklyReport(@Param('businessId') businessId: string) {
+    return this.weeklyReportService.getWeeklyReport(businessId);
+  }
+
+  @Get('analytics')
+  getCommandAnalytics(
+    @Param('businessId') businessId: string,
+    @Query('days') days?: string,
+  ) {
+    const periodDays = days
+      ? Math.min(90, Math.max(7, Number(days) || 30))
+      : 30;
+    return this.platform.getCommandAnalytics(businessId, periodDays);
+  }
+
   @Get('settings')
   getAiSettings(@Param('businessId') businessId: string) {
     return this.aiSettings.getSettings(businessId);
@@ -57,7 +101,10 @@ export class AiCommandController {
     @Param('businessId') businessId: string,
     @Query('limit') limit?: string,
   ) {
-    return this.auditService.getAuditLog(businessId, limit ? Number(limit) : 50);
+    return this.auditService.getAuditLog(
+      businessId,
+      limit ? Number(limit) : 50,
+    );
   }
 
   @Post('command')
@@ -85,7 +132,12 @@ export class AiCommandController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: any,
   ) {
-    return this.aiGateway.approveTask(businessId, taskId, user?.id, 'dashboard');
+    return this.aiGateway.approveTask(
+      businessId,
+      taskId,
+      user?.id,
+      'dashboard',
+    );
   }
 
   @Post('command/tasks/:taskId/steps/:stepId/retry')

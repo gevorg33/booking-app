@@ -18,7 +18,10 @@ export class AnalyticsQueryDto {
   locationId?: string;
 }
 
-export function parseDateRange(from?: string, to?: string): { start: Date; end: Date } {
+export function parseDateRange(
+  from?: string,
+  to?: string,
+): { start: Date; end: Date } {
   const end = to ? new Date(to) : new Date();
   end.setUTCHours(23, 59, 59, 999);
   const start = from ? new Date(from) : new Date(end);

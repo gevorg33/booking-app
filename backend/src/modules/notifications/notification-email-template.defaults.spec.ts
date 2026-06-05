@@ -25,7 +25,9 @@ describe('notification-email-template.defaults', () => {
   });
 
   it('throws for unknown template keys', () => {
-    expect(() => getEmailTemplateDefinition('unknown_key' as never)).toThrow(/Unknown email template/);
+    expect(() => getEmailTemplateDefinition('unknown_key' as never)).toThrow(
+      /Unknown email template/,
+    );
   });
 
   it('falls back to defaults when override fields are blank', () => {

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { AiCommandBar } from '@/components/ai-command-bar';
+import { AiNotificationCenter } from '@/components/ai-notification-center';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { BusinessSwitcher } from '@/components/business-switcher';
 import { DashboardZendeskWidget } from '@/components/integrations/dashboard-zendesk-widget';
@@ -160,8 +161,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </ResizableDashboardSidebar>
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-6">{children}</div>
+      <main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
+        <div className="shrink-0 flex justify-end px-6 pt-4">
+          <AiNotificationCenter />
+        </div>
+        <div className="flex-1 max-w-7xl w-full mx-auto px-6 pb-6">{children}</div>
       </main>
 
       <AiCommandBar />

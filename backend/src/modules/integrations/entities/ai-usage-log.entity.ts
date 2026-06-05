@@ -45,7 +45,13 @@ export class AiUsageLog {
   @Column({ name: 'total_tokens', type: 'int', default: 0 })
   totalTokens: number;
 
-  @Column({ name: 'estimated_cost_usd', type: 'decimal', precision: 12, scale: 6, default: 0 })
+  @Column({
+    name: 'estimated_cost_usd',
+    type: 'decimal',
+    precision: 12,
+    scale: 6,
+    default: 0,
+  })
   estimatedCostUsd: string;
 
   @Column({ name: 'key_source', type: 'varchar', length: 16 })

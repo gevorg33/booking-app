@@ -29,7 +29,16 @@ import { AgentTaskUndoService } from './agent-task-undo.service.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AgentTask, Employee, Service, Booking, SchedulingPeriod, ScheduleTemplate, BlockSchedule, Business]),
+    TypeOrmModule.forFeature([
+      AgentTask,
+      Employee,
+      Service,
+      Booking,
+      SchedulingPeriod,
+      ScheduleTemplate,
+      BlockSchedule,
+      Business,
+    ]),
     PolicyModule,
     forwardRef(() => WorkflowModule),
     EventStoreModule,

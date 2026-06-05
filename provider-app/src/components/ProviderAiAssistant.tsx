@@ -18,9 +18,25 @@ import {
 } from '@ionic/react';
 import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
 import api, { unwrap } from '../services/api';
+import {
+  aiConfirmErrorMessage,
+  applyAiConfirmOptimistic,
+  networkPromptErrorMessage,
+  offlinePromptBlockedMessage,
+  prepareAiConfirmSnapshots,
+  resolveAiConfirmResponse,
+  rollbackAiConfirmSnapshots,
+} from '../lib/provider-ai-assistant-offline.util';
 import { useProviderAiEvents } from '../lib/use-ai-events';
+import { useOnlineStatus } from '../lib/use-online-status';
 import { useI18n } from '../i18n';
 import { buildProviderAiExamples } from '../lib/provider-ai-examples';
+import {
+  getProviderQuickChips,
+  type ProviderMobileRoute,
+} from '../lib/provider-ai-quick-chips';
+import { ProviderAiVoiceButton } from './ProviderAiVoiceButton';
+import type { SpeechRecognitionErrorCode } from '../lib/use-speech-recognition';
 
 interface PreviewItem {
   id: string;
@@ -77,6 +93,8 @@ interface ProviderAiAssistantProps {
   screenContext?: ProviderAiScreenContext;
   seedPrompt?: string | null;
   onSeedPromptConsumed?: () => void;
+  mobileRoute?: ProviderMobileRoute;
+  isManager?: boolean;
 }
 
 function mergeSession(prev: SessionContext, next: SessionContext): SessionContext {
@@ -94,8 +112,13 @@ export default function ProviderAiAssistant({
   screenContext,
   seedPrompt,
   onSeedPromptConsumed,
+  mobileRoute = 'today',
+  isManager = false,
 }: ProviderAiAssistantProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const online = useOnlineStatus();
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const quickChips = getProviderQuickChips(mobileRoute, t, { isManager });
   const examples = buildProviderAiExamples(t);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -125,6 +148,19 @@ export default function ProviderAiAssistant({
       setLoading(true);
 
       try {
+        if (!online) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `e-${Date.now()}`,
+              role: 'assistant',
+              text: offlinePromptBlockedMessage(t),
+              success: false,
+            },
+          ]);
+          return;
+        }
+
         const history = [...messages, userMsg].slice(-10).map((m) => ({
           role: m.role,
           content: m.text,
@@ -160,13 +196,13 @@ export default function ProviderAiAssistant({
           invalidateBookings();
         }
       } catch (err: unknown) {
-        const ax = err as { response?: { data?: { message?: string } } };
+        const text = networkPromptErrorMessage(err, t, 'provider.assistantErrorGeneric');
         setMessages((prev) => [
           ...prev,
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: ax.response?.data?.message ?? t('provider.assistantErrorGeneric'),
+            text,
             success: false,
           },
         ]);
@@ -177,7 +213,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages, screenContext, sessionContext, t],
+    [businessId, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -187,13 +223,33 @@ export default function ProviderAiAssistant({
       if (!pending || !bookingIds?.length || confirmingId) return;
 
       setConfirmingId(message.id);
+      const snapshots = prepareAiConfirmSnapshots(queryClient, businessId, bookingIds);
+      applyAiConfirmOptimistic(queryClient, businessId, bookingIds, pending);
+
       try {
-        const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command/confirm`, {
+        const response = await api.post(`/businesses/${businessId}/provider/ai/command/confirm`, {
           action: pending.action,
           bookingIds,
           params: pending.params,
         });
-        const result = unwrap<{ success: boolean; summary: string; details?: MessageDetails }>(res);
+
+        const resolved = resolveAiConfirmResponse(response, t);
+        if (resolved.kind === 'queued') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `c-${Date.now()}`,
+              role: 'assistant',
+              text: resolved.summary,
+              success: true,
+            },
+          ]);
+          return;
+        }
+
+        const result = unwrap<{ success: boolean; summary: string; details?: MessageDetails }>(
+          resolved.data,
+        );
 
         if (result.details?.sessionContext) {
           setSessionContext((prev) => mergeSession(prev, result.details!.sessionContext!));
@@ -210,13 +266,14 @@ export default function ProviderAiAssistant({
         ]);
         invalidateBookings();
       } catch (err: unknown) {
-        const ax = err as { response?: { data?: { message?: string } } };
+        rollbackAiConfirmSnapshots(queryClient, businessId, snapshots);
+        const text = aiConfirmErrorMessage(err, t);
         setMessages((prev) => [
           ...prev,
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: ax.response?.data?.message ?? t('provider.assistantConfirmFailed'),
+            text,
             success: false,
           },
         ]);
@@ -224,7 +281,7 @@ export default function ProviderAiAssistant({
         setConfirmingId(null);
       }
     },
-    [businessId, confirmingId, invalidateBookings, t],
+    [businessId, confirmingId, invalidateBookings, queryClient, t],
   );
 
   useEffect(() => {
@@ -268,6 +325,25 @@ export default function ProviderAiAssistant({
 
       {open && (
         <IonCardContent>
+          {quickChips.length > 0 && (
+            <div className="ai-assistant-quick-chips">
+              <p className="booking-meta ai-assistant-quick-chips__label">{t('provider.quickChipsTitle')}</p>
+              <div className="ai-assistant-quick-chips__row">
+                {quickChips.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="ai-assistant-quick-chip"
+                    onClick={() => void sendPrompt(c.prompt)}
+                    disabled={loading}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="ai-assistant-examples">
             {examples.map((example) => (
               <button
@@ -416,6 +492,12 @@ export default function ProviderAiAssistant({
             )}
           </div>
 
+          {voiceError && (
+            <IonText color="danger">
+              <p className="booking-meta">{voiceError}</p>
+            </IonText>
+          )}
+
           <form
             className="ai-assistant-input-row"
             onSubmit={(e) => {
@@ -423,6 +505,30 @@ export default function ProviderAiAssistant({
               void sendPrompt(input);
             }}
           >
+            <ProviderAiVoiceButton
+              disabled={loading}
+              inputValue={input}
+              locale={locale}
+              labels={{
+                start: t('provider.voiceStart'),
+                stop: t('provider.voiceStop'),
+              }}
+              onTranscript={(text) => {
+                setVoiceError(null);
+                setInput(text);
+              }}
+              onError={(code: SpeechRecognitionErrorCode) => {
+                const key =
+                  code === 'unsupported'
+                    ? 'provider.voiceUnsupported'
+                    : code === 'not-allowed'
+                      ? 'provider.voiceDenied'
+                      : code === 'no-speech'
+                        ? 'provider.voiceNoSpeech'
+                        : 'provider.voiceError';
+                setVoiceError(t(key));
+              }}
+            />
             <IonInput
               value={input}
               placeholder={t('provider.assistantInputPlaceholder')}

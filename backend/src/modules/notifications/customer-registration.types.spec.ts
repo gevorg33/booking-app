@@ -2,8 +2,12 @@ import { formatCustomerRegistrationSourceLabel } from './customer-registration.t
 
 describe('customer-registration.types', () => {
   it('labels registration sources', () => {
-    expect(formatCustomerRegistrationSourceLabel('web_booking')).toBe('Web booking');
+    expect(formatCustomerRegistrationSourceLabel('web_booking')).toBe(
+      'Web booking',
+    );
     expect(formatCustomerRegistrationSourceLabel('app')).toContain('Google');
-    expect(formatCustomerRegistrationSourceLabel('dashboard')).toBe('Dashboard');
+    expect(formatCustomerRegistrationSourceLabel('dashboard')).toBe(
+      'Dashboard',
+    );
   });
 });

@@ -26,7 +26,10 @@ export const DEFAULT_CONNECT_COUNTRIES_BY_PLATFORM: Record<string, string[]> = {
   GB: ['GB', 'US', 'DE', 'FR', 'IE'],
 };
 
-export function parseAllowedConnectCountries(raw: string | undefined, platformDefault: string): string[] {
+export function parseAllowedConnectCountries(
+  raw: string | undefined,
+  platformDefault: string,
+): string[] {
   if (raw?.trim()) {
     const parsed = raw
       .split(',')

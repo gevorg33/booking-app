@@ -44,7 +44,11 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     categoryService.findAll.mockResolvedValue([]);
     serviceService.findAll.mockResolvedValue([]);
     slotRepo.count.mockResolvedValue(0);
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-1', name: 'Owner', businessId: 'biz-1' });
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-1',
+      name: 'Owner',
+      businessId: 'biz-1',
+    });
     scheduleService.createTemplate.mockImplementation(async (_biz, dto) => ({
       id: `tpl-${dto.name}`,
       ...dto,
@@ -59,10 +63,12 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
     expect(preview.playbookId).toBe('salon');
     expect(preview.businessType).toBe('hair_salon');
-    expect(preview.serviceCount).toBe(getVerticalPlaybook('hair_salon').categories.reduce(
-      (sum, cat) => sum + cat.services.length,
-      0,
-    ));
+    expect(preview.serviceCount).toBe(
+      getVerticalPlaybook('hair_salon').categories.reduce(
+        (sum, cat) => sum + cat.services.length,
+        0,
+      ),
+    );
     expect(preview.scheduleTemplates.length).toBeGreaterThanOrEqual(2);
     expect(preview.scheduleTemplates[0]?.timePeriods[0]).toMatchObject({
       type: TemplatePeriodType.SERVICE_BLOCK,
@@ -76,17 +82,23 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
     expect(preview.playbookId).toBe('clinic');
     const periods = preview.scheduleTemplates.flatMap((t) => t.timePeriods);
-    expect(periods.some((p) => p.type === TemplatePeriodType.UNAVAILABLE_BLOCK)).toBe(true);
+    expect(
+      periods.some((p) => p.type === TemplatePeriodType.UNAVAILABLE_BLOCK),
+    ).toBe(true);
   });
 
   it('rejects playbook preview without business type', async () => {
     businessRepo.findOne.mockResolvedValue({ ...salonBusiness, settings: {} });
-    await expect(service.getVerticalPlaybookPreview('biz-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.getVerticalPlaybookPreview('biz-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects playbook preview when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getVerticalPlaybookPreview('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.getVerticalPlaybookPreview('missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('recommends playbook catalog when AI is unavailable', async () => {
@@ -115,7 +127,13 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     businessRepo.findOne.mockResolvedValue(salonBusiness);
     llm.isAvailableForBusiness.mockResolvedValue(true);
     llm.completeJson.mockResolvedValue({
-      categories: [{ name: 'AI Cat', sortOrder: 0, services: [{ name: 'AI Cut', durationMinutes: 45, price: 40 }] }],
+      categories: [
+        {
+          name: 'AI Cat',
+          sortOrder: 0,
+          services: [{ name: 'AI Cut', durationMinutes: 45, price: 40 }],
+        },
+      ],
       summary: 'Tailored by AI',
     });
 
@@ -127,7 +145,10 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
   it('applies vertical playbook catalog and schedule in one flow', async () => {
     businessRepo.findOne.mockResolvedValue(salonBusiness);
-    categoryService.create.mockResolvedValue({ id: 'cat-1', name: 'Haircuts & styling' });
+    categoryService.create.mockResolvedValue({
+      id: 'cat-1',
+      name: 'Haircuts & styling',
+    });
     serviceService.create.mockResolvedValue({ id: 'svc-1' });
 
     const result = await service.applyVerticalPlaybook('biz-1', 'user-1');
@@ -155,14 +176,18 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
   it('rejects apply playbook without business type', async () => {
     businessRepo.findOne.mockResolvedValue({ ...salonBusiness, settings: {} });
-    await expect(service.applyVerticalPlaybook('biz-1', 'user-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.applyVerticalPlaybook('biz-1', 'user-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('applyDefaultSchedule uses vertical playbook templates for business type', async () => {
     businessRepo.findOne.mockResolvedValue(clinicBusiness);
-    employeeRepo.findOne.mockResolvedValue({ id: 'emp-2', name: 'Dr Kim', businessId: 'biz-2' });
+    employeeRepo.findOne.mockResolvedValue({
+      id: 'emp-2',
+      name: 'Dr Kim',
+      businessId: 'biz-2',
+    });
 
     const result = await service.applyDefaultSchedule('biz-2', 'user-2');
 
@@ -173,7 +198,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
       expect.objectContaining({
         name: 'Clinic weekday hours',
         timePeriods: expect.arrayContaining([
-          expect.objectContaining({ type: TemplatePeriodType.UNAVAILABLE_BLOCK }),
+          expect.objectContaining({
+            type: TemplatePeriodType.UNAVAILABLE_BLOCK,
+          }),
         ]),
       }),
       'user-2',
@@ -195,9 +222,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
     businessRepo.findOne.mockResolvedValue(salonBusiness);
     employeeRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.applyDefaultSchedule('biz-1', 'user-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.applyDefaultSchedule('biz-1', 'user-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('exposes business type options', () => {
@@ -266,7 +293,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
   it('rejects catalog recommendation without business type', async () => {
     businessRepo.findOne.mockResolvedValue({ ...salonBusiness, settings: {} });
-    await expect(service.recommendCatalog('biz-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.recommendCatalog('biz-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('skips schedule step and completes onboarding', async () => {
@@ -283,7 +312,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
   it('advances status to schedule when catalog exists but schedule does not', async () => {
     businessRepo.findOne.mockResolvedValue({
       ...salonBusiness,
-      settings: { onboarding: { step: 'catalog', startedAt: '2026-01-01T00:00:00.000Z' } },
+      settings: {
+        onboarding: { step: 'catalog', startedAt: '2026-01-01T00:00:00.000Z' },
+      },
     });
     categoryService.findAll.mockResolvedValue([{ id: 'cat-1' }]);
     serviceService.findAll.mockResolvedValue([]);
@@ -297,7 +328,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
   it('advances status to link when schedule already exists during catalog step', async () => {
     businessRepo.findOne.mockResolvedValue({
       ...salonBusiness,
-      settings: { onboarding: { step: 'catalog', startedAt: '2026-01-01T00:00:00.000Z' } },
+      settings: {
+        onboarding: { step: 'catalog', startedAt: '2026-01-01T00:00:00.000Z' },
+      },
     });
     categoryService.findAll.mockResolvedValue([{ id: 'cat-1' }]);
     serviceService.findAll.mockResolvedValue([]);
@@ -310,7 +343,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
   it('advances status to link when schedule step already has slots', async () => {
     businessRepo.findOne.mockResolvedValue({
       ...salonBusiness,
-      settings: { onboarding: { step: 'schedule', startedAt: '2026-01-01T00:00:00.000Z' } },
+      settings: {
+        onboarding: { step: 'schedule', startedAt: '2026-01-01T00:00:00.000Z' },
+      },
     });
     slotRepo.count.mockResolvedValue(3);
 
@@ -343,7 +378,11 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
     const result = await service.applyCatalog('biz-1', {
       categories: [
-        { name: '  ', sortOrder: 0, services: [{ name: 'Valid', durationMinutes: 30, price: 10 }] },
+        {
+          name: '  ',
+          sortOrder: 0,
+          services: [{ name: 'Valid', durationMinutes: 30, price: 10 }],
+        },
         {
           name: 'Real',
           sortOrder: 1,
@@ -361,7 +400,9 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
   it('reuses existing category when name matches case-insensitively', async () => {
     businessRepo.findOne.mockResolvedValue(salonBusiness);
-    categoryService.findAll.mockResolvedValue([{ id: 'cat-existing', name: 'haircuts & styling' }]);
+    categoryService.findAll.mockResolvedValue([
+      { id: 'cat-existing', name: 'haircuts & styling' },
+    ]);
     serviceService.findAll.mockResolvedValue([]);
 
     const result = await service.applyCatalog('biz-1', {
@@ -385,13 +426,22 @@ describe('OnboardingService vertical playbooks (integration)', () => {
 
   it('applyCatalog deduplicates existing category and service names', async () => {
     businessRepo.findOne.mockResolvedValue(salonBusiness);
-    categoryService.findAll.mockResolvedValue([{ id: 'cat-existing', name: 'Haircuts & styling' }]);
-    serviceService.findAll.mockResolvedValue([{ id: 'svc-existing', name: "Women's haircut" }]);
-    categoryService.create.mockResolvedValue({ id: 'cat-new', name: 'Nails & beauty' });
+    categoryService.findAll.mockResolvedValue([
+      { id: 'cat-existing', name: 'Haircuts & styling' },
+    ]);
+    serviceService.findAll.mockResolvedValue([
+      { id: 'svc-existing', name: "Women's haircut" },
+    ]);
+    categoryService.create.mockResolvedValue({
+      id: 'cat-new',
+      name: 'Nails & beauty',
+    });
     serviceService.create.mockResolvedValue({ id: 'svc-new' });
 
     const playbook = getVerticalPlaybook('hair_salon');
-    const result = await service.applyCatalog('biz-1', { categories: playbook.categories });
+    const result = await service.applyCatalog('biz-1', {
+      categories: playbook.categories,
+    });
 
     expect(result.categoriesCreated).toBe(2);
     expect(result.servicesCreated).toBe(6);

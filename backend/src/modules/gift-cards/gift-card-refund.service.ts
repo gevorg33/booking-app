@@ -17,23 +17,32 @@ export class GiftCardRefundService {
     private stripeIntegrationService: StripeIntegrationService,
   ) {}
 
-  async refundPurchase(business: Business, card: GiftCard): Promise<GiftCardRefundStatus> {
+  async refundPurchase(
+    business: Business,
+    card: GiftCard,
+  ): Promise<GiftCardRefundStatus> {
     if (card.stripeRefundId) return 'already_refunded';
-    if (!card.stripeSessionId || !this.stripeService.isConfigured) return 'skipped';
+    if (!card.stripeSessionId || !this.stripeService.isConfigured)
+      return 'skipped';
 
     try {
-      const connectAccountId = this.stripeIntegrationService.resolveConnectAccountId(
-        business.settings,
-      );
+      const connectAccountId =
+        this.stripeIntegrationService.resolveConnectAccountId(
+          business.settings,
+        );
       const opts = connectAccountId
-        ? this.stripeService.connectRequestOptions(connectAccountId, business.settings)
+        ? this.stripeService.connectRequestOptions(
+            connectAccountId,
+            business.settings,
+          )
         : undefined;
 
-      const session = await this.stripeService.client.checkout.sessions.retrieve(
-        card.stripeSessionId,
-        {},
-        opts,
-      );
+      const session =
+        await this.stripeService.client.checkout.sessions.retrieve(
+          card.stripeSessionId,
+          {},
+          opts,
+        );
       const paymentIntent =
         typeof session.payment_intent === 'string'
           ? session.payment_intent

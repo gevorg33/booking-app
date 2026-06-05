@@ -1,46 +1,31 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LlmService } from '../../engine/agent/llm.service.js';
-import { todayDisplay } from '../../common/utils/date-format.util.js';
+import type { CommandSurface } from './ai-command-registry.types.js';
+import type { DecomposedIntentStep } from './intent-decomposition.types.js';
+import {
+  decomposeCompoundPrompt,
+  isCompoundPrompt,
+} from './intent-decomposition.util.js';
 
-export interface DecomposedIntent {
-  action: string;
-  params: Record<string, any>;
-  reasoning: string;
-}
-
-const COMPOUND_MARKERS =
-  /\band then\b|\bthen\b|\balso\b|\bafter that\b|\bfollowed by\b|;\s*|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify))\b/i;
-
-const DECOMPOSE_SCHEMA = `Split a compound operational command into ordered sub-intents.
-Return JSON:
-{
-  "intents": [
-    { "action": "<same action names as dashboard AI>", "params": { ... }, "reasoning": "..." }
-  ]
-}
-
-Allowed actions: create_booking, cancel_bookings, bulk_smart_cancel, hide_appointments_from_calendar, unhide_appointments_from_calendar, fill_slot_from_waitlist, list_bookings, show_appointments, check_availability, reschedule_booking, fill_unused_slots, list_schedule_gaps, apply_schedule, block_schedule, create_direct_schedule, clear_schedule, setup_week_schedule, optimize_schedule, resolve_conflicts, reassign_cancelled, summarize_utilization, summarize_customers, summarize_bookings, analyze_appointments, analyze_services, summarize_staff, lookup_customer, summarize_waitlist, lookup_service_assignment, list_services, list_employees, list_templates, assign_employee_services, create_schedule_template, mark_no_shows, payment_sweep, day_replan.
-
-Rules:
-- Preserve order of operations.
-- Inherit shared params (date, employeeName, templateName, timeFrom, timeTo) across sub-intents when implied.
-- Use bulk_smart_cancel when cancel + notify/waitlist/rebook customers.
-- Use setup_week_schedule for apply template + fill gaps combo.
-- create_direct_schedule: team-wide "all employees" → allProviders=true; hours like 9-19 with 12-13 unavailable → periods or timeFrom/timeTo; "their services" → leave serviceNames null.
-- clear_schedule: cleanup/wipe a provider's applied schedule (not appointments). Named provider only — do NOT set allProviders when user says "clear all schedules for Karo".
-- cancel_bookings + clear_schedule + hide_appointments_from_calendar: typical day reset — cancel appointments, clear schedule, hide cancelled from calendar (statusFilter cancelled on hide step).
-- Max 4 sub-intents.`;
+export type DecomposedIntent = DecomposedIntentStep;
 
 @Injectable()
 export class IntentDecompositionService {
-  private readonly logger = new Logger(IntentDecompositionService.name);
-
-  constructor(private llm: LlmService) {}
+  constructor(private readonly llm: LlmService) {}
 
   isCompoundPrompt(prompt: string): boolean {
-    const trimmed = prompt.trim();
-    if (trimmed.length < 12) return false;
-    return COMPOUND_MARKERS.test(trimmed);
+    return isCompoundPrompt(prompt);
+  }
+
+  /** Registry handler path — deterministic first, LLM fallback for dashboard. */
+  async decomposePrompt(
+    businessId: string,
+    userId: string | undefined,
+    prompt: string,
+    timeZone = 'UTC',
+    surface: CommandSurface = 'dashboard',
+  ): Promise<DecomposedIntent[]> {
+    return this.decompose(businessId, userId, prompt, timeZone, surface);
   }
 
   async decompose(
@@ -48,30 +33,15 @@ export class IntentDecompositionService {
     userId: string | undefined,
     prompt: string,
     timeZone = 'UTC',
+    surface: CommandSurface = 'dashboard',
   ): Promise<DecomposedIntent[]> {
-    if (!this.isCompoundPrompt(prompt)) return [];
-
-    try {
-      const result = await this.llm.completeJson<{ intents: DecomposedIntent[] }>(
-        businessId,
-        `${DECOMPOSE_SCHEMA}\n\nCurrent date: ${todayDisplay(timeZone)} (DD/MM/YYYY, timezone: ${timeZone})`,
-        prompt,
-        {
-          surface: 'dashboard',
-          operation: 'decompose_intent',
-          actorType: 'owner',
-          userId,
-        },
-        0.1,
-      );
-
-      const intents = (result?.intents ?? []).filter((i) => i?.action && i.action !== 'unknown');
-      if (intents.length <= 1) return [];
-      this.logger.log(`Decomposed into ${intents.length} sub-intent(s)`);
-      return intents.slice(0, 4);
-    } catch (error: any) {
-      this.logger.warn(`Intent decomposition failed: ${error.message}`);
-      return [];
-    }
+    return decomposeCompoundPrompt(
+      this.llm,
+      businessId,
+      userId,
+      prompt,
+      timeZone,
+      surface,
+    );
   }
 }

@@ -23,6 +23,8 @@ import ProfilePage from './pages/ProfilePage';
 import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
 import { isFcmBuild, ensurePushRegistered } from './services/native-push';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
+import { ProviderAiShell } from './components/ProviderAiShell';
+import { ProviderPushBridge } from './components/ProviderPushBridge';
 import './components/operation-feedback.css';
 
 function AuthedTabs() {
@@ -48,15 +50,18 @@ function AuthedTabs() {
 
   return (
     <IonTabs>
-      <IonRouterOutlet>
-        <Route exact path="/tabs/today" component={TodayPage} />
-        <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
-        <Route exact path="/tabs/schedule" component={SchedulePage} />
-        <Route exact path="/tabs/profile" component={ProfilePage} />
-        <Route exact path="/tabs">
-          <Redirect to="/tabs/today" />
-        </Route>
-      </IonRouterOutlet>
+      <ProviderPushBridge />
+      <ProviderAiShell>
+        <IonRouterOutlet>
+          <Route exact path="/tabs/today" component={TodayPage} />
+          <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
+          <Route exact path="/tabs/schedule" component={SchedulePage} />
+          <Route exact path="/tabs/profile" component={ProfilePage} />
+          <Route exact path="/tabs">
+            <Redirect to="/tabs/today" />
+          </Route>
+        </IonRouterOutlet>
+      </ProviderAiShell>
       <IonTabBar slot="bottom">
         <IonTabButton tab="today" href="/tabs/today">
           <IonIcon icon={todayOutline} />

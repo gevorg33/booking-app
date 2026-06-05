@@ -26,10 +26,12 @@ export class ZendeskApiClient {
     return `https://${subdomain}.zendesk.com/api/v2`;
   }
 
-  private authHeader(config: Pick<ZendeskRuntimeConfig, 'apiUserEmail' | 'apiToken'>): string {
-    const encoded = Buffer.from(`${config.apiUserEmail}/token:${config.apiToken}`).toString(
-      'base64',
-    );
+  private authHeader(
+    config: Pick<ZendeskRuntimeConfig, 'apiUserEmail' | 'apiToken'>,
+  ): string {
+    const encoded = Buffer.from(
+      `${config.apiUserEmail}/token:${config.apiToken}`,
+    ).toString('base64');
     return `Basic ${encoded}`;
   }
 
@@ -105,23 +107,26 @@ export class ZendeskApiClient {
       notes?: string;
     },
   ): Promise<ZendeskUserResult> {
-    const res = await fetch(`${this.baseUrl(config.subdomain)}/users/create_or_update.json`, {
-      method: 'POST',
-      headers: {
-        Authorization: this.authHeader(config),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: {
-          email: payload.email,
-          name: payload.name,
-          phone: payload.phone || undefined,
-          external_id: payload.externalId,
-          notes: payload.notes,
-          verified: true,
+    const res = await fetch(
+      `${this.baseUrl(config.subdomain)}/users/create_or_update.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: this.authHeader(config),
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          user: {
+            email: payload.email,
+            name: payload.name,
+            phone: payload.phone || undefined,
+            external_id: payload.externalId,
+            notes: payload.notes,
+            verified: true,
+          },
+        }),
+      },
+    );
 
     if (!res.ok) {
       const text = await res.text();
@@ -129,7 +134,9 @@ export class ZendeskApiClient {
       throw new Error(`Zendesk API error (${res.status})`);
     }
 
-    const data = (await res.json()) as { user: { id: number; created_at: string } };
+    const data = (await res.json()) as {
+      user: { id: number; created_at: string };
+    };
     return {
       userId: data.user.id,
       url: `https://${config.subdomain}.zendesk.com/agent/users/${data.user.id}`,

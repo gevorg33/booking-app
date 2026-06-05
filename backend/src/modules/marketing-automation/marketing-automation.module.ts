@@ -12,7 +12,12 @@ import { MarketingAutomationController } from './marketing-automation.controller
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Business, Customer, Booking, MarketingAutomationLog]),
+    TypeOrmModule.forFeature([
+      Business,
+      Customer,
+      Booking,
+      MarketingAutomationLog,
+    ]),
     BusinessModule,
     NotificationsModule,
   ],

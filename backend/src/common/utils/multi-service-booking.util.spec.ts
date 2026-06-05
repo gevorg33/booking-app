@@ -53,7 +53,11 @@ const services = [
 
 describe('multi-service-booking.util', () => {
   it('dedupes service ids while preserving order', () => {
-    expect(normalizeMultiServiceIds(['a', 'b', 'a', ' c ', ''])).toEqual(['a', 'b', 'c']);
+    expect(normalizeMultiServiceIds(['a', 'b', 'a', ' c ', ''])).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
   it('calculates totals with turnover buffer between services', () => {
@@ -77,18 +81,27 @@ describe('multi-service-booking.util', () => {
       incompatiblePairs: [['haircut', 'color']] as Array<[string, string]>,
     };
 
-    expect(validateMultiServiceSelection(['haircut'], services, settings).valid).toBe(false);
     expect(
-      validateMultiServiceSelection(['haircut', 'haircut'], services, settings).errors,
+      validateMultiServiceSelection(['haircut'], services, settings).valid,
+    ).toBe(false);
+    expect(
+      validateMultiServiceSelection(['haircut', 'haircut'], services, settings)
+        .errors,
     ).toContain('Duplicate services are not allowed');
     expect(
-      validateMultiServiceSelection(['haircut', 'beard', 'color'], services, settings).errors[0],
+      validateMultiServiceSelection(
+        ['haircut', 'beard', 'color'],
+        services,
+        settings,
+      ).errors[0],
     ).toContain('at most 2 services');
     expect(
-      validateMultiServiceSelection(['haircut', 'color'], services, settings).errors[0],
+      validateMultiServiceSelection(['haircut', 'color'], services, settings)
+        .errors[0],
     ).toContain('cannot be booked together');
     expect(
-      validateMultiServiceSelection(['haircut', 'beard'], services, settings).valid,
+      validateMultiServiceSelection(['haircut', 'beard'], services, settings)
+        .valid,
     ).toBe(true);
   });
 
@@ -99,21 +112,30 @@ describe('multi-service-booking.util', () => {
       maxServiceCount: 4,
       maxDurationMinutes: 300,
       incompatiblePairMode: 'category' as const,
-      incompatibleCategoryPairs: [['cat-hair', 'cat-spa']] as Array<[string, string]>,
+      incompatibleCategoryPairs: [['cat-hair', 'cat-spa']] as Array<
+        [string, string]
+      >,
     };
 
     expect(
-      validateMultiServiceSelection(['haircut', 'massage'], services, settings).errors[0],
+      validateMultiServiceSelection(['haircut', 'massage'], services, settings)
+        .errors[0],
     ).toContain('cannot be booked together');
     expect(
-      validateMultiServiceSelection(['haircut', 'beard'], services, settings).valid,
+      validateMultiServiceSelection(['haircut', 'beard'], services, settings)
+        .valid,
     ).toBe(true);
     expect(
       findIncompatibleForSelection(['haircut', 'massage'], services, settings),
     ).toHaveLength(1);
-    expect(resolveSelectedCategoryKeys(['haircut', 'beard'], services)).toEqual(['cat-hair']);
+    expect(resolveSelectedCategoryKeys(['haircut', 'beard'], services)).toEqual(
+      ['cat-hair'],
+    );
     expect(
-      findIncompatibleCategoryPairs(['cat-hair', 'cat-spa'], [['cat-hair', 'cat-spa']]),
+      findIncompatibleCategoryPairs(
+        ['cat-hair', 'cat-spa'],
+        [['cat-hair', 'cat-spa']],
+      ),
     ).toHaveLength(1);
   });
 
@@ -126,17 +148,15 @@ describe('multi-service-booking.util', () => {
       currency: 'USD',
       categoryId: null,
     };
-    expect(resolveSelectedCategoryKeys(['walk-in'], [uncategorized])).toEqual(['__uncategorized__']);
+    expect(resolveSelectedCategoryKeys(['walk-in'], [uncategorized])).toEqual([
+      '__uncategorized__',
+    ]);
     expect(
-      findIncompatibleForSelection(
-        ['haircut', 'color'],
-        services,
-        {
-          incompatiblePairMode: 'service',
-          incompatiblePairs: [['haircut', 'color']],
-          incompatibleCategoryPairs: [],
-        },
-      ),
+      findIncompatibleForSelection(['haircut', 'color'], services, {
+        incompatiblePairMode: 'service',
+        incompatiblePairs: [['haircut', 'color']],
+        incompatibleCategoryPairs: [],
+      }),
     ).toHaveLength(1);
     expect(
       findIncompatibleForSelection(['haircut', 'beard'], services, {
@@ -148,11 +168,25 @@ describe('multi-service-booking.util', () => {
   });
 
   it('flags unavailable services and duration over max', () => {
-    const settings = { ...DEFAULT_MULTI_SERVICE_SETTINGS, enabled: true, maxDurationMinutes: 40 };
-    const missing = validateMultiServiceSelection(['haircut', 'missing'], services, settings);
-    expect(missing.errors).toContain('One or more selected services are unavailable');
+    const settings = {
+      ...DEFAULT_MULTI_SERVICE_SETTINGS,
+      enabled: true,
+      maxDurationMinutes: 40,
+    };
+    const missing = validateMultiServiceSelection(
+      ['haircut', 'missing'],
+      services,
+      settings,
+    );
+    expect(missing.errors).toContain(
+      'One or more selected services are unavailable',
+    );
 
-    const tooLong = validateMultiServiceSelection(['haircut', 'color'], services, settings);
+    const tooLong = validateMultiServiceSelection(
+      ['haircut', 'color'],
+      services,
+      settings,
+    );
     expect(tooLong.errors[0]).toContain('exceeds the 40 minute limit');
   });
 
@@ -170,18 +204,28 @@ describe('multi-service-booking.util', () => {
   });
 
   it('checks employee qualification and per-service line validation', () => {
-    expect(employeeQualifiesForServices(['haircut'], ['haircut', 'beard'])).toBe(false);
+    expect(
+      employeeQualifiesForServices(['haircut'], ['haircut', 'beard']),
+    ).toBe(false);
     expect(employeeQualifiesForServices(undefined, ['haircut'])).toBe(true);
-    expect(findIncompatiblePairs(['haircut', 'color'], [['haircut', 'color']])).toHaveLength(1);
+    expect(
+      findIncompatiblePairs(['haircut', 'color'], [['haircut', 'color']]),
+    ).toHaveLength(1);
 
     expect(() =>
-      validatePerServiceLines(['a', 'b'], [{ serviceId: 'a', startTime: '2026-01-01T10:00:00Z' }]),
+      validatePerServiceLines(
+        ['a', 'b'],
+        [{ serviceId: 'a', startTime: '2026-01-01T10:00:00Z' }],
+      ),
     ).toThrow('Multi-service line count');
     expect(() =>
-      validatePerServiceLines(['a', 'b'], [
-        { serviceId: 'a', startTime: '2026-01-01T10:00:00Z' },
-        { serviceId: 'c', startTime: '2026-01-01T11:00:00Z' },
-      ]),
+      validatePerServiceLines(
+        ['a', 'b'],
+        [
+          { serviceId: 'a', startTime: '2026-01-01T10:00:00Z' },
+          { serviceId: 'c', startTime: '2026-01-01T11:00:00Z' },
+        ],
+      ),
     ).toThrow('each selected service');
   });
 });

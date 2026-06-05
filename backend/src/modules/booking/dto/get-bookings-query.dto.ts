@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '../entities/booking.entity.js';
@@ -25,8 +33,23 @@ export class GetBookingsQueryDto {
   status?: string;
 
   @IsOptional()
-  @IsIn(['startTime', 'customerName', 'serviceName', 'employeeName', 'status', 'createdAt', 'updatedAt'])
-  sortBy?: 'startTime' | 'customerName' | 'serviceName' | 'employeeName' | 'status' | 'createdAt' | 'updatedAt';
+  @IsIn([
+    'startTime',
+    'customerName',
+    'serviceName',
+    'employeeName',
+    'status',
+    'createdAt',
+    'updatedAt',
+  ])
+  sortBy?:
+    | 'startTime'
+    | 'customerName'
+    | 'serviceName'
+    | 'employeeName'
+    | 'status'
+    | 'createdAt'
+    | 'updatedAt';
 
   @IsOptional()
   @IsIn(['ASC', 'DESC'])

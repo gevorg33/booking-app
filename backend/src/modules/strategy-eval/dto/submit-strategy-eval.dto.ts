@@ -1,4 +1,10 @@
-import { IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import type { HipaaAnswer } from '../hipaa-baa.constants.js';
 
 const HIPAA_ANSWERS = ['yes', 'no', 'unsure'] as const;
@@ -31,5 +37,9 @@ export class SubmitMarketplaceEvalDto {
 
   @IsOptional()
   @IsIn(['software_only', 'partner_directory', 'full_marketplace', 'undecided'])
-  decision?: 'software_only' | 'partner_directory' | 'full_marketplace' | 'undecided';
+  decision?:
+    | 'software_only'
+    | 'partner_directory'
+    | 'full_marketplace'
+    | 'undecided';
 }

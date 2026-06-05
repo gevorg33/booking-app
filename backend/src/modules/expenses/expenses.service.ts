@@ -5,13 +5,15 @@ import { Expense } from './entities/expense.entity.js';
 
 @Injectable()
 export class ExpensesService {
-  constructor(@InjectRepository(Expense) private expenseRepo: Repository<Expense>) {}
+  constructor(
+    @InjectRepository(Expense) private expenseRepo: Repository<Expense>,
+  ) {}
 
   async list(businessId: string, locationId?: string): Promise<Expense[]> {
     const where: Record<string, unknown> = { businessId };
     if (locationId) where.locationId = locationId;
     return this.expenseRepo.find({
-      where: where as any,
+      where: where,
       order: { expenseDate: 'DESC' },
       take: 500,
     });
@@ -32,7 +34,9 @@ export class ExpensesService {
   }
 
   async remove(id: string, businessId: string): Promise<void> {
-    const expense = await this.expenseRepo.findOne({ where: { id, businessId } });
+    const expense = await this.expenseRepo.findOne({
+      where: { id, businessId },
+    });
     if (!expense) throw new NotFoundException('Expense not found');
     await this.expenseRepo.remove(expense);
   }

@@ -55,8 +55,12 @@ export class DistributionIntegrationService {
     return buildMessagingLinksForBusiness(business, this.frontendUrl());
   }
 
-  async getPublicSettings(businessId: string): Promise<DistributionIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<DistributionIntegrationPublicView> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const dist = getDistributionIntegrations(business.settings);
@@ -74,7 +78,8 @@ export class DistributionIntegrationService {
         facebookPageId: dist.metaBooking?.facebookPageId,
         facebookPageUrl: dist.metaBooking?.facebookPageUrl,
         instagramUsername: dist.metaBooking?.instagramUsername,
-        bookingButtonLabel: dist.metaBooking?.bookingButtonLabel || 'Book online',
+        bookingButtonLabel:
+          dist.metaBooking?.bookingButtonLabel || 'Book online',
         bookingUrl,
       },
       messaging: {
@@ -91,19 +96,27 @@ export class DistributionIntegrationService {
     businessId: string,
     dto: UpdateDistributionIntegrationDto,
   ): Promise<DistributionIntegrationPublicView> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
-    const integrations = { ...(settings.integrations as Record<string, unknown> || {}) };
+    const integrations = {
+      ...((settings.integrations as Record<string, unknown>) || {}),
+    };
     const dist: BusinessDistributionIntegrations = {
       ...getDistributionIntegrations(settings),
     };
 
     dist.googleReserve = {
       ...(dist.googleReserve || {}),
-      ...(dto.googleReserveEnabled !== undefined ? { enabled: dto.googleReserveEnabled } : {}),
-      ...(dto.googleMerchantId !== undefined ? { merchantId: dto.googleMerchantId.trim() || undefined } : {}),
+      ...(dto.googleReserveEnabled !== undefined
+        ? { enabled: dto.googleReserveEnabled }
+        : {}),
+      ...(dto.googleMerchantId !== undefined
+        ? { merchantId: dto.googleMerchantId.trim() || undefined }
+        : {}),
       ...(dto.googlePartnerNotes !== undefined
         ? { partnerNotes: dto.googlePartnerNotes.trim() || undefined }
         : {}),
@@ -111,7 +124,9 @@ export class DistributionIntegrationService {
 
     dist.metaBooking = {
       ...(dist.metaBooking || {}),
-      ...(dto.metaBookingEnabled !== undefined ? { enabled: dto.metaBookingEnabled } : {}),
+      ...(dto.metaBookingEnabled !== undefined
+        ? { enabled: dto.metaBookingEnabled }
+        : {}),
       ...(dto.facebookPageId !== undefined
         ? { facebookPageId: dto.facebookPageId.trim() || undefined }
         : {}),
@@ -119,7 +134,10 @@ export class DistributionIntegrationService {
         ? { facebookPageUrl: dto.facebookPageUrl.trim() || undefined }
         : {}),
       ...(dto.instagramUsername !== undefined
-        ? { instagramUsername: dto.instagramUsername.trim().replace(/^@/, '') || undefined }
+        ? {
+            instagramUsername:
+              dto.instagramUsername.trim().replace(/^@/, '') || undefined,
+          }
         : {}),
       ...(dto.metaBookingButtonLabel !== undefined
         ? { bookingButtonLabel: dto.metaBookingButtonLabel.trim() || undefined }
@@ -128,18 +146,29 @@ export class DistributionIntegrationService {
 
     dist.messaging = {
       ...(dist.messaging || {}),
-      ...(dto.telegramEnabled !== undefined ? { telegramEnabled: dto.telegramEnabled } : {}),
+      ...(dto.telegramEnabled !== undefined
+        ? { telegramEnabled: dto.telegramEnabled }
+        : {}),
       ...(dto.telegramBotUsername !== undefined
-        ? { telegramBotUsername: dto.telegramBotUsername.trim().replace(/^@/, '') || undefined }
+        ? {
+            telegramBotUsername:
+              dto.telegramBotUsername.trim().replace(/^@/, '') || undefined,
+          }
         : {}),
       ...(dto.whatsappBookingEnabled !== undefined
         ? { whatsappBookingEnabled: dto.whatsappBookingEnabled }
         : {}),
       ...(dto.whatsappBusinessPhone !== undefined
-        ? { whatsappBusinessPhone: dto.whatsappBusinessPhone.replace(/\D/g, '') || undefined }
+        ? {
+            whatsappBusinessPhone:
+              dto.whatsappBusinessPhone.replace(/\D/g, '') || undefined,
+          }
         : {}),
       ...(dto.whatsappBookingMessage !== undefined
-        ? { whatsappBookingMessage: dto.whatsappBookingMessage.trim() || undefined }
+        ? {
+            whatsappBookingMessage:
+              dto.whatsappBookingMessage.trim() || undefined,
+          }
         : {}),
     };
 
@@ -152,7 +181,9 @@ export class DistributionIntegrationService {
   }
 
   async getGoogleReserveFeed(businessId: string): Promise<GoogleReserveFeed> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const dist = getDistributionIntegrations(business.settings);
@@ -185,7 +216,10 @@ export class DistributionIntegrationService {
     };
   }
 
-  getPublicMetaBooking(settings: Record<string, unknown> | undefined, slug: string) {
+  getPublicMetaBooking(
+    settings: Record<string, unknown> | undefined,
+    slug: string,
+  ) {
     const dist = getDistributionIntegrations(settings);
     if (!dist.metaBooking?.enabled) return null;
     return {
@@ -198,8 +232,11 @@ export class DistributionIntegrationService {
 
   getPublicMessagingLinks(business: Business): MessagingDeepLinks | null {
     const dist = getDistributionIntegrations(business.settings);
-    const hasTelegram = dist.messaging?.telegramEnabled && dist.messaging.telegramBotUsername;
-    const hasWhatsapp = dist.messaging?.whatsappBookingEnabled && dist.messaging.whatsappBusinessPhone;
+    const hasTelegram =
+      dist.messaging?.telegramEnabled && dist.messaging.telegramBotUsername;
+    const hasWhatsapp =
+      dist.messaging?.whatsappBookingEnabled &&
+      dist.messaging.whatsappBusinessPhone;
     const hasMeta = dist.metaBooking?.enabled;
     if (!hasTelegram && !hasWhatsapp && !hasMeta) return null;
     return this.buildMessagingLinks(business);

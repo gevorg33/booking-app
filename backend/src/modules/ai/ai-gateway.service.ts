@@ -1,20 +1,47 @@
-import { Injectable, ForbiddenException, Logger, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  Logger,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { AiCommandService } from './ai-command.service.js';
+import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { ProviderAiCommandService } from '../provider-mobile/provider-ai-command.service.js';
 import {
   AiSurface,
+  buildCapabilitiesView,
   capabilityMatrixForPrompt,
   isIntentAllowed,
   normalizeActorRole,
+  type AiCapabilitiesView,
 } from './ai-capability.matrix.js';
 import { resolveAccessTier } from './access-control.matrix.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
-import { AiIntelligenceService } from './ai-intelligence.service.js';
-import { CommandComplexityRouterService } from './command-complexity-router.service.js';
+import { AiRagService } from './ai-rag.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import type { CommandResult } from './command-completion.types.js';
-import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
+import {
+  attachGatewayMeta,
+  buildEntityMemoryLearnPayload,
+  buildCustomerEntityMemoryLearnPayload,
+  buildProviderEntityMemoryLearnPayload,
+  shouldLearnFromCommandResult,
+} from './ai-gateway-meta.util.js';
+import {
+  PlanEntitlementsService,
+  type PlanEntitlementsView,
+} from '../billing/plan-entitlements.service.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AiPlatformService } from './ai-platform.service.js';
+import type { AiCommandSurface } from './ai-platform.util.js';
+
+export interface AiGatewayCapabilitiesView extends AiCapabilitiesView {
+  usage: PlanEntitlementsView['usage'];
+  atAiLimit: boolean;
+  aiUsageWarning: boolean;
+}
 
 export interface AiGatewayExecuteParams {
   surface: AiSurface;
@@ -35,24 +62,74 @@ export interface AiGatewayExecuteParams {
 @Injectable()
 export class AiGatewayService {
   private readonly logger = new Logger(AiGatewayService.name);
+  private readonly dashboardCommands: AiCommandService;
+  private readonly customerCommands: CustomerAiCommandService;
+  private readonly providerCommands: ProviderAiCommandService;
+  private readonly entityMemory: AiEntityMemoryService;
+  private readonly conversationSummary: AiConversationSummaryService;
+  private readonly rag: AiRagService;
+  private readonly promptSecurity: AiPromptSecurityService;
+  private readonly planEntitlements: PlanEntitlementsService;
+  private readonly aiSettings: AiSettingsService;
+  private readonly platform: AiPlatformService;
 
+  /* istanbul ignore start */
   constructor(
-    private dashboardCommands: AiCommandService,
+    dashboardCommands: AiCommandService,
+    @Inject(forwardRef(() => CustomerAiCommandService))
+    customerCommands: CustomerAiCommandService,
     @Inject(forwardRef(() => ProviderAiCommandService))
-    private providerCommands: ProviderAiCommandService,
-    private entityMemory: AiEntityMemoryService,
-    private conversationSummary: AiConversationSummaryService,
-    private intelligence: AiIntelligenceService,
-    private complexityRouter: CommandComplexityRouterService,
-    private promptSecurity: AiPromptSecurityService,
-    private planEntitlements: PlanEntitlementsService,
-  ) {}
+    providerCommands: ProviderAiCommandService,
+    entityMemory: AiEntityMemoryService,
+    conversationSummary: AiConversationSummaryService,
+    rag: AiRagService,
+    promptSecurity: AiPromptSecurityService,
+    planEntitlements: PlanEntitlementsService,
+    aiSettings: AiSettingsService,
+    platform: AiPlatformService,
+  ) {
+    this.dashboardCommands = dashboardCommands;
+    this.customerCommands = customerCommands;
+    this.providerCommands = providerCommands;
+    this.entityMemory = entityMemory;
+    this.conversationSummary = conversationSummary;
+    this.rag = rag;
+    this.promptSecurity = promptSecurity;
+    this.planEntitlements = planEntitlements;
+    this.aiSettings = aiSettings;
+    this.platform = platform;
+  }
+  /* istanbul ignore end */
 
   getCapabilityHints(surface: AiSurface, tier?: string): string {
     return capabilityMatrixForPrompt(surface, normalizeActorRole(tier));
   }
 
-  async execute(params: AiGatewayExecuteParams): Promise<CommandResult | Record<string, unknown>> {
+  async getCapabilities(
+    businessId: string,
+    surface: AiSurface,
+    membershipRole?: string,
+  ): Promise<AiGatewayCapabilitiesView> {
+    const entitlements =
+      await this.planEntitlements.getEntitlements(businessId);
+    const view = buildCapabilitiesView(
+      surface,
+      membershipRole,
+      entitlements.tierId,
+    );
+    return {
+      ...view,
+      usage: entitlements.usage,
+      atAiLimit:
+        surface === 'dashboard' ? entitlements.atLimit.aiCommands : false,
+      aiUsageWarning:
+        surface === 'dashboard' ? entitlements.aiUsageWarning : false,
+    };
+  }
+
+  async execute(
+    params: AiGatewayExecuteParams,
+  ): Promise<CommandResult | Record<string, unknown>> {
     const tier = resolveAccessTier(params.membershipRole ?? params.role);
     const surface = params.surface;
 
@@ -62,38 +139,113 @@ export class AiGatewayService {
       );
     }
 
-    const blocked = this.promptSecurity.preflightBlock(params.businessId, params.prompt, surface);
+    const blocked = this.promptSecurity.preflightBlock(
+      params.businessId,
+      params.prompt,
+      surface,
+    );
     if (blocked) {
-      return this.attachGatewayMeta(blocked, surface, tier);
+      return attachGatewayMeta(blocked, surface, tier);
     }
 
     if (surface === 'dashboard') {
-      await this.planEntitlements.assertCanRunDashboardAiCommand(params.businessId);
+      await this.planEntitlements.assertCanRunDashboardAiCommand(
+        params.businessId,
+      );
     }
 
-    const memoryBlock = await this.entityMemory.buildMemoryContextBlock(params.businessId);
-
-    const { history, summaryBlock } = await this.conversationSummary.prepareHistoryForClassifier(
+    const entitlements = await this.planEntitlements.getEntitlements(
       params.businessId,
-      params.history,
-      params.surface === 'dashboard' ? 'dashboard' : 'provider_mobile',
     );
+    const aiConfig = await this.aiSettings.getSettings(params.businessId);
+    const roleProfile = this.platform.resolveRoleProfile(
+      params.membershipRole ?? params.role,
+      aiConfig,
+    );
+    const { scope, classifierHint } = this.platform.resolveBranchContext(
+      params.context,
+      aiConfig,
+    );
+    const { high: confidenceHigh, abVariantId } =
+      this.platform.resolveConfidenceForExperiment(
+        params.businessId,
+        aiConfig.confidence.high,
+        aiConfig,
+      );
+
+    const [memoryBlock, entityMemory, ragBlock] = await Promise.all([
+      this.entityMemory.buildMemoryContextBlock(params.businessId),
+      this.entityMemory.getEntityMemory(params.businessId),
+      this.rag.buildRagContextBlock(params.businessId, params.prompt),
+    ]);
+
+    const historyChannel =
+      params.surface === 'dashboard'
+        ? 'dashboard'
+        : params.surface === 'customer'
+          ? 'customer'
+          : 'provider_mobile';
+    const { history, summaryBlock } =
+      await this.conversationSummary.prepareHistoryForClassifier(
+        params.businessId,
+        params.history,
+        historyChannel,
+      );
 
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
       _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,
+      _entityMemoryAliases: entityMemory.aliases,
       _conversationSummary: summaryBlock || undefined,
+      _ragContextBlock: ragBlock || undefined,
       _accessTier: tier,
       _actorRole: tier,
+      _roleProfile: roleProfile,
+      _membershipRole: params.membershipRole ?? params.role,
+      _planTierId: entitlements.tierId,
       _scopedEmployeeId: params.employeeId ?? null,
+      _locationId: scope.locationId,
+      _branchHint: classifierHint ?? undefined,
+      _confidenceHigh: confidenceHigh,
+      _abVariantId: abVariantId,
     };
+
+    if (params.surface === 'customer') {
+      const result = await this.customerCommands.executeCommand(
+        params.businessId,
+        params.prompt,
+        history,
+        enrichedContext,
+      );
+
+      if (shouldLearnFromCommandResult(result)) {
+        void this.entityMemory.learnFromCommand(
+          params.businessId,
+          params.prompt,
+          result.action,
+          buildCustomerEntityMemoryLearnPayload(result),
+          'customer',
+        );
+      }
+
+      const attached = attachGatewayMeta(result, params.surface, tier);
+      void this.recordOutcome(
+        params,
+        result,
+        'customer',
+        roleProfile,
+        scope.locationId,
+        abVariantId,
+      );
+      return attached;
+    }
 
     if (params.surface === 'provider') {
       if (!params.userId) {
         throw new ForbiddenException('Provider AI requires authenticated user');
       }
-      return this.providerCommands.executeCommand(
+      const result = await this.providerCommands.executeCommand(
         params.businessId,
         params.userId,
         params.prompt,
@@ -103,13 +255,29 @@ export class AiGatewayService {
           confirmed: params.confirmed === true,
         },
       );
-    }
 
-    const route = this.complexityRouter.mergeRoutes(
-      await this.intelligence.routeComplexity(params.businessId, params.prompt, 'dashboard'),
-      this.complexityRouter.routeDeterministic(params.prompt),
-    );
-    enrichedContext._complexityRoute = route;
+      if (shouldLearnFromCommandResult(result)) {
+        void this.entityMemory.learnFromCommand(
+          params.businessId,
+          params.prompt,
+          result.action,
+          buildProviderEntityMemoryLearnPayload(
+            result as unknown as Record<string, unknown>,
+          ),
+          'provider_mobile',
+        );
+      }
+
+      void this.recordOutcome(
+        params,
+        result,
+        'provider',
+        roleProfile,
+        scope.locationId,
+        abVariantId,
+      );
+      return result;
+    }
 
     const result = await this.dashboardCommands.executeCommand(
       params.businessId,
@@ -117,25 +285,51 @@ export class AiGatewayService {
       params.userId,
       {
         history,
-        context: { ...enrichedContext, _complexityRoute: route },
+        context: enrichedContext,
         confirmed: params.confirmed === true,
       },
     );
 
-    if (result.success && result.action !== 'error' && result.action !== 'unknown') {
+    if (shouldLearnFromCommandResult(result)) {
       void this.entityMemory.learnFromCommand(
         params.businessId,
         params.prompt,
         result.action,
-        {
-          ...(result.details?.params ?? {}),
-          employee: result.details?.employee,
-          service: result.details?.serviceName,
-        },
+        buildEntityMemoryLearnPayload(result),
       );
     }
 
-    return this.attachGatewayMeta(result, params.surface, tier);
+    const attached = attachGatewayMeta(result, params.surface, tier);
+    void this.recordOutcome(
+      params,
+      result,
+      surface,
+      roleProfile,
+      scope.locationId,
+      abVariantId,
+    );
+    return attached;
+  }
+
+  private recordOutcome(
+    params: AiGatewayExecuteParams,
+    result: CommandResult,
+    surface: AiCommandSurface,
+    roleProfile: string,
+    locationId?: string,
+    abVariantId?: string,
+  ) {
+    void this.platform.recordCommandOutcome({
+      businessId: params.businessId,
+      userId: params.userId,
+      result,
+      surface,
+      locationId,
+      roleProfile:
+        roleProfile as import('./ai-settings.types.js').AiRoleProfile,
+      abVariantId,
+      autoExecuted: Boolean(result.details?.autoExecuted),
+    });
   }
 
   async approveTask(
@@ -147,7 +341,11 @@ export class AiGatewayService {
     if (surface === 'provider') {
       throw new ForbiddenException('Plan approval is dashboard-only');
     }
-    return this.dashboardCommands.approveTask(taskId, userId ?? 'system', businessId);
+    return this.dashboardCommands.approveTask(
+      taskId,
+      userId ?? 'system',
+      businessId,
+    );
   }
 
   async retryFailedStep(
@@ -164,26 +362,15 @@ export class AiGatewayService {
     );
   }
 
-  assertIntentAllowed(surface: AiSurface, tier: string | undefined, action: string): void {
+  assertIntentAllowed(
+    surface: AiSurface,
+    tier: string | undefined,
+    action: string,
+  ): void {
     if (!isIntentAllowed(surface, normalizeActorRole(tier), action)) {
       throw new ForbiddenException(
         `Action "${action}" is not allowed for your role on ${surface}.`,
       );
     }
-  }
-
-  private attachGatewayMeta(
-    result: CommandResult,
-    surface: AiSurface,
-    tier: ReturnType<typeof resolveAccessTier>,
-  ): CommandResult {
-    return {
-      ...result,
-      details: {
-        ...result.details,
-        gateway: { surface, tier },
-        executionTimeline: result.details?.executionTimeline ?? result.details?.workflowSteps,
-      },
-    };
   }
 }

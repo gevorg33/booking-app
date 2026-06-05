@@ -29,7 +29,10 @@ export class CustomerPrivacyService {
     return customer;
   }
 
-  async exportCustomerData(businessId: string, customerId: string): Promise<CustomerPrivacyExport> {
+  async exportCustomerData(
+    businessId: string,
+    customerId: string,
+  ): Promise<CustomerPrivacyExport> {
     const customer = await this.customerRepo.findOne({
       where: { id: customerId, businessId, isActive: true },
     });
@@ -56,7 +59,8 @@ export class CustomerPrivacyService {
         updatedAt: customer.updatedAt.toISOString(),
       },
       gdpr: Object.keys(gdpr).length ? gdpr : null,
-      notifications: (customer.metadata?.notifications as Record<string, boolean>) ?? null,
+      notifications:
+        (customer.metadata?.notifications as Record<string, boolean>) ?? null,
       bookings: bookings.map((b) => ({
         id: b.id,
         startTime: b.startTime.toISOString(),
@@ -69,7 +73,10 @@ export class CustomerPrivacyService {
     };
   }
 
-  async deleteCustomerData(businessId: string, customerId: string): Promise<{ deleted: true }> {
+  async deleteCustomerData(
+    businessId: string,
+    customerId: string,
+  ): Promise<{ deleted: true }> {
     const customer = await this.customerRepo.findOne({
       where: { id: customerId, businessId, isActive: true },
     });

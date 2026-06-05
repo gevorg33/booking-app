@@ -14,10 +14,18 @@ describe('NotificationsService grouped confirmations', () => {
     save: jest.fn(),
     create: jest.fn((v) => v),
   };
-  const emailService = { send: jest.fn().mockResolvedValue({ ok: true }), isConfigured: true };
+  const emailService = {
+    send: jest.fn().mockResolvedValue({ ok: true }),
+    isConfigured: true,
+  };
   const smsService = { send: jest.fn() };
-  const whatsappService = { sendBookingMessage: jest.fn(), shouldSkipImmediateAfterConfirmation: jest.fn() };
-  const whatsappIntegrationService = { resolveRuntimeConfig: jest.fn().mockReturnValue(null) };
+  const whatsappService = {
+    sendBookingMessage: jest.fn(),
+    shouldSkipImmediateAfterConfirmation: jest.fn(),
+  };
+  const whatsappIntegrationService = {
+    resolveRuntimeConfig: jest.fn().mockReturnValue(null),
+  };
   const configService = { get: jest.fn(() => 'https://app.test') };
 
   const service = new NotificationsService(
@@ -73,7 +81,9 @@ describe('NotificationsService grouped confirmations', () => {
         employee: { name: 'Margarita Simonyan' },
         service: { name: "girl's haircut" },
         business,
-        metadata: { groupLabel: "girl's haircut + men's haircut + Baby haircut" },
+        metadata: {
+          groupLabel: "girl's haircut + men's haircut + Baby haircut",
+        },
       },
       {
         id: 'b-2',
@@ -105,8 +115,9 @@ describe('NotificationsService grouped confirmations', () => {
       },
     ];
 
-    bookingRepo.findOne.mockImplementation(async ({ where }: { where: { id: string } }) =>
-      bookings.find((b) => b.id === where.id) ?? bookings[0],
+    bookingRepo.findOne.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        bookings.find((b) => b.id === where.id) ?? bookings[0],
     );
     bookingRepo.find.mockResolvedValue(bookings);
 
@@ -160,7 +171,9 @@ describe('NotificationsService grouped confirmations', () => {
     await service.sendMultiAppointmentConfirmation(['b-p1', 'b-p2']);
 
     expect(emailService.send).toHaveBeenCalledTimes(1);
-    expect(emailService.send.mock.calls[0][0].text).toContain('Summer glow package');
+    expect(emailService.send.mock.calls[0][0].text).toContain(
+      'Summer glow package',
+    );
   });
 
   it('omits manage links when cancel and reschedule are disabled', async () => {
@@ -191,7 +204,9 @@ describe('NotificationsService grouped confirmations', () => {
     await service.sendBookingConfirmation('b-single');
 
     expect(emailService.send).toHaveBeenCalledTimes(1);
-    expect(emailService.send.mock.calls[0][0].text).not.toMatch(/Manage your booking/);
+    expect(emailService.send.mock.calls[0][0].text).not.toMatch(
+      /Manage your booking/,
+    );
     expect(emailService.send.mock.calls[0][0].html).not.toContain('>here</a>');
     expect(bookingRepo.save).not.toHaveBeenCalled();
   });
@@ -266,7 +281,9 @@ describe('NotificationsService grouped confirmations', () => {
     await service.sendMultiAppointmentConfirmation(['b-1', 'b-2']);
 
     expect(emailService.send).toHaveBeenCalledTimes(1);
-    expect(emailService.send.mock.calls[0][0].text).not.toMatch(/Manage your booking/);
+    expect(emailService.send.mock.calls[0][0].text).not.toMatch(
+      /Manage your booking/,
+    );
     expect(bookingRepo.save).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,16 @@
 import { CommissionsService } from './commissions.service.js';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 
 describe('CommissionsService', () => {
-  const ruleRepo = { find: jest.fn(), save: jest.fn(), update: jest.fn(), create: jest.fn() };
+  const ruleRepo = {
+    find: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    create: jest.fn(),
+  };
   const bookingRepo = { createQueryBuilder: jest.fn() };
 
   const service = new CommissionsService(ruleRepo as any, bookingRepo as any);
@@ -10,7 +18,13 @@ describe('CommissionsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     ruleRepo.find.mockResolvedValue([
-      { employeeId: 'e1', serviceId: 's1', type: 'percent', value: 10, isActive: true },
+      {
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'percent',
+        value: 10,
+        isActive: true,
+      },
     ]);
     bookingRepo.createQueryBuilder.mockReturnValue({
       leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -33,7 +47,11 @@ describe('CommissionsService', () => {
   });
 
   it('exports payout CSV with commission rows', async () => {
-    const result = await service.exportPayoutCsv('biz-1', '2026-05-01', '2026-05-31');
+    const result = await service.exportPayoutCsv(
+      'biz-1',
+      '2026-05-01',
+      '2026-05-31',
+    );
     expect(result.rowCount).toBe(1);
     expect(result.content).toContain('employeeName');
     expect(result.content).toContain('Alex');
@@ -57,15 +75,28 @@ describe('CommissionsService', () => {
   it('creates commission rule with employee and service scope', async () => {
     ruleRepo.create.mockImplementation((v) => v);
     ruleRepo.save.mockImplementation(async (v) => v);
-    await service.create('biz-1', { employeeId: 'e1', serviceId: 's1', type: 'flat', value: 8 });
+    await service.create('biz-1', {
+      employeeId: 'e1',
+      serviceId: 's1',
+      type: 'flat',
+      value: 8,
+    });
     expect(ruleRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ employeeId: 'e1', serviceId: 's1', type: 'flat', value: 8 }),
+      expect.objectContaining({
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'flat',
+        value: 8,
+      }),
     );
   });
 
   it('soft-deletes commission rule', async () => {
     await service.remove('r1', 'biz-1');
-    expect(ruleRepo.update).toHaveBeenCalledWith({ id: 'r1', businessId: 'biz-1' }, { isActive: false });
+    expect(ruleRepo.update).toHaveBeenCalledWith(
+      { id: 'r1', businessId: 'biz-1' },
+      { isActive: false },
+    );
   });
 
   it('filters payout export by location', async () => {
@@ -78,6 +109,8 @@ describe('CommissionsService', () => {
       getMany: jest.fn().mockResolvedValue([]),
     });
     await service.exportPayoutCsv('biz-1', '2026-05-01', '2026-05-31', 'loc-1');
-    expect(andWhere).toHaveBeenCalledWith('b.location_id = :locationId', { locationId: 'loc-1' });
+    expect(andWhere).toHaveBeenCalledWith('b.location_id = :locationId', {
+      locationId: 'loc-1',
+    });
   });
 });

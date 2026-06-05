@@ -1,11 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, ILike, Between } from 'typeorm';
 import { ScheduleTemplate } from './entities/schedule-template.entity.js';
 import { ScheduleAssignment } from './entities/schedule-assignment.entity.js';
 import { ScheduleOverride } from './entities/schedule-override.entity.js';
-import { SchedulingTemplatePeriod, TemplatePeriodType } from './entities/scheduling-template-period.entity.js';
-import { SchedulingSlot, SlotStatus } from './entities/scheduling-slot.entity.js';
+import {
+  SchedulingTemplatePeriod,
+  TemplatePeriodType,
+} from './entities/scheduling-template-period.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from './entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from './entities/scheduling-period.entity.js';
 import {
   CreateScheduleTemplateDto,
@@ -18,18 +30,31 @@ import {
 } from './dto/create-schedule.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
-import { normalizeTime24, isValidTime24 } from '../../common/utils/time-format.util.js';
+import {
+  normalizeTime24,
+  isValidTime24,
+} from '../../common/utils/time-format.util.js';
+import {
+  buildScheduleCreationSnapshot,
+  deleteScheduleUndoSnapshot,
+} from './schedule-undo-snapshot.util.js';
 
 @Injectable()
 export class ScheduleService implements OnModuleInit {
   private readonly logger = new Logger(ScheduleService.name);
   constructor(
-    @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
-    @InjectRepository(SchedulingTemplatePeriod) private periodRepo: Repository<SchedulingTemplatePeriod>,
-    @InjectRepository(ScheduleAssignment) private assignmentRepo: Repository<ScheduleAssignment>,
-    @InjectRepository(ScheduleOverride) private overrideRepo: Repository<ScheduleOverride>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
-    @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(ScheduleTemplate)
+    private templateRepo: Repository<ScheduleTemplate>,
+    @InjectRepository(SchedulingTemplatePeriod)
+    private periodRepo: Repository<SchedulingTemplatePeriod>,
+    @InjectRepository(ScheduleAssignment)
+    private assignmentRepo: Repository<ScheduleAssignment>,
+    @InjectRepository(ScheduleOverride)
+    private overrideRepo: Repository<ScheduleOverride>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingPeriod)
+    private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     private eventStore: EventStoreService,
   ) {}
 
@@ -37,7 +62,9 @@ export class ScheduleService implements OnModuleInit {
     await this.migratePeriodTimesTo24Hour();
   }
 
-  private normalizePeriodFields<T extends { startTime: string; endTime: string }>(period: T): T {
+  private normalizePeriodFields<
+    T extends { startTime: string; endTime: string },
+  >(period: T): T {
     const startTime = normalizeTime24(period.startTime);
     const endTime = normalizeTime24(period.endTime);
     if (!isValidTime24(startTime) || !isValidTime24(endTime)) {
@@ -69,13 +96,15 @@ export class ScheduleService implements OnModuleInit {
       const workingHours = template.workingHours?.map((slot) => {
         const startTime = normalizeTime24(slot.startTime);
         const endTime = normalizeTime24(slot.endTime);
-        if (startTime !== slot.startTime || endTime !== slot.endTime) changed = true;
+        if (startTime !== slot.startTime || endTime !== slot.endTime)
+          changed = true;
         return { ...slot, startTime, endTime };
       });
       const breaks = template.breaks?.map((slot) => {
         const startTime = normalizeTime24(slot.startTime);
         const endTime = normalizeTime24(slot.endTime);
-        if (startTime !== slot.startTime || endTime !== slot.endTime) changed = true;
+        if (startTime !== slot.startTime || endTime !== slot.endTime)
+          changed = true;
         return { ...slot, startTime, endTime };
       });
       if (changed) {
@@ -87,11 +116,17 @@ export class ScheduleService implements OnModuleInit {
     }
 
     if (updated > 0) {
-      this.logger.log(`Normalized ${updated} schedule record(s) to 24-hour HH:mm format`);
+      this.logger.log(
+        `Normalized ${updated} schedule record(s) to 24-hour HH:mm format`,
+      );
     }
   }
 
-  async createTemplate(businessId: string, dto: CreateScheduleTemplateDto, userId?: string): Promise<ScheduleTemplate> {
+  async createTemplate(
+    businessId: string,
+    dto: CreateScheduleTemplateDto,
+    userId?: string,
+  ): Promise<ScheduleTemplate> {
     const template = this.templateRepo.create({
       businessId,
       name: dto.name,
@@ -102,7 +137,9 @@ export class ScheduleService implements OnModuleInit {
     await this.templateRepo.save(template);
 
     if (dto.timePeriods && dto.timePeriods.length > 0) {
-      const normalizedPeriods = dto.timePeriods.map((tp) => this.normalizePeriodFields(tp));
+      const normalizedPeriods = dto.timePeriods.map((tp) =>
+        this.normalizePeriodFields(tp),
+      );
       this.validateTemplatePeriodsDayOverlap(normalizedPeriods);
 
       const periods = normalizedPeriods.map((tp) =>
@@ -133,7 +170,10 @@ export class ScheduleService implements OnModuleInit {
       aggregateType: 'schedule_template',
       aggregateId: template.id,
       businessId,
-      payload: { name: template.name, periodsCount: dto.timePeriods?.length || 0 },
+      payload: {
+        name: template.name,
+        periodsCount: dto.timePeriods?.length || 0,
+      },
       userId,
     });
 
@@ -158,7 +198,9 @@ export class ScheduleService implements OnModuleInit {
     if (dto.name) template.name = dto.name;
 
     if (dto.timePeriods) {
-      const normalizedPeriods = dto.timePeriods.map((tp) => this.normalizePeriodFields(tp));
+      const normalizedPeriods = dto.timePeriods.map((tp) =>
+        this.normalizePeriodFields(tp),
+      );
       this.validateTemplatePeriodsDayOverlap(normalizedPeriods);
       await this.periodRepo.delete({ templateId: template.id });
 
@@ -201,7 +243,10 @@ export class ScheduleService implements OnModuleInit {
     }))!;
   }
 
-  async getTemplates(businessId: string, query?: GetTemplatesQueryDto): Promise<{
+  async getTemplates(
+    businessId: string,
+    query?: GetTemplatesQueryDto,
+  ): Promise<{
     templates: ScheduleTemplate[];
     totalItems: number;
     page: number;
@@ -237,7 +282,10 @@ export class ScheduleService implements OnModuleInit {
     return { templates, totalItems, page, pageSize };
   }
 
-  async getTemplateById(businessId: string, templateId: string): Promise<ScheduleTemplate> {
+  async getTemplateById(
+    businessId: string,
+    templateId: string,
+  ): Promise<ScheduleTemplate> {
     const template = await this.templateRepo.findOne({
       where: { id: templateId, businessId, isDeleted: false },
       relations: { periods: true },
@@ -246,7 +294,11 @@ export class ScheduleService implements OnModuleInit {
     return template;
   }
 
-  async duplicateTemplate(businessId: string, templateId: string, userId?: string): Promise<ScheduleTemplate> {
+  async duplicateTemplate(
+    businessId: string,
+    templateId: string,
+    userId?: string,
+  ): Promise<ScheduleTemplate> {
     const source = await this.getTemplateById(businessId, templateId);
 
     const newTemplate = this.templateRepo.create({
@@ -288,7 +340,11 @@ export class ScheduleService implements OnModuleInit {
     }))!;
   }
 
-  async deleteTemplates(businessId: string, dto: DeleteTemplatesDto, userId?: string): Promise<{ deleted: number }> {
+  async deleteTemplates(
+    businessId: string,
+    dto: DeleteTemplatesDto,
+    userId?: string,
+  ): Promise<{ deleted: number }> {
     const result = await this.templateRepo.update(
       { id: In(dto.templateIds), businessId },
       { isDeleted: true, isActive: false },
@@ -306,7 +362,11 @@ export class ScheduleService implements OnModuleInit {
     return { deleted: result.affected || 0 };
   }
 
-  async createDirectSchedule(businessId: string, dto: CreateDirectScheduleDto, userId?: string): Promise<{ slotsCreated: number }> {
+  async createDirectSchedule(
+    businessId: string,
+    dto: CreateDirectScheduleDto,
+    userId?: string,
+  ): Promise<{ slotsCreated: number; periodIds: string[]; slotIds: string[] }> {
     const targetDate = new Date(dto.date);
     if (Number.isNaN(targetDate.getTime())) {
       throw new BadRequestException(`Invalid schedule date: "${dto.date}"`);
@@ -321,7 +381,9 @@ export class ScheduleService implements OnModuleInit {
     }
 
     // Validate that submitted periods do not overlap with each other
-    const normalizedPeriods = dto.periods.map((p) => this.normalizePeriodFields(p));
+    const normalizedPeriods = dto.periods.map((p) =>
+      this.normalizePeriodFields(p),
+    );
     this.validatePeriodsNoOverlap(normalizedPeriods);
 
     const SLOT_GRANULARITY = 10;
@@ -334,8 +396,16 @@ export class ScheduleService implements OnModuleInit {
     const dayEnd = new Date(targetDate);
     dayEnd.setUTCHours(23, 59, 59, 999);
     await Promise.all([
-      this.slotRepo.delete({ employeeId: dto.employeeId, businessId, startTime: Between(dayStart, dayEnd) as any }),
-      this.schedulingPeriodRepo.delete({ employeeId: dto.employeeId, businessId, startTime: Between(dayStart, dayEnd) as any }),
+      this.slotRepo.delete({
+        employeeId: dto.employeeId,
+        businessId,
+        startTime: Between(dayStart, dayEnd) as any,
+      }),
+      this.schedulingPeriodRepo.delete({
+        employeeId: dto.employeeId,
+        businessId,
+        startTime: Between(dayStart, dayEnd) as any,
+      }),
     ]);
 
     for (const period of normalizedPeriods) {
@@ -358,7 +428,10 @@ export class ScheduleService implements OnModuleInit {
         type: period.type,
         placeholderLabel: period.placeholderLabel,
         serviceIds: validServiceIds.length > 0 ? validServiceIds : null,
-        maxAppointmentCount: period.type === TemplatePeriodType.SERVICE_BLOCK ? (period.maxAppointmentCount || 1) : 0,
+        maxAppointmentCount:
+          period.type === TemplatePeriodType.SERVICE_BLOCK
+            ? period.maxAppointmentCount || 1
+            : 0,
         templateId: null,
       });
 
@@ -369,7 +442,10 @@ export class ScheduleService implements OnModuleInit {
           employeeId: dto.employeeId,
           startTime: periodStart,
           endTime: periodEnd,
-          status: period.type === TemplatePeriodType.UNAVAILABLE_BLOCK ? SlotStatus.UNAVAILABLE : SlotStatus.BLOCKED,
+          status:
+            period.type === TemplatePeriodType.UNAVAILABLE_BLOCK
+              ? SlotStatus.UNAVAILABLE
+              : SlotStatus.BLOCKED,
           placeholderLabel: period.placeholderLabel,
           maxAppointmentCount: 0,
           appointmentCount: 0,
@@ -379,7 +455,10 @@ export class ScheduleService implements OnModuleInit {
 
       // SERVICE_BLOCK: generate 10-minute micro-slots for booking counting
       let current = new Date(periodStart);
-      while (current.getTime() + SLOT_GRANULARITY * 60000 <= periodEnd.getTime()) {
+      while (
+        current.getTime() + SLOT_GRANULARITY * 60000 <=
+        periodEnd.getTime()
+      ) {
         const slotEnd = new Date(current.getTime() + SLOT_GRANULARITY * 60000);
         slotsToSave.push({
           businessId,
@@ -397,11 +476,15 @@ export class ScheduleService implements OnModuleInit {
       }
     }
 
+    let savedSlots: SchedulingSlot[] = [];
+    let savedPeriods: SchedulingPeriod[] = [];
     if (slotsToSave.length > 0) {
-      await this.slotRepo.save(slotsToSave as SchedulingSlot[]);
+      savedSlots = await this.slotRepo.save(slotsToSave as SchedulingSlot[]);
     }
     if (periodsToSave.length > 0) {
-      await this.schedulingPeriodRepo.save(periodsToSave as SchedulingPeriod[]);
+      savedPeriods = await this.schedulingPeriodRepo.save(
+        periodsToSave as SchedulingPeriod[],
+      );
     }
 
     await this.eventStore.publish({
@@ -409,11 +492,42 @@ export class ScheduleService implements OnModuleInit {
       aggregateType: 'schedule_slot',
       aggregateId: dto.employeeId,
       businessId,
-      payload: { employeeId: dto.employeeId, date: dto.date, slotsCreated: slotsToSave.length },
+      payload: {
+        employeeId: dto.employeeId,
+        date: dto.date,
+        slotsCreated: slotsToSave.length,
+      },
       userId,
     });
 
-    return { slotsCreated: slotsToSave.length };
+    return buildScheduleCreationSnapshot(
+      savedPeriods,
+      savedSlots,
+      slotsToSave.length,
+    );
+  }
+
+  /** Reverts a direct schedule creation captured in workflow undo snapshots. */
+  async revertCreatedSchedule(
+    businessId: string,
+    snapshot: { periodIds?: string[]; slotIds?: string[] },
+  ): Promise<{ periodsRemoved: number; slotsRemoved: number }> {
+    return deleteScheduleUndoSnapshot(businessId, snapshot, {
+      deletePeriods: async (bizId, periodIds) => {
+        const result = await this.schedulingPeriodRepo.delete({
+          id: In(periodIds),
+          businessId: bizId,
+        });
+        return result.affected;
+      },
+      deleteSlots: async (bizId, slotIds) => {
+        const result = await this.slotRepo.delete({
+          id: In(slotIds),
+          businessId: bizId,
+        });
+        return result.affected;
+      },
+    });
   }
 
   /** Remove applied schedule periods and micro-slots for a provider on one day (does not cancel bookings). */
@@ -490,7 +604,9 @@ export class ScheduleService implements OnModuleInit {
     targetDate.setUTCHours(0, 0, 0, 0);
 
     if (targetDate < today) {
-      throw new BadRequestException('Cannot add schedule periods for a past date');
+      throw new BadRequestException(
+        'Cannot add schedule periods for a past date',
+      );
     }
 
     const dayStart = new Date(targetDate);
@@ -502,7 +618,7 @@ export class ScheduleService implements OnModuleInit {
       where: {
         businessId,
         employeeId: dto.employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -547,7 +663,9 @@ export class ScheduleService implements OnModuleInit {
         .createQueryBuilder('slot')
         .delete()
         .where('slot.businessId = :businessId', { businessId })
-        .andWhere('slot.employeeId = :employeeId', { employeeId: dto.employeeId })
+        .andWhere('slot.employeeId = :employeeId', {
+          employeeId: dto.employeeId,
+        })
         .andWhere('slot.startTime >= :periodStart', { periodStart })
         .andWhere('slot.startTime < :periodEnd', { periodEnd })
         .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
@@ -555,7 +673,10 @@ export class ScheduleService implements OnModuleInit {
         .execute();
 
       let current = new Date(periodStart);
-      while (current.getTime() + SLOT_GRANULARITY * 60000 <= periodEnd.getTime()) {
+      while (
+        current.getTime() + SLOT_GRANULARITY * 60000 <=
+        periodEnd.getTime()
+      ) {
         const slotEnd = new Date(current.getTime() + SLOT_GRANULARITY * 60000);
         slotsToSave.push({
           businessId,
@@ -593,7 +714,10 @@ export class ScheduleService implements OnModuleInit {
       userId,
     });
 
-    return { periodsCreated: periodsToSave.length, slotsCreated: slotsToSave.length };
+    return {
+      periodsCreated: periodsToSave.length,
+      slotsCreated: slotsToSave.length,
+    };
   }
 
   private periodToHHmm(date: Date): string {
@@ -602,7 +726,11 @@ export class ScheduleService implements OnModuleInit {
     return `${hh}:${mm}`;
   }
 
-  async assignSchedule(businessId: string, dto: AssignScheduleDto, userId?: string): Promise<ScheduleAssignment> {
+  async assignSchedule(
+    businessId: string,
+    dto: AssignScheduleDto,
+    userId?: string,
+  ): Promise<ScheduleAssignment> {
     const assignment = await this.assignmentRepo.save(
       this.assignmentRepo.create({
         employeeId: dto.employeeId,
@@ -630,7 +758,11 @@ export class ScheduleService implements OnModuleInit {
     });
   }
 
-  async createOverride(businessId: string, dto: CreateOverrideDto, userId?: string): Promise<ScheduleOverride> {
+  async createOverride(
+    businessId: string,
+    dto: CreateOverrideDto,
+    userId?: string,
+  ): Promise<ScheduleOverride> {
     const override = await this.overrideRepo.save(
       this.overrideRepo.create({
         businessId,
@@ -652,7 +784,10 @@ export class ScheduleService implements OnModuleInit {
     return override;
   }
 
-  async getOverrides(businessId: string, employeeId?: string): Promise<ScheduleOverride[]> {
+  async getOverrides(
+    businessId: string,
+    employeeId?: string,
+  ): Promise<ScheduleOverride[]> {
     const where: any = { businessId };
     if (employeeId) where.employeeId = employeeId;
     return this.overrideRepo.find({ where, order: { date: 'ASC' } });
@@ -664,15 +799,25 @@ export class ScheduleService implements OnModuleInit {
    */
   private validateTemplatePeriodsDayOverlap(
     periods: Array<{
-      startTime: string; endTime: string;
-      isActiveOnMonday?: boolean; isActiveOnTuesday?: boolean; isActiveOnWednesday?: boolean;
-      isActiveOnThursday?: boolean; isActiveOnFriday?: boolean; isActiveOnSaturday?: boolean;
+      startTime: string;
+      endTime: string;
+      isActiveOnMonday?: boolean;
+      isActiveOnTuesday?: boolean;
+      isActiveOnWednesday?: boolean;
+      isActiveOnThursday?: boolean;
+      isActiveOnFriday?: boolean;
+      isActiveOnSaturday?: boolean;
       isActiveOnSunday?: boolean;
     }>,
   ): void {
     const dayKeys = [
-      'isActiveOnSunday', 'isActiveOnMonday', 'isActiveOnTuesday', 'isActiveOnWednesday',
-      'isActiveOnThursday', 'isActiveOnFriday', 'isActiveOnSaturday',
+      'isActiveOnSunday',
+      'isActiveOnMonday',
+      'isActiveOnTuesday',
+      'isActiveOnWednesday',
+      'isActiveOnThursday',
+      'isActiveOnFriday',
+      'isActiveOnSaturday',
     ] as const;
 
     for (const dayKey of dayKeys) {
@@ -687,14 +832,20 @@ export class ScheduleService implements OnModuleInit {
    * Validates that a list of periods (each with startTime / endTime as "HH:MM" strings)
    * does not contain any overlapping ranges.
    */
-  private validatePeriodsNoOverlap(periods: Array<{ startTime: string; endTime: string }>): void {
+  private validatePeriodsNoOverlap(
+    periods: Array<{ startTime: string; endTime: string }>,
+  ): void {
     const toMinutes = (hhmm: string) => {
       const [h, m] = hhmm.split(':').map(Number);
       return h * 60 + m;
     };
 
     const sorted = [...periods]
-      .map((p, i) => ({ index: i, start: toMinutes(p.startTime), end: toMinutes(p.endTime) }))
+      .map((p, i) => ({
+        index: i,
+        start: toMinutes(p.startTime),
+        end: toMinutes(p.endTime),
+      }))
       .sort((a, b) => a.start - b.start);
 
     for (let i = 0; i < sorted.length; i++) {
@@ -709,16 +860,27 @@ export class ScheduleService implements OnModuleInit {
         if (next.start < cur.end) {
           throw new BadRequestException(
             `Periods overlap: ${periods[cur.index].startTime}–${periods[cur.index].endTime} ` +
-            `conflicts with ${periods[next.index].startTime}–${periods[next.index].endTime}. ` +
-            `Each period must be a completely independent, non-overlapping time block.`,
+              `conflicts with ${periods[next.index].startTime}–${periods[next.index].endTime}. ` +
+              `Each period must be a completely independent, non-overlapping time block.`,
           );
         }
       }
     }
   }
 
-  private updateTemplateCompleteness(template: ScheduleTemplate, periods: SchedulingTemplatePeriod[]): void {
-    const dayFlags = ['isActiveOnMonday', 'isActiveOnTuesday', 'isActiveOnWednesday', 'isActiveOnThursday', 'isActiveOnFriday', 'isActiveOnSaturday', 'isActiveOnSunday'] as const;
+  private updateTemplateCompleteness(
+    template: ScheduleTemplate,
+    periods: SchedulingTemplatePeriod[],
+  ): void {
+    const dayFlags = [
+      'isActiveOnMonday',
+      'isActiveOnTuesday',
+      'isActiveOnWednesday',
+      'isActiveOnThursday',
+      'isActiveOnFriday',
+      'isActiveOnSaturday',
+      'isActiveOnSunday',
+    ] as const;
     let complete = 0;
     let incomplete = 0;
 

@@ -25,12 +25,16 @@ describe('BookingPaymentService', () => {
         },
       },
     },
-    connectRequestOptions: jest.fn().mockReturnValue({ stripeAccount: 'acct_1' }),
+    connectRequestOptions: jest
+      .fn()
+      .mockReturnValue({ stripeAccount: 'acct_1' }),
     usesDestinationCharges: jest.fn().mockReturnValue(false),
-    connectCheckoutSessionCreate: jest.fn((accountId: string, params: unknown, _settings?: unknown) => [
-      params,
-      { stripeAccount: 'acct_1' },
-    ]),
+    connectCheckoutSessionCreate: jest.fn(
+      (accountId: string, params: unknown, _settings?: unknown) => [
+        params,
+        { stripeAccount: 'acct_1' },
+      ],
+    ),
   };
   const stripeIntegrationService = {
     assertCanAcceptOnlinePayments: jest.fn(),
@@ -141,10 +145,27 @@ describe('BookingPaymentService', () => {
   const multiServicePreview = {
     valid: true,
     services: [
-      { serviceId: 'svc-1', name: 'Haircut A', durationMinutes: 30, bufferMinutes: 0, price: 50 },
-      { serviceId: 'svc-2', name: 'Haircut B', durationMinutes: 30, bufferMinutes: 0, price: 45 },
+      {
+        serviceId: 'svc-1',
+        name: 'Haircut A',
+        durationMinutes: 30,
+        bufferMinutes: 0,
+        price: 50,
+      },
+      {
+        serviceId: 'svc-2',
+        name: 'Haircut B',
+        durationMinutes: 30,
+        bufferMinutes: 0,
+        price: 45,
+      },
     ],
-    totals: { totalPrice: 95, currency: 'USD', blockDurationMinutes: 90, serviceCount: 2 },
+    totals: {
+      totalPrice: 95,
+      currency: 'USD',
+      blockDurationMinutes: 90,
+      serviceCount: 2,
+    },
   };
 
   const multiServicePricing = {
@@ -189,17 +210,27 @@ describe('BookingPaymentService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     stripeService.isConfigured = false;
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      slug: 'salon',
+      settings: {},
+    });
     checkoutPricingService.calculate.mockResolvedValue(pricingWithPromo);
     draftRepo.create.mockImplementation((value) => value);
-    draftRepo.save.mockImplementation(async (value) => ({ id: 'draft-1', ...value }));
+    draftRepo.save.mockImplementation(async (value) => ({
+      id: 'draft-1',
+      ...value,
+    }));
   });
 
   describe('calculatePrepaymentAmount', () => {
     it('returns full price for full prepayment mode', () => {
-      expect(service.calculatePrepaymentAmount({ price: 120, prepaymentMode: PrepaymentMode.FULL } as any)).toBe(
-        120,
-      );
+      expect(
+        service.calculatePrepaymentAmount({
+          price: 120,
+          prepaymentMode: PrepaymentMode.FULL,
+        } as any),
+      ).toBe(120);
     });
 
     it('returns configured deposit amount capped by price', () => {
@@ -231,7 +262,10 @@ describe('BookingPaymentService', () => {
 
     it('returns zero when prepayment disabled', () => {
       expect(
-        service.calculatePrepaymentAmount({ price: 120, prepaymentMode: PrepaymentMode.NONE } as any),
+        service.calculatePrepaymentAmount({
+          price: 120,
+          prepaymentMode: PrepaymentMode.NONE,
+        } as any),
       ).toBe(0);
     });
   });
@@ -243,7 +277,10 @@ describe('BookingPaymentService', () => {
 
     it('is false when prepayment mode is none', () => {
       expect(
-        service.requiresPrepayment({ ...baseService, prepaymentMode: PrepaymentMode.NONE } as any),
+        service.requiresPrepayment({
+          ...baseService,
+          prepaymentMode: PrepaymentMode.NONE,
+        } as any),
       ).toBe(false);
     });
   });
@@ -264,21 +301,22 @@ describe('BookingPaymentService', () => {
 
   describe('resolveCheckoutPricing', () => {
     it('uses subscription plan price as checkout subtotal when purchasePlanId is set', async () => {
-      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(planCheckout);
-
-      await service.resolveCheckoutPricing(
-        'biz-1',
-        baseService as any,
-        {
-          serviceId: 'svc-1',
-          startTime: new Date().toISOString(),
-          customer: { name: 'Jane' },
-          purchasePlanId: 'plan-1',
-          promoCode: 'SAVE12',
-        },
+      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(
+        planCheckout,
       );
 
-      expect(subscriptionsService.getPlanCheckoutDetails).toHaveBeenCalledWith('biz-1', 'plan-1');
+      await service.resolveCheckoutPricing('biz-1', baseService as any, {
+        serviceId: 'svc-1',
+        startTime: new Date().toISOString(),
+        customer: { name: 'Jane' },
+        purchasePlanId: 'plan-1',
+        promoCode: 'SAVE12',
+      });
+
+      expect(subscriptionsService.getPlanCheckoutDetails).toHaveBeenCalledWith(
+        'biz-1',
+        'plan-1',
+      );
       expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
         expect.objectContaining({
           servicePrice: 684,
@@ -289,17 +327,15 @@ describe('BookingPaymentService', () => {
     });
 
     it('uses service prepayment for one-time checkout', async () => {
-      await service.resolveCheckoutPricing(
-        'biz-1',
-        baseService as any,
-        {
-          serviceId: 'svc-1',
-          startTime: new Date().toISOString(),
-          customer: { name: 'Jane' },
-        },
-      );
+      await service.resolveCheckoutPricing('biz-1', baseService as any, {
+        serviceId: 'svc-1',
+        startTime: new Date().toISOString(),
+        customer: { name: 'Jane' },
+      });
 
-      expect(subscriptionsService.getPlanCheckoutDetails).not.toHaveBeenCalled();
+      expect(
+        subscriptionsService.getPlanCheckoutDetails,
+      ).not.toHaveBeenCalled();
       expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
         expect.objectContaining({
           servicePrice: 120,
@@ -337,8 +373,13 @@ describe('BookingPaymentService', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
       serviceRepo.findOne.mockResolvedValue(baseService);
-      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue('acct_1');
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_1', url: 'https://stripe.test/pay' });
+      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue(
+        'acct_1',
+      );
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_1',
+        url: 'https://stripe.test/pay',
+      });
     });
 
     afterEach(() => {
@@ -346,7 +387,9 @@ describe('BookingPaymentService', () => {
     });
 
     it('creates discounted subscription checkout session with plan line item', async () => {
-      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(planCheckout);
+      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(
+        planCheckout,
+      );
 
       const result = await service.createCheckoutSession('salon', {
         ...baseDto,
@@ -373,7 +416,9 @@ describe('BookingPaymentService', () => {
               }),
             }),
           ],
-          metadata: expect.objectContaining({ checkoutKind: 'subscription_purchase' }),
+          metadata: expect.objectContaining({
+            checkoutKind: 'subscription_purchase',
+          }),
         }),
         expect.any(Object),
       );
@@ -445,7 +490,9 @@ describe('BookingPaymentService', () => {
           line_items: [
             expect.objectContaining({
               price_data: expect.objectContaining({
-                product_data: expect.objectContaining({ name: 'Deep tissue massage' }),
+                product_data: expect.objectContaining({
+                  name: 'Deep tissue massage',
+                }),
               }),
             }),
           ],
@@ -456,27 +503,29 @@ describe('BookingPaymentService', () => {
 
     it('throws when stripe is not configured', async () => {
       stripeService.isConfigured = false;
-      await expect(service.createCheckoutSession('salon', baseDto)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.createCheckoutSession('salon', baseDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws when business is missing', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.createCheckoutSession('salon', baseDto)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.createCheckoutSession('salon', baseDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws when service is missing', async () => {
       serviceRepo.findOne.mockResolvedValue(null);
-      await expect(service.createCheckoutSession('salon', baseDto)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.createCheckoutSession('salon', baseDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws when subscription purchase is missing plan id', async () => {
-      jest.spyOn(subscriptionCheckoutUtil, 'resolvePublicCheckoutKind').mockReturnValue('subscription_purchase');
+      jest
+        .spyOn(subscriptionCheckoutUtil, 'resolvePublicCheckoutKind')
+        .mockReturnValue('subscription_purchase');
 
       await expect(
         service.createCheckoutSession('salon', baseDto),
@@ -486,7 +535,9 @@ describe('BookingPaymentService', () => {
     });
 
     it('throws when promo reduces subscription amount due to zero', async () => {
-      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(planCheckout);
+      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(
+        planCheckout,
+      );
       checkoutPricingService.calculate.mockResolvedValue({
         ...pricingWithPromo,
         amountDue: 0,
@@ -508,9 +559,9 @@ describe('BookingPaymentService', () => {
         prepaymentMode: PrepaymentMode.NONE,
       });
 
-      await expect(service.createCheckoutSession('salon', baseDto)).rejects.toThrow(
-        'does not require online payment',
-      );
+      await expect(
+        service.createCheckoutSession('salon', baseDto),
+      ).rejects.toThrow('does not require online payment');
     });
 
     it('throws when customer contact is missing', async () => {
@@ -524,13 +575,15 @@ describe('BookingPaymentService', () => {
 
     it('throws when stripe session has no url', async () => {
       stripeSessionsCreate.mockResolvedValue({ id: 'sess_1', url: null });
-      await expect(service.createCheckoutSession('salon', baseDto)).rejects.toThrow(
-        'Failed to create payment session',
-      );
+      await expect(
+        service.createCheckoutSession('salon', baseDto),
+      ).rejects.toThrow('Failed to create payment session');
     });
 
     it('creates subscription checkout when customer only has phone', async () => {
-      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(planCheckout);
+      subscriptionsService.getPlanCheckoutDetails.mockResolvedValue(
+        planCheckout,
+      );
 
       await service.createCheckoutSession('salon', {
         ...baseDto,
@@ -550,8 +603,14 @@ describe('BookingPaymentService', () => {
   describe('confirmCheckoutSession', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: { stripeConnectAccountId: 'acct_1' } });
-      stripeIntegrationService.resolveConnectAccountId.mockReturnValue('acct_1');
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: { stripeConnectAccountId: 'acct_1' },
+      });
+      stripeIntegrationService.resolveConnectAccountId.mockReturnValue(
+        'acct_1',
+      );
     });
 
     it('fulfills paid subscription draft and publishes events', async () => {
@@ -660,36 +719,40 @@ describe('BookingPaymentService', () => {
 
     it('throws when stripe is not configured', async () => {
       stripeService.isConfigured = false;
-      await expect(service.confirmCheckoutSession('salon', 'sess_1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.confirmCheckoutSession('salon', 'sess_1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws when connect account is missing', async () => {
       stripeIntegrationService.resolveConnectAccountId.mockReturnValue(null);
-      await expect(service.confirmCheckoutSession('salon', 'sess_1')).rejects.toThrow(
-        'Stripe is not connected',
-      );
+      await expect(
+        service.confirmCheckoutSession('salon', 'sess_1'),
+      ).rejects.toThrow('Stripe is not connected');
     });
 
     it('throws for invalid session metadata', async () => {
       stripeSessionsRetrieve.mockResolvedValue({
         metadata: { type: 'booking_payment', slug: 'other' },
       });
-      await expect(service.confirmCheckoutSession('salon', 'sess_1')).rejects.toThrow(
-        'Invalid payment session',
-      );
+      await expect(
+        service.confirmCheckoutSession('salon', 'sess_1'),
+      ).rejects.toThrow('Invalid payment session');
     });
 
     it('throws when payment is incomplete', async () => {
       stripeSessionsRetrieve.mockResolvedValue({
-        metadata: { type: 'booking_payment', slug: 'salon', draftId: 'draft-1' },
+        metadata: {
+          type: 'booking_payment',
+          slug: 'salon',
+          draftId: 'draft-1',
+        },
         status: 'open',
         payment_status: 'unpaid',
       });
-      await expect(service.confirmCheckoutSession('salon', 'sess_1')).rejects.toThrow(
-        'Payment is not complete yet',
-      );
+      await expect(
+        service.confirmCheckoutSession('salon', 'sess_1'),
+      ).rejects.toThrow('Payment is not complete yet');
     });
 
     it('returns already completed when draft is missing', async () => {
@@ -749,11 +812,13 @@ describe('BookingPaymentService', () => {
         status: 'pending',
         payload: { customer: { name: 'Jane' } },
       });
-      businessRepo.findOne.mockResolvedValueOnce({ id: 'biz-1', slug: 'salon', settings: {} }).mockResolvedValueOnce(null);
+      businessRepo.findOne
+        .mockResolvedValueOnce({ id: 'biz-1', slug: 'salon', settings: {} })
+        .mockResolvedValueOnce(null);
 
-      await expect(service.confirmCheckoutSession('salon', 'sess_1')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.confirmCheckoutSession('salon', 'sess_1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -788,7 +853,9 @@ describe('BookingPaymentService', () => {
         payment_status: 'paid',
       });
 
-      expect(draftRepo.findOne).toHaveBeenCalledWith({ where: { id: 'draft-1' } });
+      expect(draftRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'draft-1' },
+      });
     });
 
     it('fulfills package purchase via webhook (gap-8.3)', async () => {
@@ -803,7 +870,11 @@ describe('BookingPaymentService', () => {
           metadata: { checkoutKind: 'package_purchase' },
         },
       });
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: {},
+      });
       publicBookingService.bookPackage.mockResolvedValue({
         packagePurchase: { id: 'purchase-1' },
         bookings: [{ id: 'b1' }],
@@ -836,7 +907,11 @@ describe('BookingPaymentService', () => {
           metadata: { checkoutKind: 'multi_service_booking' },
         },
       });
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: {},
+      });
       publicBookingService.bookMultiService.mockResolvedValue({
         multiServiceGroup: { id: 'group-1' },
         bookings: [{ id: 'b1' }, { id: 'b2' }],
@@ -865,12 +940,19 @@ describe('BookingPaymentService', () => {
     });
 
     it('uses package price as checkout subtotal', async () => {
-      const result = await service.resolvePackageCheckoutPricing('biz-1', 'pkg-1', {
-        promoCode: 'PKG10',
-        loyaltyPointsToRedeem: 0,
-      });
+      const result = await service.resolvePackageCheckoutPricing(
+        'biz-1',
+        'pkg-1',
+        {
+          promoCode: 'PKG10',
+          loyaltyPointsToRedeem: 0,
+        },
+      );
 
-      expect(packagesService.previewPackagePricing).toHaveBeenCalledWith('biz-1', 'pkg-1');
+      expect(packagesService.previewPackagePricing).toHaveBeenCalledWith(
+        'biz-1',
+        'pkg-1',
+      );
       expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
         expect.objectContaining({
           servicePrice: 180,
@@ -901,8 +983,13 @@ describe('BookingPaymentService', () => {
       stripeService.isConfigured = true;
       packagesService.previewPackagePricing.mockResolvedValue(packagePreview);
       checkoutPricingService.calculate.mockResolvedValue(packagePricing);
-      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue('acct_1');
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_pkg', url: 'https://stripe.test/pkg' });
+      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue(
+        'acct_1',
+      );
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_pkg',
+        url: 'https://stripe.test/pkg',
+      });
     });
 
     afterEach(() => {
@@ -934,9 +1021,13 @@ describe('BookingPaymentService', () => {
               }),
             }),
           ],
-          metadata: expect.objectContaining({ checkoutKind: 'package_purchase' }),
+          metadata: expect.objectContaining({
+            checkoutKind: 'package_purchase',
+          }),
           success_url: expect.stringContaining('/packages/pkg-1/checkout'),
-          cancel_url: expect.stringContaining('/packages/pkg-1/checkout?canceled=1'),
+          cancel_url: expect.stringContaining(
+            '/packages/pkg-1/checkout?canceled=1',
+          ),
         }),
         expect.any(Object),
       );
@@ -967,12 +1058,18 @@ describe('BookingPaymentService', () => {
     });
 
     it('stores authenticated customer id in draft metadata', async () => {
-      await service.createPackageCheckoutSession('salon', packageDto, 'cust-auth');
+      await service.createPackageCheckoutSession(
+        'salon',
+        packageDto,
+        'cust-auth',
+      );
 
       expect(draftRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           payload: expect.objectContaining({
-            metadata: expect.objectContaining({ authenticatedCustomerId: 'cust-auth' }),
+            metadata: expect.objectContaining({
+              authenticatedCustomerId: 'cust-auth',
+            }),
           }),
         }),
       );
@@ -980,16 +1077,16 @@ describe('BookingPaymentService', () => {
 
     it('throws when stripe is not configured', async () => {
       stripeService.isConfigured = false;
-      await expect(service.createPackageCheckoutSession('salon', packageDto)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.createPackageCheckoutSession('salon', packageDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws when business is missing', async () => {
       businessRepo.findOne.mockResolvedValue(null);
-      await expect(service.createPackageCheckoutSession('salon', packageDto)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.createPackageCheckoutSession('salon', packageDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws when promo reduces package amount due to zero', async () => {
@@ -1018,9 +1115,9 @@ describe('BookingPaymentService', () => {
 
     it('throws when stripe session has no url', async () => {
       stripeSessionsCreate.mockResolvedValue({ id: 'sess_pkg', url: null });
-      await expect(service.createPackageCheckoutSession('salon', packageDto)).rejects.toThrow(
-        'Failed to create payment session',
-      );
+      await expect(
+        service.createPackageCheckoutSession('salon', packageDto),
+      ).rejects.toThrow('Failed to create payment session');
     });
 
     it('uses singular appointment copy for single-line packages', async () => {
@@ -1053,7 +1150,9 @@ describe('BookingPaymentService', () => {
 
   describe('resolveMultiServiceCheckoutPricing (gap-8.7)', () => {
     beforeEach(() => {
-      multiServiceBookingsService.previewTotals.mockResolvedValue(multiServicePreview);
+      multiServiceBookingsService.previewTotals.mockResolvedValue(
+        multiServicePreview,
+      );
       checkoutPricingService.calculate.mockResolvedValue(multiServicePricing);
     });
 
@@ -1064,10 +1163,10 @@ describe('BookingPaymentService', () => {
         { promoCode: 'MULTI5' },
       );
 
-      expect(multiServiceBookingsService.previewTotals).toHaveBeenCalledWith('biz-1', [
-        'svc-1',
-        'svc-2',
-      ]);
+      expect(multiServiceBookingsService.previewTotals).toHaveBeenCalledWith(
+        'biz-1',
+        ['svc-1', 'svc-2'],
+      );
       expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
         expect.objectContaining({
           servicePrice: 95,
@@ -1100,10 +1199,17 @@ describe('BookingPaymentService', () => {
   describe('createMultiServiceCheckoutSession (gap-8.7)', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
-      multiServiceBookingsService.previewTotals.mockResolvedValue(multiServicePreview);
+      multiServiceBookingsService.previewTotals.mockResolvedValue(
+        multiServicePreview,
+      );
       checkoutPricingService.calculate.mockResolvedValue(multiServicePricing);
-      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue('acct_1');
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_ms', url: 'https://stripe.test/ms' });
+      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue(
+        'acct_1',
+      );
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_ms',
+        url: 'https://stripe.test/ms',
+      });
     });
 
     afterEach(() => {
@@ -1135,7 +1241,9 @@ describe('BookingPaymentService', () => {
               }),
             }),
           ],
-          metadata: expect.objectContaining({ checkoutKind: 'multi_service_booking' }),
+          metadata: expect.objectContaining({
+            checkoutKind: 'multi_service_booking',
+          }),
           success_url: expect.stringContaining('/multi/checkout'),
           cancel_url: expect.stringContaining('/multi/checkout?canceled=1'),
         }),
@@ -1162,7 +1270,11 @@ describe('BookingPaymentService', () => {
         blockStartTime: undefined,
         employeeId: undefined,
         lines: [
-          { serviceId: 'svc-1', employeeId: 'emp-1', startTime: new Date().toISOString() },
+          {
+            serviceId: 'svc-1',
+            employeeId: 'emp-1',
+            startTime: new Date().toISOString(),
+          },
           {
             serviceId: 'svc-2',
             employeeId: 'emp-2',
@@ -1184,12 +1296,18 @@ describe('BookingPaymentService', () => {
     });
 
     it('stores authenticated customer id in draft metadata', async () => {
-      await service.createMultiServiceCheckoutSession('salon', multiServiceDto, 'cust-auth');
+      await service.createMultiServiceCheckoutSession(
+        'salon',
+        multiServiceDto,
+        'cust-auth',
+      );
 
       expect(draftRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           payload: expect.objectContaining({
-            metadata: expect.objectContaining({ authenticatedCustomerId: 'cust-auth' }),
+            metadata: expect.objectContaining({
+              authenticatedCustomerId: 'cust-auth',
+            }),
           }),
         }),
       );
@@ -1260,7 +1378,9 @@ describe('BookingPaymentService', () => {
         slug: 'salon',
         settings: { stripeConnectAccountId: 'acct_1' },
       });
-      stripeIntegrationService.resolveConnectAccountId.mockReturnValue('acct_1');
+      stripeIntegrationService.resolveConnectAccountId.mockReturnValue(
+        'acct_1',
+      );
     });
 
     it('fulfills paid package draft and publishes package payment event', async () => {
@@ -1322,7 +1442,10 @@ describe('BookingPaymentService', () => {
         }),
       );
       expect(draftRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'completed', stripeSessionId: 'sess_pkg' }),
+        expect.objectContaining({
+          status: 'completed',
+          stripeSessionId: 'sess_pkg',
+        }),
       );
     });
 
@@ -1395,7 +1518,11 @@ describe('BookingPaymentService', () => {
         id: 'sess_pkg',
         status: 'complete',
         payment_status: 'paid',
-        metadata: { type: 'booking_payment', slug: 'salon', draftId: 'draft-pkg' },
+        metadata: {
+          type: 'booking_payment',
+          slug: 'salon',
+          draftId: 'draft-pkg',
+        },
       });
       draftRepo.findOne.mockResolvedValue({
         id: 'draft-pkg',
@@ -1426,8 +1553,13 @@ describe('BookingPaymentService', () => {
   describe('success_url {CHECKOUT_SESSION_ID} placeholder', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
-      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue('acct_1');
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_1', url: 'https://stripe.test/pay' });
+      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue(
+        'acct_1',
+      );
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_1',
+        url: 'https://stripe.test/pay',
+      });
     });
 
     afterEach(() => {
@@ -1442,42 +1574,61 @@ describe('BookingPaymentService', () => {
         customer: { name: 'Jane', email: 'jane@test.com' },
       });
       const [[sessionParams]] = stripeSessionsCreate.mock.calls;
-      expect(sessionParams.success_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+      expect(sessionParams.success_url).toContain(
+        'session_id={CHECKOUT_SESSION_ID}',
+      );
       expect(sessionParams.success_url).not.toContain('%7B');
     });
 
     it('createPackageCheckoutSession passes raw {CHECKOUT_SESSION_ID} not URL-encoded', async () => {
       packagesService.previewPackagePricing.mockResolvedValue(packagePreview);
       checkoutPricingService.calculate.mockResolvedValue(packagePricing);
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_pkg', url: 'https://stripe.test/pkg' });
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_pkg',
+        url: 'https://stripe.test/pkg',
+      });
 
       await service.createPackageCheckoutSession('salon', packageDto);
 
       const [[sessionParams]] = stripeSessionsCreate.mock.calls;
-      expect(sessionParams.success_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+      expect(sessionParams.success_url).toContain(
+        'session_id={CHECKOUT_SESSION_ID}',
+      );
       expect(sessionParams.success_url).not.toContain('%7B');
     });
 
     it('createMultiServiceCheckoutSession passes raw {CHECKOUT_SESSION_ID} not URL-encoded', async () => {
-      multiServiceBookingsService.previewTotals.mockResolvedValue(multiServicePreview);
+      multiServiceBookingsService.previewTotals.mockResolvedValue(
+        multiServicePreview,
+      );
       checkoutPricingService.calculate.mockResolvedValue(multiServicePricing);
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_ms', url: 'https://stripe.test/ms' });
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_ms',
+        url: 'https://stripe.test/ms',
+      });
 
       await service.createMultiServiceCheckoutSession('salon', multiServiceDto);
 
       const [[sessionParams]] = stripeSessionsCreate.mock.calls;
-      expect(sessionParams.success_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+      expect(sessionParams.success_url).toContain(
+        'session_id={CHECKOUT_SESSION_ID}',
+      );
       expect(sessionParams.success_url).not.toContain('%7B');
     });
 
     it('createGiftCardCheckoutSession passes raw {CHECKOUT_SESSION_ID} not URL-encoded', async () => {
       giftCardPurchaseService.quotePurchase.mockResolvedValue(giftCardQuote);
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_gc', url: 'https://stripe.test/gc' });
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_gc',
+        url: 'https://stripe.test/gc',
+      });
 
       await service.createGiftCardCheckoutSession('salon', giftCardDto);
 
       const [[sessionParams]] = stripeSessionsCreate.mock.calls;
-      expect(sessionParams.success_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+      expect(sessionParams.success_url).toContain(
+        'session_id={CHECKOUT_SESSION_ID}',
+      );
       expect(sessionParams.success_url).not.toContain('%7B');
     });
   });
@@ -1487,9 +1638,14 @@ describe('BookingPaymentService', () => {
   describe('createGiftCardCheckoutSession', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
-      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue('acct_1');
+      stripeIntegrationService.assertCanAcceptOnlinePayments.mockResolvedValue(
+        'acct_1',
+      );
       giftCardPurchaseService.quotePurchase.mockResolvedValue(giftCardQuote);
-      stripeSessionsCreate.mockResolvedValue({ id: 'sess_gc', url: 'https://stripe.test/gc' });
+      stripeSessionsCreate.mockResolvedValue({
+        id: 'sess_gc',
+        url: 'https://stripe.test/gc',
+      });
     });
 
     afterEach(() => {
@@ -1497,7 +1653,10 @@ describe('BookingPaymentService', () => {
     });
 
     it('creates gift card checkout session with correct line item', async () => {
-      const result = await service.createGiftCardCheckoutSession('salon', giftCardDto);
+      const result = await service.createGiftCardCheckoutSession(
+        'salon',
+        giftCardDto,
+      );
 
       expect(result).toEqual({
         url: 'https://stripe.test/gc',
@@ -1513,13 +1672,19 @@ describe('BookingPaymentService', () => {
             expect.objectContaining({
               price_data: expect.objectContaining({
                 unit_amount: 5000,
-                product_data: expect.objectContaining({ name: '$50 Gift Card' }),
+                product_data: expect.objectContaining({
+                  name: '$50 Gift Card',
+                }),
               }),
             }),
           ],
-          metadata: expect.objectContaining({ checkoutKind: 'gift_card_purchase' }),
+          metadata: expect.objectContaining({
+            checkoutKind: 'gift_card_purchase',
+          }),
           success_url: expect.stringContaining('/gift-cards/checkout?paid=1'),
-          cancel_url: expect.stringContaining('/gift-cards/checkout?canceled=1'),
+          cancel_url: expect.stringContaining(
+            '/gift-cards/checkout?canceled=1',
+          ),
         }),
         expect.any(Object),
       );
@@ -1548,7 +1713,9 @@ describe('BookingPaymentService', () => {
             expect.objectContaining({
               price_data: expect.objectContaining({
                 unit_amount: 1000,
-                product_data: expect.objectContaining({ name: 'Gift card shipping' }),
+                product_data: expect.objectContaining({
+                  name: 'Gift card shipping',
+                }),
               }),
             }),
           ],
@@ -1558,7 +1725,11 @@ describe('BookingPaymentService', () => {
     });
 
     it('saves draft with correct gift card metadata', async () => {
-      await service.createGiftCardCheckoutSession('salon', giftCardDto, 'cust-auth');
+      await service.createGiftCardCheckoutSession(
+        'salon',
+        giftCardDto,
+        'cust-auth',
+      );
 
       expect(draftRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1600,7 +1771,10 @@ describe('BookingPaymentService', () => {
 
     it('throws when purchaser email is missing', async () => {
       await expect(
-        service.createGiftCardCheckoutSession('salon', { ...giftCardDto, purchaserEmail: '' }),
+        service.createGiftCardCheckoutSession('salon', {
+          ...giftCardDto,
+          purchaserEmail: '',
+        }),
       ).rejects.toThrow('Purchaser email is required');
     });
 
@@ -1627,8 +1801,15 @@ describe('BookingPaymentService', () => {
           metadata: { checkoutKind: 'gift_card_purchase' },
         },
       });
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
-      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({ id: 'gc-1', code: 'ABCD-1234' });
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: {},
+      });
+      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({
+        id: 'gc-1',
+        code: 'ABCD-1234',
+      });
 
       await service.handleCheckoutCompleted({
         id: 'sess_gc',
@@ -1643,7 +1824,10 @@ describe('BookingPaymentService', () => {
         'sess_gc',
       );
       expect(draftRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'completed', stripeSessionId: 'sess_gc' }),
+        expect.objectContaining({
+          status: 'completed',
+          stripeSessionId: 'sess_gc',
+        }),
       );
     });
 
@@ -1662,8 +1846,15 @@ describe('BookingPaymentService', () => {
           },
         },
       });
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
-      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({ id: 'gc-1', code: 'ABCD-1234' });
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: {},
+      });
+      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({
+        id: 'gc-1',
+        code: 'ABCD-1234',
+      });
 
       await service.handleCheckoutCompleted({
         id: 'sess_gc',
@@ -1688,8 +1879,14 @@ describe('BookingPaymentService', () => {
   describe('confirmCheckoutSession — gift card', () => {
     beforeEach(() => {
       stripeService.isConfigured = true;
-      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon', settings: {} });
-      stripeIntegrationService.resolveConnectAccountId.mockReturnValue('acct_1');
+      businessRepo.findOne.mockResolvedValue({
+        id: 'biz-1',
+        slug: 'salon',
+        settings: {},
+      });
+      stripeIntegrationService.resolveConnectAccountId.mockReturnValue(
+        'acct_1',
+      );
     });
 
     it('fulfills paid gift card draft and returns gift card', async () => {
@@ -1697,7 +1894,11 @@ describe('BookingPaymentService', () => {
         id: 'sess_gc',
         status: 'complete',
         payment_status: 'paid',
-        metadata: { type: 'booking_payment', slug: 'salon', draftId: 'draft-gc' },
+        metadata: {
+          type: 'booking_payment',
+          slug: 'salon',
+          draftId: 'draft-gc',
+        },
       });
       draftRepo.findOne.mockResolvedValue({
         id: 'draft-gc',
@@ -1714,7 +1915,10 @@ describe('BookingPaymentService', () => {
           },
         },
       });
-      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({ id: 'gc-1', code: 'ABCD-1234' });
+      giftCardPurchaseService.fulfillPurchase.mockResolvedValue({
+        id: 'gc-1',
+        code: 'ABCD-1234',
+      });
 
       const result = await service.confirmCheckoutSession('salon', 'sess_gc');
 
@@ -1731,7 +1935,10 @@ describe('BookingPaymentService', () => {
         'sess_gc',
       );
       expect(draftRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'completed', stripeSessionId: 'sess_gc' }),
+        expect.objectContaining({
+          status: 'completed',
+          stripeSessionId: 'sess_gc',
+        }),
       );
       expect(publicBookingService.createBooking).not.toHaveBeenCalled();
     });

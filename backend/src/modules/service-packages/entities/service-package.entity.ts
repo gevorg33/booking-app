@@ -41,7 +41,13 @@ export class ServicePackage {
   @Column({ name: 'discount_type', default: PackageDiscountType.PERCENT })
   discountType: string;
 
-  @Column({ name: 'discount_value', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'discount_value',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   discountValue: number;
 
   @Column({ name: 'display_order', type: 'int', default: 0 })
@@ -53,7 +59,9 @@ export class ServicePackage {
   @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
   expiresAt: Date | null;
 
-  @OneToMany(() => ServicePackageItem, (item) => item.package, { cascade: true })
+  @OneToMany(() => ServicePackageItem, (item) => item.package, {
+    cascade: true,
+  })
   items: ServicePackageItem[];
 
   @CreateDateColumn()
@@ -118,7 +126,13 @@ export class PackagePurchase {
   @JoinColumn({ name: 'customer_id' })
   customer: Customer | null;
 
-  @Column({ name: 'price_paid', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'price_paid',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   pricePaid: number;
 
   @Column({ default: 'USD' })

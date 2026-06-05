@@ -77,8 +77,13 @@ export class AiPromptSecurityService {
   ): CommandResult | null {
     const cleaned = stripDangerousParams(params);
 
-    if (action === 'create_booking' && isAvailabilityBypassAttempt(prompt, cleaned)) {
-      this.logger.warn(`AI availability bypass blocked business=${businessId} action=${action}`);
+    if (
+      action === 'create_booking' &&
+      isAvailabilityBypassAttempt(prompt, cleaned)
+    ) {
+      this.logger.warn(
+        `AI availability bypass blocked business=${businessId} action=${action}`,
+      );
       return {
         success: false,
         action,
@@ -89,11 +94,14 @@ export class AiPromptSecurityService {
 
     if (tier === 'staff' || tier === 'client') {
       if (isRevenueRelatedRequest(action, cleaned, prompt)) {
-        this.logger.warn(`AI revenue access denied business=${businessId} tier=${tier} action=${action}`);
+        this.logger.warn(
+          `AI revenue access denied business=${businessId} tier=${tier} action=${action}`,
+        );
         return {
           success: false,
           action,
-          summary: 'Revenue and financial analytics are available to managers and owners only.',
+          summary:
+            'Revenue and financial analytics are available to managers and owners only.',
           details: { securityBlocked: true, reason: 'revenue_access', tier },
         };
       }
@@ -128,7 +136,11 @@ export class AiPromptSecurityService {
     params: Record<string, unknown>,
     scopedEmployeeId?: string | null,
   ): Record<string, unknown> {
-    if (tier !== 'staff' || !scopedEmployeeId || !STAFF_SCOPED_INTENTS.has(action)) {
+    if (
+      tier !== 'staff' ||
+      !scopedEmployeeId ||
+      !STAFF_SCOPED_INTENTS.has(action)
+    ) {
       return params;
     }
     return {

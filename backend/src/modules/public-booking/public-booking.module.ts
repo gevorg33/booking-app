@@ -33,16 +33,27 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { AiModule } from '../ai/ai.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, Service, SchedulingSlot, SchedulingPeriod, Customer, Booking, Review]),
+    TypeOrmModule.forFeature([
+      Employee,
+      Service,
+      SchedulingSlot,
+      SchedulingPeriod,
+      Customer,
+      Booking,
+      Review,
+    ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('app.jwtSecret')!,
-        signOptions: { expiresIn: config.get<string>('app.jwtExpiration')! as any },
+        signOptions: {
+          expiresIn: config.get<string>('app.jwtExpiration')! as any,
+        },
       }),
     }),
     FirebaseAdminModule,
@@ -60,6 +71,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     MultiServiceBookingsModule,
     NotificationsModule,
     forwardRef(() => GiftCardsModule),
+    forwardRef(() => AiModule),
   ],
   controllers: [PublicBookingController],
   providers: [
@@ -71,6 +83,6 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     PublicCustomerAuthGuard,
     OptionalPublicCustomerAuthGuard,
   ],
-  exports: [PublicBookingService],
+  exports: [PublicBookingService, PublicBookingAssistantService],
 })
 export class PublicBookingModule {}

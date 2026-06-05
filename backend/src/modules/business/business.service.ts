@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity.js';
-import { BusinessMember, MemberRole } from './entities/business-member.entity.js';
+import {
+  BusinessMember,
+  MemberRole,
+} from './entities/business-member.entity.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
 import { applyPublicProfileLocalesToSettings } from '../../common/i18n/business-public-profile-locales.util.js';
@@ -13,14 +21,17 @@ function isValidGoogleMapEmbed(html: string): boolean {
   const trimmed = html.trim();
   if (!/^<iframe[\s\S]*<\/iframe>$/i.test(trimmed)) return false;
   if (FORBIDDEN_MAP_EMBED.test(trimmed)) return false;
-  return /google\.[^"'\s>]*\/maps|maps\.google|maps\.googleapis\.com/i.test(trimmed);
+  return /google\.[^"'\s>]*\/maps|maps\.google|maps\.googleapis\.com/i.test(
+    trimmed,
+  );
 }
 
 @Injectable()
 export class BusinessService {
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
   ) {}
 
   async findOne(id: string): Promise<Business> {
@@ -48,14 +59,19 @@ export class BusinessService {
     return this.businessRepo.save(business);
   }
 
-  async updateProfile(id: string, dto: UpdateBusinessProfileDto): Promise<Business> {
+  async updateProfile(
+    id: string,
+    dto: UpdateBusinessProfileDto,
+  ): Promise<Business> {
     const business = await this.findOne(id);
 
     if (dto.name !== undefined) business.name = dto.name.trim();
-    if (dto.description !== undefined) business.description = dto.description.trim() || null!;
+    if (dto.description !== undefined)
+      business.description = dto.description.trim() || null!;
     if (dto.phone !== undefined) business.phone = dto.phone.trim() || null!;
     if (dto.email !== undefined) business.email = dto.email.trim() || null!;
-    if (dto.address !== undefined) business.address = dto.address.trim() || null!;
+    if (dto.address !== undefined)
+      business.address = dto.address.trim() || null!;
 
     const settings = { ...(business.settings || {}) };
 
@@ -102,7 +118,7 @@ export class BusinessService {
     const mergedSettings =
       dto.publicProfileLocales !== undefined
         ? applyPublicProfileLocalesToSettings(
-            settings as Record<string, unknown>,
+            settings,
             dto.publicProfileLocales,
           )
         : settings;
@@ -133,7 +149,10 @@ export class BusinessService {
     return memberships.map((m) => m.business);
   }
 
-  async ensureMember(businessId: string, userId: string): Promise<BusinessMember> {
+  async ensureMember(
+    businessId: string,
+    userId: string,
+  ): Promise<BusinessMember> {
     const membership = await this.memberRepo.findOne({
       where: { businessId, userId },
     });
@@ -143,15 +162,23 @@ export class BusinessService {
     return membership;
   }
 
-  async ensureOwner(businessId: string, userId: string): Promise<BusinessMember> {
+  async ensureOwner(
+    businessId: string,
+    userId: string,
+  ): Promise<BusinessMember> {
     const membership = await this.ensureMember(businessId, userId);
     if (membership.role !== MemberRole.OWNER) {
-      throw new ForbiddenException('Only the business owner can manage team roles');
+      throw new ForbiddenException(
+        'Only the business owner can manage team roles',
+      );
     }
     return membership;
   }
 
-  async getMembership(businessId: string, userId: string): Promise<BusinessMember | null> {
+  async getMembership(
+    businessId: string,
+    userId: string,
+  ): Promise<BusinessMember | null> {
     return this.memberRepo.findOne({ where: { businessId, userId } });
   }
 }

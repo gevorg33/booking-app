@@ -11,20 +11,27 @@ import {
 
 describe('notification-email-template.util', () => {
   it('renders {{variables}} in subject and body', () => {
-    expect(renderTemplateString('Hello {{customerName}}', { customerName: 'Alex' })).toBe('Hello Alex');
+    expect(
+      renderTemplateString('Hello {{customerName}}', { customerName: 'Alex' }),
+    ).toBe('Hello Alex');
     expect(renderTemplateString('Missing {{unknown}}', {})).toBe('Missing ');
   });
 
   it('reads tenant settings safely from malformed business settings', () => {
-    expect(readTenantEmailTemplatesSettings(undefined)).toEqual({ customVariables: [], templates: {} });
+    expect(readTenantEmailTemplatesSettings(undefined)).toEqual({
+      customVariables: [],
+      templates: {},
+    });
     expect(readTenantEmailTemplatesSettings({ emailTemplates: null })).toEqual({
       customVariables: [],
       templates: {},
     });
-    expect(readTenantEmailTemplatesSettings({ emailTemplates: 'bad' })).toEqual({
-      customVariables: [],
-      templates: {},
-    });
+    expect(readTenantEmailTemplatesSettings({ emailTemplates: 'bad' })).toEqual(
+      {
+        customVariables: [],
+        templates: {},
+      },
+    );
     expect(
       readTenantEmailTemplatesSettings({
         emailTemplates: {
@@ -45,21 +52,35 @@ describe('notification-email-template.util', () => {
       },
     });
 
-    expect(variables.some((v) => v.key === 'customerName' && !v.custom)).toBe(true);
+    expect(variables.some((v) => v.key === 'customerName' && !v.custom)).toBe(
+      true,
+    );
     expect(variables.find((v) => v.key === 'promo_line')).toEqual(
-      expect.objectContaining({ custom: true, sampleValue: '10% off', label: 'Promo' }),
+      expect.objectContaining({
+        custom: true,
+        sampleValue: '10% off',
+        label: 'Promo',
+      }),
     );
     expect(
       listAllTemplateVariables({
         emailTemplates: {
-          customVariables: [{ key: 'tagline', label: '', defaultValue: 'Welcome' }],
+          customVariables: [
+            { key: 'tagline', label: '', defaultValue: 'Welcome' },
+          ],
         },
       }).find((v) => v.key === 'tagline')?.label,
     ).toBe('tagline');
     expect(
       listAllTemplateVariables({
         emailTemplates: {
-          customVariables: [{ key: 'note', label: 'Note', defaultValue: undefined as unknown as string }],
+          customVariables: [
+            {
+              key: 'note',
+              label: 'Note',
+              defaultValue: undefined as unknown as string,
+            },
+          ],
         },
       }).find((v) => v.key === 'note')?.sampleValue,
     ).toBe('');
@@ -67,17 +88,21 @@ describe('notification-email-template.util', () => {
   });
 
   it('uses platform defaults when tenant has no override', () => {
-    const email = renderBusinessEmailTemplate(undefined, 'booking_confirmation', {
-      customerName: 'Alex',
-      businessName: 'Glow Salon',
-      serviceName: 'Haircut',
-      providerName: 'Jane',
-      dateLabel: '03/06/2026',
-      timeLabel: '14:00',
-      manageLinkText: '',
-      manageLinkHtml: '',
-      footerNote: 'See you soon!',
-    });
+    const email = renderBusinessEmailTemplate(
+      undefined,
+      'booking_confirmation',
+      {
+        customerName: 'Alex',
+        businessName: 'Glow Salon',
+        serviceName: 'Haircut',
+        providerName: 'Jane',
+        dateLabel: '03/06/2026',
+        timeLabel: '14:00',
+        manageLinkText: '',
+        manageLinkHtml: '',
+        footerNote: 'See you soon!',
+      },
+    );
     expect(email?.subject).toContain('Haircut');
     expect(email?.text).toContain('Alex');
     expect(email?.html).toContain('Glow Salon');
@@ -127,7 +152,11 @@ describe('notification-email-template.util', () => {
           customVariables: [
             { key: 'footerNote', label: 'Footer', defaultValue: 'Thanks!' },
             { key: '', label: 'Ignored', defaultValue: 'Nope' },
-            { key: 'note', label: 'Note', defaultValue: null as unknown as string },
+            {
+              key: 'note',
+              label: 'Note',
+              defaultValue: null as unknown as string,
+            },
           ],
         },
       },
@@ -164,7 +193,13 @@ describe('notification-email-template.util', () => {
     const email = renderBusinessEmailTemplate(
       {
         emailTemplates: {
-          customVariables: [{ key: 'footerNote', label: 'Footer', defaultValue: 'Default footer' }],
+          customVariables: [
+            {
+              key: 'footerNote',
+              label: 'Footer',
+              defaultValue: 'Default footer',
+            },
+          ],
         },
       },
       'booking_confirmation',
@@ -186,7 +221,9 @@ describe('notification-email-template.util', () => {
 
   it('uses Armenian localized defaults when business locale is hy', () => {
     const templates = listResolvedEmailTemplates({ locale: 'hy' });
-    const confirmation = templates.find((t) => t.key === 'booking_confirmation');
+    const confirmation = templates.find(
+      (t) => t.key === 'booking_confirmation',
+    );
     expect(confirmation?.subject).toContain('Հաստատված');
     expect(confirmation?.bodyText).toContain('Բարև {{customerName}}');
   });
@@ -230,20 +267,36 @@ describe('notification-email-template.util', () => {
         },
       },
     });
-    expect(templates.find((t) => t.key === 'review_request')?.isCustomized).toBe(true);
-    expect(templates.find((t) => t.key === 'booking_reminder')?.isCustomized).toBe(false);
+    expect(
+      templates.find((t) => t.key === 'review_request')?.isCustomized,
+    ).toBe(true);
+    expect(
+      templates.find((t) => t.key === 'booking_reminder')?.isCustomized,
+    ).toBe(false);
   });
 
   it('validates custom variable keys and normalization rules', () => {
-    expect(() => assertValidCustomVariableKey('1bad')).toThrow(/Variable key must start with a letter/);
-    expect(() => assertBuiltinVariableKeyAvailable('customerName')).toThrow(/reserved/i);
-    expect(assertBuiltinVariableKeyAvailable('promo_line', { emailTemplates: {} })).toBeUndefined();
+    expect(() => assertValidCustomVariableKey('1bad')).toThrow(
+      /Variable key must start with a letter/,
+    );
+    expect(() => assertBuiltinVariableKeyAvailable('customerName')).toThrow(
+      /reserved/i,
+    );
     expect(
-      normalizeCustomVariables([{ key: 'my_promo', label: 'Promo', defaultValue: '10% off' }]),
+      assertBuiltinVariableKeyAvailable('promo_line', { emailTemplates: {} }),
+    ).toBeUndefined();
+    expect(
+      normalizeCustomVariables([
+        { key: 'my_promo', label: 'Promo', defaultValue: '10% off' },
+      ]),
     ).toEqual([{ key: 'my_promo', label: 'Promo', defaultValue: '10% off' }]);
     expect(
       normalizeCustomVariables([
-        { key: ' promo_line ', label: '  ', defaultValue: undefined as unknown as string },
+        {
+          key: ' promo_line ',
+          label: '  ',
+          defaultValue: undefined as unknown as string,
+        },
       ]),
     ).toEqual([{ key: 'promo_line', label: 'promo_line', defaultValue: '' }]);
     expect(() =>

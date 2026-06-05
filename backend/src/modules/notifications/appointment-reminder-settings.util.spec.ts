@@ -14,7 +14,9 @@ import { mergeBusinessNotificationSettings } from './notification.types.js';
 
 describe('appointment-reminder-settings.util', () => {
   it('normalizes reminder hour options', () => {
-    expect(normalizeReminderOptionsHours([24, 1, 24, 0, 200, NaN])).toEqual([24, 1]);
+    expect(normalizeReminderOptionsHours([24, 1, 24, 0, 200, NaN])).toEqual([
+      24, 1,
+    ]);
     expect(normalizeReminderOptionsHours('bad')).toEqual([24, 1]);
     expect(normalizeReminderOptionsHours([])).toEqual([24, 1]);
     expect(normalizeReminderOptionsHours([3, 12, 6])).toEqual([12, 6, 3]);
@@ -81,9 +83,13 @@ describe('appointment-reminder-settings.util', () => {
   it('reads booking reminder hours from metadata safely', () => {
     expect(readBookingReminderHoursBefore(undefined)).toBeUndefined();
     expect(readBookingReminderHoursBefore({})).toBeUndefined();
-    expect(readBookingReminderHoursBefore({ reminderHoursBefore: null })).toBeNull();
+    expect(
+      readBookingReminderHoursBefore({ reminderHoursBefore: null }),
+    ).toBeNull();
     expect(readBookingReminderHoursBefore({ reminderHoursBefore: 6 })).toBe(6);
-    expect(readBookingReminderHoursBefore({ reminderHoursBefore: 'bad' })).toBeUndefined();
+    expect(
+      readBookingReminderHoursBefore({ reminderHoursBefore: 'bad' }),
+    ).toBeUndefined();
   });
 
   it('builds public profile reminder settings only when enabled', () => {
@@ -105,12 +111,22 @@ describe('appointment-reminder-settings.util', () => {
   });
 
   it('stores booking reminder metadata when customer choice is enabled', () => {
-    const enabled = mergeCustomerReminderChoiceSettings({ allowCustomerReminderChoice: true });
-    expect(buildBookingReminderMetadata(6, enabled)).toEqual({ reminderHoursBefore: 6 });
-    expect(buildBookingReminderMetadata(null, enabled)).toEqual({ reminderHoursBefore: null });
-    expect(buildBookingReminderMetadata(undefined, enabled)).toEqual({ reminderHoursBefore: 24 });
+    const enabled = mergeCustomerReminderChoiceSettings({
+      allowCustomerReminderChoice: true,
+    });
+    expect(buildBookingReminderMetadata(6, enabled)).toEqual({
+      reminderHoursBefore: 6,
+    });
+    expect(buildBookingReminderMetadata(null, enabled)).toEqual({
+      reminderHoursBefore: null,
+    });
+    expect(buildBookingReminderMetadata(undefined, enabled)).toEqual({
+      reminderHoursBefore: 24,
+    });
 
-    const disabled = mergeCustomerReminderChoiceSettings({ allowCustomerReminderChoice: false });
+    const disabled = mergeCustomerReminderChoiceSettings({
+      allowCustomerReminderChoice: false,
+    });
     expect(buildBookingReminderMetadata(6, disabled)).toEqual({});
 
     const noDefault = {
@@ -118,7 +134,9 @@ describe('appointment-reminder-settings.util', () => {
       customerReminderOptionsHours: [24, 1],
       defaultCustomerReminderHours: null,
     };
-    expect(buildBookingReminderMetadata(undefined, noDefault)).toEqual({ reminderHoursBefore: null });
+    expect(buildBookingReminderMetadata(undefined, noDefault)).toEqual({
+      reminderHoursBefore: null,
+    });
   });
 
   it('resolves booking reminder hours from metadata', () => {
@@ -127,13 +145,23 @@ describe('appointment-reminder-settings.util', () => {
       customerReminderOptionsHours: [24, 6],
       defaultCustomerReminderHours: 24,
     });
-    expect(resolveBookingReminderHoursBefore({ reminderHoursBefore: 6 }, enabled)).toBe(6);
-    expect(resolveBookingReminderHoursBefore({ reminderHoursBefore: null }, enabled)).toBeNull();
+    expect(
+      resolveBookingReminderHoursBefore({ reminderHoursBefore: 6 }, enabled),
+    ).toBe(6);
+    expect(
+      resolveBookingReminderHoursBefore({ reminderHoursBefore: null }, enabled),
+    ).toBeNull();
     expect(resolveBookingReminderHoursBefore({}, enabled)).toBe(24);
-    expect(resolveBookingReminderHoursBefore({ reminderHoursBefore: 99 }, enabled)).toBe(24);
+    expect(
+      resolveBookingReminderHoursBefore({ reminderHoursBefore: 99 }, enabled),
+    ).toBe(24);
 
-    const disabled = mergeCustomerReminderChoiceSettings({ allowCustomerReminderChoice: false });
-    expect(resolveBookingReminderHoursBefore({ reminderHoursBefore: 6 }, disabled)).toBe(6);
+    const disabled = mergeCustomerReminderChoiceSettings({
+      allowCustomerReminderChoice: false,
+    });
+    expect(
+      resolveBookingReminderHoursBefore({ reminderHoursBefore: 6 }, disabled),
+    ).toBe(6);
     expect(resolveBookingReminderHoursBefore({}, disabled)).toBeNull();
   });
 
@@ -142,12 +170,18 @@ describe('appointment-reminder-settings.util', () => {
       allowCustomerReminderChoice: true,
       customerReminderOptionsHours: [24, 1],
     });
-    const disabled = mergeCustomerReminderChoiceSettings({ allowCustomerReminderChoice: false });
+    const disabled = mergeCustomerReminderChoiceSettings({
+      allowCustomerReminderChoice: false,
+    });
 
-    expect(() => assertValidCustomerReminderHours(99, enabled)).toThrow(/Invalid appointment reminder/);
+    expect(() => assertValidCustomerReminderHours(99, enabled)).toThrow(
+      /Invalid appointment reminder/,
+    );
     expect(() => assertValidCustomerReminderHours(24, enabled)).not.toThrow();
     expect(() => assertValidCustomerReminderHours(null, enabled)).not.toThrow();
-    expect(() => assertValidCustomerReminderHours(undefined, enabled)).not.toThrow();
+    expect(() =>
+      assertValidCustomerReminderHours(undefined, enabled),
+    ).not.toThrow();
     expect(() => assertValidCustomerReminderHours(99, disabled)).not.toThrow();
   });
 

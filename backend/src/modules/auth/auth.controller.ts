@@ -1,9 +1,22 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus, Patch, UseGuards, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  UseGuards,
+  Param,
+} from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
-import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto.js';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/forgot-password.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
 import { SwitchBusinessDto } from './dto/switch-business.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -36,7 +49,10 @@ export class AuthController {
   @Post('switch-business')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  switchBusiness(@CurrentUser() user: { id: string }, @Body() dto: SwitchBusinessDto) {
+  switchBusiness(
+    @CurrentUser() user: { id: string },
+    @Body() dto: SwitchBusinessDto,
+  ) {
     return this.authService.switchBusiness(user.id, dto.businessId);
   }
 
@@ -59,7 +75,10 @@ export class AuthController {
 
   @Patch('preferences')
   @UseGuards(JwtAuthGuard)
-  updatePreferences(@CurrentUser() user: { id: string }, @Body() dto: UpdatePreferencesDto) {
+  updatePreferences(
+    @CurrentUser() user: { id: string },
+    @Body() dto: UpdatePreferencesDto,
+  ) {
     return this.authService.updatePreferences(user.id, dto);
   }
 

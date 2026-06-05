@@ -9,6 +9,7 @@ import { StripeIntegrationService } from './stripe-integration.service.js';
 import { AiGatewayService } from '../ai/ai-gateway.service.js';
 import { LoyaltyController } from '../loyalty/loyalty.controller.js';
 import { SubscriptionStatus } from './subscription-status.enum.js';
+import { createAiGatewayPlatformMocks } from '../ai/ai-gateway.test-mocks.js';
 import { PromoDiscountType } from '../promo-codes/entities/promo-code.entity.js';
 import { SubscriptionDiscountType } from '../service-subscriptions/entities/subscription.entity.js';
 
@@ -42,7 +43,10 @@ describe('Sprint 12.a billing launch integration', () => {
   const employeeRepo = {
     count: jest.fn(),
     create: jest.fn((v: Record<string, unknown>) => v),
-    save: jest.fn(async (v: Record<string, unknown>) => ({ id: 'emp-new', ...v })),
+    save: jest.fn(async (v: Record<string, unknown>) => ({
+      id: 'emp-new',
+      ...v,
+    })),
     findOne: jest.fn(),
   };
 
@@ -84,7 +88,10 @@ describe('Sprint 12.a billing launch integration', () => {
     create: jest.fn((v: Record<string, unknown>) => v),
   };
 
-  const promoCodesService = new PromoCodesService(promoRepo as any, planEntitlements);
+  const promoCodesService = new PromoCodesService(
+    promoRepo as any,
+    planEntitlements,
+  );
 
   const giftCardRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
@@ -104,7 +111,10 @@ describe('Sprint 12.a billing launch integration', () => {
 
   const planRepo = {
     create: jest.fn((v: Record<string, unknown>) => v),
-    save: jest.fn(async (v: Record<string, unknown>) => ({ id: 'sub-plan-1', ...v })),
+    save: jest.fn(async (v: Record<string, unknown>) => ({
+      id: 'sub-plan-1',
+      ...v,
+    })),
     find: jest.fn(),
     findOne: jest.fn(),
     remove: jest.fn(),
@@ -112,8 +122,19 @@ describe('Sprint 12.a billing launch integration', () => {
 
   const subscriptionsService = new ServiceSubscriptionsService(
     planRepo as any,
-    { create: jest.fn(), save: jest.fn(), find: jest.fn(), findOne: jest.fn(), count: jest.fn() } as any,
-    { create: jest.fn(), save: jest.fn(), find: jest.fn(), findOne: jest.fn() } as any,
+    {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+      count: jest.fn(),
+    } as any,
+    {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+    } as any,
     {
       findOne: jest.fn(async () => ({
         id: 'svc-1',
@@ -159,13 +180,18 @@ describe('Sprint 12.a billing launch integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessRepo.findOne.mockImplementation(async ({ where }: { where: { id: string } }) => {
-      if (where.id === 'biz-solo') return { ...businessSolo };
-      if (where.id === 'biz-starter') return { ...businessSolo, ...businessStarter, id: 'biz-starter' };
-      return null;
-    });
+    businessRepo.findOne.mockImplementation(
+      async ({ where }: { where: { id: string } }) => {
+        if (where.id === 'biz-solo') return { ...businessSolo };
+        if (where.id === 'biz-starter')
+          return { ...businessSolo, ...businessStarter, id: 'biz-starter' };
+        return null;
+      },
+    );
     employeeRepo.count.mockResolvedValue(0);
-    stripeSessionsCreate.mockResolvedValue({ url: 'https://checkout.stripe.test/annual' });
+    stripeSessionsCreate.mockResolvedValue({
+      url: 'https://checkout.stripe.test/annual',
+    });
   });
 
   describe('plan entitlements API shape', () => {
@@ -281,7 +307,11 @@ describe('Sprint 12.a billing launch integration', () => {
     });
 
     it('defaults to monthly billing interval', async () => {
-      await billingService.createCheckoutSession('biz-solo', 'starter', 'solo@salon.com');
+      await billingService.createCheckoutSession(
+        'biz-solo',
+        'starter',
+        'solo@salon.com',
+      );
       expect(stripeSessionsCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           metadata: expect.objectContaining({ billingInterval: 'month' }),
@@ -299,31 +329,38 @@ describe('Sprint 12.a billing launch integration', () => {
     const promptSecurity = {
       preflightBlock: jest.fn(() => null),
     };
-    const entityMemory = { buildMemoryContextBlock: jest.fn(async () => '') };
+    const entityMemory = {
+      buildMemoryContextBlock: jest.fn(async () => ''),
+      getEntityMemory: jest.fn(async () => ({ aliases: {} })),
+      learnFromCommand: jest.fn(),
+    };
     const conversationSummary = {
-      prepareHistoryForClassifier: jest.fn(async () => ({ history: [], summaryBlock: '' })),
+      prepareHistoryForClassifier: jest.fn(async () => ({
+        history: [],
+        summaryBlock: '',
+      })),
     };
+    const rag = { buildRagContextBlock: jest.fn(async () => '') };
     const dashboardCommands = {
-      executeCommand: jest.fn(async () => ({ summary: 'ok', success: true, action: 'noop' })),
+      executeCommand: jest.fn(async () => ({
+        summary: 'ok',
+        success: true,
+        action: 'noop',
+      })),
     };
-
-    const complexityRouter = {
-      mergeRoutes: jest.fn(() => 'simple'),
-      routeDeterministic: jest.fn(() => 'simple'),
-    };
-    const intelligence = {
-      routeComplexity: jest.fn(async () => 'simple'),
-    };
+    const { aiSettings, platform } = createAiGatewayPlatformMocks();
 
     const gateway = new AiGatewayService(
       dashboardCommands as any,
       { executeCommand: jest.fn() } as any,
+      { executeCommand: jest.fn() } as any,
       entityMemory as any,
       conversationSummary as any,
-      intelligence as any,
-      complexityRouter as any,
+      rag as any,
       promptSecurity as any,
       planEntitlements,
+      aiSettings as any,
+      platform as any,
     );
 
     it('blocks dashboard AI when monthly command cap reached', async () => {
@@ -348,17 +385,22 @@ describe('Sprint 12.a billing launch integration', () => {
         bySurface: [{ surface: 'dashboard', requests: 25 }],
       });
       const providerCommands = {
-        executeCommand: jest.fn(async () => ({ summary: 'mobile ok', success: true })),
+        executeCommand: jest.fn(async () => ({
+          summary: 'mobile ok',
+          success: true,
+        })),
       };
       const mobileGateway = new AiGatewayService(
         dashboardCommands as any,
+        { executeCommand: jest.fn() } as any,
         providerCommands as any,
         entityMemory as any,
         conversationSummary as any,
-        intelligence as any,
-        complexityRouter as any,
+        rag as any,
         promptSecurity as any,
         planEntitlements,
+        aiSettings as any,
+        platform as any,
       );
       await mobileGateway.execute({
         surface: 'provider',
@@ -375,7 +417,9 @@ describe('Sprint 12.a billing launch integration', () => {
     const businessService = {
       ensureMember: jest.fn(async () => undefined),
       findOne: jest.fn(async (id: string) =>
-        id === 'biz-solo' ? { ...businessSolo, settings: {} } : { ...businessStarter, settings: {} },
+        id === 'biz-solo'
+          ? { ...businessSolo, settings: {} }
+          : { ...businessStarter, settings: {} },
       ),
       update: jest.fn(async () => undefined),
     };

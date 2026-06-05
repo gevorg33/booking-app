@@ -1,6 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { CustomerService } from './customer.service.js';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
+import {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+} from './dto/create-customer.dto.js';
 import { GetCustomersQueryDto } from './dto/get-customers-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 
@@ -18,7 +31,10 @@ export class CustomerController {
   }
 
   @Post()
-  create(@Param('businessId') businessId: string, @Body() dto: CreateCustomerDto) {
+  create(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateCustomerDto,
+  ) {
     return this.customerService.create(businessId, dto);
   }
 

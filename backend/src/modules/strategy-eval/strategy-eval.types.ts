@@ -23,7 +23,10 @@ export interface MarketplaceCriterionWeights {
 
 export interface MarketplaceEvalResult {
   criterionWeights: MarketplaceCriterionWeights;
-  optionScores: Record<Exclude<MarketplacePositioningDecision, 'undecided'>, number>;
+  optionScores: Record<
+    Exclude<MarketplacePositioningDecision, 'undecided'>,
+    number
+  >;
   recommendation: MarketplacePositioningDecision;
   recommendationKey: string;
   directoryOptIn: boolean | null;
@@ -41,11 +44,15 @@ export interface StrategyEvalSummary {
 
 export interface StoredStrategyEval {
   hipaa?: Partial<HipaaEvalResult> & { answers?: HipaaEvalAnswers };
-  marketplace?: Partial<MarketplaceEvalResult> & { criterionWeights?: MarketplaceCriterionWeights };
+  marketplace?: Partial<MarketplaceEvalResult> & {
+    criterionWeights?: MarketplaceCriterionWeights;
+  };
 }
 
-export function readStoredStrategyEval(raw?: Record<string, unknown>): StoredStrategyEval {
+export function readStoredStrategyEval(
+  raw?: Record<string, unknown>,
+): StoredStrategyEval {
   const root = raw?.strategyEval;
   if (!root || typeof root !== 'object') return {};
-  return root as StoredStrategyEval;
+  return root;
 }

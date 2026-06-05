@@ -40,8 +40,18 @@ const SALON_PLAYBOOK: VerticalPlaybook = {
       name: 'Haircuts & styling',
       sortOrder: 0,
       services: [
-        { name: "Women's haircut", durationMinutes: 60, price: 65, bufferMinutes: 10 },
-        { name: "Men's haircut", durationMinutes: 30, price: 35, bufferMinutes: 5 },
+        {
+          name: "Women's haircut",
+          durationMinutes: 60,
+          price: 65,
+          bufferMinutes: 10,
+        },
+        {
+          name: "Men's haircut",
+          durationMinutes: 30,
+          price: 35,
+          bufferMinutes: 5,
+        },
         { name: 'Blowout & styling', durationMinutes: 45, price: 45 },
       ],
     },
@@ -49,8 +59,18 @@ const SALON_PLAYBOOK: VerticalPlaybook = {
       name: 'Color & treatments',
       sortOrder: 1,
       services: [
-        { name: 'Hair coloring', durationMinutes: 120, price: 120, bufferMinutes: 15 },
-        { name: 'Highlights / balayage', durationMinutes: 150, price: 180, bufferMinutes: 15 },
+        {
+          name: 'Hair coloring',
+          durationMinutes: 120,
+          price: 120,
+          bufferMinutes: 15,
+        },
+        {
+          name: 'Highlights / balayage',
+          durationMinutes: 150,
+          price: 180,
+          bufferMinutes: 15,
+        },
       ],
     },
     {
@@ -115,17 +135,41 @@ const CLINIC_PLAYBOOK: VerticalPlaybook = {
       name: 'Consultations',
       sortOrder: 0,
       services: [
-        { name: 'Initial consultation', durationMinutes: 30, price: 0, bufferMinutes: 10 },
-        { name: 'Follow-up consultation', durationMinutes: 20, price: 0, bufferMinutes: 5 },
+        {
+          name: 'Initial consultation',
+          durationMinutes: 30,
+          price: 0,
+          bufferMinutes: 10,
+        },
+        {
+          name: 'Follow-up consultation',
+          durationMinutes: 20,
+          price: 0,
+          bufferMinutes: 5,
+        },
       ],
     },
     {
       name: 'Aesthetic treatments',
       sortOrder: 1,
       services: [
-        { name: 'Botox treatment', durationMinutes: 30, price: 250, bufferMinutes: 10 },
-        { name: 'Dermal filler', durationMinutes: 45, price: 350, bufferMinutes: 15 },
-        { name: 'Laser hair removal (small area)', durationMinutes: 30, price: 80 },
+        {
+          name: 'Botox treatment',
+          durationMinutes: 30,
+          price: 250,
+          bufferMinutes: 10,
+        },
+        {
+          name: 'Dermal filler',
+          durationMinutes: 45,
+          price: 350,
+          bufferMinutes: 15,
+        },
+        {
+          name: 'Laser hair removal (small area)',
+          durationMinutes: 30,
+          price: 80,
+        },
       ],
     },
     {
@@ -133,7 +177,12 @@ const CLINIC_PLAYBOOK: VerticalPlaybook = {
       sortOrder: 2,
       services: [
         { name: 'Dental check-up', durationMinutes: 30, price: 60 },
-        { name: 'Teeth cleaning', durationMinutes: 45, price: 90, bufferMinutes: 10 },
+        {
+          name: 'Teeth cleaning',
+          durationMinutes: 45,
+          price: 90,
+          bufferMinutes: 10,
+        },
       ],
     },
   ],
@@ -187,10 +236,11 @@ const CLINIC_PLAYBOOK: VerticalPlaybook = {
   ],
 };
 
-export const VERTICAL_PLAYBOOKS: Record<VerticalPlaybookId, VerticalPlaybook> = {
-  salon: SALON_PLAYBOOK,
-  clinic: CLINIC_PLAYBOOK,
-};
+export const VERTICAL_PLAYBOOKS: Record<VerticalPlaybookId, VerticalPlaybook> =
+  {
+    salon: SALON_PLAYBOOK,
+    clinic: CLINIC_PLAYBOOK,
+  };
 
 /** Maps onboarding business types to salon vs clinic playbook bundles. */
 export const BUSINESS_TYPE_TO_PLAYBOOK: Record<string, VerticalPlaybookId> = {
@@ -204,7 +254,9 @@ export const BUSINESS_TYPE_TO_PLAYBOOK: Record<string, VerticalPlaybookId> = {
   other: 'salon',
 };
 
-export function resolveVerticalPlaybookId(businessType: string): VerticalPlaybookId {
+export function resolveVerticalPlaybookId(
+  businessType: string,
+): VerticalPlaybookId {
   return BUSINESS_TYPE_TO_PLAYBOOK[businessType] ?? 'salon';
 }
 

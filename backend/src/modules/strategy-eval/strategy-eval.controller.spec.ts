@@ -32,17 +32,30 @@ describe('StrategyEvalController', () => {
     jest.clearAllMocks();
     businessService.ensureMember.mockResolvedValue({ role: 'owner' });
     strategyEvalService.getSummary.mockResolvedValue(summary);
-    strategyEvalService.getHipaaFramework.mockReturnValue({ checklist: [], decisions: [] });
+    strategyEvalService.getHipaaFramework.mockReturnValue({
+      checklist: [],
+      decisions: [],
+    });
     strategyEvalService.getHipaaEval.mockResolvedValue(null);
-    strategyEvalService.submitHipaaEval.mockResolvedValue({ recommendation: 'wellness_only' });
-    strategyEvalService.getMarketplaceFramework.mockReturnValue({ criteria: [], options: [] });
+    strategyEvalService.submitHipaaEval.mockResolvedValue({
+      recommendation: 'wellness_only',
+    });
+    strategyEvalService.getMarketplaceFramework.mockReturnValue({
+      criteria: [],
+      options: [],
+    });
     strategyEvalService.getMarketplaceEval.mockResolvedValue(null);
-    strategyEvalService.submitMarketplaceEval.mockResolvedValue({ recommendation: 'software_only' });
+    strategyEvalService.submitMarketplaceEval.mockResolvedValue({
+      recommendation: 'software_only',
+    });
   });
 
   it('returns strategy summary after membership guard', async () => {
     const result = await controller.getSummary('biz-1', user);
-    expect(businessService.ensureMember).toHaveBeenCalledWith('biz-1', 'user-1');
+    expect(businessService.ensureMember).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
     expect(result.summary).toEqual(summary);
   });
 
@@ -56,14 +69,20 @@ describe('StrategyEvalController', () => {
   it('submits HIPAA evaluation', async () => {
     const dto = { answers: { handles_phi: 'no' as const } };
     const result = await controller.submitHipaaEval('biz-1', dto, user);
-    expect(strategyEvalService.submitHipaaEval).toHaveBeenCalledWith('biz-1', dto);
+    expect(strategyEvalService.submitHipaaEval).toHaveBeenCalledWith(
+      'biz-1',
+      dto,
+    );
     expect(result.evaluation.recommendation).toBe('wellness_only');
   });
 
   it('submits marketplace evaluation', async () => {
     const dto = { criterionWeights: { tenant_autonomy: 5 } };
     const result = await controller.submitMarketplaceEval('biz-1', dto, user);
-    expect(strategyEvalService.submitMarketplaceEval).toHaveBeenCalledWith('biz-1', dto);
+    expect(strategyEvalService.submitMarketplaceEval).toHaveBeenCalledWith(
+      'biz-1',
+      dto,
+    );
     expect(result.evaluation.recommendation).toBe('software_only');
   });
 
@@ -71,14 +90,18 @@ describe('StrategyEvalController', () => {
     await controller.getMarketplaceFramework('biz-1', user);
     await controller.getMarketplaceEval('biz-1', user);
     expect(strategyEvalService.getMarketplaceFramework).toHaveBeenCalled();
-    expect(strategyEvalService.getMarketplaceEval).toHaveBeenCalledWith('biz-1');
+    expect(strategyEvalService.getMarketplaceEval).toHaveBeenCalledWith(
+      'biz-1',
+    );
   });
 
   it('propagates membership guard failures', async () => {
     businessService.ensureMember.mockRejectedValue(new ForbiddenException());
-    await expect(controller.getSummary('biz-1', user)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.submitHipaaEval('biz-1', { answers: {} }, user)).rejects.toBeInstanceOf(
+    await expect(controller.getSummary('biz-1', user)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+    await expect(
+      controller.submitHipaaEval('biz-1', { answers: {} }, user),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

@@ -29,7 +29,9 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
 
   const service = new PublicBookingService(
@@ -104,7 +106,7 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     jest.clearAllMocks();
     jest.spyOn(service, 'resolveBusiness').mockResolvedValue(business);
     multiServiceBookingsService.resolveSettingsFromBusiness.mockReturnValue(
-      business.settings!.publicBooking!.multiService,
+      business.settings.publicBooking!.multiService,
     );
     multiServiceBookingsService.previewTotals.mockResolvedValue({
       valid: true,
@@ -117,7 +119,9 @@ describe('PublicBookingService bookMultiService same_visit', () => {
       },
       services: serviceLines,
     });
-    multiServiceBookingsService.loadServicesForSelection.mockResolvedValue(serviceLines);
+    multiServiceBookingsService.loadServicesForSelection.mockResolvedValue(
+      serviceLines,
+    );
     multiServiceBookingsService.createGroup.mockResolvedValue({
       id: 'group-1',
       schedulingMode: 'same_visit',
@@ -126,17 +130,24 @@ describe('PublicBookingService bookMultiService same_visit', () => {
       amountDue: 0,
       subtotal: 125,
     });
-    jest.spyOn(service as any, 'resolvePublicBookingCustomer').mockResolvedValue({
-      customer: { id: 'cust-1', name: 'Alex' },
-      created: false,
-    });
-    jest.spyOn(service as any, 'validateMultiServiceBlockAt').mockResolvedValue(true);
-    jest.spyOn(service as any, 'assertMultiServiceAppointmentsAvailable').mockResolvedValue(undefined);
-    jest.spyOn(service as any, 'loadOrderedMultiServiceLines').mockResolvedValue(serviceLines);
-    jest.spyOn(service as any, 'loadMultiServiceNames').mockResolvedValue([
-      'Face Plasma',
-      'Face Pilling',
-    ]);
+    jest
+      .spyOn(service as any, 'resolvePublicBookingCustomer')
+      .mockResolvedValue({
+        customer: { id: 'cust-1', name: 'Alex' },
+        created: false,
+      });
+    jest
+      .spyOn(service as any, 'validateMultiServiceBlockAt')
+      .mockResolvedValue(true);
+    jest
+      .spyOn(service as any, 'assertMultiServiceAppointmentsAvailable')
+      .mockResolvedValue(undefined);
+    jest
+      .spyOn(service as any, 'loadOrderedMultiServiceLines')
+      .mockResolvedValue(serviceLines);
+    jest
+      .spyOn(service as any, 'loadMultiServiceNames')
+      .mockResolvedValue(['Face Plasma', 'Face Pilling']);
     bookingService.create
       .mockResolvedValueOnce({ id: 'booking-1', serviceId: 'face-plasma' })
       .mockResolvedValueOnce({ id: 'booking-2', serviceId: 'face-pilling' });
@@ -177,15 +188,14 @@ describe('PublicBookingService bookMultiService same_visit', () => {
       { paymentStatus: PaymentStatus.PAID, sameVisitMultiService: true },
     );
     expect(result.bookings).toHaveLength(2);
-    expect(notificationsService.sendMultiAppointmentConfirmation).toHaveBeenCalledWith([
-      'booking-1',
-      'booking-2',
-    ]);
+    expect(
+      notificationsService.sendMultiAppointmentConfirmation,
+    ).toHaveBeenCalledWith(['booking-1', 'booking-2']);
   });
 
   it('does not set sameVisitMultiService for per_service scheduling', async () => {
     multiServiceBookingsService.resolveSettingsFromBusiness.mockReturnValue({
-      ...business.settings!.publicBooking!.multiService,
+      ...business.settings.publicBooking!.multiService,
       schedulingMode: 'per_service',
     });
     bookingService.create.mockReset();

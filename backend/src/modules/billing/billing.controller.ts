@@ -86,7 +86,10 @@ export class BillingController {
     @CurrentUser() user: { id: string },
   ) {
     await this.ensureMember(businessId, user.id);
-    return this.billingService.confirmCheckoutSession(businessId, dto.sessionId);
+    return this.billingService.confirmCheckoutSession(
+      businessId,
+      dto.sessionId,
+    );
   }
 
   @Post('portal')
@@ -143,7 +146,10 @@ export class BillingController {
     @CurrentUser() user: { id: string },
   ) {
     await this.ensureMember(businessId, user.id);
-    return this.stripeIntegrationService.completeConnectOAuth(businessId, dto.code);
+    return this.stripeIntegrationService.completeConnectOAuth(
+      businessId,
+      dto.code,
+    );
   }
 
   @Post('stripe-connect/sync')

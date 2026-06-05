@@ -15,7 +15,11 @@ describe('Retail POS + booking payment summary integration', () => {
   const bookingRepo = { findOne: jest.fn(), save: jest.fn() };
   const productRepo = { find: jest.fn() };
 
-  const service = new RetailPosService(saleRepo as any, bookingRepo as any, productRepo as any);
+  const service = new RetailPosService(
+    saleRepo as any,
+    bookingRepo as any,
+    productRepo as any,
+  );
 
   const booking = {
     id: 'booking-1',
@@ -83,7 +87,9 @@ describe('Retail POS + booking payment summary integration', () => {
       lines: [{ productId: 'prod-1', quantity: 2 }],
     });
 
-    const retailByBooking = await service.listSaleViewsForBookings(['booking-1']);
+    const retailByBooking = await service.listSaleViewsForBookings([
+      'booking-1',
+    ]);
     const retailLines = retailByBooking.get('booking-1') ?? [];
     const summary = resolveBookingPaymentSummary(booking, retailLines);
 
@@ -106,7 +112,9 @@ describe('Retail POS + booking payment summary integration', () => {
       },
     ]);
 
-    const retailByBooking = await service.listSaleViewsForBookings(['booking-2']);
+    const retailByBooking = await service.listSaleViewsForBookings([
+      'booking-2',
+    ]);
     const summary = resolveBookingPaymentSummary(
       { metadata: {}, service: { price: 0, currency: 'USD' } },
       retailByBooking.get('booking-2') ?? [],

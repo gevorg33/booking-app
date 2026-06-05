@@ -1,4 +1,7 @@
-import { getBusinessZapierIntegration, ZAPIER_TRIGGER_EVENTS } from './zapier-integration.types.js';
+import {
+  getBusinessZapierIntegration,
+  ZAPIER_TRIGGER_EVENTS,
+} from './zapier-integration.types.js';
 
 describe('zapier-integration.types', () => {
   it('lists trigger events', () => {

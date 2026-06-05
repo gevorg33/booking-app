@@ -45,7 +45,11 @@ export class CommandComplexityRouterService {
   ): ComplexityRoute {
     const trimmed = prompt.trim();
     if (!trimmed) {
-      return { tier: 'simple_mutate', useDecomposition: false, reasoning: 'Empty prompt' };
+      return {
+        tier: 'simple_mutate',
+        useDecomposition: false,
+        reasoning: 'Empty prompt',
+      };
     }
 
     const fallback = extractProviderFallbackFromPrompt(trimmed, employees);
@@ -64,7 +68,8 @@ export class CommandComplexityRouterService {
     }
 
     const compound =
-      this.decomposition.isCompoundPrompt(trimmed) || COMPOUND_EXTRA.test(trimmed);
+      this.decomposition.isCompoundPrompt(trimmed) ||
+      COMPOUND_EXTRA.test(trimmed);
     if (compound) {
       return {
         tier: 'compound',
@@ -92,7 +97,10 @@ export class CommandComplexityRouterService {
       isTeamWideProviderAvailabilityQuery(trimmed) ||
       /\b(check|is .+ available|open slots?)\b/i.test(trimmed)
     ) {
-      if (!SIMPLE_MUTATE_PATTERN.test(trimmed) || isTeamWideProviderAvailabilityQuery(trimmed)) {
+      if (
+        !SIMPLE_MUTATE_PATTERN.test(trimmed) ||
+        isTeamWideProviderAvailabilityQuery(trimmed)
+      ) {
         return {
           tier: 'read_only',
           useDecomposition: false,
@@ -101,7 +109,10 @@ export class CommandComplexityRouterService {
       }
     }
 
-    if (isScheduleTemplateCreationPrompt(trimmed) || isClearSchedulePrompt(trimmed)) {
+    if (
+      isScheduleTemplateCreationPrompt(trimmed) ||
+      isClearSchedulePrompt(trimmed)
+    ) {
       return {
         tier: 'simple_mutate',
         useDecomposition: false,
@@ -124,7 +135,8 @@ export class CommandComplexityRouterService {
     if (!llmRoute?.tier) return deterministic;
     return {
       ...llmRoute,
-      useDecomposition: llmRoute.useDecomposition ?? deterministic.useDecomposition,
+      useDecomposition:
+        llmRoute.useDecomposition ?? deterministic.useDecomposition,
       reasoning: llmRoute.reasoning ?? deterministic.reasoning,
     };
   }

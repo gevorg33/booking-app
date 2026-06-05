@@ -1,7 +1,10 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LoyaltyAccount, LoyaltyTransaction } from './entities/loyalty-account.entity.js';
+import {
+  LoyaltyAccount,
+  LoyaltyTransaction,
+} from './entities/loyalty-account.entity.js';
 import {
   calculateEarnPoints,
   getEarnPercentCashback,
@@ -13,15 +16,27 @@ import { BONUS_DOLLAR_VALUE, roundBonus } from './loyalty.constants.js';
 @Injectable()
 export class LoyaltyService {
   constructor(
-    @InjectRepository(LoyaltyAccount) private accountRepo: Repository<LoyaltyAccount>,
-    @InjectRepository(LoyaltyTransaction) private txRepo: Repository<LoyaltyTransaction>,
+    @InjectRepository(LoyaltyAccount)
+    private accountRepo: Repository<LoyaltyAccount>,
+    @InjectRepository(LoyaltyTransaction)
+    private txRepo: Repository<LoyaltyTransaction>,
   ) {}
 
-  async getOrCreate(businessId: string, customerId: string): Promise<LoyaltyAccount> {
-    let account = await this.accountRepo.findOne({ where: { businessId, customerId } });
+  async getOrCreate(
+    businessId: string,
+    customerId: string,
+  ): Promise<LoyaltyAccount> {
+    let account = await this.accountRepo.findOne({
+      where: { businessId, customerId },
+    });
     if (!account) {
       account = await this.accountRepo.save(
-        this.accountRepo.create({ businessId, customerId, pointsBalance: 0, lifetimeEarned: 0 }),
+        this.accountRepo.create({
+          businessId,
+          customerId,
+          pointsBalance: 0,
+          lifetimeEarned: 0,
+        }),
       );
     }
     return account;
@@ -37,7 +52,10 @@ export class LoyaltyService {
     return { account, transactions };
   }
 
-  getPublicSummary(account: LoyaltyAccount, businessSettings?: Record<string, unknown> | null) {
+  getPublicSummary(
+    account: LoyaltyAccount,
+    businessSettings?: Record<string, unknown> | null,
+  ) {
     const earnPercentCashback = getEarnPercentCashback(businessSettings);
     return {
       pointsBalance: account.pointsBalance,
@@ -63,11 +81,17 @@ export class LoyaltyService {
     return maxRedeemablePoints(balance, amountDue);
   }
 
-  clampRedeemPoints(requested: number, balance: number, amountDue: number): number {
+  clampRedeemPoints(
+    requested: number,
+    balance: number,
+    amountDue: number,
+  ): number {
     const points = roundBonus(requested);
     const max = this.maxRedeemablePoints(balance, amountDue);
     if (points > max + 0.001) {
-      throw new BadRequestException('Not enough loyalty bonuses for this redemption');
+      throw new BadRequestException(
+        'Not enough loyalty bonuses for this redemption',
+      );
     }
     return points;
   }
@@ -118,7 +142,13 @@ export class LoyaltyService {
     }
   }
 
-  async earn(businessId: string, customerId: string, amountSpent: number, bookingId?: string, earnPercentCashback?: number) {
+  async earn(
+    businessId: string,
+    customerId: string,
+    amountSpent: number,
+    bookingId?: string,
+    earnPercentCashback?: number,
+  ) {
     const points = this.calculateEarnPoints(amountSpent, earnPercentCashback);
     if (points <= 0) return this.getOrCreate(businessId, customerId);
     if (bookingId) {
@@ -147,7 +177,12 @@ export class LoyaltyService {
     return account;
   }
 
-  async redeem(businessId: string, customerId: string, points: number, bookingId?: string) {
+  async redeem(
+    businessId: string,
+    customerId: string,
+    points: number,
+    bookingId?: string,
+  ) {
     const amount = roundBonus(points);
     const account = await this.getOrCreate(businessId, customerId);
     if (amount <= 0 || roundBonus(account.pointsBalance) < amount) {
@@ -167,13 +202,23 @@ export class LoyaltyService {
     return account;
   }
 
-  async adjust(businessId: string, customerId: string, points: number, note?: string) {
+  async adjust(
+    businessId: string,
+    customerId: string,
+    points: number,
+    note?: string,
+  ) {
     const account = await this.getOrCreate(businessId, customerId);
     account.pointsBalance += points;
     if (points > 0) account.lifetimeEarned += points;
     await this.accountRepo.save(account);
     await this.txRepo.save(
-      this.txRepo.create({ accountId: account.id, points, type: 'adjust', note }),
+      this.txRepo.create({
+        accountId: account.id,
+        points,
+        type: 'adjust',
+        note,
+      }),
     );
     return account;
   }

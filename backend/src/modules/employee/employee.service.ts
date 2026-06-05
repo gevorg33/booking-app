@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee } from './entities/employee.entity.js';
 import { User } from '../user/entities/user.entity.js';
 import { Service } from '../service/entities/service.entity.js';
-import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
+import {
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+} from './dto/create-employee.dto.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { TenantMemberContactService } from '../business/tenant-member-contact.service.js';
@@ -24,16 +31,26 @@ export class EmployeeService {
     private planEntitlements: PlanEntitlementsService,
   ) {}
 
-  async create(businessId: string, dto: CreateEmployeeDto, userId?: string): Promise<Employee> {
+  async create(
+    businessId: string,
+    dto: CreateEmployeeDto,
+    userId?: string,
+  ): Promise<Employee> {
     await this.planEntitlements.assertCanAddProviderSeat(businessId);
     await this.assertServiceIdsPresent(businessId, dto.serviceIds);
     if (dto.email?.trim()) {
-      await this.tenantContactService.assertEmailAvailableInTenant(businessId, dto.email);
+      await this.tenantContactService.assertEmailAvailableInTenant(
+        businessId,
+        dto.email,
+      );
     }
     const phone = this.normalizePhoneField(dto.phone);
 
     if (phone) {
-      await this.tenantContactService.assertPhoneAvailableInTenant(businessId, phone);
+      await this.tenantContactService.assertPhoneAvailableInTenant(
+        businessId,
+        phone,
+      );
     }
 
     const { title, avatarUrl, phone: _ignoredPhone, ...rest } = dto;
@@ -54,7 +71,10 @@ export class EmployeeService {
   }
 
   async findAll(businessId: string): Promise<Employee[]> {
-    return this.employeeRepo.find({ where: { businessId, isActive: true }, order: { name: 'ASC' } });
+    return this.employeeRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
   }
 
   async findOne(id: string): Promise<Employee> {
@@ -63,7 +83,11 @@ export class EmployeeService {
     return employee;
   }
 
-  async update(id: string, dto: UpdateEmployeeDto, userId?: string): Promise<Employee> {
+  async update(
+    id: string,
+    dto: UpdateEmployeeDto,
+    userId?: string,
+  ): Promise<Employee> {
     const employee = await this.findOne(id);
     await this.assertServiceIdsPresent(employee.businessId, dto.serviceIds);
     const exclude = {
@@ -93,7 +117,10 @@ export class EmployeeService {
     Object.assign(employee, rest);
 
     if (title !== undefined || avatarUrl !== undefined) {
-      employee.metadata = this.buildMetadata(employee.metadata ?? {}, { title, avatarUrl });
+      employee.metadata = this.buildMetadata(employee.metadata ?? {}, {
+        title,
+        avatarUrl,
+      });
     }
 
     const updated = await this.employeeRepo.save(employee);
@@ -113,22 +140,26 @@ export class EmployeeService {
     return updated;
   }
 
-  private async syncLinkedUserContact(userId: string, dto: UpdateEmployeeDto): Promise<void> {
+  private async syncLinkedUserContact(
+    userId: string,
+    dto: UpdateEmployeeDto,
+  ): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return;
 
     let changed = false;
 
     if (dto.email !== undefined && dto.email?.trim()) {
-      await this.tenantContactService.assertUserEmailGloballyAvailable(dto.email, userId);
+      await this.tenantContactService.assertUserEmailGloballyAvailable(
+        dto.email,
+        userId,
+      );
       user.email = this.tenantContactService.normalizeEmail(dto.email);
       changed = true;
     }
 
     if (dto.phone !== undefined) {
-      user.phone = dto.phone?.trim()
-        ? this.normalizePhoneField(dto.phone)
-        : '';
+      user.phone = dto.phone?.trim() ? this.normalizePhoneField(dto.phone) : '';
       changed = true;
     }
 
@@ -162,7 +193,8 @@ export class EmployeeService {
     }
 
     if (fields.avatarUrl !== undefined) {
-      if (fields.avatarUrl?.trim()) metadata.avatarUrl = fields.avatarUrl.trim();
+      if (fields.avatarUrl?.trim())
+        metadata.avatarUrl = fields.avatarUrl.trim();
       else delete metadata.avatarUrl;
     }
 
@@ -185,11 +217,15 @@ export class EmployeeService {
 
   private normalizePhoneField(phone?: string): string {
     if (!phone?.trim()) {
-      throw new BadRequestException('Enter a valid phone number with country code');
+      throw new BadRequestException(
+        'Enter a valid phone number with country code',
+      );
     }
     const normalized = normalizeStoredPhone(phone);
     if (!normalized) {
-      throw new BadRequestException('Enter a valid phone number with country code');
+      throw new BadRequestException(
+        'Enter a valid phone number with country code',
+      );
     }
     return normalized;
   }

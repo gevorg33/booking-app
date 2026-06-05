@@ -40,7 +40,10 @@ describe('Booking detail + retail POS integration', () => {
     const result = await controller.findOne('biz-1', 'booking-1');
 
     expect(bookingService.findOne).toHaveBeenCalledWith('booking-1');
-    expect(retailPosService.getBookingRetailSales).toHaveBeenCalledWith('biz-1', 'booking-1');
+    expect(retailPosService.getBookingRetailSales).toHaveBeenCalledWith(
+      'biz-1',
+      'booking-1',
+    );
     expect(result.paymentSummary).toMatchObject({
       cashPaid: 80,
       retailTotal: 36,
@@ -52,18 +55,23 @@ describe('Booking detail + retail POS integration', () => {
   });
 
   it('matches standalone payment summary helper wiring', async () => {
-    const checkout = await retailPosService.getBookingRetailSales('biz-1', 'booking-1');
-    const retailLines = checkout.lines.map((line: {
-      productName: string;
-      quantity: number;
-      unitPrice: number;
-      lineTotal: number;
-    }) => ({
-      productName: line.productName,
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      lineTotal: line.lineTotal,
-    }));
+    const checkout = await retailPosService.getBookingRetailSales(
+      'biz-1',
+      'booking-1',
+    );
+    const retailLines = checkout.lines.map(
+      (line: {
+        productName: string;
+        quantity: number;
+        unitPrice: number;
+        lineTotal: number;
+      }) => ({
+        productName: line.productName,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        lineTotal: line.lineTotal,
+      }),
+    );
 
     const fromController = await controller.findOne('biz-1', 'booking-1');
     const fromHelper = withBookingPaymentSummary(booking, retailLines);

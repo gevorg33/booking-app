@@ -10,6 +10,9 @@ import {
   getAiPageContext,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
+import type { AiChatMessage, AiCommandResult } from '@/lib/ai-client.types';
+
+export type { AiChatMessage, AiCommandResult };
 
 export interface AiCommandMessage {
   id: string;

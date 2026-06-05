@@ -25,12 +25,14 @@ describe('package-pricing.util', () => {
   });
 
   it('calculates fixed discount and clamps at zero', () => {
-    expect(calculatePackagePricing([{ unitPrice: 50, quantity: 2 }], 'fixed', 20).packagePrice).toBe(
-      80,
-    );
-    expect(calculatePackagePricing([{ unitPrice: 10, quantity: 1 }], 'fixed', 50).packagePrice).toBe(
-      0,
-    );
+    expect(
+      calculatePackagePricing([{ unitPrice: 50, quantity: 2 }], 'fixed', 20)
+        .packagePrice,
+    ).toBe(80);
+    expect(
+      calculatePackagePricing([{ unitPrice: 10, quantity: 1 }], 'fixed', 50)
+        .packagePrice,
+    ).toBe(0);
   });
 
   it('handles quantity multipliers and empty totals', () => {
@@ -57,12 +59,16 @@ describe('package-pricing.util', () => {
 
   it('resolves checkout grace hours from business settings', () => {
     expect(resolvePackageCheckoutGraceHours(null)).toBe(0);
-    expect(resolvePackageCheckoutGraceHours({ publicBooking: { packageCheckoutGraceHours: 24 } })).toBe(
-      24,
-    );
-    expect(resolvePackageCheckoutGraceHours({ publicBooking: { packageCheckoutGraceHours: -1 } })).toBe(
-      0,
-    );
+    expect(
+      resolvePackageCheckoutGraceHours({
+        publicBooking: { packageCheckoutGraceHours: 24 },
+      }),
+    ).toBe(24);
+    expect(
+      resolvePackageCheckoutGraceHours({
+        publicBooking: { packageCheckoutGraceHours: -1 },
+      }),
+    ).toBe(0);
   });
 
   it('allows booking during grace period after expiration', () => {
@@ -96,11 +102,15 @@ describe('package-pricing.util', () => {
 
     expect(pricing.regularTotal).toBe(405);
     expect(pricing.packagePrice).toBe(344.25);
-    expect(lines.map((line) => line.discountedLineTotal)).toEqual([51, 42.5, 102, 80.75, 68]);
-    expect(lines.map((line) => line.lineSavings)).toEqual([9, 7.5, 18, 14.25, 12]);
-    expect(
-      roundSum(lines.map((line) => line.discountedLineTotal)),
-    ).toBe(pricing.packagePrice);
+    expect(lines.map((line) => line.discountedLineTotal)).toEqual([
+      51, 42.5, 102, 80.75, 68,
+    ]);
+    expect(lines.map((line) => line.lineSavings)).toEqual([
+      9, 7.5, 18, 14.25, 12,
+    ]);
+    expect(roundSum(lines.map((line) => line.discountedLineTotal))).toBe(
+      pricing.packagePrice,
+    );
   });
 
   it('returns zero allocations for empty item lists', () => {
@@ -122,7 +132,9 @@ describe('package-pricing.util', () => {
     ];
     const pricing = calculatePackagePricing(items, 'percent', 10);
     const lines = allocatePackageLinePricing(items, pricing.packagePrice);
-    expect(roundSum(lines.map((line) => line.discountedLineTotal))).toBe(pricing.packagePrice);
+    expect(roundSum(lines.map((line) => line.discountedLineTotal))).toBe(
+      pricing.packagePrice,
+    );
     expect(lines.every((line) => line.lineSavings >= 0)).toBe(true);
   });
 });

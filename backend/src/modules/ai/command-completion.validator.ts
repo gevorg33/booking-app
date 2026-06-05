@@ -1,5 +1,13 @@
-import { ValidationIssue, ValidationResult, ResolvedCommand } from './command-completion.types.js';
+import {
+  ValidationIssue,
+  ValidationResult,
+  ResolvedCommand,
+} from './command-completion.types.js';
 import { getRequestedEmployeeNames } from './ai-orchestration.helpers.js';
+import {
+  isAiCmdEntityValidatedAction,
+  validateAiCmdEntityFields,
+} from './ai-cmd-entity-completion.util.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -19,7 +27,8 @@ const ACTION_RULES: Record<string, Rule> = {
     const hasFallbackChain =
       cmd.params.fallbackAnyProvider === true ||
       (Array.isArray(fallbackNames) && fallbackNames.length > 0) ||
-      (Array.isArray(cmd.params.employeeNames) && cmd.params.employeeNames.length >= 2);
+      (Array.isArray(cmd.params.employeeNames) &&
+        cmd.params.employeeNames.length >= 2);
     return [
       needs(
         'employeeName',
@@ -33,28 +42,56 @@ const ACTION_RULES: Record<string, Rule> = {
         ),
         'Gevorg Gasparyan or any provider',
       ),
-      needs('serviceName', 'Service', !!(cmd.entities.service || cmd.enrichedParams.serviceId), 'facemassage'),
-      needs('date', 'Date', !!cmd.params.date || firstAvailable, '29/05/2026 or tomorrow'),
-      needs('timeSlot', 'Start time', !!cmd.params.timeSlot || firstAvailable, '09:00 or first available'),
+      needs(
+        'serviceName',
+        'Service',
+        !!(cmd.entities.service || cmd.enrichedParams.serviceId),
+        'facemassage',
+      ),
+      needs(
+        'date',
+        'Date',
+        !!cmd.params.date || firstAvailable,
+        '29/05/2026 or tomorrow',
+      ),
+      needs(
+        'timeSlot',
+        'Start time',
+        !!cmd.params.timeSlot || firstAvailable,
+        '09:00 or first available',
+      ),
     ].filter(Boolean) as ValidationIssue[];
   },
 
   create_service: (cmd) =>
     [
-      needs('serviceName', 'Service name', !!cmd.params.serviceName, 'facemassage'),
-      needs('durationMinutes', 'Duration (minutes)', !!cmd.params.durationMinutes, '60'),
+      needs(
+        'serviceName',
+        'Service name',
+        !!cmd.params.serviceName,
+        'facemassage',
+      ),
+      needs(
+        'durationMinutes',
+        'Duration (minutes)',
+        !!cmd.params.durationMinutes,
+        '60',
+      ),
       needs('price', 'Price', cmd.params.price != null, '50'),
     ].filter(Boolean) as ValidationIssue[],
 
   create_services: (cmd) => {
     const list = cmd.params.services;
     if (!Array.isArray(list) || list.length === 0) {
-      return [{
-        field: 'services',
-        label: 'Services list',
-        message: 'Provide at least one service with name, duration, and price',
-        example: 'Add services: facemassage 60min $50, haircut 30min $25',
-      }];
+      return [
+        {
+          field: 'services',
+          label: 'Services list',
+          message:
+            'Provide at least one service with name, duration, and price',
+          example: 'Add services: facemassage 60min $50, haircut 30min $25',
+        },
+      ];
     }
     return [];
   },
@@ -69,15 +106,18 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.serviceName;
     return hasFilter
       ? []
-      : [{
-          field: 'date',
-          label: 'Filter',
-          message: 'Specify which bookings to cancel (date, provider, and/or service)',
-          example: 'Cancel all facemassage appointments for Gevorg tomorrow',
-        }];
+      : [
+          {
+            field: 'date',
+            label: 'Filter',
+            message:
+              'Specify which bookings to cancel (date, provider, and/or service)',
+            example: 'Cancel all facemassage appointments for Gevorg tomorrow',
+          },
+        ];
   },
 
-  bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings!(cmd),
+  bulk_smart_cancel: (cmd) => ACTION_RULES.cancel_bookings(cmd),
 
   update_bookings: (cmd) => {
     const hasTarget =
@@ -94,20 +134,27 @@ const ACTION_RULES: Record<string, Rule> = {
     return [
       ...(hasTarget
         ? []
-        : [{
-            field: 'date',
-            label: 'Appointments',
-            message: 'Specify which appointment(s) to update (date, provider, time, or all)',
-            example: 'Mark all Gevorg appointments on 01/06/2026 as done and paid',
-          }]),
+        : [
+            {
+              field: 'date',
+              label: 'Appointments',
+              message:
+                'Specify which appointment(s) to update (date, provider, time, or all)',
+              example:
+                'Mark all Gevorg appointments on 01/06/2026 as done and paid',
+            },
+          ]),
       ...(hasChange
         ? []
-        : [{
-            field: 'status',
-            label: 'Update',
-            message: 'Specify status and/or payment to apply',
-            example: 'Mark appointments from 16:00–17:15 as done with payment N/A',
-          }]),
+        : [
+            {
+              field: 'status',
+              label: 'Update',
+              message: 'Specify status and/or payment to apply',
+              example:
+                'Mark appointments from 16:00–17:15 as done with payment N/A',
+            },
+          ]),
     ];
   },
 
@@ -125,12 +172,16 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.customerName;
     return hasFilter
       ? []
-      : [{
-          field: 'date',
-          label: 'Filter',
-          message: 'Specify which appointments to hide (date, provider, status, and/or service)',
-          example: 'Hide all cancelled appointments for Gevorg today from the calendar',
-        }];
+      : [
+          {
+            field: 'date',
+            label: 'Filter',
+            message:
+              'Specify which appointments to hide (date, provider, status, and/or service)',
+            example:
+              'Hide all cancelled appointments for Gevorg today from the calendar',
+          },
+        ];
   },
 
   unhide_appointments_from_calendar: (cmd) => {
@@ -147,24 +198,30 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.customerName;
     return hasFilter
       ? []
-      : [{
-          field: 'date',
-          label: 'Filter',
-          message: 'Specify which hidden appointments to restore (date, provider, status, and/or service)',
-          example: 'Unhide all hidden cancelled appointments for Gevorg today on the calendar',
-        }];
+      : [
+          {
+            field: 'date',
+            label: 'Filter',
+            message:
+              'Specify which hidden appointments to restore (date, provider, status, and/or service)',
+            example:
+              'Unhide all hidden cancelled appointments for Gevorg today on the calendar',
+          },
+        ];
   },
 
   fill_slot_from_waitlist: (cmd) => {
     const hasWhen = !!cmd.params.date || !!cmd.params.timeSlot;
     return hasWhen
       ? []
-      : [{
-          field: 'timeSlot',
-          label: 'Slot time',
-          message: 'Specify which cancelled slot to fill (date and time)',
-          example: 'Fill cancelled 14:00 slot tomorrow from waitlist',
-        }];
+      : [
+          {
+            field: 'timeSlot',
+            label: 'Slot time',
+            message: 'Specify which cancelled slot to fill (date and time)',
+            example: 'Fill cancelled 14:00 slot tomorrow from waitlist',
+          },
+        ];
   },
 
   reschedule_booking: (cmd) => {
@@ -176,46 +233,53 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.date ||
       !!cmd.params.timeSlot ||
       cmd.params.bookingFirstAvailable === true;
-    const hasServiceChange = !!(cmd.entities.service || cmd.enrichedParams.serviceId);
+    const hasServiceChange = !!(
+      cmd.entities.service || cmd.enrichedParams.serviceId
+    );
     return [
       ...(hasTarget
         ? []
-        : [{
-            field: 'bookingId',
-            label: 'Booking',
-            message: 'Specify which appointment to update (customer, provider, or booking ID)',
-            example: 'Move Mary\'s appointment to tomorrow from 13:30',
-          }]),
+        : [
+            {
+              field: 'bookingId',
+              label: 'Booking',
+              message:
+                'Specify which appointment to update (customer, provider, or booking ID)',
+              example: "Move Mary's appointment to tomorrow from 13:30",
+            },
+          ]),
       ...(hasNewTime || hasServiceChange
         ? []
-        : [{
-            field: 'timeSlot',
-            label: 'New time or service',
-            message: 'Specify a new service type and/or a new date/time',
-            example: 'Change service to facemassage or move to 16:00',
-          }]),
+        : [
+            {
+              field: 'timeSlot',
+              label: 'New time or service',
+              message: 'Specify a new service type and/or a new date/time',
+              example: 'Change service to facemassage or move to 16:00',
+            },
+          ]),
     ];
   },
 
   check_availability: (cmd) =>
-    [
-      needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026'),
-    ].filter(Boolean) as ValidationIssue[],
+    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
+      Boolean,
+    ) as ValidationIssue[],
 
   show_appointments: (cmd) =>
-    [
-      needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026'),
-    ].filter(Boolean) as ValidationIssue[],
+    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
+      Boolean,
+    ) as ValidationIssue[],
 
   list_bookings: (cmd) =>
-    [
-      needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026'),
-    ].filter(Boolean) as ValidationIssue[],
+    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
+      Boolean,
+    ) as ValidationIssue[],
 
   summarize_day: (cmd) =>
-    [
-      needs('date', 'Date', !!cmd.params.date, 'today or 29/05/2026'),
-    ].filter(Boolean) as ValidationIssue[],
+    [needs('date', 'Date', !!cmd.params.date, 'today or 29/05/2026')].filter(
+      Boolean,
+    ) as ValidationIssue[],
 
   fill_unused_slots: (cmd) => {
     const hasProviders =
@@ -224,26 +288,28 @@ const ACTION_RULES: Record<string, Rule> = {
       (cmd.params.employeeNames?.length ?? 0) > 0 ||
       cmd.entities.employees.length > 0;
     const hasWhen =
-      !!cmd.params.date ||
-      !!cmd.params.dateFrom ||
-      !!cmd.entities.dateRange;
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify provider(s) or say "all providers"',
-            example: 'Fill gaps for Gevorg between 9-19',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message: 'Specify provider(s) or say "all providers"',
+              example: 'Fill gaps for Gevorg between 9-19',
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'date',
-            label: 'Date or range',
-            message: 'Specify when to fill gaps',
-            example: 'this week or 29/05/2026',
-          }]),
+        : [
+            {
+              field: 'date',
+              label: 'Date or range',
+              message: 'Specify when to fill gaps',
+              example: 'this week or 29/05/2026',
+            },
+          ]),
     ];
   },
 
@@ -254,26 +320,28 @@ const ACTION_RULES: Record<string, Rule> = {
       (cmd.params.employeeNames?.length ?? 0) > 0 ||
       cmd.entities.employees.length > 0;
     const hasWhen =
-      !!cmd.params.date ||
-      !!cmd.params.dateFrom ||
-      !!cmd.entities.dateRange;
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify who to list gaps for',
-            example: 'Which days does Gevorg have gaps this week?',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message: 'Specify who to list gaps for',
+              example: 'Which days does Gevorg have gaps this week?',
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'dateFrom',
-            label: 'Date range',
-            message: 'Specify which week or date range to check',
-            example: 'this week or 28/05/2026 to 03/06/2026',
-          }]),
+        : [
+            {
+              field: 'dateFrom',
+              label: 'Date range',
+              message: 'Specify which week or date range to check',
+              example: 'this week or 28/05/2026 to 03/06/2026',
+            },
+          ]),
     ];
   },
 
@@ -282,31 +350,188 @@ const ACTION_RULES: Record<string, Rule> = {
       cmd.params.allProviders ||
       !!cmd.params.employeeName ||
       cmd.entities.employees.length > 0;
-    const hasWhen = !!cmd.params.dateFrom || !!cmd.params.date || !!cmd.entities.dateRange;
+    const hasWhen =
+      !!cmd.params.dateFrom || !!cmd.params.date || !!cmd.entities.dateRange;
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify who to apply the template to',
-            example: 'Apply weekday template to Gevorg this week',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message: 'Specify who to apply the template to',
+              example: 'Apply weekday template to Gevorg this week',
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'dateFrom',
-            label: 'Date range',
-            message: 'Specify when to apply the schedule',
-            example: 'this week or 01/06/2026 to 07/06/2026',
-          }]),
+        : [
+            {
+              field: 'dateFrom',
+              label: 'Date range',
+              message: 'Specify when to apply the schedule',
+              example: 'this week or 01/06/2026 to 07/06/2026',
+            },
+          ]),
       ...(cmd.entities.template || cmd.params.templateName
         ? []
-        : [{
-            field: 'templateName',
-            label: 'Schedule template',
-            message: 'No schedule template found — create one in Schedule → Templates first',
-          }]),
+        : [
+            {
+              field: 'templateName',
+              label: 'Schedule template',
+              message:
+                'No schedule template found — create one in Schedule → Templates first',
+            },
+          ]),
+    ];
+  },
+
+  swap_schedules: (cmd) => {
+    const names = cmd.params.employeeNames as string[] | undefined;
+    const hasPair =
+      (cmd.params.employeeName && cmd.params.swapWithEmployeeName) ||
+      (names?.length ?? 0) >= 2 ||
+      cmd.entities.employees.length >= 2;
+    const hasWhen =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    return [
+      ...(hasPair
+        ? []
+        : [
+            {
+              field: 'employeeNames',
+              label: 'Providers to swap',
+              message: 'Specify two providers whose schedules to swap',
+              example: 'Swap Friday schedules between Gevorg and Maria',
+            },
+          ]),
+      ...(hasWhen
+        ? []
+        : [
+            {
+              field: 'date',
+              label: 'When to swap',
+              message: 'Specify the day or date range to swap',
+              example: 'Friday or 05/06/2026',
+            },
+          ]),
+    ];
+  },
+
+  rebalance_capacity: (cmd) => {
+    const hasService =
+      !!cmd.params.serviceName || cmd.entities.services.length > 0;
+    const hasWhen = !!cmd.params.date || !!cmd.entities.dateRange;
+    const hasPair =
+      (cmd.params.fromEmployeeName && cmd.params.toEmployeeName) ||
+      (cmd.params.employeeNames?.length ?? 0) >= 2 ||
+      cmd.entities.employees.length >= 2;
+    return [
+      ...(hasPair
+        ? []
+        : [
+            {
+              field: 'fromEmployeeName',
+              label: 'Source and target providers',
+              message: 'Specify who to move slots from and to',
+              example: 'from Gevorg to Maria',
+            },
+          ]),
+      ...(hasService
+        ? []
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service',
+              message: 'Specify which service slots to move',
+              example: 'facemassage',
+            },
+          ]),
+      ...(hasWhen
+        ? []
+        : [
+            {
+              field: 'date',
+              label: 'Date',
+              message: 'Specify which day to rebalance',
+              example: 'Friday',
+            },
+          ]),
+    ];
+  },
+
+  holiday_mode: (cmd) => {
+    const hasClose =
+      (Array.isArray(cmd.params.closeDates) &&
+        cmd.params.closeDates.length > 0) ||
+      (Array.isArray(cmd.params.holidayDates) &&
+        cmd.params.holidayDates.length > 0) ||
+      !!cmd.params.dateFrom;
+    const hasProviders =
+      cmd.params.allProviders ||
+      !!cmd.params.employeeName ||
+      cmd.entities.employees.length > 0;
+    return [
+      ...(hasClose
+        ? []
+        : [
+            {
+              field: 'closeDates',
+              label: 'Closure dates',
+              message: 'Specify which days to close',
+              example: 'Dec 24–26',
+            },
+          ]),
+      ...(hasProviders
+        ? []
+        : [
+            {
+              field: 'allProviders',
+              label: 'Who to close',
+              message: 'Specify all providers or named staff',
+              example: 'Close for all providers',
+            },
+          ]),
+    ];
+  },
+
+  onboard_provider_schedule: (cmd) => {
+    const hasProvider =
+      !!cmd.params.employeeName || cmd.entities.employees.length === 1;
+    const hasRange =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    const hasTemplate = !!cmd.params.templateName || !!cmd.entities.template;
+    return [
+      ...(hasProvider
+        ? []
+        : [
+            {
+              field: 'employeeName',
+              label: 'New provider',
+              message: 'Specify the provider to onboard',
+              example: 'Anna',
+            },
+          ]),
+      ...(hasRange
+        ? []
+        : [
+            {
+              field: 'dateFrom',
+              label: 'First week',
+              message: 'Specify the first week date range',
+              example: 'next week',
+            },
+          ]),
+      ...(hasTemplate
+        ? []
+        : [
+            {
+              field: 'templateName',
+              label: 'Schedule template',
+              message: 'Specify which weekday template to apply',
+              example: 'Weekday template',
+            },
+          ]),
     ];
   },
 
@@ -323,20 +548,24 @@ const ACTION_RULES: Record<string, Rule> = {
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify who to block time for',
-            example: 'Block lunch 12-13 for all providers Mon-Fri',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message: 'Specify who to block time for',
+              example: 'Block lunch 12-13 for all providers Mon-Fri',
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'date',
-            label: 'When to block',
-            message: 'Specify date or range to block',
-            example: 'May 30 or this week Mon-Fri',
-          }]),
+        : [
+            {
+              field: 'date',
+              label: 'When to block',
+              message: 'Specify date or range to block',
+              example: 'May 30 or this week Mon-Fri',
+            },
+          ]),
     ];
   },
 
@@ -354,28 +583,35 @@ const ACTION_RULES: Record<string, Rule> = {
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify who to schedule (one provider or all employees)',
-            example: 'All employees this week, or Gevorg Gasparyan tomorrow',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message:
+                'Specify who to schedule (one provider or all employees)',
+              example: 'All employees this week, or Gevorg Gasparyan tomorrow',
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'date',
-            label: 'Date',
-            message: 'Specify when to apply the schedule',
-            example: 'Friday, this week, tomorrow, or June 2-June 10',
-          }]),
+        : [
+            {
+              field: 'date',
+              label: 'Date',
+              message: 'Specify when to apply the schedule',
+              example: 'Friday, this week, tomorrow, or June 2-June 10',
+            },
+          ]),
       ...(hasPeriods
         ? []
-        : [{
-            field: 'periods',
-            label: 'Schedule periods',
-            message: 'Describe working hours and breaks',
-            example: '9-19 with lunch 12-13 unavailable',
-          }]),
+        : [
+            {
+              field: 'periods',
+              label: 'Schedule periods',
+              message: 'Describe working hours and breaks',
+              example: '9-19 with lunch 12-13 unavailable',
+            },
+          ]),
     ];
   },
 
@@ -384,43 +620,63 @@ const ACTION_RULES: Record<string, Rule> = {
       cmd.params.allProviders ||
       !!cmd.params.employeeName ||
       cmd.entities.employees.length > 0;
-    const hasWhen = !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    const hasWhen =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
     return [
       ...(hasProviders
         ? []
-        : [{
-            field: 'employeeName',
-            label: 'Service provider',
-            message: 'Specify whose schedule to clear',
-            example: 'Cleanup Mary\'s schedule on 31/05/2026',
-          }]),
+        : [
+            {
+              field: 'employeeName',
+              label: 'Service provider',
+              message: 'Specify whose schedule to clear',
+              example: "Cleanup Mary's schedule on 31/05/2026",
+            },
+          ]),
       ...(hasWhen
         ? []
-        : [{
-            field: 'date',
-            label: 'Date',
-            message: 'Specify which day to clear',
-            example: '31/05/2026 or tomorrow',
-          }]),
+        : [
+            {
+              field: 'date',
+              label: 'Date',
+              message: 'Specify which day to clear',
+              example: '31/05/2026 or tomorrow',
+            },
+          ]),
     ];
   },
 
   assign_employee_services: (cmd) =>
     [
-      needs('employeeName', 'Service provider', !!cmd.entities.employee, 'Gevorg Gasparyan'),
-      ...(cmd.entities.services.length > 0 || cmd.params.serviceName
+      needs(
+        'employeeName',
+        'Service provider',
+        !!cmd.entities.employee,
+        'Gevorg Gasparyan',
+      ),
+      ...(cmd.entities.services.length > 0 ||
+      cmd.params.serviceName ||
+      cmd.params.categoryName ||
+      cmd.params.assignFromCategory
         ? []
-        : [{
-            field: 'serviceName',
-            label: 'Service(s)',
-            message: 'Specify which service(s) to assign',
-            example: 'Assign facemassage and haircut to Gevorg',
-          }]),
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service(s) or category',
+              message: 'Specify which service(s) or service category to assign',
+              example: 'Assign all services from Color category to Gevorg',
+            },
+          ]),
     ].filter(Boolean) as ValidationIssue[],
 
   create_schedule_template: (cmd) =>
     [
-      needs('templateName', 'Template name', !!(cmd.params.templateName || cmd.params.name), 'Weekday hours'),
+      needs(
+        'templateName',
+        'Template name',
+        !!(cmd.params.templateName || cmd.params.name),
+        'Weekday hours',
+      ),
       needs(
         'periods',
         'Schedule hours',
@@ -455,23 +711,98 @@ const ACTION_RULES: Record<string, Rule> = {
         'today or tomorrow',
       ),
     ].filter(Boolean) as ValidationIssue[],
+
+  no_show_recovery: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today or yesterday',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  sick_day_replan: (cmd) =>
+    [
+      needs('employeeName', 'Provider', !!cmd.params.employeeName, 'Maria'),
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  import_services_from_menu: (cmd) =>
+    [
+      needs(
+        'menuText',
+        'Menu text',
+        !!(
+          cmd.params.menuText ||
+          cmd.params.ocrText ||
+          (Array.isArray(cmd.params.services) && cmd.params.services.length > 0)
+        ),
+        'Facial 60min $50, Haircut 30min $25',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  update_service_prices: (cmd) =>
+    [
+      needs(
+        'percentChange',
+        'Percent change',
+        !!(cmd.params.percentChange || cmd.params.priceChangePercent),
+        '10',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  staff_service_matrix: (_cmd) => [] as ValidationIssue[],
+
+  check_schedule_compliance: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date range',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'this month',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  revenue_forecast: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date range',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'next week',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
 };
 
 /** Entity resolution failures become clarify prompts */
-export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[] {
+export function validateEntityResolution(
+  cmd: ResolvedCommand,
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { params, entities } = cmd;
 
   const requestedNames = getRequestedEmployeeNames(params);
 
-  if (requestedNames.length > 1 && entities.employees.length < requestedNames.length) {
+  if (
+    requestedNames.length > 1 &&
+    entities.employees.length < requestedNames.length
+  ) {
     const unmatched = requestedNames.filter(
       (name) =>
         !entities.employees.some(
           (e) =>
             e.name.toLowerCase().includes(name.toLowerCase()) ||
             name.toLowerCase().includes(e.name.toLowerCase()) ||
-            e.name.toLowerCase().split(/\s+/).some((part) => part === name.toLowerCase()),
+            e.name
+              .toLowerCase()
+              .split(/\s+/)
+              .some((part) => part === name.toLowerCase()),
         ),
     );
     issues.push({
@@ -483,7 +814,11 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
           : `Found ${entities.employees.map((e) => e.name).join(', ')} but could not match: ${unmatched.join(', ') || requestedNames.join(', ')}`,
       example: `Available: ${cmd.enrichedParams._availableEmployees ?? 'check team list'}`,
     });
-  } else if (params.employeeName && !params.allProviders && (entities.employees?.length ?? 0) === 0) {
+  } else if (
+    params.employeeName &&
+    !params.allProviders &&
+    (entities.employees?.length ?? 0) === 0
+  ) {
     issues.push({
       field: 'employeeName',
       label: 'Service provider',
@@ -492,7 +827,11 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
     });
   }
 
-  if (params.serviceName && !entities.service && cmd.action === 'create_booking') {
+  if (
+    params.serviceName &&
+    !entities.service &&
+    cmd.action === 'create_booking'
+  ) {
     issues.push({
       field: 'serviceName',
       label: 'Service',
@@ -501,7 +840,11 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
     });
   }
 
-  if (params.customerName && !entities.customer && cmd.action === 'create_booking') {
+  if (
+    params.customerName &&
+    !entities.customer &&
+    cmd.action === 'create_booking'
+  ) {
     issues.push({
       field: 'customerName',
       label: 'Customer',
@@ -510,7 +853,11 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
     });
   }
 
-  if (params.templateName && !entities.template && ['apply_schedule', 'setup_week_schedule'].includes(cmd.action)) {
+  if (
+    params.templateName &&
+    !entities.template &&
+    ['apply_schedule', 'setup_week_schedule'].includes(cmd.action)
+  ) {
     issues.push({
       field: 'templateName',
       label: 'Template',
@@ -524,8 +871,9 @@ export function validateEntityResolution(cmd: ResolvedCommand): ValidationIssue[
 export function validateCommand(cmd: ResolvedCommand): ValidationResult {
   const rule = ACTION_RULES[cmd.action];
   const fieldIssues = rule ? rule(cmd) : [];
+  const aiCmdEntityIssues = validateAiCmdEntityFields(cmd);
   const entityIssues = validateEntityResolution(cmd);
-  const issues = [...fieldIssues, ...entityIssues];
+  const issues = [...fieldIssues, ...aiCmdEntityIssues, ...entityIssues];
 
   return { ok: issues.length === 0, issues };
 }
@@ -547,19 +895,30 @@ const VALIDATED_ACTIONS = new Set([
   'fill_unused_slots',
   'apply_schedule',
   'block_schedule',
+  'swap_schedules',
+  'rebalance_capacity',
+  'holiday_mode',
+  'onboard_provider_schedule',
   'clear_schedule',
   'create_direct_schedule',
   'assign_employee_services',
   'list_schedule_gaps',
   'create_schedule_template',
   'mark_no_shows',
+  'no_show_recovery',
   'payment_sweep',
   'update_bookings',
   'day_replan',
+  'sick_day_replan',
+  'import_services_from_menu',
+  'update_service_prices',
+  'staff_service_matrix',
+  'check_schedule_compliance',
+  'revenue_forecast',
 ]);
 
 export function shouldValidateAction(action: string): boolean {
-  return VALIDATED_ACTIONS.has(action);
+  return VALIDATED_ACTIONS.has(action) || isAiCmdEntityValidatedAction(action);
 }
 
 export function buildClarifySummary(issues: ValidationIssue[]): string {

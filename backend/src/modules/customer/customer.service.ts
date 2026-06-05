@@ -7,8 +7,15 @@ import {
 } from '../notifications/customer-registration.types.js';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/create-customer.dto.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
+import {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+} from './dto/create-customer.dto.js';
 import { buildGdprMetadata } from './customer-privacy.types.js';
 import {
   GetCustomersQueryDto,
@@ -128,8 +135,15 @@ export class CustomerService {
     const customer = await this.customerRepo.save(
       this.customerRepo.create({ ...rest, businessId }),
     );
-    this.eventEmitter.emit('customer.upserted', { businessId, customerId: customer.id });
-    this.emitCustomerRegistered(businessId, customer.id, registrationSource ?? 'dashboard');
+    this.eventEmitter.emit('customer.upserted', {
+      businessId,
+      customerId: customer.id,
+    });
+    this.emitCustomerRegistered(
+      businessId,
+      customer.id,
+      registrationSource ?? 'dashboard',
+    );
     return customer;
   }
 
@@ -138,11 +152,18 @@ export class CustomerService {
     customerId: string,
     source: CustomerRegistrationSource,
   ): void {
-    this.eventEmitter.emit(CUSTOMER_REGISTERED_EVENT, { businessId, customerId, source });
+    this.eventEmitter.emit(CUSTOMER_REGISTERED_EVENT, {
+      businessId,
+      customerId,
+      source,
+    });
   }
 
   async findAll(businessId: string): Promise<Customer[]> {
-    return this.customerRepo.find({ where: { businessId, isActive: true }, order: { name: 'ASC' } });
+    return this.customerRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
   }
 
   async searchDashboard(
@@ -215,7 +236,8 @@ export class CustomerService {
       const stats = statsMap.get(c.id) ?? this.emptyStats();
       totalAppointments += stats.total;
       for (const [status, count] of Object.entries(stats.byStatus)) {
-        appointmentsByStatus[status] = (appointmentsByStatus[status] ?? 0) + count;
+        appointmentsByStatus[status] =
+          (appointmentsByStatus[status] ?? 0) + count;
       }
       const segment = this.computeSegment(c, stats);
       return {
@@ -289,7 +311,8 @@ export class CustomerService {
     for (const c of paginated) {
       totalAppointments += c.stats.total;
       for (const [status, count] of Object.entries(c.stats.byStatus)) {
-        appointmentsByStatus[status] = (appointmentsByStatus[status] ?? 0) + count;
+        appointmentsByStatus[status] =
+          (appointmentsByStatus[status] ?? 0) + count;
       }
     }
 
@@ -348,14 +371,17 @@ export class CustomerService {
         if (tag === 'vip') {
           result = result.filter((c) => this.customerMatchesVip(c));
         } else {
-          result = result.filter((c) => c.tags.map((x) => x.toLowerCase()).includes(tag));
+          result = result.filter((c) =>
+            c.tags.map((x) => x.toLowerCase()).includes(tag),
+          );
         }
       }
     }
     if (query.isVip === true) {
       result = result.filter((c) => this.customerMatchesVip(c));
     }
-    if (query.segment) result = result.filter((c) => c.segment === query.segment);
+    if (query.segment)
+      result = result.filter((c) => c.segment === query.segment);
     return result;
   }
 
@@ -386,11 +412,16 @@ export class CustomerService {
       }
     }
     if (query.isVip === true && !options?.skipInMemoryFilters) {
-      qb.andWhere('(customer.isVip = true OR customer.tags LIKE :vipTag)', { vipTag: '%vip%' });
+      qb.andWhere('(customer.isVip = true OR customer.tags LIKE :vipTag)', {
+        vipTag: '%vip%',
+      });
     }
     if (query.tags?.trim()) {
       const tag = query.tags.trim().toLowerCase();
-      if (isCustomerTag(tag) && !(tag === 'vip' && options?.skipInMemoryFilters)) {
+      if (
+        isCustomerTag(tag) &&
+        !(tag === 'vip' && options?.skipInMemoryFilters)
+      ) {
         qb.andWhere(
           '(customer.tags = :tag OR customer.tags LIKE :tagPrefix OR customer.tags LIKE :tagSuffix OR customer.tags LIKE :tagMiddle)',
           {
@@ -431,7 +462,12 @@ export class CustomerService {
       .andWhere('booking.customer_id IN (:...customerIds)', { customerIds })
       .groupBy('booking.customer_id')
       .addGroupBy('booking.status')
-      .getRawMany<{ customerId: string; status: string; count: string; lastStart: string }>();
+      .getRawMany<{
+        customerId: string;
+        status: string;
+        count: string;
+        lastStart: string;
+      }>();
 
     const now = new Date();
 
@@ -448,7 +484,10 @@ export class CustomerService {
         entry.noShowCount += count;
       }
       const last = row.lastStart ? new Date(row.lastStart) : null;
-      if (last && (!entry.lastBookingAt || last > new Date(entry.lastBookingAt))) {
+      if (
+        last &&
+        (!entry.lastBookingAt || last > new Date(entry.lastBookingAt))
+      ) {
         entry.lastBookingAt = last.toISOString();
       }
     }
@@ -461,7 +500,11 @@ export class CustomerService {
       .andWhere('booking.customer_id IN (:...customerIds)', { customerIds })
       .andWhere('booking.startTime > :now', { now })
       .andWhere('booking.status NOT IN (:...excluded)', {
-        excluded: [BookingStatus.CANCELLED, BookingStatus.COMPLETED, BookingStatus.NO_SHOW],
+        excluded: [
+          BookingStatus.CANCELLED,
+          BookingStatus.COMPLETED,
+          BookingStatus.NO_SHOW,
+        ],
       })
       .groupBy('booking.customer_id')
       .getRawMany<{ customerId: string; count: string }>();
@@ -480,7 +523,10 @@ export class CustomerService {
     return customer;
   }
 
-  async getCustomerDetail(businessId: string, customerId: string): Promise<CustomerDetailResult> {
+  async getCustomerDetail(
+    businessId: string,
+    customerId: string,
+  ): Promise<CustomerDetailResult> {
     const customer = await this.customerRepo.findOne({
       where: { id: customerId, businessId, isActive: true },
     });
@@ -517,7 +563,9 @@ export class CustomerService {
         paymentStatus: b.paymentStatus,
         notes: b.notes ?? null,
         service: b.service ? { id: b.service.id, name: b.service.name } : null,
-        employee: b.employee ? { id: b.employee.id, name: b.employee.name } : null,
+        employee: b.employee
+          ? { id: b.employee.id, name: b.employee.name }
+          : null,
       })),
     };
   }
@@ -588,7 +636,10 @@ export class CustomerService {
           await this.customerRepo.save(byEmail);
         }
         const saved = await this.applyNotificationPreferences(byEmail, dto);
-        return { customer: await this.applyGdprConsent(saved, dto), created: false };
+        return {
+          customer: await this.applyGdprConsent(saved, dto),
+          created: false,
+        };
       }
     }
 
@@ -609,7 +660,10 @@ export class CustomerService {
           await this.customerRepo.save(byPhone);
         }
         const saved = await this.applyNotificationPreferences(byPhone, dto);
-        return { customer: await this.applyGdprConsent(saved, dto), created: false };
+        return {
+          customer: await this.applyGdprConsent(saved, dto),
+          created: false,
+        };
       }
     }
 
@@ -623,8 +677,14 @@ export class CustomerService {
     return { customer: await this.applyGdprConsent(saved, dto), created: true };
   }
 
-  private async applyGdprConsent(customer: Customer, dto: CreateCustomerDto): Promise<Customer> {
-    if (dto.privacyConsentAccepted === undefined && dto.marketingOptIn === undefined) {
+  private async applyGdprConsent(
+    customer: Customer,
+    dto: CreateCustomerDto,
+  ): Promise<Customer> {
+    if (
+      dto.privacyConsentAccepted === undefined &&
+      dto.marketingOptIn === undefined
+    ) {
       return customer;
     }
     customer.metadata = buildGdprMetadata(customer.metadata, {
@@ -646,13 +706,17 @@ export class CustomerService {
     ) {
       return customer;
     }
-    const existing = (customer.metadata?.notifications ?? {}) as Record<string, boolean>;
+    const existing = (customer.metadata?.notifications ?? {}) as Record<
+      string,
+      boolean
+    >;
     customer.metadata = {
       ...customer.metadata,
       notifications: {
         emailReminders: dto.emailReminders ?? existing.emailReminders ?? true,
         smsReminders: dto.smsReminders ?? existing.smsReminders ?? false,
-        whatsappReminders: dto.whatsappReminders ?? existing.whatsappReminders ?? true,
+        whatsappReminders:
+          dto.whatsappReminders ?? existing.whatsappReminders ?? true,
       },
     };
     return this.customerRepo.save(customer);
@@ -686,7 +750,8 @@ export class CustomerService {
       totalCustomers: enriched.length,
       totalNoShows: enriched.reduce((n, r) => n + r.stats.noShowCount, 0),
       atRiskCount: enriched.filter((r) => r.segment === 'at_risk').length,
-      highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show').length,
+      highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show')
+        .length,
       vipCount: enriched.filter((r) => r.segment === 'vip').length,
     };
 
@@ -736,7 +801,9 @@ export class CustomerService {
           .addSelect('SUM(service.price)', 'paidTotal')
           .addSelect('MAX(service.currency)', 'currency')
           .where('booking.business_id = :businessId', { businessId })
-          .andWhere('booking.paymentStatus = :paid', { paid: PaymentStatus.PAID })
+          .andWhere('booking.paymentStatus = :paid', {
+            paid: PaymentStatus.PAID,
+          })
           .andWhere('booking.customer_id IS NOT NULL')
           .groupBy('booking.customer_id')
           .addGroupBy('customer.name')

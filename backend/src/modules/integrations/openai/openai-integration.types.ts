@@ -15,7 +15,9 @@ export interface OpenAiIntegrationPublicView {
 export function getBusinessOpenAiIntegration(
   settings?: Record<string, unknown>,
 ): BusinessOpenAiIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
   const raw = integrations?.openai as Record<string, unknown> | undefined;
   if (!raw) return {};
   return {

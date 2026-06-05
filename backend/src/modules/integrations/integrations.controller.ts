@@ -14,14 +14,21 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
 import { ApiKeyService } from './api-key.service.js';
 import { WebhooksService } from './webhooks.service.js';
-import { CreateApiKeyDto, CreateWebhookDto, UpdateWebhookDto } from './dto/integrations.dto.js';
+import {
+  CreateApiKeyDto,
+  CreateWebhookDto,
+  UpdateWebhookDto,
+} from './dto/integrations.dto.js';
 import { UpdateOpenAiIntegrationDto } from './dto/update-openai-integration.dto.js';
 import { OpenAiIntegrationService } from './openai/openai-integration.service.js';
 import { OpenAiGatewayService } from './openai/openai-gateway.service.js';
 import { UpdateZendeskIntegrationDto } from './dto/update-zendesk-integration.dto.js';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto.js';
 import { UpdateDistributionIntegrationDto } from './dto/update-distribution-integration.dto.js';
-import { UpdateZapierIntegrationDto, CreateZapierWebhookDto } from './dto/update-zapier-integration.dto.js';
+import {
+  UpdateZapierIntegrationDto,
+  CreateZapierWebhookDto,
+} from './dto/update-zapier-integration.dto.js';
 import { UpdateAccountingIntegrationDto } from './dto/update-accounting-integration.dto.js';
 import { ZendeskIntegrationService } from './zendesk/zendesk-integration.service.js';
 import { DistributionIntegrationService } from './distribution/distribution-integration.service.js';
@@ -46,15 +53,24 @@ export class IntegrationsController {
   ) {}
 
   @Get('docs')
-  getApiDocs(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
-    return this.businessService.ensureMember(businessId, user.id).then(() =>
-      this.integrationsDocsService.buildDocs(businessId),
-    );
+  getApiDocs(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.businessService
+      .ensureMember(businessId, user.id)
+      .then(() => this.integrationsDocsService.buildDocs(businessId));
   }
 
   @Get('api-keys')
-  async listApiKeys(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+  async listApiKeys(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.apiKeyService.listKeys(businessId);
   }
@@ -65,7 +81,10 @@ export class IntegrationsController {
     @Body() dto: CreateApiKeyDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.apiKeyService.createKey(businessId, user.id, dto);
   }
@@ -76,7 +95,10 @@ export class IntegrationsController {
     @Param('keyId') keyId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.apiKeyService.revokeKey(businessId, keyId);
   }
@@ -91,7 +113,10 @@ export class IntegrationsController {
   }
 
   @Get('webhooks')
-  async listWebhooks(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async listWebhooks(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.webhooksService.listSubscriptions(businessId);
   }
@@ -102,7 +127,10 @@ export class IntegrationsController {
     @Body() dto: CreateWebhookDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.webhooksService.assertAdminRole(membership);
     return this.webhooksService.createSubscription(businessId, dto);
   }
@@ -114,7 +142,10 @@ export class IntegrationsController {
     @Body() dto: UpdateWebhookDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.webhooksService.assertAdminRole(membership);
     return this.webhooksService.updateSubscription(businessId, webhookId, dto);
   }
@@ -125,7 +156,10 @@ export class IntegrationsController {
     @Param('webhookId') webhookId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.webhooksService.assertAdminRole(membership);
     return this.webhooksService.deleteSubscription(businessId, webhookId);
   }
@@ -145,7 +179,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.openAiIntegrationService.getPublicSettings(businessId);
   }
@@ -158,7 +195,9 @@ export class IntegrationsController {
     await this.businessService.ensureMember(businessId, user.id);
     const business = await this.businessService.findOne(businessId);
     return {
-      widgetKey: this.zendeskIntegrationService.getDashboardWidgetKey(business.settings),
+      widgetKey: this.zendeskIntegrationService.getDashboardWidgetKey(
+        business.settings,
+      ),
     };
   }
 
@@ -168,9 +207,15 @@ export class IntegrationsController {
     @Body() dto: UpdateOpenAiIntegrationDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
-    const result = await this.openAiIntegrationService.updateSettings(businessId, dto);
+    const result = await this.openAiIntegrationService.updateSettings(
+      businessId,
+      dto,
+    );
     this.openAiGateway.invalidateBusiness(businessId);
     return result;
   }
@@ -180,7 +225,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.zendeskIntegrationService.getPublicSettings(businessId);
   }
@@ -191,7 +239,10 @@ export class IntegrationsController {
     @Body() dto: UpdateZendeskIntegrationDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.zendeskIntegrationService.updateSettings(businessId, dto);
   }
@@ -200,10 +251,13 @@ export class IntegrationsController {
   async createSupportTicket(
     @Param('businessId') businessId: string,
     @Body() dto: CreateSupportTicketDto,
-    @CurrentUser() user: { id: string; email?: string; firstName?: string; lastName?: string },
+    @CurrentUser()
+    user: { id: string; email?: string; firstName?: string; lastName?: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined;
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      undefined;
     return this.zendeskIntegrationService.createSupportTicket(
       businessId,
       dto,
@@ -218,11 +272,20 @@ export class IntegrationsController {
     @Param('customerId') customerId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
-    const result = await this.zendeskIntegrationService.syncCustomerIfEnabled(businessId, customerId);
+    const result = await this.zendeskIntegrationService.syncCustomerIfEnabled(
+      businessId,
+      customerId,
+    );
     if (!result) {
-      return { synced: false, message: 'Zendesk sync disabled or customer has no email' };
+      return {
+        synced: false,
+        message: 'Zendesk sync disabled or customer has no email',
+      };
     }
     return { synced: true, ...result };
   }
@@ -232,7 +295,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.distributionIntegrationService.getPublicSettings(businessId);
   }
@@ -243,7 +309,10 @@ export class IntegrationsController {
     @Body() dto: UpdateDistributionIntegrationDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.distributionIntegrationService.updateSettings(businessId, dto);
   }
@@ -253,7 +322,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.distributionIntegrationService.getGoogleReserveFeed(businessId);
   }
@@ -263,7 +335,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.zapierIntegrationService.getPublicSettings(businessId);
   }
@@ -274,7 +349,10 @@ export class IntegrationsController {
     @Body() dto: UpdateZapierIntegrationDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.zapierIntegrationService.updateSettings(businessId, dto);
   }
@@ -285,7 +363,10 @@ export class IntegrationsController {
     @Body() dto: CreateZapierWebhookDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.zapierIntegrationService.createZapierWebhook(
       businessId,
@@ -300,7 +381,10 @@ export class IntegrationsController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.accountingIntegrationService.getPublicSettings(businessId);
   }
@@ -311,7 +395,10 @@ export class IntegrationsController {
     @Body() dto: UpdateAccountingIntegrationDto,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
     return this.accountingIntegrationService.updateSettings(businessId, dto);
   }
@@ -323,8 +410,15 @@ export class IntegrationsController {
     @Query('to') to: string | undefined,
     @CurrentUser() user: { id: string },
   ) {
-    const membership = await this.businessService.ensureMember(businessId, user.id);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      user.id,
+    );
     this.apiKeyService.assertAdminRole(membership);
-    return this.accountingIntegrationService.generateExport(businessId, from, to);
+    return this.accountingIntegrationService.generateExport(
+      businessId,
+      from,
+      to,
+    );
   }
 }

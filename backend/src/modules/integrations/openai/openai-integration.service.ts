@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -41,7 +46,9 @@ export class OpenAiIntegrationService {
     return { source: 'platform', apiKey: apiKey.trim() };
   }
 
-  businessRuntimeConfig(integration: BusinessOpenAiIntegration): OpenAiRuntimeConfig | null {
+  businessRuntimeConfig(
+    integration: BusinessOpenAiIntegration,
+  ): OpenAiRuntimeConfig | null {
     if (!integration.apiKeyEnc) return null;
 
     try {
@@ -54,7 +61,9 @@ export class OpenAiIntegrationService {
     }
   }
 
-  resolveRuntimeConfig(settings?: Record<string, unknown>): OpenAiRuntimeConfig | null {
+  resolveRuntimeConfig(
+    settings?: Record<string, unknown>,
+  ): OpenAiRuntimeConfig | null {
     const integration = getBusinessOpenAiIntegration(settings);
     const businessConfig = this.businessRuntimeConfig(integration);
     if (businessConfig) return businessConfig;
@@ -62,13 +71,19 @@ export class OpenAiIntegrationService {
   }
 
   async isAvailableForBusiness(businessId: string): Promise<boolean> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return false;
     return Boolean(this.resolveRuntimeConfig(business.settings));
   }
 
-  async getPublicSettings(businessId: string): Promise<OpenAiIntegrationPublicView & { usage: AiUsageSummary }> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+  async getPublicSettings(
+    businessId: string,
+  ): Promise<OpenAiIntegrationPublicView & { usage: AiUsageSummary }> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const integration = getBusinessOpenAiIntegration(business.settings);
@@ -104,7 +119,9 @@ export class OpenAiIntegrationService {
     businessId: string,
     dto: UpdateOpenAiIntegrationDto,
   ): Promise<OpenAiIntegrationPublicView & { usage: AiUsageSummary }> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     const settings = { ...(business.settings || {}) };
@@ -113,7 +130,9 @@ export class OpenAiIntegrationService {
 
     if (dto.usePlatformDefault) {
       delete integrations.openai;
-      settings.integrations = Object.keys(integrations).length ? integrations : undefined;
+      settings.integrations = Object.keys(integrations).length
+        ? integrations
+        : undefined;
       business.settings = settings;
       await this.businessRepo.save(business);
       return this.getPublicSettings(businessId);

@@ -3,7 +3,9 @@ import { GiftCardDeliveryService } from './gift-card-delivery.service.js';
 describe('GiftCardDeliveryService integration', () => {
   const giftCardRepo = { findOne: jest.fn(), save: jest.fn() };
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
-  const whatsappService = { sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }) };
+  const whatsappService = {
+    sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }),
+  };
   const whatsappIntegrationService = {
     resolveRuntimeConfig: jest.fn().mockReturnValue({
       templateGiftCard: 'gift_card_delivery',
@@ -12,7 +14,9 @@ describe('GiftCardDeliveryService integration', () => {
     }),
   };
   const configService = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
 
   const service = new GiftCardDeliveryService(
@@ -138,7 +142,10 @@ describe('GiftCardDeliveryService integration', () => {
   });
 
   it('no-ops for non-digital cards', async () => {
-    giftCardRepo.findOne.mockResolvedValue({ id: 'gc-3', deliveryMethod: 'physical' });
+    giftCardRepo.findOne.mockResolvedValue({
+      id: 'gc-3',
+      deliveryMethod: 'physical',
+    });
     await service.deliverDigitalGiftCard('gc-3');
     expect(emailService.send).not.toHaveBeenCalled();
   });
@@ -238,7 +245,10 @@ describe('GiftCardDeliveryService integration', () => {
   });
 
   it('does not mark delivered when WhatsApp fails and email is missing', async () => {
-    whatsappService.sendGiftCardMessage.mockResolvedValue({ ok: false, error: 'blocked' });
+    whatsappService.sendGiftCardMessage.mockResolvedValue({
+      ok: false,
+      error: 'blocked',
+    });
     giftCardRepo.findOne.mockResolvedValue({
       id: 'gc-fail',
       deliveryMethod: 'digital',
@@ -259,7 +269,10 @@ describe('GiftCardDeliveryService integration', () => {
   });
 
   it('still marks delivered when WhatsApp fails but email succeeds', async () => {
-    whatsappService.sendGiftCardMessage.mockResolvedValue({ ok: false, error: 'blocked' });
+    whatsappService.sendGiftCardMessage.mockResolvedValue({
+      ok: false,
+      error: 'blocked',
+    });
     giftCardRepo.findOne.mockResolvedValue({
       id: 'gc-partial',
       deliveryMethod: 'digital',

@@ -13,19 +13,28 @@ describe('NotificationEmailTemplateService', () => {
         templates: {
           booking_reminder: { subject: 'Custom reminder {{customerName}}' },
         },
-        customVariables: [{ key: 'promo_line', label: 'Promo', defaultValue: '10% off' }],
+        customVariables: [
+          { key: 'promo_line', label: 'Promo', defaultValue: '10% off' },
+        ],
       },
     },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessRepo.findOne.mockResolvedValue({ ...business, settings: { ...business.settings } });
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: { ...business.settings },
+    });
     businessRepo.save.mockImplementation(async (value) => value);
   });
 
   it('lists templates for businesses without stored email template settings', async () => {
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-2', name: 'Fresh Salon', settings: {} });
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-2',
+      name: 'Fresh Salon',
+      settings: {},
+    });
     const result = await service.listTemplates('biz-2');
     expect(result.customVariables).toEqual([]);
     expect(result.templates.every((tpl) => tpl.enabled)).toBe(true);
@@ -35,18 +44,34 @@ describe('NotificationEmailTemplateService', () => {
     const result = await service.listTemplates('biz-1');
 
     expect(result.templates).toHaveLength(7);
-    expect(result.templates.find((tpl) => tpl.key === 'booking_reminder')?.subject).toContain('Custom reminder');
-    expect(result.customVariables).toEqual([{ key: 'promo_line', label: 'Promo', defaultValue: '10% off' }]);
-    expect(result.variables.some((v) => v.key === 'promo_line' && v.custom)).toBe(true);
-    expect(result.variables.some((v) => v.key === 'customerName' && !v.custom)).toBe(true);
+    expect(
+      result.templates.find((tpl) => tpl.key === 'booking_reminder')?.subject,
+    ).toContain('Custom reminder');
+    expect(result.customVariables).toEqual([
+      { key: 'promo_line', label: 'Promo', defaultValue: '10% off' },
+    ]);
+    expect(
+      result.variables.some((v) => v.key === 'promo_line' && v.custom),
+    ).toBe(true);
+    expect(
+      result.variables.some((v) => v.key === 'customerName' && !v.custom),
+    ).toBe(true);
   });
 
   it('updates a template override and persists merged settings', async () => {
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', name: 'Fresh Salon', settings: {} });
-    const template = await service.updateTemplate('biz-1', 'booking_confirmation', {
-      subject: 'Thanks {{customerName}}',
-      bodyText: 'See you soon',
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Fresh Salon',
+      settings: {},
     });
+    const template = await service.updateTemplate(
+      'biz-1',
+      'booking_confirmation',
+      {
+        subject: 'Thanks {{customerName}}',
+        bodyText: 'See you soon',
+      },
+    );
 
     expect(template.subject).toBe('Thanks {{customerName}}');
     expect(businessRepo.save).toHaveBeenCalledWith(
@@ -87,7 +112,9 @@ describe('NotificationEmailTemplateService', () => {
       { key: 'footer_note', label: 'Footer', defaultValue: 'Thanks!' },
     ]);
 
-    expect(variables).toEqual([{ key: 'footer_note', label: 'Footer', defaultValue: 'Thanks!' }]);
+    expect(variables).toEqual([
+      { key: 'footer_note', label: 'Footer', defaultValue: 'Thanks!' },
+    ]);
     expect(businessRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({
@@ -101,12 +128,16 @@ describe('NotificationEmailTemplateService', () => {
 
   it('rejects reserved custom variable keys', async () => {
     await expect(
-      service.replaceCustomVariables('biz-1', [{ key: 'customerName', label: 'Name', defaultValue: 'X' }]),
+      service.replaceCustomVariables('biz-1', [
+        { key: 'customerName', label: 'Name', defaultValue: 'X' },
+      ]),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.listTemplates('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.listTemplates('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

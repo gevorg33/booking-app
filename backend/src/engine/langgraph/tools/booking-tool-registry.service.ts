@@ -38,17 +38,26 @@ export class BookingToolRegistryService {
     return [...this.createReadTools(ctx), ...this.createProposeTools(ctx)];
   }
 
-  private createReadTools(ctx: BookingToolRunContext): StructuredToolInterface[] {
-    const read = (action: string, params: Record<string, unknown>, dependsOn: string[] = []) =>
-      runReadTool(ctx, this.toolBridge, action, params, dependsOn);
+  private createReadTools(
+    ctx: BookingToolRunContext,
+  ): StructuredToolInterface[] {
+    const read = (
+      action: string,
+      params: Record<string, unknown>,
+      dependsOn: string[] = [],
+    ) => runReadTool(ctx, this.toolBridge, action, params, dependsOn);
 
     return [
       tool(
         async (input) =>
-          read('list_appointments', { ...buildDateParams(input), employeeId: input.employeeId }),
+          read('list_appointments', {
+            ...buildDateParams(input),
+            employeeId: input.employeeId,
+          }),
         {
           name: 'list_appointments',
-          description: 'List appointments/bookings for a date or range. Read-only.',
+          description:
+            'List appointments/bookings for a date or range. Read-only.',
           schema: dateRangeSchema.extend({ employeeId: z.string().optional() }),
         },
       ),
@@ -60,7 +69,8 @@ export class BookingToolRegistryService {
           }),
         {
           name: 'fetch_current_schedule',
-          description: 'Fetch schedule blocks and bookings for provider(s). Read-only.',
+          description:
+            'Fetch schedule blocks and bookings for provider(s). Read-only.',
           schema: dateRangeSchema.extend({ employeeId: z.string().optional() }),
         },
       ),
@@ -103,35 +113,35 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'generate_optimization_recommendations',
-          description: 'Recommendations after identify_schedule_gaps. Read-only.',
+          description:
+            'Recommendations after identify_schedule_gaps. Read-only.',
           schema: z.object({ optimizationGoal: z.string().optional() }),
         },
       ),
-      tool(
-        async (input) => read('find_freed_slots', buildDateParams(input)),
-        {
-          name: 'find_freed_slots',
-          description: 'Slots freed by cancelled appointments. Read-only.',
-          schema: dateRangeSchema,
-        },
-      ),
+      tool(async (input) => read('find_freed_slots', buildDateParams(input)), {
+        name: 'find_freed_slots',
+        description: 'Slots freed by cancelled appointments. Read-only.',
+        schema: dateRangeSchema,
+      }),
       tool(
         async (input) =>
-          read('find_rebooking_candidates', buildDateParams(input), priorStepId(ctx, 'find_freed_slots')),
+          read(
+            'find_rebooking_candidates',
+            buildDateParams(input),
+            priorStepId(ctx, 'find_freed_slots'),
+          ),
         {
           name: 'find_rebooking_candidates',
-          description: 'Waitlist/rebooking candidates. Call find_freed_slots first. Read-only.',
+          description:
+            'Waitlist/rebooking candidates. Call find_freed_slots first. Read-only.',
           schema: dateRangeSchema,
         },
       ),
-      tool(
-        async (input) => read('detect_conflicts', buildDateParams(input)),
-        {
-          name: 'detect_conflicts',
-          description: 'Overlapping bookings / schedule conflicts. Read-only.',
-          schema: dateRangeSchema,
-        },
-      ),
+      tool(async (input) => read('detect_conflicts', buildDateParams(input)), {
+        name: 'detect_conflicts',
+        description: 'Overlapping bookings / schedule conflicts. Read-only.',
+        schema: dateRangeSchema,
+      }),
       tool(
         async (input) =>
           read(
@@ -147,14 +157,17 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'analyze_resolution_options',
-          description: 'Resolution strategies per conflict. Call detect_conflicts first. Read-only.',
+          description:
+            'Resolution strategies per conflict. Call detect_conflicts first. Read-only.',
           schema: z.object({ strategies: z.array(z.string()).optional() }),
         },
       ),
       tool(
         async (input) => {
           const dateParams = buildDateParams(input);
-          const isoDay = (dateParams.date ?? dateParams.dateFrom) as string | undefined;
+          const isoDay = (dateParams.date ?? dateParams.dateFrom) as
+            | string
+            | undefined;
           if (!isoDay || !input.timeSlot) {
             return JSON.stringify({ error: 'date and timeSlot are required' });
           }
@@ -163,7 +176,9 @@ export class BookingToolRegistryService {
             ctx.employees.find((e) => e.id === input.employeeId) ??
             ctx.employees.find((e) =>
               input.employeeName
-                ? e.name.toLowerCase().includes(input.employeeName.toLowerCase())
+                ? e.name
+                    .toLowerCase()
+                    .includes(input.employeeName.toLowerCase())
                 : false,
             );
           const service =
@@ -203,7 +218,9 @@ export class BookingToolRegistryService {
       tool(
         async (input) => {
           const dateParams = buildDateParams(input);
-          const isoDay = (dateParams.date ?? dateParams.dateFrom) as string | undefined;
+          const isoDay = (dateParams.date ?? dateParams.dateFrom) as
+            | string
+            | undefined;
           if (!isoDay) {
             return JSON.stringify({ error: 'date is required' });
           }
@@ -212,7 +229,9 @@ export class BookingToolRegistryService {
             ctx.employees.find((e) => e.id === input.employeeId) ??
             ctx.employees.find((e) =>
               input.employeeName
-                ? e.name.toLowerCase().includes(input.employeeName.toLowerCase())
+                ? e.name
+                    .toLowerCase()
+                    .includes(input.employeeName.toLowerCase())
                 : false,
             );
           const service =
@@ -262,7 +281,9 @@ export class BookingToolRegistryService {
     ];
   }
 
-  private createProposeTools(ctx: BookingToolRunContext): StructuredToolInterface[] {
+  private createProposeTools(
+    ctx: BookingToolRunContext,
+  ): StructuredToolInterface[] {
     const propose = (
       action: string,
       description: string,
@@ -286,7 +307,8 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'propose_cancel_bookings',
-          description: 'PROPOSE bulk cancel by booking IDs (approval required).',
+          description:
+            'PROPOSE bulk cancel by booking IDs (approval required).',
           schema: bookingIdsSchema.extend({
             reason: z.string().optional(),
             chainPrevious: z.boolean().optional(),
@@ -321,7 +343,11 @@ export class BookingToolRegistryService {
               id: notifyId,
               action: 'notify_cancelled_customers',
               description: 'Notify customers about cancellation',
-              params: { businessId: ctx.businessId, bookingIds: input.bookingIds, reason },
+              params: {
+                businessId: ctx.businessId,
+                bookingIds: input.bookingIds,
+                reason,
+              },
               dependsOn: [cancelId],
               estimatedImpact: 'Requires approval',
             },
@@ -361,7 +387,9 @@ export class BookingToolRegistryService {
           name: 'propose_bulk_smart_cancel',
           description:
             'PROPOSE cancel + notify + waitlist recovery as one chained approval plan.',
-          schema: bookingIdsSchema.merge(dateRangeSchema).extend({ reason: z.string().optional() }),
+          schema: bookingIdsSchema
+            .merge(dateRangeSchema)
+            .extend({ reason: z.string().optional() }),
         },
       ),
       tool(
@@ -408,7 +436,8 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'propose_reschedule_bookings_bulk',
-          description: 'PROPOSE rescheduling multiple bookings (parallel steps).',
+          description:
+            'PROPOSE rescheduling multiple bookings (parallel steps).',
           schema: z.object({
             bookings: z
               .array(
@@ -456,7 +485,9 @@ export class BookingToolRegistryService {
       tool(
         async (input) => {
           const dateParams = buildDateParams(input);
-          const isoDay = (dateParams.date ?? dateParams.dateFrom) as string | undefined;
+          const isoDay = (dateParams.date ?? dateParams.dateFrom) as
+            | string
+            | undefined;
           if (!isoDay) {
             return JSON.stringify({ error: 'date is required' });
           }
@@ -602,8 +633,11 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'propose_hide_appointments',
-          description: 'PROPOSE hide from calendar (not delete). chainPrevious=true after cancel.',
-          schema: bookingIdsSchema.extend({ chainPrevious: z.boolean().optional() }),
+          description:
+            'PROPOSE hide from calendar (not delete). chainPrevious=true after cancel.',
+          schema: bookingIdsSchema.extend({
+            chainPrevious: z.boolean().optional(),
+          }),
         },
       ),
       tool(
@@ -617,7 +651,9 @@ export class BookingToolRegistryService {
         {
           name: 'propose_unhide_appointments',
           description: 'PROPOSE restore hidden appointments to calendar.',
-          schema: bookingIdsSchema.extend({ chainPrevious: z.boolean().optional() }),
+          schema: bookingIdsSchema.extend({
+            chainPrevious: z.boolean().optional(),
+          }),
         },
       ),
       tool(
@@ -625,7 +661,10 @@ export class BookingToolRegistryService {
           propose(
             'notify_cancelled_customers',
             `Notify ${input.bookingIds.length} customer(s)`,
-            { bookingIds: input.bookingIds, reason: input.reason ?? 'Update from salon' },
+            {
+              bookingIds: input.bookingIds,
+              reason: input.reason ?? 'Update from salon',
+            },
             { chainPrevious: input.chainPrevious ?? true },
           ),
         {
@@ -678,7 +717,8 @@ export class BookingToolRegistryService {
         },
         {
           name: 'propose_clear_schedules_bulk',
-          description: 'PROPOSE clear schedules for multiple providers (same dates/range for all).',
+          description:
+            'PROPOSE clear schedules for multiple providers (same dates/range for all).',
           schema: dateRangeSchema.extend({
             employeeNames: z.array(z.string()).optional(),
             dates: z.array(z.string()).optional(),
@@ -719,11 +759,16 @@ export class BookingToolRegistryService {
       tool(
         async (input) => {
           try {
-            const steps = buildDirectScheduleProposalSteps(ctx, input, {
-              employeeId: input.employeeId,
-              employeeName: input.employeeName,
-              periods: input.periods,
-            }, { chainSteps: input.chainPrevious ?? false });
+            const steps = buildDirectScheduleProposalSteps(
+              ctx,
+              input,
+              {
+                employeeId: input.employeeId,
+                employeeName: input.employeeName,
+                periods: input.periods,
+              },
+              { chainSteps: input.chainPrevious ?? false },
+            );
             return proposeManySteps(ctx, steps);
           } catch (err: any) {
             return JSON.stringify({
@@ -733,13 +778,19 @@ export class BookingToolRegistryService {
         },
         {
           name: 'propose_create_direct_schedule',
-          description: 'PROPOSE set/replace provider schedule blocks for day(s).',
+          description:
+            'PROPOSE set/replace provider schedule blocks for day(s).',
           schema: dateRangeSchema.merge(employeeSchema).extend({
             dates: z.array(z.string()).optional(),
             periods: z.array(directSchedulePeriodSchema).optional(),
             timeFrom: z.string().optional(),
             timeTo: z.string().optional(),
-            scheduleHint: z.string().optional().describe('Optional NL hint for hours/lunch, e.g. 9-19 with 12-13 unavailable'),
+            scheduleHint: z
+              .string()
+              .optional()
+              .describe(
+                'Optional NL hint for hours/lunch, e.g. 9-19 with 12-13 unavailable',
+              ),
             chainPrevious: z.boolean().optional(),
           }),
         },
@@ -767,7 +818,8 @@ export class BookingToolRegistryService {
         },
         {
           name: 'propose_create_direct_schedules_bulk',
-          description: 'PROPOSE direct schedules for multiple providers (e.g. whole team 9-19).',
+          description:
+            'PROPOSE direct schedules for multiple providers (e.g. whole team 9-19).',
           schema: dateRangeSchema.extend({
             dates: z.array(z.string()).optional(),
             periods: z.array(directSchedulePeriodSchema).optional(),
@@ -935,9 +987,12 @@ export class BookingToolRegistryService {
           name: 'propose_day_replan',
           description:
             'PROPOSE analyze and replan a day — conflicts, gaps, recommendations (approval for mutations).',
-          schema: dateRangeSchema.merge(employeeIdsSchema).merge(employeeSchema).extend({
-            chainPrevious: z.boolean().optional(),
-          }),
+          schema: dateRangeSchema
+            .merge(employeeIdsSchema)
+            .merge(employeeSchema)
+            .extend({
+              chainPrevious: z.boolean().optional(),
+            }),
         },
       ),
 
@@ -1025,7 +1080,8 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'propose_rebooking',
-          description: 'PROPOSE waitlist rebooking after find_freed_slots + find_rebooking_candidates.',
+          description:
+            'PROPOSE waitlist rebooking after find_freed_slots + find_rebooking_candidates.',
           schema: z.object({ chainPrevious: z.boolean().optional() }),
         },
       ),
@@ -1039,7 +1095,8 @@ export class BookingToolRegistryService {
           ),
         {
           name: 'propose_conflict_resolutions',
-          description: 'PROPOSE resolutions after detect_conflicts + analyze_resolution_options.',
+          description:
+            'PROPOSE resolutions after detect_conflicts + analyze_resolution_options.',
           schema: z.object({
             preferMinimalDisruption: z.boolean().optional(),
             chainPrevious: z.boolean().optional(),

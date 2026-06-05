@@ -18,7 +18,8 @@ import type {
 @Injectable()
 export class RetailPosService {
   constructor(
-    @InjectRepository(BookingRetailSale) private saleRepo: Repository<BookingRetailSale>,
+    @InjectRepository(BookingRetailSale)
+    private saleRepo: Repository<BookingRetailSale>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
   ) {}
@@ -61,7 +62,9 @@ export class RetailPosService {
   ): Promise<BookingRetailCheckoutView> {
     const booking = await this.findBooking(businessId, bookingId);
     if (booking.status === BookingStatus.CANCELLED) {
-      throw new BadRequestException('Cannot add retail sales to a cancelled booking');
+      throw new BadRequestException(
+        'Cannot add retail sales to a cancelled booking',
+      );
     }
 
     const normalizedLines = this.normalizeLines(dto.lines);
@@ -89,13 +92,18 @@ export class RetailPosService {
           where: { id: line.productId, businessId, isActive: true },
           lock: { mode: 'pessimistic_write' },
         });
-        if (!product) throw new NotFoundException(`Product ${line.productId} not found`);
+        if (!product)
+          throw new NotFoundException(`Product ${line.productId} not found`);
         const unitPrice = Number(product.retailPrice);
         if (unitPrice <= 0) {
-          throw new BadRequestException(`${product.name} is not configured for retail sale`);
+          throw new BadRequestException(
+            `${product.name} is not configured for retail sale`,
+          );
         }
         if (product.quantityOnHand < line.quantity) {
-          throw new BadRequestException(`Insufficient stock for ${product.name}`);
+          throw new BadRequestException(
+            `Insufficient stock for ${product.name}`,
+          );
         }
 
         product.quantityOnHand -= line.quantity;
@@ -135,7 +143,9 @@ export class RetailPosService {
     };
   }
 
-  async listSaleViewsForBookings(bookingIds: string[]): Promise<Map<string, BookingRetailSaleView[]>> {
+  async listSaleViewsForBookings(
+    bookingIds: string[],
+  ): Promise<Map<string, BookingRetailSaleView[]>> {
     if (bookingIds.length === 0) return new Map();
     const sales = await this.saleRepo.find({
       where: { bookingId: In(bookingIds) },
@@ -159,10 +169,15 @@ export class RetailPosService {
       if (qty <= 0) continue;
       merged.set(line.productId, (merged.get(line.productId) ?? 0) + qty);
     }
-    return [...merged.entries()].map(([productId, quantity]) => ({ productId, quantity }));
+    return [...merged.entries()].map(([productId, quantity]) => ({
+      productId,
+      quantity,
+    }));
   }
 
-  private async loadSaleViews(bookingId: string): Promise<BookingRetailSaleView[]> {
+  private async loadSaleViews(
+    bookingId: string,
+  ): Promise<BookingRetailSaleView[]> {
     const sales = await this.saleRepo.find({
       where: { bookingId },
       relations: { product: true },
@@ -186,7 +201,10 @@ export class RetailPosService {
     return roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
   }
 
-  private async findBooking(businessId: string, bookingId: string): Promise<Booking> {
+  private async findBooking(
+    businessId: string,
+    bookingId: string,
+  ): Promise<Booking> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId },
       relations: { service: true },

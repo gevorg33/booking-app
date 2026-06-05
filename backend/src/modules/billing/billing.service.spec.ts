@@ -44,7 +44,10 @@ describe('BillingService', () => {
     client: {
       customers: { create: stripeCustomersCreate },
       checkout: {
-        sessions: { create: stripeSessionsCreate, retrieve: stripeSessionsRetrieve },
+        sessions: {
+          create: stripeSessionsCreate,
+          retrieve: stripeSessionsRetrieve,
+        },
       },
       subscriptions: { retrieve: stripeSubscriptionsRetrieve },
       billingPortal: { sessions: { create: stripePortalCreate } },
@@ -71,7 +74,9 @@ describe('BillingService', () => {
     business.subscriptionCurrentPeriodEnd = null;
     businessRepo.findOne.mockImplementation(async () => business);
     stripeCustomersCreate.mockResolvedValue({ id: 'cus_1' });
-    stripeSessionsCreate.mockResolvedValue({ url: 'https://checkout.stripe.test/session' });
+    stripeSessionsCreate.mockResolvedValue({
+      url: 'https://checkout.stripe.test/session',
+    });
   });
 
   it('lists active plans with annual pricing', () => {
@@ -82,7 +87,12 @@ describe('BillingService', () => {
 
   it('uses owner email when business email is missing', async () => {
     business.email = '';
-    await service.createCheckoutSession('biz-1', 'starter', 'owner@salon.com', 'month');
+    await service.createCheckoutSession(
+      'biz-1',
+      'starter',
+      'owner@salon.com',
+      'month',
+    );
     expect(stripeCustomersCreate).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'owner@salon.com' }),
     );
@@ -115,7 +125,12 @@ describe('BillingService', () => {
   });
 
   it('creates annual checkout session with discounted yearly amount', async () => {
-    await service.createCheckoutSession('biz-1', 'starter', 'owner@salon.com', 'year');
+    await service.createCheckoutSession(
+      'biz-1',
+      'starter',
+      'owner@salon.com',
+      'year',
+    );
     expect(stripeSessionsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         line_items: [
@@ -191,7 +206,9 @@ describe('BillingService', () => {
   it('returns subscription info for active plan', async () => {
     business.subscriptionPlanId = 'starter';
     business.subscriptionStatus = SubscriptionStatus.ACTIVE;
-    business.subscriptionCurrentPeriodEnd = new Date('2026-12-01T00:00:00.000Z');
+    business.subscriptionCurrentPeriodEnd = new Date(
+      '2026-12-01T00:00:00.000Z',
+    );
     const sub = await service.getSubscription('biz-1');
     expect(sub.planId).toBe('starter');
     expect(sub.isActive).toBe(true);
@@ -221,9 +238,9 @@ describe('BillingService', () => {
       status: 'complete',
       metadata: { businessId: 'other-biz', planId: 'starter' },
     });
-    await expect(service.confirmCheckoutSession('biz-1', 'cs_test')).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      service.confirmCheckoutSession('biz-1', 'cs_test'),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('rejects incomplete checkout confirmation', async () => {
@@ -231,21 +248,25 @@ describe('BillingService', () => {
       status: 'open',
       metadata: { businessId: 'biz-1', planId: 'starter' },
     });
-    await expect(service.confirmCheckoutSession('biz-1', 'cs_test')).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.confirmCheckoutSession('biz-1', 'cs_test'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('creates billing portal session for subscribed customer', async () => {
     business.stripeCustomerId = 'cus_portal';
-    stripePortalCreate.mockResolvedValue({ url: 'https://billing.stripe.test/portal' });
+    stripePortalCreate.mockResolvedValue({
+      url: 'https://billing.stripe.test/portal',
+    });
     const result = await service.createPortalSession('biz-1');
     expect(result.url).toContain('portal');
   });
 
   it('rejects portal when customer id missing', async () => {
     business.stripeCustomerId = null;
-    await expect(service.createPortalSession('biz-1')).rejects.toThrow(BadRequestException);
+    await expect(service.createPortalSession('biz-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('handles checkout.session.completed webhook', async () => {
@@ -302,14 +323,19 @@ describe('BillingService', () => {
 
   it('ignores unknown webhook events', async () => {
     await expect(
-      service.handleWebhookEvent({ type: 'unknown.event', data: { object: {} } }),
+      service.handleWebhookEvent({
+        type: 'unknown.event',
+        data: { object: {} },
+      }),
     ).resolves.toBeUndefined();
   });
 
   it('constructs webhook events when secret configured', () => {
     const payload = Buffer.from('{}');
     stripeWebhooksConstruct.mockReturnValue({ type: 'test' });
-    expect(service.constructWebhookEvent(payload, 'sig')).toEqual({ type: 'test' });
+    expect(service.constructWebhookEvent(payload, 'sig')).toEqual({
+      type: 'test',
+    });
   });
 
   it('rejects webhook construct without secret', () => {
@@ -319,14 +345,16 @@ describe('BillingService', () => {
       offlineStripe as any,
       bookingPaymentService as any,
     );
-    expect(() => offline.constructWebhookEvent(Buffer.from('{}'), 'sig')).toThrow(
-      BadRequestException,
-    );
+    expect(() =>
+      offline.constructWebhookEvent(Buffer.from('{}'), 'sig'),
+    ).toThrow(BadRequestException);
   });
 
   it('throws when business not found', async () => {
     businessRepo.findOne.mockResolvedValueOnce(null);
-    await expect(service.getSubscription('missing')).rejects.toThrow(NotFoundException);
+    await expect(service.getSubscription('missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('activates plan id when checkout has no subscription id', async () => {
@@ -374,7 +402,9 @@ describe('BillingService', () => {
       { ...stripeService, isConfigured: false } as any,
       bookingPaymentService as any,
     );
-    await expect(offline.createPortalSession('biz-1')).rejects.toThrow(BadRequestException);
+    await expect(offline.createPortalSession('biz-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('skips persisting stripe customer when checkout customer is expanded', async () => {
@@ -516,10 +546,12 @@ describe('BillingService', () => {
   it('ignores payment_failed when no business matches customer', async () => {
     business.stripeCustomerId = 'cus_other';
     business.subscriptionStatus = SubscriptionStatus.ACTIVE;
-    businessRepo.findOne.mockImplementationOnce(async (opts: { where?: { stripeCustomerId?: string } }) => {
-      if (opts?.where?.stripeCustomerId === 'cus_unknown') return null;
-      return business;
-    });
+    businessRepo.findOne.mockImplementationOnce(
+      async (opts: { where?: { stripeCustomerId?: string } }) => {
+        if (opts?.where?.stripeCustomerId === 'cus_unknown') return null;
+        return business;
+      },
+    );
     await service.handleWebhookEvent({
       type: 'invoice.payment_failed',
       data: { object: { customer: 'cus_unknown' } },

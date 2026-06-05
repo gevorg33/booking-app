@@ -64,7 +64,11 @@ describe('StrategyEvalService', () => {
 
   it('persists HIPAA evaluation on business settings', async () => {
     const evaluation = await service.submitHipaaEval('biz-1', {
-      answers: { handles_phi: 'no', us_patients: 'no', diagnosis_documentation: 'no' },
+      answers: {
+        handles_phi: 'no',
+        us_patients: 'no',
+        diagnosis_documentation: 'no',
+      },
       decision: 'wellness_only',
       notes: 'Beauty salon only',
     });
@@ -88,7 +92,10 @@ describe('StrategyEvalService', () => {
   });
 
   it('normalizes invalid criterion weights to defaults', () => {
-    const weights = service.normalizeCriterionWeights({ tenant_autonomy: 99, new_client_acquisition: NaN });
+    const weights = service.normalizeCriterionWeights({
+      tenant_autonomy: 99,
+      new_client_acquisition: NaN,
+    });
     expect(weights.tenant_autonomy).toBe(5);
     expect(weights.new_client_acquisition).toBe(5);
   });
@@ -105,7 +112,9 @@ describe('StrategyEvalService', () => {
       support_burden: 5,
     };
     const result = service.buildMarketplaceResult(weights);
-    expect(result.optionScores.software_only).toBeGreaterThan(result.optionScores.full_marketplace);
+    expect(result.optionScores.software_only).toBeGreaterThan(
+      result.optionScores.full_marketplace,
+    );
     expect(result.recommendation).toBe('software_only');
   });
 
@@ -125,7 +134,11 @@ describe('StrategyEvalService', () => {
       settings: {
         strategyEval: {
           hipaa: {
-            answers: { handles_phi: 'no', us_patients: 'no', diagnosis_documentation: 'no' },
+            answers: {
+              handles_phi: 'no',
+              us_patients: 'no',
+              diagnosis_documentation: 'no',
+            },
             notes: 'Stored',
           },
           marketplace: {
@@ -171,7 +184,11 @@ describe('StrategyEvalService', () => {
 
   it('submits HIPAA eval without locking decision', async () => {
     const evaluation = await service.submitHipaaEval('biz-1', {
-      answers: { handles_phi: 'no', us_patients: 'no', diagnosis_documentation: 'no' },
+      answers: {
+        handles_phi: 'no',
+        us_patients: 'no',
+        diagnosis_documentation: 'no',
+      },
     });
     expect(evaluation.decidedAt).toBeNull();
   });
@@ -195,13 +212,19 @@ describe('StrategyEvalService', () => {
   it('uses undecided recommendation key when computed fit is inconclusive', () => {
     const result = service.buildMarketplaceResult(
       Object.fromEntries(
-        service.getMarketplaceFramework().criteria.map((criterion) => [criterion.id, 3]),
+        service
+          .getMarketplaceFramework()
+          .criteria.map((criterion) => [criterion.id, 3]),
       ),
     );
     if (result.recommendation === 'undecided') {
-      expect(result.recommendationKey).toBe('strategyEval.marketplace.recUndecided');
+      expect(result.recommendationKey).toBe(
+        'strategyEval.marketplace.recUndecided',
+      );
     } else {
-      expect(result.recommendationKey).toContain('strategyEval.marketplace.rec');
+      expect(result.recommendationKey).toContain(
+        'strategyEval.marketplace.rec',
+      );
     }
   });
 
@@ -293,6 +316,8 @@ describe('StrategyEvalService', () => {
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getSummary('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getSummary('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

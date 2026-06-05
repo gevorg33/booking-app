@@ -3,8 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { AgentTask } from './agent-task.entity.js';
 import { AgentRegistryService } from './agent-registry.service.js';
-import { AgentType, AgentContext, PlanStatus, AgentPlan } from './interfaces/agent.interfaces.js';
+import {
+  AgentType,
+  AgentContext,
+  PlanStatus,
+  AgentPlan,
+} from './interfaces/agent.interfaces.js';
 import { PolicyEngineService } from '../policy/policy-engine.service.js';
+import { buildPolicyRiskExplain } from '../../modules/ai/policy-risk-explain.util.js';
 import { PolicyDecision } from '../policy/policy.interfaces.js';
 import { WorkflowCompilerService } from '../workflow/compiler/workflow-compiler.service.js';
 import { WorkflowExecutorService } from '../workflow/executor/workflow-executor.service.js';
@@ -60,7 +66,11 @@ export class AgentOrchestratorService {
       businessId: params.businessId,
       intent: params.intent,
       status: PlanStatus.DRAFT,
-      context: { ...enrichedContext, ...params.context, businessId: params.businessId } as any,
+      context: {
+        ...enrichedContext,
+        ...params.context,
+        businessId: params.businessId,
+      } as any,
       userId: params.userId,
     });
     await this.taskRepo.save(task);
@@ -68,11 +78,20 @@ export class AgentOrchestratorService {
     try {
       const agent = this.registry.get(params.agentType);
       const result = await agent.handle(
-        { ...enrichedContext, ...params.context, businessId: params.businessId },
+        {
+          ...enrichedContext,
+          ...params.context,
+          businessId: params.businessId,
+        },
         params.intent,
       );
 
-      return this.validateAndMaybeExecute(task, result.plan, result.executionMode, params);
+      return this.validateAndMaybeExecute(
+        task,
+        result.plan,
+        result.executionMode,
+        params,
+      );
     } catch (error: any) {
       task.status = PlanStatus.FAILED;
       task.error = error.message;
@@ -103,7 +122,11 @@ export class AgentOrchestratorService {
       task,
       params.plan,
       params.autoExecute ? 'autonomous' : 'requires_approval',
-      { businessId: params.businessId, userId: params.userId, autoExecute: params.autoExecute },
+      {
+        businessId: params.businessId,
+        userId: params.userId,
+        autoExecute: params.autoExecute,
+      },
     );
   }
 
@@ -141,13 +164,21 @@ export class AgentOrchestratorService {
       params: {
         affectedBookingsCount: this.countAffectedBookings(plan),
         planRiskLevel: plan.riskAssessment.level,
-        currentBookingsCount: enrichedContext.policyMetrics?.activeBookingCount ?? enrichedContext.bookings?.length ?? 0,
+        currentBookingsCount:
+          enrichedContext.policyMetrics?.activeBookingCount ??
+          enrichedContext.bookings?.length ??
+          0,
         maxBookingsPerDay: 20,
         hasAdjacentConflict: false,
         withinBusinessHours: true,
-        employeeCount: enrichedContext.policyMetrics?.employeeCount ?? enrichedContext.employees?.length ?? 0,
-        minBufferMinutes: enrichedContext.policyMetrics?.avgServiceBufferMinutes ?? 10,
-        businessHoursLabel: enrichedContext.policyMetrics?.businessHoursLabel ?? '09:00–19:00',
+        employeeCount:
+          enrichedContext.policyMetrics?.employeeCount ??
+          enrichedContext.employees?.length ??
+          0,
+        minBufferMinutes:
+          enrichedContext.policyMetrics?.avgServiceBufferMinutes ?? 10,
+        businessHoursLabel:
+          enrichedContext.policyMetrics?.businessHoursLabel ?? '09:00–19:00',
         stepCount: plan.steps.length,
       },
     });
@@ -208,7 +239,9 @@ export class AgentOrchestratorService {
           await this.previewTaskWorkspace(task.id);
           return this.taskRepo.findOneOrFail({ where: { id: task.id } });
         } catch (error: any) {
-          this.logger.warn(`Task preview failed for ${task.id}: ${error.message}`);
+          this.logger.warn(
+            `Task preview failed for ${task.id}: ${error.message}`,
+          );
         }
       }
     }
@@ -232,7 +265,9 @@ export class AgentOrchestratorService {
       }
     }
     return plan.steps.filter((s) =>
-      ['create_booking', 'cancel_booking', 'cancel_bookings'].includes(s.action),
+      ['create_booking', 'cancel_booking', 'cancel_bookings'].includes(
+        s.action,
+      ),
     ).length;
   }
 
@@ -254,8 +289,11 @@ export class AgentOrchestratorService {
     });
 
     try {
-      const workflowDef = this.workflowCompiler.compilePlanToWorkflow(task.plan);
-      const executionResult = await this.workflowExecutor.executeWorkflow(workflowDef);
+      const workflowDef = this.workflowCompiler.compilePlanToWorkflow(
+        task.plan,
+      );
+      const executionResult =
+        await this.workflowExecutor.executeWorkflow(workflowDef);
 
       task.workflowExecutionId = executionResult.workflowId;
       task.result = executionResult as any;
@@ -303,7 +341,9 @@ export class AgentOrchestratorService {
       task.status !== PlanStatus.VALIDATED &&
       task.status !== PlanStatus.REQUIRES_APPROVAL
     ) {
-      throw new BadRequestException(`Task is in ${task.status} state, cannot execute`);
+      throw new BadRequestException(
+        `Task is in ${task.status} state, cannot execute`,
+      );
     }
 
     const planDiff = task.plan ? this.buildPlanDiff(task.plan) : [];
@@ -382,7 +422,7 @@ export class AgentOrchestratorService {
         steps.some((r) => r.stepId === s.id && r.status === 'completed'),
       );
 
-      task.result = { ...(task.result as any), steps } as any;
+      task.result = { ...(task.result as any), steps };
       task.status = allCompleted ? PlanStatus.COMPLETED : PlanStatus.FAILED;
       if (allCompleted) {
         (task as { error?: string }).error = undefined;
@@ -396,7 +436,7 @@ export class AgentOrchestratorService {
       if (idx >= 0) steps[idx] = failed;
       else steps.push(failed);
 
-      task.result = { ...(task.result as any), steps } as any;
+      task.result = { ...(task.result as any), steps };
       task.status = PlanStatus.FAILED;
       task.error = error.message;
       await this.taskRepo.save(task);
@@ -408,10 +448,17 @@ export class AgentOrchestratorService {
     return this.taskRepo.findOneOrFail({ where: { id } });
   }
 
-  async getTasks(businessId: string, status?: PlanStatus): Promise<AgentTask[]> {
+  async getTasks(
+    businessId: string,
+    status?: PlanStatus,
+  ): Promise<AgentTask[]> {
     const where: any = { businessId };
     if (status) where.status = status;
-    return this.taskRepo.find({ where, order: { createdAt: 'DESC' }, take: 50 });
+    return this.taskRepo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
   }
 
   async getPendingTasks(businessId: string): Promise<AgentTask[]> {
@@ -451,12 +498,19 @@ export class AgentOrchestratorService {
     }
 
     const workspace = this.buildWorkspacePayload(task, stepResults);
-    task.result = { ...(task.result ?? {}), preview: workspace, stepResults } as any;
+    task.result = {
+      ...(task.result ?? {}),
+      preview: workspace,
+      stepResults,
+    } as any;
     await this.taskRepo.save(task);
     return workspace;
   }
 
-  private buildWorkspacePayload(task: AgentTask, stepResults: Record<string, unknown>) {
+  private buildWorkspacePayload(
+    task: AgentTask,
+    stepResults: Record<string, unknown>,
+  ) {
     const values = Object.values(stepResults) as Array<Record<string, unknown>>;
     const freed = values.find((v) => v?.freedSlots)?.freedSlots ?? [];
     const candidates = values.find((v) => v?.candidates)?.candidates ?? [];
@@ -464,12 +518,20 @@ export class AgentOrchestratorService {
     const conflicts = values.find((v) => v?.conflicts)?.conflicts ?? [];
     const resolutions = values.find((v) => v?.resolutions)?.resolutions ?? [];
 
+    const policyPreview = (task.result as any)?.policyPreview;
+    const planDiff = this.buildPlanDiff(task.plan);
     return {
       agentType: task.agentType,
       taskId: task.id,
       intent: task.intent,
-      planDiff: this.buildPlanDiff(task.plan!),
-      policyPreview: (task.result as any)?.policyPreview,
+      planDiff,
+      policyPreview,
+      policyExplain: buildPolicyRiskExplain({
+        policyPreview,
+        plan: task.plan,
+        employeeCount: (task.context as any)?.employees?.length,
+        daySpan: 7,
+      }),
       cancellationRecovery:
         task.agentType === AgentType.CANCELLATION_RECOVERY
           ? { freedSlots: freed, candidates, proposals }
@@ -494,7 +556,9 @@ export class AgentOrchestratorService {
   private formatPlanStepDescription(step: AgentPlan['steps'][number]): string {
     const p = step.params ?? {};
     const employeeName =
-      typeof p.employeeName === 'string' && p.employeeName.trim() && !this.looksLikeUuid(p.employeeName)
+      typeof p.employeeName === 'string' &&
+      p.employeeName.trim() &&
+      !this.looksLikeUuid(p.employeeName)
         ? p.employeeName.trim()
         : null;
 

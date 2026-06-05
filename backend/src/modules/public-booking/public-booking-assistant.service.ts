@@ -18,9 +18,16 @@ import {
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
-import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  resolveLocale,
+  t,
+  localeLanguageInstruction,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
+import { AiPlatformService } from '../ai/ai-platform.service.js';
+import { AiSettingsService } from '../ai/ai-settings.service.js';
 import {
   fuzzyMatchServiceByName,
   inferServiceGroupLabel,
@@ -110,6 +117,8 @@ export class PublicBookingAssistantService {
     private businessService: BusinessService,
     private openAi: OpenAiGatewayService,
     private slotResolver: BookingSlotResolverService,
+    private platform: AiPlatformService,
+    private aiSettings: AiSettingsService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -122,9 +131,20 @@ export class PublicBookingAssistantService {
       context?: Record<string, any>;
       locale?: string;
     },
+    options?: { recordMetrics?: boolean },
   ): Promise<PublicAssistantResult> {
     const business = await this.businessService.findBySlug(slug);
-    const locale = resolveLocale(session?.locale, resolveLocale(business.settings?.locale, 'en'));
+    const locale = resolveLocale(
+      session?.locale,
+      resolveLocale(business.settings?.locale, 'en'),
+    );
+    const aiConfig = await this.aiSettings.getSettings(business.id);
+    const businessType = business.settings?.businessType as string | undefined;
+    const orchestratedSession = this.platform.enrichPublicSession(
+      session?.context,
+      businessType,
+      aiConfig,
+    );
 
     if (!(await this.openAi.isAvailableForBusiness(business.id))) {
       return {
@@ -138,19 +158,36 @@ export class PublicBookingAssistantService {
     const todayDisplay = formatDateDisplay(todayKey, locale);
 
     const [employees, services] = await Promise.all([
-      this.employeeRepo.find({ where: { businessId: business.id, isActive: true }, order: { name: 'ASC' } }),
-      this.serviceRepo.find({ where: { businessId: business.id, isActive: true }, order: { name: 'ASC' } }),
+      this.employeeRepo.find({
+        where: { businessId: business.id, isActive: true },
+        order: { name: 'ASC' },
+      }),
+      this.serviceRepo.find({
+        where: { businessId: business.id, isActive: true },
+        order: { name: 'ASC' },
+      }),
     ]);
 
     const contextBlock = `Business: ${business.name}
 Today's date: ${todayDisplay} (DD/MM/YYYY; schedule times are shown in 24h HH:mm)
-Providers: ${employees.map((e) => {
-      const title = e.metadata?.title || e.metadata?.role;
-      return title ? `${e.name} (${title})` : e.name;
-    }).join(', ') || 'none'}
+Providers: ${
+      employees
+        .map((e) => {
+          const title = e.metadata?.title || e.metadata?.role;
+          return title ? `${e.name} (${title})` : e.name;
+        })
+        .join(', ') || 'none'
+    }
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(business.id, prompt, contextBlock, session?.history, session?.context, locale);
+    const parsed = await this.classifyIntent(
+      business.id,
+      prompt,
+      contextBlock,
+      session?.history,
+      orchestratedSession,
+      locale,
+    );
     if (!parsed) {
       return {
         success: false,
@@ -159,10 +196,25 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action);
+    const gateDenied = this.platform.gatePublicAction(parsed.action);
+    if (gateDenied) {
+      return {
+        success: false,
+        action: gateDenied.action,
+        summary: gateDenied.summary,
+      };
+    }
+
+    parsed.params = this.mergeSessionContext(
+      parsed.params,
+      orchestratedSession,
+      parsed.action,
+    );
     this.normalizeDateParams(parsed.params, todayKey);
 
-    this.logger.log(`Public assistant action="${parsed.action}" — ${parsed.reasoning}`);
+    this.logger.log(
+      `Public assistant action="${parsed.action}" — ${parsed.reasoning}`,
+    );
 
     let result: PublicAssistantResult;
 
@@ -174,7 +226,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = await this.handleListServices(slug, parsed.params, employees);
         break;
       case 'check_availability':
-        result = await this.handleCheckAvailability(slug, parsed.params, employees, services, locale, tz);
+        result = await this.handleCheckAvailability(
+          slug,
+          parsed.params,
+          employees,
+          services,
+          locale,
+          tz,
+        );
         break;
       case 'recommend_specialists':
         result = await this.handleRecommendSpecialists(
@@ -190,7 +249,13 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = this.handleBusinessInfo(business);
         break;
       case 'book_appointment':
-        result = await this.handleBookAppointment(slug, parsed.params, employees, services, locale);
+        result = await this.handleBookAppointment(
+          slug,
+          parsed.params,
+          employees,
+          services,
+          locale,
+        );
         break;
       case 'booking_help':
         result = this.handleBookingHelp(locale);
@@ -203,11 +268,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
     }
 
-    return this.attachSession(result, parsed.params, employees, locale);
+    const final = this.attachSession(result, parsed.params, employees, locale);
+    if (options?.recordMetrics !== false) {
+      void this.platform.recordCommandOutcome({
+        businessId: business.id,
+        result: final as unknown as Record<string, unknown>,
+        surface: 'public',
+        locationId:
+          typeof orchestratedSession.locationId === 'string'
+            ? orchestratedSession.locationId
+            : undefined,
+      });
+    }
+    return final;
   }
 
-  private async handleListProviders(slug: string, params: any, locale: AppLocale): Promise<PublicAssistantResult> {
-    const { providers } = await this.publicBookingService.getProviders(slug, params.date, locale);
+  private async handleListProviders(
+    slug: string,
+    params: any,
+    locale: AppLocale,
+  ): Promise<PublicAssistantResult> {
+    const { providers } = await this.publicBookingService.getProviders(
+      slug,
+      params.date,
+      locale,
+    );
     if (providers.length === 0) {
       return {
         success: true,
@@ -218,7 +303,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     const lines = providers.map((p) => {
       const title = p.role ? ` — ${p.role}` : '';
-      const slots = p.slots.slice(0, 4).map((s) => formatTimeDisplay(s.startTime)).join(', ');
+      const slots = p.slots
+        .slice(0, 4)
+        .map((s) => formatTimeDisplay(s.startTime))
+        .join(', ');
       const slotText = slots
         ? p.nearestDateLabel
           ? `${t(locale, 'assistant.nextOn')} ${p.nearestDateLabel}: ${slots}${p.slots.length > 4 ? '…' : ''}`
@@ -230,7 +318,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return {
       success: true,
       action: 'list_providers',
-      summary: [t(locale, 'assistant.specialistsHeader'), '', ...lines].join('\n'),
+      summary: [t(locale, 'assistant.specialistsHeader'), '', ...lines].join(
+        '\n',
+      ),
       navigate: { path: 'professionals', query: {} },
     };
   }
@@ -244,7 +334,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       ? this.fuzzyMatchByName(employees, params.employeeName)
       : undefined;
 
-    const { services } = await this.publicBookingService.getServices(slug, employee?.id);
+    const { services } = await this.publicBookingService.getServices(
+      slug,
+      employee?.id,
+    );
     if (services.length === 0) {
       return {
         success: true,
@@ -256,7 +349,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     const lines = services.map(
-      (s) => `• ${s.name} — ${s.durationMinutes} min · ${s.price} ${s.currency}`,
+      (s) =>
+        `• ${s.name} — ${s.durationMinutes} min · ${s.price} ${s.currency}`,
     );
 
     const header = employee
@@ -280,7 +374,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   ): Promise<PublicAssistantResult> {
     const matchedServices = this.resolveServicesFromParams(params, services);
 
-    if ((params.serviceName || params.serviceCategory) && matchedServices.length === 0) {
+    if (
+      (params.serviceName || params.serviceCategory) &&
+      matchedServices.length === 0
+    ) {
       return {
         success: false,
         action: 'check_availability',
@@ -292,7 +389,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     const targets =
-      params.allProviders || (!params.employeeName && !params.employeeNames?.length)
+      params.allProviders ||
+      (!params.employeeName && !params.employeeNames?.length)
         ? employees
         : resolveEmployees(employees, params);
     if (targets.length === 0) {
@@ -309,8 +407,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
     if (dateKeys.length === 0 && matchedServices.length > 0) {
       const todayKey = getDateKeyInTimezone(new Date(), tz);
-      dateKeys = Array.from({ length: PUBLIC_AVAILABILITY_SCAN_DAYS }, (_, offset) =>
-        addDaysToDateKey(todayKey, offset, tz),
+      dateKeys = Array.from(
+        { length: PUBLIC_AVAILABILITY_SCAN_DAYS },
+        (_, offset) => addDaysToDateKey(todayKey, offset, tz),
       );
     }
 
@@ -320,7 +419,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         action: 'check_availability',
         summary: matchedServices.length
           ? t(locale, 'assistant.availabilityNeedsDay', {
-              service: inferServiceGroupLabel(matchedServices, params.serviceCategory ?? params.serviceName),
+              service: inferServiceGroupLabel(
+                matchedServices,
+                params.serviceCategory ?? params.serviceName,
+              ),
             })
           : t(locale, 'assistant.availabilityNeedsDayOrService'),
       };
@@ -328,7 +430,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     type DayReport = {
       dateKey: string;
-      providers: Array<{ employee: Employee; times: string[]; firstSlot: string }>;
+      providers: Array<{
+        employee: Employee;
+        times: string[];
+        firstSlot: string;
+      }>;
     };
     const dayReports: DayReport[] = [];
     let bestNavigate: { employeeId: string; startTime: string } | undefined;
@@ -340,23 +446,38 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         const serviceIds =
           matchedServices.length > 0
             ? matchedServices
-                .filter((s) => !employee.serviceIds?.length || employee.serviceIds.includes(s.id))
+                .filter(
+                  (s) =>
+                    !employee.serviceIds?.length ||
+                    employee.serviceIds.includes(s.id),
+                )
                 .map((s) => s.id)
             : [undefined];
 
         for (const serviceId of serviceIds) {
-          if (serviceId && employee.serviceIds?.length && !employee.serviceIds.includes(serviceId)) {
+          if (
+            serviceId &&
+            employee.serviceIds?.length &&
+            !employee.serviceIds.includes(serviceId)
+          ) {
             continue;
           }
 
-          const { slots } = await this.publicBookingService.getProviderSlots(slug, employee.id, dateKey, {
-            serviceId,
-            notBeforeTime: params.timeFrom ?? null,
-          });
+          const { slots } = await this.publicBookingService.getProviderSlots(
+            slug,
+            employee.id,
+            dateKey,
+            {
+              serviceId,
+              notBeforeTime: params.timeFrom ?? null,
+            },
+          );
 
           if (slots.length === 0) continue;
 
-          const existing = providersForDay.find((p) => p.employee.id === employee.id);
+          const existing = providersForDay.find(
+            (p) => p.employee.id === employee.id,
+          );
           const times = slots.map((s) => formatTimeDisplay(s.startTime));
           if (existing) {
             const merged = [...new Set([...existing.times, ...times])].sort();
@@ -373,7 +494,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           }
 
           if (!bestNavigate || slots[0].startTime < bestNavigate.startTime) {
-            bestNavigate = { employeeId: employee.id, startTime: slots[0].startTime };
+            bestNavigate = {
+              employeeId: employee.id,
+              startTime: slots[0].startTime,
+            };
           }
         }
       }
@@ -385,31 +509,43 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     const serviceLabel =
       matchedServices.length > 0
-        ? inferServiceGroupLabel(matchedServices, params.serviceCategory ?? params.serviceName)
+        ? inferServiceGroupLabel(
+            matchedServices,
+            params.serviceCategory ?? params.serviceName,
+          )
         : t(locale, 'assistant.anyService');
     const dayCount = dateKeys.length;
 
     if (dayReports.length === 0) {
       const providerLabel =
-        targets.length === 1 ? targets[0].name : t(locale, 'assistant.anySpecialist');
+        targets.length === 1
+          ? targets[0].name
+          : t(locale, 'assistant.anySpecialist');
       return {
         success: true,
         action: 'check_availability',
         summary: t(locale, 'assistant.availabilityNoSlots', {
           service: serviceLabel,
           provider: providerLabel,
-          days: dayCount === 1 ? formatDateDisplay(dateKeys[0], locale) : String(dayCount),
+          days:
+            dayCount === 1
+              ? formatDateDisplay(dateKeys[0], locale)
+              : String(dayCount),
         }),
-        navigate: targets.length === 1
-          ? { path: 'professionals', query: { employeeId: targets[0].id } }
-          : { path: 'professionals', query: {} },
+        navigate:
+          targets.length === 1
+            ? { path: 'professionals', query: { employeeId: targets[0].id } }
+            : { path: 'professionals', query: {} },
       };
     }
 
     const lines: string[] = [
       t(locale, 'assistant.availabilityHeader', {
         service: serviceLabel,
-        days: dayCount === 1 ? formatDateDisplay(dateKeys[0], locale) : String(dayReports.length),
+        days:
+          dayCount === 1
+            ? formatDateDisplay(dateKeys[0], locale)
+            : String(dayReports.length),
       }),
       '',
     ];
@@ -433,7 +569,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
       lines.push(`${weekday} ${displayDay}:`);
       for (const provider of day.providers) {
-        const times = provider.times.slice(0, 6).join(', ') + (provider.times.length > 6 ? '…' : '');
+        const times =
+          provider.times.slice(0, 6).join(', ') +
+          (provider.times.length > 6 ? '…' : '');
         lines.push(`• ${provider.employee.name}: ${times}`);
       }
     }
@@ -445,7 +583,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     } else if (targets.length === 1) {
       navigateQuery.employeeId = targets[0].id;
     }
-    if (matchedServices.length === 1) navigateQuery.serviceId = matchedServices[0].id;
+    if (matchedServices.length === 1)
+      navigateQuery.serviceId = matchedServices[0].id;
 
     return {
       success: true,
@@ -468,7 +607,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   ): Promise<PublicAssistantResult> {
     const matchedServices = this.resolveServicesFromParams(params, services);
 
-    if ((params.serviceName || params.serviceCategory) && matchedServices.length === 0) {
+    if (
+      (params.serviceName || params.serviceCategory) &&
+      matchedServices.length === 0
+    ) {
       return {
         success: false,
         action: 'recommend_specialists',
@@ -498,22 +640,28 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
     if (dateKeys.length === 0) {
       const todayKey = getDateKeyInTimezone(new Date(), tz);
-      dateKeys = Array.from({ length: PUBLIC_AVAILABILITY_SCAN_DAYS }, (_, offset) =>
-        addDaysToDateKey(todayKey, offset, tz),
+      dateKeys = Array.from(
+        { length: PUBLIC_AVAILABILITY_SCAN_DAYS },
+        (_, offset) => addDaysToDateKey(todayKey, offset, tz),
       );
     }
 
-    const { providers } = await this.publicBookingService.recommendProviders(slug, {
-      serviceIds: matchedServices.map((s) => s.id),
-      dateKeys,
-      notBeforeTime: params.timeFrom ?? null,
-      limit: 5,
-    });
+    const { providers } = await this.publicBookingService.recommendProviders(
+      slug,
+      {
+        serviceIds: matchedServices.map((s) => s.id),
+        dateKeys,
+        notBeforeTime: params.timeFrom ?? null,
+        limit: 5,
+      },
+    );
 
     const periodLabel =
       dateKeys.length === 1
         ? formatDateDisplay(dateKeys[0], locale)
-        : t(locale, 'assistant.recommendPeriodDays', { count: dateKeys.length });
+        : t(locale, 'assistant.recommendPeriodDays', {
+            count: dateKeys.length,
+          });
 
     if (providers.length === 0) {
       return {
@@ -528,18 +676,27 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     const lines: string[] = [
-      t(locale, 'assistant.recommendHeader', { service: serviceLabel, period: periodLabel }),
+      t(locale, 'assistant.recommendHeader', {
+        service: serviceLabel,
+        period: periodLabel,
+      }),
       '',
     ];
 
     providers.forEach((provider, index) => {
-      const ratingLabel = this.formatProviderRating(provider.averageRating, provider.reviewCount, locale);
+      const ratingLabel = this.formatProviderRating(
+        provider.averageRating,
+        provider.reviewCount,
+        locale,
+      );
       const role = provider.role ? ` (${provider.role})` : '';
       const dayLabel = formatDateDisplay(provider.earliestDateKey, locale);
       const times = provider.previewTimes.join(', ');
       const serviceNote =
         multiService && provider.matchedServiceName
-          ? t(locale, 'assistant.recommendServiceNote', { service: provider.matchedServiceName })
+          ? t(locale, 'assistant.recommendServiceNote', {
+              service: provider.matchedServiceName,
+            })
           : '';
       lines.push(
         t(locale, 'assistant.recommendLine', {
@@ -598,14 +755,23 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (!params.timeSlot) return null;
 
     const timeSlot = this.snapTo10min(params.timeSlot);
-    const scanFrom = params.date ? toIsoDay(params.date, tz) : getDateKeyInTimezone(new Date(), tz);
+    const scanFrom = params.date
+      ? toIsoDay(params.date, tz)
+      : getDateKeyInTimezone(new Date(), tz);
 
     for (let offset = 0; offset < PUBLIC_AVAILABILITY_SCAN_DAYS; offset++) {
       const dateKey = addDaysToDateKey(scanFrom, offset, tz);
-      const { slots } = await this.publicBookingService.getProviderSlots(slug, employee.id, dateKey, {
-        serviceId: service.id,
-      });
-      const hit = slots.find((s) => formatTimeDisplay(s.startTime) === timeSlot);
+      const { slots } = await this.publicBookingService.getProviderSlots(
+        slug,
+        employee.id,
+        dateKey,
+        {
+          serviceId: service.id,
+        },
+      );
+      const hit = slots.find(
+        (s) => formatTimeDisplay(s.startTime) === timeSlot,
+      );
       if (hit) {
         return { dateKey, startTime: hit.startTime, timeSlot };
       }
@@ -614,7 +780,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return null;
   }
 
-  private resolveServicesFromParams(params: Record<string, any>, catalog: Service[]): Service[] {
+  private resolveServicesFromParams(
+    params: Record<string, any>,
+    catalog: Service[],
+  ): Service[] {
     if (Array.isArray(params.serviceNames) && params.serviceNames.length) {
       const matched: Service[] = [];
       const seen = new Set<string>();
@@ -729,7 +898,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       matchedServices.length === 1
         ? matchedServices[0]
         : matchedServices.length > 1 && params.serviceName
-          ? fuzzyMatchServiceByName(matchedServices, params.serviceName) ?? matchedServices[0]
+          ? (fuzzyMatchServiceByName(matchedServices, params.serviceName) ??
+            matchedServices[0])
           : matchedServices[0];
 
     if (params.employeeName && !employee) {
@@ -757,12 +927,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
       }
 
-      const nearest = await this.publicBookingService.findNearestBookableSlot(slug, {
-        serviceId: service.id,
-        employeeId: params.allProviders ? null : employee?.id ?? null,
-        notBeforeTime: params.timeFrom ?? null,
-        startDateKey: params.date ?? null,
-      });
+      const nearest = await this.publicBookingService.findNearestBookableSlot(
+        slug,
+        {
+          serviceId: service.id,
+          employeeId: params.allProviders ? null : (employee?.id ?? null),
+          notBeforeTime: params.timeFrom ?? null,
+          startDateKey: params.date ?? null,
+        },
+      );
 
       if (!nearest) {
         const afterLabel = params.timeFrom ? ` after ${params.timeFrom}` : '';
@@ -788,11 +961,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       !!params.date &&
       !!params.timeSlot &&
       (params.fallbackAnyProvider === true ||
-        (Array.isArray(params.providerFallbackNames) && params.providerFallbackNames.length > 0));
+        (Array.isArray(params.providerFallbackNames) &&
+          params.providerFallbackNames.length > 0));
 
     if (wantsProviderFallback && service) {
       const isoDay = toIsoDay(params.date, tz);
-      const priorityNames: string[] = Array.isArray(params.providerFallbackNames)
+      const priorityNames: string[] = Array.isArray(
+        params.providerFallbackNames,
+      )
         ? params.providerFallbackNames
         : employee
           ? [employee.name]
@@ -815,7 +991,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       });
 
       if (!pick) {
-        const tried = providerPriority.map((p) => p.name).join(', ') || 'requested specialists';
+        const tried =
+          providerPriority.map((p) => p.name).join(', ') ||
+          'requested specialists';
         return {
           success: false,
           action: 'book_appointment',
@@ -901,20 +1079,26 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         action: 'book_appointment',
         summary: `To finish booking I still need: ${missing.join(', ') || 'a valid time slot'}. You can also continue in the booking flow — I've pre-filled what I could.`,
         navigate: {
-          path: canCheckout ? 'checkout' : navigateQuery.startTime ? 'services' : 'professionals',
+          path: canCheckout
+            ? 'checkout'
+            : navigateQuery.startTime
+              ? 'services'
+              : 'professionals',
           query: navigateQuery,
         },
       };
     }
 
     const snappedTime = this.snapTo10min(params.timeSlot);
-    const startTime = params.startTime ?? `${params.date}T${snappedTime}:00.000Z`;
+    const startTime =
+      params.startTime ?? `${params.date}T${snappedTime}:00.000Z`;
 
-    const { services: slotServices } = await this.publicBookingService.getServicesForSlot(
-      slug,
-      resolvedEmployee.id,
-      startTime,
-    );
+    const { services: slotServices } =
+      await this.publicBookingService.getServicesForSlot(
+        slug,
+        resolvedEmployee.id,
+        startTime,
+      );
     const fits = slotServices.some((s) => s.id === resolvedService.id);
     if (!fits) {
       const fit = await this.publicBookingService.explainServiceSlotFit(
@@ -973,13 +1157,17 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
 
     try {
-      const { booking } = await this.publicBookingService.createBooking(slug, dto);
+      const { booking } = await this.publicBookingService.createBooking(
+        slug,
+        dto,
+      );
       const bookingId = (booking as any)?.id;
       const range = formatTimeRangeDisplay(
         startTime,
         new Date(
           new Date(startTime).getTime() +
-            (resolvedService.durationMinutes + resolvedService.bufferMinutes) * 60000,
+            (resolvedService.durationMinutes + resolvedService.bufferMinutes) *
+              60000,
         ),
       );
 
@@ -993,7 +1181,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       return {
         success: false,
         action: 'book_appointment',
-        summary: err?.message || 'That slot is no longer available. Please pick another time.',
+        summary:
+          err?.message ||
+          'That slot is no longer available. Please pick another time.',
         navigate: {
           path: 'professionals',
           query: { employeeId: resolvedEmployee.id, startTime },
@@ -1011,13 +1201,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale = 'en',
   ) {
     const sessionBlock =
-      sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
+      sessionContext &&
+      Object.values(sessionContext).some((v) => v != null && v !== '')
         ? `\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
         : '';
 
-    const historyMessages = (history ?? [])
-      .slice(-8)
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    const historyMessages = (history ?? []).slice(-8).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
@@ -1049,7 +1241,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     try {
       return JSON.parse(raw);
     } catch (err: any) {
-      this.logger.error(`Public assistant classification parse failed: ${err.message}`);
+      this.logger.error(
+        `Public assistant classification parse failed: ${err.message}`,
+      );
       return null;
     }
   }
@@ -1061,7 +1255,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   ) {
     if (!session) return params;
     const merged = { ...params };
-    const skipForNearest = action === 'book_appointment' && params.bookingFirstAvailable === true;
+    const skipForNearest =
+      action === 'book_appointment' && params.bookingFirstAvailable === true;
     const skipSessionDate =
       (action === 'check_availability' || action === 'recommend_specialists') &&
       (params.weekdays?.length || params.dateFrom || params.dateTo);
@@ -1075,7 +1270,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       'customerEmail',
       'customerPhone',
     ]) {
-      if (skipForNearest && (key === 'date' || key === 'timeSlot' || key === 'employeeName')) {
+      if (
+        skipForNearest &&
+        (key === 'date' || key === 'timeSlot' || key === 'employeeName')
+      ) {
         continue;
       }
       if (key === 'date' && skipSessionDate) {
@@ -1093,7 +1291,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     employee: Employee,
     date: string,
     time: string,
-    slotServices: Array<{ name: string; durationMinutes: number; bufferMinutes: number }>,
+    slotServices: Array<{
+      name: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+    }>,
     fit: {
       requiredMinutes?: number;
       remainingMinutes?: number;
@@ -1104,14 +1306,20 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale,
   ): string {
     const dateStr = formatDateDisplay(date, locale);
-    const lines: string[] = [`${service.name} isn't available at ${time} on ${dateStr}.`];
+    const lines: string[] = [
+      `${service.name} isn't available at ${time} on ${dateStr}.`,
+    ];
 
-    const required = fit.requiredMinutes ?? service.durationMinutes + service.bufferMinutes;
+    const required =
+      fit.requiredMinutes ?? service.durationMinutes + service.bufferMinutes;
     const remaining = fit.remainingMinutes;
-    const until = fit.availableUntil ? formatTimeDisplay(fit.availableUntil) : null;
+    const until = fit.availableUntil
+      ? formatTimeDisplay(fit.availableUntil)
+      : null;
 
     if (
-      (fit.failureReason === 'duration' || fit.failureReason === 'service_period') &&
+      (fit.failureReason === 'duration' ||
+        fit.failureReason === 'service_period') &&
       until &&
       remaining !== undefined &&
       remaining < required
@@ -1138,13 +1346,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         );
       }
     } else {
-      lines.push('No services fit that time slot. Please choose a different time.');
+      lines.push(
+        'No services fit that time slot. Please choose a different time.',
+      );
     }
 
     return lines.join('\n');
   }
 
-  private normalizeDateParams(params: Record<string, any>, fallbackDateKey: string) {
+  private normalizeDateParams(
+    params: Record<string, any>,
+    fallbackDateKey: string,
+  ) {
     if (params.date) {
       params.date = toIsoDay(params.date) ?? fallbackDateKey;
     }
@@ -1181,7 +1394,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
-  private fuzzyMatchByName<T extends { name: string }>(items: T[], name: string): T | undefined {
+  private fuzzyMatchByName<T extends { name: string }>(
+    items: T[],
+    name: string,
+  ): T | undefined {
     const lower = name.toLowerCase().trim();
     return (
       items.find((item) => item.name.toLowerCase() === lower) ||

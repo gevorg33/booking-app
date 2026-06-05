@@ -51,6 +51,7 @@ describe('ProviderPushListener', () => {
       'book-1',
       'New appointment',
       expect.stringContaining('Jane'),
+      { timeLabel: '01/05/2026 10:00', customerName: 'Jane' },
     );
   });
 
@@ -115,7 +116,9 @@ describe('ProviderPushListener', () => {
 
   it('swallows errors without rethrowing', async () => {
     bookingRepo.findOne.mockRejectedValue(new Error('db down'));
-    await expect(listener.handleNewBooking(baseEvent as any)).resolves.toBeUndefined();
+    await expect(
+      listener.handleNewBooking(baseEvent as any),
+    ).resolves.toBeUndefined();
   });
 
   it('notifies managers on new booking', async () => {
@@ -154,7 +157,10 @@ describe('ProviderPushListener', () => {
   });
 
   it('skips when business id missing', async () => {
-    await listener.handleNewBooking({ ...baseEvent, businessId: undefined } as any);
+    await listener.handleNewBooking({
+      ...baseEvent,
+      businessId: undefined,
+    } as any);
     expect(pushActionService.notifyBookingActions).not.toHaveBeenCalled();
   });
 
@@ -169,7 +175,10 @@ describe('ProviderPushListener', () => {
     expect(pushService.sendToUser).toHaveBeenCalledWith(
       'user-1',
       'biz-1',
-      expect.objectContaining({ title: 'Payment received', bookingId: 'book-1' }),
+      expect.objectContaining({
+        title: 'Payment received',
+        bookingId: 'book-1',
+      }),
     );
   });
 

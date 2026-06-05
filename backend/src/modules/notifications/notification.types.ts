@@ -37,6 +37,10 @@ export interface BusinessNotificationSettings {
   emailOnNewCustomerRegistration: boolean;
   /** Recipients for new-customer marketing alerts. */
   marketingTeamEmails: string[];
+  /** Managers receive copies of provider booking pushes. */
+  pushManagerAlertsEnabled: boolean;
+  /** Extra user IDs (besides assigned provider) that receive booking pushes. */
+  pushAdditionalRecipientUserIds: string[];
 }
 
 export interface CustomerNotificationPreferences {
@@ -45,39 +49,45 @@ export interface CustomerNotificationPreferences {
   whatsappReminders: boolean;
 }
 
-export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSettings = {
-  emailEnabled: true,
-  smsEnabled: false,
-  whatsappEnabled: true,
-  sendConfirmationEmail: true,
-  sendConfirmationWhatsapp: true,
-  reminder24hEmail: true,
-  reminder1hEmail: true,
-  reminder24hSms: false,
-  reminder1hSms: false,
-  reminder24hWhatsapp: true,
-  reminder1hWhatsapp: true,
-  reminderImmediateWhatsapp: false,
-  notifyBusinessOnCustomerBookingChange: false,
-  allowCustomerReminderChoice: false,
-  customerReminderOptionsHours: [24, 1],
-  defaultCustomerReminderHours: 24,
-  emailOnNewCustomerRegistration: false,
-  marketingTeamEmails: [],
-};
+export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSettings =
+  {
+    emailEnabled: true,
+    smsEnabled: false,
+    whatsappEnabled: true,
+    sendConfirmationEmail: true,
+    sendConfirmationWhatsapp: true,
+    reminder24hEmail: true,
+    reminder1hEmail: true,
+    reminder24hSms: false,
+    reminder1hSms: false,
+    reminder24hWhatsapp: true,
+    reminder1hWhatsapp: true,
+    reminderImmediateWhatsapp: false,
+    notifyBusinessOnCustomerBookingChange: false,
+    allowCustomerReminderChoice: false,
+    customerReminderOptionsHours: [24, 1],
+    defaultCustomerReminderHours: 24,
+    emailOnNewCustomerRegistration: false,
+    marketingTeamEmails: [],
+    pushManagerAlertsEnabled: true,
+    pushAdditionalRecipientUserIds: [],
+  };
 
-export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPreferences = {
-  emailReminders: true,
-  smsReminders: false,
-  whatsappReminders: true,
-};
+export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPreferences =
+  {
+    emailReminders: true,
+    smsReminders: false,
+    whatsappReminders: true,
+  };
 
 export { mergeBusinessNotificationSettings } from './merge-business-notification-settings.js';
 
 export function getCustomerNotificationPreferences(
   metadata?: Record<string, unknown>,
 ): CustomerNotificationPreferences {
-  const prefs = metadata?.notifications as Partial<CustomerNotificationPreferences> | undefined;
+  const prefs = metadata?.notifications as
+    | Partial<CustomerNotificationPreferences>
+    | undefined;
   return {
     ...DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES,
     ...prefs,

@@ -14,9 +14,14 @@ export class EnterpriseTrustController {
   ) {}
 
   @Get('settings')
-  async getSettings(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getSettings(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { settings: await this.enterpriseTrustService.getSettings(businessId) };
+    return {
+      settings: await this.enterpriseTrustService.getSettings(businessId),
+    };
   }
 
   @Put('settings')
@@ -26,13 +31,23 @@ export class EnterpriseTrustController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { settings: await this.enterpriseTrustService.updateSettings(businessId, dto) };
+    return {
+      settings: await this.enterpriseTrustService.updateSettings(
+        businessId,
+        dto,
+      ),
+    };
   }
 
   @Get('documents')
-  async getDocuments(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getDocuments(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { documents: await this.enterpriseTrustService.renderDocuments(businessId) };
+    return {
+      documents: await this.enterpriseTrustService.renderDocuments(businessId),
+    };
   }
 
   @Get('security-one-pager')

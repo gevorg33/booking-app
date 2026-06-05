@@ -39,9 +39,13 @@ export interface BookingPaymentSummarySource {
   service?: { price?: number | string | null; currency?: string | null } | null;
 }
 
-function readPricing(metadata: Record<string, unknown>): Record<string, unknown> | null {
+function readPricing(
+  metadata: Record<string, unknown>,
+): Record<string, unknown> | null {
   const pricing = metadata.pricing;
-  return pricing && typeof pricing === 'object' ? (pricing as Record<string, unknown>) : null;
+  return pricing && typeof pricing === 'object'
+    ? (pricing as Record<string, unknown>)
+    : null;
 }
 
 function readNumber(value: unknown): number | null {
@@ -50,7 +54,9 @@ function readNumber(value: unknown): number | null {
   return Number.isFinite(amount) ? amount : null;
 }
 
-function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjustment[] {
+function readAdjustments(
+  pricing: Record<string, unknown>,
+): BookingPaymentAdjustment[] {
   const raw = pricing.adjustments;
   if (!Array.isArray(raw)) return [];
 
@@ -59,7 +65,10 @@ function readAdjustments(pricing: Record<string, unknown>): BookingPaymentAdjust
     if (!item || typeof item !== 'object') continue;
     const row = item as Record<string, unknown>;
     const type =
-      row.type === 'promo' || row.type === 'gift_card' || row.type === 'loyalty' || row.type === 'retail'
+      row.type === 'promo' ||
+      row.type === 'gift_card' ||
+      row.type === 'loyalty' ||
+      row.type === 'retail'
         ? row.type
         : null;
     const amount = readNumber(row.amount);
@@ -136,18 +145,25 @@ export function resolveBookingPaymentSummary(
   }
 
   const currency =
-    (typeof source.service?.currency === 'string' && source.service.currency) || 'USD';
+    (typeof source.service?.currency === 'string' && source.service.currency) ||
+    'USD';
   const servicePrice =
     readNumber(pricing?.servicePrice) ?? readNumber(source.service?.price);
   const subtotal = readNumber(pricing?.subtotal);
   const promoDiscount = roundBonus(readNumber(pricing?.promoDiscount) ?? 0);
-  const giftCardDiscount = roundBonus(readNumber(pricing?.giftCardDiscount) ?? 0);
+  const giftCardDiscount = roundBonus(
+    readNumber(pricing?.giftCardDiscount) ?? 0,
+  );
   const loyaltyDiscount = roundBonus(readNumber(pricing?.loyaltyDiscount) ?? 0);
   const loyaltyPointsRedeemed = roundBonus(
-    readNumber(pricing?.loyaltyPointsRedeemed ?? pricing?.loyaltyPointsToRedeem) ?? 0,
+    readNumber(
+      pricing?.loyaltyPointsRedeemed ?? pricing?.loyaltyPointsToRedeem,
+    ) ?? 0,
   );
-  const promoCode = typeof pricing?.promoCode === 'string' ? pricing.promoCode : null;
-  const giftCardCode = typeof pricing?.giftCardCode === 'string' ? pricing.giftCardCode : null;
+  const promoCode =
+    typeof pricing?.promoCode === 'string' ? pricing.promoCode : null;
+  const giftCardCode =
+    typeof pricing?.giftCardCode === 'string' ? pricing.giftCardCode : null;
 
   let cashPaid =
     readNumber(pricing?.amountDue) ??
@@ -156,7 +172,10 @@ export function resolveBookingPaymentSummary(
     readNumber(metadata.prepaymentAmount);
 
   if (cashPaid == null && subtotal != null) {
-    cashPaid = Math.max(0, subtotal - promoDiscount - giftCardDiscount - loyaltyDiscount);
+    cashPaid = Math.max(
+      0,
+      subtotal - promoDiscount - giftCardDiscount - loyaltyDiscount,
+    );
   }
   cashPaid = roundBonus(cashPaid ?? 0);
 
@@ -166,7 +185,8 @@ export function resolveBookingPaymentSummary(
   const grandTotal = roundBonus(cashPaid + retailTotal);
 
   const totalDiscount = roundBonus(
-    readNumber(pricing?.totalDiscount) ?? promoDiscount + giftCardDiscount + loyaltyDiscount,
+    readNumber(pricing?.totalDiscount) ??
+      promoDiscount + giftCardDiscount + loyaltyDiscount,
   );
 
   const parsedAdjustments = pricing ? readAdjustments(pricing) : [];
@@ -197,12 +217,18 @@ export function resolveBookingPaymentSummary(
     retailLines,
     grandTotal,
     totalDiscount,
-    hasDiscounts: promoDiscount > 0 || giftCardDiscount > 0 || loyaltyDiscount > 0 || retailTotal > 0,
+    hasDiscounts:
+      promoDiscount > 0 ||
+      giftCardDiscount > 0 ||
+      loyaltyDiscount > 0 ||
+      retailTotal > 0,
     adjustments,
   };
 }
 
-export function withBookingPaymentSummary<T extends BookingPaymentSummarySource>(
+export function withBookingPaymentSummary<
+  T extends BookingPaymentSummarySource,
+>(
   booking: T,
   retailLines: BookingRetailLineSummary[] = [],
 ): T & { paymentSummary: BookingPaymentSummary | null } {

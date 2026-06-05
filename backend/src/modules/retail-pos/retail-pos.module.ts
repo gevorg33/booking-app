@@ -8,7 +8,10 @@ import { RetailPosService } from './retail-pos.service.js';
 import { RetailPosController } from './retail-pos.controller.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BookingRetailSale, Booking, Product]), BusinessModule],
+  imports: [
+    TypeOrmModule.forFeature([BookingRetailSale, Booking, Product]),
+    BusinessModule,
+  ],
   controllers: [RetailPosController],
   providers: [RetailPosService],
   exports: [RetailPosService],

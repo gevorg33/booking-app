@@ -38,6 +38,8 @@ describe('subscription-pricing.util', () => {
   });
 
   it('handles zero appointments in pricing', () => {
-    expect(calculateSubscriptionPricing(25, 0, 'percent', 5).perAppointmentPrice).toBe(0);
+    expect(
+      calculateSubscriptionPricing(25, 0, 'percent', 5).perAppointmentPrice,
+    ).toBe(0);
   });
 });

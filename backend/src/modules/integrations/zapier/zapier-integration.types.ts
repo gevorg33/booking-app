@@ -28,6 +28,8 @@ export interface BusinessZapierIntegration {
 export function getBusinessZapierIntegration(
   settings?: Record<string, unknown>,
 ): BusinessZapierIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
   return (integrations?.zapier as BusinessZapierIntegration) || {};
 }

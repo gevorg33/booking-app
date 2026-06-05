@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -29,16 +38,24 @@ export class GiftCardsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.giftCardsService.list(businessId);
   }
 
   @Get('settings')
   @UseGuards(JwtAuthGuard)
-  async getSettings(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async getSettings(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     return { settings: readBusinessGiftCardSettings(business?.settings) };
   }
 
@@ -50,9 +67,14 @@ export class GiftCardsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
-    const next = mergeGiftCardSettings({ ...readBusinessGiftCardSettings(business.settings), ...dto });
+    const next = mergeGiftCardSettings({
+      ...readBusinessGiftCardSettings(business.settings),
+      ...dto,
+    });
     business.settings = { ...(business.settings ?? {}), giftCards: next };
     await this.businessRepo.save(business);
     return { settings: next };
@@ -89,7 +111,12 @@ export class GiftCardsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { order: await this.fulfillmentService.getDashboardOrder(businessId, giftCardId) };
+    return {
+      order: await this.fulfillmentService.getDashboardOrder(
+        businessId,
+        giftCardId,
+      ),
+    };
   }
 
   @Put('fulfillment/:giftCardId/ship')
@@ -117,7 +144,9 @@ export class GiftCardsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { requests: await this.orderService.listChangeRequests(businessId, status) };
+    return {
+      requests: await this.orderService.listChangeRequests(businessId, status),
+    };
   }
 
   @Put('change-requests/:requestId/resolve')
@@ -197,7 +226,9 @@ export class GiftCardsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { redemptions: await this.giftCardsService.listRedemptions(giftCardId) };
+    return {
+      redemptions: await this.giftCardsService.listRedemptions(giftCardId),
+    };
   }
 
   @Post('validate')
@@ -205,14 +236,24 @@ export class GiftCardsController {
     @Param('businessId') businessId: string,
     @Body() dto: { code: string; serviceId?: string },
   ) {
-    const card = await this.giftCardsService.validate(businessId, dto.code, dto.serviceId);
+    const card = await this.giftCardsService.validate(
+      businessId,
+      dto.code,
+      dto.serviceId,
+    );
     return this.giftCardsService.getBalanceView(businessId, card.code);
   }
 
   @Post('redeem')
   async redeem(
     @Param('businessId') businessId: string,
-    @Body() dto: { code: string; amount?: number; serviceId?: string; bookingId?: string },
+    @Body()
+    dto: {
+      code: string;
+      amount?: number;
+      serviceId?: string;
+      bookingId?: string;
+    },
   ) {
     if (dto.serviceId) {
       const card = await this.giftCardsService.redeemServiceCredit(
@@ -247,7 +288,9 @@ export class GiftCardProviderController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { orders: await this.fulfillmentService.listCardCreationQueue(businessId) };
+    return {
+      orders: await this.fulfillmentService.listCardCreationQueue(businessId),
+    };
   }
 
   @Get('delivery')
@@ -256,7 +299,9 @@ export class GiftCardProviderController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return { orders: await this.fulfillmentService.listDeliveryQueue(businessId) };
+    return {
+      orders: await this.fulfillmentService.listDeliveryQueue(businessId),
+    };
   }
 
   @Put('card-creation/:giftCardId/ready')
@@ -266,7 +311,11 @@ export class GiftCardProviderController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.fulfillmentService.markCardReady(businessId, giftCardId, user.id);
+    return this.fulfillmentService.markCardReady(
+      businessId,
+      giftCardId,
+      user.id,
+    );
   }
 
   @Put('delivery/:giftCardId/out-for-delivery')
@@ -276,7 +325,11 @@ export class GiftCardProviderController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.fulfillmentService.markOutForDelivery(businessId, giftCardId, user.id);
+    return this.fulfillmentService.markOutForDelivery(
+      businessId,
+      giftCardId,
+      user.id,
+    );
   }
 
   @Put('delivery/:giftCardId/delivered')

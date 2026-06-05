@@ -4,8 +4,14 @@ import { Repository } from 'typeorm';
 import { Booking, PaymentStatus } from '../booking/entities/booking.entity.js';
 import { LoyaltyService } from './loyalty.service.js';
 import { LoyaltyCustomerMatcherService } from './loyalty-customer-matcher.service.js';
-import { LoyaltyAccount, LoyaltyTransaction } from './entities/loyalty-account.entity.js';
-import { resolveEligibleCashPaidForEarn, wasLoyaltyRedeemedOnBooking } from './loyalty-amount.util.js';
+import {
+  LoyaltyAccount,
+  LoyaltyTransaction,
+} from './entities/loyalty-account.entity.js';
+import {
+  resolveEligibleCashPaidForEarn,
+  wasLoyaltyRedeemedOnBooking,
+} from './loyalty-amount.util.js';
 import {
   calculateEarnPoints,
   getEarnPercentCashback,
@@ -24,8 +30,10 @@ export class LoyaltyAwardService {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(LoyaltyTransaction) private txRepo: Repository<LoyaltyTransaction>,
-    @InjectRepository(LoyaltyAccount) private accountRepo: Repository<LoyaltyAccount>,
+    @InjectRepository(LoyaltyTransaction)
+    private txRepo: Repository<LoyaltyTransaction>,
+    @InjectRepository(LoyaltyAccount)
+    private accountRepo: Repository<LoyaltyAccount>,
     private loyaltyService: LoyaltyService,
     private customerMatcher: LoyaltyCustomerMatcherService,
   ) {}
@@ -61,8 +69,18 @@ export class LoyaltyAwardService {
       return { status: 'skipped', bookingId, reason: 'no_customer' };
     }
 
-    if (isServiceExcludedFromLoyaltyEarn(booking.business?.settings, booking.serviceId)) {
-      return { status: 'skipped', bookingId, customerId: match.customerId, reason: 'service_excluded' };
+    if (
+      isServiceExcludedFromLoyaltyEarn(
+        booking.business?.settings,
+        booking.serviceId,
+      )
+    ) {
+      return {
+        status: 'skipped',
+        bookingId,
+        customerId: match.customerId,
+        reason: 'service_excluded',
+      };
     }
 
     const earnPercent = getEarnPercentCashback(booking.business?.settings);
@@ -75,13 +93,23 @@ export class LoyaltyAwardService {
       const reason = wasLoyaltyRedeemedOnBooking(booking.metadata)
         ? 'no_eligible_cash_payment'
         : 'zero_points';
-      return { status: 'skipped', bookingId, customerId: match.customerId, reason };
+      return {
+        status: 'skipped',
+        bookingId,
+        customerId: match.customerId,
+        reason,
+      };
     }
 
     const points = calculateEarnPoints(cashPaid, earnPercent);
 
     if (points <= 0) {
-      return { status: 'skipped', bookingId, customerId: match.customerId, reason: 'zero_points' };
+      return {
+        status: 'skipped',
+        bookingId,
+        customerId: match.customerId,
+        reason: 'zero_points',
+      };
     }
 
     const awarded = await this.loyaltyService.earnForBooking(
@@ -93,7 +121,12 @@ export class LoyaltyAwardService {
     );
 
     if (!awarded) {
-      return { status: 'skipped', bookingId, customerId: match.customerId, reason: 'already_awarded' };
+      return {
+        status: 'skipped',
+        bookingId,
+        customerId: match.customerId,
+        reason: 'already_awarded',
+      };
     }
 
     this.logger.log(
@@ -109,7 +142,9 @@ export class LoyaltyAwardService {
     };
   }
 
-  async backfillPaidBookings(businessId?: string): Promise<LoyaltyBackfillSummary> {
+  async backfillPaidBookings(
+    businessId?: string,
+  ): Promise<LoyaltyBackfillSummary> {
     const summary: LoyaltyBackfillSummary = {
       scope: businessId ? 'single_tenant' : 'all_tenants',
       tenantCount: 0,
@@ -157,7 +192,9 @@ export class LoyaltyAwardService {
           businessId: booking.businessId,
           businessName: booking.business?.name,
           businessSlug: booking.business?.slug,
-          earnPercentCashback: getEarnPercentCashback(booking.business?.settings),
+          earnPercentCashback: getEarnPercentCashback(
+            booking.business?.settings,
+          ),
           processedBookings: 0,
           bonusesAwarded: 0,
           totalPointsAwarded: 0,
@@ -193,7 +230,9 @@ export class LoyaltyAwardService {
     }
 
     summary.byTenant = [...tenantStats.values()].sort((a, b) =>
-      (a.businessName ?? a.businessId).localeCompare(b.businessName ?? b.businessId),
+      (a.businessName ?? a.businessId).localeCompare(
+        b.businessName ?? b.businessId,
+      ),
     );
     summary.tenantCount = summary.byTenant.length;
 
@@ -211,8 +250,11 @@ export class LoyaltyAwardService {
       .andWhere('tx.bookingId IS NOT NULL');
 
     if (businessId) {
-      qb.innerJoin(LoyaltyAccount, 'account', 'account.id = tx.account_id')
-        .andWhere('account.business_id = :businessId', { businessId });
+      qb.innerJoin(
+        LoyaltyAccount,
+        'account',
+        'account.id = tx.account_id',
+      ).andWhere('account.business_id = :businessId', { businessId });
     }
 
     const transactions = await qb.getMany();
@@ -221,7 +263,7 @@ export class LoyaltyAwardService {
 
     for (const tx of transactions) {
       const booking = await this.bookingRepo.findOne({
-        where: { id: tx.bookingId! },
+        where: { id: tx.bookingId },
         relations: { service: true, business: true },
       });
       if (!booking || booking.paymentStatus !== PaymentStatus.PAID) {
@@ -229,16 +271,27 @@ export class LoyaltyAwardService {
         continue;
       }
 
-      if (isServiceExcludedFromLoyaltyEarn(booking.business?.settings, booking.serviceId)) {
+      if (
+        isServiceExcludedFromLoyaltyEarn(
+          booking.business?.settings,
+          booking.serviceId,
+        )
+      ) {
         const current = roundBonus(Number(tx.points));
         if (current > 0) {
           tx.points = 0;
           tx.note = 'Service excluded from bonus earn rate';
           await this.txRepo.save(tx);
-          const account = await this.accountRepo.findOne({ where: { id: tx.accountId } });
+          const account = await this.accountRepo.findOne({
+            where: { id: tx.accountId },
+          });
           if (account) {
-            account.pointsBalance = roundBonus(Math.max(0, account.pointsBalance - current));
-            account.lifetimeEarned = roundBonus(Math.max(0, account.lifetimeEarned - current));
+            account.pointsBalance = roundBonus(
+              Math.max(0, account.pointsBalance - current),
+            );
+            account.lifetimeEarned = roundBonus(
+              Math.max(0, account.lifetimeEarned - current),
+            );
             await this.accountRepo.save(account);
           }
           corrected += 1;
@@ -265,7 +318,9 @@ export class LoyaltyAwardService {
       tx.note = `Recalculated: ${earnPercent}% of $${cashPaid} cash paid → $${correct}`;
       await this.txRepo.save(tx);
 
-      const account = await this.accountRepo.findOne({ where: { id: tx.accountId } });
+      const account = await this.accountRepo.findOne({
+        where: { id: tx.accountId },
+      });
       if (account) {
         account.pointsBalance = roundBonus(account.pointsBalance + delta);
         account.lifetimeEarned = roundBonus(account.lifetimeEarned + delta);

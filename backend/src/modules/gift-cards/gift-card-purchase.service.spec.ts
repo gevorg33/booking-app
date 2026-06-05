@@ -20,10 +20,12 @@ describe('GiftCardPurchaseService', () => {
   };
   const claimService = { claimCard: jest.fn() };
   const customerService = {
-    findOrCreateByContact: jest.fn(async (_businessId: string, dto: { name: string; email: string }) => ({
-      customer: { id: 'cust-guest', name: dto.name, email: dto.email },
-      created: true,
-    })),
+    findOrCreateByContact: jest.fn(
+      async (_businessId: string, dto: { name: string; email: string }) => ({
+        customer: { id: 'cust-guest', name: dto.name, email: dto.email },
+        created: true,
+      }),
+    ),
   };
 
   const service = new GiftCardPurchaseService(
@@ -58,7 +60,9 @@ describe('GiftCardPurchaseService', () => {
             lines: [{ serviceId: 'svc-1', serviceName: 'Facial', quantity: 1 }],
           },
         ],
-        shippingMethods: [{ id: 'standard', label: 'Standard', fee: 5, estimatedDays: '5d' }],
+        shippingMethods: [
+          { id: 'standard', label: 'Standard', fee: 5, estimatedDays: '5d' },
+        ],
         cardCreatorStaffIds: ['emp-creator'],
         deliveryStaffIds: ['emp-driver'],
       },
@@ -69,10 +73,17 @@ describe('GiftCardPurchaseService', () => {
     jest.clearAllMocks();
     businessRepo.findOne.mockResolvedValue(business);
     giftCardRepo.create.mockImplementation((v) => v);
-    giftCardRepo.save.mockImplementation(async (v) => ({ id: 'order-1', ...v }));
+    giftCardRepo.save.mockImplementation(async (v) => ({
+      id: 'order-1',
+      ...v,
+    }));
     creditRepo.create.mockImplementation((v) => v);
     creditRepo.save.mockResolvedValue(undefined);
-    serviceRepo.findOne.mockResolvedValue({ id: 'svc-1', name: 'Facial', price: 45 });
+    serviceRepo.findOne.mockResolvedValue({
+      id: 'svc-1',
+      name: 'Facial',
+      price: 45,
+    });
     packagesService.getPublicPackage.mockResolvedValue(undefined);
     subscriptionsService.listPlans.mockResolvedValue([]);
   });
@@ -139,7 +150,10 @@ describe('GiftCardPurchaseService', () => {
   });
 
   it('rejects purchase when disabled', async () => {
-    businessRepo.findOne.mockResolvedValue({ ...business, settings: { giftCards: { purchaseEnabled: false } } });
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: { giftCards: { purchaseEnabled: false } },
+    });
     await expect(
       service.quotePurchase('biz-1', {
         cardType: 'monetary',
@@ -151,7 +165,10 @@ describe('GiftCardPurchaseService', () => {
   });
 
   it('returns disabled catalog when purchase is off', async () => {
-    businessRepo.findOne.mockResolvedValue({ id: 'biz-1', settings: { giftCards: { purchaseEnabled: false } } });
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { giftCards: { purchaseEnabled: false } },
+    });
     await expect(service.getPublicCatalog('biz-1')).resolves.toEqual({
       purchaseEnabled: false,
       settings: null,
@@ -170,12 +187,13 @@ describe('GiftCardPurchaseService', () => {
   });
 
   it('quotes multiple services as a bundle gift card', async () => {
-    serviceRepo.findOne.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve(
-        where.id === 'svc-1'
-          ? { id: 'svc-1', name: 'Facial', price: 45 }
-          : { id: 'svc-2', name: 'Massage', price: 30 },
-      ),
+    serviceRepo.findOne.mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.resolve(
+          where.id === 'svc-1'
+            ? { id: 'svc-1', name: 'Facial', price: 45 }
+            : { id: 'svc-2', name: 'Massage', price: 30 },
+        ),
     );
 
     const quote = await service.quotePurchase('biz-1', {
@@ -195,7 +213,9 @@ describe('GiftCardPurchaseService', () => {
 
   it('lists customer orders', async () => {
     giftCardRepo.find.mockResolvedValue([{ id: 'order-1' }]);
-    await expect(service.listCustomerOrders('biz-1', 'cust-1')).resolves.toHaveLength(1);
+    await expect(
+      service.listCustomerOrders('biz-1', 'cust-1'),
+    ).resolves.toHaveLength(1);
   });
 
   it('fulfills service gift card with credit line', async () => {
@@ -230,7 +250,12 @@ describe('GiftCardPurchaseService', () => {
 
     businessRepo.findOne.mockResolvedValue({
       ...business,
-      settings: { giftCards: { ...business.settings.giftCards, digitalDeliveryEnabled: false } },
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          digitalDeliveryEnabled: false,
+        },
+      },
     });
     await expect(
       service.quotePurchase('biz-1', {
@@ -281,7 +306,10 @@ describe('GiftCardPurchaseService', () => {
     businessRepo.findOne.mockResolvedValue({
       ...business,
       settings: {
-        giftCards: { ...business.settings.giftCards, physicalDeliveryEnabled: false },
+        giftCards: {
+          ...business.settings.giftCards,
+          physicalDeliveryEnabled: false,
+        },
       },
     });
     await expect(
@@ -294,16 +322,19 @@ describe('GiftCardPurchaseService', () => {
     ).rejects.toThrow('Physical delivery is not enabled');
 
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(
-      service.getPublicCatalog('missing'),
-    ).rejects.toThrow('Business not found');
+    await expect(service.getPublicCatalog('missing')).rejects.toThrow(
+      'Business not found',
+    );
   });
 
   it('hides shipping methods when physical delivery is off in catalog', async () => {
     businessRepo.findOne.mockResolvedValue({
       ...business,
       settings: {
-        giftCards: { ...business.settings.giftCards, physicalDeliveryEnabled: false },
+        giftCards: {
+          ...business.settings.giftCards,
+          physicalDeliveryEnabled: false,
+        },
       },
     });
     const catalog = await service.getPublicCatalog('biz-1');
@@ -396,7 +427,11 @@ describe('GiftCardPurchaseService', () => {
   });
 
   it('fulfills service card when service entity exists after quote validation', async () => {
-    serviceRepo.findOne.mockResolvedValue({ id: 'svc-1', name: 'Facial', price: 45 });
+    serviceRepo.findOne.mockResolvedValue({
+      id: 'svc-1',
+      name: 'Facial',
+      price: 45,
+    });
     const card = await service.fulfillPurchase('biz-1', {
       cardType: 'service',
       serviceId: 'svc-1',
@@ -437,7 +472,10 @@ describe('GiftCardPurchaseService', () => {
     expect(eventEmitter.emit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        payload: expect.objectContaining({ paymentMethod: 'cash', stripeSessionId: null }),
+        payload: expect.objectContaining({
+          paymentMethod: 'cash',
+          stripeSessionId: null,
+        }),
       }),
     );
   });
@@ -623,12 +661,20 @@ describe('GiftCardPurchaseService', () => {
     });
     businessRepo.findOne.mockResolvedValue({
       ...business,
-      settings: { giftCards: { ...business.settings.giftCards, purchasablePackages: [], purchasableSubscriptionPlans: [] } },
+      settings: {
+        giftCards: {
+          ...business.settings.giftCards,
+          purchasablePackages: [],
+          purchasableSubscriptionPlans: [],
+        },
+      },
     });
 
     const catalog = await service.getPublicCatalog('biz-1');
     expect(catalog.settings?.purchasablePackages).toHaveLength(1);
-    expect(catalog.settings?.purchasablePackages?.[0].name).toBe('haricut package');
+    expect(catalog.settings?.purchasablePackages?.[0].name).toBe(
+      'haricut package',
+    );
     expect(catalog.settings?.purchasableSubscriptionPlans).toHaveLength(1);
   });
 
@@ -640,7 +686,11 @@ describe('GiftCardPurchaseService', () => {
       items: [{ serviceName: 'Facial', quantity: 1 }],
     });
     subscriptionsService.listPlans.mockResolvedValue([
-      { id: 'plan-1', isActive: true, service: { name: 'Facial', currency: 'USD' } },
+      {
+        id: 'plan-1',
+        isActive: true,
+        service: { name: 'Facial', currency: 'USD' },
+      },
     ]);
     subscriptionsService.previewPlanPricing.mockResolvedValue({
       plan: {
@@ -677,7 +727,11 @@ describe('GiftCardPurchaseService', () => {
   it('skips unavailable catalog entries', async () => {
     packagesService.getPublicPackage.mockRejectedValue(new Error('gone'));
     subscriptionsService.listPlans.mockResolvedValue([
-      { id: 'plan-1', isActive: false, service: { name: 'Facial', currency: 'USD' } },
+      {
+        id: 'plan-1',
+        isActive: false,
+        service: { name: 'Facial', currency: 'USD' },
+      },
     ]);
     businessRepo.findOne.mockResolvedValue({
       ...business,

@@ -1,7 +1,9 @@
 import { BookingSlotResolverService } from './booking-slot-resolver.service.js';
 
 describe('BookingSlotResolverService.describeUnavailable', () => {
-  const resolver = Object.create(BookingSlotResolverService.prototype) as BookingSlotResolverService;
+  const resolver = Object.create(
+    BookingSlotResolverService.prototype,
+  ) as BookingSlotResolverService;
 
   it('explains provider not assigned to service', () => {
     const msg = resolver.describeUnavailable(

@@ -1,22 +1,20 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
-import { Sparkles, Zap } from 'lucide-react';
+import { Pencil, Play, Sparkles, Zap } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import api from '@/lib/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useOperationalEvents } from '@/lib/use-operational-events';
 import type { AiPageContext } from '@/lib/ai-orchestration';
+import type { AiSuggestion } from '@/lib/ai-client.types';
+import {
+  useAiSuggestions,
+  useContextualAiSuggestions,
+  useOrchestrixEvents,
+} from '@/lib/use-ai-suggestions';
+import { fireOrchestrixEdit, fireOrchestrixRun } from '@/lib/orchestrix-events';
 import { AiCollapsiblePanel } from '@/components/ai-suggestion-collapsible';
 import { useI18n } from '@/i18n';
 
-export interface AiSuggestion {
-  id: string;
-  priority: 'high' | 'medium' | 'low';
-  title: string;
-  prompt: string;
-  category: string;
-}
+export type { AiSuggestion };
+export { useOrchestrixEvents };
 
 const PRIORITY_COLOR = {
   high: 'border-red-500/30 bg-red-950/20',
@@ -24,57 +22,42 @@ const PRIORITY_COLOR = {
   low: 'border-gray-600 bg-gray-800/40',
 };
 
-const REFRESH_EVENT_TYPES = new Set([
-  'booking.created',
-  'booking.updated',
-  'booking.cancelled',
-  'booking.completed',
-  'booking.rescheduled',
-  'availability.updated',
-]);
-
-function useRefreshAiSuggestions(businessId: string | undefined) {
-  const queryClient = useQueryClient();
-
-  const onEvent = useCallback(
-    (type: string) => {
-      if (REFRESH_EVENT_TYPES.has(type)) {
-        queryClient.invalidateQueries({ queryKey: ['ai-suggestions', businessId] });
-      }
-    },
-    [businessId, queryClient],
-  );
-
-  useOperationalEvents(businessId, onEvent);
-}
-
-function fireOrchestrixPrompt(prompt: string) {
-  window.dispatchEvent(new CustomEvent('orchestrix:prompt', { detail: { prompt } }));
-  window.dispatchEvent(new CustomEvent('orchestrix:open'));
-}
-
 function OpportunityCards({
   suggestions,
   runLabel,
+  editLabel,
 }: {
   suggestions: AiSuggestion[];
   runLabel: string;
+  editLabel: string;
 }) {
   return (
     <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:items-start">
       {suggestions.map((s) => (
-        <button
+        <div
           key={s.id}
-          type="button"
-          onClick={() => fireOrchestrixPrompt(s.prompt)}
-          className={`cursor-pointer rounded-md border px-2.5 py-2 text-left transition-colors hover:border-violet-500/50 ${PRIORITY_COLOR[s.priority]}`}
+          className={`rounded-md border px-2.5 py-2 text-left ${PRIORITY_COLOR[s.priority]}`}
         >
           <p className="text-sm font-medium leading-snug text-gray-200">{s.title}</p>
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-none text-gray-500">
-            <Sparkles className="h-3 w-3 shrink-0" />
-            {runLabel}
-          </p>
-        </button>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => fireOrchestrixRun(s.prompt, true)}
+              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-violet-200 bg-violet-600/30 hover:bg-violet-600/50 transition-colors"
+            >
+              <Play className="h-3 w-3 shrink-0" />
+              {runLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => fireOrchestrixEdit(s.prompt)}
+              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-gray-400 hover:text-gray-200 bg-gray-800/60 hover:bg-gray-800 transition-colors"
+            >
+              <Pencil className="h-3 w-3 shrink-0" />
+              {editLabel}
+            </button>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -83,18 +66,7 @@ function OpportunityCards({
 export function AiProactiveSuggestions() {
   const { t } = useI18n();
   const { business } = useAuthStore();
-
-  const { data: suggestions = [] } = useQuery({
-    queryKey: ['ai-suggestions', business?.id],
-    queryFn: async () => {
-      const { data } = await api.get(`/businesses/${business!.id}/ai/suggestions`);
-      return (data.data ?? data ?? []) as AiSuggestion[];
-    },
-    enabled: !!business?.id,
-    staleTime: 60_000,
-  });
-
-  useRefreshAiSuggestions(business?.id);
+  const { data: suggestions = [] } = useAiSuggestions(business?.id);
 
   if (suggestions.length === 0) return null;
 
@@ -105,7 +77,11 @@ export function AiProactiveSuggestions() {
       className="border-violet-500/25"
       defaultOpen={false}
     >
-      <OpportunityCards suggestions={suggestions} runLabel={t('ai.runWithAi')} />
+      <OpportunityCards
+        suggestions={suggestions}
+        runLabel={t('ai.suggestionRun')}
+        editLabel={t('ai.suggestionEdit')}
+      />
     </AiCollapsiblePanel>
   );
 }
@@ -124,24 +100,7 @@ export function AiContextualSuggestions({
   const { business } = useAuthStore();
   const route = context.route ?? '';
 
-  const { data: suggestions = [] } = useQuery({
-    queryKey: ['ai-suggestions', business?.id, route, context.scheduleTab, context.viewMode],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (context.route) params.set('route', context.route);
-      if (context.scheduleTab) params.set('scheduleTab', context.scheduleTab);
-      if (context.viewMode) params.set('viewMode', context.viewMode);
-      const qs = params.toString();
-      const { data } = await api.get(
-        `/businesses/${business!.id}/ai/suggestions${qs ? `?${qs}` : ''}`,
-      );
-      return (data.data ?? data ?? []) as AiSuggestion[];
-    },
-    enabled: !!business?.id && !!route,
-    staleTime: 60_000,
-  });
-
-  useRefreshAiSuggestions(business?.id);
+  const { data: suggestions = [] } = useContextualAiSuggestions(business?.id, context);
 
   if (suggestions.length === 0) return null;
 
@@ -152,27 +111,11 @@ export function AiContextualSuggestions({
       className="border-violet-500/20 bg-gradient-to-br from-violet-950/15 to-gray-900/30"
       defaultOpen={false}
     >
-      <OpportunityCards suggestions={suggestions} runLabel={t('ai.runWithAi')} />
+      <OpportunityCards
+        suggestions={suggestions}
+        runLabel={t('ai.suggestionRun')}
+        editLabel={t('ai.suggestionEdit')}
+      />
     </AiCollapsiblePanel>
   );
-}
-
-export function useOrchestrixEvents(handlers: {
-  onPrompt?: (prompt: string) => void;
-  onOpen?: () => void;
-}) {
-  useEffect(() => {
-    const onPrompt = (e: Event) => {
-      const prompt = (e as CustomEvent<{ prompt: string }>).detail?.prompt;
-      if (prompt && handlers.onPrompt) handlers.onPrompt(prompt);
-    };
-    const onOpen = () => handlers.onOpen?.();
-
-    window.addEventListener('orchestrix:prompt', onPrompt);
-    window.addEventListener('orchestrix:open', onOpen);
-    return () => {
-      window.removeEventListener('orchestrix:prompt', onPrompt);
-      window.removeEventListener('orchestrix:open', onOpen);
-    };
-  }, [handlers.onPrompt, handlers.onOpen]);
 }

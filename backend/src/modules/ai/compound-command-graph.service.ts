@@ -4,7 +4,11 @@ import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
-import { inferDirectSchedulePeriods, resolveAutoExecute, sanitizeProviderScopeFromPrompt } from './ai-orchestration.helpers.js';
+import {
+  inferDirectSchedulePeriods,
+  resolveAutoExecute,
+  sanitizeProviderScopeFromPrompt,
+} from './ai-orchestration.helpers.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -12,6 +16,7 @@ import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
+import { mergeCompoundStepParams } from './ai-command-entity-params.util.js';
 
 export interface CompoundGraphCatalog {
   employees: Employee[];
@@ -41,7 +46,9 @@ export interface CompoundGraphInput {
     employeeId: string | undefined,
     pendingCancelBookingIds?: string[],
   ) => Promise<AgentPlan | null>;
-  toCommandResult: (orch: Awaited<ReturnType<CommandOrchestrationService['executePlan']>>) => CommandResult;
+  toCommandResult: (
+    orch: Awaited<ReturnType<CommandOrchestrationService['executePlan']>>,
+  ) => CommandResult;
   executeReadOnlySubIntent?: (
     action: string,
     params: Record<string, any>,
@@ -174,7 +181,8 @@ export class CompoundCommandGraphService {
       .addEdge(START, 'process_sub_intent')
       .addConditionalEdges('process_sub_intent', (state) => {
         if (state.error) return END;
-        if (state.currentIndex < state.subIntents.length) return 'process_sub_intent';
+        if (state.currentIndex < state.subIntents.length)
+          return 'process_sub_intent';
         return 'merge_and_execute';
       })
       .addEdge('merge_and_execute', END)
@@ -187,32 +195,68 @@ export class CompoundCommandGraphService {
       return { currentIndex: state.currentIndex };
     }
 
+    const sessionMerged = this.completionPipeline.mergeSessionContext(
+      sub.params,
+      { ...state.sessionContext, timeZone: state.timeZone },
+      sub.action,
+    );
     const parsedParams: Record<string, any> = {
-      ...this.completionPipeline.mergeSessionContext(
-        sub.params,
-        { ...state.sessionContext, timeZone: state.timeZone },
+      ...mergeCompoundStepParams(
+        state.sessionContext,
+        sessionMerged,
         sub.action,
       ),
       _timeZone: state.timeZone,
     };
 
-    const parsed = { action: sub.action, params: parsedParams, reasoning: sub.reasoning };
+    const parsed = {
+      action: sub.action,
+      params: parsedParams,
+      reasoning: sub.reasoning,
+    };
 
-    this.applyScheduleScope(state.prompt, parsedParams, parsed.action, state.catalog.employees);
-    this.completionPipeline.normalizeDateParams(parsedParams, state.prompt, state.timeZone);
+    this.applyScheduleScope(
+      state.prompt,
+      parsedParams,
+      parsed.action,
+      state.catalog.employees,
+    );
+    this.completionPipeline.normalizeDateParams(
+      parsedParams,
+      state.prompt,
+      state.timeZone,
+    );
 
     if (parsed.action === 'reschedule_booking') {
-      this.completionPipeline.finalizeRescheduleParams(parsedParams, state.prompt, state.timeZone);
+      this.completionPipeline.finalizeRescheduleParams(
+        parsedParams,
+        state.prompt,
+        state.timeZone,
+      );
     } else if (this.isScheduleMutating(parsed.action)) {
-      this.completionPipeline.enrichDateRangeParams(parsedParams, state.prompt, state.timeZone);
-      this.completionPipeline.normalizeDateParams(parsedParams, state.prompt, state.timeZone);
+      this.completionPipeline.enrichDateRangeParams(
+        parsedParams,
+        state.prompt,
+        state.timeZone,
+      );
+      this.completionPipeline.normalizeDateParams(
+        parsedParams,
+        state.prompt,
+        state.timeZone,
+      );
     }
 
     if (parsed.action === 'create_direct_schedule') {
-      parsedParams.periods = inferDirectSchedulePeriods(parsedParams, state.prompt);
+      parsedParams.periods = inferDirectSchedulePeriods(
+        parsedParams,
+        state.prompt,
+      );
     }
 
-    if (parsed.action === 'hide_appointments_from_calendar' && state.pendingCancelBookingIds.length) {
+    if (
+      parsed.action === 'hide_appointments_from_calendar' &&
+      state.pendingCancelBookingIds.length
+    ) {
       parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
     }
 
@@ -227,7 +271,10 @@ export class CompoundCommandGraphService {
     if (shouldValidateAction(parsed.action)) {
       const validation = this.completionPipeline.validate(resolved);
       if (!validation.ok) {
-        const clarify = this.completionPipeline.toClarifyResult(resolved, validation);
+        const clarify = this.completionPipeline.toClarifyResult(
+          resolved,
+          validation,
+        );
         clarify.details.pipelineTrace = state.pipelineTrace;
         clarify.details.compoundStep = parsed.action;
         return { error: clarify };
@@ -267,9 +314,12 @@ export class CompoundCommandGraphService {
     if (plan) {
       plans.push(plan);
       if (parsed.action === 'cancel_bookings') {
-        const cancelStep = plan.steps.find((s) => s.action === 'cancel_bookings');
+        const cancelStep = plan.steps.find(
+          (s) => s.action === 'cancel_bookings',
+        );
         pendingCancelBookingIds =
-          (cancelStep?.params?.bookingIds as string[] | undefined) ?? pendingCancelBookingIds;
+          (cancelStep?.params?.bookingIds as string[] | undefined) ??
+          pendingCancelBookingIds;
       }
     } else if (
       READ_ONLY_COMPOUND_ACTIONS.has(parsed.action) &&
@@ -286,7 +336,11 @@ export class CompoundCommandGraphService {
           pendingCancelBookingIds,
           pipelineTrace: [
             ...state.pipelineTrace,
-            this.completionPipeline.trace('execute', parsed.action, readResult.summary),
+            this.completionPipeline.trace(
+              'execute',
+              parsed.action,
+              readResult.summary,
+            ),
           ],
           readOnlySummaries: [...state.readOnlySummaries, readResult.summary],
         };
@@ -298,7 +352,11 @@ export class CompoundCommandGraphService {
         pendingCancelBookingIds,
         pipelineTrace: [
           ...state.pipelineTrace,
-          this.completionPipeline.trace('resolve', parsed.action, 'Could not build plan for step'),
+          this.completionPipeline.trace(
+            'resolve',
+            parsed.action,
+            'Could not build plan for step',
+          ),
         ],
         skippedSteps: [...state.skippedSteps, parsed.action],
       };
@@ -343,15 +401,24 @@ export class CompoundCommandGraphService {
             state.skippedSteps.length > 0
               ? `Could not build a plan. Skipped steps: ${state.skippedSteps.join(', ')}.`
               : 'Could not build a plan from the compound command.',
-          details: { subIntents: state.subIntents, skippedSteps: state.skippedSteps },
+          details: {
+            subIntents: state.subIntents,
+            skippedSteps: state.skippedSteps,
+          },
         },
       };
     }
 
-    const merged = this.planBuilder.mergePlans(state.businessId, 'compound_intent', state.plans);
+    const merged = this.planBuilder.mergePlans(
+      state.businessId,
+      'compound_intent',
+      state.plans,
+    );
     const providerCount =
       new Set(
-        merged.steps.map((s) => s.params?.employeeId as string | undefined).filter(Boolean),
+        merged.steps
+          .map((s) => s.params?.employeeId as string | undefined)
+          .filter(Boolean),
       ).size || 1;
 
     const orch = await this.orchestration.executePlan({
@@ -369,7 +436,9 @@ export class CompoundCommandGraphService {
 
     const result = this.toCommandResultFn(orch);
     if (state.readOnlySummaries.length) {
-      result.summary = [result.summary, ...state.readOnlySummaries].filter(Boolean).join('\n\n');
+      result.summary = [result.summary, ...state.readOnlySummaries]
+        .filter(Boolean)
+        .join('\n\n');
     }
     result.details = {
       ...result.details,
@@ -377,7 +446,9 @@ export class CompoundCommandGraphService {
       subIntents: state.subIntents.map((s) => s.action),
       decomposed: true,
       langGraphPath: 'compound',
-      readOnlySummaries: state.readOnlySummaries.length ? state.readOnlySummaries : undefined,
+      readOnlySummaries: state.readOnlySummaries.length
+        ? state.readOnlySummaries
+        : undefined,
       skippedSteps: state.skippedSteps.length ? state.skippedSteps : undefined,
     };
 

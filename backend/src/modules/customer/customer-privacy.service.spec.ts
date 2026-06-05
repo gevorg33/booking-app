@@ -6,7 +6,10 @@ import type { Booking } from '../booking/entities/booking.entity.js';
 describe('CustomerPrivacyService', () => {
   const customerRepo = { findOne: jest.fn(), save: jest.fn() };
   const bookingRepo = { find: jest.fn() };
-  const service = new CustomerPrivacyService(customerRepo as any, bookingRepo as any);
+  const service = new CustomerPrivacyService(
+    customerRepo as any,
+    bookingRepo as any,
+  );
 
   const customer = {
     id: 'cust-1',
@@ -17,7 +20,10 @@ describe('CustomerPrivacyService', () => {
     tags: ['vip'],
     isVip: true,
     isActive: true,
-    metadata: { gdpr: { marketingOptIn: true }, notifications: { emailReminders: true } },
+    metadata: {
+      gdpr: { marketingOptIn: true },
+      notifications: { emailReminders: true },
+    },
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-02'),
   } as Customer;
@@ -32,11 +38,17 @@ describe('CustomerPrivacyService', () => {
   });
 
   it('applyConsent records marketing opt-in only', () => {
-    const updated = service.applyConsent({ ...customer, metadata: { ...customer.metadata } }, {
+    const updated = service.applyConsent(
+      { ...customer, metadata: { ...customer.metadata } },
+      {
+        marketingOptIn: false,
+        source: 'account',
+      },
+    );
+    expect(updated.metadata.gdpr).toMatchObject({
       marketingOptIn: false,
       source: 'account',
     });
-    expect(updated.metadata.gdpr).toMatchObject({ marketingOptIn: false, source: 'account' });
   });
 
   it('exportCustomerData returns profile and bookings', async () => {
@@ -61,7 +73,9 @@ describe('CustomerPrivacyService', () => {
 
   it('exportCustomerData throws when customer missing', async () => {
     customerRepo.findOne.mockResolvedValue(null);
-    await expect(service.exportCustomerData('biz-1', 'x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.exportCustomerData('biz-1', 'x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('deleteCustomerData anonymizes customer', async () => {
@@ -81,7 +95,9 @@ describe('CustomerPrivacyService', () => {
 
   it('deleteCustomerData throws when customer missing', async () => {
     customerRepo.findOne.mockResolvedValue(null);
-    await expect(service.deleteCustomerData('biz-1', 'x')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.deleteCustomerData('biz-1', 'x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('export includes null optional fields', async () => {

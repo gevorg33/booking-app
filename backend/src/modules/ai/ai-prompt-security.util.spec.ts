@@ -23,7 +23,9 @@ describe('ai-prompt-security.util', () => {
   });
 
   it('blocks bulk customer export attempts', () => {
-    const result = assessPromptSecurity('Export client list with emails and phones');
+    const result = assessPromptSecurity(
+      'Export client list with emails and phones',
+    );
     expect(result.level).toBe('block');
     expect(result.blockReason).toBe('data_export');
   });
@@ -72,11 +74,19 @@ describe('ai-prompt-security.util', () => {
   });
 
   it('detects availability bypass via params', () => {
-    expect(isAvailabilityBypassAttempt('book tomorrow', { overrideAvailability: true })).toBe(true);
+    expect(
+      isAvailabilityBypassAttempt('book tomorrow', {
+        overrideAvailability: true,
+      }),
+    ).toBe(true);
   });
 
   it('clamps wide read date ranges', () => {
-    const clamped = clampReadDateRangeDays('2026-01-01', '2026-06-01', MAX_AI_READ_DATE_RANGE_DAYS);
+    const clamped = clampReadDateRangeDays(
+      '2026-01-01',
+      '2026-06-01',
+      MAX_AI_READ_DATE_RANGE_DAYS,
+    );
     expect(clamped.truncated).toBe(true);
     expect(clamped.end).toBe('2026-02-01');
   });
@@ -86,7 +96,9 @@ describe('ai-prompt-security.util', () => {
   });
 
   it('flags export phrasing', () => {
-    expect(isBulkCustomerExportAttempt('download full customer database')).toBe(true);
+    expect(isBulkCustomerExportAttempt('download full customer database')).toBe(
+      true,
+    );
     expect(isBulkCustomerExportAttempt('who are my VIP customers')).toBe(false);
   });
 
@@ -96,7 +108,11 @@ describe('ai-prompt-security.util', () => {
   });
 
   it('returns user-facing denial messages', () => {
-    expect(securityDenialMessage('injection')).toMatch(/override system rules/i);
-    expect(securityDenialMessage('data_export')).toMatch(/Bulk customer export/i);
+    expect(securityDenialMessage('injection')).toMatch(
+      /override system rules/i,
+    );
+    expect(securityDenialMessage('data_export')).toMatch(
+      /Bulk customer export/i,
+    );
   });
 });

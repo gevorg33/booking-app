@@ -32,19 +32,27 @@ export class WorkflowExecutorService {
     this.stepExecutors.set(action, executor);
   }
 
-  async runStep(step: WorkflowStep, context: Record<string, any>): Promise<any> {
+  async runStep(
+    step: WorkflowStep,
+    context: Record<string, any>,
+  ): Promise<any> {
     const executor = this.stepExecutors.get(this.resolveAction(step.action));
     if (!executor) {
       throw new Error(`No executor for action: ${step.action}`);
     }
     const enrichedStep = {
       ...step,
-      params: { ...step.params, businessId: step.params.businessId ?? context.businessId },
+      params: {
+        ...step.params,
+        businessId: step.params.businessId ?? context.businessId,
+      },
     };
     return executor(enrichedStep, context);
   }
 
-  async executeWorkflow(definition: WorkflowDefinition): Promise<WorkflowExecutionResult> {
+  async executeWorkflow(
+    definition: WorkflowDefinition,
+  ): Promise<WorkflowExecutionResult> {
     const correlationId = crypto.randomUUID();
 
     const execution = this.executionRepo.create({
@@ -71,7 +79,7 @@ export class WorkflowExecutorService {
 
     try {
       const result = await this.executeSteps(execution, definition.steps);
-      
+
       execution.status = WorkflowStatus.COMPLETED;
       execution.completedAt = new Date();
       await this.executionRepo.save(execution);
@@ -128,7 +136,8 @@ export class WorkflowExecutorService {
 
     while (completed.size < steps.length) {
       const ready = steps.filter(
-        (s) => !completed.has(s.id) && s.dependsOn.every((d) => completed.has(d)),
+        (s) =>
+          !completed.has(s.id) && s.dependsOn.every((d) => completed.has(d)),
       );
 
       if (ready.length === 0 && completed.size < steps.length) {
@@ -162,7 +171,10 @@ export class WorkflowExecutorService {
     context: Record<string, any>,
   ): Promise<void> {
     const startedAt = new Date();
-    execution.stepResults[step.id] = { status: StepStatus.RUNNING, startedAt: startedAt.toISOString() };
+    execution.stepResults[step.id] = {
+      status: StepStatus.RUNNING,
+      startedAt: startedAt.toISOString(),
+    };
     await this.executionRepo.save(execution);
 
     const executor = this.stepExecutors.get(this.resolveAction(step.action));
@@ -211,7 +223,10 @@ export class WorkflowExecutorService {
 
         if (attempt < maxRetries) {
           await new Promise((resolve) =>
-            setTimeout(resolve, (step.retryPolicy?.backoffMs || 1000) * (attempt + 1)),
+            setTimeout(
+              resolve,
+              (step.retryPolicy?.backoffMs || 1000) * (attempt + 1),
+            ),
           );
         }
       }
@@ -227,7 +242,11 @@ export class WorkflowExecutorService {
           };
           await this.executionRepo.save(execution);
           await compensator(
-            { ...step, action: step.compensationAction, params: step.compensationParams || {} },
+            {
+              ...step,
+              action: step.compensationAction,
+              params: step.compensationParams || {},
+            },
             context,
           );
           execution.stepResults[step.id] = {
@@ -238,7 +257,9 @@ export class WorkflowExecutorService {
           };
           await this.executionRepo.save(execution);
         } catch (compError: any) {
-          this.logger.error(`Compensation for step ${step.id} failed: ${compError.message}`);
+          this.logger.error(
+            `Compensation for step ${step.id} failed: ${compError.message}`,
+          );
         }
       }
     }
@@ -257,10 +278,17 @@ export class WorkflowExecutorService {
     return this.executionRepo.findOne({ where: { id } });
   }
 
-  async getExecutions(businessId: string, status?: WorkflowStatus): Promise<WorkflowExecution[]> {
+  async getExecutions(
+    businessId: string,
+    status?: WorkflowStatus,
+  ): Promise<WorkflowExecution[]> {
     const where: any = { businessId };
     if (status) where.status = status;
-    return this.executionRepo.find({ where, order: { startedAt: 'DESC' }, take: 50 });
+    return this.executionRepo.find({
+      where,
+      order: { startedAt: 'DESC' },
+      take: 50,
+    });
   }
 
   /** Map LLM-generated action names to registered executors. */

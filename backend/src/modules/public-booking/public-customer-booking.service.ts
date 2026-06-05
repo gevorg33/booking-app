@@ -79,8 +79,16 @@ export class PublicCustomerBookingService {
     settings: CustomerSelfServiceSettings,
     reviewBookingIds: Set<string>,
   ): PublicCustomerBookingItem {
-    const cancelPolicy = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
-    const reschedulePolicy = evaluateCustomerBookingPolicy(booking, settings, 'reschedule');
+    const cancelPolicy = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'cancel',
+    );
+    const reschedulePolicy = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'reschedule',
+    );
 
     return {
       id: booking.id,
@@ -93,14 +101,15 @@ export class PublicCustomerBookingService {
       employeeId: booking.employeeId,
       serviceId: booking.serviceId,
       canReview:
-        booking.status === BookingStatus.COMPLETED && !reviewBookingIds.has(booking.id),
+        booking.status === BookingStatus.COMPLETED &&
+        !reviewBookingIds.has(booking.id),
       canCancel: cancelPolicy.allowed,
       canReschedule: reschedulePolicy.allowed,
       policyMessage: cancelPolicy.allowed
         ? reschedulePolicy.allowed
           ? null
-          : reschedulePolicy.reason ?? null
-        : cancelPolicy.reason ?? null,
+          : (reschedulePolicy.reason ?? null)
+        : (cancelPolicy.reason ?? null),
       rescheduleCount: readRescheduleCount(booking.metadata),
       maxReschedules: settings.maxReschedulesPerBooking,
       allowProviderChangeOnReschedule: settings.allowProviderChangeOnReschedule,
@@ -166,7 +175,9 @@ export class PublicCustomerBookingService {
     bookingId: string,
     dto: PublicCustomerReschedulePackageVisitDto,
   ): Promise<{ bookings: Booking[]; previousStartTime: string }> {
-    return this.reschedulePackageVisitInternal(slug, bookingId, dto, { customerId });
+    return this.reschedulePackageVisitInternal(slug, bookingId, dto, {
+      customerId,
+    });
   }
 
   async reschedulePackageVisitWithToken(
@@ -183,12 +194,20 @@ export class PublicCustomerBookingService {
     bookingId: string,
     auth: { customerId?: string; token?: string },
   ): Promise<PublicPackageVisitSummary> {
-    const { booking, settings } = await this.loadBookingForAction(slug, bookingId, auth);
+    const { booking, settings } = await this.loadBookingForAction(
+      slug,
+      bookingId,
+      auth,
+    );
     const visit = await this.loadPackageVisitBookings(booking);
     return this.buildPackageVisitSummary(visit, settings);
   }
 
-  async getManageContext(slug: string, bookingId: string, token: string): Promise<PublicBookingManageContext> {
+  async getManageContext(
+    slug: string,
+    bookingId: string,
+    token: string,
+  ): Promise<PublicBookingManageContext> {
     const business = await this.resolveBusiness(slug);
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId: business.id },
@@ -200,9 +219,18 @@ export class PublicCustomerBookingService {
     }
 
     const settings = resolveCustomerSelfServiceSettings(business.settings);
-    const cancelPolicy = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
-    const reschedulePolicy = evaluateCustomerBookingPolicy(booking, settings, 'reschedule');
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const cancelPolicy = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'cancel',
+    );
+    const reschedulePolicy = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'reschedule',
+    );
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const packageVisit = isPackageVisitBooking(booking)
       ? await this.buildPackageVisitSummary(
           await this.loadPackageVisitBookings(booking),
@@ -224,7 +252,10 @@ export class PublicCustomerBookingService {
       canCancel: packageVisit?.canCancelAll ?? cancelPolicy.allowed,
       canReschedule: packageVisit?.canRescheduleAll ?? reschedulePolicy.allowed,
       policyMessage:
-        packageVisit?.policyMessage ?? cancelPolicy.reason ?? reschedulePolicy.reason ?? null,
+        packageVisit?.policyMessage ??
+        cancelPolicy.reason ??
+        reschedulePolicy.reason ??
+        null,
       manageUrl: buildBookingManageUrl(frontendUrl, slug, booking.id, token),
       allowProviderChangeOnReschedule: settings.allowProviderChangeOnReschedule,
       rescheduleCount: readRescheduleCount(booking.metadata),
@@ -238,10 +269,16 @@ export class PublicCustomerBookingService {
     bookingId: string,
     auth: { customerId?: string; token?: string },
   ): Promise<{ booking: Booking }> {
-    const { booking, settings } = await this.loadBookingForAction(slug, bookingId, auth);
+    const { booking, settings } = await this.loadBookingForAction(
+      slug,
+      bookingId,
+      auth,
+    );
     const policy = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
     if (!policy.allowed) {
-      throw new ForbiddenException(policy.reason ?? 'Cancellation is not allowed');
+      throw new ForbiddenException(
+        policy.reason ?? 'Cancellation is not allowed',
+      );
     }
 
     const actorId = this.actorUserId(booking, auth.customerId);
@@ -251,8 +288,14 @@ export class PublicCustomerBookingService {
       actorId,
     );
 
-    await this.notificationsService.sendBookingCancellation(booking.id, 'Cancelled by customer');
-    await this.notificationsService.sendBusinessCustomerBookingChange(booking.id, 'cancelled');
+    await this.notificationsService.sendBookingCancellation(
+      booking.id,
+      'Cancelled by customer',
+    );
+    await this.notificationsService.sendBusinessCustomerBookingChange(
+      booking.id,
+      'cancelled',
+    );
 
     return { booking: cancelled };
   }
@@ -263,10 +306,20 @@ export class PublicCustomerBookingService {
     dto: PublicCustomerRescheduleBookingDto,
     auth: { customerId?: string; token?: string },
   ): Promise<{ booking: Booking; previousStartTime: string }> {
-    const { booking, settings } = await this.loadBookingForAction(slug, bookingId, auth);
-    const policy = evaluateCustomerBookingPolicy(booking, settings, 'reschedule');
+    const { booking, settings } = await this.loadBookingForAction(
+      slug,
+      bookingId,
+      auth,
+    );
+    const policy = evaluateCustomerBookingPolicy(
+      booking,
+      settings,
+      'reschedule',
+    );
     if (!policy.allowed) {
-      throw new ForbiddenException(policy.reason ?? 'Rescheduling is not allowed');
+      throw new ForbiddenException(
+        policy.reason ?? 'Rescheduling is not allowed',
+      );
     }
 
     const previousStartTime = booking.startTime.toISOString();
@@ -275,7 +328,9 @@ export class PublicCustomerBookingService {
       requestedEmployeeId !== booking.employeeId &&
       !settings.allowProviderChangeOnReschedule
     ) {
-      throw new BadRequestException('Changing provider is not allowed for this booking');
+      throw new BadRequestException(
+        'Changing provider is not allowed for this booking',
+      );
     }
 
     const actorId = this.actorUserId(booking, auth.customerId);
@@ -292,10 +347,14 @@ export class PublicCustomerBookingService {
       actorId,
     );
 
-    await this.notificationsService.sendBusinessCustomerBookingChange(booking.id, 'rescheduled', {
-      previousStartTime,
-      newStartTime: updated.startTime.toISOString(),
-    });
+    await this.notificationsService.sendBusinessCustomerBookingChange(
+      booking.id,
+      'rescheduled',
+      {
+        previousStartTime,
+        newStartTime: updated.startTime.toISOString(),
+      },
+    );
 
     return { booking: updated, previousStartTime };
   }
@@ -305,16 +364,24 @@ export class PublicCustomerBookingService {
     bookingId: string,
     auth: { customerId?: string; token?: string },
   ): Promise<{ bookings: Booking[] }> {
-    const { booking, settings } = await this.loadBookingForAction(slug, bookingId, auth);
+    const { booking, settings } = await this.loadBookingForAction(
+      slug,
+      bookingId,
+      auth,
+    );
     const visit = await this.loadPackageVisitBookings(booking);
     const policy = evaluatePackageVisitPolicy(visit, settings);
     if (!policy.canCancelAll) {
-      throw new ForbiddenException(policy.policyMessage ?? 'Cancellation is not allowed for this visit');
+      throw new ForbiddenException(
+        policy.policyMessage ?? 'Cancellation is not allowed for this visit',
+      );
     }
 
     const actorId = this.actorUserId(booking, auth.customerId);
     const cancelled: Booking[] = [];
-    for (const item of visit.filter((b) => PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status))) {
+    for (const item of visit.filter((b) =>
+      PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status),
+    )) {
       const result = await this.bookingService.cancel(
         item.id,
         'Cancelled by customer (package visit)',
@@ -324,7 +391,10 @@ export class PublicCustomerBookingService {
         item.id,
         'Cancelled by customer (package visit)',
       );
-      await this.notificationsService.sendBusinessCustomerBookingChange(item.id, 'cancelled');
+      await this.notificationsService.sendBusinessCustomerBookingChange(
+        item.id,
+        'cancelled',
+      );
       cancelled.push(result);
     }
 
@@ -337,24 +407,39 @@ export class PublicCustomerBookingService {
     dto: PublicCustomerReschedulePackageVisitDto,
     auth: { customerId?: string; token?: string },
   ): Promise<{ bookings: Booking[]; previousStartTime: string }> {
-    const { booking, business, settings } = await this.loadBookingForAction(slug, bookingId, auth);
+    const { booking, business, settings } = await this.loadBookingForAction(
+      slug,
+      bookingId,
+      auth,
+    );
     const visit = await this.loadPackageVisitBookings(booking);
-    const active = visit.filter((b) => PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status));
+    const active = visit.filter((b) =>
+      PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status),
+    );
     const policy = evaluatePackageVisitPolicy(visit, settings);
     if (!policy.canRescheduleAll) {
-      throw new ForbiddenException(policy.policyMessage ?? 'Rescheduling is not allowed for this visit');
+      throw new ForbiddenException(
+        policy.policyMessage ?? 'Rescheduling is not allowed for this visit',
+      );
     }
 
     if (dto.lines.length !== active.length) {
-      throw new BadRequestException('Provide a new time for each appointment in this package visit');
+      throw new BadRequestException(
+        'Provide a new time for each appointment in this package visit',
+      );
     }
 
-    const msSettings = this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    const msSettings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
     const orderedServices = toPackageServiceLines(active);
     let lineInputs;
     try {
       lineInputs = toPackageLineInputs(active, dto.lines);
-      validatePackageSameDayBlock(orderedServices, lineInputs, msSettings.turnoverBufferMinutes);
+      validatePackageSameDayBlock(
+        orderedServices,
+        lineInputs,
+        msSettings.turnoverBufferMinutes,
+      );
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
@@ -376,7 +461,9 @@ export class PublicCustomerBookingService {
       msSettings.turnoverBufferMinutes,
     );
     if (sequential.length !== active.length) {
-      throw new BadRequestException('Could not build the package visit schedule for this time');
+      throw new BadRequestException(
+        'Could not build the package visit schedule for this time',
+      );
     }
     const blockEnd = sequential[sequential.length - 1].endTime;
     await this.bookingService.validateMultiServiceBlockFits(
@@ -396,7 +483,9 @@ export class PublicCustomerBookingService {
         requestedEmployeeId !== item.employeeId &&
         !settings.allowProviderChangeOnReschedule
       ) {
-        throw new BadRequestException('Changing provider is not allowed for this booking');
+        throw new BadRequestException(
+          'Changing provider is not allowed for this booking',
+        );
       }
     }
 
@@ -414,10 +503,14 @@ export class PublicCustomerBookingService {
       actorId,
     );
 
-    await this.notificationsService.sendBusinessCustomerBookingChange(booking.id, 'rescheduled', {
-      previousStartTime,
-      newStartTime: updated[0]?.startTime.toISOString(),
-    });
+    await this.notificationsService.sendBusinessCustomerBookingChange(
+      booking.id,
+      'rescheduled',
+      {
+        previousStartTime,
+        newStartTime: updated[0]?.startTime.toISOString(),
+      },
+    );
 
     return { bookings: updated, previousStartTime };
   }
@@ -445,10 +538,19 @@ export class PublicCustomerBookingService {
     return {
       packagePurchaseId: anchor.packagePurchaseId!,
       packageId: readPackageIdFromMetadata(anchor.metadata),
-      packageName: readPackageNameFromMetadata(anchor.metadata) ?? 'Package visit',
+      packageName:
+        readPackageNameFromMetadata(anchor.metadata) ?? 'Package visit',
       appointments: visit.map((booking) => {
-        const cancelPolicy = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
-        const reschedulePolicy = evaluateCustomerBookingPolicy(booking, settings, 'reschedule');
+        const cancelPolicy = evaluateCustomerBookingPolicy(
+          booking,
+          settings,
+          'cancel',
+        );
+        const reschedulePolicy = evaluateCustomerBookingPolicy(
+          booking,
+          settings,
+          'reschedule',
+        );
         return {
           bookingId: booking.id,
           serviceId: booking.serviceId,
@@ -475,7 +577,11 @@ export class PublicCustomerBookingService {
     slug: string,
     bookingId: string,
     auth: { customerId?: string; token?: string },
-  ): Promise<{ booking: Booking; business: Business; settings: CustomerSelfServiceSettings }> {
+  ): Promise<{
+    booking: Booking;
+    business: Business;
+    settings: CustomerSelfServiceSettings;
+  }> {
     const business = await this.resolveBusiness(slug);
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId: business.id },

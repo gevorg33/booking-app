@@ -14,7 +14,8 @@ export interface TenantContactExclude {
 @Injectable()
 export class TenantMemberContactService {
   constructor(
-    @InjectRepository(BusinessMember) private memberRepo: Repository<BusinessMember>,
+    @InjectRepository(BusinessMember)
+    private memberRepo: Repository<BusinessMember>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
@@ -28,7 +29,10 @@ export class TenantMemberContactService {
   }
 
   /** Block invite when email already belongs to a workspace member (not a customer). */
-  async assertEmailAvailableForInvite(businessId: string, email: string): Promise<void> {
+  async assertEmailAvailableForInvite(
+    businessId: string,
+    email: string,
+  ): Promise<void> {
     const normalized = this.normalizeEmail(email);
 
     const user = await this.userRepo.findOne({ where: { email: normalized } });
@@ -58,7 +62,7 @@ export class TenantMemberContactService {
 
     if (employeesWithEmail.length === 1 && employeesWithEmail[0].userId) {
       const linkedMember = await this.memberRepo.findOne({
-        where: { businessId, userId: employeesWithEmail[0].userId! },
+        where: { businessId, userId: employeesWithEmail[0].userId },
       });
       if (linkedMember) {
         throw new ConflictException(
@@ -81,7 +85,10 @@ export class TenantMemberContactService {
     });
     for (const member of members) {
       if (exclude?.userId && member.userId === exclude.userId) continue;
-      if (member.user?.email && this.normalizeEmail(member.user.email) === normalized) {
+      if (
+        member.user?.email &&
+        this.normalizeEmail(member.user.email) === normalized
+      ) {
         throw new ConflictException(
           'This email is already used by another team member in this business',
         );
@@ -93,7 +100,10 @@ export class TenantMemberContactService {
     });
     for (const employee of employees) {
       if (exclude?.employeeId && employee.id === exclude.employeeId) continue;
-      if (employee.email && this.normalizeEmail(employee.email) === normalized) {
+      if (
+        employee.email &&
+        this.normalizeEmail(employee.email) === normalized
+      ) {
         throw new ConflictException(
           'This email is already used by another team member in this business',
         );
@@ -115,7 +125,10 @@ export class TenantMemberContactService {
     });
     for (const member of members) {
       if (exclude?.userId && member.userId === exclude.userId) continue;
-      if (member.user?.phone && this.normalizePhone(member.user.phone) === normalized) {
+      if (
+        member.user?.phone &&
+        this.normalizePhone(member.user.phone) === normalized
+      ) {
         throw new ConflictException(
           'This phone number is already used by another team member in this business',
         );
@@ -127,7 +140,10 @@ export class TenantMemberContactService {
     });
     for (const employee of employees) {
       if (exclude?.employeeId && employee.id === exclude.employeeId) continue;
-      if (employee.phone && this.normalizePhone(employee.phone) === normalized) {
+      if (
+        employee.phone &&
+        this.normalizePhone(employee.phone) === normalized
+      ) {
         throw new ConflictException(
           'This phone number is already used by another team member in this business',
         );
@@ -136,11 +152,18 @@ export class TenantMemberContactService {
   }
 
   /** Login email is global; call after tenant-scoped check when updating a linked user. */
-  async assertUserEmailGloballyAvailable(email: string, excludeUserId?: string): Promise<void> {
+  async assertUserEmailGloballyAvailable(
+    email: string,
+    excludeUserId?: string,
+  ): Promise<void> {
     const normalized = this.normalizeEmail(email);
-    const existing = await this.userRepo.findOne({ where: { email: normalized } });
+    const existing = await this.userRepo.findOne({
+      where: { email: normalized },
+    });
     if (existing && existing.id !== excludeUserId) {
-      throw new ConflictException('This email is already registered to another account');
+      throw new ConflictException(
+        'This email is already registered to another account',
+      );
     }
   }
 }

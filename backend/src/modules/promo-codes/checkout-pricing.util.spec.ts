@@ -90,7 +90,12 @@ describe('checkout-pricing.util', () => {
   describe('computeCheckoutTotals — all discount combinations', () => {
     it('cash only: no promo, no loyalty', () => {
       expect(
-        computeCheckoutTotals({ subtotal: 100, promoDiscount: 0, ...base, loyaltyPointsToRedeem: 0 }),
+        computeCheckoutTotals({
+          subtotal: 100,
+          promoDiscount: 0,
+          ...base,
+          loyaltyPointsToRedeem: 0,
+        }),
       ).toEqual({
         afterPromo: 100,
         afterGiftCard: 100,
@@ -103,7 +108,12 @@ describe('checkout-pricing.util', () => {
 
     it('promo only', () => {
       expect(
-        computeCheckoutTotals({ subtotal: 100, promoDiscount: 25, ...base, loyaltyPointsToRedeem: 0 }),
+        computeCheckoutTotals({
+          subtotal: 100,
+          promoDiscount: 25,
+          ...base,
+          loyaltyPointsToRedeem: 0,
+        }),
       ).toEqual({
         afterPromo: 75,
         afterGiftCard: 75,
@@ -134,7 +144,12 @@ describe('checkout-pricing.util', () => {
 
     it('loyalty only', () => {
       expect(
-        computeCheckoutTotals({ subtotal: 100, promoDiscount: 0, ...base, loyaltyPointsToRedeem: 40 }),
+        computeCheckoutTotals({
+          subtotal: 100,
+          promoDiscount: 0,
+          ...base,
+          loyaltyPointsToRedeem: 40,
+        }),
       ).toEqual({
         afterPromo: 100,
         afterGiftCard: 100,
@@ -165,7 +180,12 @@ describe('checkout-pricing.util', () => {
 
     it('promo then partial loyalty with cash remainder', () => {
       expect(
-        computeCheckoutTotals({ subtotal: 100, promoDiscount: 20, ...base, loyaltyPointsToRedeem: 30 }),
+        computeCheckoutTotals({
+          subtotal: 100,
+          promoDiscount: 20,
+          ...base,
+          loyaltyPointsToRedeem: 30,
+        }),
       ).toEqual({
         afterPromo: 80,
         afterGiftCard: 80,
@@ -178,7 +198,12 @@ describe('checkout-pricing.util', () => {
 
     it('promo then loyalty covering full remainder — zero cash due', () => {
       expect(
-        computeCheckoutTotals({ subtotal: 100, promoDiscount: 50, ...base, loyaltyPointsToRedeem: 50 }),
+        computeCheckoutTotals({
+          subtotal: 100,
+          promoDiscount: 50,
+          ...base,
+          loyaltyPointsToRedeem: 50,
+        }),
       ).toEqual({
         afterPromo: 50,
         afterGiftCard: 50,

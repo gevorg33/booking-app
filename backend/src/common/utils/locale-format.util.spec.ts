@@ -38,6 +38,8 @@ describe('locale-format.util', () => {
   it('reads business default currency from settings', () => {
     expect(getBusinessDefaultCurrency({})).toBe('USD');
     expect(getBusinessDefaultCurrency({ defaultCurrency: 'eur' })).toBe('EUR');
-    expect(getBusinessDefaultCurrency({ locale: { currency: 'GBP' } })).toBe('GBP');
+    expect(getBusinessDefaultCurrency({ locale: { currency: 'GBP' } })).toBe(
+      'GBP',
+    );
   });
 });

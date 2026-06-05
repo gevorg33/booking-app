@@ -4,7 +4,10 @@ describe('Enterprise trust settings + documents integration', () => {
   const businessRepo = { findOne: jest.fn(), save: jest.fn() };
   const configService = { get: jest.fn() };
 
-  const service = new EnterpriseTrustService(businessRepo as any, configService as any);
+  const service = new EnterpriseTrustService(
+    businessRepo as any,
+    configService as any,
+  );
 
   const business = {
     id: 'biz-1',
@@ -37,7 +40,12 @@ describe('Enterprise trust settings + documents integration', () => {
     expect(docs[0]?.markdown).toContain('Subprocessors limited to EU regions.');
     expect(docs[1]?.markdown).toContain('privacy@glowclinic.de');
     expect(docs[0]?.placeholdersFilled).toEqual(
-      expect.arrayContaining(['businessName', 'dpoEmail', 'registeredAddress', 'country']),
+      expect.arrayContaining([
+        'businessName',
+        'dpoEmail',
+        'registeredAddress',
+        'country',
+      ]),
     );
   });
 

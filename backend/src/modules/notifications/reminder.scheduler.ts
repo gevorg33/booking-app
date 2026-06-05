@@ -16,7 +16,10 @@ export class ReminderScheduler {
         this.logger.log(`Sent ${sent} appointment reminder(s)`);
       }
     } catch (err) {
-      this.logger.error('Reminder job failed', err instanceof Error ? err.stack : err);
+      this.logger.error(
+        'Reminder job failed',
+        err instanceof Error ? err.stack : err,
+      );
     }
   }
 }

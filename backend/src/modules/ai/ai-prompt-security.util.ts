@@ -11,23 +11,66 @@ export interface PromptSecurityAssessment {
 }
 
 const INJECTION_PATTERNS: Array<{ id: string; pattern: RegExp }> = [
-  { id: 'ignore_instructions', pattern: /\bignore\s+(all\s+)?(previous|prior|above|system)\s+(instructions?|rules?|prompts?)\b/i },
-  { id: 'disregard_rules', pattern: /\b(disregard|forget|override|bypass|skip)\s+(the\s+)?(system|security|safety|policy|rules?|instructions?|restrictions?)\b/i },
-  { id: 'role_play_escape', pattern: /\b(you are now|act as|pretend to be|switch to|developer mode|admin mode|god mode)\b/i },
-  { id: 'prompt_leak', pattern: /\b(reveal|show|print|dump|output)\s+(your\s+)?(system\s+)?(prompt|instructions?|rules?|schema)\b/i },
-  { id: 'jailbreak', pattern: /\b(DAN|do anything now|without restrictions|no limits|unrestricted mode)\b/i },
+  {
+    id: 'ignore_instructions',
+    pattern:
+      /\bignore\s+(all\s+)?(previous|prior|above|system)\s+(instructions?|rules?|prompts?)\b/i,
+  },
+  {
+    id: 'disregard_rules',
+    pattern:
+      /\b(disregard|forget|override|bypass|skip)\s+(the\s+)?(system|security|safety|policy|rules?|instructions?|restrictions?)\b/i,
+  },
+  {
+    id: 'role_play_escape',
+    pattern:
+      /\b(you are now|act as|pretend to be|switch to|developer mode|admin mode|god mode)\b/i,
+  },
+  {
+    id: 'prompt_leak',
+    pattern:
+      /\b(reveal|show|print|dump|output)\s+(your\s+)?(system\s+)?(prompt|instructions?|rules?|schema)\b/i,
+  },
+  {
+    id: 'jailbreak',
+    pattern:
+      /\b(DAN|do anything now|without restrictions|no limits|unrestricted mode)\b/i,
+  },
 ];
 
 const DATA_EXPORT_PATTERNS: Array<{ id: string; pattern: RegExp }> = [
-  { id: 'export_customers', pattern: /\b(export|download|dump|csv|excel|spreadsheet|leak)\b.*\b(client|customer|patient|contact)s?\b/i },
-  { id: 'export_customers_rev', pattern: /\b(client|customer|patient|contact)\s*(list|database|directory|records?)\b.*\b(export|download|dump|all|full|entire)\b/i },
-  { id: 'all_customers', pattern: /\b(all|every|entire|full|complete)\s+(client|customer|patient|contact)s?\b.*\b(list|data|info|details|emails?|phones?)\b/i },
-  { id: 'pii_harvest', pattern: /\b(all|every)\s+(emails?|phone numbers?|contact details?)\b/i },
+  {
+    id: 'export_customers',
+    pattern:
+      /\b(export|download|dump|csv|excel|spreadsheet|leak)\b.*\b(client|customer|patient|contact)s?\b/i,
+  },
+  {
+    id: 'export_customers_rev',
+    pattern:
+      /\b(client|customer|patient|contact)\s*(list|database|directory|records?)\b.*\b(export|download|dump|all|full|entire)\b/i,
+  },
+  {
+    id: 'all_customers',
+    pattern:
+      /\b(all|every|entire|full|complete)\s+(client|customer|patient|contact)s?\b.*\b(list|data|info|details|emails?|phones?)\b/i,
+  },
+  {
+    id: 'pii_harvest',
+    pattern: /\b(all|every)\s+(emails?|phone numbers?|contact details?)\b/i,
+  },
 ];
 
 const AVAILABILITY_BYPASS_PATTERNS: Array<{ id: string; pattern: RegExp }> = [
-  { id: 'force_book', pattern: /\b(book|schedule|reserve)\b.*\b(even if|although|despite|when|while)\b.*\b(unavailable|not available|booked|full|closed)\b/i },
-  { id: 'skip_availability', pattern: /\b(force|override|skip|ignore|bypass)\b.*\b(availability|schedule|conflict|validation|rules?)\b/i },
+  {
+    id: 'force_book',
+    pattern:
+      /\b(book|schedule|reserve)\b.*\b(even if|although|despite|when|while)\b.*\b(unavailable|not available|booked|full|closed)\b/i,
+  },
+  {
+    id: 'skip_availability',
+    pattern:
+      /\b(force|override|skip|ignore|bypass)\b.*\b(availability|schedule|conflict|validation|rules?)\b/i,
+  },
   { id: 'book_anyway', pattern: /\bbook\s+(me\s+)?anyway\b/i },
 ];
 
@@ -59,7 +102,9 @@ export function detectPromptSignals(
   prompt: string,
   patterns: Array<{ id: string; pattern: RegExp }>,
 ): string[] {
-  return patterns.filter(({ pattern }) => pattern.test(prompt)).map(({ id }) => id);
+  return patterns
+    .filter(({ pattern }) => pattern.test(prompt))
+    .map(({ id }) => id);
 }
 
 export function sanitizeUntrustedPrompt(prompt: string): string {
@@ -105,7 +150,10 @@ export function assessPromptSecurity(prompt: string): PromptSecurityAssessment {
     };
   }
 
-  if (detectPromptSignals(sanitizedPrompt, AVAILABILITY_BYPASS_PATTERNS).length > 0) {
+  if (
+    detectPromptSignals(sanitizedPrompt, AVAILABILITY_BYPASS_PATTERNS).length >
+    0
+  ) {
     return {
       level: 'warn',
       signals,
@@ -117,7 +165,9 @@ export function assessPromptSecurity(prompt: string): PromptSecurityAssessment {
   return { level: 'ok', signals, sanitizedPrompt };
 }
 
-export function stripDangerousParams(params: Record<string, unknown>): Record<string, unknown> {
+export function stripDangerousParams(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
   const cleaned = { ...params };
   for (const key of Object.keys(cleaned)) {
     if (DANGEROUS_PARAM_KEYS.has(key)) delete cleaned[key];
@@ -129,8 +179,12 @@ export function isBulkCustomerExportAttempt(prompt: string): boolean {
   return detectPromptSignals(prompt, DATA_EXPORT_PATTERNS).length > 0;
 }
 
-export function isAvailabilityBypassAttempt(prompt: string, params?: Record<string, unknown>): boolean {
-  if (params && Object.keys(params).some((k) => DANGEROUS_PARAM_KEYS.has(k))) return true;
+export function isAvailabilityBypassAttempt(
+  prompt: string,
+  params?: Record<string, unknown>,
+): boolean {
+  if (params && Object.keys(params).some((k) => DANGEROUS_PARAM_KEYS.has(k)))
+    return true;
   return detectPromptSignals(prompt, AVAILABILITY_BYPASS_PATTERNS).length > 0;
 }
 
@@ -150,7 +204,11 @@ export function canPerformBulkCustomerRead(
   return true;
 }
 
-export function clampReadDateRangeDays(startIso: string, endIso: string, maxDays: number): {
+export function clampReadDateRangeDays(
+  startIso: string,
+  endIso: string,
+  maxDays: number,
+): {
   start: string;
   end: string;
   truncated: boolean;
@@ -158,7 +216,8 @@ export function clampReadDateRangeDays(startIso: string, endIso: string, maxDays
   const start = new Date(`${startIso}T00:00:00.000Z`);
   const end = new Date(`${endIso}T00:00:00.000Z`);
   const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
-  if (diffDays <= maxDays) return { start: startIso, end: endIso, truncated: false };
+  if (diffDays <= maxDays)
+    return { start: startIso, end: endIso, truncated: false };
   const clampedEnd = new Date(start.getTime() + maxDays * 86400000);
   return {
     start: startIso,
@@ -167,7 +226,9 @@ export function clampReadDateRangeDays(startIso: string, endIso: string, maxDays
   };
 }
 
-export function securityDenialMessage(reason: PromptSecurityAssessment['blockReason']): string {
+export function securityDenialMessage(
+  reason: PromptSecurityAssessment['blockReason'],
+): string {
   switch (reason) {
     case 'injection':
       return 'That request tries to override system rules. I can only run allowed booking and schedule commands for your role.';

@@ -22,10 +22,11 @@ export class WebhookDispatcherListener {
   async handleDomainEvent(event: OperationalEvent): Promise<void> {
     if (!event.businessId) return;
 
-    const subscriptions = await this.webhooksService.getActiveSubscriptionsForEvent(
-      event.businessId,
-      event.eventType,
-    );
+    const subscriptions =
+      await this.webhooksService.getActiveSubscriptionsForEvent(
+        event.businessId,
+        event.eventType,
+      );
     if (subscriptions.length === 0) return;
 
     const payload = {
@@ -40,7 +41,9 @@ export class WebhookDispatcherListener {
     const body = JSON.stringify(payload);
 
     await Promise.all(
-      subscriptions.map((sub) => this.deliver(sub, event.eventType, event.id ?? null, body)),
+      subscriptions.map((sub) =>
+        this.deliver(sub, event.eventType, event.id ?? null, body),
+      ),
     );
   }
 
@@ -54,7 +57,9 @@ export class WebhookDispatcherListener {
     try {
       secret = this.webhooksService.decryptSubscriptionSecret(sub);
     } catch {
-      this.logger.warn(`Could not decrypt webhook secret for subscription ${sub.id}`);
+      this.logger.warn(
+        `Could not decrypt webhook secret for subscription ${sub.id}`,
+      );
       return;
     }
 

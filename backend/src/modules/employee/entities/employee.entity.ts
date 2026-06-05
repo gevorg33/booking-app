@@ -18,7 +18,9 @@ export class Employee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Business, (business) => business.employees, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Business, (business) => business.employees, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'business_id' })
   business: Business;
 

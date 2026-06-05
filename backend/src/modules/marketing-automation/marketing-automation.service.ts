@@ -33,7 +33,8 @@ export class MarketingAutomationService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(MarketingAutomationLog) private logRepo: Repository<MarketingAutomationLog>,
+    @InjectRepository(MarketingAutomationLog)
+    private logRepo: Repository<MarketingAutomationLog>,
     private emailService: EmailService,
     private smsService: SmsService,
     private configService: ConfigService,
@@ -41,7 +42,9 @@ export class MarketingAutomationService {
 
   async getSettings(businessId: string): Promise<MarketingAutomationSettings> {
     const business = await this.findBusiness(businessId);
-    return mergeMarketingAutomationSettings(business.settings?.marketingAutomation);
+    return mergeMarketingAutomationSettings(
+      business.settings?.marketingAutomation,
+    );
   }
 
   async updateSettings(
@@ -49,7 +52,9 @@ export class MarketingAutomationService {
     dto: UpdateMarketingAutomationSettingsDto,
   ): Promise<MarketingAutomationSettings> {
     const business = await this.findBusiness(businessId);
-    const current = mergeMarketingAutomationSettings(business.settings?.marketingAutomation);
+    const current = mergeMarketingAutomationSettings(
+      business.settings?.marketingAutomation,
+    );
     const next: MarketingAutomationSettings = mergeMarketingAutomationSettings({
       ...current,
       ...dto,
@@ -66,16 +71,23 @@ export class MarketingAutomationService {
     return next;
   }
 
-  isPostVisitReviewEnabled(businessSettings?: Record<string, unknown>): boolean {
+  isPostVisitReviewEnabled(
+    businessSettings?: Record<string, unknown>,
+  ): boolean {
     const raw = businessSettings?.marketingAutomation;
     return mergeMarketingAutomationSettings(
-      raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : undefined,
+      raw && typeof raw === 'object'
+        ? (raw as Record<string, unknown>)
+        : undefined,
     ).postVisitReviewEnabled;
   }
 
   async getSummary(businessId: string) {
     const settings = await this.getSettings(businessId);
-    const candidates = await this.findReEngagementCandidates(businessId, settings);
+    const candidates = await this.findReEngagementCandidates(
+      businessId,
+      settings,
+    );
     const sentLast30Days = await this.logRepo.count({
       where: {
         businessId,
@@ -91,7 +103,9 @@ export class MarketingAutomationService {
   }
 
   async processAllBusinesses(): Promise<number> {
-    const businesses = await this.businessRepo.find({ where: { isActive: true } });
+    const businesses = await this.businessRepo.find({
+      where: { isActive: true },
+    });
     let sent = 0;
     for (const business of businesses) {
       sent += await this.processBusinessReEngagement(business.id);
@@ -100,18 +114,32 @@ export class MarketingAutomationService {
   }
 
   async processBusinessReEngagement(businessId: string): Promise<number> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business?.isActive) return 0;
 
-    const settings = mergeMarketingAutomationSettings(business.settings?.marketingAutomation);
+    const settings = mergeMarketingAutomationSettings(
+      business.settings?.marketingAutomation,
+    );
     if (!settings.reEngagementEnabled) return 0;
 
-    const notificationSettings = mergeBusinessNotificationSettings(business.settings?.notifications);
-    const candidates = await this.findReEngagementCandidates(businessId, settings);
+    const notificationSettings = mergeBusinessNotificationSettings(
+      business.settings?.notifications,
+    );
+    const candidates = await this.findReEngagementCandidates(
+      businessId,
+      settings,
+    );
     let sent = 0;
 
     for (const candidate of candidates) {
-      const ok = await this.sendReEngagement(business, candidate, settings, notificationSettings);
+      const ok = await this.sendReEngagement(
+        business,
+        candidate,
+        settings,
+        notificationSettings,
+      );
       if (ok) sent++;
     }
 
@@ -123,7 +151,9 @@ export class MarketingAutomationService {
     settings: MarketingAutomationSettings = DEFAULT_MARKETING_AUTOMATION_SETTINGS,
   ): Promise<ReEngagementCandidate[]> {
     const thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() - settings.inactiveDaysThreshold);
+    thresholdDate.setDate(
+      thresholdDate.getDate() - settings.inactiveDaysThreshold,
+    );
 
     const customers = await this.customerRepo.find({
       where: { businessId, isActive: true },
@@ -138,11 +168,17 @@ export class MarketingAutomationService {
         .createQueryBuilder('booking')
         .select('MAX(booking.endTime)', 'lastEnd')
         .where('booking.businessId = :businessId', { businessId })
-        .andWhere('booking.customerId = :customerId', { customerId: customer.id })
-        .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
+        .andWhere('booking.customerId = :customerId', {
+          customerId: customer.id,
+        })
+        .andWhere('booking.status = :status', {
+          status: BookingStatus.COMPLETED,
+        })
         .getRawOne<{ lastEnd: Date | null }>();
 
-      const lastEnd = lastCompleted?.lastEnd ? new Date(lastCompleted.lastEnd) : null;
+      const lastEnd = lastCompleted?.lastEnd
+        ? new Date(lastCompleted.lastEnd)
+        : null;
       if (!lastEnd || lastEnd >= thresholdDate) continue;
 
       const recentSend = await this.logRepo.findOne({
@@ -150,7 +186,8 @@ export class MarketingAutomationService {
         order: { sentAt: 'DESC' },
       });
       if (recentSend) {
-        const minGapMs = settings.minDaysBetweenReEngagement * 24 * 60 * 60 * 1000;
+        const minGapMs =
+          settings.minDaysBetweenReEngagement * 24 * 60 * 60 * 1000;
         if (Date.now() - recentSend.sentAt.getTime() < minGapMs) continue;
       }
 
@@ -179,7 +216,11 @@ export class MarketingAutomationService {
     const text = `Hi ${candidate.name}, we miss you at ${business.name}! Book your next visit: ${bookingUrl}.${promoLine}`;
     let sentAny = false;
 
-    if (settings.reEngagementEmailEnabled && notificationSettings.emailEnabled && candidate.email) {
+    if (
+      settings.reEngagementEmailEnabled &&
+      notificationSettings.emailEnabled &&
+      candidate.email
+    ) {
       const ok = await this.dispatchCustomerMessage(
         business.id,
         candidate.customerId,
@@ -195,7 +236,11 @@ export class MarketingAutomationService {
       if (ok) sentAny = true;
     }
 
-    if (settings.reEngagementSmsEnabled && notificationSettings.smsEnabled && candidate.phone) {
+    if (
+      settings.reEngagementSmsEnabled &&
+      notificationSettings.smsEnabled &&
+      candidate.phone
+    ) {
       const ok = await this.dispatchCustomerMessage(
         business.id,
         candidate.customerId,
@@ -250,19 +295,24 @@ export class MarketingAutomationService {
     );
 
     if (!ok) {
-      this.logger.warn(`Failed ${kind} ${channel} for customer ${customerId}: ${error}`);
+      this.logger.warn(
+        `Failed ${kind} ${channel} for customer ${customerId}: ${error}`,
+      );
     }
 
     return ok;
   }
 
   private buildBookingUrl(slug: string): string {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     return `${frontendUrl.replace(/\/$/, '')}/book/${slug}`;
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

@@ -1,4 +1,8 @@
-import { addDaysToDateKey, getDateKeyInTimezone, resolveTimezone } from './timezone.util.js';
+import {
+  addDaysToDateKey,
+  getDateKeyInTimezone,
+  resolveTimezone,
+} from './timezone.util.js';
 
 /** DD/MM/YYYY from YYYY-MM-DD calendar key. */
 export function dateKeyToDisplay(dateKey: string): string {
@@ -19,7 +23,10 @@ function intlLocale(locale?: string): string | undefined {
 }
 
 /** User-facing date: locale-aware when locale is en/hy/ru, else DD/MM/YYYY (UTC). */
-export function formatDateDisplay(input: Date | string, locale?: string): string {
+export function formatDateDisplay(
+  input: Date | string,
+  locale?: string,
+): string {
   const d =
     typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
       ? new Date(`${input}T12:00:00.000Z`)
@@ -100,7 +107,10 @@ export function toIsoDay(value: string, timeZone = 'UTC'): string {
 }
 
 /** Resolve today / tomorrow / yesterday keywords to ISO day in timezone. */
-export function resolveRelativeDateKeyword(value: string, timeZone = 'UTC'): string | null {
+export function resolveRelativeDateKeyword(
+  value: string,
+  timeZone = 'UTC',
+): string | null {
   const tz = resolveTimezone(timeZone);
   const todayKey = getTodayDateKey(tz);
   const lower = value.trim().toLowerCase();
@@ -120,7 +130,9 @@ export function applyRelativeDateFromPrompt(
   const lower = (prompt ?? '').toLowerCase();
 
   if (/\btomorrow\b/i.test(lower)) {
-    params.date = dateKeyToDisplay(addDaysToDateKey(getTodayDateKey(tz), 1, tz));
+    params.date = dateKeyToDisplay(
+      addDaysToDateKey(getTodayDateKey(tz), 1, tz),
+    );
     return;
   }
   if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
@@ -128,7 +140,9 @@ export function applyRelativeDateFromPrompt(
     return;
   }
   if (/\byesterday\b/i.test(lower)) {
-    params.date = dateKeyToDisplay(addDaysToDateKey(getTodayDateKey(tz), -1, tz));
+    params.date = dateKeyToDisplay(
+      addDaysToDateKey(getTodayDateKey(tz), -1, tz),
+    );
   }
 }
 
@@ -142,7 +156,9 @@ export function buildUtcStartTimeFromDayAndTime(
   if (!day) {
     throw new Error(`Invalid booking date: ${dayValue}`);
   }
-  const [hours, minutes] = timeSlot.split(':').map((part) => parseInt(part, 10));
+  const [hours, minutes] = timeSlot
+    .split(':')
+    .map((part) => parseInt(part, 10));
   day.setUTCHours(hours, minutes ?? 0, 0, 0);
   return day.toISOString();
 }

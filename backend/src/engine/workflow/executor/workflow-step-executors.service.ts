@@ -1,7 +1,15 @@
-import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, ILike } from 'typeorm';
-import { WorkflowExecutorService, StepExecutor } from './workflow-executor.service.js';
+import {
+  WorkflowExecutorService,
+  StepExecutor,
+} from './workflow-executor.service.js';
 import { BookingService } from '../../../modules/booking/booking.service.js';
 import { BookingSlotResolverService } from '../../../modules/booking/booking-slot-resolver.service.js';
 import { ServiceService } from '../../../modules/service/service.service.js';
@@ -10,16 +18,27 @@ import { TemplateApplyService } from '../../../modules/schedule/services/templat
 import { BlockScheduleService } from '../../../modules/schedule/services/block-schedule.service.js';
 import { EmployeeService } from '../../../modules/employee/employee.service.js';
 import { SchedulingEngineService } from '../../scheduling/scheduling-engine.service.js';
-import { Booking, BookingStatus, PaymentStatus } from '../../../modules/booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
 import { Customer } from '../../../modules/customer/entities/customer.entity.js';
 import { Business } from '../../../modules/business/entities/business.entity.js';
 import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-period.entity.js';
 import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
 import { WorkflowStep } from '../interfaces/workflow.interfaces.js';
-import { toBookingSnapshot, type BookingSnapshot } from '../../../modules/ai/ai-result-format.util.js';
+import {
+  toBookingSnapshot,
+  type BookingSnapshot,
+} from '../../../modules/ai/ai-result-format.util.js';
 import { formatTimeDisplay } from '../../../common/utils/date-format.util.js';
-import { resolveDirectScheduleDateKeys, resolveDirectSchedulePeriodServiceIds, resolveScheduleDates } from '../../../modules/ai/ai-orchestration.helpers.js';
+import {
+  resolveDirectScheduleDateKeys,
+  resolveDirectSchedulePeriodServiceIds,
+  resolveScheduleDates,
+} from '../../../modules/ai/ai-orchestration.helpers.js';
 
 @Injectable()
 export class WorkflowStepExecutorsService implements OnModuleInit {
@@ -37,7 +56,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     private schedulingEngine: SchedulingEngineService,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
-    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingPeriod)
+    private periodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private notificationsService: NotificationsService,
@@ -47,38 +67,57 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const executors: Record<string, StepExecutor> = {
       create_booking: (step, ctx) => this.createBooking(step, ctx),
       create_service: (step, ctx) => this.createService(step, ctx),
+      update_service: (step, ctx) => this.updateService(step, ctx),
       cancel_booking: (step, ctx) => this.cancelBooking(step, ctx),
       cancel_bookings: (step, ctx) => this.cancelBookings(step, ctx),
-      hide_appointments_from_calendar: (step, ctx) => this.hideAppointmentsFromCalendar(step, ctx),
-      unhide_appointments_from_calendar: (step, ctx) => this.unhideAppointmentsFromCalendar(step, ctx),
+      hide_appointments_from_calendar: (step, ctx) =>
+        this.hideAppointmentsFromCalendar(step, ctx),
+      unhide_appointments_from_calendar: (step, ctx) =>
+        this.unhideAppointmentsFromCalendar(step, ctx),
       list_appointments: (step) => this.listAppointments(step),
       fetch_current_schedule: (step) => this.fetchCurrentSchedule(step),
       analyze_utilization: (step) => this.analyzeUtilization(step),
-      identify_schedule_gaps: (step, ctx) => this.identifyScheduleGaps(step, ctx),
+      identify_schedule_gaps: (step, ctx) =>
+        this.identifyScheduleGaps(step, ctx),
       generate_optimization_recommendations: (step, ctx) =>
         this.generateOptimizationRecommendations(step, ctx),
       find_freed_slots: (step) => this.findFreedSlots(step),
-      find_rebooking_candidates: (step, ctx) => this.findRebookingCandidates(step, ctx),
+      find_rebooking_candidates: (step, ctx) =>
+        this.findRebookingCandidates(step, ctx),
       propose_reassignment: (step, ctx) => this.proposeReassignment(step, ctx),
       detect_conflicts: (step) => this.detectConflicts(step),
-      analyze_resolution_options: (step, ctx) => this.analyzeResolutionOptions(step, ctx),
+      analyze_resolution_options: (step, ctx) =>
+        this.analyzeResolutionOptions(step, ctx),
       propose_resolutions: (step, ctx) => this.proposeResolutions(step, ctx),
-      apply_conflict_resolutions: (step, ctx) => this.applyConflictResolutions(step, ctx),
+      apply_conflict_resolutions: (step, ctx) =>
+        this.applyConflictResolutions(step, ctx),
       execute_reassignment: (step, ctx) => this.executeReassignment(step, ctx),
-      notify_cancelled_customers: (step, ctx) => this.notifyCancelledCustomers(step, ctx),
+      notify_cancelled_customers: (step, ctx) =>
+        this.notifyCancelledCustomers(step, ctx),
       fill_schedule_gaps: (step, ctx) => this.fillScheduleGaps(step, ctx),
       apply_template: (step, ctx) => this.applyTemplate(step, ctx),
       create_block_schedule: (step, ctx) => this.createBlockSchedule(step, ctx),
       remove_block_schedule: (step, ctx) => this.removeBlockSchedule(step, ctx),
-      create_direct_schedule: (step, ctx) => this.createDirectSchedule(step, ctx),
+      create_direct_schedule: (step, ctx) =>
+        this.createDirectSchedule(step, ctx),
       clear_schedule: (step, ctx) => this.clearSchedule(step, ctx),
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
-      assign_employee_services: (step, ctx) => this.assignEmployeeServices(step, ctx),
+      assign_employee_services: (step, ctx) =>
+        this.assignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
-      create_schedule_template: (step, ctx) => this.createScheduleTemplate(step, ctx),
+      create_schedule_template: (step, ctx) =>
+        this.createScheduleTemplate(step, ctx),
       update_bookings: (step, ctx) => this.updateBookings(step, ctx),
-      mark_no_shows: (step, ctx) => this.updateBookings(step, { ...ctx, _forceStatus: BookingStatus.NO_SHOW }),
-      payment_sweep: (step, ctx) => this.updateBookings(step, { ...ctx, _forcePaymentStatus: PaymentStatus.PAID }),
+      mark_no_shows: (step, ctx) =>
+        this.updateBookings(step, {
+          ...ctx,
+          _forceStatus: BookingStatus.NO_SHOW,
+        }),
+      payment_sweep: (step, ctx) =>
+        this.updateBookings(step, {
+          ...ctx,
+          _forcePaymentStatus: PaymentStatus.PAID,
+        }),
     };
 
     for (const [action, handler] of Object.entries(executors)) {
@@ -91,7 +130,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     return ctx[`step_${stepId}_result`];
   }
 
-  private async loadBookingSnapshots(ids: string[]): Promise<BookingSnapshot[]> {
+  private async loadBookingSnapshots(
+    ids: string[],
+  ): Promise<BookingSnapshot[]> {
     if (!ids.length) return [];
     const bookings = await this.bookingRepo.find({
       where: { id: In(ids) },
@@ -103,7 +144,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async createBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    let { employeeId, serviceId, customerId, startTime, notes, userId } = step.params;
+    let { employeeId, serviceId, customerId, startTime, notes, userId } =
+      step.params;
     const { employeeName, serviceName } = step.params;
 
     if (!employeeId && employeeName) {
@@ -111,7 +153,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         where: { businessId, name: ILike(`%${employeeName}%`), isActive: true },
       });
       if (!employee) {
-        throw new BadRequestException(`Service provider not found: ${employeeName}`);
+        throw new BadRequestException(
+          `Service provider not found: ${employeeName}`,
+        );
       }
       employeeId = employee.id;
     }
@@ -135,11 +179,15 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       );
     }
 
-    const employee = await this.employeeRepo.findOne({ where: { id: employeeId, businessId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId, businessId },
+    });
     if (!employee) {
       throw new BadRequestException('Service provider not found');
     }
-    const service = await this.serviceService.findOne(serviceId).catch(() => null);
+    const service = await this.serviceService
+      .findOne(serviceId)
+      .catch(() => null);
     if (!service || service.businessId !== businessId) {
       throw new BadRequestException('Service not found');
     }
@@ -156,10 +204,28 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       timeSlot,
     });
 
+    const stepParams = step.params as Record<string, unknown>;
     const booking = await this.bookingService.create(
       businessId,
-      { employeeId, serviceId, customerId, startTime, notes },
+      {
+        employeeId,
+        serviceId,
+        customerId,
+        startTime,
+        notes,
+        useSubscriptionId: stepParams.useSubscriptionId as string | undefined,
+        packagePurchaseId: stepParams.packagePurchaseId as string | undefined,
+        multiServiceGroupId: stepParams.multiServiceGroupId as
+          | string
+          | undefined,
+        resourceIds: stepParams.resourceIds as string[] | undefined,
+        metadata: stepParams.metadata as Record<string, unknown> | undefined,
+      },
       userId,
+      {
+        paymentStatus: stepParams.paymentStatus as any,
+        sameVisitMultiService: stepParams.sameVisitMultiService === true,
+      },
     );
     ctx.lastBookingId = booking.id;
     return {
@@ -176,12 +242,18 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const { employeeId, date, periods, userId } = step.params as {
       employeeId: string;
       date: string;
-      periods: Array<{ startTime: string; endTime: string; serviceIds: string[] }>;
+      periods: Array<{
+        startTime: string;
+        endTime: string;
+        serviceIds: string[];
+      }>;
       userId?: string;
     };
 
     if (!employeeId || !date || !periods?.length) {
-      throw new BadRequestException('fill_schedule_gaps requires employeeId, date, and at least one period');
+      throw new BadRequestException(
+        'fill_schedule_gaps requires employeeId, date, and at least one period',
+      );
     }
 
     const result = await this.scheduleService.addServicePeriods(
@@ -203,20 +275,43 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async applyTemplate(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    const { templateId, employeeId, startDate, endDate, applyDays, repeatWeeksCount, userId } =
-      step.params;
+    const {
+      templateId,
+      employeeId,
+      startDate,
+      endDate,
+      applyDays,
+      repeatWeeksCount,
+      userId,
+    } = step.params;
     const result = await this.templateApplyService.applyTemplate(
-      { templateId, employeeId, startDate, endDate, applyDays, repeatWeeksCount },
+      {
+        templateId,
+        employeeId,
+        startDate,
+        endDate,
+        applyDays,
+        repeatWeeksCount,
+      },
       businessId,
       userId,
     );
     return { slotsCreated: result.slotsCreated, employeeId, templateId };
   }
 
-  private async createBlockSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+  private async createBlockSchedule(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    const { employeeId, placeholder, isRepetitive, singleBlock, repetitiveBlock, userId } =
-      step.params;
+    const {
+      employeeId,
+      placeholder,
+      isRepetitive,
+      singleBlock,
+      repetitiveBlock,
+      userId,
+    } = step.params;
     const result = await this.blockScheduleService.create(
       businessId,
       {
@@ -225,7 +320,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         isRepetitive,
         singleBlock,
         repetitiveBlock,
-      } as any,
+      },
       userId,
     );
     const employee = await this.employeeRepo.findOne({
@@ -242,14 +337,20 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async removeBlockSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+  private async removeBlockSchedule(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
     const { blockScheduleId, userId } = step.params;
     await this.blockScheduleService.remove(businessId, blockScheduleId, userId);
     return { removedBlockScheduleId: blockScheduleId };
   }
 
-  private async createDirectSchedule(step: WorkflowStep, ctx: Record<string, any>) {
+  private async createDirectSchedule(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
     const { employeeId, periods, userId } = step.params as {
       employeeId: string;
@@ -258,13 +359,17 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
 
     if (!employeeId) {
-      throw new BadRequestException('create_direct_schedule requires employeeId');
+      throw new BadRequestException(
+        'create_direct_schedule requires employeeId',
+      );
     }
     if (!Array.isArray(periods) || periods.length === 0) {
       throw new BadRequestException('create_direct_schedule requires periods');
     }
 
-    const dates = resolveDirectScheduleDateKeys(step.params as Record<string, unknown>);
+    const dates = resolveDirectScheduleDateKeys(
+      step.params as Record<string, unknown>,
+    );
     if (!dates.length) {
       throw new BadRequestException(
         'create_direct_schedule requires date, dates, or dateFrom/dateTo in YYYY-MM-DD format',
@@ -286,6 +391,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     }));
 
     let totalSlots = 0;
+    const periodIds: string[] = [];
+    const slotIds: string[] = [];
     for (const date of dates) {
       const result = await this.scheduleService.createDirectSchedule(
         businessId,
@@ -293,12 +400,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         userId,
       );
       totalSlots += result.slotsCreated;
+      periodIds.push(...result.periodIds);
+      slotIds.push(...result.slotIds);
     }
 
     return {
       slotsCreated: totalSlots,
       employeeId,
       dates,
+      periodIds,
+      slotIds,
     };
   }
 
@@ -313,16 +424,22 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       throw new BadRequestException('clear_schedule requires employeeId');
     }
 
-    const dates = resolveDirectScheduleDateKeys(step.params as Record<string, unknown>);
+    const dates = resolveDirectScheduleDateKeys(
+      step.params as Record<string, unknown>,
+    );
     if (!dates.length && step.params.date) {
       dates.push(String(step.params.date));
     }
     if (!dates.length) {
-      const fromScheduleDates = resolveScheduleDates(step.params as Record<string, unknown>);
+      const fromScheduleDates = resolveScheduleDates(
+        step.params as Record<string, unknown>,
+      );
       dates.push(...fromScheduleDates);
     }
     if (!dates.length) {
-      throw new BadRequestException('clear_schedule requires date, dates, or dateFrom/dateTo');
+      throw new BadRequestException(
+        'clear_schedule requires date, dates, or dateFrom/dateTo',
+      );
     }
 
     let totalPeriodsRemoved = 0;
@@ -345,7 +462,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async rescheduleBooking(step: WorkflowStep, ctx: Record<string, any>) {
+  private async rescheduleBooking(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const { bookingId, startTime, employeeId, serviceId, userId } = step.params;
     const existing = await this.bookingRepo.findOne({
       where: { id: bookingId },
@@ -399,7 +519,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async notifyCancelledCustomers(step: WorkflowStep, ctx: Record<string, any>) {
+  private async notifyCancelledCustomers(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const { bookingIds, reason } = step.params as {
       bookingIds?: string[];
       reason?: string;
@@ -407,10 +530,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const prior = step.dependsOn?.[0]
       ? this.priorResult(ctx, step.dependsOn[0])
       : null;
-    const ids =
-      bookingIds ??
-      prior?.cancelledIds ??
-      [];
+    const ids = bookingIds ?? prior?.cancelledIds ?? [];
 
     let notified = 0;
     const errors: string[] = [];
@@ -426,10 +546,17 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     return { notifiedCount: notified, bookingIds: ids, errors };
   }
 
-  private async assignEmployeeServices(step: WorkflowStep, ctx: Record<string, any>) {
+  private async assignEmployeeServices(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const { employeeId, serviceIds, userId } = step.params;
     const before = await this.employeeService.findOne(employeeId);
-    const employee = await this.employeeService.update(employeeId, { serviceIds }, userId);
+    const employee = await this.employeeService.update(
+      employeeId,
+      { serviceIds },
+      userId,
+    );
     return {
       employeeId: employee.id,
       serviceIds: employee.serviceIds,
@@ -447,7 +574,11 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       employees.map(async (e) => ({
         employeeId: e.id,
         employeeName: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+        ...(await this.schedulingEngine.getEmployeeUtilization(
+          e.id,
+          start,
+          end,
+        )),
       })),
     );
     const sorted = [...utilization].sort(
@@ -461,8 +592,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async createService(step: WorkflowStep, ctx: Record<string, any>) {
-    const { businessId, name, description, durationMinutes, bufferMinutes, price, currency, userId } =
-      step.params;
+    const {
+      businessId,
+      name,
+      description,
+      durationMinutes,
+      bufferMinutes,
+      price,
+      currency,
+      userId,
+    } = step.params;
     const service = await this.serviceService.create(
       businessId,
       { name, description, durationMinutes, bufferMinutes, price, currency },
@@ -475,6 +614,23 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       durationMinutes: service.durationMinutes,
       price: service.price,
       currency: service.currency,
+    };
+  }
+
+  private async updateService(step: WorkflowStep, ctx: Record<string, any>) {
+    const { serviceId, price, userId } = step.params;
+    const before = await this.serviceService.findOne(serviceId);
+    const service = await this.serviceService.update(
+      serviceId,
+      { price },
+      userId,
+    );
+    ctx.lastServiceId = service.id;
+    return {
+      serviceId: service.id,
+      name: service.name,
+      previousPrice: before.price,
+      price: service.price,
     };
   }
 
@@ -500,29 +656,47 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       await this.bookingService.cancel(id, reason, userId);
       cancelled.push(id);
     }
-    return { cancelledCount: cancelled.length, cancelledBookings, cancelledIds: cancelled };
+    return {
+      cancelledCount: cancelled.length,
+      cancelledBookings,
+      cancelledIds: cancelled,
+    };
   }
 
-  private async hideAppointmentsFromCalendar(step: WorkflowStep, _ctx: Record<string, any>) {
+  private async hideAppointmentsFromCalendar(
+    step: WorkflowStep,
+    _ctx: Record<string, any>,
+  ) {
     const { bookingIds, userId } = step.params as {
       bookingIds: string[];
       userId?: string;
     };
     const hiddenBookings = await this.loadBookingSnapshots(bookingIds);
-    const result = await this.bookingService.setHiddenFromCalendar(bookingIds, true, userId);
+    const result = await this.bookingService.setHiddenFromCalendar(
+      bookingIds,
+      true,
+      userId,
+    );
     return {
       hiddenCount: result.updatedCount,
       hiddenBookings,
     };
   }
 
-  private async unhideAppointmentsFromCalendar(step: WorkflowStep, _ctx: Record<string, any>) {
+  private async unhideAppointmentsFromCalendar(
+    step: WorkflowStep,
+    _ctx: Record<string, any>,
+  ) {
     const { bookingIds, userId } = step.params as {
       bookingIds: string[];
       userId?: string;
     };
     const unhiddenBookings = await this.loadBookingSnapshots(bookingIds);
-    const result = await this.bookingService.setHiddenFromCalendar(bookingIds, false, userId);
+    const result = await this.bookingService.setHiddenFromCalendar(
+      bookingIds,
+      false,
+      userId,
+    );
     return {
       unhiddenCount: result.updatedCount,
       unhiddenBookings,
@@ -647,15 +821,24 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       employees.map(async (e) => ({
         employeeId: e.id,
         employeeName: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+        ...(await this.schedulingEngine.getEmployeeUtilization(
+          e.id,
+          start,
+          end,
+        )),
       })),
     );
 
     return { utilization };
   }
 
-  private async identifyScheduleGaps(step: WorkflowStep, ctx: Record<string, any>) {
-    const prior = step.dependsOn[0] ? this.priorResult(ctx, step.dependsOn[0]) : null;
+  private async identifyScheduleGaps(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
+    const prior = step.dependsOn[0]
+      ? this.priorResult(ctx, step.dependsOn[0])
+      : null;
     const threshold = step.params.minUtilizationThreshold ?? 0.6;
 
     const utilRows =
@@ -664,7 +847,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         ? [{ employeeName: 'All providers', utilizationPercent: 0 }]
         : []);
 
-    const gaps = utilRows.filter((u: any) => (u.utilizationPercent ?? 100) / 100 < threshold);
+    const gaps = utilRows.filter(
+      (u: any) => (u.utilizationPercent ?? 100) / 100 < threshold,
+    );
 
     return {
       underutilizedEmployees: gaps,
@@ -675,7 +860,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async generateOptimizationRecommendations(step: WorkflowStep, ctx: Record<string, any>) {
+  private async generateOptimizationRecommendations(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const gaps = this.priorResult(ctx, step.dependsOn[0]);
     return {
       recommendations: [
@@ -693,13 +881,17 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async findFreedSlots(step: WorkflowStep) {
-    const { businessId } = step.params;
+    const { businessId, includeNoShows } = step.params;
     const { start, end } = this.resolveDateRange(step.params);
 
-    const cancelled = await this.bookingRepo.find({
+    const statuses = includeNoShows
+      ? [BookingStatus.CANCELLED, BookingStatus.NO_SHOW]
+      : [BookingStatus.CANCELLED];
+
+    const freed = await this.bookingRepo.find({
       where: {
         businessId,
-        status: BookingStatus.CANCELLED,
+        status: In(statuses),
         startTime: Between(start, end),
       },
       relations: { employee: true, service: true, customer: true },
@@ -707,7 +899,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     });
 
     return {
-      freedSlots: cancelled.map((b) => ({
+      freedSlots: freed.map((b) => ({
         bookingId: b.id,
         employeeId: b.employeeId,
         employeeName: b.employee?.name,
@@ -721,7 +913,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async findRebookingCandidates(step: WorkflowStep, ctx: Record<string, any>) {
+  private async findRebookingCandidates(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
     const freed = this.priorResult(ctx, step.dependsOn[0]);
     const slots = freed?.freedSlots ?? [];
@@ -730,39 +925,42 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       return { candidates: [], waitlistCount: 0 };
     }
 
-    const serviceIds = [...new Set(slots.map((s: any) => s.serviceId).filter(Boolean))];
+    const serviceIds = [
+      ...new Set(slots.map((s: any) => s.serviceId).filter(Boolean)),
+    ];
     const { start, end } = this.resolveDateRange(step.params);
     const lookbackStart = new Date(start);
     lookbackStart.setUTCDate(lookbackStart.getUTCDate() - 60);
 
-    const [taggedWaitlist, recentCancelled, activeCustomers] = await Promise.all([
-      this.customerRepo
-        .createQueryBuilder('c')
-        .where('c.business_id = :businessId', { businessId })
-        .andWhere(`'waitlist' = ANY(c.tags)`)
-        .getMany(),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          status: BookingStatus.CANCELLED,
-          startTime: Between(lookbackStart, end),
-        },
-        relations: { customer: true, service: true },
-        order: { startTime: 'DESC' },
-        take: 50,
-      }),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          status: Not(In([BookingStatus.CANCELLED])),
-          startTime: Between(start, end),
-        },
-        relations: { customer: true, service: true },
-      }),
-    ]);
+    const [taggedWaitlist, recentCancelled, activeCustomers] =
+      await Promise.all([
+        this.customerRepo
+          .createQueryBuilder('c')
+          .where('c.business_id = :businessId', { businessId })
+          .andWhere(`'waitlist' = ANY(c.tags)`)
+          .getMany(),
+        this.bookingRepo.find({
+          where: {
+            businessId,
+            status: BookingStatus.CANCELLED,
+            startTime: Between(lookbackStart, end),
+          },
+          relations: { customer: true, service: true },
+          order: { startTime: 'DESC' },
+          take: 50,
+        }),
+        this.bookingRepo.find({
+          where: {
+            businessId,
+            status: Not(In([BookingStatus.CANCELLED])),
+            startTime: Between(start, end),
+          },
+          relations: { customer: true, service: true },
+        }),
+      ]);
 
     const activeCustomerIds = new Set(
-      activeCustomers.map((b) => b.customerId).filter(Boolean) as string[],
+      activeCustomers.map((b) => b.customerId).filter(Boolean),
     );
 
     const candidateMap = new Map<
@@ -814,7 +1012,12 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         !serviceIds.length ||
         (booking.serviceId && serviceIds.includes(booking.serviceId));
       if (matchesService) {
-        addCandidate(booking.customer, 'recent_cancellation', booking.service?.name, 80);
+        addCandidate(
+          booking.customer,
+          'recent_cancellation',
+          booking.service?.name,
+          80,
+        );
       }
     }
 
@@ -852,14 +1055,20 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async proposeReassignment(step: WorkflowStep, ctx: Record<string, any>) {
+  private async proposeReassignment(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const prior = this.priorResult(ctx, step.dependsOn[0]);
     const grouped = new Map<string, any>();
 
     for (const entry of prior?.candidates ?? []) {
       const slotKey = entry.slot?.bookingId ?? entry.slot?.startTime;
       if (!slotKey) continue;
-      const list = grouped.get(String(slotKey)) ?? { slot: entry.slot, options: [] };
+      const list = grouped.get(String(slotKey)) ?? {
+        slot: entry.slot,
+        options: [],
+      };
       list.options.push({
         customerId: entry.customerId,
         customerName: entry.customerName,
@@ -871,7 +1080,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     }
 
     const proposals = [...grouped.values()].map((group, i) => {
-      const top = [...group.options].sort((a: any, b: any) => b.score - a.score)[0];
+      const top = [...group.options].sort(
+        (a: any, b: any) => b.score - a.score,
+      )[0];
       return {
         id: `proposal-${i + 1}`,
         slot: group.slot,
@@ -894,9 +1105,19 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     return { proposals, proposalCount: proposals.length };
   }
 
-  private async executeReassignment(step: WorkflowStep, ctx: Record<string, any>) {
-    const { proposalId, customerId, employeeId, serviceId, startTime, userId, notes } =
-      step.params as Record<string, any>;
+  private async executeReassignment(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
+    const {
+      proposalId,
+      customerId,
+      employeeId,
+      serviceId,
+      startTime,
+      userId,
+      notes,
+    } = step.params;
 
     if (!customerId || !employeeId || !serviceId || !startTime) {
       throw new BadRequestException(
@@ -923,8 +1144,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const { businessId } = step.params;
     const { start, end } = this.resolveDateRange(step.params);
 
-    const conflicts = await this.schedulingEngine.findConflicts(businessId, { start, end });
-    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const conflicts = await this.schedulingEngine.findConflicts(businessId, {
+      start,
+      end,
+    });
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
     const employeeNames = new Map(employees.map((e) => [e.id, e.name]));
     const bookingIds = conflicts.flatMap((c) => c.bookings.map((b) => b.id));
     const detailed =
@@ -956,9 +1182,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async analyzeResolutionOptions(step: WorkflowStep, ctx: Record<string, any>) {
+  private async analyzeResolutionOptions(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const detected = this.priorResult(ctx, step.dependsOn[0]);
-    const strategies = step.params.strategies ?? ['reschedule', 'reassign_employee', 'cancel_lower_priority'];
+    const strategies = step.params.strategies ?? [
+      'reschedule',
+      'reassign_employee',
+      'cancel_lower_priority',
+    ];
 
     return {
       options: (detected?.conflicts ?? []).map((c: any, index: number) => {
@@ -967,7 +1200,11 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
           a && b
             ? Math.max(
                 0,
-                Math.round((new Date(a.endTime).getTime() - new Date(b.startTime).getTime()) / 60000),
+                Math.round(
+                  (new Date(a.endTime).getTime() -
+                    new Date(b.startTime).getTime()) /
+                    60000,
+                ),
               )
             : 0;
 
@@ -984,7 +1221,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
           suggestedParams: b
             ? {
                 bookingId: b.id,
-                newStartTime: new Date(new Date(b.startTime).getTime() + 15 * 60000).toISOString(),
+                newStartTime: new Date(
+                  new Date(b.startTime).getTime() + 15 * 60000,
+                ).toISOString(),
               }
             : undefined,
         };
@@ -992,10 +1231,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async proposeResolutions(step: WorkflowStep, ctx: Record<string, any>) {
+  private async proposeResolutions(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const options = this.priorResult(ctx, step.dependsOn[0]);
     const employees = await this.employeeRepo.find({
-      where: { businessId: step.params.businessId ?? ctx.businessId, isActive: true },
+      where: {
+        businessId: step.params.businessId ?? ctx.businessId,
+        isActive: true,
+      },
     });
     const employeeNames = new Map(employees.map((e) => [e.id, e.name]));
 
@@ -1027,7 +1272,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async applyConflictResolutions(step: WorkflowStep, ctx: Record<string, any>) {
+  private async applyConflictResolutions(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
     const userId = step.params.userId as string | undefined;
     const proposals = this.priorResult(ctx, step.dependsOn[0]);
@@ -1039,7 +1287,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       .map((r) => r.fix)
       .filter(
         (fix): fix is { type: string; bookingId: string; startTime: string } =>
-          fix?.type === 'reschedule_booking' && !!fix.bookingId && !!fix.startTime,
+          fix?.type === 'reschedule_booking' &&
+          !!fix.bookingId &&
+          !!fix.startTime,
       );
 
     if (!reschedules.length) {
@@ -1084,7 +1334,10 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async createScheduleTemplate(step: WorkflowStep, ctx: Record<string, any>) {
+  private async createScheduleTemplate(
+    step: WorkflowStep,
+    ctx: Record<string, any>,
+  ) {
     const businessId = step.params.businessId ?? ctx.businessId;
     const { name, timePeriods, userId } = step.params as {
       name: string;
@@ -1093,10 +1346,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
 
     if (!name?.trim()) {
-      throw new BadRequestException('create_schedule_template requires template name');
+      throw new BadRequestException(
+        'create_schedule_template requires template name',
+      );
     }
     if (!timePeriods?.length) {
-      throw new BadRequestException('create_schedule_template requires at least one time period');
+      throw new BadRequestException(
+        'create_schedule_template requires at least one time period',
+      );
     }
 
     const template = await this.scheduleService.createTemplate(
@@ -1124,17 +1381,24 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       (step.params.paymentStatus as PaymentStatus | undefined);
 
     if (!bookingIds.length) {
-      return { updatedCount: 0, bookingIds: [], message: 'No bookings to update' };
+      return {
+        updatedCount: 0,
+        bookingIds: [],
+        message: 'No bookings to update',
+      };
     }
 
     let updated = 0;
     const updatedIds: string[] = [];
 
     for (const id of bookingIds) {
-      const booking = await this.bookingRepo.findOne({ where: { id, businessId } });
+      const booking = await this.bookingRepo.findOne({
+        where: { id, businessId },
+      });
       if (!booking || booking.status === BookingStatus.CANCELLED) continue;
 
-      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } = {};
+      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } =
+        {};
       if (status) payload.status = status;
       if (paymentStatus) payload.paymentStatus = paymentStatus;
       if (!Object.keys(payload).length) continue;

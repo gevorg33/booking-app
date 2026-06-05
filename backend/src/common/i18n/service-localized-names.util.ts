@@ -7,7 +7,9 @@ export const LOCALIZED_NAME_MAX_LENGTH = 120;
 
 export type LocalizedNamesMap = Partial<Record<AppLocale, string[]>>;
 
-export type LocalizedNamesInput = Partial<Record<string, string[] | undefined>> | null;
+export type LocalizedNamesInput = Partial<
+  Record<string, string[] | undefined>
+> | null;
 
 const METADATA_KEY = 'localizedNames';
 
@@ -17,7 +19,9 @@ export function extractLocalizedNamesFromMetadata(
   if (!metadata || typeof metadata !== 'object') return undefined;
   const raw = metadata[METADATA_KEY];
   if (!raw || typeof raw !== 'object') return undefined;
-  const normalized = normalizeLocalizedNames(raw as LocalizedNamesInput, { strict: false });
+  const normalized = normalizeLocalizedNames(raw, {
+    strict: false,
+  });
   if (!normalized || Object.keys(normalized).length === 0) return undefined;
   return normalized;
 }
@@ -35,7 +39,9 @@ export function normalizeLocalizedNames(
   for (const [key, value] of Object.entries(input)) {
     if (!SUPPORTED_LOCALES.includes(key as AppLocale)) {
       if (strict) {
-        throw new BadRequestException(`Unsupported locale in localizedNames: ${key}`);
+        throw new BadRequestException(
+          `Unsupported locale in localizedNames: ${key}`,
+        );
       }
       continue;
     }
@@ -53,7 +59,9 @@ export function normalizeLocalizedNames(
     for (const item of value) {
       if (item === undefined || item === null) continue;
       if (typeof item !== 'string') {
-        throw new BadRequestException(`localizedNames.${key} entries must be strings`);
+        throw new BadRequestException(
+          `localizedNames.${key} entries must be strings`,
+        );
       }
       const trimmed = item.trim();
       if (!trimmed) continue;

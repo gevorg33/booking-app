@@ -11,8 +11,14 @@ import {
   parseDateInput,
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
-import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
-import { isWallClockSlotBookable, addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import {
+  normalizeTime24,
+  timeToMinutes,
+} from '../../common/utils/time-format.util.js';
+import {
+  isWallClockSlotBookable,
+  addDaysToDateKey,
+} from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import type {
   BookingFallbackResolveInput,
@@ -23,10 +29,14 @@ import type {
 @Injectable()
 export class BookingSlotResolverService {
   constructor(
-    @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
-    @InjectRepository(Service) private readonly serviceRepo: Repository<Service>,
-    @InjectRepository(Employee) private readonly employeeRepo: Repository<Employee>,
-    @InjectRepository(SchedulingPeriod) private readonly periodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(Booking)
+    private readonly bookingRepo: Repository<Booking>,
+    @InjectRepository(Service)
+    private readonly serviceRepo: Repository<Service>,
+    @InjectRepository(Employee)
+    private readonly employeeRepo: Repository<Employee>,
+    @InjectRepository(SchedulingPeriod)
+    private readonly periodRepo: Repository<SchedulingPeriod>,
   ) {}
 
   describeUnavailable(
@@ -72,7 +82,12 @@ export class BookingSlotResolverService {
     );
     if (!check.available) {
       throw new BadRequestException(
-        this.describeUnavailable(check, params.serviceName, params.timeSlot, params.isoDay),
+        this.describeUnavailable(
+          check,
+          params.serviceName,
+          params.timeSlot,
+          params.isoDay,
+        ),
       );
     }
   }
@@ -112,10 +127,18 @@ export class BookingSlotResolverService {
       };
     }
 
-    const row = await this.getProviderAvailabilityForService(businessId, employeeId, serviceId, isoDay);
+    const row = await this.getProviderAvailabilityForService(
+      businessId,
+      employeeId,
+      serviceId,
+      isoDay,
+    );
     const snapped = this.snapTo10min(timeSlot);
-    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
-    const duration = (service?.durationMinutes ?? 30) + (service?.bufferMinutes ?? 0);
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
+    const duration =
+      (service?.durationMinutes ?? 30) + (service?.bufferMinutes ?? 0);
 
     if (!isWallClockSlotBookable(isoDay, snapped, timeZone)) {
       return {
@@ -249,7 +272,12 @@ export class BookingSlotResolverService {
     });
   }
 
-  private timesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  private timesOverlap(
+    aStart: Date,
+    aEnd: Date,
+    bStart: Date,
+    bEnd: Date,
+  ): boolean {
     return aStart < bEnd && bStart < aEnd;
   }
 
@@ -257,7 +285,9 @@ export class BookingSlotResolverService {
     slots: Array<{ startTime: Date; endTime: Date }>,
   ): Array<{ start: string; end: string }> {
     if (slots.length === 0) return [];
-    const sorted = [...slots].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    const sorted = [...slots].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
     const merged: Array<{ start: Date; end: Date }> = [
       { start: sorted[0].startTime, end: sorted[0].endTime },
     ];
@@ -285,26 +315,51 @@ export class BookingSlotResolverService {
     timeZone = 'UTC',
     notBeforeTime?: string | null,
     maxDays = 1,
-  ): Promise<{ isoDay: string; timeSlot: string; openSlots: Array<{ start: string; end: string }> } | null> {
-    let best: { isoDay: string; timeSlot: string; sortKey: number; openSlots: Array<{ start: string; end: string }> } | null =
-      null;
+  ): Promise<{
+    isoDay: string;
+    timeSlot: string;
+    openSlots: Array<{ start: string; end: string }>;
+  } | null> {
+    let best: {
+      isoDay: string;
+      timeSlot: string;
+      sortKey: number;
+      openSlots: Array<{ start: string; end: string }>;
+    } | null = null;
 
     for (let offset = 0; offset < maxDays; offset++) {
       const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
-      const row = await this.getProviderAvailabilityForService(businessId, employeeId, serviceId, isoDay);
+      const row = await this.getProviderAvailabilityForService(
+        businessId,
+        employeeId,
+        serviceId,
+        isoDay,
+      );
       if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
 
       for (const slot of row.openSlots) {
-        if (!isWallClockSlotBookable(isoDay, slot.start, timeZone, notBeforeTime)) continue;
+        if (
+          !isWallClockSlotBookable(isoDay, slot.start, timeZone, notBeforeTime)
+        )
+          continue;
         const sortKey = offset * 24 * 60 + timeToMinutes(slot.start);
         if (!best || sortKey < best.sortKey) {
-          best = { isoDay, timeSlot: slot.start, sortKey, openSlots: row.openSlots };
+          best = {
+            isoDay,
+            timeSlot: slot.start,
+            sortKey,
+            openSlots: row.openSlots,
+          };
         }
       }
     }
 
     return best
-      ? { isoDay: best.isoDay, timeSlot: best.timeSlot, openSlots: best.openSlots }
+      ? {
+          isoDay: best.isoDay,
+          timeSlot: best.timeSlot,
+          openSlots: best.openSlots,
+        }
       : null;
   }
 
@@ -324,13 +379,21 @@ export class BookingSlotResolverService {
     const dayEnd = new Date(d);
     dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
     const minGapMinutes =
-      service?.durationMinutes && service.durationMinutes > 0 ? service.durationMinutes : 10;
+      service?.durationMinutes && service.durationMinutes > 0
+        ? service.durationMinutes
+        : 10;
 
     const [periods, bookings] = await Promise.all([
       this.periodRepo.find({
-        where: { businessId, employeeId, startTime: Between(dayStart, dayEnd) as any },
+        where: {
+          businessId,
+          employeeId,
+          startTime: Between(dayStart, dayEnd) as any,
+        },
         order: { startTime: 'ASC' },
       }),
       this.bookingRepo.find({
@@ -361,7 +424,14 @@ export class BookingSlotResolverService {
     const openSlotCandidates: Array<{ startTime: Date; endTime: Date }> = [];
     for (const block of serviceBlocks) {
       const occupied = bookings
-        .filter((b) => this.timesOverlap(block.startTime, block.endTime, b.startTime, b.endTime))
+        .filter((b) =>
+          this.timesOverlap(
+            block.startTime,
+            block.endTime,
+            b.startTime,
+            b.endTime,
+          ),
+        )
         .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
 
       const gaps = findScheduleGapsInWindow(

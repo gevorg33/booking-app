@@ -37,4 +37,5 @@ export const CancellationRecoveryState = Annotation.Root({
   }),
 });
 
-export type CancellationRecoveryGraphState = typeof CancellationRecoveryState.State;
+export type CancellationRecoveryGraphState =
+  typeof CancellationRecoveryState.State;

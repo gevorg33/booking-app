@@ -7,9 +7,30 @@ import {
 
 describe('commission-payout.util', () => {
   const rules = [
-    { id: 'r1', employeeId: 'e1', serviceId: 's1', type: 'percent', value: 10, isActive: true },
-    { id: 'r2', employeeId: 'e1', serviceId: null, type: 'flat', value: 5, isActive: true },
-    { id: 'r3', employeeId: null, serviceId: null, type: 'percent', value: 3, isActive: true },
+    {
+      id: 'r1',
+      employeeId: 'e1',
+      serviceId: 's1',
+      type: 'percent',
+      value: 10,
+      isActive: true,
+    },
+    {
+      id: 'r2',
+      employeeId: 'e1',
+      serviceId: null,
+      type: 'flat',
+      value: 5,
+      isActive: true,
+    },
+    {
+      id: 'r3',
+      employeeId: null,
+      serviceId: null,
+      type: 'percent',
+      value: 3,
+      isActive: true,
+    },
   ] as any[];
 
   it('picks most specific commission rule', () => {
@@ -19,14 +40,26 @@ describe('commission-payout.util', () => {
   });
 
   it('calculates percent and flat commissions', () => {
-    expect(calculateCommissionAmount(100, { type: 'percent', value: 10 })).toBe(10);
-    expect(calculateCommissionAmount(100, { type: 'flat', value: 15 })).toBe(15);
+    expect(calculateCommissionAmount(100, { type: 'percent', value: 10 })).toBe(
+      10,
+    );
+    expect(calculateCommissionAmount(100, { type: 'flat', value: 15 })).toBe(
+      15,
+    );
   });
 
   it('skips bookings without service or matching rule', () => {
     expect(
       buildPayoutExportRows(
-        [{ id: 'b1', employeeId: 'e1', serviceId: 's1', startTime: new Date(), service: null }],
+        [
+          {
+            id: 'b1',
+            employeeId: 'e1',
+            serviceId: 's1',
+            startTime: new Date(),
+            service: null,
+          },
+        ],
         rules,
       ),
     ).toEqual([]);

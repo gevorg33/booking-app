@@ -1,4 +1,7 @@
-import { findResourceConflicts, intervalsOverlap } from './resource-scheduling.util.js';
+import {
+  findResourceConflicts,
+  intervalsOverlap,
+} from './resource-scheduling.util.js';
 
 describe('resource-scheduling.util', () => {
   const t0 = new Date('2026-06-01T10:00:00Z');
@@ -7,7 +10,9 @@ describe('resource-scheduling.util', () => {
   const t3 = new Date('2026-06-01T12:00:00Z');
 
   it('detects overlapping intervals', () => {
-    expect(intervalsOverlap(t0, t1, new Date('2026-06-01T10:30:00Z'), t2)).toBe(true);
+    expect(intervalsOverlap(t0, t1, new Date('2026-06-01T10:30:00Z'), t2)).toBe(
+      true,
+    );
     expect(intervalsOverlap(t0, t1, t1, t3)).toBe(false);
   });
 

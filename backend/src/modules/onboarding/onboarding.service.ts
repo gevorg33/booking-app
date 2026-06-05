@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
@@ -15,7 +20,10 @@ import {
   isKnownBusinessType,
   type CatalogCategoryDraft,
 } from './business-types.constants.js';
-import { getVerticalPlaybook, resolveVerticalPlaybookId } from './vertical-playbooks.constants.js';
+import {
+  getVerticalPlaybook,
+  resolveVerticalPlaybookId,
+} from './vertical-playbooks.constants.js';
 import { ApplyCatalogDto, SetBusinessTypeDto } from './dto/onboarding.dto.js';
 
 const CATALOG_SCHEMA = `{
@@ -44,7 +52,8 @@ export class OnboardingService {
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
     private categoryService: ServiceCategoryService,
     private serviceService: ServiceService,
     private scheduleService: ScheduleService,
@@ -87,7 +96,10 @@ export class OnboardingService {
           ].filter(Boolean),
         })),
       })),
-      serviceCount: playbook.categories.reduce((sum, cat) => sum + cat.services.length, 0),
+      serviceCount: playbook.categories.reduce(
+        (sum, cat) => sum + cat.services.length,
+        0,
+      ),
     };
   }
 
@@ -98,8 +110,14 @@ export class OnboardingService {
       throw new BadRequestException('Select a business type first');
     }
     const playbook = getVerticalPlaybook(businessType);
-    const catalogResult = await this.applyCatalog(businessId, { categories: playbook.categories });
-    const scheduleResult = await this.applyPlaybookSchedule(businessId, userId, playbook.id);
+    const catalogResult = await this.applyCatalog(businessId, {
+      categories: playbook.categories,
+    });
+    const scheduleResult = await this.applyPlaybookSchedule(
+      businessId,
+      userId,
+      playbook.id,
+    );
     return {
       ...catalogResult,
       ...scheduleResult,
@@ -153,7 +171,8 @@ export class OnboardingService {
       onboarding: {
         ...(business.settings?.onboarding ?? {}),
         completed: business.settings?.onboarding?.completed ?? false,
-        startedAt: business.settings?.onboarding?.startedAt ?? new Date().toISOString(),
+        startedAt:
+          business.settings?.onboarding?.startedAt ?? new Date().toISOString(),
         step: 'catalog',
       },
     };
@@ -169,7 +188,8 @@ export class OnboardingService {
     }
 
     const typeLabel =
-      BUSINESS_TYPE_OPTIONS.find((t) => t.id === businessType)?.id ?? businessType;
+      BUSINESS_TYPE_OPTIONS.find((t) => t.id === businessType)?.id ??
+      businessType;
     const notes = business.settings?.businessTypeNotes ?? '';
 
     let categories: CatalogCategoryDraft[];
@@ -178,12 +198,19 @@ export class OnboardingService {
 
     if (await this.llm.isAvailableForBusiness(businessId)) {
       try {
-        const generated = await this.generateWithAi(businessId, business.name, typeLabel, notes);
+        const generated = await this.generateWithAi(
+          businessId,
+          business.name,
+          typeLabel,
+          notes,
+        );
         categories = generated.categories;
         summary = generated.summary;
         source = 'ai';
       } catch (err: any) {
-        this.logger.warn(`AI catalog generation failed, using template: ${err.message}`);
+        this.logger.warn(
+          `AI catalog generation failed, using template: ${err.message}`,
+        );
         categories = getVerticalPlaybook(businessType).categories;
         summary = `Starter ${resolveVerticalPlaybookId(businessType)} playbook catalog.`;
       }
@@ -201,8 +228,12 @@ export class OnboardingService {
     const business = await this.findBusiness(businessId);
     const existingCategories = await this.categoryService.findAll(businessId);
     const existingServices = await this.serviceService.findAll(businessId);
-    const categoryNameSet = new Set(existingCategories.map((c) => c.name.toLowerCase()));
-    const serviceNameSet = new Set(existingServices.map((s) => s.name.toLowerCase()));
+    const categoryNameSet = new Set(
+      existingCategories.map((c) => c.name.toLowerCase()),
+    );
+    const serviceNameSet = new Set(
+      existingServices.map((s) => s.name.toLowerCase()),
+    );
 
     let categoriesCreated = 0;
     let servicesCreated = 0;
@@ -212,7 +243,9 @@ export class OnboardingService {
       if (!catName) continue;
 
       let categoryId: string | null = null;
-      const existingCat = existingCategories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+      const existingCat = existingCategories.find(
+        (c) => c.name.toLowerCase() === catName.toLowerCase(),
+      );
       if (existingCat) {
         categoryId = existingCat.id;
       } else if (!categoryNameSet.has(catName.toLowerCase())) {
@@ -274,18 +307,32 @@ export class OnboardingService {
     const business = await this.findBusiness(businessId);
     if (await this.businessHasSchedule(businessId)) {
       await this.setOnboardingStep(business, 'link');
-      return { slotsCreated: 0, alreadyConfigured: true, status: await this.getStatus(businessId), playbookId };
+      return {
+        slotsCreated: 0,
+        alreadyConfigured: true,
+        status: await this.getStatus(businessId),
+        playbookId,
+      };
     }
 
     const employee =
-      (await this.employeeRepo.findOne({ where: { businessId, userId, isActive: true } })) ??
-      (await this.employeeRepo.findOne({ where: { businessId, isActive: true }, order: { createdAt: 'ASC' } }));
+      (await this.employeeRepo.findOne({
+        where: { businessId, userId, isActive: true },
+      })) ??
+      (await this.employeeRepo.findOne({
+        where: { businessId, isActive: true },
+        order: { createdAt: 'ASC' },
+      }));
 
     if (!employee) {
-      throw new BadRequestException('Add at least one employee before setting up a schedule');
+      throw new BadRequestException(
+        'Add at least one employee before setting up a schedule',
+      );
     }
 
-    const playbook = getVerticalPlaybook(business.settings?.businessType ?? 'other');
+    const playbook = getVerticalPlaybook(
+      business.settings?.businessType ?? 'other',
+    );
     if (playbook.id !== playbookId) {
       throw new BadRequestException('Playbook mismatch');
     }
@@ -396,12 +443,16 @@ export class OnboardingService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
 
-  private normalizeCatalog(categories: CatalogCategoryDraft[]): CatalogCategoryDraft[] {
+  private normalizeCatalog(
+    categories: CatalogCategoryDraft[],
+  ): CatalogCategoryDraft[] {
     return categories
       .slice(0, 8)
       .map((cat, index) => ({
@@ -412,7 +463,10 @@ export class OnboardingService {
           .map((svc) => ({
             name: svc.name.trim(),
             description: svc.description?.trim(),
-            durationMinutes: Math.max(10, Math.round(svc.durationMinutes || 30)),
+            durationMinutes: Math.max(
+              10,
+              Math.round(svc.durationMinutes || 30),
+            ),
             price: Math.max(0, Number(svc.price) || 0),
             bufferMinutes: Math.max(0, Math.round(svc.bufferMinutes ?? 0)),
           }))
@@ -444,7 +498,10 @@ Rules:
 - Do not include duplicate service names
 - Keep descriptions under 120 characters when provided`;
 
-    const parsed = await this.llm.completeJson<{ categories?: CatalogCategoryDraft[]; summary?: string }>(
+    const parsed = await this.llm.completeJson<{
+      categories?: CatalogCategoryDraft[];
+      summary?: string;
+    }>(
       businessId,
       'You output only valid JSON for service business onboarding catalogs.',
       prompt,
@@ -455,10 +512,13 @@ Rules:
       },
       0.3,
     );
-    if (!parsed?.categories?.length) throw new Error('No categories in AI response');
+    if (!parsed?.categories?.length)
+      throw new Error('No categories in AI response');
     return {
       categories: parsed.categories,
-      summary: parsed.summary?.trim() || 'AI-recommended starter catalog for your business.',
+      summary:
+        parsed.summary?.trim() ||
+        'AI-recommended starter catalog for your business.',
     };
   }
 }

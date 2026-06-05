@@ -7,7 +7,10 @@ import { CommissionsController } from './commissions.controller.js';
 import { BusinessModule } from '../business/business.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CommissionRule, Booking]), BusinessModule],
+  imports: [
+    TypeOrmModule.forFeature([CommissionRule, Booking]),
+    BusinessModule,
+  ],
   controllers: [CommissionsController],
   providers: [CommissionsService],
   exports: [CommissionsService],

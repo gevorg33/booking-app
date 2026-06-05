@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.service.js';
-import { AgentPlan, AgentType, PlanStatus } from '../../engine/agent/interfaces/agent.interfaces.js';
-import { ContextBuilderService } from '../../engine/agent/context-builder.service.js';
 import {
-  parseDateInput,
-} from '../../common/utils/date-format.util.js';
+  AgentPlan,
+  AgentType,
+  PlanStatus,
+} from '../../engine/agent/interfaces/agent.interfaces.js';
+import { ContextBuilderService } from '../../engine/agent/context-builder.service.js';
+import { parseDateInput } from '../../common/utils/date-format.util.js';
 import {
   appendBookingListLines,
   formatBlockScheduleLine,
@@ -13,6 +15,11 @@ import {
   type BookingSnapshot,
 } from './ai-result-format.util.js';
 import { AiEventsService } from './ai-events.service.js';
+import {
+  buildApprovalAlertPayload,
+  buildPendingApprovalDetails,
+  mapExecutionTimeline,
+} from './orchestration-result.util.js';
 
 export interface OrchestrationResult {
   success: boolean;
@@ -78,7 +85,10 @@ export class CommandOrchestrationService {
     return this.taskToResult(task, params.plan.intent);
   }
 
-  async approveTask(taskId: string, userId: string): Promise<OrchestrationResult> {
+  async approveTask(
+    taskId: string,
+    userId: string,
+  ): Promise<OrchestrationResult> {
     const task = await this.orchestrator.approveAndExecute(taskId, userId);
     return this.taskToResult(task, task.intent);
   }
@@ -89,13 +99,19 @@ export class CommandOrchestrationService {
     stepId: string,
     userId?: string,
   ): Promise<OrchestrationResult> {
-    const task = await this.orchestrator.retryFailedStep(taskId, stepId, userId, businessId);
+    const task = await this.orchestrator.retryFailedStep(
+      taskId,
+      stepId,
+      userId,
+      businessId,
+    );
     return this.taskToResult(task, task.intent);
   }
 
   private taskToResult(task: any, action: string): OrchestrationResult {
     const requiresApproval =
-      task.status === PlanStatus.REQUIRES_APPROVAL || task.status === PlanStatus.VALIDATED;
+      task.status === PlanStatus.REQUIRES_APPROVAL ||
+      task.status === PlanStatus.VALIDATED;
 
     if (task.status === PlanStatus.REJECTED) {
       return {
@@ -118,6 +134,7 @@ export class CommandOrchestrationService {
           plan: task.plan,
           result: task.result,
           error: task.error,
+          executionTimeline: mapExecutionTimeline(task),
         },
         taskId: task.id,
       };
@@ -133,13 +150,29 @@ export class CommandOrchestrationService {
           status: task.status,
           plan: task.plan,
           result: task.result,
+          executionTimeline: mapExecutionTimeline(task),
         },
         taskId: task.id,
       };
     }
 
     const planDiff =
-      task.plan && requiresApproval ? this.orchestrator.buildPlanDiff(task.plan) : undefined;
+      task.plan && requiresApproval
+        ? this.orchestrator.buildPlanDiff(task.plan)
+        : undefined;
+    const employeeCount =
+      task.context?.employees?.length ??
+      task.context?.policyMetrics?.employeeCount ??
+      task.plan?.steps?.length;
+
+    if (requiresApproval && task.businessId) {
+      const alert = buildApprovalAlertPayload(
+        action,
+        task.id,
+        planDiff?.length ?? task.plan?.steps?.length ?? 0,
+      );
+      this.aiEvents.emitAlert(task.businessId, alert);
+    }
 
     return {
       success: true,
@@ -153,14 +186,16 @@ export class CommandOrchestrationService {
       ]
         .filter(Boolean)
         .join('\n'),
-      details: {
+      details: buildPendingApprovalDetails({
+        action,
         taskId: task.id,
         status: task.status,
         plan: task.plan,
-        requiresApproval,
         planDiff,
         policyPreview: task.result?.policyPreview,
-      },
+        employeeCount,
+        daySpan: 7,
+      }),
       taskId: task.id,
       requiresApproval,
     };
@@ -172,10 +207,16 @@ export class CommandOrchestrationService {
     const lines: string[] = [];
 
     if (failed.length > 0) {
-      lines.push(`Orchestration failed (${failed.length}/${steps.length} step(s) failed).`);
+      lines.push(
+        `Orchestration failed (${failed.length}/${steps.length} step(s) failed).`,
+      );
       for (const step of failed) {
-        const name = task.plan?.steps?.find((p: any) => p.id === step.stepId)?.description;
-        lines.push(`• ${name || step.stepId}: ${step.error || 'Unknown error'}`);
+        const name = task.plan?.steps?.find(
+          (p: any) => p.id === step.stepId,
+        )?.description;
+        lines.push(
+          `• ${name || step.stepId}: ${step.error || 'Unknown error'}`,
+        );
       }
     } else {
       lines.push(`Execution failed: ${task.error || 'Unknown error'}`);
@@ -193,10 +234,14 @@ export class CommandOrchestrationService {
       return this.summarizeExecutionFailure(task);
     }
 
-    const lines = [`Orchestration completed (${completed.length}/${steps.length} steps).`];
+    const lines = [
+      `Orchestration completed (${completed.length}/${steps.length} steps).`,
+    ];
 
     for (const step of completed) {
-      const planStep = task.plan?.steps?.find((p: { id: string }) => p.id === step.stepId);
+      const planStep = task.plan?.steps?.find(
+        (p: { id: string }) => p.id === step.stepId,
+      );
       this.appendStepSummaryLines(lines, planStep?.action, step.result ?? {});
     }
 
@@ -227,12 +272,21 @@ export class CommandOrchestrationService {
     }
 
     if (action === 'reschedule_booking' && result.bookingId) {
-      lines.push(`• Rescheduled: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`);
+      lines.push(
+        `• Rescheduled: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`,
+      );
     } else if (action === 'create_booking' && result.bookingId) {
       lines.push(formatBookingCreatedLine(result));
-    } else if (result.bookingId && !result.cancelledCount && !result.hiddenCount && !result.unhiddenCount) {
+    } else if (
+      result.bookingId &&
+      !result.cancelledCount &&
+      !result.hiddenCount &&
+      !result.unhiddenCount
+    ) {
       if (result.employeeName && result.startTime && result.endTime) {
-        lines.push(`• Booking updated: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`);
+        lines.push(
+          `• Booking updated: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`,
+        );
       }
     }
 
@@ -250,7 +304,9 @@ export class CommandOrchestrationService {
         lines.push(`• Cancelled ${result.cancelledCount} booking(s)`);
       }
     } else if (result.cancelledId && result.employeeName) {
-      lines.push(`• Cancelled: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`);
+      lines.push(
+        `• Cancelled: ${formatBookingSnapshotLine(result, { includeCustomer: true })}`,
+      );
     }
 
     if (result.hiddenCount != null) {
@@ -258,7 +314,9 @@ export class CommandOrchestrationService {
       if (snapshots.length > 0) {
         appendBookingListLines(lines, '• Hidden from calendar', snapshots);
       } else {
-        lines.push(`• Hidden ${result.hiddenCount} appointment(s) from calendar`);
+        lines.push(
+          `• Hidden ${result.hiddenCount} appointment(s) from calendar`,
+        );
       }
     }
 
@@ -267,22 +325,32 @@ export class CommandOrchestrationService {
       if (snapshots.length > 0) {
         appendBookingListLines(lines, '• Restored to calendar', snapshots);
       } else {
-        lines.push(`• Restored ${result.unhiddenCount} appointment(s) to calendar`);
+        lines.push(
+          `• Restored ${result.unhiddenCount} appointment(s) to calendar`,
+        );
       }
     }
 
     if (result.notifiedCount != null) {
-      lines.push(`• Notified ${result.notifiedCount} customer(s) (email/SMS/WhatsApp)`);
+      lines.push(
+        `• Notified ${result.notifiedCount} customer(s) (email/SMS/WhatsApp)`,
+      );
     }
     if (result.recommendations?.length) {
       lines.push('• Recommendations:');
-      result.recommendations.slice(0, 5).forEach((r: string) => lines.push(`  - ${r}`));
+      result.recommendations
+        .slice(0, 5)
+        .forEach((r: string) => lines.push(`  - ${r}`));
     }
     if (result.proposals?.length) {
-      lines.push(`• ${result.proposals.length} reassignment proposal(s) generated`);
+      lines.push(
+        `• ${result.proposals.length} reassignment proposal(s) generated`,
+      );
     }
     if (result.resolutions?.length) {
-      lines.push(`• ${result.resolutions.length} conflict resolution(s) proposed`);
+      lines.push(
+        `• ${result.resolutions.length} conflict resolution(s) proposed`,
+      );
     }
     if (result.bookingCount != null) {
       lines.push(
@@ -292,7 +360,7 @@ export class CommandOrchestrationService {
   }
 
   private dateRangeFromDate(date?: string) {
-    const start = date ? parseDateInput(date) ?? new Date(date) : new Date();
+    const start = date ? (parseDateInput(date) ?? new Date(date)) : new Date();
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setUTCHours(23, 59, 59, 999);

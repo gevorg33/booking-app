@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { PromoCodesService } from './promo-codes.service.js';
 import { PromoDiscountType } from './entities/promo-code.entity.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -14,7 +22,10 @@ export class PromoCodesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.promoCodesService.list(businessId);
   }

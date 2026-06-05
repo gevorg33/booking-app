@@ -2,7 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { END, START, StateGraph, Annotation, messagesStateReducer } from '@langchain/langgraph';
+import {
+  END,
+  START,
+  StateGraph,
+  Annotation,
+  messagesStateReducer,
+} from '@langchain/langgraph';
 import { ChatOpenAI } from '@langchain/openai';
 import {
   AIMessage,
@@ -64,13 +70,18 @@ export class ReactBookingAgentService {
     private readonly config: ConfigService,
     private readonly toolRegistry: BookingToolRegistryService,
     private readonly openAiIntegration: OpenAiIntegrationService,
-    @InjectRepository(Business) private readonly businessRepo: Repository<Business>,
+    @InjectRepository(Business)
+    private readonly businessRepo: Repository<Business>,
   ) {}
 
   async run(input: ReactAgentRunInput): Promise<ReactAgentRunOutput> {
     const apiKey = await this.resolveApiKey(input.businessId);
     if (!apiKey) {
-      return { messages: [], proposals: [], error: 'OpenAI is not configured for ReAct agent.' };
+      return {
+        messages: [],
+        proposals: [],
+        error: 'OpenAI is not configured for ReAct agent.',
+      };
     }
 
     const modelName =
@@ -106,15 +117,18 @@ export class ReactBookingAgentService {
 
     const systemPrompt = this.buildSystemPrompt(input);
 
-    const finalState = (await graph.invoke(
+    const finalState = await graph.invoke(
       {
-        messages: [new SystemMessage(systemPrompt), new HumanMessage(input.prompt)],
+        messages: [
+          new SystemMessage(systemPrompt),
+          new HumanMessage(input.prompt),
+        ],
         proposals: [],
         toolContext: runCtx.toolContext,
         iterations: 0,
       },
       { recursionLimit: this.maxIterations * 2 + 4 },
-    )) as ReactAgentGraphState;
+    );
 
     runCtx.proposals = finalState.proposals.length
       ? finalState.proposals
@@ -168,7 +182,9 @@ export class ReactBookingAgentService {
             content = JSON.stringify({ error: `Unknown tool: ${call.name}` });
           } else {
             const args =
-              typeof call.args === 'string' ? JSON.parse(call.args) : (call.args ?? {});
+              typeof call.args === 'string'
+                ? JSON.parse(call.args)
+                : (call.args ?? {});
             content = String(await t.invoke(args));
           }
         } catch (err: any) {
@@ -191,7 +207,9 @@ export class ReactBookingAgentService {
       };
     };
 
-    const shouldContinue = (state: ReactAgentGraphState): 'tools' | typeof END => {
+    const shouldContinue = (
+      state: ReactAgentGraphState,
+    ): 'tools' | typeof END => {
       if (state.iterations >= this.maxIterations) return END;
       const last = state.messages.at(-1);
       if (last && isAIMessage(last) && last.tool_calls?.length) {
@@ -245,9 +263,13 @@ Context:
   }
 
   private async resolveApiKey(businessId: string): Promise<string | null> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) return null;
-    const runtime = this.openAiIntegration.resolveRuntimeConfig(business.settings);
+    const runtime = this.openAiIntegration.resolveRuntimeConfig(
+      business.settings,
+    );
     return runtime?.apiKey ?? null;
   }
 }

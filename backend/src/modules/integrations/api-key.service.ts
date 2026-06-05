@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash, randomBytes } from 'crypto';
@@ -18,8 +22,13 @@ export class ApiKeyService {
   ) {}
 
   assertAdminRole(membership: BusinessMember): void {
-    if (membership.role !== MemberRole.OWNER && membership.role !== MemberRole.ADMIN) {
-      throw new ForbiddenException('Only owners and admins can manage API keys');
+    if (
+      membership.role !== MemberRole.OWNER &&
+      membership.role !== MemberRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only owners and admins can manage API keys',
+      );
     }
   }
 
@@ -68,7 +77,9 @@ export class ApiKeyService {
   }
 
   async revokeKey(businessId: string, keyId: string) {
-    const key = await this.keyRepo.findOne({ where: { id: keyId, businessId } });
+    const key = await this.keyRepo.findOne({
+      where: { id: keyId, businessId },
+    });
     if (!key) throw new NotFoundException('API key not found');
     key.revokedAt = new Date();
     await this.keyRepo.save(key);

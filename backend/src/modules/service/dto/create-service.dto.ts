@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsOptional, Min, IsBoolean, IsEnum, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  Min,
+  IsBoolean,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { PrepaymentMode } from '../entities/service.entity.js';
 import { LocalizedNamesDto } from './localized-names.dto.js';
 

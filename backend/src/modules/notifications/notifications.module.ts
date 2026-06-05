@@ -33,6 +33,13 @@ import { NotificationEmailTemplateService } from './notification-email-template.
     MarketingCustomerRegistrationListener,
     NotificationEmailTemplateService,
   ],
-  exports: [NotificationsService, EmailService, SmsService, WhatsAppService, WhatsAppIntegrationService, NotificationEmailTemplateService],
+  exports: [
+    NotificationsService,
+    EmailService,
+    SmsService,
+    WhatsAppService,
+    WhatsAppIntegrationService,
+    NotificationEmailTemplateService,
+  ],
 })
 export class NotificationsModule {}

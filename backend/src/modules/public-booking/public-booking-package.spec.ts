@@ -34,7 +34,9 @@ function createPackagePublicBookingHarness() {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
 
   const service = new PublicBookingService(
@@ -123,14 +125,19 @@ function createPackagePublicBookingHarness() {
   function seedPackageContext() {
     jest.spyOn(service, 'resolveBusiness').mockResolvedValue(business);
     packagesService.assertPackageBookable.mockResolvedValue(pkg);
-    packagesService.expectedLineServiceIds.mockReturnValue(['face-plasma', 'face-pilling']);
+    packagesService.expectedLineServiceIds.mockReturnValue([
+      'face-plasma',
+      'face-pilling',
+    ]);
     packagesService.previewFromPackage.mockReturnValue({
       currency: 'USD',
       pricing: { packagePrice: 100 },
     });
-    packagesService.createPackagePurchase.mockResolvedValue({ id: 'purchase-1' });
+    packagesService.createPackagePurchase.mockResolvedValue({
+      id: 'purchase-1',
+    });
     multiServiceBookingsService.resolveSettingsFromBusiness.mockReturnValue(
-      business.settings!.publicBooking!.multiService,
+      business.settings.publicBooking!.multiService,
     );
     multiServiceBookingsService.previewTotals.mockResolvedValue({
       valid: true,
@@ -143,22 +150,38 @@ function createPackagePublicBookingHarness() {
       },
       services: serviceLines,
     });
-    multiServiceBookingsService.loadServicesForSelection.mockResolvedValue(serviceLines);
+    multiServiceBookingsService.loadServicesForSelection.mockResolvedValue(
+      serviceLines,
+    );
     bookingPaymentService.resolvePackageCheckoutPricing.mockResolvedValue({
       amountDue: 0,
       subtotal: 100,
     });
-    jest.spyOn(service as any, 'resolvePublicBookingCustomer').mockResolvedValue({
-      customer: { id: 'cust-1', name: 'Alex' },
-      created: false,
-    });
-    jest.spyOn(service as any, 'loadOrderedMultiServiceLines').mockResolvedValue(serviceLines);
-    jest.spyOn(service as any, 'findQualifiedMultiServiceEmployees').mockResolvedValue([
-      { id: 'emp-1', name: 'Gevorg', serviceIds: ['face-plasma', 'face-pilling'] },
-    ]);
-    jest.spyOn(service as any, 'validateMultiServiceBlockAt').mockResolvedValue(true);
+    jest
+      .spyOn(service as any, 'resolvePublicBookingCustomer')
+      .mockResolvedValue({
+        customer: { id: 'cust-1', name: 'Alex' },
+        created: false,
+      });
+    jest
+      .spyOn(service as any, 'loadOrderedMultiServiceLines')
+      .mockResolvedValue(serviceLines);
+    jest
+      .spyOn(service as any, 'findQualifiedMultiServiceEmployees')
+      .mockResolvedValue([
+        {
+          id: 'emp-1',
+          name: 'Gevorg',
+          serviceIds: ['face-plasma', 'face-pilling'],
+        },
+      ]);
+    jest
+      .spyOn(service as any, 'validateMultiServiceBlockAt')
+      .mockResolvedValue(true);
     checkoutPricingService.applyRedemptions.mockResolvedValue(undefined);
-    notificationsService.sendMultiAppointmentConfirmation.mockResolvedValue(undefined);
+    notificationsService.sendMultiAppointmentConfirmation.mockResolvedValue(
+      undefined,
+    );
   }
 
   return {
@@ -197,21 +220,27 @@ describe('PublicBookingService package same-day block scheduling', () => {
         dateKey: '2026-06-02',
         startTime: '2026-06-02T09:00:00.000Z',
       };
-      jest.spyOn(harness.service, 'suggestMultiServiceBlock').mockResolvedValue(block);
+      jest
+        .spyOn(harness.service, 'suggestMultiServiceBlock')
+        .mockResolvedValue(block);
 
-      await expect(harness.service.suggestPackageBlock('salon', 'pkg-1')).resolves.toEqual(block);
-      expect(harness.service.suggestMultiServiceBlock).toHaveBeenCalledWith('salon', [
-        'face-plasma',
-        'face-pilling',
-      ]);
+      await expect(
+        harness.service.suggestPackageBlock('salon', 'pkg-1'),
+      ).resolves.toEqual(block);
+      expect(harness.service.suggestMultiServiceBlock).toHaveBeenCalledWith(
+        'salon',
+        ['face-plasma', 'face-pilling'],
+      );
     });
 
     it('throws when no provider can perform every included service', async () => {
-      jest.spyOn(harness.service as any, 'findQualifiedMultiServiceEmployees').mockResolvedValue([]);
+      jest
+        .spyOn(harness.service as any, 'findQualifiedMultiServiceEmployees')
+        .mockResolvedValue([]);
 
-      await expect(harness.service.suggestPackageBlock('salon', 'pkg-1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        harness.service.suggestPackageBlock('salon', 'pkg-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -230,7 +259,9 @@ describe('PublicBookingService package same-day block scheduling', () => {
           },
         ],
       };
-      jest.spyOn(harness.service, 'getMultiServiceBlockDaySlots').mockResolvedValue(daySlots);
+      jest
+        .spyOn(harness.service, 'getMultiServiceBlockDaySlots')
+        .mockResolvedValue(daySlots);
 
       await expect(
         harness.service.getPackageBlockDaySlots('salon', 'pkg-1', '2026-06-02'),
@@ -246,9 +277,17 @@ describe('PublicBookingService package same-day block scheduling', () => {
   describe('getPackageBlockProviders', () => {
     it('delegates to getMultiServiceBlockProviders with includeLaterDays', async () => {
       const providers = {
-        providers: [{ id: 'emp-1', name: 'Gevorg', earliestStartTime: '2026-06-02T09:00:00.000Z' }],
+        providers: [
+          {
+            id: 'emp-1',
+            name: 'Gevorg',
+            earliestStartTime: '2026-06-02T09:00:00.000Z',
+          },
+        ],
       };
-      jest.spyOn(harness.service, 'getMultiServiceBlockProviders').mockResolvedValue(providers);
+      jest
+        .spyOn(harness.service, 'getMultiServiceBlockProviders')
+        .mockResolvedValue(providers);
 
       await expect(
         harness.service.getPackageBlockProviders(
@@ -258,7 +297,9 @@ describe('PublicBookingService package same-day block scheduling', () => {
           true,
         ),
       ).resolves.toEqual(providers);
-      expect(harness.service.getMultiServiceBlockProviders).toHaveBeenCalledWith(
+      expect(
+        harness.service.getMultiServiceBlockProviders,
+      ).toHaveBeenCalledWith(
         'salon',
         ['face-plasma', 'face-pilling'],
         '2026-06-02T09:00:00.000Z',
@@ -276,7 +317,10 @@ describe('PublicBookingService package same-day block scheduling', () => {
         startTime: '2026-06-02T09:00:00.000Z',
       });
 
-      const result = await harness.service.suggestPackageLineSlots('salon', 'pkg-1');
+      const result = await harness.service.suggestPackageLineSlots(
+        'salon',
+        'pkg-1',
+      );
 
       expect(result.dateKey).toBe('2026-06-02');
       expect(result.blockStartTime).toBe('2026-06-02T09:00:00.000Z');
@@ -303,9 +347,9 @@ describe('PublicBookingService package same-day block scheduling', () => {
         .spyOn(harness.service, 'suggestPackageBlock')
         .mockRejectedValue(new BadRequestException('No available block found'));
 
-      await expect(harness.service.suggestPackageLineSlots('salon', 'pkg-1')).rejects.toThrow(
-        'No available same-day block found for this package',
-      );
+      await expect(
+        harness.service.suggestPackageLineSlots('salon', 'pkg-1'),
+      ).rejects.toThrow('No available same-day block found for this package');
     });
   });
 
@@ -343,19 +387,23 @@ describe('PublicBookingService package same-day block scheduling', () => {
         { paymentStatus: PaymentStatus.PAID, sameVisitMultiService: true },
       );
       expect(result.bookings).toHaveLength(2);
-      expect(harness.notificationsService.sendMultiAppointmentConfirmation).toHaveBeenCalledWith([
-        expect.any(String),
-        expect.any(String),
-      ]);
+      expect(
+        harness.notificationsService.sendMultiAppointmentConfirmation,
+      ).toHaveBeenCalledWith([expect.any(String), expect.any(String)]);
     });
 
     it('does not set sameVisitMultiService for single-service packages', async () => {
-      harness.packagesService.expectedLineServiceIds.mockReturnValue(['face-plasma']);
-      jest.spyOn(harness.service as any, 'loadOrderedMultiServiceLines').mockResolvedValue([
-        harness.serviceLines[0],
+      harness.packagesService.expectedLineServiceIds.mockReturnValue([
+        'face-plasma',
       ]);
+      jest
+        .spyOn(harness.service as any, 'loadOrderedMultiServiceLines')
+        .mockResolvedValue([harness.serviceLines[0]]);
       harness.bookingService.create.mockReset();
-      harness.bookingService.create.mockResolvedValue({ id: 'booking-1', serviceId: 'face-plasma' });
+      harness.bookingService.create.mockResolvedValue({
+        id: 'booking-1',
+        serviceId: 'face-plasma',
+      });
 
       await harness.service.bookPackage('salon', {
         packageId: 'pkg-1',
@@ -411,11 +459,15 @@ describe('PublicBookingService package same-day block scheduling', () => {
           ],
           customer: { name: 'Alex', email: 'alex@example.com' },
         }),
-      ).rejects.toThrow('Package services must be scheduled back-to-back on the same visit');
+      ).rejects.toThrow(
+        'Package services must be scheduled back-to-back on the same visit',
+      );
     });
 
     it('rejects when the selected block is no longer available', async () => {
-      jest.spyOn(harness.service as any, 'validateMultiServiceBlockAt').mockResolvedValue(false);
+      jest
+        .spyOn(harness.service as any, 'validateMultiServiceBlockAt')
+        .mockResolvedValue(false);
 
       await expect(
         harness.service.bookPackage('salon', {
@@ -427,10 +479,12 @@ describe('PublicBookingService package same-day block scheduling', () => {
     });
 
     it('resolves missing employee ids and normalizes all lines to the primary provider', async () => {
-      jest.spyOn(harness.service as any, 'resolveEmployeeForServiceSlot').mockResolvedValue({
-        employeeId: 'emp-2',
-        employeeName: 'Anna',
-      });
+      jest
+        .spyOn(harness.service as any, 'resolveEmployeeForServiceSlot')
+        .mockResolvedValue({
+          employeeId: 'emp-2',
+          employeeName: 'Anna',
+        });
 
       await harness.service.bookPackage('salon', {
         packageId: 'pkg-1',
@@ -444,31 +498,42 @@ describe('PublicBookingService package same-day block scheduling', () => {
 
       expect(harness.bookingService.create).toHaveBeenCalledTimes(2);
       for (const call of harness.bookingService.create.mock.calls) {
-        expect(call[1]).toEqual(expect.objectContaining({ employeeId: 'emp-2' }));
+        expect(call[1]).toEqual(
+          expect.objectContaining({ employeeId: 'emp-2' }),
+        );
       }
     });
 
     it('rejects when a line cannot be resolved to an available provider', async () => {
-      jest.spyOn(harness.service as any, 'resolveEmployeeForServiceSlot').mockResolvedValue(null);
+      jest
+        .spyOn(harness.service as any, 'resolveEmployeeForServiceSlot')
+        .mockResolvedValue(null);
 
       await expect(
         harness.service.bookPackage('salon', {
           packageId: 'pkg-1',
           lines: [
             { serviceId: 'face-plasma', startTime: '2026-06-02T09:00:00.000Z' },
-            { serviceId: 'face-pilling', startTime: '2026-06-02T09:50:00.000Z' },
+            {
+              serviceId: 'face-pilling',
+              startTime: '2026-06-02T09:50:00.000Z',
+            },
           ],
           customer: { name: 'Alex', email: 'alex@example.com' },
         }),
-      ).rejects.toThrow('One or more selected time slots are no longer available');
+      ).rejects.toThrow(
+        'One or more selected time slots are no longer available',
+      );
     });
 
     it('requires online payment when Stripe is ready and amount is due', async () => {
       harness.stripeIntegrationService.isConnectReady.mockReturnValue(true);
-      harness.bookingPaymentService.resolvePackageCheckoutPricing.mockResolvedValue({
-        amountDue: 50,
-        subtotal: 100,
-      });
+      harness.bookingPaymentService.resolvePackageCheckoutPricing.mockResolvedValue(
+        {
+          amountDue: 50,
+          subtotal: 100,
+        },
+      );
 
       await expect(
         harness.service.bookPackage('salon', {
@@ -483,7 +548,12 @@ describe('PublicBookingService package same-day block scheduling', () => {
       await expect(
         harness.service.bookPackage('salon', {
           packageId: 'pkg-1',
-          lines: [{ serviceId: 'other-service', startTime: '2026-06-02T09:00:00.000Z' }],
+          lines: [
+            {
+              serviceId: 'other-service',
+              startTime: '2026-06-02T09:00:00.000Z',
+            },
+          ],
           customer: { name: 'Alex', email: 'alex@example.com' },
         }),
       ).rejects.toThrow('Package line count does not match included services');

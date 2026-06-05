@@ -8,7 +8,9 @@ export interface CustomerRegisteredEventPayload {
 
 export const CUSTOMER_REGISTERED_EVENT = 'customer.registered';
 
-export function formatCustomerRegistrationSourceLabel(source: CustomerRegistrationSource): string {
+export function formatCustomerRegistrationSourceLabel(
+  source: CustomerRegistrationSource,
+): string {
   switch (source) {
     case 'web_booking':
       return 'Web booking';

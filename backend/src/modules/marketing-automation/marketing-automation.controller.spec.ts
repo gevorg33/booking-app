@@ -29,9 +29,14 @@ describe('MarketingAutomationController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessService.getUserBusinesses.mockResolvedValue([{ id: 'biz-1', name: 'Demo' }]);
+    businessService.getUserBusinesses.mockResolvedValue([
+      { id: 'biz-1', name: 'Demo' },
+    ]);
     marketingAutomationService.getSettings.mockResolvedValue(settings);
-    marketingAutomationService.updateSettings.mockResolvedValue({ ...settings, reEngagementEnabled: true });
+    marketingAutomationService.updateSettings.mockResolvedValue({
+      ...settings,
+      reEngagementEnabled: true,
+    });
     marketingAutomationService.getSummary.mockResolvedValue({
       settings,
       eligibleInactiveCustomers: 4,
@@ -41,14 +46,22 @@ describe('MarketingAutomationController', () => {
 
   it('returns settings for business members', async () => {
     const result = await controller.getSettings('biz-1', user);
-    expect(marketingAutomationService.getSettings).toHaveBeenCalledWith('biz-1');
+    expect(marketingAutomationService.getSettings).toHaveBeenCalledWith(
+      'biz-1',
+    );
     expect(result.settings).toEqual(settings);
   });
 
   it('updates settings for business members', async () => {
-    const dto = { reEngagementEnabled: true, reEngagementPromoCode: 'WINBACK10' };
+    const dto = {
+      reEngagementEnabled: true,
+      reEngagementPromoCode: 'WINBACK10',
+    };
     const result = await controller.updateSettings('biz-1', dto, user);
-    expect(marketingAutomationService.updateSettings).toHaveBeenCalledWith('biz-1', dto);
+    expect(marketingAutomationService.updateSettings).toHaveBeenCalledWith(
+      'biz-1',
+      dto,
+    );
     expect(result.settings.reEngagementEnabled).toBe(true);
   });
 
@@ -64,23 +77,29 @@ describe('MarketingAutomationController', () => {
       { id: 'other-biz' },
       { id: 'biz-1', name: 'Demo' },
     ]);
-    await expect(controller.getSettings('biz-1', user)).resolves.toEqual({ settings });
+    await expect(controller.getSettings('biz-1', user)).resolves.toEqual({
+      settings,
+    });
   });
 
   it('forbids access when user has no businesses', async () => {
     businessService.getUserBusinesses.mockResolvedValue([]);
-    await expect(controller.getSettings('biz-1', user)).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it('forbids settings update for non-members', async () => {
-    businessService.getUserBusinesses.mockResolvedValue([]);
-    await expect(controller.updateSettings('biz-1', { reEngagementEnabled: true }, user)).rejects.toBeInstanceOf(
+    await expect(controller.getSettings('biz-1', user)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });
 
+  it('forbids settings update for non-members', async () => {
+    businessService.getUserBusinesses.mockResolvedValue([]);
+    await expect(
+      controller.updateSettings('biz-1', { reEngagementEnabled: true }, user),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('forbids access when user is not a business member', async () => {
     businessService.getUserBusinesses.mockResolvedValue([{ id: 'other-biz' }]);
-    await expect(controller.getSummary('biz-1', user)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.getSummary('biz-1', user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

@@ -69,7 +69,7 @@ export class ServicePackagesController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.packagesService.updatePackage(businessId, packageId, dto as any);
+    return this.packagesService.updatePackage(businessId, packageId, dto);
   }
 
   @Patch(':packageId/deactivate')

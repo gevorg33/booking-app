@@ -16,7 +16,9 @@ export type PublicProfileLocaleFields = {
   address?: string;
 };
 
-export type PublicProfileLocalesMap = Partial<Record<AppLocale, PublicProfileLocaleFields>>;
+export type PublicProfileLocalesMap = Partial<
+  Record<AppLocale, PublicProfileLocaleFields>
+>;
 
 export type PublicProfileLocalesInput = Partial<
   Record<string, PublicProfileLocaleFields | undefined>
@@ -30,7 +32,7 @@ export function extractPublicProfileLocalesFromSettings(
   if (!settings || typeof settings !== 'object') return undefined;
   const raw = settings[SETTINGS_KEY];
   if (!raw || typeof raw !== 'object') return undefined;
-  const normalized = normalizePublicProfileLocales(raw as PublicProfileLocalesInput, {
+  const normalized = normalizePublicProfileLocales(raw, {
     strict: false,
   });
   if (!normalized || Object.keys(normalized).length === 0) return undefined;
@@ -50,21 +52,32 @@ export function normalizePublicProfileLocales(
   for (const [key, value] of Object.entries(input)) {
     if (!SUPPORTED_LOCALES.includes(key as AppLocale)) {
       if (strict) {
-        throw new BadRequestException(`Unsupported locale in publicProfileLocales: ${key}`);
+        throw new BadRequestException(
+          `Unsupported locale in publicProfileLocales: ${key}`,
+        );
       }
       continue;
     }
     if (value === undefined || value === null) continue;
     if (typeof value !== 'object' || Array.isArray(value)) {
-      throw new BadRequestException(`publicProfileLocales.${key} must be an object`);
+      throw new BadRequestException(
+        `publicProfileLocales.${key} must be an object`,
+      );
     }
 
     const fields: PublicProfileLocaleFields = {};
-    for (const field of ['name', 'description', 'tagline', 'address'] as const) {
-      const rawField = (value as PublicProfileLocaleFields)[field];
+    for (const field of [
+      'name',
+      'description',
+      'tagline',
+      'address',
+    ] as const) {
+      const rawField = value[field];
       if (rawField === undefined || rawField === null) continue;
       if (typeof rawField !== 'string') {
-        throw new BadRequestException(`publicProfileLocales.${key}.${field} must be a string`);
+        throw new BadRequestException(
+          `publicProfileLocales.${key}.${field} must be a string`,
+        );
       }
       const trimmed = rawField.trim();
       if (!trimmed) continue;

@@ -2,7 +2,12 @@ import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export interface UploadedImage {
@@ -23,7 +28,12 @@ export class UploadService implements OnModuleInit {
     const cloudinaryUrl = this.configService.get<string>('CLOUDINARY_URL');
 
     if (cloudName && apiKey && apiSecret) {
-      cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true,
+      });
       return;
     }
 
@@ -55,13 +65,18 @@ export class UploadService implements OnModuleInit {
     };
   }
 
-  async uploadAvatar(file: Express.Multer.File, businessId: string): Promise<UploadedImage> {
+  async uploadAvatar(
+    file: Express.Multer.File,
+    businessId: string,
+  ): Promise<UploadedImage> {
     this.validateFile(file);
 
     const folder = `booking/${businessId}/avatars`;
 
     const result = await this.uploadBuffer(file.buffer, folder, {
-      transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'auto' }],
+      transformation: [
+        { width: 512, height: 512, crop: 'fill', gravity: 'auto' },
+      ],
     });
 
     return {
@@ -87,7 +102,11 @@ export class UploadService implements OnModuleInit {
           },
           (error, result) => {
             if (error || !result) {
-              reject(new BadRequestException(error?.message || 'Image upload failed'));
+              reject(
+                new BadRequestException(
+                  error?.message || 'Image upload failed',
+                ),
+              );
               return;
             }
             resolve(result);
@@ -100,7 +119,9 @@ export class UploadService implements OnModuleInit {
   private validateFile(file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
     if (!ALLOWED_MIME.has(file.mimetype)) {
-      throw new BadRequestException('Only JPEG, PNG, WebP, and GIF images are allowed');
+      throw new BadRequestException(
+        'Only JPEG, PNG, WebP, and GIF images are allowed',
+      );
     }
     if (file.size > MAX_BYTES) {
       throw new BadRequestException('Image must be 5 MB or smaller');

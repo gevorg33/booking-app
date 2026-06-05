@@ -90,7 +90,9 @@ describe('PlanEntitlementsService', () => {
 
   it('throws when business is missing', async () => {
     businessRepo.findOne.mockResolvedValue(null);
-    await expect(service.getEntitlements('missing')).rejects.toThrow(NotFoundException);
+    await expect(service.getEntitlements('missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('assertCanAddProviderSeat throws at limit', async () => {
@@ -106,21 +108,23 @@ describe('PlanEntitlementsService', () => {
     aiUsageService.getMonthlySummary.mockResolvedValue({
       bySurface: [{ surface: 'dashboard', requests: 30 }],
     });
-    await expect(service.assertCanRunDashboardAiCommand('biz-solo')).rejects.toThrow(
-      PlanLimitExceededException,
-    );
+    await expect(
+      service.assertCanRunDashboardAiCommand('biz-solo'),
+    ).rejects.toThrow(PlanLimitExceededException);
   });
 
   it('assertFeature throws when flag disabled', async () => {
     businessRepo.findOne.mockResolvedValue(businessSolo);
-    await expect(service.assertFeature('biz-solo', 'giftCards')).rejects.toThrow(
-      PlanLimitExceededException,
-    );
+    await expect(
+      service.assertFeature('biz-solo', 'giftCards'),
+    ).rejects.toThrow(PlanLimitExceededException);
   });
 
   it('assertFeature passes for starter promo codes', async () => {
     businessRepo.findOne.mockResolvedValue(businessStarter);
-    await expect(service.assertFeature('biz-starter', 'promoCodes')).resolves.toBeUndefined();
+    await expect(
+      service.assertFeature('biz-starter', 'promoCodes'),
+    ).resolves.toBeUndefined();
   });
 
   it('treats canceled starter subscription as unpaid tier', async () => {
@@ -145,7 +149,9 @@ describe('PlanEntitlementsService', () => {
   it('assertCanAddProviderSeat allows under cap', async () => {
     businessRepo.findOne.mockResolvedValue(businessStarter);
     employeeRepo.count.mockResolvedValue(4);
-    await expect(service.assertCanAddProviderSeat('biz-starter')).resolves.toBeUndefined();
+    await expect(
+      service.assertCanAddProviderSeat('biz-starter'),
+    ).resolves.toBeUndefined();
   });
 
   it('assertCanRunDashboardAiCommand allows under cap', async () => {
@@ -153,7 +159,9 @@ describe('PlanEntitlementsService', () => {
     aiUsageService.getMonthlySummary.mockResolvedValue({
       bySurface: [{ surface: 'dashboard', requests: 10 }],
     });
-    await expect(service.assertCanRunDashboardAiCommand('biz-starter')).resolves.toBeUndefined();
+    await expect(
+      service.assertCanRunDashboardAiCommand('biz-starter'),
+    ).resolves.toBeUndefined();
   });
 
   it('handles missing subscription status on business record', async () => {

@@ -41,6 +41,8 @@ export interface ZendeskPublicWidgetConfig {
 export function getBusinessZendeskIntegration(
   settings?: Record<string, unknown>,
 ): BusinessZendeskIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
   return (integrations?.zendesk as BusinessZendeskIntegration) || {};
 }

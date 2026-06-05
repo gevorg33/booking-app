@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { CommissionsService } from './commissions.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -14,7 +24,10 @@ export class CommissionsController {
   ) {}
 
   @Get()
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.commissionsService.list(businessId);
   }
@@ -36,7 +49,10 @@ export class CommissionsController {
       locationId,
     );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.filename}"`,
+    );
     return result.content;
   }
 
@@ -47,7 +63,7 @@ export class CommissionsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.commissionsService.create(businessId, dto as any);
+    return this.commissionsService.create(businessId, dto);
   }
 
   @Delete(':id')

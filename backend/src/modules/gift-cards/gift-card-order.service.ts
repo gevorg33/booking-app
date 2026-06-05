@@ -13,9 +13,7 @@ import {
 } from './entities/gift-card-change-request.entity.js';
 import { readBusinessGiftCardSettings } from './gift-card.types.js';
 import { evaluateGiftCardOrderPolicy } from './gift-card-order-policy.util.js';
-import {
-  resolveGiftCardExpirationUpdate,
-} from './gift-card-expiration.util.js';
+import { resolveGiftCardExpirationUpdate } from './gift-card-expiration.util.js';
 import type {
   GiftCardChangeRequestResolution,
   GiftCardChangeRequestListItem,
@@ -42,7 +40,9 @@ const OPEN_REQUEST_STATUSES: GiftCardChangeRequestStatus[] = [
 ];
 
 function toIso(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return value instanceof Date
+    ? value.toISOString()
+    : new Date(value).toISOString();
 }
 
 @Injectable()
@@ -100,8 +100,12 @@ export class GiftCardOrderService {
       order: { createdAt: 'DESC' },
       relations: { serviceCredits: true },
     });
-    const requests = await this.loadOpenRequestsByCardIds(cards.map((c) => c.id));
-    return cards.map((card) => this.toCustomerView(card, settings, requests.get(card.id)));
+    const requests = await this.loadOpenRequestsByCardIds(
+      cards.map((c) => c.id),
+    );
+    return cards.map((card) =>
+      this.toCustomerView(card, settings, requests.get(card.id)),
+    );
   }
 
   async getCustomerOrder(
@@ -109,7 +113,11 @@ export class GiftCardOrderService {
     customerId: string,
     giftCardId: string,
   ): Promise<GiftCardCustomerOrderView> {
-    const card = await this.requireCustomerCard(businessId, customerId, giftCardId);
+    const card = await this.requireCustomerCard(
+      businessId,
+      customerId,
+      giftCardId,
+    );
     const business = await this.findBusiness(businessId);
     const settings = readBusinessGiftCardSettings(business.settings);
     const request = await this.findOpenRequest(giftCardId);
@@ -122,13 +130,19 @@ export class GiftCardOrderService {
     giftCardId: string,
     customerNotes?: string,
   ) {
-    const card = await this.requireCustomerCard(businessId, customerId, giftCardId);
+    const card = await this.requireCustomerCard(
+      businessId,
+      customerId,
+      giftCardId,
+    );
     const business = await this.findBusiness(businessId);
     const settings = readBusinessGiftCardSettings(business.settings);
     const openRequest = await this.findOpenRequest(giftCardId);
     const policy = this.evaluateOrderPolicy(card, settings, openRequest);
     if (!policy.canCancel) {
-      throw new BadRequestException(policy.blockReason ?? 'Cancel is not available');
+      throw new BadRequestException(
+        policy.blockReason ?? 'Cancel is not available',
+      );
     }
 
     const request = await this.changeRequestRepo.save(
@@ -144,12 +158,21 @@ export class GiftCardOrderService {
 
     deactivateCancelledGiftCard(card);
     await this.giftCardRepo.save(card);
-    const refundStatus = await this.refundService.refundPurchase(business, card);
+    const refundStatus = await this.refundService.refundPurchase(
+      business,
+      card,
+    );
 
     request.status = 'completed';
     request.resolvedAt = new Date();
     await this.changeRequestRepo.save(request);
-    await this.notifyCustomer(card, business.name, 'completed', request, refundStatus);
+    await this.notifyCustomer(
+      card,
+      business.name,
+      'completed',
+      request,
+      refundStatus,
+    );
 
     return {
       request,
@@ -188,7 +211,9 @@ export class GiftCardOrderService {
     });
     const cardById = new Map(cards.map((card) => [card.id, card]));
 
-    return requests.map((request) => this.toChangeRequestListItem(request, cardById.get(request.giftCardId)));
+    return requests.map((request) =>
+      this.toChangeRequestListItem(request, cardById.get(request.giftCardId)),
+    );
   }
 
   async resolveChangeRequest(
@@ -243,17 +268,29 @@ export class GiftCardOrderService {
     request.status = 'completed';
     request.resolvedAt = new Date();
     await this.changeRequestRepo.save(request);
-    await this.notifyCustomer(card, business.name, 'completed', request, refundStatus);
+    await this.notifyCustomer(
+      card,
+      business.name,
+      'completed',
+      request,
+      refundStatus,
+    );
 
     return { request, card, refundStatus };
   }
 
-  applyApprovedModifications(card: GiftCard, payload: GiftCardModifyPayload | null) {
+  applyApprovedModifications(
+    card: GiftCard,
+    payload: GiftCardModifyPayload | null,
+  ) {
     if (!payload) return;
 
-    if (payload.recipientName !== undefined) card.recipientName = payload.recipientName || null;
-    if (payload.recipientEmail !== undefined) card.recipientEmail = payload.recipientEmail || null;
-    if (payload.recipientPhone !== undefined) card.recipientPhone = payload.recipientPhone || null;
+    if (payload.recipientName !== undefined)
+      card.recipientName = payload.recipientName || null;
+    if (payload.recipientEmail !== undefined)
+      card.recipientEmail = payload.recipientEmail || null;
+    if (payload.recipientPhone !== undefined)
+      card.recipientPhone = payload.recipientPhone || null;
     if (payload.personalMessage !== undefined) {
       card.personalMessage = payload.personalMessage || null;
     }
@@ -326,7 +363,12 @@ export class GiftCardOrderService {
     const email = card.purchaserEmail?.trim();
     const phone = card.recipientPhone?.trim() || null;
     const subject = this.notificationSubject(kind, request.requestType);
-    const body = this.notificationBody(businessName, kind, request, refundStatus);
+    const body = this.notificationBody(
+      businessName,
+      kind,
+      request,
+      refundStatus,
+    );
 
     if (email) {
       await this.emailService.send({
@@ -338,9 +380,10 @@ export class GiftCardOrderService {
     }
 
     if (phone) {
-      const whatsappConfig = this.whatsappIntegrationService.resolveRuntimeConfig(
-        card.business?.settings,
-      );
+      const whatsappConfig =
+        this.whatsappIntegrationService.resolveRuntimeConfig(
+          card.business?.settings,
+        );
       if (whatsappConfig) {
         await this.whatsappService.sendGiftCardMessage(
           {
@@ -391,8 +434,13 @@ export class GiftCardOrderService {
     } else {
       if (request.requestType === 'cancel') {
         lines.push('Your gift card order has been cancelled.');
-        if (refundStatus === 'refunded' || refundStatus === 'already_refunded') {
-          lines.push('A refund has been issued to your original payment method.');
+        if (
+          refundStatus === 'refunded' ||
+          refundStatus === 'already_refunded'
+        ) {
+          lines.push(
+            'A refund has been issued to your original payment method.',
+          );
         } else if (refundStatus === 'failed') {
           lines.push(
             'We could not process your refund automatically. Please contact the business for assistance.',
@@ -403,7 +451,8 @@ export class GiftCardOrderService {
       } else {
         lines.push('Your requested changes have been applied.');
       }
-      if (request.specialistNotes?.trim()) lines.push(request.specialistNotes.trim());
+      if (request.specialistNotes?.trim())
+        lines.push(request.specialistNotes.trim());
     }
     return lines.join('\n\n');
   }
@@ -415,7 +464,8 @@ export class GiftCardOrderService {
       cardType: card.cardType,
       currency: card.currency,
       claimedAt: toIso(card.claimedAt!),
-      purchaseAmount: card.purchaseAmount != null ? Number(card.purchaseAmount) : null,
+      purchaseAmount:
+        card.purchaseAmount != null ? Number(card.purchaseAmount) : null,
       packageId: card.packageId ?? null,
       subscriptionPlanId: card.subscriptionPlanId ?? null,
       serviceCredits: (card.serviceCredits ?? []).map((credit) => ({
@@ -445,7 +495,8 @@ export class GiftCardOrderService {
       recipientEmail: card.recipientEmail,
       expiresAt: card.expiresAt?.toISOString() ?? null,
       isActive: card.isActive,
-      purchaseAmount: card.purchaseAmount != null ? Number(card.purchaseAmount) : null,
+      purchaseAmount:
+        card.purchaseAmount != null ? Number(card.purchaseAmount) : null,
       trackingCarrier: card.trackingCarrier,
       trackingNumber: card.trackingNumber,
       createdAt: toIso(card.createdAt),
@@ -509,7 +560,9 @@ export class GiftCardOrderService {
     return this.changeRequestRepo
       .createQueryBuilder('r')
       .where('r.gift_card_id = :giftCardId', { giftCardId })
-      .andWhere('r.status IN (:...statuses)', { statuses: OPEN_REQUEST_STATUSES })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: OPEN_REQUEST_STATUSES,
+      })
       .orderBy('r.created_at', 'DESC')
       .getOne();
   }
@@ -520,7 +573,9 @@ export class GiftCardOrderService {
     const requests = await this.changeRequestRepo
       .createQueryBuilder('r')
       .where('r.gift_card_id IN (:...cardIds)', { cardIds })
-      .andWhere('r.status IN (:...statuses)', { statuses: OPEN_REQUEST_STATUSES })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: OPEN_REQUEST_STATUSES,
+      })
       .orderBy('r.created_at', 'DESC')
       .getMany();
     for (const request of requests) {
@@ -530,7 +585,9 @@ export class GiftCardOrderService {
   }
 
   private async findBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }

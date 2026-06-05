@@ -20,7 +20,14 @@ import { EmployeeModule } from '../../modules/employee/employee.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WorkflowExecution, Booking, Employee, SchedulingPeriod, Customer, Business]),
+    TypeOrmModule.forFeature([
+      WorkflowExecution,
+      Booking,
+      Employee,
+      SchedulingPeriod,
+      Customer,
+      Business,
+    ]),
     EventStoreModule,
     forwardRef(() => BookingModule),
     forwardRef(() => SchedulingEngineModule),
@@ -29,7 +36,11 @@ import { EmployeeModule } from '../../modules/employee/employee.module.js';
     forwardRef(() => EmployeeModule),
     forwardRef(() => NotificationsModule),
   ],
-  providers: [WorkflowCompilerService, WorkflowExecutorService, WorkflowStepExecutorsService],
+  providers: [
+    WorkflowCompilerService,
+    WorkflowExecutorService,
+    WorkflowStepExecutorsService,
+  ],
   exports: [WorkflowCompilerService, WorkflowExecutorService],
 })
 export class WorkflowModule {}

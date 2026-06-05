@@ -17,7 +17,9 @@ export class BookingCreatedListener {
 
   @OnEvent(EventType.BOOKING_CREATED)
   async handleBookingCreated(event: OperationalEvent): Promise<void> {
-    this.logger.log(`Booking created ${event.aggregateId} — propagating appointment.created`);
+    this.logger.log(
+      `Booking created ${event.aggregateId} — propagating appointment.created`,
+    );
 
     await this.eventStore.publish({
       eventType: EventType.APPOINTMENT_CREATED,

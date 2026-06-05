@@ -9,20 +9,30 @@ import {
 } from './gift-card-delivery-content.util.js';
 import type { GiftCard } from './entities/gift-card.entity.js';
 
-function card(partial: Partial<GiftCard> & Pick<GiftCard, 'cardType' | 'code'>): GiftCard {
+function card(
+  partial: Partial<GiftCard> & Pick<GiftCard, 'cardType' | 'code'>,
+): GiftCard {
   return {
     currency: 'USD',
     balance: 50,
-    business: { name: 'Glow Salon', slug: 'glow-salon' } as GiftCard['business'],
+    business: {
+      name: 'Glow Salon',
+      slug: 'glow-salon',
+    } as GiftCard['business'],
     ...partial,
   } as GiftCard;
 }
 
 describe('gift-card-delivery-content.util', () => {
-  const links = buildPublicBookingLinks('glow-salon', 'https://app.example.com/')!;
+  const links = buildPublicBookingLinks(
+    'glow-salon',
+    'https://app.example.com/',
+  )!;
 
   it('builds tenant-specific public booking URLs', () => {
-    expect(resolveFrontendBaseUrl('https://app.example.com/')).toBe('https://app.example.com');
+    expect(resolveFrontendBaseUrl('https://app.example.com/')).toBe(
+      'https://app.example.com',
+    );
     expect(resolveFrontendBaseUrl(undefined)).toBe('http://localhost:3000');
     expect(links).toEqual({
       bookingUrl: 'https://app.example.com/book/glow-salon',
@@ -107,7 +117,9 @@ describe('gift-card-delivery-content.util', () => {
     const email = result!;
 
     expect(
-      describeGiftCardValue(card({ cardType: 'package', code: 'X', serviceCredits: [] })).join(' '),
+      describeGiftCardValue(
+        card({ cardType: 'package', code: 'X', serviceCredits: [] }),
+      ).join(' '),
     ).toContain('Redeem this code in your account');
     expect(email.text).toContain('/book/glow-salon/account');
     expect(email.html).toContain('Redeem in your account</a>');
@@ -135,7 +147,9 @@ describe('gift-card-delivery-content.util', () => {
       }),
       links,
     );
-    expect(summary).toContain('https://app.example.com/book/glow-salon/account');
+    expect(summary).toContain(
+      'https://app.example.com/book/glow-salon/account',
+    );
   });
 
   it('falls back when business slug is missing', () => {
@@ -222,13 +236,20 @@ describe('gift-card-delivery-content.util', () => {
       null,
     );
     expect(email).not.toBeNull();
-    expect(email!.text).toContain('Sign in to your account on the booking site');
+    expect(email!.text).toContain(
+      'Sign in to your account on the booking site',
+    );
   });
 
   it('resolves sender names from purchaser metadata, stored names, email, or fallback', () => {
     expect(
       resolveGiftCardSenderName(
-        card({ cardType: 'monetary', code: 'A', purchaserEmail: 'buyer@test.com', serviceCredits: [] }),
+        card({
+          cardType: 'monetary',
+          code: 'A',
+          purchaserEmail: 'buyer@test.com',
+          serviceCredits: [],
+        }),
       ),
     ).toBe('Buyer');
     expect(
@@ -242,14 +263,30 @@ describe('gift-card-delivery-content.util', () => {
       ),
     ).toBe('Jane Doe');
     expect(
-      resolveGiftCardSenderName(card({ cardType: 'monetary', code: 'C', purchaserEmail: '@', serviceCredits: [] })),
+      resolveGiftCardSenderName(
+        card({
+          cardType: 'monetary',
+          code: 'C',
+          purchaserEmail: '@',
+          serviceCredits: [],
+        }),
+      ),
     ).toBe('Someone');
-    expect(resolveGiftCardSenderName(card({ cardType: 'monetary', code: 'D', serviceCredits: [] }))).toBe('Someone');
+    expect(
+      resolveGiftCardSenderName(
+        card({ cardType: 'monetary', code: 'D', serviceCredits: [] }),
+      ),
+    ).toBe('Someone');
   });
 
   it('builds purchaser receipt without account links when slug is missing', () => {
     const receipt = buildPurchaserReceiptEmail(
-      card({ cardType: 'monetary', code: 'GCM-R', business: { name: 'Glow' } as GiftCard['business'], serviceCredits: [] }),
+      card({
+        cardType: 'monetary',
+        code: 'GCM-R',
+        business: { name: 'Glow' } as GiftCard['business'],
+        serviceCredits: [],
+      }),
       'friend@test.com',
       null,
     );
@@ -278,7 +315,11 @@ describe('gift-card-delivery-content.util', () => {
   it('uses generic gift card label for unknown card types', () => {
     expect(
       describeGiftCardValue(
-        card({ cardType: 'unknown' as GiftCard['cardType'], code: 'X', serviceCredits: [] }),
+        card({
+          cardType: 'unknown' as GiftCard['cardType'],
+          code: 'X',
+          serviceCredits: [],
+        }),
       )[0],
     ).toBe('Gift card');
   });
@@ -299,7 +340,11 @@ describe('gift-card-delivery-content.util', () => {
   it('uses fallback business names when tenant metadata is missing', () => {
     const email = buildRecipientGiftCardEmail(
       {
-        ...card({ cardType: 'monetary', code: 'GCM-NOBIZ', serviceCredits: [] }),
+        ...card({
+          cardType: 'monetary',
+          code: 'GCM-NOBIZ',
+          serviceCredits: [],
+        }),
         business: undefined,
       } as GiftCard,
       links,
@@ -309,7 +354,11 @@ describe('gift-card-delivery-content.util', () => {
 
     const receipt = buildPurchaserReceiptEmail(
       {
-        ...card({ cardType: 'monetary', code: 'GCM-NOBIZ', serviceCredits: [] }),
+        ...card({
+          cardType: 'monetary',
+          code: 'GCM-NOBIZ',
+          serviceCredits: [],
+        }),
         business: undefined,
       } as GiftCard,
       'friend@test.com',

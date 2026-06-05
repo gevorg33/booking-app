@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
-import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../schedule/entities/scheduling-slot.entity.js';
 
 export interface DashboardOverview {
   todaysBookings: number;
@@ -27,7 +34,8 @@ export class DashboardService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
   ) {}
 
   async getOverview(businessId: string): Promise<DashboardOverview> {
@@ -36,8 +44,20 @@ export class DashboardService {
     const dayEnd = new Date();
     dayEnd.setUTCHours(23, 59, 59, 999);
 
-    const monthStart = new Date(Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth(), 1));
-    const monthEnd = new Date(Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    const monthStart = new Date(
+      Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth(), 1),
+    );
+    const monthEnd = new Date(
+      Date.UTC(
+        dayStart.getUTCFullYear(),
+        dayStart.getUTCMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      ),
+    );
 
     const [
       todaysBookings,
@@ -71,18 +91,28 @@ export class DashboardService {
     };
   }
 
-  private async computeMonthStats(businessId: string, monthStart: Date, monthEnd: Date) {
+  private async computeMonthStats(
+    businessId: string,
+    monthStart: Date,
+    monthEnd: Date,
+  ) {
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(monthStart, monthEnd) as any,
+        startTime: Between(monthStart, monthEnd),
       },
       relations: { service: true },
     });
 
-    const nonCancelled = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const completed = nonCancelled.filter((b) => b.status === BookingStatus.COMPLETED);
-    const noShows = nonCancelled.filter((b) => b.status === BookingStatus.NO_SHOW);
+    const nonCancelled = bookings.filter(
+      (b) => b.status !== BookingStatus.CANCELLED,
+    );
+    const completed = nonCancelled.filter(
+      (b) => b.status === BookingStatus.COMPLETED,
+    );
+    const noShows = nonCancelled.filter(
+      (b) => b.status === BookingStatus.NO_SHOW,
+    );
     const denom = completed.length + noShows.length;
 
     let revenueThisMonth = 0;
@@ -96,7 +126,8 @@ export class DashboardService {
       bookingsThisMonth: nonCancelled.length,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
       noShowCount: noShows.length,
-      noShowRatePercent: denom > 0 ? Math.round((noShows.length / denom) * 100) : 0,
+      noShowRatePercent:
+        denom > 0 ? Math.round((noShows.length / denom) * 100) : 0,
       completedThisMonth: completed.length,
     };
   }
@@ -109,7 +140,7 @@ export class DashboardService {
     const slots = await this.slotRepo.find({
       where: {
         businessId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
         status: In([SlotStatus.AVAILABLE, SlotStatus.BOOKED]),
       },
     });
@@ -126,8 +157,10 @@ export class DashboardService {
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(dayStart, dayEnd) as any,
-        status: Not(In([BookingStatus.CANCELLED, BookingStatus.NO_SHOW])) as any,
+        startTime: Between(dayStart, dayEnd),
+        status: Not(
+          In([BookingStatus.CANCELLED, BookingStatus.NO_SHOW]),
+        ) as any,
       },
     });
 

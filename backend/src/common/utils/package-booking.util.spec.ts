@@ -17,25 +17,32 @@ describe('package-booking.util', () => {
 
   it('validates matching package booking lines', () => {
     expect(() =>
-      validatePackageBookingLines(['a', 'b'], [
-        { serviceId: 'b', startTime: '2026-06-01T10:00:00Z' },
-        { serviceId: 'a', startTime: '2026-06-01T11:00:00Z' },
-      ]),
+      validatePackageBookingLines(
+        ['a', 'b'],
+        [
+          { serviceId: 'b', startTime: '2026-06-01T10:00:00Z' },
+          { serviceId: 'a', startTime: '2026-06-01T11:00:00Z' },
+        ],
+      ),
     ).not.toThrow();
   });
 
   it('rejects wrong line count or missing services', () => {
     expect(() =>
-      validatePackageBookingLines(['a', 'b'], [
-        { serviceId: 'a', startTime: '2026-06-01T10:00:00Z' },
-      ]),
+      validatePackageBookingLines(
+        ['a', 'b'],
+        [{ serviceId: 'a', startTime: '2026-06-01T10:00:00Z' }],
+      ),
     ).toThrow('Package line count does not match included services');
 
     expect(() =>
-      validatePackageBookingLines(['a', 'b'], [
-        { serviceId: 'a', startTime: '2026-06-01T10:00:00Z' },
-        { serviceId: 'c', startTime: '2026-06-01T11:00:00Z' },
-      ]),
+      validatePackageBookingLines(
+        ['a', 'b'],
+        [
+          { serviceId: 'a', startTime: '2026-06-01T10:00:00Z' },
+          { serviceId: 'c', startTime: '2026-06-01T11:00:00Z' },
+        ],
+      ),
     ).toThrow('Package lines must include each bundled service');
   });
 
@@ -52,8 +59,16 @@ describe('package-booking.util', () => {
       validatePackageSameDayBlock(
         services,
         [
-          { serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' },
-          { serviceId: 'b', employeeId: 'emp-1', startTime: '2026-06-01T10:35:00.000Z' },
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+          {
+            serviceId: 'b',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:35:00.000Z',
+          },
         ],
         5,
       ),
@@ -69,8 +84,16 @@ describe('package-booking.util', () => {
       validatePackageSameDayBlock(
         services,
         [
-          { serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' },
-          { serviceId: 'b', employeeId: 'emp-1', startTime: '2026-06-02T10:35:00.000Z' },
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+          {
+            serviceId: 'b',
+            employeeId: 'emp-1',
+            startTime: '2026-06-02T10:35:00.000Z',
+          },
         ],
         5,
       ),
@@ -80,8 +103,16 @@ describe('package-booking.util', () => {
       validatePackageSameDayBlock(
         services,
         [
-          { serviceId: 'b', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' },
-          { serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:45:00.000Z' },
+          {
+            serviceId: 'b',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:45:00.000Z',
+          },
         ],
         5,
       ),
@@ -96,7 +127,13 @@ describe('package-booking.util', () => {
     expect(() =>
       validatePackageSameDayBlock(
         services,
-        [{ serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' }],
+        [
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+        ],
         5,
       ),
     ).toThrow('Package line count does not match included services');
@@ -105,8 +142,16 @@ describe('package-booking.util', () => {
       validatePackageSameDayBlock(
         services,
         [
-          { serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' },
-          { serviceId: 'b', employeeId: 'emp-2', startTime: '2026-06-01T10:35:00.000Z' },
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+          {
+            serviceId: 'b',
+            employeeId: 'emp-2',
+            startTime: '2026-06-01T10:35:00.000Z',
+          },
         ],
         5,
       ),
@@ -116,12 +161,22 @@ describe('package-booking.util', () => {
       validatePackageSameDayBlock(
         services,
         [
-          { serviceId: 'a', employeeId: 'emp-1', startTime: '2026-06-01T10:00:00.000Z' },
-          { serviceId: 'b', employeeId: 'emp-1', startTime: '2026-06-01T11:00:00.000Z' },
+          {
+            serviceId: 'a',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T10:00:00.000Z',
+          },
+          {
+            serviceId: 'b',
+            employeeId: 'emp-1',
+            startTime: '2026-06-01T11:00:00.000Z',
+          },
         ],
         5,
       ),
-    ).toThrow('Package services must be scheduled back-to-back on the same visit');
+    ).toThrow(
+      'Package services must be scheduled back-to-back on the same visit',
+    );
   });
 
   it('allows empty lines and lines without employee ids', () => {

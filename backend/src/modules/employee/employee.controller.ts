@@ -1,6 +1,19 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { EmployeeService } from './employee.service.js';
-import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
+import {
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+} from './dto/create-employee.dto.js';
 import { SendAppAccessDto } from './dto/send-app-access.dto.js';
 import { UpdateMemberRoleDto } from '../business/dto/update-member-role.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -20,7 +33,11 @@ export class EmployeeController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Param('businessId') businessId: string, @Body() dto: CreateEmployeeDto, @CurrentUser() user: any) {
+  create(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateEmployeeDto,
+    @CurrentUser() user: any,
+  ) {
     return this.employeeService.create(businessId, dto, user?.id);
   }
 
@@ -36,7 +53,11 @@ export class EmployeeController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto, @CurrentUser() user: any) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEmployeeDto,
+    @CurrentUser() user: any,
+  ) {
     return this.employeeService.update(id, dto, user?.id);
   }
 

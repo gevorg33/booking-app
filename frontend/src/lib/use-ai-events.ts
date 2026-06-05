@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { toast as sonnerToast } from 'sonner';
 import { useOperationalEvents } from '@/lib/use-operational-events';
+import { parseAiAlertPayload } from '@/lib/use-ai-events.util';
 
 type AiEventPayload = {
   action?: string;
@@ -14,8 +15,17 @@ type AiEventPayload = {
 
 export interface AiEventToast {
   id: string;
-  type: 'ai.clarify' | 'ai.task.progress' | 'ai.task.completed';
+  type: 'ai.clarify' | 'ai.task.progress' | 'ai.task.completed' | 'ai.alert';
   message: string;
+}
+
+export interface AiAlertPayload {
+  alertType: 'conflict' | 'approval' | 'report';
+  title: string;
+  message: string;
+  prompt?: string;
+  taskId?: string;
+  route?: string;
 }
 
 function showAiEvent(event: AiEventToast) {
@@ -33,6 +43,7 @@ export function useAiEvents(
     onClarify?: (payload: AiEventPayload) => void;
     onTaskProgress?: (payload: AiEventPayload) => void;
     onTaskCompleted?: (payload: AiEventPayload) => void;
+    onAlert?: (payload: AiAlertPayload) => void;
     onToast?: (toast: AiEventToast) => void;
   },
 ) {
@@ -76,6 +87,18 @@ export function useAiEvents(
             id: `done-${data.taskId ?? Date.now()}`,
             type: 'ai.task.completed',
             message: data.summary ?? 'AI task completed',
+          });
+          return;
+        }
+
+        if (type === 'ai.alert') {
+          const alert = parseAiAlertPayload(data as Record<string, unknown>);
+          if (!alert) return;
+          handlers?.onAlert?.(alert);
+          pushToast({
+            id: `alert-${alert.taskId ?? Date.now()}`,
+            type: 'ai.alert',
+            message: alert.title ?? alert.message,
           });
         }
       },

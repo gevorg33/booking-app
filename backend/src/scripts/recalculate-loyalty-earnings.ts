@@ -11,8 +11,11 @@ async function main() {
 
   try {
     const loyaltyAwardService = app.get(LoyaltyAwardService);
-    console.log(`Recalculating loyalty earnings${businessId ? ` for tenant ${businessId}` : ' for all tenants'}...`);
-    const summary = await loyaltyAwardService.recalculateExistingEarnings(businessId);
+    console.log(
+      `Recalculating loyalty earnings${businessId ? ` for tenant ${businessId}` : ' for all tenants'}...`,
+    );
+    const summary =
+      await loyaltyAwardService.recalculateExistingEarnings(businessId);
     console.log(JSON.stringify(summary, null, 2));
   } finally {
     await app.close();

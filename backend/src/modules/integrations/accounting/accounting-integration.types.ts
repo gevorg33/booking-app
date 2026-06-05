@@ -40,6 +40,8 @@ export interface AccountingExportResult {
 export function getBusinessAccountingIntegration(
   settings?: Record<string, unknown>,
 ): BusinessAccountingIntegration {
-  const integrations = settings?.integrations as Record<string, unknown> | undefined;
+  const integrations = settings?.integrations as
+    | Record<string, unknown>
+    | undefined;
   return (integrations?.accounting as BusinessAccountingIntegration) || {};
 }

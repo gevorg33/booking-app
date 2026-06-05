@@ -5,8 +5,12 @@ import {
 
 describe('marketing-automation.types', () => {
   it('returns defaults when settings are missing', () => {
-    expect(mergeMarketingAutomationSettings(undefined)).toEqual(DEFAULT_MARKETING_AUTOMATION_SETTINGS);
-    expect(mergeMarketingAutomationSettings({})).toEqual(DEFAULT_MARKETING_AUTOMATION_SETTINGS);
+    expect(mergeMarketingAutomationSettings(undefined)).toEqual(
+      DEFAULT_MARKETING_AUTOMATION_SETTINGS,
+    );
+    expect(mergeMarketingAutomationSettings({})).toEqual(
+      DEFAULT_MARKETING_AUTOMATION_SETTINGS,
+    );
   });
 
   it('merges partial settings', () => {
@@ -35,10 +39,14 @@ describe('marketing-automation.types', () => {
   });
 
   it('normalizes promo code whitespace', () => {
-    expect(mergeMarketingAutomationSettings({ reEngagementPromoCode: '  WIN10  ' })).toMatchObject({
+    expect(
+      mergeMarketingAutomationSettings({ reEngagementPromoCode: '  WIN10  ' }),
+    ).toMatchObject({
       reEngagementPromoCode: 'WIN10',
     });
-    expect(mergeMarketingAutomationSettings({ reEngagementPromoCode: '   ' })).toMatchObject({
+    expect(
+      mergeMarketingAutomationSettings({ reEngagementPromoCode: '   ' }),
+    ).toMatchObject({
       reEngagementPromoCode: null,
     });
   });

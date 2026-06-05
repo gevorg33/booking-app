@@ -1,12 +1,40 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
+import {
+  formatBookingOverlapConflict,
+  formatBookingWindowFullyBooked,
+} from '../../common/utils/booking-conflict-messages.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In, DataSource, EntityManager } from 'typeorm';
-import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
-import { SchedulingSlot, SlotStatus } from '../schedule/entities/scheduling-slot.entity.js';
+import {
+  Repository,
+  Between,
+  Not,
+  In,
+  DataSource,
+  EntityManager,
+} from 'typeorm';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from './entities/booking.entity.js';
+import {
+  SchedulingSlot,
+  SlotStatus,
+} from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
-import { CreateBookingDto, UpdateBookingDto, GetAvailabilityDto } from './dto/create-booking.dto.js';
+import {
+  CreateBookingDto,
+  UpdateBookingDto,
+  GetAvailabilityDto,
+} from './dto/create-booking.dto.js';
 import {
   GetBookingsQueryDto,
   parseBookingStatusFilter,
@@ -17,7 +45,10 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
-import { pickTimezone, isWallClockStartInPast } from '../../common/utils/timezone.util.js';
+import {
+  pickTimezone,
+  isWallClockStartInPast,
+} from '../../common/utils/timezone.util.js';
 import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
 import { SchedulingResourcesService } from '../resources/scheduling-resources.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
@@ -34,9 +65,19 @@ export interface AppointmentListItem {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  customer: { id: string; name: string; email: string | null; phone: string | null } | null;
+  customer: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+  } | null;
   employee: { id: string; name: string } | null;
-  service: { id: string; name: string; price?: number; currency?: string } | null;
+  service: {
+    id: string;
+    name: string;
+    price?: number;
+    currency?: string;
+  } | null;
 }
 
 export interface AppointmentsSearchResult {
@@ -60,8 +101,10 @@ export class BookingService {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
-    @InjectRepository(SchedulingSlot) private slotRepo: Repository<SchedulingSlot>,
-    @InjectRepository(SchedulingPeriod) private schedulingPeriodRepo: Repository<SchedulingPeriod>,
+    @InjectRepository(SchedulingSlot)
+    private slotRepo: Repository<SchedulingSlot>,
+    @InjectRepository(SchedulingPeriod)
+    private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
@@ -94,7 +137,9 @@ export class BookingService {
       .andWhere('slot.appointmentCount < slot.maxAppointmentCount');
 
     if (dto.employeeId) {
-      qb.andWhere('slot.employee_id = :employeeId', { employeeId: dto.employeeId });
+      qb.andWhere('slot.employee_id = :employeeId', {
+        employeeId: dto.employeeId,
+      });
     }
     if (dto.serviceId) {
       qb.andWhere(this.serviceMatchClause(), { serviceId: dto.serviceId });
@@ -147,9 +192,14 @@ export class BookingService {
     businessId: string,
     dto: CreateBookingDto,
     userId?: string,
-    options?: { paymentStatus?: PaymentStatus; sameVisitMultiService?: boolean },
+    options?: {
+      paymentStatus?: PaymentStatus;
+      sameVisitMultiService?: boolean;
+    },
   ): Promise<Booking> {
-    const service = await this.serviceRepo.findOne({ where: { id: dto.serviceId, businessId } });
+    const service = await this.serviceRepo.findOne({
+      where: { id: dto.serviceId, businessId },
+    });
     if (!service) throw new NotFoundException('Service not found');
 
     const startTime = new Date(dto.startTime);
@@ -174,7 +224,11 @@ export class BookingService {
       }
     }
 
-    await this.validateEmployeeCanPerformService(businessId, dto.employeeId, dto.serviceId);
+    await this.validateEmployeeCanPerformService(
+      businessId,
+      dto.employeeId,
+      dto.serviceId,
+    );
 
     if (dto.customerId) {
       const existingBooking = await this.bookingRepo.findOne({
@@ -185,28 +239,44 @@ export class BookingService {
           startTime: Between(
             new Date(startTime.getTime() - 60000),
             new Date(startTime.getTime() + 60000),
-          ) as any,
+          ),
         },
       });
       if (existingBooking) {
-        throw new ConflictException('Customer already has a booking at this time');
+        throw new ConflictException(
+          'Customer already has a booking at this time',
+        );
       }
     }
 
     // Free any stuck micro-slots when no active booking occupies this window
-    await this.reconcileStuckSlotsInWindow(businessId, dto.employeeId, startTime, endTime);
+    await this.reconcileStuckSlotsInWindow(
+      businessId,
+      dto.employeeId,
+      startTime,
+      endTime,
+    );
 
     // Same-visit multi-service: the full block is validated once before creating siblings.
     if (!options?.sameVisitMultiService) {
-      await this.validateBookingWindow(businessId, dto.employeeId, startTime, endTime, dto.serviceId);
+      await this.validateBookingWindow(
+        businessId,
+        dto.employeeId,
+        startTime,
+        endTime,
+        dto.serviceId,
+      );
     }
 
-    const requiredResourceIds = await this.resourcesService.getRequiredResourceIds(
-      businessId,
-      dto.serviceId,
-    );
+    const requiredResourceIds =
+      await this.resourcesService.getRequiredResourceIds(
+        businessId,
+        dto.serviceId,
+      );
     const resourceIds =
-      dto.resourceIds && dto.resourceIds.length > 0 ? dto.resourceIds : requiredResourceIds;
+      dto.resourceIds && dto.resourceIds.length > 0
+        ? dto.resourceIds
+        : requiredResourceIds;
     if (resourceIds.length > 0) {
       await this.resourcesService.assertResourcesAvailable(
         businessId,
@@ -219,7 +289,9 @@ export class BookingService {
     const useSubscriptionId = dto.useSubscriptionId;
     if (useSubscriptionId) {
       if (!dto.customerId) {
-        throw new BadRequestException('Customer is required when using a subscription');
+        throw new BadRequestException(
+          'Customer is required when using a subscription',
+        );
       }
       await this.subscriptionsService.assertCanConsume(
         businessId,
@@ -230,7 +302,9 @@ export class BookingService {
     }
 
     // Same-visit segments may reuse generic micro-slots not tagged for every service id.
-    const slotServiceFilter = options?.sameVisitMultiService ? undefined : dto.serviceId;
+    const slotServiceFilter = options?.sameVisitMultiService
+      ? undefined
+      : dto.serviceId;
     const slotsToLock = await this.findSlotsInWindow(
       businessId,
       dto.employeeId,
@@ -254,7 +328,9 @@ export class BookingService {
         const conflictQb = manager
           .createQueryBuilder(Booking, 'booking')
           .setLock('pessimistic_write')
-          .where('booking.employee_id = :employeeId', { employeeId: dto.employeeId })
+          .where('booking.employee_id = :employeeId', {
+            employeeId: dto.employeeId,
+          })
           .andWhere('booking.business_id = :businessId', { businessId })
           .andWhere('booking.status NOT IN (:...excludedStatuses)', {
             excludedStatuses: [BookingStatus.CANCELLED],
@@ -272,7 +348,14 @@ export class BookingService {
         const conflicts = await conflictQb.getMany();
 
         if (conflicts.length > 0) {
-          throw new ConflictException('Time slot is already booked');
+          const existing = conflicts[0];
+          throw new ConflictException(
+            formatBookingOverlapConflict({
+              employeeName: existing?.employee?.name,
+              startTime: existing?.startTime,
+              existingCustomerName: existing?.customer?.name,
+            }),
+          );
         }
       }
 
@@ -283,10 +366,10 @@ export class BookingService {
           : dto.multiServiceGroupId
             ? PaymentStatus.NOT_APPLICABLE
             : useSubscriptionId
-          ? PaymentStatus.NOT_APPLICABLE
-          : service.prepaymentMode === PrepaymentMode.NONE
-            ? PaymentStatus.NOT_APPLICABLE
-            : PaymentStatus.PENDING);
+              ? PaymentStatus.NOT_APPLICABLE
+              : service.prepaymentMode === PrepaymentMode.NONE
+                ? PaymentStatus.NOT_APPLICABLE
+                : PaymentStatus.PENDING);
 
       const newBooking = manager.create(Booking, {
         businessId,
@@ -305,7 +388,12 @@ export class BookingService {
         virtualMeetingUrl: dto.virtualMeetingUrl,
         metadata: {
           ...(dto.metadata || {}),
-          ...(useSubscriptionId ? { subscriptionId: useSubscriptionId, subscriptionCreditUsed: true } : {}),
+          ...(useSubscriptionId
+            ? {
+                subscriptionId: useSubscriptionId,
+                subscriptionCreditUsed: true,
+              }
+            : {}),
         },
         // Store the first slot id for backward compat
         slotId: slotsToLock[0]?.id,
@@ -314,7 +402,11 @@ export class BookingService {
       const saved = await manager.save(newBooking);
 
       if (resourceIds.length > 0) {
-        await this.resourcesService.assignToBooking(manager, saved.id, resourceIds);
+        await this.resourcesService.assignToBooking(
+          manager,
+          saved.id,
+          resourceIds,
+        );
       }
 
       if (useSubscriptionId) {
@@ -409,7 +501,9 @@ export class BookingService {
 
     const targetEmployeeId = dto.employeeId ?? booking.employeeId;
     const targetServiceId = dto.serviceId ?? booking.serviceId;
-    const targetStart = dto.startTime ? new Date(dto.startTime) : booking.startTime;
+    const targetStart = dto.startTime
+      ? new Date(dto.startTime)
+      : booking.startTime;
 
     const isRescheduling =
       targetStart.getTime() !== booking.startTime.getTime() ||
@@ -443,7 +537,9 @@ export class BookingService {
         booking.endTime,
       );
 
-      const service = await this.serviceRepo.findOneOrFail({ where: { id: targetServiceId } });
+      const service = await this.serviceRepo.findOneOrFail({
+        where: { id: targetServiceId },
+      });
       const totalDuration = service.durationMinutes + service.bufferMinutes;
       const newEnd = new Date(targetStart.getTime() + totalDuration * 60000);
 
@@ -454,7 +550,10 @@ export class BookingService {
         newEnd,
       );
 
-      const excludeBookingIds = this.mergeExcludeBookingIds(bookingId, internal?.excludeBookingIds);
+      const excludeBookingIds = this.mergeExcludeBookingIds(
+        bookingId,
+        internal?.excludeBookingIds,
+      );
 
       if (!internal?.sameVisitBlockSegment) {
         await this.validateBookingWindow(
@@ -484,7 +583,14 @@ export class BookingService {
           excludeBookingIds,
         );
         if (conflicts.length > 0) {
-          throw new ConflictException('Time slot is already booked');
+          const existing = conflicts[0];
+          throw new ConflictException(
+            formatBookingOverlapConflict({
+              employeeName: booking.employee?.name,
+              startTime: targetStart,
+              existingCustomerName: existing?.customer?.name,
+            }),
+          );
         }
       } else {
         for (const slot of newSlots) {
@@ -534,7 +640,11 @@ export class BookingService {
     if (dto.customerId !== undefined) {
       if (dto.customerId) {
         const customer = await this.customerRepo.findOne({
-          where: { id: dto.customerId, businessId: booking.businessId, isActive: true },
+          where: {
+            id: dto.customerId,
+            businessId: booking.businessId,
+            isActive: true,
+          },
         });
         if (!customer) throw new NotFoundException('Customer not found');
         booking.customerId = dto.customerId;
@@ -552,10 +662,14 @@ export class BookingService {
       booking.status,
       dto.paymentStatus,
     );
-    if (dto.linkedEmployeeIds) booking.linkedEmployeeIds = dto.linkedEmployeeIds;
-    if (dto.virtualMeetingUrl !== undefined) booking.virtualMeetingUrl = dto.virtualMeetingUrl;
-    if (dto.metadata) booking.metadata = { ...booking.metadata, ...dto.metadata };
-    if (dto.hiddenFromCalendar !== undefined) booking.hiddenFromCalendar = dto.hiddenFromCalendar;
+    if (dto.linkedEmployeeIds)
+      booking.linkedEmployeeIds = dto.linkedEmployeeIds;
+    if (dto.virtualMeetingUrl !== undefined)
+      booking.virtualMeetingUrl = dto.virtualMeetingUrl;
+    if (dto.metadata)
+      booking.metadata = { ...booking.metadata, ...dto.metadata };
+    if (dto.hiddenFromCalendar !== undefined)
+      booking.hiddenFromCalendar = dto.hiddenFromCalendar;
 
     await this.bookingRepo.save(booking);
 
@@ -663,7 +777,9 @@ export class BookingService {
     const updatedIds: string[] = [];
 
     for (const bookingId of bookingIds) {
-      const booking = await this.bookingRepo.findOne({ where: { id: bookingId } });
+      const booking = await this.bookingRepo.findOne({
+        where: { id: bookingId },
+      });
       if (!booking || booking.hiddenFromCalendar === hidden) continue;
 
       booking.hiddenFromCalendar = hidden;
@@ -754,7 +870,10 @@ export class BookingService {
         qb.orderBy('booking.startTime', sortOrder);
     }
 
-    const [bookings, totalItems] = await qb.skip(skip).take(pageSize).getManyAndCount();
+    const [bookings, totalItems] = await qb
+      .skip(skip)
+      .take(pageSize)
+      .getManyAndCount();
 
     return {
       totalItems,
@@ -778,7 +897,9 @@ export class BookingService {
               phone: b.customer.phone ?? null,
             }
           : null,
-        employee: b.employee ? { id: b.employee.id, name: b.employee.name } : null,
+        employee: b.employee
+          ? { id: b.employee.id, name: b.employee.name }
+          : null,
         service: b.service
           ? {
               id: b.service.id,
@@ -818,12 +939,14 @@ export class BookingService {
         const siblings = await this.bookingRepo.find({
           where: {
             multiServiceGroupId: group.id,
-            status: Not(BookingStatus.CANCELLED) as any,
+            status: Not(BookingStatus.CANCELLED),
           },
         });
         for (const sibling of siblings) {
           if (sibling.id === id) continue;
-          await this.cancel(sibling.id, reason, userId, undefined, { skipGroupCancel: true });
+          await this.cancel(sibling.id, reason, userId, undefined, {
+            skipGroupCancel: true,
+          });
         }
       }
     }
@@ -929,7 +1052,9 @@ export class BookingService {
         [booking.id],
       );
       if (conflicts.length > 0) {
-        throw new ConflictException('Cannot restore: time slot is already booked');
+        throw new ConflictException(
+          'Cannot restore: time slot is already booked',
+        );
       }
     } else {
       for (const slot of slotsToLock) {
@@ -970,7 +1095,9 @@ export class BookingService {
       where: {
         businessId,
         startTime: Not(In([])) as any,
-        status: Not(In([BookingStatus.CANCELLED, BookingStatus.COMPLETED])) as any,
+        status: Not(
+          In([BookingStatus.CANCELLED, BookingStatus.COMPLETED]),
+        ) as any,
       },
       relations: { employee: true, service: true, customer: true },
       order: { startTime: 'ASC' },
@@ -1044,7 +1171,10 @@ export class BookingService {
         continue;
       }
 
-      const mergedIds = this.mergeSlotServiceIds(existing.serviceIds, slot.serviceIds);
+      const mergedIds = this.mergeSlotServiceIds(
+        existing.serviceIds,
+        slot.serviceIds,
+      );
       byStart.set(key, {
         ...existing,
         serviceIds: mergedIds,
@@ -1053,9 +1183,13 @@ export class BookingService {
           existing.maxAppointmentCount ?? 1,
           slot.maxAppointmentCount ?? 1,
         ),
-        appointmentCount: Math.min(existing.appointmentCount, slot.appointmentCount),
+        appointmentCount: Math.min(
+          existing.appointmentCount,
+          slot.appointmentCount,
+        ),
         status:
-          existing.status === SlotStatus.AVAILABLE || slot.status === SlotStatus.AVAILABLE
+          existing.status === SlotStatus.AVAILABLE ||
+          slot.status === SlotStatus.AVAILABLE
             ? SlotStatus.AVAILABLE
             : existing.status,
       });
@@ -1084,7 +1218,13 @@ export class BookingService {
     endTime: Date,
     serviceId: string,
   ): Promise<void> {
-    await this.validateBookingWindow(businessId, employeeId, startTime, endTime, serviceId);
+    await this.validateBookingWindow(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+      serviceId,
+    );
   }
 
   /**
@@ -1170,7 +1310,12 @@ export class BookingService {
             'All time slots in the requested window are already fully booked.',
           );
         }
-        await this.reconcileStuckSlotsInWindow(businessId, employeeId, blockStart, blockEnd);
+        await this.reconcileStuckSlotsInWindow(
+          businessId,
+          employeeId,
+          blockStart,
+          blockEnd,
+        );
         return;
       }
       throw new BadRequestException(
@@ -1216,31 +1361,61 @@ export class BookingService {
     requiredMinutes?: number;
     remainingMinutes?: number;
     availableUntil?: Date;
-    failureReason?: 'duration' | 'service_period' | 'service_restriction' | 'blocked' | 'booked' | 'other';
+    failureReason?:
+      | 'duration'
+      | 'service_period'
+      | 'service_restriction'
+      | 'blocked'
+      | 'booked'
+      | 'other';
     message?: string;
   }> {
-    const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId },
+    });
     if (!service) {
-      return { fits: false, failureReason: 'other', message: 'Service not found.' };
+      return {
+        fits: false,
+        failureReason: 'other',
+        message: 'Service not found.',
+      };
     }
 
     const requiredMinutes = service.durationMinutes + service.bufferMinutes;
     const endTime = new Date(startTime.getTime() + requiredMinutes * 60000);
 
     try {
-      await this.validateServiceFitsWindow(businessId, employeeId, startTime, endTime, serviceId);
+      await this.validateServiceFitsWindow(
+        businessId,
+        employeeId,
+        startTime,
+        endTime,
+        serviceId,
+      );
       return { fits: true, requiredMinutes };
     } catch (err: any) {
-      const availableUntil = await this.getAvailableUntilAfterStart(businessId, employeeId, startTime);
+      const availableUntil = await this.getAvailableUntilAfterStart(
+        businessId,
+        employeeId,
+        startTime,
+      );
       const remainingMinutes = Math.max(
         0,
         Math.floor((availableUntil.getTime() - startTime.getTime()) / 60000),
       );
 
       const msg: string = err?.message || '';
-      let failureReason: 'duration' | 'service_period' | 'service_restriction' | 'blocked' | 'booked' | 'other' =
-        'other';
-      if (msg.includes('full service duration does not fit') || remainingMinutes < requiredMinutes) {
+      let failureReason:
+        | 'duration'
+        | 'service_period'
+        | 'service_restriction'
+        | 'blocked'
+        | 'booked'
+        | 'other' = 'other';
+      if (
+        msg.includes('full service duration does not fit') ||
+        remainingMinutes < requiredMinutes
+      ) {
         failureReason = 'duration';
       } else if (msg.includes('service period')) {
         failureReason = 'service_period';
@@ -1283,7 +1458,9 @@ export class BookingService {
       .orderBy('slot.startTime', 'ASC')
       .getMany();
 
-    const slotByStart = new Map(microSlots.map((s) => [s.startTime.getTime(), s]));
+    const slotByStart = new Map(
+      microSlots.map((s) => [s.startTime.getTime(), s]),
+    );
 
     let cursor = new Date(startTime);
     let availableUntil = new Date(startTime);
@@ -1297,7 +1474,11 @@ export class BookingService {
       cursor = new Date(cursor.getTime() + SLOT_MS);
     }
 
-    const blockEnd = await this.getServiceBlockEndCoveringInstant(businessId, employeeId, startTime);
+    const blockEnd = await this.getServiceBlockEndCoveringInstant(
+      businessId,
+      employeeId,
+      startTime,
+    );
     if (blockEnd && blockEnd.getTime() < availableUntil.getTime()) {
       availableUntil = blockEnd;
     }
@@ -1329,7 +1510,7 @@ export class BookingService {
       where: {
         businessId,
         employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -1383,7 +1564,7 @@ export class BookingService {
       where: {
         businessId,
         employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -1445,7 +1626,12 @@ export class BookingService {
     instant: Date,
   ): Promise<string[] | null> {
     const windowEnd = new Date(instant.getTime() + 10 * 60000);
-    const slots = await this.findSlotsInWindow(businessId, employeeId, instant, windowEnd);
+    const slots = await this.findSlotsInWindow(
+      businessId,
+      employeeId,
+      instant,
+      windowEnd,
+    );
 
     const ids = new Set<string>();
     for (const slot of this.dedupeSlotsByStartTime(slots)) {
@@ -1470,8 +1656,13 @@ export class BookingService {
     if (!employee) {
       throw new NotFoundException('Service provider not found');
     }
-    if (employee.serviceIds?.length && !employee.serviceIds.includes(serviceId)) {
-      const service = await this.serviceRepo.findOne({ where: { id: serviceId, businessId } });
+    if (
+      employee.serviceIds?.length &&
+      !employee.serviceIds.includes(serviceId)
+    ) {
+      const service = await this.serviceRepo.findOne({
+        where: { id: serviceId, businessId },
+      });
       throw new BadRequestException(
         `${employee.name} is not assigned to provide ${service?.name ?? 'this service'}.`,
       );
@@ -1486,7 +1677,13 @@ export class BookingService {
     serviceId: string,
     excludeBookingIds?: string[],
   ): Promise<void> {
-    await this.validateAgainstServicePeriods(businessId, employeeId, startTime, endTime, serviceId);
+    await this.validateAgainstServicePeriods(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+      serviceId,
+    );
 
     // For BLOCKED / UNAVAILABLE periods we create ONE full-duration slot.
     // A booking overlaps with it if:  slotStart < bookEnd AND slotEnd > bookStart
@@ -1542,7 +1739,12 @@ export class BookingService {
             'All time slots in the requested window are already fully booked.',
           );
         }
-        await this.reconcileStuckSlotsInWindow(businessId, employeeId, startTime, endTime);
+        await this.reconcileStuckSlotsInWindow(
+          businessId,
+          employeeId,
+          startTime,
+          endTime,
+        );
         return;
       }
       throw new BadRequestException(
@@ -1551,24 +1753,28 @@ export class BookingService {
     }
 
     const slotGranularityMs = 10 * 60 * 1000;
-    const slotsNeeded = Math.ceil((endTime.getTime() - startTime.getTime()) / slotGranularityMs);
+    const slotsNeeded = Math.ceil(
+      (endTime.getTime() - startTime.getTime()) / slotGranularityMs,
+    );
 
     // Overlapping schedule fills can create duplicate micro-slots at the same start time
     // with different service_ids — merge them, then require enough slots that allow this service.
     const dedupedSlots = this.dedupeSlotsByStartTime(microSlotsInWindow);
-    const supportingSlots = dedupedSlots.filter((s) => this.slotAllowsService(s, serviceId));
+    const supportingSlots = dedupedSlots.filter((s) =>
+      this.slotAllowsService(s, serviceId),
+    );
 
     if (supportingSlots.length < slotsNeeded) {
       throw new BadRequestException(
         'The service provider does not offer this service for the entire requested time window. ' +
-        'Please choose a time when this service is scheduled.',
+          'Please choose a time when this service is scheduled.',
       );
     }
 
     if (dedupedSlots.length < slotsNeeded) {
       throw new BadRequestException(
         'The full service duration does not fit within the available schedule. ' +
-        'Choose an earlier start time so the appointment ends within the service period.',
+          'Choose an earlier start time so the appointment ends within the service period.',
       );
     }
   }
@@ -1593,7 +1799,7 @@ export class BookingService {
       where: {
         businessId,
         employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -1613,7 +1819,7 @@ export class BookingService {
     if (containing.length === 0) {
       throw new BadRequestException(
         'The booking does not fit within an available service period. ' +
-        'The full service duration must finish before the period ends.',
+          'The full service duration must finish before the period ends.',
       );
     }
 
@@ -1673,7 +1879,7 @@ export class BookingService {
       where: {
         businessId,
         employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -1715,7 +1921,7 @@ export class BookingService {
       where: {
         businessId,
         employeeId,
-        startTime: Between(dayStart, dayEnd) as any,
+        startTime: Between(dayStart, dayEnd),
       },
     });
 
@@ -1786,11 +1992,15 @@ export class BookingService {
   }
 
   private applyBookingIdExclusions(
-    qb: { andWhere: (clause: string, params: Record<string, unknown>) => unknown },
+    qb: {
+      andWhere: (clause: string, params: Record<string, unknown>) => unknown;
+    },
     excludeBookingIds?: string[],
   ): void {
     if (excludeBookingIds?.length) {
-      qb.andWhere('booking.id NOT IN (:...excludeBookingIds)', { excludeBookingIds });
+      qb.andWhere('booking.id NOT IN (:...excludeBookingIds)', {
+        excludeBookingIds,
+      });
     }
   }
 
@@ -1805,7 +2015,9 @@ export class BookingService {
       .createQueryBuilder('booking')
       .where('booking.business_id = :businessId', { businessId })
       .andWhere('booking.employee_id = :employeeId', { employeeId })
-      .andWhere('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
+      .andWhere('booking.status != :cancelled', {
+        cancelled: BookingStatus.CANCELLED,
+      })
       .andWhere('booking.startTime < :endTime', { endTime })
       .andWhere('booking.endTime > :startTime', { startTime });
 
@@ -1840,9 +2052,13 @@ export class BookingService {
   private assertExpectedUpdatedAt(booking: Booking, expected?: string): void {
     if (!expected) return;
     const expectedMs = new Date(expected).getTime();
-    if (Number.isNaN(expectedMs) || expectedMs !== booking.updatedAt.getTime()) {
+    if (
+      Number.isNaN(expectedMs) ||
+      expectedMs !== booking.updatedAt.getTime()
+    ) {
       throw new ConflictException({
-        message: 'This appointment was updated by someone else. Refresh and try again.',
+        message:
+          'This appointment was updated by someone else. Refresh and try again.',
         code: 'BOOKING_VERSION_CONFLICT',
         updatedAt: booking.updatedAt.toISOString(),
       });
@@ -1859,7 +2075,12 @@ export class BookingService {
     startTime: Date,
     endTime: Date,
   ): Promise<void> {
-    const hasActive = await this.hasActiveBookingOverlap(businessId, employeeId, startTime, endTime);
+    const hasActive = await this.hasActiveBookingOverlap(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+    );
     if (hasActive) return;
 
     const stuckSlots = await this.slotRepo
@@ -1892,7 +2113,13 @@ export class BookingService {
     startTime: Date,
     endTime: Date,
   ): Promise<void> {
-    await this.releaseSlotsByWindowInRepo(this.slotRepo, employeeId, businessId, startTime, endTime);
+    await this.releaseSlotsByWindowInRepo(
+      this.slotRepo,
+      employeeId,
+      businessId,
+      startTime,
+      endTime,
+    );
   }
 
   private async releaseSlotsByWindowInRepo(
@@ -1981,7 +2208,9 @@ export class BookingService {
       throw new BadRequestException('No bookings to reschedule');
     }
 
-    const excludeBookingIds = [...new Set(segments.map((segment) => segment.bookingId))];
+    const excludeBookingIds = [
+      ...new Set(segments.map((segment) => segment.bookingId)),
+    ];
     const pendingEvents: Array<{
       bookingId: string;
       businessId: string;
@@ -1993,120 +2222,132 @@ export class BookingService {
       newEnd: Date;
     }> = [];
 
-    const saved = await this.dataSource.transaction(async (manager: EntityManager) => {
-      const bookingRepo = manager.getRepository(Booking);
-      const slotRepo = manager.getRepository(SchedulingSlot);
-      const serviceRepo = manager.getRepository(Service);
+    const saved = await this.dataSource.transaction(
+      async (manager: EntityManager) => {
+        const bookingRepo = manager.getRepository(Booking);
+        const slotRepo = manager.getRepository(SchedulingSlot);
+        const serviceRepo = manager.getRepository(Service);
 
-      const loaded = await Promise.all(
-        segments.map((segment) =>
-          bookingRepo.findOne({
+        const loaded = await Promise.all(
+          segments.map((segment) =>
+            bookingRepo.findOne({
+              where: { id: segment.bookingId },
+              relations: { service: true },
+            }),
+          ),
+        );
+
+        for (let i = 0; i < loaded.length; i++) {
+          if (!loaded[i]) {
+            throw new NotFoundException(
+              `Booking not found: ${segments[i].bookingId}`,
+            );
+          }
+          if (loaded[i]!.status === BookingStatus.CANCELLED) {
+            throw new BadRequestException(
+              'Cancelled appointments cannot be rescheduled',
+            );
+          }
+        }
+
+        for (const booking of loaded) {
+          await this.releaseSlotsByWindowInRepo(
+            slotRepo,
+            booking!.employeeId,
+            booking!.businessId,
+            booking!.startTime,
+            booking!.endTime,
+          );
+        }
+
+        const updated: Booking[] = [];
+
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i];
+          const booking = (await bookingRepo.findOne({
             where: { id: segment.bookingId },
             relations: { service: true },
-          }),
-        ),
-      );
+          }))!;
 
-      for (let i = 0; i < loaded.length; i++) {
-        if (!loaded[i]) {
-          throw new NotFoundException(`Booking not found: ${segments[i].bookingId}`);
-        }
-        if (loaded[i]!.status === BookingStatus.CANCELLED) {
-          throw new BadRequestException('Cancelled appointments cannot be rescheduled');
-        }
-      }
+          this.assertExpectedUpdatedAt(booking, segment.expectedUpdatedAt);
 
-      for (const booking of loaded) {
-        await this.releaseSlotsByWindowInRepo(
-          slotRepo,
-          booking!.employeeId,
-          booking!.businessId,
-          booking!.startTime,
-          booking!.endTime,
-        );
-      }
+          const targetStart = new Date(segment.startTime);
+          const targetEmployeeId = segment.employeeId;
+          if (targetStart <= new Date()) {
+            throw new ConflictException(
+              'Cannot reschedule to a time in the past',
+            );
+          }
 
-      const updated: Booking[] = [];
+          const service =
+            booking.service ??
+            (await serviceRepo.findOneOrFail({
+              where: { id: booking.serviceId },
+            }));
+          const totalDuration = service.durationMinutes + service.bufferMinutes;
+          const newEnd = new Date(
+            targetStart.getTime() + totalDuration * 60000,
+          );
+          const oldStart = booking.startTime;
+          const oldEnd = booking.endTime;
 
-      for (let i = 0; i < segments.length; i++) {
-        const segment = segments[i];
-        const booking = (await bookingRepo.findOne({
-          where: { id: segment.bookingId },
-          relations: { service: true },
-        }))!;
-
-        this.assertExpectedUpdatedAt(booking, segment.expectedUpdatedAt);
-
-        const targetStart = new Date(segment.startTime);
-        const targetEmployeeId = segment.employeeId;
-        if (targetStart <= new Date()) {
-          throw new ConflictException('Cannot reschedule to a time in the past');
-        }
-
-        const service =
-          booking.service ??
-          (await serviceRepo.findOneOrFail({ where: { id: booking.serviceId } }));
-        const totalDuration = service.durationMinutes + service.bufferMinutes;
-        const newEnd = new Date(targetStart.getTime() + totalDuration * 60000);
-        const oldStart = booking.startTime;
-        const oldEnd = booking.endTime;
-
-        const newSlots = await this.findSlotsInRepo(
-          slotRepo,
-          booking.businessId,
-          targetEmployeeId,
-          targetStart,
-          newEnd,
-        );
-
-        if (newSlots.length === 0) {
-          const conflicts = await this.findOverlappingInRepo(
-            bookingRepo,
+          const newSlots = await this.findSlotsInRepo(
+            slotRepo,
             booking.businessId,
             targetEmployeeId,
             targetStart,
             newEnd,
-            excludeBookingIds,
           );
-          if (conflicts.length > 0) {
-            throw new ConflictException('Time slot is already booked');
-          }
-        } else {
-          for (const slot of newSlots) {
-            slot.appointmentCount += 1;
-            if (slot.appointmentCount >= slot.maxAppointmentCount) {
-              slot.status = SlotStatus.BOOKED;
+
+          if (newSlots.length === 0) {
+            const conflicts = await this.findOverlappingInRepo(
+              bookingRepo,
+              booking.businessId,
+              targetEmployeeId,
+              targetStart,
+              newEnd,
+              excludeBookingIds,
+            );
+            if (conflicts.length > 0) {
+              throw new ConflictException('Time slot is already booked');
             }
-            await slotRepo.save(slot);
+          } else {
+            for (const slot of newSlots) {
+              slot.appointmentCount += 1;
+              if (slot.appointmentCount >= slot.maxAppointmentCount) {
+                slot.status = SlotStatus.BOOKED;
+              }
+              await slotRepo.save(slot);
+            }
           }
+
+          booking.startTime = targetStart;
+          booking.endTime = newEnd;
+          booking.employeeId = targetEmployeeId;
+          booking.service = service;
+          booking.slotId = newSlots[0]?.id ?? null;
+          if (segment.metadata) {
+            booking.metadata = { ...booking.metadata, ...segment.metadata };
+          }
+
+          await bookingRepo.save(booking);
+          updated.push(booking);
+
+          pendingEvents.push({
+            bookingId: booking.id,
+            businessId: booking.businessId,
+            employeeId: targetEmployeeId,
+            serviceId: booking.serviceId,
+            oldStart,
+            oldEnd,
+            newStart: targetStart,
+            newEnd,
+          });
         }
 
-        booking.startTime = targetStart;
-        booking.endTime = newEnd;
-        booking.employeeId = targetEmployeeId;
-        booking.service = service;
-        booking.slotId = newSlots[0]?.id ?? null;
-        if (segment.metadata) {
-          booking.metadata = { ...booking.metadata, ...segment.metadata };
-        }
-
-        await bookingRepo.save(booking);
-        updated.push(booking);
-
-        pendingEvents.push({
-          bookingId: booking.id,
-          businessId: booking.businessId,
-          employeeId: targetEmployeeId,
-          serviceId: booking.serviceId,
-          oldStart,
-          oldEnd,
-          newStart: targetStart,
-          newEnd,
-        });
-      }
-
-      return updated;
-    });
+        return updated;
+      },
+    );
 
     for (const event of pendingEvents) {
       await this.eventStore.publish({
@@ -2147,22 +2388,30 @@ export class BookingService {
     const siblings = await this.bookingRepo.find({
       where: {
         multiServiceGroupId: group.id,
-        status: Not(BookingStatus.CANCELLED) as any,
+        status: Not(BookingStatus.CANCELLED),
       },
       relations: { service: true },
       order: { startTime: 'ASC' },
     });
     if (siblings.length === 0) return false;
 
-    const business = await this.businessRepo.findOne({ where: { id: booking.businessId } });
-    const turnover = resolveMultiServiceSettings(business?.settings).turnoverBufferMinutes;
+    const business = await this.businessRepo.findOne({
+      where: { id: booking.businessId },
+    });
+    const turnover = resolveMultiServiceSettings(
+      business?.settings,
+    ).turnoverBufferMinutes;
     const serviceLines = siblings.map((entry) => ({
       serviceId: entry.serviceId,
-      durationMinutes: entry.service!.durationMinutes,
-      bufferMinutes: entry.service!.bufferMinutes,
+      durationMinutes: entry.service.durationMinutes,
+      bufferMinutes: entry.service.bufferMinutes,
     }));
 
-    const sequential = buildSequentialAppointments(serviceLines, targetStart, turnover);
+    const sequential = buildSequentialAppointments(
+      serviceLines,
+      targetStart,
+      turnover,
+    );
     const excludeBookingIds = siblings.map((entry) => entry.id);
     const blockEnd = sequential[sequential.length - 1].endTime;
     const serviceIds = serviceLines.map((line) => line.serviceId);

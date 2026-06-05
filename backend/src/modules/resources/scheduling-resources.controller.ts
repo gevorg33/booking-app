@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { SchedulingResourcesService } from './scheduling-resources.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,7 +22,10 @@ export class SchedulingResourcesController {
   ) {}
 
   @Get()
-  async list(@Param('businessId') businessId: string, @CurrentUser() user: { id: string }) {
+  async list(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.resourcesService.listResources(businessId);
   }
@@ -32,7 +44,8 @@ export class SchedulingResourcesController {
   async update(
     @Param('businessId') businessId: string,
     @Param('resourceId') resourceId: string,
-    @Body() dto: { name?: string; resourceType?: string; locationId?: string | null },
+    @Body()
+    dto: { name?: string; resourceType?: string; locationId?: string | null },
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
@@ -67,6 +80,10 @@ export class SchedulingResourcesController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.resourcesService.setServiceRequirements(businessId, serviceId, dto.resourceIds ?? []);
+    return this.resourcesService.setServiceRequirements(
+      businessId,
+      serviceId,
+      dto.resourceIds ?? [],
+    );
   }
 }

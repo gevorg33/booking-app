@@ -32,7 +32,10 @@ describe('pickTimezone', () => {
 
 describe('date keys and bounds', () => {
   it('getDateKeyInTimezone formats YYYY-MM-DD', () => {
-    const key = getDateKeyInTimezone(new Date('2026-06-04T18:00:00.000Z'), 'UTC');
+    const key = getDateKeyInTimezone(
+      new Date('2026-06-04T18:00:00.000Z'),
+      'UTC',
+    );
     expect(key).toBe('2026-06-04');
   });
 
@@ -85,12 +88,18 @@ describe('wall clock helpers', () => {
     expect(isWallClockSlotBookable('2020-01-01', '10:00', 'UTC')).toBe(false);
     const today = getWallClockNow('UTC').dateKey;
     expect(isWallClockSlotBookable(today, '23:59', 'UTC', '12:00')).toBe(true);
-    expect(isWallClockSlotBookable('2099-06-01', '09:00', 'UTC', '10:00')).toBe(false);
-    expect(isWallClockSlotBookable('2099-06-01', '11:00', 'UTC', '10:00')).toBe(true);
+    expect(isWallClockSlotBookable('2099-06-01', '09:00', 'UTC', '10:00')).toBe(
+      false,
+    );
+    expect(isWallClockSlotBookable('2099-06-01', '11:00', 'UTC', '10:00')).toBe(
+      true,
+    );
     const now = getWallClockNow('UTC');
     const pastHour = Math.max(0, Math.floor(now.minutes / 60) - 1);
     const pastSlot = `${String(pastHour).padStart(2, '0')}:00`;
     expect(isWallClockSlotBookable(now.dateKey, pastSlot, 'UTC')).toBe(false);
-    expect(isWallClockSlotBookable(now.dateKey, '23:59', 'UTC', '9')).toBe(true);
+    expect(isWallClockSlotBookable(now.dateKey, '23:59', 'UTC', '9')).toBe(
+      true,
+    );
   });
 });

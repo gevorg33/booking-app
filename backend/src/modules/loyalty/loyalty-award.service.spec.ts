@@ -53,7 +53,10 @@ describe('LoyaltyAwardService', () => {
   it('awards cashback on 100% cash payment', async () => {
     bookingRepo.findOne.mockResolvedValue({
       ...baseBooking,
-      metadata: { amountPaid: 100, pricing: { amountDue: 100, loyaltyDiscount: 0 } },
+      metadata: {
+        amountPaid: 100,
+        pricing: { amountDue: 100, loyaltyDiscount: 0 },
+      },
     });
 
     const result = await awardService.awardForPaidBooking('booking-1');
@@ -190,7 +193,9 @@ describe('LoyaltyAwardService', () => {
       ...baseBooking,
       metadata: { amountPaid: 100 },
     });
-    customerMatcher.resolveForBooking.mockResolvedValue({ status: 'unmatched' });
+    customerMatcher.resolveForBooking.mockResolvedValue({
+      status: 'unmatched',
+    });
 
     const result = await awardService.awardForPaidBooking('booking-1');
     expect(result.reason).toBe('no_customer');
@@ -229,9 +234,9 @@ describe('LoyaltyAwardService', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([
-        { ...baseBooking, metadata: { amountPaid: 80 } },
-      ]),
+      getMany: jest
+        .fn()
+        .mockResolvedValue([{ ...baseBooking, metadata: { amountPaid: 80 } }]),
     };
     bookingRepo.createQueryBuilder.mockReturnValue(qb);
 
@@ -300,9 +305,12 @@ describe('LoyaltyAwardService', () => {
 
     const summary = await awardService.backfillPaidBookings('biz-1');
 
-    expect(qb.andWhere).toHaveBeenCalledWith('booking.businessId = :businessId', {
-      businessId: 'biz-1',
-    });
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      'booking.businessId = :businessId',
+      {
+        businessId: 'biz-1',
+      },
+    );
     expect(summary.skipped.service_excluded).toBe(1);
     expect(summary.skipped.ambiguous_match).toBe(1);
     expect(summary.ambiguousRecords).toHaveLength(1);

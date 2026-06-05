@@ -9,7 +9,9 @@ describe('PublicBookingService growth profile fields', () => {
     isConnectReady: jest.fn().mockReturnValue(false),
   };
   const config = {
-    get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'https://app.test' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
   };
 
   const multiServiceBookingsService = {
@@ -95,7 +97,9 @@ describe('PublicBookingService growth profile fields', () => {
       facebookPageUrl: 'https://facebook.com/salon',
       instagramUsername: 'salon',
     });
-    expect(profile.messaging?.telegramUrl).toBe('https://t.me/bookbot?start=book_salon');
+    expect(profile.messaging?.telegramUrl).toBe(
+      'https://t.me/bookbot?start=book_salon',
+    );
   });
 
   it('omits zendesk widget when public booking widget disabled', () => {

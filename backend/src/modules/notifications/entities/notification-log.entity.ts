@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
-import type { NotificationChannel, NotificationKind } from '../notification.types.js';
+import type {
+  NotificationChannel,
+  NotificationKind,
+} from '../notification.types.js';
 
 @Entity('notification_logs')
 @Index(['bookingId', 'kind', 'channel'], { unique: true })

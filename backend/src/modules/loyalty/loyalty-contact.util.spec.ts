@@ -6,7 +6,9 @@ import {
 
 describe('loyalty-contact.util', () => {
   it('normalizes email casing and whitespace', () => {
-    expect(normalizeLoyaltyEmail('  User@Example.COM ')).toBe('user@example.com');
+    expect(normalizeLoyaltyEmail('  User@Example.COM ')).toBe(
+      'user@example.com',
+    );
   });
 
   it('normalizes phone formats to digits', () => {

@@ -6,7 +6,11 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { WorkflowStatus, WorkflowStep, StepStatus } from './interfaces/workflow.interfaces.js';
+import {
+  WorkflowStatus,
+  WorkflowStep,
+  StepStatus,
+} from './interfaces/workflow.interfaces.js';
 
 @Entity('workflow_executions')
 @Index(['businessId', 'status'])
@@ -20,20 +24,27 @@ export class WorkflowExecution {
   @Column()
   businessId: string;
 
-  @Column({ type: 'enum', enum: WorkflowStatus, default: WorkflowStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: WorkflowStatus,
+    default: WorkflowStatus.PENDING,
+  })
   status: WorkflowStatus;
 
   @Column({ type: 'jsonb' })
   steps: WorkflowStep[];
 
   @Column({ type: 'jsonb', default: {} })
-  stepResults: Record<string, {
-    status: StepStatus;
-    result?: any;
-    error?: string;
-    startedAt?: string;
-    completedAt?: string;
-  }>;
+  stepResults: Record<
+    string,
+    {
+      status: StepStatus;
+      result?: any;
+      error?: string;
+      startedAt?: string;
+      completedAt?: string;
+    }
+  >;
 
   @Column({ type: 'jsonb', default: {} })
   context: Record<string, any>;

@@ -23,7 +23,9 @@ const DIAL_CODE_ISO: Record<string, string> = {
   '44': 'GB',
 };
 
-function readExplicitCountry(settings?: Record<string, unknown>): string | null {
+function readExplicitCountry(
+  settings?: Record<string, unknown>,
+): string | null {
   if (!settings) return null;
   const candidates = [settings.stripeConnectCountry, settings.country];
   for (const value of candidates) {
@@ -42,13 +44,18 @@ export function resolveStripeConnectCountry(
   const explicit = readExplicitCountry(business.settings);
   if (explicit) return explicit;
 
-  const fromTimezone = business.timezone ? TIMEZONE_ISO[business.timezone] : undefined;
+  const fromTimezone = business.timezone
+    ? TIMEZONE_ISO[business.timezone]
+    : undefined;
   if (fromTimezone) return fromTimezone;
 
   const platform = platformDefault.trim().toUpperCase();
   if (/^[A-Z]{2}$/.test(platform)) return platform;
 
-  const dialCode = inferDefaultPhoneCountryCode(business.settings, business.timezone);
+  const dialCode = inferDefaultPhoneCountryCode(
+    business.settings,
+    business.timezone,
+  );
   const fromDial = DIAL_CODE_ISO[dialCode];
   if (fromDial) return fromDial;
 

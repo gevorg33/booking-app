@@ -14,7 +14,8 @@ import {
 @Injectable()
 export class ServiceCategoryService {
   constructor(
-    @InjectRepository(ServiceCategory) private categoryRepo: Repository<ServiceCategory>,
+    @InjectRepository(ServiceCategory)
+    private categoryRepo: Repository<ServiceCategory>,
   ) {}
 
   private enrichCategory(category: ServiceCategory) {
@@ -31,7 +32,9 @@ export class ServiceCategoryService {
   }
 
   async findOne(id: string, businessId: string) {
-    const category = await this.categoryRepo.findOne({ where: { id, businessId } });
+    const category = await this.categoryRepo.findOne({
+      where: { id, businessId },
+    });
     if (!category) throw new NotFoundException('Service category not found');
     return this.enrichCategory(category);
   }
@@ -50,18 +53,16 @@ export class ServiceCategoryService {
     return this.enrichCategory(saved);
   }
 
-  async update(
-    id: string,
-    businessId: string,
-    dto: UpdateServiceCategoryDto,
-  ) {
-    const category = await this.categoryRepo.findOne({ where: { id, businessId } });
+  async update(id: string, businessId: string, dto: UpdateServiceCategoryDto) {
+    const category = await this.categoryRepo.findOne({
+      where: { id, businessId },
+    });
     if (!category) throw new NotFoundException('Service category not found');
 
     const { localizedNames, ...rest } = dto;
     if (localizedNames !== undefined) {
       category.metadata = applyLocalizedNamesToMetadata(
-        (category.metadata ?? {}) as Record<string, unknown>,
+        category.metadata ?? {},
         localizedNames,
       );
     }

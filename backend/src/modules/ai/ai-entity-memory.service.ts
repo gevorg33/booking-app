@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
+import { formatEntityMemoryContextBlock } from './ai-entity-memory.util.js';
 import type { EntityMemory, EntityMemoryEntry } from './ai-settings.types.js';
 
 interface MemoryExtractResult {
@@ -12,27 +13,22 @@ interface MemoryExtractResult {
 export class AiEntityMemoryService {
   private readonly logger = new Logger(AiEntityMemoryService.name);
 
-  constructor(
-    private openAi: OpenAiGatewayService,
-    private aiSettings: AiSettingsService,
-  ) {}
+  private readonly openAi: OpenAiGatewayService;
+  private readonly aiSettings: AiSettingsService;
+
+  constructor(openAi: OpenAiGatewayService, aiSettings: AiSettingsService) {
+    this.openAi = openAi;
+    this.aiSettings = aiSettings;
+  }
+
+  async getEntityMemory(businessId: string): Promise<EntityMemory> {
+    return this.aiSettings.getEntityMemory(businessId);
+  }
 
   /** Inject learned defaults into classifier context. */
   async buildMemoryContextBlock(businessId: string): Promise<string> {
-    const memory = await this.aiSettings.getEntityMemory(businessId);
-    const entries = Object.entries(memory.aliases ?? {});
-    if (entries.length === 0) return '';
-
-    const lines = entries.slice(0, 20).map(([alias, e]) => {
-      const parts: string[] = [];
-      if (e.employeeName) parts.push(`provider=${e.employeeName}`);
-      if (e.serviceName) parts.push(`service=${e.serviceName}`);
-      if (e.customerName) parts.push(`customer=${e.customerName}`);
-      if (e.templateName) parts.push(`template=${e.templateName}`);
-      return `"${alias}" → ${parts.join(', ') || '—'}`;
-    });
-
-    return `Learned entity defaults for this business (use when user mentions alias):\n${lines.join('\n')}`;
+    const memory = await this.getEntityMemory(businessId);
+    return formatEntityMemoryContextBlock(memory);
   }
 
   /** After a successful command, LLM extracts aliases to remember. */
@@ -41,6 +37,7 @@ export class AiEntityMemoryService {
     prompt: string,
     action: string,
     resolved: Record<string, unknown>,
+    surface: 'dashboard' | 'provider_mobile' | 'customer' = 'dashboard',
   ): Promise<void> {
     if (!(await this.openAi.isAvailableForBusiness(businessId))) return;
 
@@ -54,7 +51,7 @@ Only add aliases clearly implied. Max 3 new aliases per turn.`;
     const result = await this.openAi.completeJson<MemoryExtractResult>(
       {
         businessId,
-        surface: 'dashboard',
+        surface,
         operation: 'entity_memory_learn',
         actorType: 'system',
       },
@@ -66,7 +63,9 @@ Only add aliases clearly implied. Max 3 new aliases per turn.`;
     if (!result?.aliases || Object.keys(result.aliases).length === 0) return;
 
     await this.aiSettings.mergeEntityMemory(businessId, result.aliases);
-    this.logger.debug(`Entity memory updated: ${Object.keys(result.aliases).join(', ')}`);
+    this.logger.debug(
+      `Entity memory updated: ${Object.keys(result.aliases).join(', ')}`,
+    );
   }
 
   /** LLM resolves ambiguous mention using memory + catalog. */
@@ -75,7 +74,7 @@ Only add aliases clearly implied. Max 3 new aliases per turn.`;
     mention: string,
     catalogSummary: string,
   ): Promise<EntityMemoryEntry | null> {
-    const memory = await this.aiSettings.getEntityMemory(businessId);
+    const memory = await this.getEntityMemory(businessId);
     const direct = memory.aliases?.[mention.toLowerCase().trim()];
     if (direct) return direct;
 
@@ -90,7 +89,9 @@ Return JSON: { "employeeName": string|null, "serviceName": string|null, "custome
       catalog: catalogSummary,
     });
 
-    const result = await this.openAi.completeJson<EntityMemoryEntry & { confidence?: number }>(
+    const result = await this.openAi.completeJson<
+      EntityMemoryEntry & { confidence?: number }
+    >(
       {
         businessId,
         surface: 'dashboard',
