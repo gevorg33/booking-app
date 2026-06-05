@@ -387,7 +387,7 @@ export function parseTimeOfDayWindow(
   }
   if (/\bmorning\b/i.test(prompt)) return 'morning';
   if (/\bafternoon\b/i.test(prompt)) return 'afternoon';
-  if (/\bevening\b/i.test(prompt)) return 'evening';
+  if (/\b(evening|tonight)\b/i.test(prompt)) return 'evening';
   return null;
 }
 

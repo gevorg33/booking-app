@@ -1159,8 +1159,9 @@ export async function handlePaymentsCompoundLogic(
   params: Record<string, any>,
   userId?: string,
 ): Promise<CommandResult> {
+  const safeParams = params ?? {};
   const steps: PaymentsCompoundStep[] =
-    (params.compoundSteps as PaymentsCompoundStep[] | undefined) ??
+    (safeParams.compoundSteps as PaymentsCompoundStep[] | undefined) ??
     decomposePaymentsCompoundPrompt(prompt);
 
   if (steps.length < 2) {
@@ -1172,7 +1173,10 @@ export async function handlePaymentsCompoundLogic(
   }
 
   const results: CommandResult[] = [];
-  let compoundContext: Record<string, unknown> = { ...params, _prompt: prompt };
+  let compoundContext: Record<string, unknown> = {
+    ...safeParams,
+    _prompt: prompt,
+  };
 
   for (const step of steps.slice(0, 4)) {
     const stepParams = {

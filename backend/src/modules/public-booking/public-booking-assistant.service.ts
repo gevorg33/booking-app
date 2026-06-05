@@ -37,6 +37,7 @@ import {
   resolvePublicAvailabilityDateKeys,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -58,7 +59,8 @@ export interface PublicAssistantResult {
   bookingId?: string;
 }
 
-const PUBLIC_INTENT_SCHEMA = `You are a friendly booking assistant for a customer-facing online appointment page.
+export function buildPublicClassifierSchema(): string {
+  return `You are a friendly booking assistant for a customer-facing online appointment page.
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
@@ -72,8 +74,9 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "dateFrom": "DD/MM/YYYY or null",
     "dateTo": "DD/MM/YYYY or null",
     "weekdays": ["monday", "friday", etc.] or null — when user names weekdays without exact calendar dates",
-    "timeSlot": "HH:MM 24h or null",
-    "timeFrom": "HH:MM or null — earliest time when user says after 16:00",
+    "timeSlot": "HH:MM 24h or null — omit when bookingFirstAvailable=true",
+    "timeFrom": "HH:MM or null — earliest time when user says after 16:00 or for flexible booking",
+    "timeOfDay": "morning | afternoon | evening | null — tonight counts as evening",
     "bookingFirstAvailable": boolean or null,
     "allProviders": boolean or null — true when any specialist is acceptable",
     "providerFallbackNames": ["string"] or null,
@@ -89,10 +92,11 @@ You MUST resolve relative dates yourself using Today's date from context (tomorr
 
 Action rules:
 - recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
-- check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set weekdays for "Monday and Friday", dateFrom/dateTo for "this week".
+- check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set weekdays for "Monday and Friday", dateFrom/dateTo for "this week". Set timeOfDay for morning/afternoon/evening/tonight.
 - list_providers: who works here (not ratings/availability).
 - list_services: prices, durations, catalog.
-- book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/ASAP/any specialist. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
+- book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
+- Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
 - business_info / booking_help: as named.
 
 Service extraction (critical):
@@ -106,7 +110,9 @@ Examples:
 - "best rated massage this week" → recommend_specialists, serviceCategory: "massage", dateFrom/dateTo: this week
 - "book nearest facemassage on any specialist after 16:00" → book_appointment, serviceName: facemassage, bookingFirstAvailable: true, allProviders: true, timeFrom: "16:00"
 
-Normalize all dates to DD/MM/YYYY.`;
+Normalize all dates to DD/MM/YYYY.
+${PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES}`;
+}
 
 @Injectable()
 export class PublicBookingAssistantService {
@@ -1214,7 +1220,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${PUBLIC_INTENT_SCHEMA}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+        content: `${buildPublicClassifierSchema()}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
       },
       ...historyMessages,
       { role: 'user', content: prompt },

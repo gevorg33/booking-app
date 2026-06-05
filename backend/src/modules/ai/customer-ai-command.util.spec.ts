@@ -85,6 +85,12 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('book_package');
     expect(schema).toContain('list_providers');
     expect(schema).toContain('unknown');
+    expect(schema).toContain('check_providers_for_service');
+    expect(schema).toContain('book_nearest_slot');
+    expect(schema).toContain('bookingFirstAvailable');
+    expect(schema).toContain('timeOfDay');
+    expect(schema).toContain('who\'s free tomorrow evening for permanent lashes');
+    expect(schema).not.toContain('pick the FIRST actionable intent');
   });
 
   it('merges compound context from sessionContext and detail keys', () => {

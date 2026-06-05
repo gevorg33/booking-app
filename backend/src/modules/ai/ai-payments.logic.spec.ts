@@ -962,6 +962,14 @@ describe('ai-payments.logic', () => {
       expect(ok.success).toBe(true);
       expect((ok.details as any).paymentsCompound).toBe(true);
 
+      const withoutParams = await handlePaymentsCompoundLogic(
+        buildDeps(),
+        'biz-1',
+        'Who is available tomorrow evening for massage and book the nearest slot',
+        undefined as any,
+      );
+      expect(withoutParams.success).toBe(true);
+
       const fail = await handlePaymentsCompoundLogic(
         buildDeps(),
         'biz-1',

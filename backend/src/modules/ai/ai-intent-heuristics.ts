@@ -17,7 +17,9 @@ import {
   extractSingleDateFromPrompt,
   fuzzyMatchServiceByName,
   normalizeServiceLookup,
+  parseEarliestBookingTimeFromPrompt,
 } from './ai-orchestration.helpers.js';
+import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
   BookingStatus,
   PaymentStatus,
@@ -679,16 +681,50 @@ export function isAnyProviderBookingPrompt(prompt: string): boolean {
 /** Book or reschedule to the earliest open slot. */
 export function isFirstAvailableBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  const flexibleSlotWord =
+    /\b(?:slot|time|appointment|opening)\b/i.test(lower) ||
+    /\b(?:massage|haircut|facial|lashes|lips|service)\b/i.test(lower);
   return (
     /\bfirst\s+available\b/i.test(lower) ||
     /\bearliest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
-    /\bnext\s+available\s+(?:slot|time|appointment)\b/i.test(lower) ||
-    /\bnearest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
+    /\bnext\s+available\b/i.test(lower) ||
+    /\bnearest\s+(?:available\s+)?(?:slot|time|appointment|opening)\b/i.test(
+      lower,
+    ) ||
     /\bnearest\s+(?:free\s+)?(?:time|slot)\b/i.test(lower) ||
     /\bnearest\s+time\s+slot\b/i.test(lower) ||
+    /\bbook\s+(?:the\s+)?nearest\b/i.test(lower) ||
+    (/\bsoonest\b/i.test(lower) && flexibleSlotWord) ||
+    /\b(?:reserve|schedule|get|grab)\b[\s\S]{0,30}\b(?:nearest|soonest|first|next|earliest)\b/i.test(
+      lower,
+    ) ||
     /\bas soon as possible\b/i.test(lower) ||
     /\basap\b/i.test(lower)
   );
+}
+
+/** Infer first-available / evening-window hints for booking intents (compound + rescue paths). */
+export function enrichBookingTimeHintsFromPrompt(
+  action: string,
+  params: Record<string, any>,
+  prompt: string,
+): void {
+  if (action !== 'create_booking' && action !== 'reschedule_booking') return;
+  if (isFirstAvailableBookingPrompt(prompt)) {
+    params.bookingFirstAvailable = true;
+    delete params.timeSlot;
+  }
+  const timeOfDay = parseTimeOfDayWindow(prompt, params);
+  if (timeOfDay && !params.timeOfDay) params.timeOfDay = timeOfDay;
+  const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
+  if (earliestTime) params.timeFrom = earliestTime;
+  if (
+    isAnyProviderBookingPrompt(prompt) ||
+    (/\b(who|which|anyone|anybody)\b/i.test(prompt) &&
+      /\b(?:free|available|open)\b/i.test(prompt))
+  ) {
+    params.allProviders = true;
+  }
 }
 
 /** Customer wants top-rated / recommended specialists (often for a service and date range). */

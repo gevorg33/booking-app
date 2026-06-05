@@ -1,3 +1,4 @@
+import { SIMILAR_CHECK_AND_BOOK_PROMPTS } from './ai-check-and-book.fixtures.js';
 import {
   rescuePaymentsIntent,
   isPaymentsCompoundPrompt,
@@ -87,6 +88,23 @@ describe('ai-payments.util', () => {
       ).toBe(true);
       expect(
         isCheckProvidersForServicePrompt(
+          'check who is free tomorrow evening for permanent lashes',
+        ),
+      ).toBe(true);
+      expect(
+        isCheckProvidersForServicePrompt('check who is available for massage'),
+      ).toBe(true);
+      expect(
+        isCheckProvidersForServicePrompt('who is available for packages'),
+      ).toBe(false);
+      expect(
+        isCheckProvidersForServicePrompt(
+          'who is available for membership plans',
+        ),
+      ).toBe(false);
+      expect(extractServiceNameFromPrompt('for the')).toBeNull();
+      expect(
+        isCheckProvidersForServicePrompt(
           'Check multi-service block availability',
         ),
       ).toBe(false);
@@ -140,6 +158,11 @@ describe('ai-payments.util', () => {
       expect(extractServiceNameFromPrompt('Book nearest facial slot')).toBe(
         'facial',
       );
+      expect(
+        extractServiceNameFromPrompt(
+          'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+        ),
+      ).toBe('permanent lashes');
       expect(extractAmountFromPrompt('Buy $75 gift card')).toBe(75);
       expect(extractAmountFromPrompt('amount 100')).toBe(100);
       expect(extractAmountFromPrompt('no amount')).toBeNull();
@@ -273,6 +296,24 @@ describe('ai-payments.util', () => {
   });
 
   describe('compound decomposition', () => {
+    it.each(SIMILAR_CHECK_AND_BOOK_PROMPTS)(
+      'decomposes similar phrasing: $id',
+      ({ prompt, serviceName, notBeforeTime }) => {
+        expect(isCheckProvidersForServicePrompt(prompt)).toBe(true);
+        expect(isPaymentsCompoundPrompt(prompt)).toBe(true);
+        const steps = decomposePaymentsCompoundPrompt(prompt);
+        expect(steps.map((s) => s.action)).toEqual([
+          'check_providers_for_service',
+          'book_nearest_slot',
+        ]);
+        expect(steps[0]?.params.serviceName).toBe(serviceName);
+        expect(steps[1]?.params.bookingFirstAvailable).toBe(true);
+        if (notBeforeTime) {
+          expect(steps[0]?.params.notBeforeTime).toBe(notBeforeTime);
+        }
+      },
+    );
+
     it('decomposes multi-command payment prompts', () => {
       const prompt =
         'Check who is available tomorrow evening for massage and book the nearest slot and apply my gift card';
@@ -283,6 +324,29 @@ describe('ai-payments.util', () => {
         'check_providers_for_service',
       );
       expect(steps.map((s) => s.action)).toContain('book_nearest_slot');
+
+      const freePrompt =
+        'check who is free tomorrow evening for permanent lashes, book the nearest slot';
+      expect(isCheckProvidersForServicePrompt(freePrompt)).toBe(true);
+      expect(isPaymentsCompoundPrompt(freePrompt)).toBe(true);
+      const freeSteps = decomposePaymentsCompoundPrompt(freePrompt);
+      expect(freeSteps.map((s) => s.action)).toEqual([
+        'check_providers_for_service',
+        'book_nearest_slot',
+      ]);
+      expect(freeSteps[0]?.params.serviceName).toBe('permanent lashes');
+      expect(freeSteps[0]?.params.date).toBe('2026-06-06');
+      expect(freeSteps[0]?.params.notBeforeTime).toBe('17:00');
+      expect(freeSteps[1]?.params.bookingFirstAvailable).toBe(true);
+
+      const inline = decomposePaymentsCompoundPrompt(
+        'Who is free tomorrow evening for permanent lashes book the nearest slot',
+      );
+      expect(inline.map((s) => s.action)).toEqual([
+        'check_providers_for_service',
+        'book_nearest_slot',
+      ]);
+      expect(inline[0]?.params.notBeforeTime).toBe('17:00');
 
       const haircut = decomposePaymentsCompoundPrompt(
         'Book nearest haircut and apply gift card if available',
@@ -456,6 +520,30 @@ describe('ai-payments.util', () => {
       );
       expect(isBookNearestSlotPrompt('book nearest "Spa Day"')).toBe(true);
       expect(isBookNearestSlotPrompt('book nearest slot')).toBe(true);
+      expect(isBookNearestSlotPrompt('book first available slot')).toBe(true);
+      expect(isBookNearestSlotPrompt('reserve the nearest slot')).toBe(true);
+      expect(isBookNearestSlotPrompt('schedule the next available appointment')).toBe(
+        true,
+      );
+      expect(isBookNearestSlotPrompt('book ASAP for massage')).toBe(true);
+      expect(
+        isCheckProvidersForServicePrompt(
+          'anyone free tomorrow for permanent lashes',
+        ),
+      ).toBe(true);
+      expect(
+        isCheckProvidersForServicePrompt('see who is open tomorrow for massage'),
+      ).toBe(true);
+      expect(
+        isCheckProvidersForServicePrompt(
+          'check who can take permanent lashes tomorrow',
+        ),
+      ).toBe(true);
+      expect(
+        extractServiceNameFromPrompt(
+          'check who can take permanent lashes tomorrow evening',
+        ),
+      ).toBe('permanent lashes');
       expect(isBookNearestSlotPrompt('find nearest haircut')).toBe(true);
       expect(isBookNearestSlotPrompt('get next facial service')).toBe(true);
       expect(

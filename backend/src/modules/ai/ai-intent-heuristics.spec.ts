@@ -12,9 +12,11 @@ import {
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
+  enrichBookingTimeHintsFromPrompt,
   isBulkAllAppointmentsPrompt,
   isRecommendSpecialistsPrompt,
 } from './ai-intent-heuristics.js';
+import { SIMILAR_CHECK_AND_BOOK_PROMPTS } from './ai-check-and-book.fixtures.js';
 import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
@@ -231,6 +233,43 @@ describe('ai-intent-heuristics', () => {
       expect(
         isTotalEarningsPrompt('Top 3 specialists by revenue last week'),
       ).toBe(false);
+    });
+  });
+
+  describe('isFirstAvailableBookingPrompt', () => {
+    it.each([
+      'book the soonest slot for massage',
+      'schedule the next available appointment',
+      'reserve the nearest slot',
+      'get the earliest slot',
+      'grab the nearest opening',
+    ])('detects flexible booking phrasing: %s', (prompt) => {
+      expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
+    });
+
+    it.each(SIMILAR_CHECK_AND_BOOK_PROMPTS)(
+      'detects flexible booking in compound prompt: $id',
+      ({ prompt }) => {
+        expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
+      },
+    );
+  });
+
+  describe('enrichBookingTimeHintsFromPrompt', () => {
+    it('sets bookingFirstAvailable, timeOfDay, and allProviders for check-and-book wording', () => {
+      const params: Record<string, unknown> = {
+        serviceName: 'permanent lashes',
+        timeSlot: '10:00',
+      };
+      enrichBookingTimeHintsFromPrompt(
+        'create_booking',
+        params,
+        "who's free tomorrow evening for permanent lashes, book the nearest slot",
+      );
+      expect(params.bookingFirstAvailable).toBe(true);
+      expect(params.timeOfDay).toBe('evening');
+      expect(params.allProviders).toBe(true);
+      expect(params.timeSlot).toBeUndefined();
     });
   });
 

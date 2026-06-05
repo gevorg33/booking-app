@@ -105,6 +105,7 @@ import {
   extractLimitFromPrompt,
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
+  enrichBookingTimeHintsFromPrompt,
   extractProviderFallbackFromPrompt,
   extractCustomerFromReschedulePrompt,
   extractProviderPossessiveFromReschedulePrompt,
@@ -157,6 +158,7 @@ import {
   buildExecutionConfirmationResult,
   isExecutionConfirmed,
 } from './ai-execution-confirm.util.js';
+import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
 
 export type { CommandResult };
 
@@ -209,7 +211,8 @@ and extract structured parameters. Return a JSON object with:
     "reason": "string or null — reason given for cancellation or note",
     "notes": "string or null — booking notes or description",
     "timeSlot": "HH:MM in 24h format or null — appointment start time (e.g. 09:00, 14:30)",
-    "timeFrom": "HH:MM or null — start of a daily time window (fill/optimize, or cancel/list/hide when a range is given, e.g. 16:30)",
+    "timeOfDay": "morning | afternoon | evening | null — time-of-day window for availability or flexible booking (tonight = evening)",
+    "timeFrom": "HH:MM or null — start of a daily time window (fill/optimize, or cancel/list/hide when a range is given, e.g. 16:30); also earliest hour for bookingFirstAvailable (e.g. after 16:00)",
     "timeTo": "HH:MM or null — end of that window (e.g. 17:30 for 'between 16:30-17:30')",
     "blockFullDay": boolean or null — true when blocking entire day(s),
     "weeksCount": number or null — repeat weeks for repetitive blocks,
@@ -261,8 +264,9 @@ Rules:
 - create_booking requires serviceName at minimum. Normally also employeeName, date, and timeSlot. Leave customerName null for walk-in unless the user explicitly names a client (e.g. "for customer Maria", "book facemassage for John") — never set customerName to the provider/employee name or to the dashboard user.
 - "Book first available {service} on any provider" → create_booking with serviceName, allProviders=true, bookingFirstAvailable=true, employeeName=null, timeSlot=null, date=today if omitted. The system picks the earliest open slot across providers.
 - Conditional fallback at a fixed time: "Book {service} on Gevorg tomorrow at 9; if not available then Mary at 9; if not then whoever is free" → create_booking with serviceName, date, timeSlot="09:00", providerFallbackNames=["Gevorg ...", "Mary ..."], fallbackAnyProvider=true. Do NOT use bookingFirstAvailable for this pattern — keep the fixed timeSlot.
-- "Book the nearest time slot for {service} on any specialist" / "nearest available" / "ASAP" → same as first available (bookingFirstAvailable=true). Leave timeSlot null. For a named specialist only, set employeeName and bookingFirstAvailable=true without allProviders. Optional lower bound: "after 16:00" → set timeFrom="16:00" (earliest slot must be after current time and after that hour).
+- "Book the nearest time slot for {service} on any specialist" / "nearest available" / "soonest slot" / "next available appointment" / "ASAP" → same as first available (bookingFirstAvailable=true). Leave timeSlot null. For a named specialist only, set employeeName and bookingFirstAvailable=true without allProviders. Optional lower bound: "after 16:00" → set timeFrom="16:00" (earliest slot must be after current time and after that hour). Set timeOfDay for morning/afternoon/evening/tonight.
 - bookingFirstAvailable without allProviders: pick earliest open slot for the named provider only. allProviders without bookingFirstAvailable still requires timeSlot unless the user gives one.
+- Dashboard staff simulating customer checkout: check_providers_for_service + book_nearest_slot compound prompts are decomposed automatically before classification — if you must classify a single intent from combined wording, use create_booking with bookingFirstAvailable=true, allProviders=true, timeSlot=null, never a bare create_booking missing start time.
 - For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
 - create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc.
 - create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
@@ -364,7 +368,8 @@ Rules:
 - Example follow-up: after "how many appointments today", "who is the busiest" → action summarize_bookings, bookingMetric="busiest_provider", inherit date from session.
 - Example follow-up: after "available slots for Gevorg on 30/06/2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30/06/2026", serviceName="facemassage", timeSlot="16:00".
 - Example follow-up: after show_appointments, "change service to hot stone massage" → action reschedule_booking, inherit customerName/date/timeSlot from session, serviceName="hot stone massage".
-- Use DD/MM/YYYY for all date params (legacy DD_MM_YYYY is still accepted when parsing).`;
+- Use DD/MM/YYYY for all date params (legacy DD_MM_YYYY is still accepted when parsing).
+${CHECK_AND_BOOK_CLASSIFIER_RULES}`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -5582,6 +5587,7 @@ export class AiCommandService {
         parsed.action,
         catalog.employees,
       );
+      enrichBookingTimeHintsFromPrompt(parsed.action, parsedParams, prompt);
       this.completionPipeline.normalizeDateParams(
         parsedParams,
         prompt,

@@ -42,6 +42,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **24** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
 | **25** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
 | **—** | AI product commands — Sprints 1–13 coverage (planned) | **ai-cmd-0**, **ai-cmd-b1**–**ai-cmd-n1** (~270 intents) |
+| **—** | AI command handlers & NLU quality (ongoing) | **ai-cmd-h1**–**ai-cmd-h4** |
 | **26** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
 | **27** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 | **28** | Multi-currency support | **curr-1** |
@@ -54,6 +55,12 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **35** | Additional payment gateways — PayPal, Tap, Payme, Wise | **pay-ext-1** |
 | **36** | Tax / VAT configuration | **tax-1** |
 | **37** | GDPR & HIPAA compliance hardening | **compliance-1** |
+| **38** | AI accuracy — telemetry & measurement | **acc-1** |
+| **39** | AI accuracy — eval set expansion & CI gate | **acc-2** |
+| **40** | AI accuracy — classification engine | **acc-3** |
+| **41** | AI accuracy — smart clarification & disambiguation | **acc-4** |
+| **42** | AI accuracy — execution verification & rollback | **acc-5** |
+| **43** | AI accuracy — continuous learning & escalation | **acc-6** |
 
 ---
 
@@ -767,6 +774,55 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 - [x] **ai-cmd-t3** — Integration specs: dashboard + provider + customer gateway per domain
 - [x] **ai-cmd-t4** — Command completion validators for clarify fields (dates, `serviceIds`, `packageId`, etc.)
 
+### AI command handlers & NLU quality (ongoing — **ai-cmd-h**)
+
+**Goal:** NL commands work end-to-end — classify correctly, rescue misclassifications, run handlers without false clarify forms, and keep regression coverage as phrasing drifts.
+
+**Principle:** Deterministic decomposition + heuristics for high-volume compound patterns; LLM classifiers for single-step intent + param extraction; post-LLM rescue as safety net. Prefer fixing classifiers and shared rules over one-off regex growth.
+
+**Surfaces in scope:** dashboard (`AiCommandService`), customer (`CustomerAiCommandService`), public web (`PublicBookingAssistantService`), provider (`ProviderAiCommandService`).
+
+#### Phase H1 — NLU & classifier prompts
+
+- [~] **ai-cmd-h1** — **Check+book compound** — who is free/available + book nearest/soonest/ASAP; decomposition in `ai-payments.util`, fixtures in `ai-check-and-book.fixtures.ts`, integration specs (`ai-check-and-book.integration.spec.ts`)
+- [~] **ai-cmd-h1.1** — **Classifier prompt parity** — shared `CHECK_AND_BOOK_CLASSIFIER_RULES` on dashboard `INTENT_SCHEMA`, customer `buildCustomerClassifierSchema()`, public `buildPublicClassifierSchema()`
+- [~] **ai-cmd-h1.2** — **Post-LLM rescue** — `bookingFirstAvailable`, `check_and_book_compound`, `enrichBookingTimeHintsFromPrompt`, `rescuePaymentsIntent` on customer path
+- [ ] **ai-cmd-h1.3** — **Eval golden cases** — add check+book and flexible-booking variants to `ai-command-eval.cases.ts` for live LLM regression (**gap-3.1** / `npm run test:sprint14`)
+- [ ] **ai-cmd-h1.4** — **Intent disambiguation matrix** — document + enforce in classifiers: `check_availability` vs `lookup_service_assignment` vs `check_providers_for_service` vs `create_booking` / `book_appointment` (per surface action names)
+- [ ] **ai-cmd-h1.5** — **Multilingual NL** — extend `CLASSIFIER_MULTILINGUAL_RULES` + eval cases for Armenian/Russian check+book and flexible-slot phrasing
+
+#### Phase H2 — Handler execution & compound graphs
+
+- [ ] **ai-cmd-h2** — **Compound context propagation** — `date`, `timeOfDay`, `notBeforeTime`, `serviceName`, `allProviders` shared across all steps; audit `buildSharedBookingContextFromPrompt`, `mergeCustomerCompoundContext`, `applyPromptEntityOverrides`
+- [ ] **ai-cmd-h2.1** — **Handler error copy** — NL-aware summaries when no slots (e.g. no providers free tomorrow evening → suggest morning or another day) instead of generic validation errors
+- [ ] **ai-cmd-h2.2** — **Check → book handoff** — `check_providers_for_service` availability summary forwarded into `book_nearest_slot` / `book_appointment` details on dashboard + customer
+- [ ] **ai-cmd-h2.3** — **Public flexible booking** — `book_appointment` + `bookingFirstAvailable` uses same slot resolver path as customer `book_nearest_slot`
+- [ ] **ai-cmd-h2.4** — **LangGraph compound paths** — `booking-command-graph` / `compound-command-graph` enrich booking hints on every sub-step when `LANGGRAPH_ENABLED=true`
+
+#### Phase H3 — Per-domain handler hardening
+
+- [ ] **ai-cmd-h3.1** — **Booking & reschedule** — first-available, provider fallback chains, possessive provider vs customer, `reschedule_booking` nearest-free-time
+- [ ] **ai-cmd-h3.2** — **Schedule ops** — `clear_schedule` vs `hide_appointments_from_calendar`; template apply + fill-gaps follow-ups; multi-provider date ranges
+- [ ] **ai-cmd-h3.3** — **Package & multi-service** — cart + per-line availability + checkout compound; staff-assisted `create_package_booking` / `create_multi_service_booking`
+- [ ] **ai-cmd-h3.4** — **Gift card & payments** — book + apply gift card + choose payment method compounds; physical gift card order handoff
+- [ ] **ai-cmd-h3.5** — **Provider mobile** — scoped handlers, push deep-link actions parity with NL commands (`ProviderAiCommandService`)
+
+#### Phase H4 — Tests & observability
+
+- [ ] **ai-cmd-h4.1** — **Integration spec families** — mirror `ai-check-and-book.integration.spec.ts` for package booking, multi-service, gift-card checkout compounds
+- [ ] **ai-cmd-h4.2** — **Coverage thresholds** — extend `test:ai-providers` / `test:ai-payments` / `test:ai-cmd` for rescue, decomposition, enrichment utils
+- [ ] **ai-cmd-h4.3** — **Validator audit** — `command-completion.validator.ts`: `bookingFirstAvailable` skips `timeSlot` on all surfaces; `timeOfDay` / `notBeforeTime` where applicable
+- [ ] **ai-cmd-h4.4** — **Failure telemetry** — log `rescueReason`, compound step count, classifier confidence via `AiEventsService` for top mis-route prompts
+
+**Key files:** `ai-command.service.ts`, `customer-ai-command.service.ts`, `public-booking-assistant.service.ts`, `ai-payments.util.ts`, `ai-payments.logic.ts`, `ai-intent-rescue.service.ts`, `ai-intent-heuristics.ts`, `ai-check-and-book.fixtures.ts`, `command-completion.validator.ts`, `ai-command-eval.cases.ts`
+
+**Test commands:**
+```bash
+cd backend && npm run test:ai-providers
+cd backend && npm run test:ai-payments
+cd backend && npm run test:sprint14
+```
+
 **Already shipped (do not re-plan)** — schedule orchestration (Sprint 23), booking ops sweeps (Sprint 24), enterprise analytics (Sprint 25), dashboard/mobile baseline intents in `DASHBOARD_INTENTS` / `PROVIDER_INTENTS`, public `list_providers` / `check_availability` / `book_appointment`.
 
 ---
@@ -1273,6 +1329,180 @@ Central place where clients discover and book across tenants
 - [ ] **compliance-1.16** — **Compliance dashboard** — owner-only page: GDPR status checklist, HIPAA status (if enabled), DPA signed status, pending data requests, breach log, consent stats
 - [ ] **compliance-1.17** — **Data residency hint** — settings: inform admin which region their data is stored in (EU / US / other based on deployment); no data migration in v1, informational only
 - [ ] **compliance-1.18** — **Third-party sub-processor list** — public page or in-dashboard: list of sub-processors (AWS/GCP, OpenAI, Stripe, Twilio, Resend, etc.) with data types and regions; required for GDPR Article 28
+
+---
+
+# AI Accuracy Program — 99% accurate executions (Sprints 38–43)
+
+**Goal:** Take AI command accuracy from the current baseline (>75% no-clarify completion) to **99% accurate executions** — meaning 99% of user prompts either execute correctly **or** ask the right clarifying question instead of doing the wrong thing.
+
+**Core principle:** "Accurate execution" = (correct intent) × (correct parameters) × (correct execution) **OR** (honest clarify / safe refusal). A wrong action is a failure; a *good question* is a success.
+
+### Accuracy ladder (how we climb to 99%)
+
+| Stage | No-clarify completion | What unlocks it |
+|-------|----------------------|-----------------|
+| Baseline (today) | ~75% | Shipped: classify + rescue + confidence routing (ai-i4), clarify (ai-d4), eval harness (gap-3.1) |
+| **Stage 1** | ~85% | Telemetry to *see* real failures (**acc-1**) + 10× eval set (**acc-2**) |
+| **Stage 2** | ~92% | Classification engine: few-shot + retrieval + self-verify (**acc-3**) |
+| **Stage 3** | ~96% | Smart clarification instead of wrong guesses (**acc-4**) + execution verification (**acc-5**) |
+| **Stage 4** | **99%** | Continuous learning loop + escalation for the last 1% (**acc-6**) |
+
+**Why this order:** You cannot improve what you cannot measure. Telemetry (**acc-1**) and a large labeled eval set (**acc-2**) come first; every later sprint is measured against that eval set with a CI regression gate so accuracy never silently drops.
+
+**Builds on existing infra (do not rebuild):** `AiGatewayService`, `classify_intent`, `AiIntentRescueService`, confidence routing (ai-i4), clarify-as-form (ai-d4), entity memory (ai-i2), conversation summaries (ai-i3), RAG (ai-i8), eval harness (gap-3.1 / ai-cmd-0.4), command outcome analytics (ai-e6), human-in-the-loop SLA (ai-e7), prompt security preflight.
+
+---
+
+## Sprint 38 — AI accuracy: telemetry & measurement
+
+**Goal:** Capture every prompt, classification, and outcome in production so real accuracy is measurable and failures are discoverable. **Nothing else in this program works without this.**
+
+- [ ] **acc-1** — AI accuracy telemetry & measurement foundation
+
+### acc-1.1 — Prompt + outcome logging
+- [ ] **acc-1.1** — `ai_command_trace` table — per command: `businessId`, `surface`, `userId`, `role`, raw `prompt`, normalized prompt, detected `locale`, classified `action`, `confidence`, `params` (redacted), routing tier, deterministic-vs-LLM source, `outcome` (executed / clarified / approval / failed / security_blocked), latency, model used, token cost; migration + indexes
+- [ ] **acc-1.2** — Hook into `AiGatewayService` — write trace on every command across dashboard / provider / customer surfaces; PII-redact params before storage (reuse compliance redaction); respect HIPAA AI guard (**compliance-1.15**)
+- [ ] **acc-1.3** — Correlation id — thread a `traceId` through classify → resolve → validate → execute so each pipeline stage's contribution is attributable
+
+### acc-1.2 — Failure signal capture (implicit + explicit)
+- [ ] **acc-1.4** — **Retry/rephrase detection** — same user, same surface, similar prompt (embedding similarity > 0.8) within 2 min after a clarify/fail → flag prior command as `suspected_miss`
+- [ ] **acc-1.5** — **Abandon detection** — clarify shown but user never answered / closed assistant → flag as `clarify_abandoned`
+- [ ] **acc-1.6** — **Undo/rollback as failure signal** — user hit Undo (ai-d7) within 1 min of execution → flag as `wrong_execution`
+- [ ] **acc-1.7** — **Explicit thumbs up/down** — tiny 👍/👎 on each AI result (dashboard + provider + customer); 👎 opens optional "what went wrong" one-tap reasons (wrong action / wrong date / wrong person / wrong service / didn't understand)
+
+### acc-1.3 — Accuracy dashboard (owner/admin analytics)
+- [ ] **acc-1.8** — Extend **ai-e6** analytics — real metrics from `ai_command_trace`: no-clarify completion rate, clarify rate, misclassification rate (from retry/undo/👎), per-intent accuracy, per-locale accuracy, per-surface accuracy
+- [ ] **acc-1.9** — **Confusion matrix** — which intent was classified vs corrected-to (from retry/undo signals); surfaces the top intent pairs that get confused
+- [ ] **acc-1.10** — **Worst-prompts feed** — ranked list of failing/low-confidence prompts (anonymized) for triage; export to eval pipeline (**acc-2**)
+- [ ] **acc-1.11** — **Accuracy SLO widget** — current rolling 7-day accuracy vs 99% target; trend line; alert when weekly accuracy drops > 2 points
+
+---
+
+## Sprint 39 — AI accuracy: eval set expansion & CI regression gate
+
+**Goal:** Grow the golden eval set from hundreds to **thousands** of real, labeled prompts across all surfaces and locales; make accuracy a hard CI gate so no change can regress it.
+
+- [ ] **acc-2** — Eval set expansion & regression gate
+
+### acc-2.1 — Mine real prompts into eval cases
+- [ ] **acc-2.1** — **Production prompt harvester** — weekly job pulls anonymized prompts from `ai_command_trace` (esp. `suspected_miss` / low-confidence / 👎) into a labeling queue
+- [ ] **acc-2.2** — **Labeling tool** — internal admin UI: review harvested prompt → confirm/correct expected `action` + key params + expected clarify; one click adds it to the golden eval fixtures (extends `ai-command-eval.cases.ts`)
+- [ ] **acc-2.3** — **Target: 2,000+ labeled cases** — balanced across booking / catalog / schedule / payments / gift cards / CRM / integrations; tagged by surface, locale, difficulty
+
+### acc-2.2 — Coverage parity & adversarial cases
+- [ ] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents (translate + transliterate variants, incl. Armenian/Russian mixed-script and Latin transliteration)
+- [ ] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts
+- [ ] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution
+- [ ] **acc-2.7** — **Adversarial corpus** — prompt-injection, scope-escalation, out-of-policy requests with expected `security_blocked` (extends existing preflight tests)
+
+### acc-2.3 — CI regression gate
+- [ ] **acc-2.8** — **`npm run test:ai-accuracy`** — runs full deterministic eval suite; reports accuracy %, per-intent breakdown, and diff vs last baseline
+- [ ] **acc-2.9** — **Accuracy floor gate** — CI fails if deterministic accuracy drops below committed floor (start at current %, ratchet up each sprint); blocks merge on regression
+- [ ] **acc-2.10** — **Nightly LLM eval** — cases marked `requiresLlm` run nightly against the real model (cost-bounded); track LLM-path accuracy separately from deterministic; alert on drift
+- [ ] **acc-2.11** — **Per-intent scorecards** — eval report shows each intent's precision/recall so weak intents are obvious before they ship
+
+---
+
+## Sprint 40 — AI accuracy: classification engine
+
+**Goal:** Make the core classify step dramatically more accurate via few-shot retrieval, self-verification, and layered fallback — measured against the **acc-2** eval set every step.
+
+- [ ] **acc-3** — Classification accuracy engine
+
+### acc-3.1 — Retrieval-augmented classification
+- [ ] **acc-3.1** — **Few-shot retriever** — embed the incoming prompt, retrieve top-K most-similar labeled eval cases (from **acc-2**) as in-context examples for `classify_intent`; per-business + global corpus
+- [ ] **acc-3.2** — **Per-business phrasing memory** — learn each business's recurring phrasings (build on entity memory ai-i2): "the usual", staff nicknames, service shorthand → bias classification
+- [ ] **acc-3.3** — **Dynamic intent shortlist** — pre-filter the ~270-intent registry to the most plausible 10–15 for the prompt before the LLM call (cheaper + more accurate than offering all intents)
+
+### acc-3.2 — Self-verification & consensus
+- [ ] **acc-3.4** — **Self-check pass** — after classify, a cheap second LLM/rule pass verifies "does action + params actually satisfy this prompt?"; on mismatch → lower confidence → clarify
+- [ ] **acc-3.5** — **Disagreement → escalate model** — when deterministic router and LLM classify disagree on a mutating intent, run a stronger model (e.g. escalate to a higher-tier model) as tie-breaker before acting
+- [ ] **acc-3.6** — **Field-level confidence** — structured output returns confidence per param (action, date, provider, service); low-confidence *fields* (not whole command) drive targeted clarify (**acc-4**)
+
+### acc-3.3 — Robustness (typos, mixed language, long tail)
+- [ ] **acc-3.7** — **Normalization upgrade** — extend `AiPromptNormalizationService`: spell-correction, abbreviation expansion, number/date word normalization, mixed-script splitting before classify
+- [ ] **acc-3.8** — **Rescue rule expansion** — convert top recurring `suspected_miss` patterns from telemetry into deterministic rescues (no LLM cost), regression-tested in eval
+- [ ] **acc-3.9** — **Multi-intent precision** — improve compound detection so "do X and Y" reliably decomposes; reduce false-compound on single-intent prompts (measured on ambiguity corpus)
+- [ ] **acc-3.10** — **A/B prompt harness** — test system-prompt / few-shot variants against the eval set; promote the variant with best accuracy (ties into ai-e5 A/B infra)
+
+---
+
+## Sprint 41 — AI accuracy: smart clarification & disambiguation
+
+**Goal:** When uncertain, ask the **right** question instead of guessing wrong. A perfect clarify counts as an accurate outcome.
+
+- [ ] **acc-4** — Smart clarification & disambiguation
+
+### acc-4.1 — Targeted slot-filling
+- [ ] **acc-4.1** — **Ask only what's missing** — drive clarify from field-level confidence (**acc-3.6**) + completion validator; never re-ask known fields; render as form (extends ai-d4)
+- [ ] **acc-4.2** — **Top-2 intent disambiguation** — when two intents are close, show a 2-choice chip ("Did you mean *cancel booking* or *reschedule booking*?") instead of a generic "rephrase"
+- [ ] **acc-4.3** — **Entity disambiguation** — ambiguous person/service ("book with Anna" but 2 Annas; "massage" matches 3 services) → show specific options, not free-text re-ask
+
+### acc-4.2 — Context carry & memory
+- [ ] **acc-4.4** — **Answer reuse** — clarification answers persist for the session and feed entity memory (ai-i2) so the same question is never asked twice
+- [ ] **acc-4.5** — **Cross-turn slot merge** — merge clarify answers into the original intent without losing earlier params (extends session merge stage)
+- [ ] **acc-4.6** — **Proactive confirm on high-risk** — for bulk/destructive intents, always preview + confirm with a plain-language summary ("This cancels 12 bookings and notifies 12 customers — proceed?")
+
+### acc-4.3 — Honest failure
+- [ ] **acc-4.7** — **"I'm not sure" over wrong action** — when confidence stays low after one clarify, return an honest "I didn't fully understand — here's what I can do" with 2–3 suggested valid commands, rather than executing a guess
+- [ ] **acc-4.8** — **Clarify quality metric** — track clarify→success-on-next-turn rate (target >90%); bad clarifies (led to abandon) feed back into **acc-2** labeling
+
+---
+
+## Sprint 42 — AI accuracy: execution verification & rollback
+
+**Goal:** Correct intent ≠ correct result. Verify parameter resolution and execution, and auto-rollback when the result doesn't match the request.
+
+- [ ] **acc-5** — Execution verification & rollback
+
+### acc-5.1 — Pre-execution correctness
+- [ ] **acc-5.1** — **Resolution accuracy guard** — verify fuzzy-resolved entities (name→employeeId, service text→serviceId, date phrase→ISO) cleared a confidence threshold; ambiguous resolution → clarify, never silently pick
+- [ ] **acc-5.2** — **Plan-vs-prompt check** — before executing a workflow plan, a verification pass confirms the plan's steps actually match the user's prompt (catches "right intent, wrong scope")
+- [ ] **acc-5.3** — **Preview diff for mutations** — show the calendar/catalog diff before commit on medium-risk ops (extends ai-d9 plan diff), not just high-risk
+
+### acc-5.2 — Post-execution verification
+- [ ] **acc-5.4** — **Post-exec assertion** — after execution, assert the world matches intent (e.g. booking exists at requested time with requested provider); mismatch → auto-flag + offer rollback
+- [ ] **acc-5.5** — **Auto-rollback on assertion failure** — reuse undo/workflow execution log (ai-d7 / gap-3.7) to revert when post-exec assertion fails; surface clear error to user
+- [ ] **acc-5.6** — **Idempotency + conflict re-validation** — re-check schedule conflicts and duplicates at execute time (not just classify time); reject stale plans rather than double-book
+
+### acc-5.3 — Safety rails
+- [ ] **acc-5.7** — **Blast-radius cap** — hard limits on a single AI command (max N bookings cancelled, max N providers, max date range); over cap → force explicit confirm or split
+- [ ] **acc-5.8** — **Dry-run mode for new intents** — newly added intents ship in "propose-only" until they hit an accuracy bar on real traffic, then graduate to auto-execute (ties to ai-e5 thresholds)
+
+---
+
+## Sprint 43 — AI accuracy: continuous learning loop & escalation
+
+**Goal:** Close the loop so the system keeps improving toward 99% automatically, and the last 1% escalates gracefully to a human instead of acting wrongly.
+
+- [ ] **acc-6** — Continuous learning loop & escalation
+
+### acc-6.1 — Learning loop
+- [ ] **acc-6.1** — **Weekly accuracy review job** — auto-compile: new failures, regressions, top confused intents, locales below target → posted to an internal review (email / dashboard)
+- [ ] **acc-6.2** — **Failure → eval → fix pipeline** — every triaged failure becomes (a) a new eval case (**acc-2**) and (b) either a rescue rule (**acc-3.8**), a few-shot example (**acc-3.1**), or a prompt fix — tracked to closure
+- [ ] **acc-6.3** — **Auto-alias suggestions** — recurring entity corrections become suggested aliases for admin one-click approval into entity memory (ai-i2)
+- [ ] **acc-6.4** — **Accuracy ratchet** — each release raises the CI accuracy floor (**acc-2.9**) toward 99%; dashboard tracks progress on the accuracy ladder
+
+### acc-6.2 — Graceful escalation (the last 1%)
+- [ ] **acc-6.5** — **Human handoff on repeated failure** — after 2 failed clarifies on the same task, offer "Get help" → routes to staff/owner (dashboard) or support ticket (customer, reuses Zendesk gap-4.2); ties to human-in-the-loop SLA (ai-e7)
+- [ ] **acc-6.6** — **Suggested-action fallback** — when classification truly fails, show the closest valid commands as one-tap chips so the user still completes the task
+- [ ] **acc-6.7** — **Escalation analytics** — track escalation rate as the inverse of accuracy; target < 1% of prompts escalate; review escalations weekly for new eval cases
+
+### acc-6.3 — Program exit criteria
+- [ ] **acc-6.8** — **99% gate met** — rolling 30-day: no-clarify completion ≥ 90%, (completion + good-clarify) ≥ 99%, wrong-execution rate < 1%, all three locales within 3 points of each other; documented in accuracy dashboard
+
+### AI accuracy success metrics (Sprints 38–43)
+
+| Metric | Baseline | Target |
+|--------|----------|--------|
+| Accurate execution rate (correct exec **or** good clarify) | ~80% | **≥ 99%** |
+| No-clarify completion rate | ~75% | ≥ 90% |
+| Wrong-execution rate (undo / 👎 / corrected) | unknown | < 1% |
+| Clarify → success on next turn | ~?? | > 90% |
+| Per-locale accuracy spread (EN vs HY vs RU) | unknown | < 3 pts |
+| Escalation rate (human handoff) | n/a | < 1% |
+| Eval set size (labeled golden cases) | hundreds | 2,000+ |
 
 ---
 
