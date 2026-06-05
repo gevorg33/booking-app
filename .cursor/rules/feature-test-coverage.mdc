@@ -1,0 +1,68 @@
+---
+description: Mandatory 100% test coverage for every new feature — unit + integration, all scenarios
+alwaysApply: true
+---
+
+# Feature Test Coverage (mandatory — never skip)
+
+**A feature is NOT shippable without full automated test coverage.** Every scenario the feature supports must have a corresponding test. No exceptions.
+
+## Required surfaces (mirror AI prompt rule)
+
+When a feature is user-visible on a surface, that surface needs tests:
+
+| Surface | Integration spec location |
+|---------|----------------------------|
+| Dashboard | `backend/src/modules/ai/*.integration.spec.ts` |
+| Service provider mobile | `backend/src/modules/provider-mobile/provider-ai-*.integration.spec.ts` |
+| Customer mobile | `backend/src/modules/ai/customer-ai-command.integration.spec.ts` |
+| Public booking web | `backend/src/modules/public-booking/*.spec.ts` + `public-booking-assistant.schema.spec.ts` |
+
+## Definition of done
+
+Before marking a feature complete, verify ALL of the following:
+
+1. **Unit tests** (`*.spec.ts` next to source or `*.util.spec.ts`):
+   - Every exported function / public method
+   - Every branch: happy path, validation failure, missing params, edge inputs
+   - Prompt detection helpers (`is*Prompt`, `extract*FromPrompt`, `decompose*`)
+   - Rescue paths, heuristic enrichment, validator rules
+   - Use `it.each` over fixture arrays — one test per scenario `id`
+
+2. **Integration tests** (`*.integration.spec.ts`):
+   - End-to-end handler flow with mocked deps (Nest `Test.createTestingModule`)
+   - Multi-step compound execution (check → mutate → follow-up)
+   - Session/context propagation between steps
+   - Error paths with clear user-facing summaries (no slot, missing service, etc.)
+   - Schema/classifier wiring tests where prompts are classified
+
+3. **100% scenario coverage** — every entry in `*.fixtures.ts` must be exercised:
+   - Fixtures drive `it.each` in both unit and integration specs
+   - If a scenario exists in fixtures, a test must assert it — no orphan prompts
+   - Add new scenarios to fixtures FIRST, then add matching tests
+
+4. **Coverage thresholds** — new modules must meet project gates:
+   - AI modules: aim for 100% statements/functions/lines (see `test:ai-providers`, `test:sprint14`)
+   - Run the relevant `npm run test:*` script and fix failures before shipping
+   - Add a `test:*` script in `package.json` when a feature domain is new
+
+## Required file pattern per feature
+
+```
+feature-name.fixtures.ts          # scenarios + classifier rules
+feature-name.util.ts              # logic + decomposition
+feature-name.util.spec.ts         # unit: detection, decomposition, rescue
+feature-name.integration.spec.ts  # integration: handlers, compounds, validation
+```
+
+## Agent workflow (blocking)
+
+When implementing or reviewing ANY feature:
+
+- [ ] Create fixtures with all NL scenarios (tag `surface` per prompt) before writing handlers
+- [ ] Unit tests: `it.each` over every fixture `id`
+- [ ] Integration tests: end-to-end per applicable surface (dashboard, provider mobile, customer mobile, public booking)
+- [ ] Run tests locally; zero failures
+- [ ] **Do not mark TODO `[x]`, merge, or say "done" without unit + integration specs**
+
+Reference implementation: `ai-cmd-h1` — 82 unit + integration tests, 30 prompt variants, `test:ai-providers` gate.

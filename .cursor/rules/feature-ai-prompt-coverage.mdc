@@ -1,0 +1,60 @@
+---
+description: Mandatory AI prompt coverage for every new feature — 99% UX scenarios, multi-command, all surfaces (dashboard, provider mobile, customer mobile, public booking)
+alwaysApply: true
+---
+
+# Feature AI Prompt Coverage (mandatory — never skip)
+
+**A feature is NOT shippable until AI can handle it on every surface where users interact with it.**
+
+## Required surfaces (all four — never skip one)
+
+| Surface | Users | Classifier schema | Service |
+|---------|-------|-------------------|---------|
+| **Dashboard admin** | Owner, manager, receptionist | `INTENT_SCHEMA` in `ai-command.service.ts` | `AiCommandService` |
+| **Service provider mobile** | Stylists, staff on provider app | `PROVIDER_INTENT_SCHEMA` in `provider-ai-command.service.ts` | `ProviderAiCommandService` |
+| **Customer mobile** | Logged-in customers on consumer app | `buildCustomerClassifierSchema()` in `customer-ai-command.util.ts` | `CustomerAiCommandService` (`surface: customer`) |
+| **Public booking web** | Anonymous visitors on booking page | `buildPublicClassifierSchema()` in `public-booking-assistant.service.ts` | `PublicBookingAssistantService` |
+
+If a feature ships on only some surfaces, document which are out of scope — but **never assume dashboard-only**. Provider mobile, customer mobile, and public booking each need their own prompts when the feature is user-visible there.
+
+## Definition of done
+
+Before marking a feature complete, verify ALL of the following **per applicable surface**:
+
+1. **Classifier rules** — shared constants in `*.fixtures.ts` (see `ai-check-and-book.fixtures.ts`):
+   - `*_CLASSIFIER_RULES` → dashboard `INTENT_SCHEMA` + customer `buildCustomerClassifierSchema()`
+   - `PROVIDER_*_CLASSIFIER_RULES` → `PROVIDER_INTENT_SCHEMA` (+ `buildProviderClassifierAppendix()` when needed)
+   - `PUBLIC_*_CLASSIFIER_RULES` → `buildPublicClassifierSchema()`
+   - Per-surface action names differ — duplicate rules with correct verbs (e.g. dashboard `create_booking` / `check_providers_for_service`, public `book_appointment` / `check_availability`, provider `mark_paid` / `list_my_bookings`)
+
+2. **99% UX scenario coverage** — natural-language variants real users say on that surface:
+   - Happy path, synonyms, edge phrasing (quotes, semicolons, "then", questions)
+   - Mobile-appropriate phrasing (shorter prompts, voice-to-text quirks, tap-to-suggest wording)
+   - Export as `SIMILAR_*_PROMPTS` or `*_SCENARIOS` in fixtures with `id`, `prompt`, `surface`, expected params
+
+3. **Multi-command compounds** — when the feature composes with others:
+   - Decomposition in `*.util.ts` per surface (`decompose*CompoundPrompt`, `decomposeDeterministicForSurface`)
+   - 2-step and 3+ step flows; shared context across steps
+   - Provider and customer mobile compounds tested separately (action names differ)
+
+4. **Post-LLM rescue** — deterministic fallback when classifier mislabels:
+   - Dashboard/customer: `AiIntentRescueService`, `rescuePaymentsIntent`, `enrich*FromPrompt`
+   - Provider mobile: provider-specific rescue in `provider-ai-*.util.ts`
+   - Public booking: rescue paths in `public-booking-assistant.service.ts`
+
+5. **Eval golden cases** — add per-surface entries to `eval/ai-command-eval.cases.ts` (`npm run test:sprint14`); tag `surface: dashboard | provider | customer | public`
+
+## Agent workflow (blocking)
+
+When implementing or reviewing ANY feature:
+
+- [ ] List which of the **four surfaces** expose this feature
+- [ ] Add classifier rules wired into **each** applicable schema (not dashboard-only)
+- [ ] Add ≥10 NL prompt variants **per surface** (provider mobile + customer mobile + public booking when applicable)
+- [ ] Add compound decomposition per surface if multi-step is possible
+- [ ] Add rescue + heuristic enrichment per surface
+- [ ] Add eval cases with correct `surface` tag
+- [ ] **Do not mark TODO `[x]` or say "done" without this checklist**
+
+Reference: `ai-cmd-h1` — `ai-check-and-book.fixtures.ts` (dashboard/customer/public rules), `ai-payments.util.ts`, `ai-check-and-book.integration.spec.ts`, `public-booking-assistant.schema.spec.ts`, `customer-ai-command.util.spec.ts`.
