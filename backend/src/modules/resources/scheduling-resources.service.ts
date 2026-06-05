@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager, In, Not } from 'typeorm';
+import { Repository, EntityManager, In } from 'typeorm';
 import {
   SchedulingResource,
   ServiceResourceRequirement,

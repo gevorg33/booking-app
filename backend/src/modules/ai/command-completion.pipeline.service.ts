@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   toIsoDay,
   formatDateDisplay,
-  applyRelativeDateFromPrompt,
 } from '../../common/utils/date-format.util.js';
 import { resolveRescheduleParams } from './ai-intent-heuristics.js';
 import {

@@ -37,11 +37,6 @@ describe('GiftCardsController', () => {
     businessRepo as any,
   );
 
-  const providerController = new GiftCardProviderController(
-    fulfillmentService as any,
-    businessService as any,
-  );
-
   beforeEach(() => {
     jest.clearAllMocks();
     businessService.ensureMember.mockResolvedValue({ role: 'owner' });

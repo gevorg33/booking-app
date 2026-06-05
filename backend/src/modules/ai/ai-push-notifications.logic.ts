@@ -1,9 +1,5 @@
 import { Repository, Between, In, Not } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-  PaymentStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';

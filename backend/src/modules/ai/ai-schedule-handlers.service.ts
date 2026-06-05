@@ -14,7 +14,6 @@ import {
   resolveTemplate,
   resolveServices,
   resolveScheduleServicesForEmployee,
-  getEmployeeAssignedServices,
   resolveDateRange,
   enumerateDaysInRange,
   resolveScheduleDates,
@@ -22,7 +21,6 @@ import {
   parseTimeWindow,
   isFullDayBlock,
   shouldAutoExecute,
-  resolveAllProvidersScope,
   sanitizeProviderScopeFromPrompt,
   inferDirectSchedulePeriods,
   isTeamWideProviderScopePrompt,
@@ -30,7 +28,6 @@ import {
 import {
   formatDateDisplay,
   toIsoDay,
-  parseDateInput,
 } from '../../common/utils/date-format.util.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';

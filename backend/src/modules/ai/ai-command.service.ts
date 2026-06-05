@@ -33,10 +33,7 @@ import {
   parseDateInput,
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
-import {
-  normalizeTime24,
-  timeToMinutes,
-} from '../../common/utils/time-format.util.js';
+import { timeToMinutes } from '../../common/utils/time-format.util.js';
 import {
   pickTimezone,
   addDaysToDateKey,
@@ -66,7 +63,6 @@ import {
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import {
   resolveEmployees,
-  resolveServices,
   resolveDateRange,
   resolveAutoExecute,
   fuzzyMatchServiceByName,
@@ -189,7 +185,7 @@ and extract structured parameters. Return a JSON object with:
     "templateName": "string or null — schedule template name for apply_schedule",
     "customerName": "string or null",
     "serviceName": "string or null — single service (for create_booking or create_service name)",
-    "serviceNames": ["string"] or null — one or more service types to filter (for cancel_bookings / list_bookings), e.g. [\"hairdrying\", \"hairstyle\"],
+    "serviceNames": ["string"] or null — one or more service types to filter (for cancel_bookings / list_bookings), e.g. ["hairdrying", "hairstyle"],
     "services": [
       {
         "serviceName": "string",
@@ -4460,7 +4456,7 @@ export class AiCommandService {
   private handleListServices(
     services: Service[],
     params: Record<string, any>,
-    prompt: string,
+    _prompt: string,
   ): CommandResult {
     const target = params.serviceName
       ? this.resolveService(services, String(params.serviceName))
@@ -5144,7 +5140,7 @@ export class AiCommandService {
 
   private handleListEmployees(
     employees: Employee[],
-    params: Record<string, any>,
+    _params: Record<string, any>,
   ): CommandResult {
     const active = employees.filter((e) => e.isActive);
     if (active.length === 0) {
@@ -5748,7 +5744,7 @@ export class AiCommandService {
       templates: ScheduleTemplate[];
     },
     userId?: string,
-    pendingCancelBookingIds?: string[],
+    _pendingCancelBookingIds?: string[],
   ): Promise<AgentPlan | null> {
     switch (action) {
       case 'create_booking': {
@@ -6061,7 +6057,7 @@ export class AiCommandService {
       templates: ScheduleTemplate[];
     },
     timeZone: string,
-    userId?: string,
+    _userId?: string,
   ): Promise<CommandResult | null> {
     params._timeZone = timeZone;
     const employeeId = params.employeeId as string | undefined;

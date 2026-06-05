@@ -1,5 +1,4 @@
 import { NotFoundException } from '@nestjs/common';
-import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { MarketingAutomationService } from './marketing-automation.service.js';
 
 describe('MarketingAutomationService', () => {
@@ -585,7 +584,6 @@ describe('MarketingAutomationService', () => {
 
   it('excludes customer exactly on inactivity threshold boundary', async () => {
     jest.useFakeTimers({ now: new Date('2026-06-05T12:00:00.000Z') });
-    const thresholdDays = 90;
     const lastEnd = new Date('2026-03-07T12:00:00.000Z');
 
     customerRepo.find.mockResolvedValue([

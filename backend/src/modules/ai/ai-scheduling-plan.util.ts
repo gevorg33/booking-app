@@ -1,5 +1,12 @@
 import { AgentPlanStep } from '../../engine/agent/interfaces/agent.interfaces.js';
 
+type PlanRiskLevel = 'low' | 'medium' | 'high';
+
+export interface AgentPlanMeta {
+  reasoning: string;
+  risk: { level: PlanRiskLevel; factors: string[] };
+}
+
 export interface SwapSchedulePeriod {
   startTime: string;
   endTime: string;
@@ -88,7 +95,7 @@ export function buildSwapSchedulesPlanSteps(params: {
 export function buildSwapSchedulesPlanMeta(
   swaps: Array<{ employeeA: { name: string }; employeeB: { name: string } }>,
   steps: AgentPlanStep[],
-) {
+): AgentPlanMeta {
   const who = [
     ...new Set(swaps.flatMap((s) => [s.employeeA.name, s.employeeB.name])),
   ].join(' ↔ ');
@@ -141,7 +148,7 @@ export function buildRebalanceCapacityPlanMeta(params: {
   serviceName: string;
   date: string;
   movesCount: number;
-}) {
+}): AgentPlanMeta {
   return {
     reasoning: `Move ${params.movesCount} ${params.serviceName} slot(s) from ${params.fromName} to ${params.toName} on ${params.date}.`,
     risk: {
@@ -171,7 +178,7 @@ export function buildHolidayModePlanMeta(params: {
   closeDates: string[];
   extendDate?: string;
   allStepsCount: number;
-}) {
+}): AgentPlanMeta {
   const closeLabel = params.closeDates.join(', ');
   const extendLabel = params.extendDate
     ? `; extend ${params.extendDate} hours`
@@ -206,7 +213,7 @@ export function buildOnboardProviderPlanMeta(params: {
   serviceNames: string[];
   hasAssignPlan: boolean;
   allStepsCount: number;
-}) {
+}): AgentPlanMeta {
   const services = params.serviceNames.length
     ? ` and assign ${params.serviceNames.join(', ')}`
     : '';

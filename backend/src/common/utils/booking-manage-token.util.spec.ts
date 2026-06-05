@@ -1,4 +1,3 @@
-import { BookingStatus } from '../../modules/booking/entities/booking.entity.js';
 import {
   buildBookingManageUrl,
   ensureBookingManageToken,

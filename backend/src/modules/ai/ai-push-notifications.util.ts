@@ -1,5 +1,4 @@
 import { isTestWebhookPrompt } from './ai-integrations.util.js';
-import { isOrderStatusNotificationsPrompt } from './ai-gift-fulfillment.util.js';
 
 export const DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'configure_push_recipients',

@@ -4,7 +4,6 @@ import {
   inferDirectSchedulePeriods,
   resolveDirectScheduleDateKeys,
   resolveDirectSchedulePeriodServiceIds,
-  resolveScheduleDates,
   matchEmployeesInPrompt,
   resolvePublicAvailabilityDateKeys,
   applyAvailabilityDateFromPrompt,

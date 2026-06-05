@@ -56,7 +56,7 @@ function scopeBookingsToEmployee<T extends { employeeId?: string | null }>(
   return bookings.filter((b) => b.employeeId === employeeId);
 }
 
-function todayRange(timeZone = 'UTC'): {
+function todayRange(_timeZone = 'UTC'): {
   start: Date;
   end: Date;
   label: string;

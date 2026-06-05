@@ -64,7 +64,7 @@ export class AccountingExportService {
     const code = accountCode || '200';
     const header =
       '*ContactName,*InvoiceNumber,*InvoiceDate,DueDate,InventoryItemCode,Description,*Quantity,*UnitAmount,*AccountCode,*TaxType,Reference';
-    const lines = rows.map((r, i) =>
+    const lines = rows.map((r) =>
       [
         this.csvEscape(r.customerName || 'Walk-in'),
         `OS-${r.reference.slice(0, 8)}`,

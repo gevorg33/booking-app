@@ -1,21 +1,12 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  Between,
-  Not,
-  In,
-  LessThan,
-  MoreThan,
-  DataSource,
-} from 'typeorm';
+import { Repository, Between, Not, In, LessThan, DataSource } from 'typeorm';
 import {
   Booking,
   BookingStatus,
 } from '../../modules/booking/entities/booking.entity.js';
 import {
   ScheduleTemplate,
-  DayOfWeek,
   TimeSlotRange,
 } from '../../modules/schedule/entities/schedule-template.entity.js';
 import { ScheduleAssignment } from '../../modules/schedule/entities/schedule-assignment.entity.js';

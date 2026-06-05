@@ -23,11 +23,7 @@ import {
   PaymentStatus,
 } from '../booking/entities/booking.entity.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
-import {
-  isTopStaffRevenuePrompt,
-  isTotalEarningsPrompt,
-  STAFF_ROLE_WORDS,
-} from './dashboard-revenue-analytics.util.js';
+import { STAFF_ROLE_WORDS } from './dashboard-revenue-analytics.util.js';
 
 export {
   isTopStaffRevenuePrompt,

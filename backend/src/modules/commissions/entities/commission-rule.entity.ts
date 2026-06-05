@@ -7,7 +7,6 @@ import {
   UpdateDateColumn,
   JoinColumn,
 } from 'typeorm';
-import { Business } from '../../business/entities/business.entity.js';
 import { Employee } from '../../employee/entities/employee.entity.js';
 import { Service } from '../../service/entities/service.entity.js';
 

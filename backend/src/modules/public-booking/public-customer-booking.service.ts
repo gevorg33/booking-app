@@ -232,7 +232,7 @@ export class PublicCustomerBookingService {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const packageVisit = isPackageVisitBooking(booking)
-      ? await this.buildPackageVisitSummary(
+      ? this.buildPackageVisitSummary(
           await this.loadPackageVisitBookings(booking),
           settings,
         )

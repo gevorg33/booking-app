@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In } from 'typeorm';
+import { Repository, Between, Not } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';

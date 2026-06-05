@@ -835,7 +835,7 @@ export async function handleExplainCancelPolicyLogic(
 export async function handleBookWithCashLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
-  params: Record<string, any>,
+  _params: Record<string, any>,
 ): Promise<CommandResult> {
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventType } from '../../events/event-types.js';
 import { GiftCardPurchaseService } from './gift-card-purchase.service.js';

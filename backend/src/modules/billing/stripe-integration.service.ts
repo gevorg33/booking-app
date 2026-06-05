@@ -344,7 +344,7 @@ export class StripeIntegrationService {
           connectChargeModel: correctChargeModel,
         });
       }
-    } catch (err) {
+    } catch {
       this.logger.warn(`Stripe sync failed for ${connectAccountId}`);
       throw new BadRequestException(
         'Could not verify Stripe account. Try connecting again.',
@@ -447,7 +447,7 @@ export class StripeIntegrationService {
           (account as { settings?: { dashboard?: { display_name?: string } } })
             .settings?.dashboard?.display_name,
       };
-    } catch (err) {
+    } catch {
       this.logger.warn(
         `Failed to retrieve Stripe account ${integration.connectAccountId}`,
       );

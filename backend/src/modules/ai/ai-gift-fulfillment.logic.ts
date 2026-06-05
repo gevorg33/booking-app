@@ -14,7 +14,6 @@ import { deactivateCancelledGiftCard } from '../gift-cards/gift-card-refund.util
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeFulfillmentCompoundPrompt,
-  extractCancelWindowHoursFromPrompt,
   extractCarrierTrackingFromPrompt,
   extractDelayReasonFromPrompt,
   extractEmployeeNameFromPrompt,

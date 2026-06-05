@@ -134,7 +134,9 @@ describe('ai-dashboard-ops.util', () => {
 
     it('rejects revenue forecast prompts', () => {
       expect(
-        isSingleProviderRevenuePrompt('Project next week revenue from current schedule'),
+        isSingleProviderRevenuePrompt(
+          'Project next week revenue from current schedule',
+        ),
       ).toBe(false);
     });
 

@@ -31,7 +31,6 @@ export const CATALOG_INTENTS = [
 export type CatalogIntent = (typeof CATALOG_INTENTS)[number];
 
 import type { AppLocale } from '../../common/i18n/messages.js';
-import { SUPPORTED_LOCALES } from '../../common/i18n/messages.js';
 import type { LocalizedNamesMap } from '../../common/i18n/service-localized-names.util.js';
 
 export interface CatalogServiceDraft {

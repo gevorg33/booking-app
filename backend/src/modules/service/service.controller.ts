@@ -7,7 +7,6 @@ import {
   Body,
   Param,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { ServiceService } from './service.service.js';
 import {

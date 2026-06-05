@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { GiftCardsService } from './gift-cards.service.js';
 
 describe('GiftCardsService', () => {

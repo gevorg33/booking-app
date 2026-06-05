@@ -1,4 +1,4 @@
-import { Between, In, Not, Repository } from 'typeorm';
+import { Between, Not, Repository } from 'typeorm';
 import {
   Booking,
   BookingStatus,
@@ -585,7 +585,7 @@ export async function handleAssignBookingResourceLogic(
   deps: BookingDepthLogicDeps,
   businessId: string,
   params: Record<string, any>,
-  userId?: string,
+  _userId?: string,
 ): Promise<CommandResult> {
   const bookingId = params.bookingId as string | undefined;
   const resourceName = params.resourceName as string | undefined;

@@ -40,7 +40,6 @@ import {
 } from '../../common/utils/customer-self-service.util.js';
 import { renderBusinessEmailTemplate } from './notification-email-template.util.js';
 import {
-  mergeCustomerReminderChoiceSettings,
   reminderNotificationKind,
   resolveBookingReminderHoursBefore,
   resolveReminderChannelFlags,
@@ -954,7 +953,6 @@ export class NotificationsService {
       locale,
       count === 1 ? 'email.appointment' : 'email.appointments',
     );
-    const intro = `Hi ${booking.customer?.name ?? t(locale, 'email.defaultCustomerName')},\n\nYour ${appointmentWord} at ${business.name} are confirmed${groupLabel ? ` (${groupLabel})` : ''}.`;
     const detailLines = lines.map((line) => {
       const base = `• ${line.serviceName} with ${line.providerName}\n  ${line.when} · ${line.time}`;
       return line.manageUrl && line.manageLabel

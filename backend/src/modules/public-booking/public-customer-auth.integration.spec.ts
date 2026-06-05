@@ -105,7 +105,7 @@ describe('Public customer auth integration', () => {
   };
 
   const publicCustomerBookingService = {
-    enrichBookingItem: jest.fn((booking, settings, reviewIds) => ({
+    enrichBookingItem: jest.fn((booking, settings, _reviewIds) => ({
       id: booking.id,
       startTime: booking.startTime.toISOString(),
       endTime: booking.endTime.toISOString(),
