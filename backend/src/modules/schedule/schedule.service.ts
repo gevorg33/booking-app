@@ -19,6 +19,10 @@ import {
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { normalizeTime24, isValidTime24 } from '../../common/utils/time-format.util.js';
+import {
+  buildScheduleCreationSnapshot,
+  deleteScheduleUndoSnapshot,
+} from './schedule-undo-snapshot.util.js';
 
 @Injectable()
 export class ScheduleService implements OnModuleInit {
@@ -306,7 +310,11 @@ export class ScheduleService implements OnModuleInit {
     return { deleted: result.affected || 0 };
   }
 
-  async createDirectSchedule(businessId: string, dto: CreateDirectScheduleDto, userId?: string): Promise<{ slotsCreated: number }> {
+  async createDirectSchedule(
+    businessId: string,
+    dto: CreateDirectScheduleDto,
+    userId?: string,
+  ): Promise<{ slotsCreated: number; periodIds: string[]; slotIds: string[] }> {
     const targetDate = new Date(dto.date);
     if (Number.isNaN(targetDate.getTime())) {
       throw new BadRequestException(`Invalid schedule date: "${dto.date}"`);
@@ -397,11 +405,13 @@ export class ScheduleService implements OnModuleInit {
       }
     }
 
+    let savedSlots: SchedulingSlot[] = [];
+    let savedPeriods: SchedulingPeriod[] = [];
     if (slotsToSave.length > 0) {
-      await this.slotRepo.save(slotsToSave as SchedulingSlot[]);
+      savedSlots = await this.slotRepo.save(slotsToSave as SchedulingSlot[]);
     }
     if (periodsToSave.length > 0) {
-      await this.schedulingPeriodRepo.save(periodsToSave as SchedulingPeriod[]);
+      savedPeriods = await this.schedulingPeriodRepo.save(periodsToSave as SchedulingPeriod[]);
     }
 
     await this.eventStore.publish({
@@ -413,7 +423,30 @@ export class ScheduleService implements OnModuleInit {
       userId,
     });
 
-    return { slotsCreated: slotsToSave.length };
+    return buildScheduleCreationSnapshot(savedPeriods, savedSlots, slotsToSave.length);
+  }
+
+  /** Reverts a direct schedule creation captured in workflow undo snapshots. */
+  async revertCreatedSchedule(
+    businessId: string,
+    snapshot: { periodIds?: string[]; slotIds?: string[] },
+  ): Promise<{ periodsRemoved: number; slotsRemoved: number }> {
+    return deleteScheduleUndoSnapshot(businessId, snapshot, {
+      deletePeriods: async (bizId, periodIds) => {
+        const result = await this.schedulingPeriodRepo.delete({
+          id: In(periodIds),
+          businessId: bizId,
+        } as any);
+        return result.affected;
+      },
+      deleteSlots: async (bizId, slotIds) => {
+        const result = await this.slotRepo.delete({
+          id: In(slotIds),
+          businessId: bizId,
+        } as any);
+        return result.affected;
+      },
+    });
   }
 
   /** Remove applied schedule periods and micro-slots for a provider on one day (does not cancel bookings). */

@@ -170,6 +170,7 @@ export class ProviderPushListener {
                 event.aggregateId,
                 title,
                 body,
+                { timeLabel: whenShort, customerName },
               )
             : await this.pushService.sendToUser(providerUserId, event.businessId, {
                 title,

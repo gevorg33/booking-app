@@ -9,6 +9,7 @@ import { StripeIntegrationService } from './stripe-integration.service.js';
 import { AiGatewayService } from '../ai/ai-gateway.service.js';
 import { LoyaltyController } from '../loyalty/loyalty.controller.js';
 import { SubscriptionStatus } from './subscription-status.enum.js';
+import { createAiGatewaySprint25Mocks } from '../ai/ai-gateway.test-mocks.js';
 import { PromoDiscountType } from '../promo-codes/entities/promo-code.entity.js';
 import { SubscriptionDiscountType } from '../service-subscriptions/entities/subscription.entity.js';
 
@@ -299,31 +300,30 @@ describe('Sprint 12.a billing launch integration', () => {
     const promptSecurity = {
       preflightBlock: jest.fn(() => null),
     };
-    const entityMemory = { buildMemoryContextBlock: jest.fn(async () => '') };
+    const entityMemory = {
+      buildMemoryContextBlock: jest.fn(async () => ''),
+      getEntityMemory: jest.fn(async () => ({ aliases: {} })),
+      learnFromCommand: jest.fn(),
+    };
     const conversationSummary = {
       prepareHistoryForClassifier: jest.fn(async () => ({ history: [], summaryBlock: '' })),
     };
+    const rag = { buildRagContextBlock: jest.fn(async () => '') };
     const dashboardCommands = {
       executeCommand: jest.fn(async () => ({ summary: 'ok', success: true, action: 'noop' })),
     };
-
-    const complexityRouter = {
-      mergeRoutes: jest.fn(() => 'simple'),
-      routeDeterministic: jest.fn(() => 'simple'),
-    };
-    const intelligence = {
-      routeComplexity: jest.fn(async () => 'simple'),
-    };
+    const { aiSettings, sprint25 } = createAiGatewaySprint25Mocks();
 
     const gateway = new AiGatewayService(
       dashboardCommands as any,
       { executeCommand: jest.fn() } as any,
       entityMemory as any,
       conversationSummary as any,
-      intelligence as any,
-      complexityRouter as any,
+      rag as any,
       promptSecurity as any,
       planEntitlements,
+      aiSettings as any,
+      sprint25 as any,
     );
 
     it('blocks dashboard AI when monthly command cap reached', async () => {
@@ -355,10 +355,11 @@ describe('Sprint 12.a billing launch integration', () => {
         providerCommands as any,
         entityMemory as any,
         conversationSummary as any,
-        intelligence as any,
-        complexityRouter as any,
+        rag as any,
         promptSecurity as any,
         planEntitlements,
+        aiSettings as any,
+        sprint25 as any,
       );
       await mobileGateway.execute({
         surface: 'provider',

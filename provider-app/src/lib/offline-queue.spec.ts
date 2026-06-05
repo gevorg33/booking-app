@@ -55,6 +55,8 @@ describe('offline-queue', () => {
   it('detects network errors', () => {
     expect(isNetworkError({ code: 'ERR_NETWORK' })).toBe(true);
     expect(isNetworkError({ message: 'Network Error' })).toBe(true);
+    expect(isNetworkError({ message: 'timeout of 0ms exceeded' })).toBe(false);
+    expect(isNetworkError({})).toBe(false);
     expect(isNetworkError({ response: { status: 500 } })).toBe(false);
   });
 

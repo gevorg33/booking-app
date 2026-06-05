@@ -9,6 +9,7 @@ import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
 import { BusinessModule } from '../business/business.module.js';
@@ -25,14 +26,16 @@ import { ProviderPushListener } from './listeners/provider-push.listener.js';
 import { GiftCardFulfillmentPushListener } from './listeners/gift-card-fulfillment-push.listener.js';
 import { ProviderEndOfDayPushScheduler } from './provider-end-of-day-push.scheduler.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
+import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee, BusinessMember, Booking, Business, User, GiftCard, SchedulingSlot, SchedulingPeriod, PushSubscription, NativePushToken, Service]),
+    TypeOrmModule.forFeature([Employee, BusinessMember, Booking, Business, User, GiftCard, SchedulingSlot, SchedulingPeriod, PushSubscription, NativePushToken, Service, Customer]),
     BusinessModule,
-    BookingModule,
+    forwardRef(() => BookingModule),
     forwardRef(() => GiftCardsModule),
-    AgentModule,
+    forwardRef(() => AgentModule),
+    SchedulingEngineModule,
     forwardRef(() => AiModule),
   ],
   controllers: [ProviderMobileController],

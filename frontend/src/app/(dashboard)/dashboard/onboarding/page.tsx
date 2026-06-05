@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
+import { AiCommandBar } from '@/components/ai-command-bar';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
@@ -204,12 +205,10 @@ export default function OnboardingPage() {
           <AiSuggestionsStack>
             <AiPagePanel
               title={t('onboarding.aiPanelTitle')}
-              suggestions={[
-                "Set up this week's schedule for my team",
-                'Apply weekday template to all providers this week',
-              ]}
-              context={{ route: '/dashboard/onboarding' }}
+              onboardingStep={step === 'done' ? 'done' : step}
+              context={{ route: '/dashboard/onboarding', scheduleTab: step }}
             />
+            <p className="text-xs text-gray-500 px-1">{t('onboarding.aiGuidedHint')}</p>
           </AiSuggestionsStack>
         }
       />
@@ -508,6 +507,8 @@ export default function OnboardingPage() {
           </button>
         </div>
       )}
+
+      <AiCommandBar variant="onboarding" onboardingStep={step === 'done' ? 'done' : step} />
     </div>
   );
 }

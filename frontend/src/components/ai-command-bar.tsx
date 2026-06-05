@@ -11,18 +11,31 @@ import {
 } from '@/lib/use-draggable-floating-position';
 import {
   AI_MUTATION_QUERY_KEYS,
-  buildAiCommandBarExamples,
   buildAiRequestContext,
   getAiPageContext,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
+import { resolveCommandBarExamples } from '@/lib/ai-command-bar-examples.util';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
+import { AiClarifyForm, type ClarifyIssue } from '@/components/ai-clarify-form';
+import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
 import { useAiEvents } from '@/lib/use-ai-events';
+import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
+import {
+  extractSessionContext,
+  findLastUndoableMessageId,
+  mergeSessionContext,
+  shouldInvalidateAfterAi,
+  type AiCommandSessionContext,
+} from '@/lib/ai-command-bar.util';
 import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
+import { AiCommandWizard, type WizardStepView } from '@/components/ai-command-wizard';
+import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname } from 'next/navigation';
 import { useI18n } from '@/i18n';
+import type { OnboardingAiStep } from '@/lib/ai-onboarding.util';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isPlanLimitError, planLimitMessage } from '@/lib/plan-entitlements';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
@@ -37,103 +50,7 @@ interface Message {
   timestamp: Date;
 }
 
-interface SessionContext extends Partial<AiPageContext> {
-  lastAction?: string | null;
-  lastMetric?: string | null;
-  availableProviders?: string[];
-}
-
-interface ClarifyIssue {
-  field: string;
-  label: string;
-  message: string;
-  example?: string;
-}
-
-function extractSessionContext(result: {
-  action?: string;
-  details?: {
-    sessionContext?: SessionContext;
-    employee?: string;
-    date?: string;
-    availableProviders?: string[];
-    params?: Record<string, unknown>;
-  };
-}): SessionContext {
-  const ctx: SessionContext = { ...(result.details?.sessionContext ?? {}) };
-  if (result.details?.employee) ctx.employeeName = result.details.employee;
-  if (result.details?.date) ctx.date = result.details.date;
-  const params = result.details?.params;
-  const details = result.details as Record<string, unknown> | undefined;
-  if (params?.employeeName && !ctx.employeeName) ctx.employeeName = String(params.employeeName);
-  if (params?.date && !ctx.date) ctx.date = String(params.date);
-  if (params?.serviceName && !ctx.serviceName) ctx.serviceName = String(params.serviceName);
-  if (params?.timeSlot && !ctx.timeSlot) ctx.timeSlot = String(params.timeSlot);
-  const available = result.details?.availableProviders;
-  if (Array.isArray(available) && available.length > 0) {
-    ctx.availableProviders = available.map(String);
-  }
-  if (result.action) ctx.lastAction = result.action;
-  if (details?.metric) ctx.customerMetric = String(details.metric);
-  if (details?.appointmentMetric) ctx.appointmentMetric = String(details.appointmentMetric);
-  if (details?.bookingMetric) ctx.bookingMetric = String(details.bookingMetric);
-  const metric = details?.appointmentMetric ?? details?.customerMetric ?? details?.bookingMetric ?? details?.metric;
-  if (metric) ctx.lastMetric = String(metric);
-  return ctx;
-}
-
-function mergeSessionContext(prev: SessionContext, next: SessionContext): SessionContext {
-  return {
-    employeeName: next.employeeName ?? prev.employeeName,
-    date: next.date ?? prev.date,
-    dateFrom: next.dateFrom ?? prev.dateFrom,
-    dateTo: next.dateTo ?? prev.dateTo,
-    serviceName: next.serviceName ?? prev.serviceName,
-    timeSlot: next.timeSlot ?? prev.timeSlot,
-    customerName: next.customerName ?? prev.customerName,
-    templateName: next.templateName ?? prev.templateName,
-    timeFrom: next.timeFrom ?? prev.timeFrom,
-    timeTo: next.timeTo ?? prev.timeTo,
-    allProviders: next.allProviders ?? prev.allProviders,
-    lastAction: next.lastAction ?? prev.lastAction,
-    lastMetric: next.lastMetric ?? prev.lastMetric,
-    appointmentMetric: next.appointmentMetric ?? prev.appointmentMetric,
-    customerMetric: next.customerMetric ?? prev.customerMetric,
-    bookingMetric: next.bookingMetric ?? prev.bookingMetric,
-    route: next.route ?? prev.route,
-    availableProviders: next.availableProviders ?? prev.availableProviders,
-  };
-}
-
-const SCHEDULE_ACTIONS = new Set([
-  'fill_unused_slots',
-  'apply_schedule',
-  'block_schedule',
-  'create_direct_schedule',
-  'clear_schedule',
-  'setup_week_schedule',
-  'assign_employee_services',
-]);
-
-const ORCHESTRATION_ACTIONS = new Set([
-  'optimize_schedule',
-  'resolve_conflicts',
-  'reassign_cancelled',
-  'summarize_utilization',
-]);
-
-function shouldInvalidateAfterAi(action?: string, success?: boolean): boolean {
-  if (!success || !action) return false;
-  return (
-    action === 'cancel_bookings' ||
-    action === 'create_booking' ||
-    action === 'create_service' ||
-    action === 'create_services' ||
-    action === 'reschedule_booking' ||
-    SCHEDULE_ACTIONS.has(action) ||
-    ORCHESTRATION_ACTIONS.has(action)
-  );
-}
+type SessionContext = AiCommandSessionContext;
 
 function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>) {
   for (const key of AI_MUTATION_QUERY_KEYS) {
@@ -141,7 +58,12 @@ function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>)
   }
 }
 
-export function AiCommandBar() {
+export type AiCommandBarProps = {
+  variant?: 'dashboard' | 'onboarding';
+  onboardingStep?: OnboardingAiStep;
+};
+
+export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }: AiCommandBarProps) {
   const { t, locale } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -155,6 +77,7 @@ export function AiCommandBar() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [retryingStepId, setRetryingStepId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -169,9 +92,12 @@ export function AiCommandBar() {
     }
     return fab;
   }, [open, viewport.height, viewport.width]);
+  const isOnboarding = variant === 'onboarding';
   const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
     useDraggableFloatingPosition({
-      storageKey: 'orchestrix-ai-position-dashboard',
+      storageKey: isOnboarding
+        ? 'orchestrix-ai-position-onboarding'
+        : 'orchestrix-ai-position-dashboard',
       estimatedSize,
     });
 
@@ -271,8 +197,14 @@ export function AiCommandBar() {
   });
 
   const examples = useMemo(
-    () => buildAiCommandBarExamples({ employees, services }, t),
-    [employees, services, t],
+    () =>
+      resolveCommandBarExamples({
+        variant: isOnboarding ? 'onboarding' : 'dashboard',
+        onboardingStep,
+        tenant: { employees, services },
+        t,
+      }),
+    [employees, isOnboarding, onboardingStep, services, t],
   );
 
   useEffect(() => {
@@ -286,15 +218,6 @@ export function AiCommandBar() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  useOrchestrixEvents({
-    onOpen: () => setOpen(true),
-    onPrompt: (prompt) => {
-      setOpen(true);
-      setInput(prompt);
-      inputRef.current?.focus();
-    },
-  });
 
   const approveTask = useCallback(
     async (taskId: string) => {
@@ -413,70 +336,149 @@ export function AiCommandBar() {
     [t],
   );
 
-  const submit = useCallback(async () => {
-    const prompt = input.trim();
-    if (!prompt || !business?.id || loading) return;
+  const runPrompt = useCallback(
+    async (rawPrompt: string) => {
+      const prompt = rawPrompt.trim();
+      if (!prompt || !business?.id || loading) return;
 
-    const userMsg: Message = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      text: prompt,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-
-    const history = messages.map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
-
-    try {
-      const pageCtx = getAiPageContext();
-      const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
-        prompt,
-        history,
-        context: buildAiRequestContext(pathname, sessionContext, pageCtx),
-      });
-      const result = data.data || data;
-
-      const assistantMsg: Message = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        text: result.summary,
-        details: result.details,
-        action: result.action,
-        success: result.success,
+      const userMsg: Message = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        text: prompt,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+      setMessages((prev) => [...prev, userMsg]);
+      setInput('');
+      setLoading(true);
 
-      if (shouldInvalidateAfterAi(result.action, result.success)) {
-        invalidateAfterMutation(queryClient);
-        queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
-      }
-    } catch (err: unknown) {
-      const limitMsg = planLimitMessage(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `e-${Date.now()}`,
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.text,
+      }));
+
+      try {
+        const pageCtx = getAiPageContext();
+        const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
+          prompt,
+          history,
+          context: buildAiRequestContext(pathname, sessionContext, pageCtx),
+        });
+        const result = data.data || data;
+
+        const assistantMsg: Message = {
+          id: `a-${Date.now()}`,
           role: 'assistant',
-          text:
-            limitMsg ??
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            t('common.errorGeneric'),
-          success: false,
-          action: isPlanLimitError(err) ? 'plan_limit' : 'error',
+          text: result.summary,
+          details: result.details,
+          action: result.action,
+          success: result.success,
           timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [input, business?.id, loading, queryClient, messages, sessionContext, pathname, t]);
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+
+        if (shouldInvalidateAfterAi(result.action, result.success)) {
+          invalidateAfterMutation(queryClient);
+          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+        }
+      } catch (err: unknown) {
+        const limitMsg = planLimitMessage(err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text:
+              limitMsg ??
+              (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+              t('common.errorGeneric'),
+            success: false,
+            action: isPlanLimitError(err) ? 'plan_limit' : 'error',
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [business?.id, loading, queryClient, messages, sessionContext, pathname, t],
+  );
+
+  const submit = useCallback(() => {
+    void runPrompt(input);
+  }, [input, runPrompt]);
+
+  useOrchestrixEvents({
+    onOpen: () => setOpen(true),
+    onPrompt: (prompt) => {
+      setOpen(true);
+      setInput(prompt);
+      inputRef.current?.focus();
+    },
+    onRun: (prompt, autoSubmit) => {
+      setOpen(true);
+      setInput(prompt);
+      if (autoSubmit) void runPrompt(prompt);
+      else inputRef.current?.focus();
+    },
+  });
+
+  const retryWorkflowStep = useCallback(
+    async (taskId: string, stepId: string) => {
+      if (!business?.id || retryingStepId) return;
+      setRetryingStepId(stepId);
+      try {
+        const { data } = await api.post(
+          `/businesses/${business.id}/ai/command/tasks/${taskId}/steps/${stepId}/retry`,
+        );
+        const result = data.data || data;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            text: result.summary ?? '',
+            details: result.details,
+            action: result.action,
+            success: result.success,
+            timestamp: new Date(),
+          },
+        ]);
+        if (result.success) {
+          invalidateAfterMutation(queryClient);
+          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business.id] });
+        }
+      } catch (err: unknown) {
+        const text =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          t('common.errorGeneric');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text: String(text),
+            success: false,
+            action: 'error',
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setRetryingStepId(null);
+      }
+    },
+    [business?.id, queryClient, retryingStepId, t],
+  );
+
+  const lastUndoableMessageId = useMemo(
+    () => findLastUndoableMessageId(messages, Boolean(undoPreview?.undoable)),
+    [messages, undoPreview?.undoable],
+  );
+
+  const handleInlineUndo = useCallback(async () => {
+    if (!undoPreview?.undoable || undoLatestMutation.isPending) return;
+    undoLatestMutation.mutate();
+  }, [undoLatestMutation, undoPreview?.undoable]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -547,7 +549,7 @@ export function AiCommandBar() {
             >
               <Sparkles className="w-4 h-4 text-violet-400 shrink-0 pointer-events-none" />
               <span className="text-sm font-semibold text-gray-200 truncate pointer-events-none">
-                {t('ai.assistantTitle')}
+                {isOnboarding ? t('onboarding.aiAssistantTitle') : t('ai.assistantTitle')}
               </span>
             </div>
             <button
@@ -586,7 +588,9 @@ export function AiCommandBar() {
               <div className="text-center py-6">
                 <Sparkles className="w-8 h-8 text-violet-500/50 mx-auto mb-3" />
                 <p className="text-sm text-gray-400 mb-4">{t('ai.emptyHint')}</p>
-                <div className="space-y-2">
+                <p className="text-[11px] text-gray-500 mb-2">{t('ai.examples')}</p>
+                <AiCommandMacrosPanel compact />
+                <div className="space-y-2 mt-3">
                   {examples.map((ex) => (
                     <button
                       key={ex}
@@ -625,27 +629,46 @@ export function AiCommandBar() {
                   )}
 
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
-                    <div className="mt-2 space-y-1">
-                      {(msg.details.missing as ClarifyIssue[]).map((issue, i) => (
-                        issue.example ? (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => {
-                              setInput(issue.example!);
-                              inputRef.current?.focus();
-                            }}
-                            className="block w-full text-left text-[11px] text-amber-200/90 hover:text-amber-100 bg-amber-950/30 hover:bg-amber-950/50 rounded px-2 py-1 transition-colors"
-                          >
-                            {issue.label}: {issue.message}
-                            <span className="block text-[10px] text-amber-400/80 mt-0.5">Try: &ldquo;{issue.example}&rdquo;</span>
-                          </button>
-                        ) : (
-                          <p key={i} className="text-[11px] text-amber-200/80">
-                            {issue.label}: {issue.message}
-                          </p>
-                        )
-                      ))}
+                    <AiClarifyForm
+                      issues={msg.details.missing as ClarifyIssue[]}
+                      options={{
+                        employees,
+                        services,
+                        availableProviderNames: msg.details.availableProviders as
+                          | string[]
+                          | undefined,
+                      }}
+                      onSubmit={(composed) => void runPrompt(composed)}
+                    />
+                  )}
+
+                  {msg.role === 'assistant' &&
+                    normalizeExecutionTimeline(msg.details?.executionTimeline).length > 0 && (
+                      <AiExecutionTimeline
+                        steps={normalizeExecutionTimeline(msg.details.executionTimeline)}
+                        taskId={
+                          typeof msg.details?.taskId === 'string'
+                            ? msg.details.taskId
+                            : undefined
+                        }
+                        onRetry={retryWorkflowStep}
+                        retryingStepId={retryingStepId}
+                      />
+                    )}
+
+                  {msg.id === lastUndoableMessageId && undoPreview?.undoable && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-violet-500/30 bg-violet-950/30 px-2 py-1.5">
+                      <p className="text-[11px] text-violet-100/90 flex-1 min-w-[12rem]">
+                        {t('ai.undoPromptBanner')}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleInlineUndo()}
+                        disabled={undoLatestMutation.isPending}
+                        className="text-[11px] px-2 py-0.5 rounded bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                      >
+                        {undoLatestMutation.isPending ? t('ai.undoing') : t('ai.undoNow')}
+                      </button>
                     </div>
                   )}
 
@@ -678,18 +701,34 @@ export function AiCommandBar() {
 
                   {msg.details?.requiresApproval && msg.details?.taskId && (
                     <>
-                      {Array.isArray(msg.details.planDiff) && (
-                        <PlanDiffPreview steps={msg.details.planDiff} policyPreview={msg.details.policyPreview} />
+                      {msg.details.wizardMode &&
+                      Array.isArray(msg.details.wizardSteps) &&
+                      msg.details.wizardSteps.length > 0 ? (
+                        <AiCommandWizard
+                          steps={msg.details.wizardSteps as WizardStepView[]}
+                          onApprove={() => approveTask(msg.details.taskId)}
+                          approving={approvingId === msg.details.taskId}
+                        />
+                      ) : (
+                        Array.isArray(msg.details.planDiff) && (
+                          <PlanDiffPreview
+                            steps={msg.details.planDiff}
+                            policyPreview={msg.details.policyPreview}
+                            policyExplain={msg.details.policyExplain}
+                          />
+                        )
                       )}
-                      <button
-                        onClick={() => approveTask(msg.details.taskId)}
-                        disabled={approvingId === msg.details.taskId}
-                        className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
-                      >
-                        {approvingId === msg.details.taskId
-                          ? t('ai.executing')
-                          : t('ai.approveExecutePlan')}
-                      </button>
+                      {!msg.details.wizardMode && (
+                        <button
+                          onClick={() => approveTask(msg.details.taskId)}
+                          disabled={approvingId === msg.details.taskId}
+                          className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                        >
+                          {approvingId === msg.details.taskId
+                            ? t('ai.executing')
+                            : t('ai.approveExecutePlan')}
+                        </button>
+                      )}
                     </>
                   )}
 
@@ -746,9 +785,7 @@ export function AiCommandBar() {
                 ref={inputRef}
                 type="text"
                 className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
-                placeholder={t('ai.inputPlaceholderExample', {
-                  provider: employees[0]?.name?.trim() || t('ai.fallbackProvider'),
-                })}
+                placeholder={t('ai.commandPlaceholder')}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}

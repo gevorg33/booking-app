@@ -33,6 +33,7 @@ import { ServiceSubscriptionsModule } from '../service-subscriptions/service-sub
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { AiModule } from '../ai/ai.module.js';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     MultiServiceBookingsModule,
     NotificationsModule,
     forwardRef(() => GiftCardsModule),
+    forwardRef(() => AiModule),
   ],
   controllers: [PublicBookingController],
   providers: [

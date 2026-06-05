@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  toNativePushDataFields,
+  type ProviderPushType,
+} from './provider-push-payload.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -93,6 +97,9 @@ export class PushService {
       actions?: Array<{ id: string; label: string }>;
       bookingId?: string;
       businessId?: string;
+      aiPrompt?: string;
+      pushType?: ProviderPushType;
+      foregroundHint?: string;
     },
   ): Promise<number> {
     let sent = 0;
@@ -132,6 +139,9 @@ export class PushService {
       url?: string;
       actions?: Array<{ id: string; label: string }>;
       bookingId?: string;
+      aiPrompt?: string;
+      pushType?: ProviderPushType;
+      foregroundHint?: string;
     },
   ): Promise<number> {
     const tokens = await this.nativeTokenRepo.find({ where: { userId, businessId } });
@@ -151,12 +161,18 @@ export class PushService {
           token: entry.token,
           notification: { title: payload.title, body: payload.body },
           data: {
-            ...(payload.url ? { url: payload.url } : {}),
-            ...(payload.bookingId ? { bookingId: payload.bookingId } : {}),
             businessId,
             ...(payload.actions?.length
               ? { actions: JSON.stringify(payload.actions) }
               : {}),
+            ...toNativePushDataFields({
+              url: payload.url,
+              bookingId: payload.bookingId,
+              businessId,
+              aiPrompt: payload.aiPrompt,
+              pushType: payload.pushType,
+              foregroundHint: payload.foregroundHint,
+            }),
           },
           android: {
             priority: 'high',

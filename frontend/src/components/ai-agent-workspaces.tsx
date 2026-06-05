@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CalendarPlus, CalendarX, ArrowRightLeft, Sparkles, EyeOff, Eye } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { AiPolicyRiskBadge, type PolicyExplain } from '@/components/ai-policy-risk-badge';
 
 export interface PlanDiffStep {
   id: string;
@@ -31,9 +32,11 @@ const ACTION_ICON: Record<string, typeof Sparkles> = {
 export function PlanDiffPreview({
   steps,
   policyPreview,
+  policyExplain,
 }: {
   steps: PlanDiffStep[];
   policyPreview?: PolicyPreview;
+  policyExplain?: PolicyExplain;
 }) {
   const { t } = useI18n();
   if (!steps.length) return null;
@@ -44,22 +47,26 @@ export function PlanDiffPreview({
         {t('ai.planPreviewTitle')}
       </p>
 
-      {policyPreview && (
-        <div className="rounded-md border border-amber-700/40 bg-amber-950/20 p-2 text-xs">
-          <p className="text-amber-200">
-            {t('ai.planPolicy', {
-              decision: policyPreview.decision.replace(/_/g, ' '),
-              risk: policyPreview.riskLevel,
-            })}
-          </p>
-          {policyPreview.violations.length > 0 && (
-            <ul className="mt-1 text-amber-100/80 list-disc list-inside">
-              {policyPreview.violations.map((v) => (
-                <li key={v}>{v}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {policyExplain ? (
+        <AiPolicyRiskBadge explain={policyExplain} />
+      ) : (
+        policyPreview && (
+          <div className="rounded-md border border-amber-700/40 bg-amber-950/20 p-2 text-xs">
+            <p className="text-amber-200">
+              {t('ai.planPolicy', {
+                decision: policyPreview.decision.replace(/_/g, ' '),
+                risk: policyPreview.riskLevel,
+              })}
+            </p>
+            {policyPreview.violations.length > 0 && (
+              <ul className="mt-1 text-amber-100/80 list-disc list-inside">
+                {policyPreview.violations.map((v) => (
+                  <li key={v}>{v}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )
       )}
 
       <div className="space-y-2">

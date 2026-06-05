@@ -27,12 +27,30 @@ export class AiSettingsService {
           : DEFAULT_AI_SETTINGS.autopilot.rules,
       },
       playbooks: ai.playbooks?.length ? ai.playbooks : DEFAULT_AI_SETTINGS.playbooks,
+      macros: ai.macros?.length ? ai.macros : DEFAULT_AI_SETTINGS.macros,
       confidence: {
         low: ai.confidence?.low ?? DEFAULT_AI_SETTINGS.confidence.low,
         high: ai.confidence?.high ?? DEFAULT_AI_SETTINGS.confidence.high,
       },
       entityMemory: {
         aliases: ai.entityMemory?.aliases ?? DEFAULT_AI_SETTINGS.entityMemory?.aliases ?? {},
+      },
+      rag: {
+        enabled: ai.rag?.enabled ?? DEFAULT_AI_SETTINGS.rag?.enabled ?? false,
+        documents: ai.rag?.documents?.length
+          ? ai.rag.documents
+          : (DEFAULT_AI_SETTINGS.rag?.documents ?? []),
+      },
+      enterprise: {
+        ...DEFAULT_AI_SETTINGS.enterprise,
+        ...ai.enterprise,
+        roleProfiles: {
+          ...DEFAULT_AI_SETTINGS.enterprise?.roleProfiles,
+          ...ai.enterprise?.roleProfiles,
+        },
+        abExperiments: ai.enterprise?.abExperiments?.length
+          ? ai.enterprise.abExperiments
+          : DEFAULT_AI_SETTINGS.enterprise?.abExperiments,
       },
     };
   }
@@ -51,8 +69,13 @@ export class AiSettingsService {
     const next: AiSettings = {
       autopilot: { ...current.autopilot, ...patch.autopilot },
       playbooks: patch.playbooks ?? current.playbooks,
+      macros: patch.macros ?? current.macros,
       confidence: { ...current.confidence, ...patch.confidence },
       entityMemory: patch.entityMemory ?? current.entityMemory,
+      rag: patch.rag ? { ...current.rag, ...patch.rag } : current.rag,
+      enterprise: patch.enterprise
+        ? { ...current.enterprise, ...patch.enterprise }
+        : current.enterprise,
     };
 
     business.settings = { ...business.settings, ai: next };

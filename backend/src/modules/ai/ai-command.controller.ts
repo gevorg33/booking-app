@@ -4,6 +4,8 @@ import { AiSuggestionsService, type AiSuggestionsContext } from './ai-suggestion
 import { AiBriefingService } from './ai-briefing.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiAuditService } from './ai-audit.service.js';
+import { AiWeeklyReportService } from './ai-weekly-report.service.js';
+import { AiSprint25Service } from './ai-sprint25.service.js';
 import { AiCommandDto } from './dto/ai-command.dto.js';
 import type { AiSettings } from './ai-settings.types.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -18,7 +20,17 @@ export class AiCommandController {
     private briefingService: AiBriefingService,
     private aiSettings: AiSettingsService,
     private auditService: AiAuditService,
+    private weeklyReportService: AiWeeklyReportService,
+    private sprint25: AiSprint25Service,
   ) {}
+
+  @Get('capabilities')
+  getCapabilities(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { membershipRole?: string },
+  ) {
+    return this.aiGateway.getCapabilities(businessId, 'dashboard', user?.membershipRole);
+  }
 
   @Get('suggestions')
   getSuggestions(
@@ -37,6 +49,20 @@ export class AiCommandController {
   @Get('briefing')
   getBriefing(@Param('businessId') businessId: string) {
     return this.briefingService.getMorningBriefing(businessId);
+  }
+
+  @Get('weekly-report')
+  getWeeklyReport(@Param('businessId') businessId: string) {
+    return this.weeklyReportService.getWeeklyReport(businessId);
+  }
+
+  @Get('analytics')
+  getCommandAnalytics(
+    @Param('businessId') businessId: string,
+    @Query('days') days?: string,
+  ) {
+    const periodDays = days ? Math.min(90, Math.max(7, Number(days) || 30)) : 30;
+    return this.sprint25.getCommandAnalytics(businessId, periodDays);
   }
 
   @Get('settings')

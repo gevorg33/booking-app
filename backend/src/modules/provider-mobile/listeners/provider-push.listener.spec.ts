@@ -51,6 +51,7 @@ describe('ProviderPushListener', () => {
       'book-1',
       'New appointment',
       expect.stringContaining('Jane'),
+      { timeLabel: '01/05/2026 10:00', customerName: 'Jane' },
     );
   });
 

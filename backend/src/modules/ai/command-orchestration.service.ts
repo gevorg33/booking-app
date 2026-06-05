@@ -13,6 +13,11 @@ import {
   type BookingSnapshot,
 } from './ai-result-format.util.js';
 import { AiEventsService } from './ai-events.service.js';
+import {
+  buildApprovalAlertPayload,
+  buildPendingApprovalDetails,
+  mapExecutionTimeline,
+} from './orchestration-result.util.js';
 
 export interface OrchestrationResult {
   success: boolean;
@@ -118,6 +123,7 @@ export class CommandOrchestrationService {
           plan: task.plan,
           result: task.result,
           error: task.error,
+          executionTimeline: mapExecutionTimeline(task),
         },
         taskId: task.id,
       };
@@ -133,6 +139,7 @@ export class CommandOrchestrationService {
           status: task.status,
           plan: task.plan,
           result: task.result,
+          executionTimeline: mapExecutionTimeline(task),
         },
         taskId: task.id,
       };
@@ -140,6 +147,19 @@ export class CommandOrchestrationService {
 
     const planDiff =
       task.plan && requiresApproval ? this.orchestrator.buildPlanDiff(task.plan) : undefined;
+    const employeeCount =
+      task.context?.employees?.length ??
+      task.context?.policyMetrics?.employeeCount ??
+      task.plan?.steps?.length;
+
+    if (requiresApproval && task.businessId) {
+      const alert = buildApprovalAlertPayload(
+        action,
+        task.id,
+        planDiff?.length ?? task.plan?.steps?.length ?? 0,
+      );
+      this.aiEvents.emitAlert(task.businessId, alert);
+    }
 
     return {
       success: true,
@@ -153,14 +173,16 @@ export class CommandOrchestrationService {
       ]
         .filter(Boolean)
         .join('\n'),
-      details: {
+      details: buildPendingApprovalDetails({
+        action,
         taskId: task.id,
         status: task.status,
         plan: task.plan,
-        requiresApproval,
         planDiff,
         policyPreview: task.result?.policyPreview,
-      },
+        employeeCount,
+        daySpan: 7,
+      }),
       taskId: task.id,
       requiresApproval,
     };

@@ -5,6 +5,7 @@ import { AgentTask } from './agent-task.entity.js';
 import { AgentRegistryService } from './agent-registry.service.js';
 import { AgentType, AgentContext, PlanStatus, AgentPlan } from './interfaces/agent.interfaces.js';
 import { PolicyEngineService } from '../policy/policy-engine.service.js';
+import { buildPolicyRiskExplain } from '../../modules/ai/policy-risk-explain.util.js';
 import { PolicyDecision } from '../policy/policy.interfaces.js';
 import { WorkflowCompilerService } from '../workflow/compiler/workflow-compiler.service.js';
 import { WorkflowExecutorService } from '../workflow/executor/workflow-executor.service.js';
@@ -464,12 +465,20 @@ export class AgentOrchestratorService {
     const conflicts = values.find((v) => v?.conflicts)?.conflicts ?? [];
     const resolutions = values.find((v) => v?.resolutions)?.resolutions ?? [];
 
+    const policyPreview = (task.result as any)?.policyPreview;
+    const planDiff = this.buildPlanDiff(task.plan!);
     return {
       agentType: task.agentType,
       taskId: task.id,
       intent: task.intent,
-      planDiff: this.buildPlanDiff(task.plan!),
-      policyPreview: (task.result as any)?.policyPreview,
+      planDiff,
+      policyPreview,
+      policyExplain: buildPolicyRiskExplain({
+        policyPreview,
+        plan: task.plan!,
+        employeeCount: (task.context as any)?.employees?.length,
+        daySpan: 7,
+      }),
       cancellationRecovery:
         task.agentType === AgentType.CANCELLATION_RECOVERY
           ? { freedSlots: freed, candidates, proposals }

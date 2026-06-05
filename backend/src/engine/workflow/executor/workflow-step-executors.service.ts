@@ -47,6 +47,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     const executors: Record<string, StepExecutor> = {
       create_booking: (step, ctx) => this.createBooking(step, ctx),
       create_service: (step, ctx) => this.createService(step, ctx),
+      update_service: (step, ctx) => this.updateService(step, ctx),
       cancel_booking: (step, ctx) => this.cancelBooking(step, ctx),
       cancel_bookings: (step, ctx) => this.cancelBookings(step, ctx),
       hide_appointments_from_calendar: (step, ctx) => this.hideAppointmentsFromCalendar(step, ctx),
@@ -286,6 +287,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     }));
 
     let totalSlots = 0;
+    const periodIds: string[] = [];
+    const slotIds: string[] = [];
     for (const date of dates) {
       const result = await this.scheduleService.createDirectSchedule(
         businessId,
@@ -293,12 +296,16 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         userId,
       );
       totalSlots += result.slotsCreated;
+      periodIds.push(...result.periodIds);
+      slotIds.push(...result.slotIds);
     }
 
     return {
       slotsCreated: totalSlots,
       employeeId,
       dates,
+      periodIds,
+      slotIds,
     };
   }
 
@@ -475,6 +482,19 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       durationMinutes: service.durationMinutes,
       price: service.price,
       currency: service.currency,
+    };
+  }
+
+  private async updateService(step: WorkflowStep, ctx: Record<string, any>) {
+    const { serviceId, price, userId } = step.params;
+    const before = await this.serviceService.findOne(serviceId);
+    const service = await this.serviceService.update(serviceId, { price }, userId);
+    ctx.lastServiceId = service.id;
+    return {
+      serviceId: service.id,
+      name: service.name,
+      previousPrice: before.price,
+      price: service.price,
     };
   }
 
@@ -693,13 +713,17 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async findFreedSlots(step: WorkflowStep) {
-    const { businessId } = step.params;
+    const { businessId, includeNoShows } = step.params;
     const { start, end } = this.resolveDateRange(step.params);
 
-    const cancelled = await this.bookingRepo.find({
+    const statuses = includeNoShows
+      ? [BookingStatus.CANCELLED, BookingStatus.NO_SHOW]
+      : [BookingStatus.CANCELLED];
+
+    const freed = await this.bookingRepo.find({
       where: {
         businessId,
-        status: BookingStatus.CANCELLED,
+        status: In(statuses),
         startTime: Between(start, end),
       },
       relations: { employee: true, service: true, customer: true },
@@ -707,7 +731,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     });
 
     return {
-      freedSlots: cancelled.map((b) => ({
+      freedSlots: freed.map((b) => ({
         bookingId: b.id,
         employeeId: b.employeeId,
         employeeName: b.employee?.name,

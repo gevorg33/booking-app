@@ -1,5 +1,19 @@
 import { Capacitor } from '@capacitor/core';
 import api, { unwrap } from './api';
+import {
+  dispatchProviderPushEffects,
+  parseProviderPushPayload,
+} from '../lib/provider-push-deep-link.util';
+import {
+  buildSuggestReschedulePushPayload,
+  shouldExecutePushAction,
+  shouldShowForegroundPush,
+} from '../lib/provider-native-push.util';
+import { showForegroundPushBanner } from '../lib/provider-push-foreground.util';
+import { translate } from '@shared-i18n/translate';
+import { getMessages } from '../i18n/catalog';
+import { resolveProviderAppLocale } from '../i18n/resolve-locale';
+import { useAuthStore } from './auth-store';
 
 const PUSH_OPT_IN_KEY = 'provider-push-opt-in';
 const PUSH_TOKEN_KEY = 'provider-fcm-token';
@@ -16,6 +30,16 @@ export interface NativePushStatus {
 
 let listenersAttached = false;
 let activeBusinessId: string | null = null;
+
+function foregroundPushLabels() {
+  const { user, business } = useAuthStore.getState();
+  const locale = resolveProviderAppLocale(user?.locale, business?.locale);
+  const messages = getMessages(locale);
+  return {
+    addBufferAction: translate(messages, 'provider.pushForegroundAction'),
+    dismiss: translate(messages, 'provider.dismiss'),
+  };
+}
 
 function markPushOptIn(enabled: boolean) {
   if (enabled) {
@@ -56,6 +80,23 @@ async function uploadTokenToBackend(businessId: string, token: string): Promise<
   }
 }
 
+async function handlePushAction(
+  bizId: string,
+  bookingId: string,
+  actionId: string,
+): Promise<void> {
+  await api.post(`/businesses/${bizId}/provider/push/action`, {
+    actionId,
+    bookingId,
+  });
+
+  if (actionId === 'suggest_reschedule') {
+    dispatchProviderPushEffects(
+      parseProviderPushPayload(buildSuggestReschedulePushPayload(bookingId, bizId)),
+    );
+  }
+}
+
 async function attachPushListeners(businessId: string): Promise<void> {
   activeBusinessId = businessId;
   if (listenersAttached || !Capacitor.isNativePlatform()) return;
@@ -73,31 +114,33 @@ async function attachPushListeners(businessId: string): Promise<void> {
   });
 
   await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push received in foreground', notification);
+    const payload = parseProviderPushPayload(
+      (notification.data ?? {}) as Record<string, unknown>,
+    );
+    if (shouldShowForegroundPush(payload)) {
+      showForegroundPushBanner(payload, foregroundPushLabels(), {
+        title: notification.title,
+        body: notification.body,
+      });
+    }
   });
 
   await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
-    const data = action.notification.data ?? {};
-    const bookingId = data.bookingId as string | undefined;
-    const actionId = (action.actionId || data.actionId) as string | undefined;
-    const bizId = (data.businessId as string | undefined) ?? activeBusinessId;
-    if (!bookingId || !actionId || !bizId) return;
+    const data = (action.notification.data ?? {}) as Record<string, unknown>;
+    const payload = parseProviderPushPayload(data);
+    const bookingId = payload.bookingId;
+    const actionId = (action.actionId || payload.actionId || '').trim();
+    const bizId = payload.businessId ?? activeBusinessId;
 
-    try {
-      await api.post(`/businesses/${bizId}/provider/push/action`, {
-        actionId,
-        bookingId,
-      });
-      if (actionId === 'suggest_reschedule') {
-        window.dispatchEvent(
-          new CustomEvent('provider:ai-prompt', {
-            detail: { prompt: `Reschedule booking ${bookingId} to next available slot` },
-          }),
-        );
+    if (shouldExecutePushAction(actionId, bookingId, bizId)) {
+      try {
+        await handlePushAction(bizId, bookingId, actionId);
+      } catch (err) {
+        console.error('Push action failed', err);
       }
-    } catch (err) {
-      console.error('Push action failed', err);
     }
+
+    dispatchProviderPushEffects(payload);
   });
 
   listenersAttached = true;

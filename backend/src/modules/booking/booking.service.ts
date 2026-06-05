@@ -1,4 +1,8 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  formatBookingOverlapConflict,
+  formatBookingWindowFullyBooked,
+} from '../../common/utils/booking-conflict-messages.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In, DataSource, EntityManager } from 'typeorm';
 import { Booking, BookingStatus, PaymentStatus } from './entities/booking.entity.js';
@@ -272,7 +276,14 @@ export class BookingService {
         const conflicts = await conflictQb.getMany();
 
         if (conflicts.length > 0) {
-          throw new ConflictException('Time slot is already booked');
+          const existing = conflicts[0];
+          throw new ConflictException(
+            formatBookingOverlapConflict({
+              employeeName: existing?.employee?.name,
+              startTime: existing?.startTime,
+              existingCustomerName: existing?.customer?.name,
+            }),
+          );
         }
       }
 
@@ -484,7 +495,14 @@ export class BookingService {
           excludeBookingIds,
         );
         if (conflicts.length > 0) {
-          throw new ConflictException('Time slot is already booked');
+          const existing = conflicts[0];
+          throw new ConflictException(
+            formatBookingOverlapConflict({
+              employeeName: booking.employee?.name,
+              startTime: targetStart,
+              existingCustomerName: existing?.customer?.name,
+            }),
+          );
         }
       } else {
         for (const slot of newSlots) {

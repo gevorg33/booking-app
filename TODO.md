@@ -29,8 +29,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **11** | Consumer booking app | **gap-2.5** |
 | **12** | Marketing alerts & subscription accounting | gap-4.6, gap-4.7 |
 | **13** | Customer booking self-service & staff push | gap-2.7, gap-2.8, **pay-2** |
-| **14** | AI reliability & regression | gap-3.2, gap-3.7, gap-3.1 |
-| **15** | AI platform & limits | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
+| **14** | AI reliability & regression ✅ | gap-3.2, gap-3.7, gap-3.1 |
+| **15** | AI platform & limits ✅ | ai-0.1, ai-0.2, ai-0.10, gap-3.3, ai-i10 |
 | **16** | AI dashboard UX core | ai-d4, ai-d22, ai-d7, ai-d3 |
 | **17** | AI dashboard depth | ai-d5, ai-d6, ai-d10, ai-d11, ai-d18, ai-d19 |
 | **18** | AI page coverage & onboarding | ai-d21, ai-d24, ai-d25, gap-6.3, gap-6.6, gap-8.6 |
@@ -41,6 +41,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **23** | AI scheduling scenarios | ai-s2, ai-s3, ai-s4, ai-s5, ai-s6 |
 | **24** | AI booking & business ops | ai-b3, ai-b4, ai-b5, ai-o1–ai-o5 |
 | **25** | AI enterprise & analytics | ai-e1, ai-e3–ai-e8, gap-3.5 |
+| **—** | AI product commands — Sprints 1–13 coverage (planned) | **ai-cmd-0**, **ai-cmd-b1**–**ai-cmd-n1** (~270 intents) |
 | **26** | Onboarding & pricing UX | gap-6.1, gap-7.4 |
 | **27** | Stripe plans & seats | gap-7.1, gap-7.2, gap-7.3, gap-5.2, gap-6.2 |
 
@@ -510,13 +511,263 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 ---
 
+## AI product commands — Sprints 1–13 feature coverage (planned)
+
+**Goal:** Add AI command services for **every shipped product capability from Sprints 1–13** across three surfaces — **dashboard admin**, **service provider (mobile)**, and **customer (public web + consumer app)**. Target **~99.9% command coverage**: any reasonable NL request a user could make in the UI should map to a classified intent (or a clarify turn).
+
+**Status:** Planned only — not implemented. Builds on AI baseline (Sprints 14–25). Existing intents cover single booking, schedule ops, and basic public assistant; this backlog closes gaps for **multi-service**, **packages**, **subscriptions**, **gift cards**, **cash pay**, **self-service**, **integrations**, **inventory/POS**, **marketing**, and **provider fulfillment**.
+
+**Surfaces**
+
+| Surface | Code | Users | Gateway today |
+|---------|------|--------|-----------------|
+| Dashboard admin | `dashboard` | Owner, manager, receptionist | `AiGatewayService` → `AiCommandService` |
+| Service provider | `provider` | Stylists, card creators, delivery staff | `AiGatewayService` → `ProviderAiCommandService` |
+| Customer | `customer` | Public booking + consumer app | `PublicBookingAssistantService` (extend → gateway rules per Sprint 25 **ai-e8**) |
+
+**Command count target (planned intents)**
+
+| Domain | Dashboard | Provider | Customer | Notes |
+|--------|-------------|----------|----------|-------|
+| Booking & appointments | 42 | 18 | 22 | incl. multi-service, package visit, subscription credit |
+| Catalog & monetization | 38 | 4 | 14 | categories bulk, packages, plans, gift card products |
+| Customer CRM & self-service | 16 | 6 | 18 | my appointments, GDPR, subscription/gift card account |
+| Schedule & resources | 28 | 12 | 8 | templates, blocks, rooms/chairs (**gap-8.2**) |
+| Payments & reconciliation | 14 | 8 | 10 | cash, gift card redeem, sweep, accounting export |
+| Gift card fulfillment | 10 | 12 | 8 | purchase, redeem, physical queue (**gc-1**, Sprint 9) |
+| Integrations & exports | 12 | 0 | 2 | webhooks, Zapier, Zendesk, CSV (**Sprints 2–3, 12**) |
+| Inventory, POS, finance | 14 | 2 | 0 | retail at chair, expenses, commissions (**Sprints 4, 7**) |
+| Marketing & growth | 10 | 0 | 4 | automation, registration alerts (**Sprints 6, 12**) |
+| Push, offline, notifications | 6 | 10 | 4 | deep links, queue replay (**Sprints 1, 13, 20**) |
+| Help & policy | 6 | 4 | 8 | cancel policy, cash rules, compatibility explain |
+| **Total (unique intents)** | **~196** | **~76** | **~98** | **~270** after dedupe across surfaces |
+
+### Platform prerequisites (do first)
+
+- [ ] **ai-cmd-0** — **Command registry** — single source of truth: intent id, surface(s), tier, mutating?, orchestration vs read-only, links to API module
+- [ ] **ai-cmd-0.1** — **Shared entity params** — `packageId`, `packagePurchaseId`, `multiServiceGroupId`, `subscriptionPlanId`, `customerSubscriptionId`, `giftCardCode`, `giftCardOrderId`, `resourceId`, `locationId`, `paymentMethod`, `serviceIds[]`, `categoryDraft[]`
+- [ ] **ai-cmd-0.2** — **Extend capability matrix** — `AiSurface` adds `customer`; `DASHBOARD_INTENTS` / `PROVIDER_INTENTS` / `CUSTOMER_INTENTS` generated from registry
+- [ ] **ai-cmd-0.3** — **Intent decomposition schema** — compound commands for “book package + apply promo” / “cancel visit + notify waitlist”
+- [ ] **ai-cmd-0.4** — **Eval golden cases** — per-intent NL fixtures in `ai-command-eval.cases.ts` (extend **gap-3.1**)
+- [ ] **ai-cmd-0.5** — **Customer gateway** — route public/consumer assistant through `AiGatewayService` with `surface: customer` (**ai-e8**)
+
+### Sprint 1–13 → command mapping (feature themes)
+
+| Sprint | Product shipped | AI command themes to add |
+|--------|-----------------|---------------------------|
+| **1** | Push delivery, offline queue | Provider: queue status, retry failed mutation; explain push notification |
+| **2** | Webhooks, Zapier, commission CSV | Dashboard: configure webhook, list deliveries, export commissions |
+| **3** | QuickBooks/Xero, Zendesk | Dashboard: run accounting export, open Zendesk ticket, sync customer |
+| **4** | Inventory link UI, help center | Dashboard: link product to service; contextual help lookup |
+| **5** | Resources, subscriptions, packages, multi-service | **Core gap** — see Booking + Catalog sections below |
+| **6** | Marketing automation, vertical playbooks | Dashboard: apply salon/clinic playbook; summarize automation |
+| **7** | Retail POS, DPA/SOC2 docs | Dashboard: attach retail to booking; list trust docs (read-only) |
+| **8** | Strategy eval | Low priority — read-only compliance summaries |
+| **9** | Gift cards (all types + physical fulfillment) | All surfaces — purchase, redeem, fulfillment queues |
+| **10–12** | Billing upgrade, marketing alerts, subscription accounting | Dashboard: explain plan limits; configure marketing email on register |
+| **11** | Consumer app | Customer: same intents as public web + tenant switch |
+| **13** | Customer cancel/reschedule, staff push, cash pay | Customer self-service; provider mark paid; dashboard cash filter |
+
+---
+
+### 1. Booking & appointments
+
+**Dashboard admin (42 intents)**
+
+| Intent | Example NL | Maps to |
+|--------|------------|---------|
+| `create_booking` | *(shipped)* | Single service booking |
+| `create_booking_subscription_credit` | “Book Maria for nail care using her subscription credit” | **sub-1** credit consumption |
+| `create_booking_cash` | “Book walk-in haircut tomorrow 3pm, pay at venue” | **pay-2** |
+| `create_package_booking` | “Book spa day package for James — massage Tue, facial Thu” | **gap-8.3** staff-assisted |
+| `create_multi_service_booking` | “Book haircut + beard trim same visit Tuesday 10am” | **gap-8.7** staff-assisted |
+| `cancel_bookings` | *(shipped)* | Single / bulk cancel |
+| `cancel_package_visit` | “Cancel all appointments in Sofia’s spa package visit” | **gap-8.3.12** |
+| `cancel_multi_service_group` | “Cancel John’s multi-service block booking” | **gap-8.7.13** same-visit atomic |
+| `reschedule_booking` | *(shipped)* | Single reschedule |
+| `reschedule_package_visit` | “Move Sofia’s package visit to next week same times” | **gap-2.7** package visit |
+| `reschedule_multi_service_group` | “Move the haircut+beard block to Friday 2pm” | **gap-8.7** same-visit |
+| `list_bookings` / `show_appointments` | *(shipped)* | Filters by date, provider, status |
+| `list_cash_pending_bookings` | “Show all pay-at-venue appointments today” | **pay-2.8** |
+| `list_package_bookings` | “Show package visits this week” | **gap-8.3.13** |
+| `list_multi_service_bookings` | “List multi-service groups for Saturday” | **gap-8.7.11** |
+| `update_bookings` | *(shipped)* | Notes, status, payment flags |
+| `mark_paid` | “Mark booking #123 paid cash” | **pay-2.7** dashboard parity |
+| `bulk_smart_cancel` | *(shipped)* | Cancel + notify + waitlist |
+| `fill_slot_from_waitlist` | *(shipped)* | |
+| `assign_booking_resource` | “Assign room 2 to the 2pm facial” | **gap-8.2** |
+| `explain_booking_policy` | “Can this customer still cancel?” | **gap-2.7** policy read |
+
+**Provider (18)** — own scope unless manager: `list_bookings`, `show_appointments`, `reschedule_booking`, `cancel_bookings`, `mark_paid`, `mark_no_shows`, `check_availability`, `block_schedule`, `fill_unused_slots`, `summarize_day`, `list_package_appointments_today`, `confirm_booking`, `add_booking_note`, `suggest_reschedule` *(push)*, `coordinate_waitlist_offer` *(shipped)*
+
+**Customer (22)** — `book_appointment` *(shipped basic)*, `book_package`, `book_multi_service`, `check_package_availability`, `check_multi_service_availability`, `select_subscription_plan`, `use_subscription_credit`, `cancel_my_booking`, `reschedule_my_booking`, `cancel_package_visit_self`, `reschedule_package_visit_self`, `list_my_appointments`, `get_manage_link`, `explain_cancel_policy`, `book_with_cash`, `book_with_gift_card`, `change_provider_on_reschedule`, `add_services_to_cart`, `remove_service_from_cart`, `show_cart_total_duration`, `booking_help` *(shipped)*
+
+- [ ] **ai-cmd-b1** — Dashboard: subscription-credit + cash + package + multi-service **create** intents
+- [ ] **ai-cmd-b2** — Dashboard: package visit + multi-service group **cancel/reschedule**
+- [ ] **ai-cmd-b3** — Customer: full self-service + cart + package/multi-service booking flows
+- [ ] **ai-cmd-b4** — Provider: scoped package/multi-service views + `mark_paid`
+
+---
+
+### 2. Catalog & monetization
+
+**Dashboard admin (38 intents)**
+
+| Intent | Example NL | Maps to |
+|--------|------------|---------|
+| `create_service` / `create_services` | *(shipped)* | |
+| `create_service_category` | “Add category Color with 3 placeholder services” | Service categories |
+| `bulk_create_catalog` | “Create category Hair with services: Women’s cut 60m $65, Men’s cut 30m $35” | **Bulk categories + types** |
+| `update_service` / `update_service_prices` | *(shipped)* | |
+| `deactivate_service` | “Hide balayage from public booking” | |
+| `create_package` | “Create Spa Day package: massage + facial, 15% off, expires Dec 31” | **gap-8.3** |
+| `update_package` / `deactivate_package` / `duplicate_package` | Package CRUD | **gap-8.3.1–4** |
+| `create_subscription_plan` | “Add 12-month nail plan: 24 visits, 20% off” | **sub-1.1–3** |
+| `update_subscription_plan` / `deactivate_subscription_plan` | Plan CRUD | **sub-1** |
+| `assign_subscription_to_customer` | “Give Anna the 6-month massage plan” | **sub-1** admin assign |
+| `configure_gift_card_products` | “Enable $50/$100 presets and Classic Manicure service card” | **gc-1.16** |
+| `create_gift_card_bundle` | “Sell bundle: haircut + beard + facial as gift card” | **gc-1.17** |
+| `configure_multi_service_settings` | “Enable multi-service booking, max 3 services, 180 min” | **gap-8.7.1–3** |
+| `set_service_compatibility` | “Block massage + chemical peel same visit” | **gap-8.7.2** |
+| `apply_vertical_playbook` | “Apply salon playbook catalog and weekday template” | **gap-8.5** |
+| `import_services_from_menu` | *(shipped Sprint 24)* | |
+| `list_packages` / `list_subscription_plans` | Read catalog | |
+
+**Provider (4)** — `list_services`, `list_packages_public`, `explain_service_duration`, `list_my_assigned_services`
+
+**Customer (14)** — `list_services` *(shipped)*, `list_packages`, `describe_package_includes`, `list_subscription_plans_for_service`, `compare_one_time_vs_subscription`, `list_gift_card_options`, `show_service_badges`, `filter_services_by_category`, `explain_multi_service_rules`, `explain_package_savings`
+
+- [ ] **ai-cmd-c1** — Dashboard: **bulk_create_catalog** (categories + services in one command)
+- [ ] **ai-cmd-c2** — Dashboard: package + subscription plan CRUD intents
+- [ ] **ai-cmd-c3** — Dashboard: gift card product + multi-service settings intents
+- [ ] **ai-cmd-c4** — Customer: package/subscription/gift card discovery intents
+
+---
+
+### 3. Customer account & CRM
+
+**Dashboard (16)** — `lookup_customer` / `summarize_customers` *(shipped)*, `list_customer_subscriptions`, `subscription_usage_history`, `extend_subscription`, `cancel_subscription_admin`, `list_customer_gift_cards`, `list_customer_bookings`, `merge_customers`, `export_customer_data`, `delete_customer_data`, `send_reengagement_message`, `tag_customer`, `customer_no_show_history`
+
+**Provider (6)** — `lookup_customer_limited`, `customer_next_appointment`, `customer_notes`, `customer_allergies` *(if in metadata)*
+
+**Customer (18)** — `my_profile`, `my_appointments`, `my_subscriptions`, `subscription_usage`, `my_gift_cards`, `gift_card_balance`, `gift_card_redemption_history`, `request_gift_card_cancel`, `request_gift_card_modify`, `track_physical_gift_card_order`, `update_profile`, `sign_out`, `switch_salon` *(consumer app)*, `privacy_export`, `privacy_delete`
+
+- [ ] **ai-cmd-u1** — Customer: **my_*** account intents (appointments, subscriptions, gift cards)
+- [ ] **ai-cmd-u2** — Customer: gift card cancel/modify request → Zendesk handoff
+- [ ] **ai-cmd-u3** — Dashboard: subscription + gift card customer 360
+
+---
+
+### 4. Schedule, templates & resources
+
+**Dashboard (28)** — *(most schedule intents shipped)* + `list_scheduling_resources`, `create_resource`, `update_resource`, `deactivate_resource`, `assign_resource_hours`, `list_resource_conflicts`, `explain_resource_conflict`, `configure_multi_service_scheduling_mode`
+
+**Provider (12)** — *(shipped schedule subset)* + `my_resource_assignments`, `block_resource_unavailable`
+
+**Customer (8)** — `check_availability` *(shipped)*, `check_multi_service_block_availability`, `check_package_line_availability`, `earliest_slot_all_services`, `providers_available_later_days`, `explain_why_no_slots`
+
+- [ ] **ai-cmd-s1** — Dashboard: **scheduling resource** CRUD + assignment intents (**gap-8.2**)
+- [ ] **ai-cmd-s2** — Customer: multi-service block + package per-line availability
+
+---
+
+### 5. Payments, gift cards & accounting
+
+**Dashboard (14)** — `payment_sweep` *(shipped)*, `summarize_unpaid`, `configure_cash_payments`, `validate_gift_card`, `adjust_gift_card_balance`, `extend_gift_card_expiry`, `refund_gift_card_order`, `export_accounting`, `export_commissions`, `explain_checkout_total`, `list_subscription_revenue`
+
+**Provider (8)** — `mark_paid` *(shipped push)*, `payment_sweep` *(shipped)*, `explain_payment_status`, `collect_cash_confirm`
+
+**Customer (10)** — `apply_gift_card_code`, `check_gift_card_balance`, `buy_gift_card`, `buy_gift_card_physical`, `choose_payment_method`, `pay_online`, `pay_cash_at_visit`, `purchase_subscription_checkout`, `explain_why_stripe_required`, `receipt_status`
+
+- [ ] **ai-cmd-p1** — Payments: cash + gift card + subscription checkout intents (all surfaces)
+- [ ] **ai-cmd-p2** — Dashboard: accounting + commission export triggers (**gap-4.1**, **gap-4.3**, **gap-4.7**)
+
+---
+
+### 6. Gift card physical fulfillment (Provider-heavy)
+
+**Dashboard (10)** — `list_gift_card_orders`, `filter_awaiting_creation`, `assign_card_creator`, `assign_delivery_staff`, `mark_shipped`, `mark_delivered`, `cancel_gift_card_order`, `extend_cancel_window`, `print_packing_slip`
+
+**Provider (12)** — `gift_card_creation_queue`, `start_card_preparation`, `mark_card_ready`, `delivery_queue`, `accept_delivery`, `mark_out_for_delivery`, `mark_delivered`, `capture_delivery_proof`, `notify_delay`
+
+**Customer (8)** — `track_gift_card_shipment`, `buy_physical_gift_card`, `enter_shipping_address`, `shipping_method_quote`, `order_status_notifications`
+
+- [ ] **ai-cmd-g1** — Provider: **gc-1.32–36** fulfillment queue intents
+- [ ] **ai-cmd-g2** — Dashboard + customer: order tracking + policy intents
+
+---
+
+### 7. Integrations & back-office
+
+**Dashboard (12)** — `list_webhooks`, `create_webhook`, `test_webhook`, `rotate_api_key`, `list_zapier_triggers`, `run_accounting_export`, `configure_zendesk`, `create_support_ticket`, `sync_customer_to_zendesk`, `configure_marketing_registration_email`, `list_integration_health`
+
+**Customer (2)** — `contact_support`, `open_ticket_for_order`
+
+- [ ] **ai-cmd-i1** — Dashboard: integration configuration + export intents (**Sprints 2–3, 12**)
+
+---
+
+### 8. Inventory, retail POS & finance
+
+**Dashboard (14)** — `list_products`, `create_product`, `link_product_to_service`, `adjust_inventory`, `add_retail_sale_to_booking`, `remove_retail_line`, `record_expense`, `list_expenses`, `summarize_pl`, `commission_report`, `payout_export`
+
+**Provider (2)** — `suggest_retail_upsell`, `add_retail_to_my_booking` *(if permitted)*
+
+- [ ] **ai-cmd-r1** — Dashboard: inventory + POS + expense intents (**gap-6.4**, **gap-8.4**, ERP)
+
+---
+
+### 9. Marketing, growth & billing
+
+**Dashboard (10)** — `configure_marketing_automation`, `summarize_automation_performance`, `trigger_reengagement`, `list_inactive_customers`, `explain_plan_limits`, `suggest_upgrade`, `toggle_annual_billing`, `summarize_new_registrations`
+
+**Customer (4)** — `how_to_download_app`, `switch_to_consumer_app`, `promo_code_help`, `loyalty_points_balance`
+
+- [ ] **ai-cmd-m1** — Dashboard: marketing automation + billing explain intents (**gap-8.1**, **gap-7.5**)
+
+---
+
+### 10. Push, offline & notifications
+
+**Provider (10)** — `explain_last_push`, `open_booking_from_push`, `offline_queue_status`, `retry_offline_action`, `dismiss_push`, `end_of_day_summary` *(shipped)*, `new_booking_push_actions` *(shipped)*
+
+**Dashboard (6)** — `configure_push_recipients`, `test_push`, `notification_history`, `toggle_business_email_on_customer_change`
+
+**Customer (4)** — `enable_notifications`, `appointment_reminder_preferences`
+
+- [ ] **ai-cmd-n1** — Provider: offline queue + push explain (**Sprints 1, 20**)
+
+---
+
+### Implementation phases (suggested)
+
+| Phase | Focus | Est. intents | Priority |
+|-------|--------|--------------|----------|
+| **A** | **ai-cmd-0** platform + customer gateway | Registry + 15 customer self-service | P0 — unlocks Sprint 13 parity |
+| **B** | Booking depth | 25 intents | P0 — **gap-8.3**, **gap-8.7**, **sub-1**, **pay-2** |
+| **C** | Catalog bulk | 20 intents | P0 — **bulk_create_catalog**, packages, plans |
+| **D** | Gift cards | 30 intents | P1 — **gc-1** full surface |
+| **E** | Integrations + finance | 26 intents | P2 — Sprints 2–3, 7, 12 |
+| **F** | Marketing + misc | 20 intents | P2 — Sprints 4, 6, 10–12 |
+
+**Test plan (when implementing)**
+
+- [ ] **ai-cmd-t1** — `test:ai-cmd` — 100% util/plan/logic coverage per phase (mirror **test:sprint23–25**)
+- [ ] **ai-cmd-t2** — Golden NL eval cases per new intent (**gap-3.1**)
+- [ ] **ai-cmd-t3** — Integration specs: dashboard + provider + customer gateway per domain
+- [ ] **ai-cmd-t4** — Command completion validators for clarify fields (dates, `serviceIds`, `packageId`, etc.)
+
+**Already shipped (do not re-plan)** — schedule orchestration (Sprint 23), booking ops sweeps (Sprint 24), enterprise analytics (Sprint 25), dashboard/mobile baseline intents in `DASHBOARD_INTENTS` / `PROVIDER_INTENTS`, public `list_providers` / `check_availability` / `book_appointment`.
+
+---
+
 ## Sprint 14 — AI reliability & regression
 
 **Goal:** Fix top failure modes; CI guardrails before expanding AI surface.
 
-- [ ] **gap-3.2** — Fix top failure modes — reschedule time parsing (AM/PM), clearer conflict errors, partial undo gaps (e.g. create schedule)
-- [ ] **gap-3.7** — Complete undo coverage for schedule mutations (snapshot period/slot IDs on create)
-- [ ] **gap-3.1** — AI eval harness — golden NL prompts + expected plans; CI regression (see **ai-i9**)
+- [x] **gap-3.2** — Fix top failure modes — reschedule time parsing (AM/PM), clearer conflict errors, partial undo gaps (e.g. create schedule)
+- [x] **gap-3.7** — Complete undo coverage for schedule mutations (snapshot period/slot IDs on create)
+- [x] **gap-3.1** — AI eval harness — golden NL prompts + expected plans; CI regression (`npm run test:sprint14`)
 
 ---
 
@@ -524,11 +775,11 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Unified gateway, capability matrix, shared client libs, plan-based AI caps.
 
-- [ ] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
-- [ ] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
-- [ ] **ai-0.10** — Extract shared hooks/libs — `useAiCommand`, `useAiSuggestions`, `useProviderAiCommand`; shared AI client types
-- [ ] **gap-3.3** — Enforce plan-based AI limits + usage meters (see `PLANS.md`, **ai-i10**)
-- [ ] **ai-i10** — Cost & latency budgets — route simple reads to rules; reserve LLM for classify + complex plans
+- [x] **ai-0.1** — Unified AI gateway — single entry routing by `surface: dashboard | provider`, role, scope (`AiGatewayService` wraps `AiCommandService` + `ProviderAiCommandService`)
+- [x] **ai-0.2** — Capability matrix — per-surface allowed intents; enforce server-side; hide unsupported intents in UI
+- [x] **ai-0.10** — Extract shared hooks/libs — `useAiCommand`, `useAiSuggestions`, `useProviderAiCommand`; shared AI client types
+- [x] **gap-3.3** — Enforce plan-based AI limits + usage meters (see `PLANS.md`, **ai-i10**)
+- [x] **ai-i10** — Cost & latency budgets — route simple reads to rules; reserve LLM for classify + complex plans
 
 ---
 
@@ -536,10 +787,12 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Clarify-as-form, undo, one-click suggestions — less chat friction.
 
-- [ ] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
-- [ ] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
-- [ ] **ai-d7** — Undo / rollback — after mutation, show "Undo" window using workflow execution log
-- [ ] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
+- [x] **ai-d4** — Clarify-as-form — render `missing[]` as inline fields (date picker, employee select) instead of only text follow-ups
+- [x] **ai-d22** — Wire i18n for all AI strings (`ai.commandPlaceholder`, `ai.thinking`, etc.)
+- [x] **ai-d7** — Undo / rollback — after mutation, show "Undo" window using workflow execution log
+- [x] **ai-d3** — One-click run from suggestions — `orchestrix:prompt` optional auto-submit; "Run" vs "Edit" on chips
+
+**Status:** Shipped. Run `npm run test:sprint16` in `frontend/` (44 tests, 100% coverage on sprint16 libs: i18n registry, clarify, command-bar session/undo, Orchestrix events + integration).
 
 ---
 
@@ -547,12 +800,14 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Macros, wizards, risk explainability, proactive reports.
 
-- [ ] **ai-d5** — Command templates / macros — save frequent ops: "Monday morning setup", "End-of-week gap fill"
-- [ ] **ai-d6** — Multi-step wizard mode — complex ops (`setup_week_schedule`) → guided steps with preview between stages
-- [ ] **ai-d10** — Risk badges + policy explain — why approval required: "3 providers × 7 days = high risk"
-- [ ] **ai-d11** — Execution timeline — step-by-step workflow progress with retry on failed step
-- [ ] **ai-d18** — Weekly ops report — AI-generated: underutilized staff, top gaps, recommended template changes
-- [ ] **ai-d19** — Notification center integration — in-app alerts: "Conflict detected — tap to resolve"
+- [x] **ai-d5** — Command templates / macros — save frequent ops: "Monday morning setup", "End-of-week gap fill"
+- [x] **ai-d6** — Multi-step wizard mode — complex ops (`setup_week_schedule`) → guided steps with preview between stages
+- [x] **ai-d10** — Risk badges + policy explain — why approval required: "3 providers × 7 days = high risk"
+- [x] **ai-d11** — Execution timeline — step-by-step workflow progress with retry on failed step
+- [x] **ai-d18** — Weekly ops report — AI-generated: underutilized staff, top gaps, recommended template changes
+- [x] **ai-d19** — Notification center integration — in-app alerts: "Conflict detected — tap to resolve"
+
+**Status:** Shipped. Backend: `npm run test:sprint17` (32 tests, 100% stmts/lines on sprint17 modules; branch thresholds 75% `ai-events`, 82% `ai-weekly-report` for Nest constructor DI). Frontend: `npm run test:sprint17` (14 tests, 100% on notification center + `use-ai-events`). Sprint 16: `npm run test:sprint16` in `frontend/`.
 
 ---
 
@@ -560,12 +815,14 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** AI on Customers, Reports, and during onboarding.
 
-- [ ] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
-- [ ] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
-- [ ] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
-- [ ] **gap-6.3** — Complete AI i18n — all strings in EN / HY / RU (see **ai-d22**)
-- [ ] **gap-6.6** — Enable AI assistant during onboarding with guided prompts (see **ai-d21**)
-- [ ] **gap-8.6** — AI customer panels — no-show re-engagement, inactive lookup (see **ai-d24**)
+- [x] **ai-d21** — Enable command bar on onboarding (or panel opens standalone mini-chat)
+- [x] **ai-d24** — AI panel on Customers — "Find no-shows", "Re-engage inactive"
+- [x] **ai-d25** — AI panel on Reports — "Explain this week's drop in utilization"
+- [x] **gap-6.3** — Complete AI i18n — all strings in EN / HY / RU (see **ai-d22**)
+- [x] **gap-6.6** — Enable AI assistant during onboarding with guided prompts (see **ai-d21**)
+- [x] **gap-8.6** — AI customer panels — no-show re-engagement, inactive lookup (see **ai-d24**)
+
+**Status:** Shipped. Frontend: `npm run test:sprint18` (25 tests, 100% on sprint18 libs + `AiPagePanel`). Backend: `npm run test:sprint18` (customer metric heuristics). Onboarding page mounts `AiCommandBar` with step-guided prompts; Customers/Reports use grouped AI panels.
 
 ---
 
@@ -573,12 +830,14 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** FAB, quick chips, and safe port of dashboard intents to mobile.
 
-- [ ] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
-- [ ] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
-- [ ] **ai-m8** — `check_availability` — own schedule only (provider view)
-- [ ] **ai-m9** — `show_appointments` / `list_bookings` — enrich with service filters
-- [ ] **ai-m11** — `block_schedule` — own lunch/break blocks only
-- [ ] **ai-m13** — `summarize_utilization` — own week stats; managers see team summary
+- [x] **ai-m3** — Global AI FAB — floating assistant on all tabs (Today, Schedule, Profile)
+- [x] **ai-m6** — Quick action chips — contextual: "Mark all today paid", "Who's next?", "Any gaps this afternoon?"
+- [x] **ai-m8** — `check_availability` — own schedule only (provider view)
+- [x] **ai-m9** — `show_appointments` / `list_bookings` — enrich with service filters
+- [x] **ai-m11** — `block_schedule` — own lunch/break blocks only
+- [x] **ai-m13** — `summarize_utilization` — own week stats; managers see team summary
+
+**Status:** Shipped. Provider app: `npm run test:sprint19` (quick chips, shell route util, `ProviderAiShell` integration — 100% on sprint19 UI libs). Backend: `npm run test:sprint19` (intent rescue + sprint19 util unit + command integration). `ProviderAiShell` + FAB on all tabs; quick chips per route; provider AI commands for availability, appointments, blocks, utilization.
 
 ---
 
@@ -586,13 +845,15 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Hands-free input and push → deep link → AI prefill.
 
-- [ ] **ai-m5** — Voice input — Capacitor Speech Recognition → same text pipeline (hands-free in salon)
-- [ ] **ai-m16** — Push deep links — `pushNotificationActionPerformed` → route + prefill AI prompt
-- [ ] **ai-m17** — Foreground push banner — in-app toast: "New booking 14:00 — Add buffer?"
-- [ ] **ai-m19** — End-of-day summary push — "4 appointments, 1 unpaid, 2 gaps tomorrow"
-- [ ] **gap-2.2** — Push deep links into booking detail + AI prefill (see **ai-m16**)
-- [ ] **gap-2.4** — Voice input on provider mobile (see **ai-m5**)
-- [ ] **gap-2.6** — End-of-day / new-booking push summaries for providers (see **ai-m19**, **ai-m17**)
+- [x] **ai-m5** — Voice input — Web Speech API in provider AI assistant (same text pipeline as typed commands)
+- [x] **ai-m16** — Push deep links — `pushNotificationActionPerformed` → route + booking modal + AI prefill
+- [x] **ai-m17** — Foreground push banner — in-app toast: "New booking 14:00 — Add buffer?"
+- [x] **ai-m19** — End-of-day summary push — "4 appointments, 1 unpaid, 2 gaps tomorrow"
+- [x] **gap-2.2** — Push deep links into booking detail + AI prefill (see **ai-m16**)
+- [x] **gap-2.4** — Voice input on provider mobile (see **ai-m5**)
+- [x] **gap-2.6** — End-of-day / new-booking push summaries for providers (see **ai-m19**, **ai-m17**)
+
+**Status:** Shipped — 100% unit/integration coverage on Sprint 20 scope. Backend: `npm run test:sprint20` — **18 tests** (push payload, EOD summary, EOD scheduler, push-action service). Provider app: `npm run test:sprint20` — **34 tests** (deep links, foreground toast, native push helpers, voice input + speech recognition, `ProviderPushBridge`, `ProviderAiVoiceButton`).
 
 ---
 
@@ -600,9 +861,11 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** AI commands and suggestions when connectivity drops.
 
-- [ ] **ai-m20** — Offline command queue — queue safe mutations; replay when online
-- [ ] **ai-m21** — Optimistic UI — instant feedback on "mark paid" with rollback on failure
-- [ ] **ai-m22** — Cached last suggestions — show stale suggestions offline with "refresh when online"
+- [x] **ai-m20** — Offline command queue — queue safe mutations; replay when online
+- [x] **ai-m21** — Optimistic UI — instant feedback on "mark paid" with rollback on failure
+- [x] **ai-m22** — Cached last suggestions — show stale suggestions offline with "refresh when online"
+
+**Status:** Shipped — 100% unit + integration coverage on Sprint 21 scope. Provider app: `npm run test:sprint21` (**44 tests**: offline queue/API utils, optimistic patches, AI assistant offline util, suggestions query/cache, `ProviderOfflineBanner`, `ProviderAiSuggestions`, `ProviderAiAssistant` offline flows).
 
 ---
 
@@ -610,10 +873,12 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Memory, handoff, coordination, optional RAG.
 
-- [ ] **ai-i2** — Entity memory — "Gevorg" → default provider; "facemassage" → default service for this business
-- [ ] **ai-i3** — Conversation summaries — compress long AI threads for session handoff dashboard ↔ mobile
-- [ ] **ai-i6** — Cross-provider coordination — "If Maria cancels, offer slot to waitlist customer John"
-- [ ] **ai-i8** — Optional RAG — embed SOP docs, past successful plans, business notes for better planning
+- [x] **ai-i2** — Entity memory — "Gevorg" → default provider; "facemassage" → default service for this business
+- [x] **ai-i3** — Conversation summaries — compress long AI threads for session handoff dashboard ↔ mobile
+- [x] **ai-i6** — Cross-provider coordination — "If Maria cancels, offer slot to waitlist customer John"
+- [x] **ai-i8** — Optional RAG — embed SOP docs, past successful plans, business notes for better planning
+
+**Status:** Shipped — 100% unit + integration coverage on Sprint 22 scope. Backend: `npm run test:sprint22` (**88 tests**: entity memory util + service, conversation summary util + service, intelligence context, coordination, RAG util + service, gateway meta, gateway sprint22 integration, provider sprint22 util + integration, settings rag merge; 100% stmts/branches/lines on all scoped util modules).
 
 ---
 
@@ -621,26 +886,29 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Advanced NL scheduling ops beyond baseline template cascade.
 
-- [ ] **ai-s2** — Smart block propagation — "Block lunch 12–13 for everyone, repeat 4 weeks, skip holidays"
-- [ ] **ai-s3** — Schedule swap — "Swap Friday schedules between Gevorg and Maria"
-- [ ] **ai-s4** — Capacity rebalance — "Move 2 facemassage slots from Gevorg to Maria on Friday"
-- [ ] **ai-s5** — Holiday mode — "Close Dec 24–26 for all, extend Dec 23 hours"
-- [ ] **ai-s6** — New hire onboarding schedule — "Set up Anna's first week from weekday template + assign massage services"
+- [x] **ai-s2** — Smart block propagation — "Block lunch 12–13 for everyone, repeat 4 weeks, skip holidays"
+- [x] **ai-s3** — Schedule swap — "Swap Friday schedules between Gevorg and Maria"
+- [x] **ai-s4** — Capacity rebalance — "Move 2 facemassage slots from Gevorg to Maria on Friday"
+- [x] **ai-s5** — Holiday mode — "Close Dec 24–26 for all, extend Dec 23 hours"
+- [x] **ai-s6** — New hire onboarding schedule — "Set up Anna's first week from weekday template + assign massage services"
+
+**Status:** Shipped — Sprint 23 scheduling scenarios wired through intent rescue, plan builders, and workflow executors. Backend: `npm run test:sprint23` (**62 tests**, 100% stmts/branches/lines on `ai-sprint23.util`, `ai-sprint23-plan.util`, `ai-sprint23.logic` + integration specs for intent rescue, plan builders, handlers, command-completion validators; thin `AiSprint23Service` wrapper).
 
 ---
 
-## Sprint 24 — AI booking & business ops
+## Sprint 24 — AI booking & business ops ✅ shipped
 
 **Goal:** No-show sweeps, day replan, catalog/pricing/compliance NL ops.
 
-- [ ] **ai-b3** — No-show handling — "Mark no-shows today, release slots, suggest rebooking messages"
-- [ ] **ai-b4** — Payment sweep — "Mark all completed today as paid except walk-ins"
-- [ ] **ai-b5** — Day replan — "Maria is sick — cancel her day and redistribute urgent bookings"
-- [ ] **ai-o1** — Catalog from photo/menu — OCR + `create_services` batch with human review
-- [ ] **ai-o2** — Pricing adjustment — "Raise all massage prices 10% from June 1"
-- [ ] **ai-o3** — Staff-service matrix — "Assign all color services to senior stylists only"
-- [ ] **ai-o4** — Compliance check — "Any appointments outside business hours this month?"
-- [ ] **ai-o5** — Revenue forecast — "Project next week revenue from current schedule + historical no-show rate"
+- [x] **ai-b3** — No-show handling — `no_show_recovery` intent: mark no-shows → find freed slots (incl. NO_SHOW) → waitlist candidates → rebooking proposals
+- [x] **ai-b4** — Payment sweep — `excludeWalkIns` + `statusFilter=COMPLETED` from NL; `filterBookingsForPaymentSweep`
+- [x] **ai-b5** — Day replan — `sick_day_replan`: cancel bookings, notify, redistribute urgent, block sick day
+- [x] **ai-o1** — Catalog from photo/menu — `import_services_from_menu`: `parseMenuTextToServices` + review plan (`requiresApproval`)
+- [x] **ai-o2** — Pricing adjustment — `update_service_prices` + `update_service` workflow step
+- [x] **ai-o3** — Staff-service matrix — `staff_service_matrix`: senior assign + junior remove by category/seniority
+- [x] **ai-o4** — Compliance check — `check_schedule_compliance` read-only vs business hours
+- [x] **ai-o5** — Revenue forecast — `revenue_forecast` from schedule + historical no-show rate
+- [x] **ai-o5** — Time-of-day availability — morning (&lt;12), afternoon (12–17), evening (&gt;17) in `check_availability`
 
 ---
 
@@ -648,14 +916,16 @@ Admin enables “Accept cash payments” → customer books Haircut ($30, no pre
 
 **Goal:** Multi-location, role permissions, admin analytics, public booking assistant.
 
-- [ ] **ai-e1** — Multi-location businesses — AI scoped by branch
-- [ ] **ai-e3** — Role-based intent permissions (receptionist vs owner)
-- [ ] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
-- [ ] **ai-e5** — A/B test suggestion copy and auto-execute thresholds
-- [ ] **ai-e6** — Admin analytics: command success rate, clarify rate, approval rate
-- [ ] **ai-e7** — Human-in-the-loop SLA — escalate stuck tasks to owner
-- [ ] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
-- [ ] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
+**Status:** Shipped. Backend: `npm run test:sprint25` (100% stmts/lines/branches on sprint25 util/plan/logic). Frontend: analytics + enterprise panels on AI Ops.
+
+- [x] **ai-e1** — Multi-location businesses — AI scoped by branch
+- [x] **ai-e3** — Role-based intent permissions (receptionist vs owner)
+- [x] **ai-e4** — Custom intent plugins per vertical (salon, clinic, fitness)
+- [x] **ai-e5** — A/B test suggestion copy and auto-execute thresholds
+- [x] **ai-e6** — Admin analytics: command success rate, clarify rate, approval rate
+- [x] **ai-e7** — Human-in-the-loop SLA — escalate stuck tasks to owner
+- [x] **ai-e8** — Customer-facing AI (public booking assistant) tied to same orchestration rules
+- [x] **gap-3.5** — Command success / clarify / approval analytics dashboard (see **ai-e6**)
 
 ### AI success metrics (Sprints 13–24)
 

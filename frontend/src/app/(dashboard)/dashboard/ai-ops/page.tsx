@@ -25,6 +25,12 @@ import {
 } from '@/components/ai-agent-workspaces';
 import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
 import { AiAuditLog } from '@/components/ai-audit-log';
+import { AiWeeklyReportPanel } from '@/components/ai-weekly-report-panel';
+import { AiAnalyticsPanel } from '@/components/ai-analytics-panel';
+import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-panel';
+import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
+import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
+import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
 
 function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
   for (const key of AI_MUTATION_QUERY_KEYS) {
@@ -271,6 +277,26 @@ export default function AiOpsPage() {
                       <PlanDiffPreview
                         steps={planDiff}
                         policyPreview={preview?.policyPreview ?? task.result?.policyPreview}
+                        policyExplain={preview?.policyExplain ?? task.result?.policyExplain}
+                      />
+                    )}
+
+                    {normalizeExecutionTimeline(
+                      preview?.executionTimeline ?? task.result?.executionTimeline ?? task.result?.steps,
+                    ).length > 0 && (
+                      <AiExecutionTimeline
+                        steps={normalizeExecutionTimeline(
+                          preview?.executionTimeline ??
+                            task.result?.executionTimeline ??
+                            task.result?.steps,
+                        )}
+                        taskId={task.id}
+                        onRetry={async (taskId, stepId) => {
+                          await api.post(
+                            `/businesses/${business!.id}/ai/command/tasks/${taskId}/steps/${stepId}/retry`,
+                          );
+                          queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+                        }}
                       />
                     )}
 
@@ -297,8 +323,21 @@ export default function AiOpsPage() {
         )}
       </div>
 
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AiAnalyticsPanel />
+        <AiWeeklyReportPanel />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <AiCommandMacrosPanel />
         <AiAutopilotSettings />
+      </div>
+
+      <div className="mt-8">
+        <AiEnterpriseSettingsPanel />
+      </div>
+
+      <div className="mt-8">
         <AiAuditLog />
       </div>
     </div>

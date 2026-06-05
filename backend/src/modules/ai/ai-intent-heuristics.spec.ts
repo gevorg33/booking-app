@@ -1,9 +1,12 @@
 import {
   extractProviderFallbackFromPrompt,
   extractServiceFromPrompt,
+  resolveCustomerMetric,
   extractRescheduleTargetDate,
   extractRescheduleSourceDate,
   extractRescheduleSourceTime,
+  extractRescheduleTargetTime,
+  parseAmPmClockTime,
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
@@ -45,6 +48,31 @@ describe('ai-intent-heuristics', () => {
         services,
       );
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('AM/PM reschedule parsing', () => {
+    it('parses 9 AM destination', () => {
+      expect(
+        extractRescheduleTargetTime("Move Maria's appointment to tomorrow at 9 AM", 'UTC'),
+      ).toBe('09:00');
+    });
+
+    it('parses 2:30 pm destination', () => {
+      expect(extractRescheduleTargetTime('Reschedule Jujo to Friday at 2:30 pm', 'UTC')).toBe(
+        '14:30',
+      );
+    });
+
+    it('parses move to tomorrow at 3pm', () => {
+      expect(
+        extractRescheduleTargetTime('Move the 16:00 appointment to tomorrow at 3pm', 'UTC'),
+      ).toBe('15:00');
+    });
+
+    it('normalizes noon and midnight via parseAmPmClockTime', () => {
+      expect(parseAmPmClockTime(12, 0, 'pm')).toBe('12:00');
+      expect(parseAmPmClockTime(12, 0, 'am')).toBe('00:00');
     });
   });
 
@@ -122,6 +150,16 @@ describe('ai-intent-heuristics', () => {
       expect(
         isBulkAllAppointmentsPrompt('cancel hot stone massage for gevorg on 01_06_2026'),
       ).toBe(false);
+    });
+  });
+
+  describe('resolveCustomerMetric', () => {
+    it('maps retention prompts to CRM metrics', () => {
+      expect(resolveCustomerMetric({}, 'Find customers with the most no-shows')).toBe(
+        'most_no_shows',
+      );
+      expect(resolveCustomerMetric({}, 'Re-engage inactive customers')).toBe('at_risk');
+      expect(resolveCustomerMetric({}, 'Show at-risk customers')).toBe('at_risk');
     });
   });
 

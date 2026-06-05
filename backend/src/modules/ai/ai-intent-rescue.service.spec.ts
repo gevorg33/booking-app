@@ -48,6 +48,35 @@ describe('AiIntentRescueService', () => {
     expect(result?.action).toBe('mark_no_shows');
   });
 
+  it('rescues no-show recovery and sick-day replan sprint24 intents', () => {
+    expect(
+      rescue.rescue({
+        prompt: 'Mark no-shows today, release slots, suggest rebooking messages',
+        action: 'unknown',
+        params: { date: '26_05_2026' },
+        employees,
+      })?.action,
+    ).toBe('no_show_recovery');
+
+    expect(
+      rescue.rescue({
+        prompt: 'Maria is sick — cancel her day and redistribute urgent bookings',
+        action: 'unknown',
+        params: { date: '26_05_2026' },
+        employees,
+      })?.action,
+    ).toBe('sick_day_replan');
+
+    expect(
+      rescue.rescue({
+        prompt: 'Raise all massage prices 10% from June 1',
+        action: 'unknown',
+        params: {},
+        employees,
+      })?.action,
+    ).toBe('update_service_prices');
+  });
+
   it('rescues schedule template creation', () => {
     const result = rescue.rescue({
       prompt: 'Create template Weekday 9-17 Mon-Fri',
@@ -108,6 +137,37 @@ describe('AiIntentRescueService', () => {
     expect(result?.action).toBe('create_booking');
     expect(result?.params.fallbackAnyProvider).toBe(true);
     expect(result?.params.providerFallbackNames?.length).toBeGreaterThan(0);
+  });
+
+  it('rescues sprint23 scheduling scenarios from unknown', () => {
+    expect(
+      rescue.rescue({
+        prompt: 'Swap Friday schedules between Gevorg and Maria',
+        action: 'unknown',
+        params: {},
+        employees,
+      })?.action,
+    ).toBe('swap_schedules');
+
+    expect(
+      rescue.rescue({
+        prompt: 'Move 2 facemassage slots from Gevorg to Maria on Friday',
+        action: 'unknown',
+        params: {},
+        employees,
+      })?.action,
+    ).toBe('rebalance_capacity');
+  });
+
+  it('disambiguates misclassified actions to sprint23 intents', () => {
+    const swap = rescue.rescue({
+      prompt: 'Swap Friday schedules between Gevorg and Maria',
+      action: 'apply_schedule',
+      params: { employeeNames: ['Gevorg Gasparyan', 'Mary Torgomyan'], date: '06/06/2026' },
+      employees,
+    });
+    expect(swap?.action).toBe('swap_schedules');
+    expect(swap?.rescueReason).toBe('sprint23_scheduling');
   });
 
   it('returns null when no rescue applies', () => {

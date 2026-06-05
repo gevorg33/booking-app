@@ -9,6 +9,10 @@ import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveDateRange } from './ai-orchestration.helpers.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
+import { isDashboardAiIntentAllowedByPlan } from '../billing/plan-dashboard-ai-intents.util.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AiSprint25Service } from './ai-sprint25.service.js';
 
 export interface AiSuggestion {
   id: string;
@@ -16,6 +20,8 @@ export interface AiSuggestion {
   title: string;
   prompt: string;
   category: 'schedule' | 'booking' | 'utilization' | 'conflict';
+  /** When set, suggestion is hidden if the business plan blocks this intent. */
+  intentHint?: string;
 }
 
 export interface AiSuggestionsContext {
@@ -40,6 +46,9 @@ export class AiSuggestionsService {
     @InjectRepository(BlockSchedule) private blockScheduleRepo: Repository<BlockSchedule>,
     @InjectRepository(ScheduleTemplate) private templateRepo: Repository<ScheduleTemplate>,
     private schedulingEngine: SchedulingEngineService,
+    private planEntitlements: PlanEntitlementsService,
+    private aiSettings: AiSettingsService,
+    private sprint25: AiSprint25Service,
   ) {}
 
   async getSuggestions(businessId: string, context?: AiSuggestionsContext): Promise<AiSuggestion[]> {
@@ -76,6 +85,7 @@ export class AiSuggestionsService {
         title: 'Apply schedule template for this week',
         prompt: `Apply "${template.name}" template to all providers this week`,
         category: 'schedule',
+        intentHint: 'apply_schedule',
       });
     }
 
@@ -106,6 +116,7 @@ export class AiSuggestionsService {
         title: 'Fill schedule gaps this week',
         prompt: `Fill gaps between 9-19:00 for ${names} this week`,
         category: 'schedule',
+        intentHint: 'fill_unused_slots',
       });
     }
 
@@ -116,6 +127,7 @@ export class AiSuggestionsService {
         title: `${conflicts.length} scheduling conflict(s) detected`,
         prompt: 'Resolve scheduling conflicts this week',
         category: 'conflict',
+        intentHint: 'resolve_conflicts',
       });
     }
 
@@ -133,6 +145,7 @@ export class AiSuggestionsService {
         title: `${cancelled} cancelled slot(s) this week`,
         prompt: 'Reassign cancelled appointments this week',
         category: 'booking',
+        intentHint: 'reassign_cancelled',
       });
     }
 
@@ -150,6 +163,7 @@ export class AiSuggestionsService {
         title: 'Low utilization detected',
         prompt: `Summarize utilization this week — who has the most gaps?`,
         category: 'utilization',
+        intentHint: 'summarize_utilization',
       });
     }
 
@@ -163,7 +177,21 @@ export class AiSuggestionsService {
       });
     }
 
-    return this.filterForContext(suggestions.slice(0, 6), context);
+    const entitlements = await this.planEntitlements.getEntitlements(businessId);
+    const planFiltered = suggestions.filter(
+      (s) =>
+        !s.intentHint ||
+        isDashboardAiIntentAllowedByPlan(entitlements.tierId, s.intentHint),
+    );
+
+    const filtered = this.filterForContext(planFiltered.slice(0, 6), context);
+    const settings = await this.aiSettings.getSettings(businessId);
+    const { suggestions: abSuggestions } = this.sprint25.applyAbToSuggestions(
+      businessId,
+      filtered,
+      settings,
+    );
+    return abSuggestions;
   }
 
   private filterForContext(suggestions: AiSuggestion[], context?: AiSuggestionsContext): AiSuggestion[] {

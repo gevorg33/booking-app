@@ -5,6 +5,7 @@ import { AgentTask } from './agent-task.entity.js';
 import { PlanStatus, type AgentPlanStep } from './interfaces/agent.interfaces.js';
 import { BookingService } from '../../modules/booking/booking.service.js';
 import { BlockScheduleService } from '../../modules/schedule/services/block-schedule.service.js';
+import { ScheduleService } from '../../modules/schedule/schedule.service.js';
 import { EmployeeService } from '../../modules/employee/employee.service.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
@@ -35,11 +36,11 @@ const UNDOABLE_ACTIONS = new Set([
   'reschedule_booking',
   'create_block_schedule',
   'assign_employee_services',
+  'create_direct_schedule',
 ]);
 
 const NON_UNDOABLE_ACTIONS = new Set([
   'clear_schedule',
-  'create_direct_schedule',
   'fill_schedule_gaps',
   'apply_template',
   'remove_block_schedule',
@@ -69,15 +70,28 @@ export interface AgentTaskUndoResult {
 @Injectable()
 export class AgentTaskUndoService {
   private readonly logger = new Logger(AgentTaskUndoService.name);
+  private readonly taskRepo: Repository<AgentTask>;
+  private readonly bookingService: BookingService;
+  private readonly blockScheduleService: BlockScheduleService;
+  private readonly scheduleService: ScheduleService;
+  private readonly employeeService: EmployeeService;
+  private readonly eventStore: EventStoreService;
 
   constructor(
-    @InjectRepository(AgentTask)
-    private taskRepo: Repository<AgentTask>,
-    private bookingService: BookingService,
-    private blockScheduleService: BlockScheduleService,
-    private employeeService: EmployeeService,
-    private eventStore: EventStoreService,
-  ) {}
+    @InjectRepository(AgentTask) taskRepo: Repository<AgentTask>,
+    bookingService: BookingService,
+    blockScheduleService: BlockScheduleService,
+    scheduleService: ScheduleService,
+    employeeService: EmployeeService,
+    eventStore: EventStoreService,
+  ) {
+    this.taskRepo = taskRepo;
+    this.bookingService = bookingService;
+    this.blockScheduleService = blockScheduleService;
+    this.scheduleService = scheduleService;
+    this.employeeService = employeeService;
+    this.eventStore = eventStore;
+  }
 
   async getLatestUndoPreview(businessId: string): Promise<AgentTaskUndoPreview | null> {
     const task = await this.findLatestUndoCandidate(businessId);
@@ -351,6 +365,20 @@ export class AgentTaskUndoService {
           throw new BadRequestException('Missing previous service assignment to restore');
         }
         await this.employeeService.update(employeeId, { serviceIds: previousServiceIds }, userId);
+        return;
+      }
+      case 'create_direct_schedule': {
+        const periodIds = result?.periodIds as string[] | undefined;
+        const slotIds = result?.slotIds as string[] | undefined;
+        if (!periodIds?.length && !slotIds?.length) {
+          throw new BadRequestException(
+            'Missing schedule period/slot snapshot — cannot undo this schedule change',
+          );
+        }
+        await this.scheduleService.revertCreatedSchedule(businessId, {
+          periodIds: periodIds ?? [],
+          slotIds: slotIds ?? [],
+        });
         return;
       }
       default:

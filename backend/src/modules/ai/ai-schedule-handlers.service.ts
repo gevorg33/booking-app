@@ -34,6 +34,11 @@ import { Business } from '../business/entities/business.entity.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
+import {
+  buildBlockScheduleBlockPayloads,
+  enhanceSmartBlockParams,
+} from './ai-sprint23.util.js';
+import { AiSprint23Service } from './ai-sprint23.service.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
@@ -43,6 +48,7 @@ export class AiScheduleHandlersService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
+    private sprint23: AiSprint23Service,
   ) {}
 
   private async resolveBusinessLocale(businessId: string): Promise<AppLocale> {
@@ -119,97 +125,19 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ): Promise<CommandResult> {
+    const plan = await this.prepareBlockSchedulePlan(businessId, prompt, params, employees, userId);
+    if (!plan) {
+      return {
+        success: false,
+        action: 'block_schedule',
+        summary: 'Specify service provider(s), when to block, and time window (or full day).',
+        details: { params },
+      };
+    }
     const allProviders =
       params.allProviders === true ||
       /all providers|everyone|all staff|all employees/i.test(prompt);
-
     const targets = allProviders ? employees : resolveEmployees(employees, params);
-    if (targets.length === 0) {
-      return {
-        success: false,
-        action: 'block_schedule',
-        summary: 'Specify service provider(s) or say "all providers".',
-        details: { params },
-      };
-    }
-
-    const range = resolveDateRange(params, prompt);
-    const fullDay = isFullDayBlock(params, prompt);
-    const window = parseTimeWindow(params, prompt, { timeFrom: '00:00', timeTo: '23:59' });
-    const applyDays = parseWeekdaysFromParams(params, prompt);
-    const placeholder = params.reason || params.notes || params.placeholder || 'Blocked';
-
-    const isRepetitive = !!range && range.start !== range.end && !fullDay && applyDays.length < 7;
-    const singleDate = range?.start ?? (params.date ? toIsoDay(params.date) : null);
-
-    if (!isRepetitive && !singleDate) {
-      return {
-        success: false,
-        action: 'block_schedule',
-        summary: 'Specify when to block (date, date range, or "this week").',
-        details: { params },
-      };
-    }
-
-    const blockPayloads = targets.map((employee) => {
-      if (fullDay && singleDate) {
-        const dayStart = `${singleDate}T00:00:00.000Z`;
-        const dayEnd = `${singleDate}T23:59:59.000Z`;
-        return {
-          employeeId: employee.id,
-          employeeName: employee.name,
-          isRepetitive: false,
-          placeholder,
-          singleBlock: { startTime: dayStart, endTime: dayEnd },
-        };
-      }
-
-      if (isRepetitive && range) {
-        return {
-          employeeId: employee.id,
-          employeeName: employee.name,
-          isRepetitive: true,
-          placeholder,
-          repetitiveBlock: {
-            startDay: range.start,
-            endDay: range.end,
-            startTime: normalizeTime24(window.timeFrom),
-            endTime: normalizeTime24(window.timeTo),
-            weeksCount: params.weeksCount ?? params.repeatWeeksCount ?? 1,
-            isActiveOnMonday: applyDays.includes(1),
-            isActiveOnTuesday: applyDays.includes(2),
-            isActiveOnWednesday: applyDays.includes(3),
-            isActiveOnThursday: applyDays.includes(4),
-            isActiveOnFriday: applyDays.includes(5),
-            isActiveOnSaturday: applyDays.includes(6),
-            isActiveOnSunday: applyDays.includes(0),
-          },
-        };
-      }
-
-      const iso = singleDate!;
-      const [sh, sm] = window.timeFrom.split(':').map(Number);
-      const [eh, em] = window.timeTo.split(':').map(Number);
-      const start = new Date(iso);
-      start.setUTCHours(sh, sm, 0, 0);
-      const end = new Date(iso);
-      end.setUTCHours(eh, em, 0, 0);
-
-      return {
-        employeeId: employee.id,
-        employeeName: employee.name,
-        isRepetitive: false,
-        placeholder,
-        singleBlock: { startTime: start.toISOString(), endTime: end.toISOString() },
-      };
-    });
-
-    const plan = this.planBuilder.buildBlockSchedulePlan({
-      businessId,
-      blocks: blockPayloads,
-      userId,
-    });
-
     return this.executePlan(plan, businessId, userId, targets.length);
   }
 
@@ -800,68 +728,43 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ) {
+    const enriched = enhanceSmartBlockParams(prompt, params);
     const allProviders =
-      params.allProviders === true ||
+      enriched.allProviders === true ||
       /all providers|everyone|all staff|all employees/i.test(prompt);
-    const targets = allProviders ? employees : resolveEmployees(employees, params);
+    const targets = allProviders ? employees : resolveEmployees(employees, enriched);
     if (!targets.length) return null;
-    const range = resolveDateRange(params, prompt);
-    const fullDay = isFullDayBlock(params, prompt);
-    const window = parseTimeWindow(params, prompt, { timeFrom: '00:00', timeTo: '23:59' });
-    const applyDays = parseWeekdaysFromParams(params, prompt);
-    const placeholder = params.reason || params.notes || params.placeholder || 'Blocked';
-    const isRepetitive = !!range && range.start !== range.end && !fullDay && applyDays.length < 7;
-    const singleDate = range?.start ?? (params.date ? toIsoDay(params.date) : null);
-    if (!isRepetitive && !singleDate) return null;
 
-    const blockPayloads = targets.map((employee) => {
-      if (fullDay && singleDate) {
-        const dayStart = `${singleDate}T00:00:00.000Z`;
-        const dayEnd = `${singleDate}T23:59:59.000Z`;
-        return {
-          employeeId: employee.id,
-          employeeName: employee.name,
-          isRepetitive: false,
-          placeholder,
-          singleBlock: { startTime: dayStart, endTime: dayEnd },
-        };
-      }
-      if (isRepetitive && range) {
-        return {
-          employeeId: employee.id,
-          employeeName: employee.name,
-          isRepetitive: true,
-          placeholder,
-          repetitiveBlock: {
-            startDay: range.start,
-            endDay: range.end,
-            startTime: normalizeTime24(window.timeFrom),
-            endTime: normalizeTime24(window.timeTo),
-            weeksCount: params.weeksCount ?? params.repeatWeeksCount ?? 1,
-            isActiveOnMonday: applyDays.includes(1),
-            isActiveOnTuesday: applyDays.includes(2),
-            isActiveOnWednesday: applyDays.includes(3),
-            isActiveOnThursday: applyDays.includes(4),
-            isActiveOnFriday: applyDays.includes(5),
-            isActiveOnSaturday: applyDays.includes(6),
-            isActiveOnSunday: applyDays.includes(0),
-          },
-        };
-      }
-      const iso = singleDate!;
-      const [sh, sm] = window.timeFrom.split(':').map(Number);
-      const [eh, em] = window.timeTo.split(':').map(Number);
-      const start = new Date(iso);
-      start.setUTCHours(sh, sm, 0, 0);
-      const end = new Date(iso);
-      end.setUTCHours(eh, em, 0, 0);
-      return {
-        employeeId: employee.id,
-        employeeName: employee.name,
-        isRepetitive: false,
-        placeholder,
-        singleBlock: { startTime: start.toISOString(), endTime: end.toISOString() },
-      };
+    const range = resolveDateRange(enriched, prompt);
+    const fullDay = isFullDayBlock(enriched, prompt);
+    const window = parseTimeWindow(enriched, prompt, { timeFrom: '00:00', timeTo: '23:59' });
+    const applyDays = parseWeekdaysFromParams(enriched, prompt);
+    const placeholder =
+      (enriched.reason as string | undefined) ||
+      (enriched.notes as string | undefined) ||
+      (enriched.placeholder as string | undefined) ||
+      'Blocked';
+    const isRepetitive =
+      !!range && range.start !== range.end && !fullDay && applyDays.length < 7;
+    const singleDate = range?.start ?? (enriched.date ? toIsoDay(String(enriched.date)) : null);
+    if (!isRepetitive && !singleDate && !(enriched.weeksCount || enriched.repeatWeeksCount)) {
+      return null;
+    }
+
+    const businessHolidays = await this.sprint23.resolveHolidayDatesForBusiness(businessId);
+    const paramHolidays = Array.isArray(enriched.holidayDates) ? enriched.holidayDates : [];
+    const holidayDates = [...new Set([...businessHolidays, ...paramHolidays.map(String)])];
+
+    const blockPayloads = buildBlockScheduleBlockPayloads({
+      targets,
+      params: enriched,
+      range,
+      fullDay,
+      window,
+      applyDays,
+      placeholder,
+      singleDate,
+      holidayDates,
     });
 
     return this.planBuilder.buildBlockSchedulePlan({

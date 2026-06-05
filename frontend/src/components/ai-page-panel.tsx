@@ -5,9 +5,13 @@ import { Sparkles } from 'lucide-react';
 import {
   setAiPageContext,
   clearAiPageContext,
-  getAiPageSuggestionGroups,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
+import type { OnboardingAiStep } from '@/lib/ai-onboarding.util';
+import {
+  aiPagePanelHasSuggestions,
+  resolveAiPagePanelGroups,
+} from '@/lib/ai-page-panel.util';
 import { useI18n } from '@/i18n';
 import { AiCollapsiblePanel, AiSuggestionGroupList } from '@/components/ai-suggestion-collapsible';
 
@@ -15,6 +19,7 @@ interface AiPagePanelProps {
   title?: string;
   suggestions?: string[];
   context?: AiPageContext;
+  onboardingStep?: OnboardingAiStep;
   onSelectPrompt?: (prompt: string) => void;
   className?: string;
 }
@@ -24,6 +29,7 @@ export function AiPagePanel({
   title,
   suggestions: suggestionsProp,
   context,
+  onboardingStep,
   onSelectPrompt,
   className = '',
 }: AiPagePanelProps) {
@@ -43,14 +49,14 @@ export function AiPagePanel({
     window.dispatchEvent(new CustomEvent('orchestrix:prompt', { detail: { prompt } }));
   };
 
-  const route = context?.route ?? '';
-  const groups = route
-    ? getAiPageSuggestionGroups(route, t)
-    : suggestionsProp?.length
-      ? [{ id: 'commands', label: t('ai.quickCommands'), items: suggestionsProp }]
-      : [];
+  const groups = resolveAiPagePanelGroups({
+    route: context?.route ?? '',
+    onboardingStep,
+    suggestions: suggestionsProp,
+    t,
+  });
 
-  if (groups.every((g) => g.items.length === 0)) return null;
+  if (!aiPagePanelHasSuggestions(groups)) return null;
 
   return (
     <AiCollapsiblePanel

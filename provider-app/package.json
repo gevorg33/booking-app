@@ -16,7 +16,10 @@
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:locale-dates": "vitest run src/lib/date-format.spec.ts",
-    "test:provider-i18n": "vitest run --config vitest.provider-i18n.config.ts"
+    "test:provider-i18n": "vitest run --config vitest.provider-i18n.config.ts",
+    "test:sprint19": "vitest run --config vitest.sprint19.config.ts --coverage",
+    "test:sprint20": "vitest run --config vitest.sprint20.config.ts --coverage",
+    "test:sprint21": "vitest run --config vitest.sprint21.config.ts --coverage"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

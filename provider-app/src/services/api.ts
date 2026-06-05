@@ -1,11 +1,10 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
+import { flushQueue } from '../lib/offline-queue';
 import {
-  enqueueMutation,
-  flushQueue,
-  isNetworkError,
-  isOfflineMutation,
-} from '../lib/offline-queue';
+  shouldReplayOfflineQueue,
+  tryQueueOfflineAxiosError,
+} from '../lib/provider-api-offline.util';
 import { attachOperationFeedbackToAxios } from '../lib/operation-feedback';
 
 /** Android emulator uses 10.0.2.2; physical devices need your Mac LAN IP in VITE_API_URL. */
@@ -30,7 +29,7 @@ type OfflineAxiosConfig = {
 };
 
 async function replayOfflineQueue(): Promise<void> {
-  if (typeof window === 'undefined' || !navigator.onLine) return;
+  if (!shouldReplayOfflineQueue()) return;
   await flushQueue(async (item) => {
     await api.request({
       method: item.method,
@@ -57,27 +56,8 @@ api.interceptors.response.use(
     const url = config?.url ?? '';
     const isAuth = ['/auth/login', '/auth/google', '/auth/forgot-password'].some((p) => url.includes(p));
 
-    if (
-      config &&
-      !config.__offlineReplay &&
-      !config.__offlineQueued &&
-      isOfflineMutation(config.method) &&
-      isNetworkError(error)
-    ) {
-      enqueueMutation({
-        method: config.method ?? 'post',
-        url: config.url ?? '',
-        data: config.data,
-      });
-      config.__offlineQueued = true;
-      return {
-        data: { queued: true, offline: true },
-        status: 202,
-        statusText: 'Queued Offline',
-        headers: {},
-        config,
-      };
-    }
+    const queued = tryQueueOfflineAxiosError(error);
+    if (queued) return queued;
 
     if (error.response?.status === 401 && !isAuth) {
       localStorage.removeItem('token');

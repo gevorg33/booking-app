@@ -5,6 +5,11 @@ import { AiCommandController } from './ai-command.controller.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { AiSprint23Service } from './ai-sprint23.service.js';
+import { AiSprint24Service } from './ai-sprint24.service.js';
+import { AiSprint25Service } from './ai-sprint25.service.js';
+import { AiSprint25Scheduler } from './ai-sprint25.scheduler.js';
+import { AgentTask } from '../../engine/agent/agent-task.entity.js';
 import { AiSuggestionsService } from './ai-suggestions.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { Booking } from '../booking/entities/booking.entity.js';
@@ -37,7 +42,9 @@ import { ReactResultCompilerService } from './react-result-compiler.service.js';
 import { AiGatewayService } from './ai-gateway.service.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
+import { AiRagService } from './ai-rag.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
+import { AiWeeklyReportService } from './ai-weekly-report.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
@@ -58,15 +65,16 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
       ScheduleTemplate,
       BlockSchedule,
       Business,
+      AgentTask,
     ]),
-    BookingModule,
-    AgentModule,
+    forwardRef(() => BookingModule),
+    forwardRef(() => AgentModule),
     SchedulingEngineModule,
     OpenAiModule,
     WebSocketModule,
     EventStoreModule,
     CustomerModule,
-    LangGraphModule,
+    forwardRef(() => LangGraphModule),
     forwardRef(() => ProviderMobileModule),
   ],
   controllers: [AiCommandController],
@@ -75,6 +83,10 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     CommandOrchestrationService,
     OperationalPlanBuilderService,
     AiScheduleHandlersService,
+    AiSprint23Service,
+    AiSprint24Service,
+    AiSprint25Service,
+    AiSprint25Scheduler,
     AiSuggestionsService,
     CommandCompletionPipelineService,
     AiEventsService,
@@ -90,13 +102,16 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
     AiGatewayService,
     AiEntityMemoryService,
     AiConversationSummaryService,
+    AiRagService,
     AiIntelligenceService,
+    AiWeeklyReportService,
     CommandComplexityRouterService,
     AiIntentRescueService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
   ],
   exports: [
+    AiSprint25Service,
     CommandCompletionPipelineService,
     AiEventsService,
     AiSuggestionsService,

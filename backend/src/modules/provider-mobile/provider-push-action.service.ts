@@ -5,6 +5,10 @@ import { Booking, BookingStatus, PaymentStatus } from '../booking/entities/booki
 import { BookingService } from '../booking/booking.service.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
+import {
+  buildNewBookingAiPrompt,
+  buildNewBookingForegroundHint,
+} from './provider-push-payload.util.js';
 
 export interface PushActionPayload {
   actionId: 'confirm' | 'mark_paid' | 'suggest_reschedule';
@@ -92,7 +96,13 @@ export class ProviderPushActionService {
     bookingId: string,
     title: string,
     body: string,
+    options?: { timeLabel?: string; customerName?: string },
   ): Promise<number> {
+    const timeLabel = options?.timeLabel?.trim();
+    const customerName = options?.customerName?.trim() ?? '';
+    const aiPrompt = timeLabel ? buildNewBookingAiPrompt(timeLabel, customerName) : undefined;
+    const foregroundHint = timeLabel ? buildNewBookingForegroundHint(timeLabel) : undefined;
+
     return this.pushService.sendToUser(userId, businessId, {
       title,
       body,
@@ -104,6 +114,9 @@ export class ProviderPushActionService {
       ],
       bookingId,
       businessId,
+      pushType: 'booking_created',
+      aiPrompt,
+      foregroundHint,
     });
   }
 }

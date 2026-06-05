@@ -21,6 +21,8 @@ import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
 import { resolveLocale, t, localeLanguageInstruction, type AppLocale } from '../../common/i18n/messages.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
 import { BookingSlotResolverService } from '../booking/booking-slot-resolver.service.js';
+import { AiSprint25Service } from '../ai/ai-sprint25.service.js';
+import { AiSettingsService } from '../ai/ai-settings.service.js';
 import {
   fuzzyMatchServiceByName,
   inferServiceGroupLabel,
@@ -110,6 +112,8 @@ export class PublicBookingAssistantService {
     private businessService: BusinessService,
     private openAi: OpenAiGatewayService,
     private slotResolver: BookingSlotResolverService,
+    private sprint25: AiSprint25Service,
+    private aiSettings: AiSettingsService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -125,6 +129,13 @@ export class PublicBookingAssistantService {
   ): Promise<PublicAssistantResult> {
     const business = await this.businessService.findBySlug(slug);
     const locale = resolveLocale(session?.locale, resolveLocale(business.settings?.locale, 'en'));
+    const aiConfig = await this.aiSettings.getSettings(business.id);
+    const businessType = business.settings?.businessType as string | undefined;
+    const orchestratedSession = this.sprint25.enrichPublicSession(
+      session?.context,
+      businessType,
+      aiConfig,
+    );
 
     if (!(await this.openAi.isAvailableForBusiness(business.id))) {
       return {
@@ -150,7 +161,14 @@ Providers: ${employees.map((e) => {
     }).join(', ') || 'none'}
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(business.id, prompt, contextBlock, session?.history, session?.context, locale);
+    const parsed = await this.classifyIntent(
+      business.id,
+      prompt,
+      contextBlock,
+      session?.history,
+      orchestratedSession,
+      locale,
+    );
     if (!parsed) {
       return {
         success: false,
@@ -159,7 +177,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    parsed.params = this.mergeSessionContext(parsed.params, session?.context, parsed.action);
+    const gateDenied = this.sprint25.gatePublicAction(parsed.action);
+    if (gateDenied) {
+      return {
+        success: false,
+        action: gateDenied.action,
+        summary: gateDenied.summary,
+      };
+    }
+
+    parsed.params = this.mergeSessionContext(parsed.params, orchestratedSession, parsed.action);
     this.normalizeDateParams(parsed.params, todayKey);
 
     this.logger.log(`Public assistant action="${parsed.action}" — ${parsed.reasoning}`);
@@ -203,7 +230,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
     }
 
-    return this.attachSession(result, parsed.params, employees, locale);
+    const final = this.attachSession(result, parsed.params, employees, locale);
+    void this.sprint25.recordCommandOutcome({
+      businessId: business.id,
+      result: final as unknown as Record<string, unknown>,
+      surface: 'public',
+      locationId: typeof orchestratedSession.locationId === 'string'
+        ? orchestratedSession.locationId
+        : undefined,
+    });
+    return final;
   }
 
   private async handleListProviders(slug: string, params: any, locale: AppLocale): Promise<PublicAssistantResult> {

@@ -95,6 +95,12 @@ export function getLimitsForTier(tierId: PlanTierId): PlanLimits {
   return PLAN_LIMITS[tierId];
 }
 
+export {
+  SOLO_DENIED_DASHBOARD_AI_INTENTS,
+  getPlanDeniedDashboardIntents,
+  isDashboardAiIntentAllowedByPlan,
+} from './plan-dashboard-ai-intents.util.js';
+
 export type PlanLimitKind = 'provider_seats' | 'ai_commands' | PlanFeatureFlag;
 
 export const PLAN_LIMIT_MESSAGES: Record<PlanLimitKind, string> = {

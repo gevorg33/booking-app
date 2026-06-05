@@ -7,9 +7,13 @@ const PROVIDER_VALIDATED_ACTIONS = new Set([
   'mark_no_shows',
   'payment_sweep',
   'list_bookings',
+  'show_appointments',
   'summarize_day',
   'reschedule_booking',
   'fill_unused_slots',
+  'check_availability',
+  'block_schedule',
+  'summarize_utilization',
 ]);
 
 export function shouldValidateProviderAction(action: string): boolean {
@@ -84,7 +88,27 @@ const PROVIDER_ACTION_RULES: Record<string, (params: Record<string, unknown>) =>
         }],
 
   list_bookings: () => [],
+  show_appointments: () => [],
   summarize_day: () => [],
+  check_availability: (params) =>
+    params.date || params.timeSlot || params.timeFrom
+      ? []
+      : [{
+          field: 'date',
+          label: 'When',
+          message: 'Specify which day to check',
+          example: 'Any open slots this afternoon?',
+        }],
+  block_schedule: (params) =>
+    params.date || params.dateFrom || params.timeFrom
+      ? []
+      : [{
+          field: 'date',
+          label: 'When',
+          message: 'Specify when to block time',
+          example: 'Block lunch 12:00–13:00 today',
+        }],
+  summarize_utilization: () => [],
 
   reschedule_booking: (params) => {
     const hasTarget =

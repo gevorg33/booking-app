@@ -53,6 +53,10 @@ export enum EventType {
   AGENT_PLAN_APPROVED = 'agent.plan.approved',
   AGENT_PLAN_COMPLETED = 'agent.plan.completed',
   AGENT_PLAN_UNDONE = 'agent.plan.undone',
+
+  // AI enterprise analytics (Sprint 25)
+  AI_COMMAND_RECORDED = 'ai.command.recorded',
+  AI_TASK_ESCALATED = 'ai.task.escalated',
 }
 
 export interface DomainEvent {

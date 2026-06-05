@@ -196,9 +196,9 @@ describe('ai-prompt-i18n detection', () => {
         expect(promptMentionsServiceType(prompt)).toBe(true);
       });
 
-      it('preserves Armenian service term in classifier fallback context', () => {
+      it('preserves Armenian service term in classifier multilingual context', () => {
         const prompt = SERVICE_TYPE_COMMANDS.hy.massage;
-        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'fallback');
+        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'multilingual');
         expect(ctx).toContain('մասաժ');
       });
     });
@@ -238,9 +238,9 @@ describe('ai-prompt-i18n detection', () => {
         );
       });
 
-      it('preserves Russian service term in classifier fallback context', () => {
+      it('preserves Russian service term in classifier multilingual context', () => {
         const prompt = SERVICE_TYPE_COMMANDS.ru.haircut;
-        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'fallback');
+        const ctx = buildMultilingualClassifierContext(prompt, prompt, 'multilingual');
         expect(ctx).toMatch(/стрижк/i);
       });
     });
@@ -271,26 +271,24 @@ describe('ai-prompt-i18n detection', () => {
       ).toBeNull();
     });
 
-    it('includes original and normalized after LLM', () => {
+    it('includes multilingual hint for Armenian commands', () => {
       const original = COMPLEX_COMMANDS.hy.showWithFilters;
-      const normalized = 'Show all confirmed facemassage appointments for Gevorg Gasparyan this week';
-      const ctx = buildMultilingualClassifierContext(original, normalized, 'llm');
-      expect(ctx).toContain('User command (original)');
-      expect(ctx).toContain('Normalized for classification');
-      expect(ctx).toContain('Gevorg');
-      expect(ctx).toContain(normalized);
+      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
+      expect(ctx).toContain('Armenian/Russian');
+      expect(ctx).toContain('Գևորգ');
+      expect(ctx).toContain(original);
     });
 
-    it('includes fallback hint for untranslated Armenian', () => {
+    it('includes multilingual hint for bulk cancel Armenian', () => {
       const original = COMPLEX_COMMANDS.hy.bulkCancelRange;
-      const ctx = buildMultilingualClassifierContext(original, original, 'fallback');
+      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
       expect(ctx).toContain('Armenian/Russian');
       expect(ctx).toContain(original);
     });
 
-    it('includes fallback hint for complex Russian reschedule', () => {
+    it('includes multilingual hint for complex Russian reschedule', () => {
       const original = COMPLEX_COMMANDS.ru.reschedule;
-      const ctx = buildMultilingualClassifierContext(original, original, 'fallback');
+      const ctx = buildMultilingualClassifierContext(original, original, 'multilingual');
       expect(ctx).toContain('Марии');
       expect(ctx).toContain('hot stone massage');
     });

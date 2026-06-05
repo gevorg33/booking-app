@@ -67,6 +67,20 @@ export function extractStatusFiltersFromPrompt(prompt: string): string[] {
   return [...found];
 }
 
+/** Parse hour + optional minutes with am/pm into 24h HH:mm. */
+export function parseAmPmClockTime(
+  hour: number,
+  minute: number | undefined,
+  ampm: string,
+): string {
+  const isPm = /^p/i.test(ampm.trim());
+  let h = hour;
+  if (isPm && h !== 12) h += 12;
+  if (!isPm && h === 12) h = 0;
+  const m = minute ?? 0;
+  return normalizeTime24(`${h}:${String(m).padStart(2, '0')}`);
+}
+
 export function extractHideLimitFromPrompt(prompt: string): number | null {
   const lower = prompt.toLowerCase();
   if (/\b(one|single|a)\s+(appointment|booking)\b/i.test(lower)) return 1;
@@ -84,15 +98,13 @@ export function extractTimeSlotFromPrompt(prompt: string): string | null {
   const bare24 = prompt.match(/\b(\d{1,2}):(\d{2})\b/);
   if (bare24) return normalizeTime24(`${bare24[1]}:${bare24[2]}`);
 
-  const pm = prompt.match(/\b(?:at\s+)?(\d{1,2})\s*(?:pm|p\.m\.)\b/i);
-  if (pm) {
-    const h = parseInt(pm[1], 10);
-    return normalizeTime24(`${h === 12 ? 12 : h + 12}:00`);
-  }
-  const am = prompt.match(/\b(?:at\s+)?(\d{1,2})\s*(?:am|a\.m\.)\b/i);
-  if (am) {
-    const h = parseInt(am[1], 10);
-    return normalizeTime24(`${h === 12 ? 0 : h}:00`);
+  const amPm = prompt.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i);
+  if (amPm) {
+    return parseAmPmClockTime(
+      parseInt(amPm[1], 10),
+      amPm[2] != null ? parseInt(amPm[2], 10) : undefined,
+      amPm[3],
+    );
   }
 
   const atHourOnly = prompt.match(/\b(?:at|@)\s*(\d{1,2})\b(?!\s*:\d)/i);
@@ -105,6 +117,17 @@ export function extractTimeSlotFromPrompt(prompt: string): string | null {
 }
 
 export function extractRescheduleTimeSlotFromPrompt(prompt: string): string | null {
+  const toAmPm = prompt.match(
+    /\bto\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i,
+  );
+  if (toAmPm) {
+    return parseAmPmClockTime(
+      parseInt(toAmPm[1], 10),
+      toAmPm[2] != null ? parseInt(toAmPm[2], 10) : undefined,
+      toAmPm[3],
+    );
+  }
+
   const toAt = prompt.match(/\bto\s+(?:at\s+)?(\d{1,2}):(\d{2})\b/i);
   if (toAt) return normalizeTime24(`${toAt[1]}:${toAt[2]}`);
 
@@ -277,12 +300,32 @@ export function extractRescheduleTargetTime(prompt: string): string | null {
   if (toDayTime) return normalizeTime24(`${toDayTime[1]}:${toDayTime[2] ?? '00'}`);
 
   const toDayFrom = prompt.match(
-    /\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+(?:from|at)\s+(\d{1,2})(?::(\d{2}))?\b/i,
+    /\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+(?:from|at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\b/i,
   );
-  if (toDayFrom) return normalizeTime24(`${toDayFrom[1]}:${toDayFrom[2] ?? '00'}`);
+  if (toDayFrom) {
+    if (toDayFrom[3]) {
+      return parseAmPmClockTime(
+        parseInt(toDayFrom[1], 10),
+        toDayFrom[2] != null ? parseInt(toDayFrom[2], 10) : undefined,
+        toDayFrom[3],
+      );
+    }
+    return normalizeTime24(`${toDayFrom[1]}:${toDayFrom[2] ?? '00'}`);
+  }
 
   const toAt = extractRescheduleTimeSlotFromPrompt(prompt);
   if (toAt) return toAt;
+
+  const moveToAmPm = prompt.match(
+    /\b(?:move|reschedule|shift)\b[^.]{0,120}?\bto\b[^.]{0,80}?\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i,
+  );
+  if (moveToAmPm) {
+    return parseAmPmClockTime(
+      parseInt(moveToAmPm[1], 10),
+      moveToAmPm[2] != null ? parseInt(moveToAmPm[2], 10) : undefined,
+      moveToAmPm[3],
+    );
+  }
 
   if (/\breschedule\s+(?:to\s+)?from\s+(\d{1,2})(?::(\d{2}))?\b/i.test(prompt)) {
     const m = prompt.match(/\breschedule\s+(?:to\s+)?from\s+(\d{1,2})(?::(\d{2}))?\b/i);
@@ -847,6 +890,7 @@ export function resolveCustomerMetric(
   if (/new customers?|recent customers?|first.?time|never booked/i.test(lower)) return 'new_customers';
   if (/high no[\s-]?show|no[\s-]?show rate/i.test(lower)) return 'high_no_show';
   if (/no[\s-]?show|no show/i.test(lower)) return 'most_no_shows';
+  if (/re[\s-]?engage|win[\s-]?back/i.test(lower)) return 'at_risk';
   if (/at[\s-]?risk|churn|inactive|not been back|haven't been|lapsed/i.test(lower)) return 'at_risk';
   if (/cancel/i.test(lower)) return 'most_cancellations';
   if (/vip|loyal/i.test(lower)) return 'vip';

@@ -15,6 +15,8 @@ import {
   extractPaymentStatusFromPrompt,
 } from './ai-intent-heuristics.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { isCapacityRebalancePrompt, rescueSprint23Intent } from './ai-sprint23.util.js';
+import { rescueSprint24Intent } from './ai-sprint24.util.js';
 
 export interface IntentRescueInput {
   prompt: string;
@@ -50,6 +52,8 @@ const READ_ONLY_ACTIONS = new Set([
   'list_schedule_gaps',
   'summarize_utilization',
   'summarize_customers',
+  'check_schedule_compliance',
+  'revenue_forecast',
 ]);
 
 @Injectable()
@@ -61,7 +65,26 @@ export class AiIntentRescueService {
     if (action !== 'unknown') {
       const disambiguated = this.disambiguateMisclassified(prompt, action, params, employees);
       if (disambiguated) return disambiguated;
+      const sprint23 = this.tryRescueSprint23(prompt, action, params);
+      if (sprint23) return sprint23;
+      const sprint24 = this.tryRescueSprint24(prompt, action, params);
+      if (sprint24) return sprint24;
       return null;
+    }
+
+    const sprint23Unknown = this.tryRescueSprint23(prompt, action, params);
+    if (sprint23Unknown) return sprint23Unknown;
+    const sprint24Unknown = this.tryRescueSprint24(prompt, action, params);
+    if (sprint24Unknown) return sprint24Unknown;
+
+    if (isCapacityRebalancePrompt(prompt)) {
+      return {
+        action: 'rebalance_capacity',
+        params,
+        reasoning: 'Move booked capacity between providers.',
+        rescued: true,
+        rescueReason: 'rebalance_capacity_pattern',
+      };
     }
 
     if (isClearSchedulePrompt(prompt)) {
@@ -161,7 +184,10 @@ export class AiIntentRescueService {
       };
     }
 
-    if (/\b(reschedule|move|change time|shift)\b/i.test(prompt)) {
+    if (
+      /\b(reschedule|move|change time|shift)\b/i.test(prompt) &&
+      !/\bmove\s+\d+\s+.+(?:slot|appointment)/i.test(prompt)
+    ) {
       const rescuedParams = { ...params };
       if (isFirstAvailableBookingPrompt(prompt)) {
         rescuedParams.bookingFirstAvailable = true;
@@ -286,12 +312,51 @@ export class AiIntentRescueService {
     return null;
   }
 
+  private tryRescueSprint23(
+    prompt: string,
+    action: string,
+    params: Record<string, any>,
+  ): IntentRescueResult | null {
+    const rescued = rescueSprint23Intent(prompt, action, params);
+    if (!rescued) return null;
+    const paramsChanged = JSON.stringify(rescued.params) !== JSON.stringify(params);
+    if (rescued.action === action && !paramsChanged) return null;
+    return {
+      action: rescued.action,
+      params: rescued.params,
+      rescued: true,
+      rescueReason: 'sprint23_scheduling',
+    };
+  }
+
+  private tryRescueSprint24(
+    prompt: string,
+    action: string,
+    params: Record<string, any>,
+  ): IntentRescueResult | null {
+    const rescued = rescueSprint24Intent(prompt, action, params);
+    if (!rescued) return null;
+    const paramsChanged = JSON.stringify(rescued.params) !== JSON.stringify(params);
+    if (rescued.action === action && !paramsChanged) return null;
+    return {
+      action: rescued.action,
+      params: rescued.params,
+      rescued: true,
+      rescueReason: 'sprint24_booking_ops',
+    };
+  }
+
   private disambiguateMisclassified(
     prompt: string,
     action: string,
     params: Record<string, any>,
     employees: Array<{ id: string; name: string }>,
   ): IntentRescueResult | null {
+    const sprint23 = this.tryRescueSprint23(prompt, action, params);
+    if (sprint23) return sprint23;
+    const sprint24 = this.tryRescueSprint24(prompt, action, params);
+    if (sprint24) return sprint24;
+
     const lower = prompt.toLowerCase();
 
     if (

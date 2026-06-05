@@ -17,6 +17,7 @@ import { ProviderMobileService } from './provider-mobile.service.js';
 import { PushService } from './push.service.js';
 import { SubscribePushDto, RegisterNativePushDto, UpdateProviderBookingDto, CancelProviderBookingDto, SuggestCancelNoteDto } from './dto/provider-mobile.dto.js';
 import { ProviderAiCommandDto, ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
+import { AiGatewayService } from '../ai/ai-gateway.service.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
@@ -27,6 +28,7 @@ export class ProviderMobileController {
   constructor(
     private providerService: ProviderMobileService,
     private pushService: PushService,
+    private aiGateway: AiGatewayService,
     private providerAi: ProviderAiCommandService,
     private providerAiSuggestions: ProviderAiSuggestionsService,
     private pushActions: ProviderPushActionService,
@@ -37,19 +39,31 @@ export class ProviderMobileController {
     return this.providerService.getContext(businessId, user.id);
   }
 
+  @Get('ai/capabilities')
+  getAiCapabilities(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string; membershipRole?: string },
+  ) {
+    return this.aiGateway.getCapabilities(businessId, 'provider', user.membershipRole);
+  }
+
   @Post('ai/command')
   runAiCommand(
     @Param('businessId') businessId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { id: string; membershipRole?: string; employeeId?: string },
     @Body() dto: ProviderAiCommandDto,
   ) {
-    return this.providerAi.executeCommand(
+    return this.aiGateway.execute({
+      surface: 'provider',
       businessId,
-      user.id,
-      dto.prompt,
-      dto.history,
-      dto.context,
-    );
+      prompt: dto.prompt,
+      userId: user.id,
+      membershipRole: user.membershipRole,
+      employeeId: user.employeeId ?? null,
+      history: dto.history,
+      context: dto.context,
+      confirmed: dto.context?.confirmed === true,
+    });
   }
 
   @Post('ai/command/confirm')

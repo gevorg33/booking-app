@@ -31,6 +31,41 @@ import { CommandOrchestrationService } from '../ai/command-orchestration.service
 import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
+import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
+import { resolveDateRange } from '../ai/ai-orchestration.helpers.js';
+import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
+import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import {
+  buildAfternoonAvailabilityResult,
+  buildGapsAvailabilityResult,
+  buildNoLinkedEmployeeAvailabilityResult,
+  buildProviderBookingsListResult,
+  buildSlotAvailabilityResult,
+  buildUtilizationSummaryResult,
+  defaultUtilizationWeekRange,
+  filterBookingsForProviderList,
+  mapScheduleGapLabels,
+  mergeShowAppointmentsParams,
+  prepareBlockScheduleParams,
+  resolveAvailabilityDayBounds,
+  resolveAvailabilityTimeWindow,
+  resolveStatusFilter,
+  shouldUseAfternoonAvailability,
+} from './provider-ai-sprint19.util.js';
+import {
+  applyProviderEntityMemory,
+  buildCoordinateWaitlistConfirmation,
+  buildProviderClassifierAppendix,
+  buildProviderSessionContextBlock,
+  formatProviderHistoryBlock,
+  matchEmployeeByName,
+  matchWaitlistCustomerByName,
+  rescueCoordinationIntent,
+} from './provider-ai-sprint22.util.js';
+import { buildCoordinationDeniedSummary, canRunCoordinationOnProvider } from '../ai/ai-coordination.util.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -53,9 +88,11 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "unknown",
   "params": {
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
+    "waitlistCustomerName": "string or null — waitlist customer to offer freed slot (e.g. John)",
+    "employeeName": "string or null — provider name for team coordination (e.g. Maria)",
     "serviceName": "string or null — service type filter",
     "date": "DD/MM/YYYY or null — resolve relative dates from today",
     "dateFrom": "DD/MM/YYYY or null",
@@ -63,7 +100,8 @@ Classify the user's command and extract parameters. Return JSON:
     "timeSlot": "HH:MM 24h or null — appointment start time (e.g. 13:00)",
     "timeFrom": "HH:MM or null — gap fill window start",
     "timeTo": "HH:MM or null — gap fill window end",
-    "status": "completed | in_progress | no_show | confirmed | pending | null",
+    "status": "completed | in_progress | no_show | confirmed | pending | null — filter for show_appointments / list_bookings",
+    "statusFilter": "upcoming | completed | cancelled | no_show | null — for show_appointments",
     "paymentStatus": "paid | pending | refunded | not_applicable | null",
     "reason": "string or null — cancellation reason or note",
     "allAppointments": true or false — true when user says all/every appointment for the day
@@ -81,9 +119,13 @@ Rules:
 - update_bookings: change status and/or payment status without cancelling (single appointment or explicit customer/time).
 - mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
 - payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
-- list_bookings / summarize_day: view-only; no mutations.
+- list_bookings / show_appointments / summarize_day: view-only; no mutations. show_appointments supports serviceName and status/statusFilter.
+- check_availability: READ-ONLY — open slots and schedule blocks for own calendar (managers may query team when scoped).
+- block_schedule: block lunch/break on own calendar only for providers; managers may block team when allowed.
+- summarize_utilization: READ-ONLY utilization % for date range — own stats for providers; team summary for managers.
 - reschedule_booking: move an appointment to a new time (own bookings only unless team view).
 - fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
+- coordinate_waitlist_offer: manager team view — cancel provider appointment and offer slot to waitlist customer (e.g. "If Maria cancels, offer slot to waitlist customer John").
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
 - Default date to today when the user says "today" or gives no date for today's context.
 - If unclear, use action "unknown".`;
@@ -102,7 +144,10 @@ export class ProviderAiCommandService {
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    @InjectRepository(SchedulingPeriod) private periodRepo: Repository<SchedulingPeriod>,
     private bookingService: BookingService,
+    private schedulingEngine: SchedulingEngineService,
     private llm: LlmService,
     private providerMobile: ProviderMobileService,
     private completionPipeline: CommandCompletionPipelineService,
@@ -165,6 +210,7 @@ export class ProviderAiCommandService {
       parsed.params as Record<string, any>,
       context,
     ) as Record<string, unknown>;
+    parsed.params = applyProviderEntityMemory(parsed.params, prompt, context);
     this.completionPipeline.normalizeDateParams(parsed.params as Record<string, any>);
 
     if (shouldValidateProviderAction(parsed.action)) {
@@ -186,7 +232,8 @@ export class ProviderAiCommandService {
     }
 
     this.normalizeParams(parsed.params);
-    parsed.action = this.rescueProviderIntent(prompt, parsed.action);
+    parsed.action = rescueProviderAiIntent(prompt, parsed.action);
+    parsed.action = rescueCoordinationIntent(prompt, parsed.action);
 
     if (!isIntentAllowed('provider', actorTier, parsed.action)) {
       return {
@@ -251,12 +298,33 @@ export class ProviderAiCommandService {
       case 'fill_unused_slots':
         result = await this.handleFillUnusedSlots(businessId, access, prompt, parsed.params, userId);
         break;
+      case 'show_appointments':
+        result = await this.handleShowAppointments(businessId, access, prompt, parsed.params);
+        break;
+      case 'check_availability':
+        result = await this.handleCheckAvailability(businessId, access, prompt, parsed.params);
+        break;
+      case 'block_schedule':
+        result = await this.handleBlockSchedule(businessId, access, prompt, parsed.params, userId);
+        break;
+      case 'summarize_utilization':
+        result = await this.handleSummarizeUtilization(businessId, access, prompt, parsed.params);
+        break;
+      case 'coordinate_waitlist_offer':
+        result = await this.handleCoordinateWaitlistOffer(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+          context?.confirmed === true,
+        );
+        break;
       default:
         result = {
           success: false,
           action: 'unknown',
           summary:
-            'I can cancel appointments, reschedule, fill schedule gaps, mark no-shows, run payment sweeps, mark them done, update payment status, or show your schedule. Try: "Mark no-shows for today" or "Payment sweep for today".',
+            'I can show your schedule, check availability, block breaks, summarize utilization, cancel or reschedule, fill gaps, mark no-shows, run payment sweeps, or update appointments. Try: "Who\'s next?" or "Mark all today paid".',
           details: {},
         };
     }
@@ -365,19 +433,13 @@ export class ProviderAiCommandService {
 Logged-in user: ${providerName}
 View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appointments' : ' — own appointments only'}`;
 
-    const sessionBlock =
-      sessionContext && Object.values(sessionContext).some((v) => v != null && v !== '')
-        ? `\nActive session context:\n${JSON.stringify(sessionContext, null, 2)}`
-        : '';
-
-    const historyText = (history ?? [])
-      .slice(-8)
-      .map((m) => `${m.role}: ${m.content}`)
-      .join('\n');
+    const intelligenceBlock = buildProviderClassifierAppendix(sessionContext);
+    const sessionBlock = buildProviderSessionContextBlock(sessionContext);
+    const historyBlock = formatProviderHistoryBlock(history);
 
     const result = await this.llm.completeJson<ParsedIntent>(
       businessId,
-      `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${sessionBlock}${historyText ? `\nRecent conversation:\n${historyText}` : ''}`,
+      `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${intelligenceBlock}${sessionBlock}${historyBlock}`,
       prompt,
       {
         surface: 'provider_mobile',
@@ -486,17 +548,6 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       return resolveAccessTier(access.membershipRole);
     }
     return 'staff';
-  }
-
-  private rescueProviderIntent(prompt: string, action: string): string {
-    const lower = prompt.toLowerCase();
-    if (/payment\s+sweep|mark\s+unpaid|collect\s+outstanding|outstanding\s+payments?/.test(lower)) {
-      return 'payment_sweep';
-    }
-    if (/mark\s+no[\s-]?shows?|no[\s-]?shows?\s+for/.test(lower) && !/cancel/.test(lower)) {
-      return 'mark_no_shows';
-    }
-    return action;
   }
 
   private async handleMarkNoShows(
@@ -665,24 +716,283 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     access: MobileAccess,
     params: Record<string, unknown>,
   ): Promise<ProviderCommandResult> {
+    return this.formatBookingsList(
+      businessId,
+      access,
+      params,
+      'list_bookings',
+      this.noMatchMessage('list', params),
+    );
+  }
+
+  private async handleShowAppointments(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    return this.formatBookingsList(
+      businessId,
+      access,
+      mergeShowAppointmentsParams(prompt, params),
+      'show_appointments',
+      this.noMatchMessage('show', params),
+    );
+  }
+
+  private async formatBookingsList(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    action: 'list_bookings' | 'show_appointments',
+    emptySummary: string,
+  ): Promise<ProviderCommandResult> {
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = await this.findMatchingBookings(businessId, employeeId, params, {});
-    if (bookings.length === 0) {
+    const bookings = filterBookingsForProviderList(
+      await this.findMatchingBookings(businessId, employeeId, params, {}),
+      resolveStatusFilter(params),
+      Date.now(),
+      (value) => this.normalizeStatus(value),
+    );
+
+    return buildProviderBookingsListResult({
+      bookings,
+      params,
+      statusFilter: resolveStatusFilter(params),
+      action,
+      emptySummary,
+      formatLabel: (b) => this.bookingLabel(b),
+    });
+  }
+
+  private async handleCheckAvailability(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    if (!employeeId) {
+      return buildNoLinkedEmployeeAvailabilityResult();
+    }
+
+    const isoDay = params.date ? toIsoDay(String(params.date)) : toIsoDay(todayDisplay());
+    const { day, dayEnd } = resolveAvailabilityDayBounds(isoDay);
+
+    const periods = await this.periodRepo.find({
+      where: {
+        businessId,
+        employeeId,
+        startTime: Between(day, dayEnd) as any,
+      },
+      order: { startTime: 'ASC' },
+    });
+
+    const { timeFrom, timeTo } = resolveAvailabilityTimeWindow(params);
+    const gaps = mapScheduleGapLabels(
+      findScheduleGapsInWindow(day, timeFrom, timeTo, periods),
+    );
+    const displayDay = formatDateDisplay(isoDay);
+
+    if (params.timeSlot) {
+      return buildSlotAvailabilityResult({
+        displayDay,
+        slot: normalizeTime24(String(params.timeSlot)),
+        gaps,
+      });
+    }
+
+    if (shouldUseAfternoonAvailability(prompt, params)) {
+      return buildAfternoonAvailabilityResult({ displayDay, gaps, timeFrom, timeTo });
+    }
+
+    return buildGapsAvailabilityResult({ displayDay, gaps, timeFrom, timeTo });
+  }
+
+  private async handleBlockSchedule(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const targets = scopedEmployeeId
+      ? employees.filter((e) => e.id === scopedEmployeeId)
+      : employees;
+
+    const blockParams = prepareBlockScheduleParams(prompt, params, {
+      scopedEmployeeId,
+      employeeName: targets[0]?.name ?? null,
+    });
+
+    const result = await this.scheduleHandlers.handleBlockSchedule(
+      businessId,
+      prompt,
+      blockParams as Record<string, any>,
+      targets,
+      userId,
+    );
+
+    return {
+      success: result.success,
+      action: 'block_schedule',
+      summary: result.summary,
+      details: (result.details ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  private async handleSummarizeUtilization(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const targets = scopedEmployeeId
+      ? employees.filter((e) => e.id === scopedEmployeeId)
+      : employees;
+
+    const range =
+      resolveDateRange(params as Record<string, any>, prompt) ?? defaultUtilizationWeekRange();
+
+    const start = new Date(range.start);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(range.end);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const rows = await Promise.all(
+      targets.map(async (e) => ({
+        employeeName: e.name,
+        ...(await this.schedulingEngine.getEmployeeUtilization(e.id, start, end)),
+      })),
+    );
+
+    return buildUtilizationSummaryResult({
+      scopedEmployeeId,
+      range,
+      rows,
+    });
+  }
+
+  private async handleCoordinateWaitlistOffer(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    confirmed: boolean,
+  ): Promise<ProviderCommandResult> {
+    if (!canRunCoordinationOnProvider(access.viewMode)) {
       return {
-        success: true,
-        action: 'list_bookings',
-        summary: this.noMatchMessage('list', params),
-        details: { matchedCount: 0 },
+        success: false,
+        action: 'coordinate_waitlist_offer',
+        summary: buildCoordinationDeniedSummary(access.viewMode),
+        details: { viewMode: access.viewMode },
       };
     }
 
-    const lines = bookings.map((b) => `• ${this.bookingLabel(b)} — ${b.status}`);
-    const dateLabel = params.date ? formatDateDisplay(String(params.date)) : 'the selected day';
+    const employees = await this.employeeRepo.find({ where: { businessId, isActive: true } });
+    const employee = matchEmployeeByName(employees, String(params.employeeName ?? ''));
+    if (!employee) {
+      return {
+        success: false,
+        action: 'coordinate_waitlist_offer',
+        summary: `No provider found matching "${params.employeeName ?? 'unknown'}".`,
+        details: { params },
+      };
+    }
+
+    const waitlist = await this.customerRepo
+      .createQueryBuilder('c')
+      .where('c.business_id = :businessId', { businessId })
+      .andWhere(`'waitlist' = ANY(c.tags)`)
+      .orderBy('c.name', 'ASC')
+      .getMany();
+
+    const waitlistCustomer = matchWaitlistCustomerByName(
+      waitlist,
+      String(params.waitlistCustomerName ?? params.customerName ?? ''),
+    );
+    if (!waitlistCustomer) {
+      return {
+        success: false,
+        action: 'coordinate_waitlist_offer',
+        summary: waitlist.length
+          ? `No waitlist customer found matching "${params.waitlistCustomerName ?? params.customerName}". Tag customers with "waitlist" in CRM.`
+          : 'No waitlist customers found. Tag customers with "waitlist" in CRM.',
+        details: { waitlistCount: waitlist.length },
+      };
+    }
+
+    const bookings = await this.findMatchingBookings(businessId, employee.id, params, {
+      excludeTerminal: true,
+    });
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action: 'coordinate_waitlist_offer',
+        summary: `No upcoming appointments found for ${employee.name} to coordinate.`,
+        details: { matchedCount: 0, employeeName: employee.name },
+      };
+    }
+
+    if (!confirmed || bookings.length >= BULK_CONFIRM_THRESHOLD) {
+      return buildCoordinateWaitlistConfirmation({
+        employeeName: employee.name,
+        waitlistCustomerName: waitlistCustomer.name,
+        bookings: bookings.map((booking) => ({
+          id: booking.id,
+          label: this.bookingLabel(booking),
+        })),
+        params,
+      });
+    }
+
+    const target = bookings[0];
+    const slot = {
+      bookingId: target.id,
+      employeeId: target.employeeId,
+      serviceId: target.serviceId,
+      startTime: target.startTime.toISOString(),
+      customerName: target.customer?.name,
+    };
+
+    const cancelResult = await this.executeCancel(
+      [target],
+      String(params.reason ?? 'Cancelled for waitlist coordination'),
+      userId,
+    );
+    if (!cancelResult.success) return cancelResult;
+
+    const plan = this.planBuilder.buildFillSlotFromWaitlistPlan({
+      businessId,
+      slot,
+      candidate: { customerId: waitlistCustomer.id, customerName: waitlistCustomer.name },
+      userId,
+    });
+
+    const orch = await this.orchestration.executePlan({
+      plan,
+      businessId,
+      userId,
+      autoExecute: true,
+    });
+
     return {
-      success: true,
-      action: 'list_bookings',
-      summary: `${bookings.length} appointment${bookings.length === 1 ? '' : 's'} on ${dateLabel}:\n${lines.join('\n')}`,
-      details: { matchedCount: bookings.length, bookings: bookings.map((b) => this.bookingLabel(b)) },
+      success: orch.success,
+      action: 'coordinate_waitlist_offer',
+      summary: orch.success
+        ? `Cancelled ${employee.name}'s appointment and offered the slot to waitlist customer ${waitlistCustomer.name}.`
+        : orch.summary ?? 'Waitlist offer could not be completed.',
+      details: {
+        cancelledBookingId: target.id,
+        waitlistCustomerId: waitlistCustomer.id,
+        employeeName: employee.name,
+        orchestration: orch.details,
+      },
     };
   }
 

@@ -310,6 +310,132 @@ const ACTION_RULES: Record<string, Rule> = {
     ];
   },
 
+  swap_schedules: (cmd) => {
+    const names = cmd.params.employeeNames as string[] | undefined;
+    const hasPair =
+      (cmd.params.employeeName && cmd.params.swapWithEmployeeName) ||
+      (names?.length ?? 0) >= 2 ||
+      cmd.entities.employees.length >= 2;
+    const hasWhen =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    return [
+      ...(hasPair
+        ? []
+        : [{
+            field: 'employeeNames',
+            label: 'Providers to swap',
+            message: 'Specify two providers whose schedules to swap',
+            example: 'Swap Friday schedules between Gevorg and Maria',
+          }]),
+      ...(hasWhen
+        ? []
+        : [{
+            field: 'date',
+            label: 'When to swap',
+            message: 'Specify the day or date range to swap',
+            example: 'Friday or 05/06/2026',
+          }]),
+    ];
+  },
+
+  rebalance_capacity: (cmd) => {
+    const hasService = !!cmd.params.serviceName || cmd.entities.services.length > 0;
+    const hasWhen = !!cmd.params.date || !!cmd.entities.dateRange;
+    const hasPair =
+      (cmd.params.fromEmployeeName && cmd.params.toEmployeeName) ||
+      (cmd.params.employeeNames?.length ?? 0) >= 2 ||
+      cmd.entities.employees.length >= 2;
+    return [
+      ...(hasPair
+        ? []
+        : [{
+            field: 'fromEmployeeName',
+            label: 'Source and target providers',
+            message: 'Specify who to move slots from and to',
+            example: 'from Gevorg to Maria',
+          }]),
+      ...(hasService
+        ? []
+        : [{
+            field: 'serviceName',
+            label: 'Service',
+            message: 'Specify which service slots to move',
+            example: 'facemassage',
+          }]),
+      ...(hasWhen
+        ? []
+        : [{
+            field: 'date',
+            label: 'Date',
+            message: 'Specify which day to rebalance',
+            example: 'Friday',
+          }]),
+    ];
+  },
+
+  holiday_mode: (cmd) => {
+    const hasClose =
+      (Array.isArray(cmd.params.closeDates) && cmd.params.closeDates.length > 0) ||
+      (Array.isArray(cmd.params.holidayDates) && cmd.params.holidayDates.length > 0) ||
+      !!cmd.params.dateFrom;
+    const hasProviders =
+      cmd.params.allProviders ||
+      !!cmd.params.employeeName ||
+      cmd.entities.employees.length > 0;
+    return [
+      ...(hasClose
+        ? []
+        : [{
+            field: 'closeDates',
+            label: 'Closure dates',
+            message: 'Specify which days to close',
+            example: 'Dec 24–26',
+          }]),
+      ...(hasProviders
+        ? []
+        : [{
+            field: 'allProviders',
+            label: 'Who to close',
+            message: 'Specify all providers or named staff',
+            example: 'Close for all providers',
+          }]),
+    ];
+  },
+
+  onboard_provider_schedule: (cmd) => {
+    const hasProvider =
+      !!cmd.params.employeeName || cmd.entities.employees.length === 1;
+    const hasRange =
+      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+    const hasTemplate = !!cmd.params.templateName || !!cmd.entities.template;
+    return [
+      ...(hasProvider
+        ? []
+        : [{
+            field: 'employeeName',
+            label: 'New provider',
+            message: 'Specify the provider to onboard',
+            example: 'Anna',
+          }]),
+      ...(hasRange
+        ? []
+        : [{
+            field: 'dateFrom',
+            label: 'First week',
+            message: 'Specify the first week date range',
+            example: 'next week',
+          }]),
+      ...(hasTemplate
+        ? []
+        : [{
+            field: 'templateName',
+            label: 'Schedule template',
+            message: 'Specify which weekday template to apply',
+            example: 'Weekday template',
+          }]),
+    ];
+  },
+
   block_schedule: (cmd) => {
     const hasProviders =
       cmd.params.allProviders ||
@@ -455,6 +581,69 @@ const ACTION_RULES: Record<string, Rule> = {
         'today or tomorrow',
       ),
     ].filter(Boolean) as ValidationIssue[],
+
+  no_show_recovery: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today or yesterday',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  sick_day_replan: (cmd) =>
+    [
+      needs('employeeName', 'Provider', !!cmd.params.employeeName, 'Maria'),
+      needs(
+        'date',
+        'Date',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'today',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  import_services_from_menu: (cmd) =>
+    [
+      needs(
+        'menuText',
+        'Menu text',
+        !!(cmd.params.menuText || cmd.params.ocrText || (Array.isArray(cmd.params.services) && cmd.params.services.length > 0)),
+        'Facial 60min $50, Haircut 30min $25',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  update_service_prices: (cmd) =>
+    [
+      needs(
+        'percentChange',
+        'Percent change',
+        !!(cmd.params.percentChange || cmd.params.priceChangePercent),
+        '10',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  staff_service_matrix: (_cmd) => [] as ValidationIssue[],
+
+  check_schedule_compliance: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date range',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'this month',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  revenue_forecast: (cmd) =>
+    [
+      needs(
+        'date',
+        'Date range',
+        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        'next week',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
 };
 
 /** Entity resolution failures become clarify prompts */
@@ -547,15 +736,26 @@ const VALIDATED_ACTIONS = new Set([
   'fill_unused_slots',
   'apply_schedule',
   'block_schedule',
+  'swap_schedules',
+  'rebalance_capacity',
+  'holiday_mode',
+  'onboard_provider_schedule',
   'clear_schedule',
   'create_direct_schedule',
   'assign_employee_services',
   'list_schedule_gaps',
   'create_schedule_template',
   'mark_no_shows',
+  'no_show_recovery',
   'payment_sweep',
   'update_bookings',
   'day_replan',
+  'sick_day_replan',
+  'import_services_from_menu',
+  'update_service_prices',
+  'staff_service_matrix',
+  'check_schedule_compliance',
+  'revenue_forecast',
 ]);
 
 export function shouldValidateAction(action: string): boolean {

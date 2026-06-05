@@ -5,6 +5,16 @@ import {
   AgentType,
   PlanStatus,
 } from '../../engine/agent/interfaces/agent.interfaces.js';
+import {
+  buildHolidayModePlanMeta,
+  buildOnboardProviderPlanMeta,
+  buildRebalanceCapacityPlanMeta,
+  buildRebalanceCapacityPlanSteps,
+  buildSwapSchedulesPlanMeta,
+  buildSwapSchedulesPlanSteps,
+  mergeHolidayModeSteps,
+  mergeOnboardProviderSteps,
+} from './ai-sprint23-plan.util.js';
 
 export interface ResolvedBookingParams {
   businessId: string;
@@ -870,6 +880,87 @@ export class OperationalPlanBuilderService {
     });
   }
 
+  buildSwapSchedulesPlan(params: {
+    businessId: string;
+    swaps: Array<{
+      date: string;
+      employeeA: { id: string; name: string; periods: ResolvedDirectScheduleParams['periods'] };
+      employeeB: { id: string; name: string; periods: ResolvedDirectScheduleParams['periods'] };
+    }>;
+    userId?: string;
+  }): AgentPlan {
+    const steps = buildSwapSchedulesPlanSteps(params);
+    const meta = buildSwapSchedulesPlanMeta(params.swaps, steps);
+    return this.wrapPlan(params.businessId, 'swap_schedules', steps, meta);
+  }
+
+  buildRebalanceCapacityPlan(params: {
+    businessId: string;
+    fromName: string;
+    toName: string;
+    serviceName: string;
+    date: string;
+    moves: Array<{
+      bookingId: string;
+      label: string;
+      startTime: string;
+      employeeId: string;
+      serviceId: string;
+    }>;
+    userId?: string;
+  }): AgentPlan {
+    const steps = buildRebalanceCapacityPlanSteps(params);
+    const meta = buildRebalanceCapacityPlanMeta({
+      fromName: params.fromName,
+      toName: params.toName,
+      serviceName: params.serviceName,
+      date: params.date,
+      movesCount: params.moves.length,
+    });
+    return this.wrapPlan(params.businessId, 'rebalance_capacity', steps, meta);
+  }
+
+  buildHolidayModePlan(params: {
+    businessId: string;
+    blockPlan: AgentPlan;
+    extendPlans: AgentPlan[];
+    closeDates: string[];
+    extendDate?: string;
+  }): AgentPlan {
+    const allSteps = mergeHolidayModeSteps({
+      blockSteps: params.blockPlan.steps,
+      extendPlans: params.extendPlans,
+    });
+    const meta = buildHolidayModePlanMeta({
+      closeDates: params.closeDates,
+      extendDate: params.extendDate,
+      allStepsCount: allSteps.length,
+    });
+    return this.wrapPlan(params.businessId, 'holiday_mode', allSteps, meta);
+  }
+
+  buildOnboardProviderSchedulePlan(params: {
+    businessId: string;
+    employeeName: string;
+    templateName: string;
+    serviceNames: string[];
+    applyPlan: AgentPlan;
+    assignPlan: AgentPlan | null;
+  }): AgentPlan {
+    const allSteps = mergeOnboardProviderSteps({
+      applySteps: params.applyPlan.steps,
+      assignSteps: params.assignPlan?.steps ?? [],
+    });
+    const meta = buildOnboardProviderPlanMeta({
+      employeeName: params.employeeName,
+      templateName: params.templateName,
+      serviceNames: params.serviceNames,
+      hasAssignPlan: !!params.assignPlan,
+      allStepsCount: allSteps.length,
+    });
+    return this.wrapPlan(params.businessId, 'onboard_provider_schedule', allSteps, meta);
+  }
+
   buildTemplateCascadePlan(
     applyParams: ResolvedApplyScheduleParams,
     fillParams: ResolvedFillScheduleGapsParams,
@@ -924,6 +1015,19 @@ export class OperationalPlanBuilderService {
     });
   }
 
+  wrapSprint24Plan(
+    businessId: string,
+    intent: string,
+    steps: AgentPlanStep[],
+    meta: {
+      reasoning: string;
+      risk: { level: 'low' | 'medium' | 'high'; factors: string[] };
+      requiresApproval?: boolean;
+    },
+  ): AgentPlan {
+    return this.wrapPlan(businessId, intent, steps, meta);
+  }
+
   private wrapPlan(
     businessId: string,
     intent: string,
@@ -931,6 +1035,7 @@ export class OperationalPlanBuilderService {
     meta: {
       reasoning: string;
       risk: { level: 'low' | 'medium' | 'high'; factors: string[] };
+      requiresApproval?: boolean;
     },
   ): AgentPlan {
     return {

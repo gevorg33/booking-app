@@ -2,18 +2,48 @@
 
 This document describes how dashboard AI commands are classified, validated, routed, and executed.
 
-## Entry point
+## Regression eval (Sprint 14 / gap-3.1)
+
+Golden NL prompts live in `backend/src/modules/ai/eval/`. CI runs deterministic checks (routing, multilingual detection, reschedule AM/PM parsing, intent rescue) via:
+
+```bash
+npm run test:sprint14
+```
+
+Cases marked `requiresLlm: true` document full `classify_intent` expectations for manual or nightly runs with OpenAI configured.
+
+## Entry points (Sprint 15 — unified gateway)
+
+**Dashboard**
+
+```
+GET  /businesses/:businessId/ai/capabilities
+POST /businesses/:businessId/ai/command
+  → AiGatewayService.execute({ surface: 'dashboard', ... })
+```
+
+**Provider mobile**
+
+```
+GET  /businesses/:businessId/provider/ai/capabilities
+POST /businesses/:businessId/provider/ai/command
+  → AiGatewayService.execute({ surface: 'provider', ... })
+    → ProviderAiCommandService.executeCommand()
+```
+
+Gateway responsibilities: prompt security preflight, plan AI caps (dashboard only), capability hints, entity memory, conversation summary, role + plan intent enforcement downstream.
 
 ```
 POST /businesses/:businessId/ai/command
   → AiGatewayService.execute()
-    → complexity routing (LLM + deterministic fallback)
     → entity memory + conversation summary injection
     → AiCommandService.executeCommand()
+      → complexity routing (rules-first for read_only, else LLM) + classify_intent (LLM) in parallel
 ```
 
 Supporting endpoints:
 
+- `GET .../ai/capabilities` — allowed intents for role + subscription tier
 - `POST .../command/tasks/:taskId/approve` — approve pending workflow plan
 - `POST .../command/tasks/:taskId/steps/:stepId/retry` — retry failed workflow step
 
@@ -28,10 +58,15 @@ Request body supports `confirmed: true` for bulk/high-risk mutations after previ
 | `orchestration` | optimize, fallback booking, ambiguous | ReAct agent (if LangGraph on) |
 | `compound` | cancel then clear then hide | Decomposition → compound graph |
 
-Routing sources (merged):
+Routing sources (merged inside `executeCommand`, in parallel with `classify_intent`):
 
-1. **LLM** — `AiIntelligenceService.routeComplexity()` via gateway
-2. **Deterministic** — `CommandComplexityRouterService.routeDeterministic()` (always available fallback)
+1. **Deterministic** — `CommandComplexityRouterService.routeDeterministic()` (always available)
+2. **LLM** — `AiIntelligenceService.routeComplexity()` — **skipped when deterministic tier is `read_only`** (ai-i10 cost budget)
+3. Merged via `resolveMergedComplexityRoute()` in `ai-command-routing.util.ts`
+
+**Plan limits (gap-3.3):** Solo tier denies advanced dashboard intents (`optimize_schedule`, `day_replan`, bulk schedule ops, etc.) in `plan-limits.ts`. Monthly command caps enforced in `AiGatewayService` via `PlanEntitlementsService`.
+
+CI: `npm run test:sprint15` — unit + integration coverage at 100% on capability matrix, plan AI intents, routing util, and gateway meta helpers (`ai-gateway-meta.util.ts`). Gateway service keeps 100% statements/lines; Nest `@Inject(forwardRef)` constructor metadata is excluded from branch thresholds.
 
 ## LangGraph feature flags
 
@@ -47,8 +82,8 @@ When LangGraph is off, compound prompts still decompose via `IntentDecomposition
 
 ## Pipeline stages (single intent)
 
-0. **Normalize** — `AiPromptNormalizationService` (LLM when Armenian/Russian/transliteration detected; cached per business+prompt; classifier also has multilingual rules)
-1. **Classify** — LLM JSON (`classify_intent`)
+0. **Multilingual hint** — `AiPromptNormalizationService` (no extra LLM; Armenian/Russian/transliteration get a classifier context block; cached per business+prompt; `classify_intent` has multilingual rules)
+1. **Route + classify (parallel)** — `complexity_route` and `classify_intent` LLM calls overlap after catalog load (classify result reused on single-intent path; compound path may ignore it)
 2. **Rescue** — `AiIntentRescueService` maps `unknown`/misclassified intents via language rules
 3. **Capability** — role matrix enforcement (`ai-capability.matrix.ts`)
 4. **Merge session** — inherit provider/date/service from prior turns

@@ -22,12 +22,17 @@ describe('AiScheduleHandlersService locale dates', () => {
     findOne: jest.fn().mockResolvedValue(business),
   };
 
+  const sprint23 = {
+    resolveHolidayDatesForBusiness: jest.fn().mockResolvedValue([]),
+  };
+
   const service = new AiScheduleHandlersService(
     {} as any,
     periodRepo as any,
     businessRepo as any,
     {} as any,
     {} as any,
+    sprint23 as any,
   );
 
   it('localizes weekday and date in schedule gap summaries', async () => {
