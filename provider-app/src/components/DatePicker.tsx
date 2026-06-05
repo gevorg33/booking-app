@@ -7,9 +7,18 @@ import {
   monthKeyFromDateKey,
   shiftMonthKey,
 } from '../lib/date-picker-calendar.util';
-import { formatDateDisplay, getTodayDateKey, parseDateKey } from '../lib/date-format';
+import {
+  businessDateFormatPattern,
+  businessDateInputPlaceholder,
+  formatDateDisplay,
+  getTodayDateKey,
+  parseDateKey,
+  parseTypedBusinessDateToKey,
+  readAuthBusinessDateFormats,
+} from '../lib/date-format';
 import './date-picker.css';
 import { useI18n } from '../i18n';
+import { useAuthStore } from '../services/auth-store';
 
 export type DatePickerProps = {
   value: string;
@@ -22,6 +31,8 @@ export type DatePickerProps = {
   className?: string;
   placeholder?: string;
   clearable?: boolean;
+  allowTyping?: boolean;
+  showFormatHint?: boolean;
   'aria-label'?: string;
 };
 
@@ -36,10 +47,21 @@ export function DatePicker({
   className = '',
   placeholder,
   clearable = false,
+  allowTyping = true,
+  showFormatHint = true,
   'aria-label': ariaLabel,
 }: DatePickerProps) {
   const { t } = useI18n();
-  const resolvedPlaceholder = placeholder ?? t('datePicker.selectDate');
+  const business = useAuthStore((s) => s.business);
+  const { dateFormat } = readAuthBusinessDateFormats(business);
+  const formatPattern = businessDateFormatPattern(dateFormat);
+  const formatExample = businessDateInputPlaceholder(dateFormat);
+  const formatHint = t('datePicker.formatHint', {
+    format: formatPattern,
+    example: formatExample,
+  });
+  const invalidHint = t('datePicker.invalidDate', { format: formatPattern });
+  const resolvedPlaceholder = placeholder ?? formatExample;
   const weekdays = [
     t('datePicker.weekdays.mon'),
     t('datePicker.weekdays.tue'),
@@ -54,6 +76,8 @@ export function DatePicker({
   const todayKey = getTodayDateKey();
 
   const [open, setOpen] = useState(false);
+  const [typedValue, setTypedValue] = useState('');
+  const [typedInvalid, setTypedInvalid] = useState(false);
   const [viewMonthKey, setViewMonthKey] = useState(() =>
     value ? monthKeyFromDateKey(value) : monthKeyFromDateKey(todayKey),
   );
@@ -64,6 +88,29 @@ export function DatePicker({
   const monthCells = useMemo(() => buildCalendarMonth(viewMonthKey), [viewMonthKey]);
   const monthLabel = formatMonthYearLabel(viewMonthKey);
   const displayValue = value ? formatDateDisplay(value) : resolvedPlaceholder;
+
+  useEffect(() => {
+    if (!allowTyping) return;
+    setTypedValue(value ? formatDateDisplay(value) : '');
+    setTypedInvalid(false);
+  }, [allowTyping, value, dateFormat]);
+
+  const commitTypedValue = useCallback(() => {
+    const trimmed = typedValue.trim();
+    if (!trimmed) {
+      setTypedInvalid(false);
+      if (clearable) onChange('');
+      return;
+    }
+    const key = parseTypedBusinessDateToKey(trimmed);
+    if (key) {
+      setTypedInvalid(false);
+      onChange(key);
+      setTypedValue(formatDateDisplay(key));
+      return;
+    }
+    setTypedInvalid(true);
+  }, [clearable, onChange, typedValue]);
 
   const updatePopoverPosition = useCallback(() => {
     const el = triggerRef.current;
@@ -223,28 +270,87 @@ export function DatePicker({
         )
       : null;
 
+  const calendarTrigger = (
+    <button
+      ref={triggerRef}
+      id={allowTyping ? undefined : id}
+      type="button"
+      disabled={disabled}
+      aria-required={required}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={ariaLabel ?? (allowTyping ? t('datePicker.openCalendar') : displayValue)}
+      className={
+        allowTyping
+          ? 'date-picker-trigger date-picker-trigger--icon'
+          : `date-picker-trigger ${className}`.trim()
+      }
+      onClick={() => {
+        if (disabled) return;
+        setOpen((v) => !v);
+      }}
+    >
+      {allowTyping ? (
+        <span aria-hidden>📅</span>
+      ) : (
+        <>
+          <span>{displayValue}</span>
+          <span aria-hidden style={{ marginLeft: 'auto', opacity: 0.5 }}>
+            ▾
+          </span>
+        </>
+      )}
+    </button>
+  );
+
+  const field = allowTyping ? (
+    <div className={`date-picker-field ${className}`.trim()}>
+      <div className="date-picker-field__row">
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          disabled={disabled}
+          required={required}
+          aria-required={required}
+          aria-invalid={typedInvalid}
+          aria-describedby={showFormatHint ? `${id}-hint` : undefined}
+          placeholder={resolvedPlaceholder}
+          value={typedValue}
+          onChange={(e) => {
+            setTypedValue(e.target.value);
+            if (typedInvalid) setTypedInvalid(false);
+          }}
+          onBlur={commitTypedValue}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitTypedValue();
+            }
+          }}
+          className="date-picker-input"
+        />
+        {calendarTrigger}
+      </div>
+      {showFormatHint ? (
+        <p id={`${id}-hint`} className="date-picker-hint">
+          {formatHint}
+        </p>
+      ) : null}
+      {typedInvalid ? (
+        <p className="date-picker-error" role="alert">
+          {invalidHint}
+        </p>
+      ) : null}
+    </div>
+  ) : (
+    calendarTrigger
+  );
+
   return (
     <>
-      <button
-        ref={triggerRef}
-        id={id}
-        type="button"
-        disabled={disabled}
-        aria-required={required}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel ?? displayValue}
-        className={`date-picker-trigger ${className}`.trim()}
-        onClick={() => {
-          if (disabled) return;
-          setOpen((v) => !v);
-        }}
-      >
-        <span>{displayValue}</span>
-        <span aria-hidden style={{ marginLeft: 'auto', opacity: 0.5 }}>
-          ▾
-        </span>
-      </button>
+      {field}
       {popover}
     </>
   );

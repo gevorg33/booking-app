@@ -125,9 +125,46 @@ describe('gift-card-delivery-content.util', () => {
     expect(email.html).toContain('Redeem in your account</a>');
   });
 
-  it('builds purchaser receipt with account link', () => {
+  it('formats monetary gift card balance with currency symbol', () => {
+    const lines = describeGiftCardValue(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-MONEY',
+        balance: 50,
+        currency: 'USD',
+        serviceCredits: [],
+      }),
+    );
+    expect(lines.join('\n')).toMatch(/Balance:.*\$/);
+  });
+
+  it('uses business default currency for gift card balance', () => {
+    const lines = describeGiftCardValue(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-AMD',
+        balance: 15000,
+        currency: 'AMD',
+        business: {
+          name: 'Glow Salon',
+          slug: 'glow-salon',
+          settings: { currency: 'AMD' },
+        } as GiftCard['business'],
+        serviceCredits: [],
+      }),
+    );
+    expect(lines.join('\n')).toMatch(/Balance:.*(֏|AMD)/);
+  });
+
+  it('builds purchaser receipt with account link and purchase amount', () => {
     const result = buildPurchaserReceiptEmail(
-      card({ cardType: 'service', code: 'GCS-1', serviceCredits: [] }),
+      card({
+        cardType: 'service',
+        code: 'GCS-1',
+        purchaseAmount: 80,
+        currency: 'USD',
+        serviceCredits: [],
+      }),
       'friend@test.com',
       links,
     );
@@ -136,6 +173,7 @@ describe('gift-card-delivery-content.util', () => {
 
     expect(receipt.text).toContain('friend@test.com');
     expect(receipt.text).toContain('/book/glow-salon/account');
+    expect(receipt.text).toMatch(/Amount paid:.*\$/);
   });
 
   it('includes booking instructions in WhatsApp summary', () => {
@@ -222,7 +260,59 @@ describe('gift-card-delivery-content.util', () => {
       }),
     );
     expect(lines.join('\n')).toContain('Massage × 2');
+    expect(lines.join('\n')).toContain('Expires: 01/06/2027');
+  });
+
+  it('formats gift card expiry with business dateFormat', () => {
+    const lines = describeGiftCardValue(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-EXP',
+        business: {
+          name: 'Glow Salon',
+          slug: 'glow-salon',
+          settings: { dateFormat: 'MM/DD/YYYY', timeFormat: '12h' },
+        } as GiftCard['business'],
+        expiresAt: new Date('2027-06-01T00:00:00.000Z'),
+        serviceCredits: [],
+      }),
+    );
+    expect(lines.join('\n')).toContain('Expires: 06/01/2027');
+  });
+
+  it('formats gift card expiry as ISO when business uses YYYY-MM-DD', () => {
+    const lines = describeGiftCardValue(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-ISO',
+        business: {
+          name: 'Glow Salon',
+          slug: 'glow-salon',
+          settings: { dateFormat: 'YYYY-MM-DD', timeFormat: '24h' },
+        } as GiftCard['business'],
+        expiresAt: new Date('2027-06-01T00:00:00.000Z'),
+        serviceCredits: [],
+      }),
+    );
     expect(lines.join('\n')).toContain('Expires: 2027-06-01');
+  });
+
+  it('includes ISO expiry in WhatsApp gift card summary', () => {
+    const summary = buildWhatsAppGiftCardSummary(
+      card({
+        cardType: 'monetary',
+        code: 'GCM-WA',
+        business: {
+          name: 'Glow Salon',
+          slug: 'glow-salon',
+          settings: { dateFormat: 'YYYY-MM-DD' },
+        } as GiftCard['business'],
+        expiresAt: new Date('2027-06-01T00:00:00.000Z'),
+        serviceCredits: [],
+      }),
+      null,
+    );
+    expect(summary).toContain('2027-06-01');
   });
 
   it('builds package redemption instructions without public links', () => {

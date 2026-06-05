@@ -44,9 +44,7 @@ describe('business-public-profile-locales.util', () => {
       expect(() =>
         normalizePublicProfileLocales({ de: { name: 'X' } }),
       ).toThrow(
-        new BadRequestException(
-          'Unsupported locale in publicProfileLocales: de',
-        ),
+        new BadRequestException('Unsupported locale in translations: de'),
       );
     });
 

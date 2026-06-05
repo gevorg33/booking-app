@@ -50,6 +50,7 @@ describe('Business public profile locales integration', () => {
     {} as any,
     multiServiceBookingsService as any,
     {} as any,
+    {} as any,
     {
       get: jest.fn((key: string) => {
         if (key === 'PUBLIC_API_URL') return 'http://127.0.0.1:3001';
@@ -161,7 +162,7 @@ describe('Business public profile locales integration', () => {
         publicProfileLocales: { de: { name: 'German' } },
       }),
     ).rejects.toThrow(
-      new BadRequestException('Unsupported locale in publicProfileLocales: de'),
+      new BadRequestException('Unsupported locale in translations: de'),
     );
   });
 

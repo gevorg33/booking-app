@@ -85,8 +85,7 @@ export const SIMILAR_CHECK_AND_BOOK_PROMPTS = [
   },
   {
     id: 'availability-asap',
-    prompt:
-      'who has availability tomorrow evening for massage and book ASAP',
+    prompt: 'who has availability tomorrow evening for massage and book ASAP',
     serviceName: 'massage',
     notBeforeTime: '17:00',
     timeOfDay: 'evening',

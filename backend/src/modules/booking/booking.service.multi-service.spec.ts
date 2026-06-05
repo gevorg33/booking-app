@@ -40,6 +40,18 @@ describe('BookingService same-visit multi-service create', () => {
     getRequiredResourceIds: jest.fn().mockResolvedValue([]),
   };
   const subscriptionsService = {} as any;
+  const phiFieldService = {
+    encryptBookingForStorage: jest.fn(
+      async (_business: unknown, booking: unknown) => booking,
+    ),
+    decryptBookingForStaff: jest.fn(
+      async (_business: unknown, booking: unknown) => booking,
+    ),
+    auditBookingPhiWrite: jest.fn(),
+  };
+  const businessService = {
+    ensureMember: jest.fn(),
+  };
 
   const savedBooking = {
     id: 'booking-1',
@@ -102,6 +114,8 @@ describe('BookingService same-visit multi-service create', () => {
       loyaltyAwardService,
       resourcesService as any,
       subscriptionsService,
+      phiFieldService as any,
+      businessService as any,
     );
 
     validateBookingWindow = jest
@@ -140,6 +154,7 @@ describe('BookingService same-visit multi-service create', () => {
     businessRepo.findOne.mockResolvedValue({ timezone: 'UTC' });
     customerRepo.findOne.mockResolvedValue({ id: 'cust-1' });
     bookingRepo.findOne.mockResolvedValue(null);
+    businessService.ensureMember.mockResolvedValue({ role: 'manager' });
   });
 
   it('skips per-segment schedule validation for same-visit multi-service segments', async () => {

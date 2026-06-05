@@ -9,9 +9,11 @@ import {
   IsNumber,
   Min,
   Max,
+  MaxLength,
   IsArray,
   ArrayMinSize,
   ValidateIf,
+  IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -55,6 +57,14 @@ export class PublicCustomerDto {
   @IsOptional()
   @IsBoolean()
   marketingOptIn?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aiProcessingOptIn?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  thirdPartyIntegrationsOptIn?: boolean;
 }
 
 export class CreatePublicBookingDto {
@@ -72,6 +82,26 @@ export class CreatePublicBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** Tour vertical — number of travelers (per-person pricing). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(99)
+  paxCount?: number;
+
+  /** Clinic vertical — referral letter or doctor notes. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  referralNotes?: string;
+
+  /** Clinic vertical — current symptoms or reason for visit. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  symptoms?: string;
 
   @ValidateNested()
   @Type(() => PublicCustomerDto)
@@ -120,6 +150,13 @@ export class CreatePublicBookingDto {
 export class PublicBookingQuoteDto {
   @IsString()
   serviceId: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(99)
+  paxCount?: number;
 
   @IsOptional()
   @IsString()
@@ -362,4 +399,28 @@ export function parseServiceIdsQuery(value: unknown): string[] {
     ids.push(id);
   }
   return ids;
+}
+
+export class RecordProductRecommendationEventDto {
+  @IsIn(['shown', 'clicked'])
+  event: 'shown' | 'clicked';
+
+  @IsString()
+  productId: string;
+
+  @IsOptional()
+  @IsString()
+  serviceId?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  bookingId?: string;
+
+  @IsOptional()
+  @IsString()
+  surface?: string;
 }

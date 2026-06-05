@@ -22,6 +22,7 @@ import { CheckboxChoice } from '@/components/ui/radio-choice';
 import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 import { usePlanEntitlements, canUseFeature } from '@/lib/use-plan-entitlements';
 import type { PlanFeatureFlag } from '@/lib/plan-entitlements';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
 
@@ -98,6 +99,7 @@ export default function MonetizationPage() {
 
 function MembershipsTab({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: '',
@@ -370,15 +372,15 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         {form.serviceId && (
           <div className="md:col-span-2 rounded-lg bg-gray-800/50 p-4 text-sm space-y-1">
             <p>
-              {t('monetization.regularTotal', { amount: preview.regularTotal.toFixed(2) })}
+              {t('monetization.regularTotal', { amount: formatMoney(preview.regularTotal) })}
             </p>
             <p>
               {t('monetization.subscriptionPriceLabel', {
-                amount: preview.subscriptionPrice.toFixed(2),
+                amount: formatMoney(preview.subscriptionPrice),
               })}
             </p>
             <p className="text-emerald-400">
-              {t('monetization.customerSaves', { amount: preview.savings.toFixed(2) })}
+              {t('monetization.customerSaves', { amount: formatMoney(preview.savings) })}
             </p>
           </div>
         )}
@@ -441,10 +443,10 @@ function MembershipsTab({ businessId }: { businessId: string }) {
                   </td>
                   <td className="px-4 py-3">{plan.includedAppointments}</td>
                   <td className="px-4 py-3">
-                    ${Number(plan.preview?.pricing?.subscriptionPrice ?? 0).toFixed(2)}
+                    {formatMoney(plan.preview?.pricing?.subscriptionPrice ?? 0)}
                   </td>
                   <td className="px-4 py-3 text-emerald-400">
-                    ${Number(plan.preview?.pricing?.savings ?? 0).toFixed(2)}
+                    {formatMoney(plan.preview?.pricing?.savings ?? 0)}
                   </td>
                   <td className="px-4 py-3">
                     {plan.isActive !== false
@@ -572,6 +574,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
 
 function LoyaltyTab({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [customerId, setCustomerId] = useState('');
   const [adjustPoints, setAdjustPoints] = useState('1');
@@ -689,7 +692,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
             <p className="text-xs text-gray-500">
               {t('monetization.loyaltyEarnExample', {
                 percent: settings.earnPercentCashback,
-                amount: (10 * settings.earnPercentCashback / 100).toFixed(2),
+                amount: formatMoney(10 * settings.earnPercentCashback / 100),
               })}
             </p>
           )}
@@ -749,11 +752,11 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
         <>
           <div className="grid grid-cols-2 gap-4 max-w-md">
             <div className="card text-center">
-              <p className="text-2xl font-bold text-emerald-400">${data.account.pointsBalance.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-emerald-400">{formatMoney(data.account.pointsBalance)}</p>
               <p className="text-xs text-gray-500">{t('monetization.bonusBalance')}</p>
             </div>
             <div className="card text-center">
-              <p className="text-2xl font-bold">${data.account.lifetimeEarned.toFixed(2)}</p>
+              <p className="text-2xl font-bold">{formatMoney(data.account.lifetimeEarned)}</p>
               <p className="text-xs text-gray-500">{t('monetization.lifetimeEarned')}</p>
             </div>
           </div>
@@ -815,6 +818,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
 
 function PromoCodesTab({ businessId }: { businessId: string }) {
   const { t, locale } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -971,7 +975,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
                   <td className="px-4 py-3">
                     {promo.discountType === 'percent'
                       ? `${promo.discountValue}%`
-                      : `$${promo.discountValue}`}
+                      : formatMoney(promo.discountValue)}
                   </td>
                   <td className="px-4 py-3">
                     {promo.usedCount}

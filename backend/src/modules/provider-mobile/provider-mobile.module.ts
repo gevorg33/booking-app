@@ -27,6 +27,7 @@ import { GiftCardFulfillmentPushListener } from './listeners/gift-card-fulfillme
 import { ProviderEndOfDayPushScheduler } from './provider-end-of-day-push.scheduler.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
+import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engin
     forwardRef(() => AgentModule),
     SchedulingEngineModule,
     forwardRef(() => AiModule),
+    RetailPosModule,
   ],
   controllers: [ProviderMobileController],
   providers: [

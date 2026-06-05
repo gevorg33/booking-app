@@ -25,6 +25,10 @@ interface CatalogServiceDraft {
   durationMinutes: number;
   price: number;
   bufferMinutes?: number;
+  serviceType?: 'tour' | 'consultation' | 'lab_test' | 'procedure';
+  tourDurationBadge?: string;
+  durationDays?: number;
+  requiresFasting?: boolean;
 }
 
 interface CatalogCategoryDraft {
@@ -315,6 +319,62 @@ export default function OnboardingPage() {
                   count: String(playbookPreview.scheduleTemplates.length),
                 })}
               </p>
+              {playbookPreview.playbookId === 'clinic' && playbookPreview.categories && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-300/80">
+                    {t('onboarding.playbooks.clinicSampleTitle')}
+                  </p>
+                  {playbookPreview.categories.map((category) => (
+                    <div
+                      key={category.name}
+                      className="rounded-lg border border-violet-500/15 bg-gray-900/40 px-3 py-2"
+                    >
+                      <p className="text-xs font-semibold text-violet-300/90">{category.name}</p>
+                      <ul className="mt-2 space-y-1.5">
+                        {category.services.map((svc) => (
+                          <li key={`${category.name}-${svc.name}`} className="text-sm text-gray-200">
+                            {svc.name}
+                            {svc.serviceType && (
+                              <span className="text-xs text-gray-500 ml-2">
+                                · {t(`onboarding.playbooks.clinicType.${svc.serviceType}`)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {playbookPreview.playbookId === 'tour' && playbookPreview.categories && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-300/80">
+                    {t('onboarding.playbooks.tourSampleTitle')}
+                  </p>
+                  {playbookPreview.categories.flatMap((category) =>
+                    category.services.map((svc) => (
+                      <div
+                        key={`${category.name}-${svc.name}`}
+                        className="rounded-lg border border-violet-500/15 bg-gray-900/40 px-3 py-2"
+                      >
+                        <p className="text-sm font-medium text-gray-100">{svc.name}</p>
+                        {svc.description && (
+                          <p className="text-xs text-gray-500 mt-0.5">{svc.description}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          {svc.durationDays && svc.durationDays > 1
+                            ? t('onboarding.playbooks.tourDurationDays', {
+                                count: String(svc.durationDays),
+                              })
+                            : t('onboarding.playbooks.tourDurationDay')}
+                          {' · '}${svc.price}
+                          {svc.serviceType === 'tour' ? ` · ${t('onboarding.playbooks.tourTypeBadge')}` : ''}
+                        </p>
+                      </div>
+                    )),
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
@@ -12,6 +13,11 @@ describe('AiWeeklyReportService', () => {
   const bookingRepo = {
     find: jest.fn(),
     count: jest.fn(),
+  };
+  const businessRepo = {
+    findOne: jest
+      .fn()
+      .mockResolvedValue({ id: 'biz-1', settings: { currency: 'USD' } }),
   };
   const employeeRepo = {
     find: jest.fn(),
@@ -25,6 +31,7 @@ describe('AiWeeklyReportService', () => {
 
   const service = new AiWeeklyReportService(
     bookingRepo as any,
+    businessRepo as any,
     employeeRepo as any,
     schedulingEngine as any,
     intelligence as any,
@@ -35,6 +42,7 @@ describe('AiWeeklyReportService', () => {
       providers: [
         AiWeeklyReportService,
         { provide: getRepositoryToken(Booking), useValue: bookingRepo },
+        { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Employee), useValue: employeeRepo },
         { provide: SchedulingEngineService, useValue: schedulingEngine },
         { provide: AiIntelligenceService, useValue: intelligence },
@@ -70,11 +78,16 @@ describe('AiWeeklyReportService', () => {
     spy.mockRestore();
   });
 
-  it('returns fallback report when LLM is unavailable', async () => {
+  it('returns fallback report with tenant-formatted revenue when LLM is unavailable', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { currency: 'AMD' },
+    });
     intelligence.generateWeeklyReport.mockResolvedValue(null);
     const report = await service.getWeeklyReport('biz-1');
     expect(report.generated).toBe(false);
     expect(report.sections.length).toBeGreaterThan(0);
+    expect(report.sections[0]?.body).toMatch(/(֏|AMD)/);
     expect(report.snapshot).toMatchObject({
       staffCount: 1,
       conflictCount: 1,

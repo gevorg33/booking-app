@@ -28,6 +28,16 @@ export const copy = {
   bookingStatusCompleted: 'Completed',
   bookingStatusConfirmed: 'Confirmed',
   packageVisitAppointmentCount: '{count} appointments',
+  bookingConfirmed: 'Booking confirmed!',
+  bookingConfirmedHint: 'You can manage this appointment from your account.',
+  youMightAlsoLike: 'You might also like',
+  dismissRecommendations: 'Dismiss recommendations',
+  learnMore: 'Learn more',
+  viewAppointments: 'View appointments',
+  bookAnotherService: 'Book another service',
+  checkoutSubtotal: 'Subtotal',
+  checkoutTotalDue: 'Due now',
+  taxIncluded: 'included',
 } as const;
 
 export function formatCopy(

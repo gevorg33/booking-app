@@ -16,6 +16,7 @@ import {
   type PublicBusinessProfile,
   type PublicService,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, toDateKey } from '@/lib/date-format';
 import { buildBookingDayOptions } from '@/lib/booking-day-options';
@@ -179,9 +180,12 @@ export function MultiServiceAvailabilityClient({
         tenant.multiService?.turnoverBufferMinutes ?? 5,
       ),
       price: sumMultiServicePrice(selectedServices),
-      currency: selectedServices[0]?.currency ?? 'USD',
+      currency: resolveTenantPriceCurrency(
+        selectedServices[0]?.currency,
+        tenant.currency,
+      ),
     }),
-    [selectedServices, tenant.multiService?.turnoverBufferMinutes],
+    [selectedServices, tenant.currency, tenant.multiService?.turnoverBufferMinutes],
   );
 
   useEffect(() => {
@@ -451,7 +455,10 @@ export function MultiServiceAvailabilityClient({
                   </p>
                 </div>
                 <p className="font-medium text-gray-900 shrink-0">
-                  {formatPrice(service.price, service.currency)}
+                  {formatPrice(
+                    service.price,
+                    resolveTenantPriceCurrency(service.currency, tenant.currency),
+                  )}
                 </p>
               </li>
             ))}

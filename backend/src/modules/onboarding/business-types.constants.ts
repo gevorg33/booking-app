@@ -4,6 +4,16 @@ export interface CatalogServiceDraft {
   durationMinutes: number;
   price: number;
   bufferMinutes?: number;
+  /** Vertical service type — persisted into service.metadata when present */
+  serviceType?: 'tour' | 'consultation' | 'lab_test' | 'procedure';
+  coverImage?: string;
+  maxGroupSize?: number;
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+  meetingPoint?: string;
+  includedItems?: string;
+  durationDays?: number;
+  requiresFasting?: boolean;
+  preparationNotes?: string;
 }
 
 export interface CatalogCategoryDraft {
@@ -40,6 +50,16 @@ export const BUSINESS_TYPE_OPTIONS: BusinessTypeOption[] = [
     descriptionKey: 'onboarding.types.spaDesc',
   },
   {
+    id: 'clinic',
+    labelKey: 'onboarding.types.clinic',
+    descriptionKey: 'onboarding.types.clinicDesc',
+  },
+  {
+    id: 'polyclinic',
+    labelKey: 'onboarding.types.polyclinic',
+    descriptionKey: 'onboarding.types.polyclinicDesc',
+  },
+  {
     id: 'beauty_clinic',
     labelKey: 'onboarding.types.beautyClinic',
     descriptionKey: 'onboarding.types.beautyClinicDesc',
@@ -53,6 +73,11 @@ export const BUSINESS_TYPE_OPTIONS: BusinessTypeOption[] = [
     id: 'dental',
     labelKey: 'onboarding.types.dental',
     descriptionKey: 'onboarding.types.dentalDesc',
+  },
+  {
+    id: 'tour_operator',
+    labelKey: 'onboarding.types.tourOperator',
+    descriptionKey: 'onboarding.types.tourOperatorDesc',
   },
   {
     id: 'other',
@@ -125,6 +150,84 @@ const FALLBACK_CATALOGS: Record<string, CatalogCategoryDraft[]> = {
       ],
     },
   ],
+  clinic: [
+    {
+      name: 'General Practice',
+      sortOrder: 0,
+      services: [
+        {
+          name: 'Initial consultation',
+          durationMinutes: 30,
+          price: 0,
+          serviceType: 'consultation',
+        },
+        {
+          name: 'Follow-up consultation',
+          durationMinutes: 20,
+          price: 0,
+          serviceType: 'consultation',
+        },
+      ],
+    },
+    {
+      name: 'Laboratory',
+      sortOrder: 1,
+      services: [
+        {
+          name: 'Complete blood count',
+          durationMinutes: 15,
+          price: 25,
+          serviceType: 'lab_test',
+          requiresFasting: true,
+        },
+      ],
+    },
+  ],
+  polyclinic: [
+    {
+      name: 'General Practice',
+      sortOrder: 0,
+      services: [
+        {
+          name: 'GP consultation',
+          durationMinutes: 30,
+          price: 40,
+          serviceType: 'consultation',
+        },
+      ],
+    },
+    {
+      name: 'Laboratory',
+      sortOrder: 1,
+      services: [
+        {
+          name: 'Lipid panel',
+          durationMinutes: 15,
+          price: 35,
+          serviceType: 'lab_test',
+          requiresFasting: true,
+        },
+      ],
+    },
+    {
+      name: 'Cardiology',
+      sortOrder: 2,
+      services: [
+        {
+          name: 'Cardiology consultation',
+          durationMinutes: 45,
+          price: 80,
+          serviceType: 'consultation',
+        },
+        {
+          name: 'ECG',
+          durationMinutes: 30,
+          price: 50,
+          serviceType: 'procedure',
+        },
+      ],
+    },
+  ],
   beauty_clinic: [
     {
       name: 'Aesthetics',
@@ -160,6 +263,59 @@ const FALLBACK_CATALOGS: Record<string, CatalogCategoryDraft[]> = {
         { name: 'Dental check-up', durationMinutes: 30, price: 60 },
         { name: 'Teeth cleaning', durationMinutes: 45, price: 90 },
         { name: 'Teeth whitening', durationMinutes: 60, price: 200 },
+      ],
+    },
+  ],
+  tour_operator: [
+    {
+      name: 'Day Tours',
+      sortOrder: 0,
+      services: [
+        {
+          name: 'Full Day City Tour',
+          description: 'Guided highlights of the city with lunch stop',
+          durationMinutes: 480,
+          price: 85,
+          serviceType: 'tour',
+          coverImage: '/placeholders/tours/city-day.jpg',
+          maxGroupSize: 12,
+          difficulty: 'easy',
+          durationDays: 1,
+        },
+      ],
+    },
+    {
+      name: 'Multi-Day Tours',
+      sortOrder: 1,
+      services: [
+        {
+          name: '3-Day Mountain Trek',
+          description: 'Guided trek with overnight camps',
+          durationMinutes: 4320,
+          price: 320,
+          serviceType: 'tour',
+          coverImage: '/placeholders/tours/mountain-trek.jpg',
+          maxGroupSize: 8,
+          difficulty: 'challenging',
+          durationDays: 3,
+        },
+      ],
+    },
+    {
+      name: 'Private Tours',
+      sortOrder: 2,
+      services: [
+        {
+          name: 'Private Wine Country Day',
+          description: 'Custom itinerary for your group',
+          durationMinutes: 480,
+          price: 240,
+          serviceType: 'tour',
+          coverImage: '/placeholders/tours/wine-country.jpg',
+          maxGroupSize: 6,
+          difficulty: 'moderate',
+          durationDays: 1,
+        },
       ],
     },
   ],

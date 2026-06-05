@@ -33,6 +33,7 @@ describe('Public booking cash + manage token integration', () => {
 
   const businessService = {
     findBySlug: jest.fn(async () => business),
+    findOne: jest.fn(async () => business),
   };
   const stripeIntegrationService = {
     isConnectReady: jest.fn().mockReturnValue(true),
@@ -44,6 +45,9 @@ describe('Public booking cash + manage token integration', () => {
       totalDiscount: 0,
     }),
     pricingMetadata: jest.fn().mockReturnValue({ pricing: { amountDue: 30 } }),
+    resolveFulfillmentCheckoutPricing: jest.fn(
+      (_recalculated: unknown, frozen?: unknown) => frozen ?? _recalculated,
+    ),
   };
   const checkoutPricingService = {
     applyRedemptions: jest.fn().mockResolvedValue(undefined),
@@ -101,6 +105,7 @@ describe('Public booking cash + manage token integration', () => {
     {} as any,
     {} as any,
     { sendMultiAppointmentConfirmation: jest.fn() } as any,
+    {} as any,
     configService as any,
     {} as any,
     serviceRepo as any,

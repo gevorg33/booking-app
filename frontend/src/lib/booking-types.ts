@@ -129,16 +129,43 @@ export function formatServicePrice(
   }
 }
 
+function resolveBookingDisplayAmount(input: {
+  service?: ServicePriceInfo | null;
+  metadata?: {
+    pricing?: { amountDue?: number };
+    amountPaid?: number;
+  } | null;
+}): number | null {
+  const pricingAmount = input.metadata?.pricing?.amountDue;
+  if (typeof pricingAmount === 'number' && Number.isFinite(pricingAmount)) {
+    return pricingAmount;
+  }
+  const amountPaid = input.metadata?.amountPaid;
+  if (typeof amountPaid === 'number' && Number.isFinite(amountPaid)) {
+    return amountPaid;
+  }
+  const servicePrice = input.service?.price;
+  if (typeof servicePrice === 'number' && Number.isFinite(servicePrice)) {
+    return servicePrice;
+  }
+  return null;
+}
+
 /** Primary calendar/card line: time · status · cost */
 export function formatBookingBlockHeadline(input: {
   startTime: string;
   endTime: string;
   status: string;
   service?: ServicePriceInfo | null;
+  metadata?: {
+    pricing?: { amountDue?: number; taxAmount?: number };
+    amountPaid?: number;
+  } | null;
 }): string {
   const parts = [formatTimeRangeDisplay(input.startTime, input.endTime)];
   parts.push(formatStatusLabel(input.status));
-  const cost = formatServicePrice(input.service?.price, input.service?.currency ?? undefined);
+  const amount = resolveBookingDisplayAmount(input);
+  const cost = formatServicePrice(amount, input.service?.currency ?? undefined);
   if (cost) parts.push(cost);
   return parts.join(' · ');
 }
@@ -152,6 +179,7 @@ export function formatBookingBlockSublabel(input: {
     groupLabel?: string | null;
     payAtVenue?: boolean;
     paymentMethod?: string;
+    pricing?: { taxAmount?: number };
   } | null;
   packagePurchaseId?: string | null;
   multiServiceGroupId?: string | null;
@@ -168,5 +196,9 @@ export function formatBookingBlockSublabel(input: {
   if (pkg) return `Package: ${pkg} · ${base}`;
   const group = input.metadata?.groupLabel;
   if (group || input.multiServiceGroupId) return `Multi-service: ${group ?? 'visit'} · ${base}`;
+  const taxAmount = input.metadata?.pricing?.taxAmount;
+  if (typeof taxAmount === 'number' && taxAmount > 0) {
+    base = `${base} · Tax ${taxAmount}`;
+  }
   return base;
 }

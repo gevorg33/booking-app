@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -9,7 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
+import { ProductRecommendationService } from './product-recommendation.service.js';
 import { LinkServiceProductDto } from './dto/link-service-product.dto.js';
+import { SetRecommendedProductsDto } from './dto/set-recommended-products.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -19,6 +22,7 @@ import { BusinessService } from '../business/business.service.js';
 export class InventoryController {
   constructor(
     private inventoryService: InventoryService,
+    private productRecommendationService: ProductRecommendationService,
     private businessService: BusinessService,
   ) {}
 
@@ -26,10 +30,15 @@ export class InventoryController {
   async list(
     @Param('businessId') businessId: string,
     @Query('locationId') locationId: string,
+    @Query('includeInactive') includeInactive: string,
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.inventoryService.listProducts(businessId, locationId);
+    return this.inventoryService.listProducts(
+      businessId,
+      locationId,
+      includeInactive === 'true',
+    );
   }
 
   @Post('products')
@@ -40,6 +49,17 @@ export class InventoryController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.inventoryService.createProduct(businessId, dto);
+  }
+
+  @Put('products/:id')
+  async update(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+    @Body() dto: Record<string, unknown>,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.inventoryService.updateProduct(id, businessId, dto);
   }
 
   @Post('products/:id/adjust')
@@ -90,5 +110,69 @@ export class InventoryController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     return this.inventoryService.unlinkServiceProduct(linkId, businessId);
+  }
+
+  @Get('recommendations/services/:serviceId')
+  async listServiceRecommendations(
+    @Param('businessId') businessId: string,
+    @Param('serviceId') serviceId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const productIds =
+      await this.productRecommendationService.listServiceRecommendations(
+        businessId,
+        serviceId,
+      );
+    return { productIds };
+  }
+
+  @Put('recommendations/services/:serviceId')
+  async setServiceRecommendations(
+    @Param('businessId') businessId: string,
+    @Param('serviceId') serviceId: string,
+    @Body() dto: SetRecommendedProductsDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const productIds =
+      await this.productRecommendationService.setServiceRecommendations(
+        businessId,
+        serviceId,
+        dto.productIds,
+      );
+    return { productIds };
+  }
+
+  @Get('recommendations/categories/:categoryId')
+  async listCategoryRecommendations(
+    @Param('businessId') businessId: string,
+    @Param('categoryId') categoryId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const productIds =
+      await this.productRecommendationService.listCategoryRecommendations(
+        businessId,
+        categoryId,
+      );
+    return { productIds };
+  }
+
+  @Put('recommendations/categories/:categoryId')
+  async setCategoryRecommendations(
+    @Param('businessId') businessId: string,
+    @Param('categoryId') categoryId: string,
+    @Body() dto: SetRecommendedProductsDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    const productIds =
+      await this.productRecommendationService.setCategoryRecommendations(
+        businessId,
+        categoryId,
+        dto.productIds,
+      );
+    return { productIds };
   }
 }

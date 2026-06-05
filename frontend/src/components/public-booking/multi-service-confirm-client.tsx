@@ -13,6 +13,7 @@ import {
   type PublicBusinessProfile,
   type PublicService,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { formatDateDisplay, formatScheduleTime } from '@/lib/date-format';
 import { useI18n } from '@/i18n';
@@ -90,7 +91,10 @@ export function MultiServiceConfirmClient({
   const [error, setError] = useState<string | null>(null);
 
   const totalPrice = sumMultiServicePrice(selectedServices);
-  const currency = selectedServices[0]?.currency ?? 'USD';
+  const currency = resolveTenantPriceCurrency(
+    selectedServices[0]?.currency,
+    tenant.currency,
+  );
 
   useEffect(() => {
     queueMicrotask(() =>

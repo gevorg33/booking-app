@@ -59,6 +59,9 @@ export class ServicePackage {
   @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
   expiresAt: Date | null;
 
+  @Column({ type: 'jsonb', default: {} })
+  metadata: Record<string, unknown>;
+
   @OneToMany(() => ServicePackageItem, (item) => item.package, {
     cascade: true,
   })

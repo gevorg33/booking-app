@@ -14,6 +14,11 @@ export interface BusinessAuthSummary {
   name: string;
   slug: string;
   locale: string;
+  defaultLocale: string;
+  enabledLocales: string[];
+  dateFormat: string;
+  timeFormat: string;
+  currency: string;
   membershipRole: MemberRole;
   employee: { id: string; name: string } | null;
 }
@@ -32,6 +37,11 @@ export interface AuthResponse {
     name: string;
     slug: string;
     locale: string;
+    defaultLocale: string;
+    enabledLocales: string[];
+    dateFormat: string;
+    timeFormat: string;
+    currency: string;
     membershipRole: MemberRole;
   } | null;
   employee: { id: string; name: string } | null;

@@ -32,6 +32,12 @@ import {
   JwtPayload,
   TenantHint,
 } from './auth.types.js';
+import { readBusinessDateFormatSettings } from '../../common/utils/business-date-format.util.js';
+import { getBusinessDefaultCurrency } from '../../common/utils/business-currency.util.js';
+import {
+  getBusinessDefaultLocale,
+  getBusinessEnabledLocales,
+} from '../../common/utils/business-locale.util.js';
 
 @Injectable()
 export class AuthService {
@@ -256,6 +262,11 @@ export class AuthService {
             name: summary.name,
             slug: summary.slug,
             locale: summary.locale,
+            defaultLocale: summary.defaultLocale,
+            enabledLocales: summary.enabledLocales,
+            dateFormat: summary.dateFormat,
+            timeFormat: summary.timeFormat,
+            currency: summary.currency,
             membershipRole: summary.membershipRole,
           }
         : null,
@@ -353,15 +364,31 @@ export class AuthService {
     return summaries;
   }
 
+  private businessLocaleFields(settings?: Record<string, unknown>) {
+    const defaultLocale = getBusinessDefaultLocale(settings);
+    const { dateFormat, timeFormat } = readBusinessDateFormatSettings(settings);
+    return {
+      locale: defaultLocale,
+      defaultLocale,
+      enabledLocales: getBusinessEnabledLocales(settings),
+      dateFormat,
+      timeFormat,
+      currency: getBusinessDefaultCurrency(settings),
+    };
+  }
+
   private membershipToSummary(
     membership: BusinessMember,
     employee: { id: string; name: string } | null,
   ): BusinessAuthSummary {
+    const localeFields = this.businessLocaleFields(
+      membership.business.settings as Record<string, unknown> | undefined,
+    );
     return {
       id: membership.business.id,
       name: membership.business.name,
       slug: membership.business.slug,
-      locale: membership.business.settings?.locale || 'en',
+      ...localeFields,
       membershipRole: membership.role,
       employee,
     };
@@ -380,7 +407,9 @@ export class AuthService {
         id: membership.business.id,
         name: membership.business.name,
         slug: membership.business.slug,
-        locale: membership.business.settings?.locale || 'en',
+        ...this.businessLocaleFields(
+          membership.business.settings as Record<string, unknown> | undefined,
+        ),
         membershipRole: membership.role,
       },
       employee,

@@ -17,6 +17,7 @@ import {
   formatTimeDisplay,
   formatWeekdayShortByDayIndex,
   getTodayDateKey,
+  parseDateKey,
   toDateKey,
   todayDateAnchor,
 } from '@/lib/date-format';
@@ -28,12 +29,23 @@ import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { AiCalendarSelectionBar, type CalendarSelection } from '@/components/ai-calendar-selection-bar';
+import {
+  TOUR_SERVICE_COLORS,
+  buildServiceColorMap,
+  buildTourCalendarSpans,
+  formatTourSpanLabel,
+  mergeServiceColorMaps,
+  tourSpanRowHeight,
+  type CalendarWeekBooking,
+  type TourCalendarSpan,
+} from '@/lib/tour-calendar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const HOUR_START = 7;   // 07:00
 const HOUR_END = 22;    // 22:00
 const HOUR_HEIGHT = 60; // px per hour
+const SERVICE_COLORS = TOUR_SERVICE_COLORS;
 
 type StatusStyle = { bg: string; border: string; text: string; label: string };
 
@@ -45,20 +57,6 @@ function getStatusStyles(t: (key: string) => string): Record<string, StatusStyle
     unavailable: { bg: 'bg-gray-800/60', border: 'border-gray-700/60', text: 'text-gray-500', label: t('calendarPage.statusUnavailable') },
   };
 }
-
-// Distinct palette for services (cycles if >10 services)
-const SERVICE_COLORS = [
-  'bg-blue-600/25 border-blue-500/60 text-blue-300',
-  'bg-violet-600/25 border-violet-500/60 text-violet-300',
-  'bg-pink-600/25 border-pink-500/60 text-pink-300',
-  'bg-cyan-600/25 border-cyan-500/60 text-cyan-300',
-  'bg-yellow-600/25 border-yellow-500/60 text-yellow-300',
-  'bg-teal-600/25 border-teal-500/60 text-teal-300',
-  'bg-rose-600/25 border-rose-500/60 text-rose-300',
-  'bg-indigo-600/25 border-indigo-500/60 text-indigo-300',
-  'bg-lime-600/25 border-lime-500/60 text-lime-300',
-  'bg-fuchsia-600/25 border-fuchsia-500/60 text-fuchsia-300',
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -177,13 +175,15 @@ export default function CalendarPage() {
   const [anchorDate, setAnchorDate] = useState(new Date());
   const [employeeId, setEmployeeId] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
+  const [selectedTour, setSelectedTour] = useState<TourCalendarSpan | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarSelection | null>(null);
   const dragRef = useRef<{ dayKey: string; startMin: number; endMin: number } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
   const weekDates = useMemo(() => getWeekDates(anchorDate), [anchorDate]);
-  const startDate = dateKey(weekDates[0]);
-  const endDate = dateKey(weekDates[6]);
+  const weekDateKeys = useMemo(() => weekDates.map(dateKey), [weekDates]);
+  const startDate = weekDateKeys[0];
+  const endDate = weekDateKeys[6];
 
   // ── Queries ───
   const { data: employees = [] } = useQuery({
@@ -250,7 +250,26 @@ export default function CalendarPage() {
     enabled: !!business?.id && !!employeeId,
   });
 
+  const { data: weekBookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['calendar-week-bookings', business?.id, employeeId, startDate, endDate],
+    queryFn: async () => {
+      if (!business?.id || !employeeId) return [];
+      const { data } = await api.get(`/businesses/${business.id}/bookings`, {
+        params: { employeeId, startDate, endDate },
+      });
+      const rows = data.data || data || [];
+      return Array.isArray(rows) ? rows : [];
+    },
+    enabled: !!business?.id && !!employeeId,
+  });
+
   const slots: SlotInfo[] = calendarData?.slots || [];
+  const tourSpans = useMemo(
+    () => buildTourCalendarSpans(weekBookings as CalendarWeekBooking[], weekDateKeys),
+    [weekBookings, weekDateKeys],
+  );
+  const maxTourLane = tourSpans.reduce((max, span) => Math.max(max, span.lane), -1);
+  const tourRowHeight = tourSpanRowHeight(maxTourLane + 1);
 
   // Group slots by date key
   const slotsByDate = useMemo(() => {
@@ -263,15 +282,15 @@ export default function CalendarPage() {
     return map;
   }, [slots]);
 
-  // Build service → color mapping (stable across renders)
   const serviceColorMap = useMemo(() => {
-    const serviceIds = [...new Set(slots.map((s) => s.serviceId).filter(Boolean))] as string[];
-    const map: Record<string, string> = {};
-    serviceIds.forEach((id, i) => { map[id] = SERVICE_COLORS[i % SERVICE_COLORS.length]; });
-    return map;
-  }, [slots]);
+    const slotServiceIds = slots.map((s) => s.serviceId).filter(Boolean) as string[];
+    const tourServiceIds = tourSpans.map((s) => s.serviceId);
+    return mergeServiceColorMaps(
+      buildServiceColorMap(slotServiceIds, SERVICE_COLORS),
+      buildServiceColorMap(tourServiceIds, SERVICE_COLORS),
+    );
+  }, [slots, tourSpans]);
 
-  // Legend: unique services in view
   const servicesInView = useMemo(() => {
     const seen = new Map<string, string>();
     for (const s of slots) {
@@ -279,8 +298,13 @@ export default function CalendarPage() {
         seen.set(s.serviceId, s.serviceName);
       }
     }
+    for (const span of tourSpans) {
+      if (!seen.has(span.serviceId)) {
+        seen.set(span.serviceId, span.serviceName);
+      }
+    }
     return [...seen.entries()];
-  }, [slots]);
+  }, [slots, tourSpans]);
 
   const prevWeek = () => { const d = new Date(anchorDate); d.setDate(d.getDate() - 7); setAnchorDate(d); };
   const nextWeek = () => { const d = new Date(anchorDate); d.setDate(d.getDate() + 7); setAnchorDate(d); };
@@ -412,12 +436,54 @@ export default function CalendarPage() {
       {/* Calendar grid */}
       {employeeId && (
         <div className="flex-1 overflow-auto">
-          {isLoading ? (
+          {isLoading || bookingsLoading ? (
             <div className="flex items-center justify-center h-40">
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="flex min-w-[700px]" ref={gridRef}>
+            <div className="min-w-[700px]" ref={gridRef}>
+              {tourSpans.length > 0 && (
+                <div className="flex border-b border-gray-800 mb-1">
+                  <div className="w-14 shrink-0 pt-2 pr-2 text-right text-[10px] text-gray-500">
+                    {t('calendarPage.tourDepartures')}
+                  </div>
+                  <div
+                    className="relative flex-1 min-h-[36px]"
+                    style={{ minHeight: tourRowHeight || 36 }}
+                  >
+                    <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
+                      {weekDateKeys.map((key) => (
+                        <div key={key} className="border-l border-gray-800/60 first:border-l-0" />
+                      ))}
+                    </div>
+                    {tourSpans.map((span) => {
+                      const colCount = weekDateKeys.length || 7;
+                      const spanCols = span.colEnd - span.colStart + 1;
+                      return (
+                        <button
+                          key={span.bookingId}
+                          type="button"
+                          className={`absolute rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold truncate hover:brightness-110 transition-all ${
+                            serviceColorMap[span.serviceId] || SERVICE_COLORS[0]
+                          }`}
+                          style={{
+                            top: `${span.lane * 28 + 4}px`,
+                            height: '24px',
+                            left: `calc(${(span.colStart / colCount) * 100}% + 2px)`,
+                            width: `calc(${(spanCols / colCount) * 100}% - 4px)`,
+                          }}
+                          onClick={() => setSelectedTour(span)}
+                          title={formatTourSpanLabel(span, t)}
+                        >
+                          {formatTourSpanLabel(span, t)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            <div className="flex min-w-[700px]">
               {/* Time gutter */}
               <div className="w-14 shrink-0 relative" style={{ height: `${totalHours * HOUR_HEIGHT}px` }}>
                 {Array.from({ length: totalHours + 1 }, (_, i) => (
@@ -508,6 +574,7 @@ export default function CalendarPage() {
                 );
               })}
             </div>
+            </div>
           )}
         </div>
       )}
@@ -517,6 +584,52 @@ export default function CalendarPage() {
           selection={dragSelection}
           onClear={() => setDragSelection(null)}
         />
+      )}
+
+      {selectedTour && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/60" onClick={() => setSelectedTour(null)}>
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Info className="w-5 h-5 text-blue-400" />
+                {t('calendarPage.tourDetails')}
+              </h3>
+              <button onClick={() => setSelectedTour(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <dl className="space-y-2 text-sm">
+              <Row label={t('calendarPage.slotService')}>
+                <span className={`px-2 py-0.5 rounded-full text-xs border ${serviceColorMap[selectedTour.serviceId] || ''}`}>
+                  {selectedTour.serviceName}
+                </span>
+              </Row>
+              <Row label={t('calendarPage.tourDates')}>
+                {formatDateDisplay(parseDateKey(selectedTour.tourStartDate), locale)}
+                {selectedTour.tourEndDate !== selectedTour.tourStartDate && (
+                  <>
+                    {' – '}
+                    {formatDateDisplay(parseDateKey(selectedTour.tourEndDate), locale)}
+                  </>
+                )}
+              </Row>
+              {selectedTour.paxCount && (
+                <Row label={t('calendarPage.tourPax')}>{selectedTour.paxCount}</Row>
+              )}
+              {selectedTour.customerName && (
+                <Row label={t('calendarPage.tourCustomer')}>{selectedTour.customerName}</Row>
+              )}
+              <Row label={t('calendarPage.slotStatus')}>{selectedTour.status}</Row>
+              {selectedTour.specialRequirements && (
+                <Row label={t('calendarPage.tourNotes')}>{selectedTour.specialRequirements}</Row>
+              )}
+            </dl>
+          </div>
+        </div>
       )}
 
       {/* Slot detail panel */}

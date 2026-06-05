@@ -13,9 +13,9 @@ const hy: Partial<
   booking_confirmation: {
     subject: 'Հաստատված՝ {{serviceName}} {{businessName}}-ում',
     bodyText:
-      'Բարև {{customerName}},\n\nՁեր հանդիպումը {{businessName}}-ում հաստատված է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Բարև {{customerName}},\n\nՁեր հանդիպումը {{businessName}}-ում հաստատված է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Բարև {{customerName}},</p><p>Ձեր հանդիպումը {{businessName}}-ում հաստատված է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Բարև {{customerName}},</p><p>Ձեր հանդիպումը {{businessName}}-ում հաստատված է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
     subject:
@@ -28,9 +28,9 @@ const hy: Partial<
   booking_reminder: {
     subject: 'Հիշեցում՝ հանդիպումը {{reminderLabel}}-ում է — {{businessName}}',
     bodyText:
-      'Հիշեցում՝ ձեր հանդիպումը {{businessName}}-ում {{reminderLabel}}-ում է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}',
+      'Հիշեցում՝ ձեր հանդիպումը {{businessName}}-ում {{reminderLabel}}-ում է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}',
     bodyHtml:
-      '<p>Հիշեցում՝ ձեր հանդիպումը {{businessName}}-ում {{reminderLabel}}-ում է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}</p>',
+      '<p>Հիշեցում՝ ձեր հանդիպումը {{businessName}}-ում {{reminderLabel}}-ում է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}</p>',
   },
   booking_cancellation: {
     subject: 'Չեղարկված՝ {{serviceName}} {{businessName}}-ում',
@@ -56,9 +56,9 @@ const hy: Partial<
   gift_card_purchaser_receipt: {
     subject: 'Նվեր քարտը ուղարկված է — {{businessName}}',
     bodyText:
-      'Ձեր նվեր քարտի պատվերը {{businessName}}-ից ուղարկվել է {{recipientEmail}} հասցեին։\n\n{{accountLinksText}}',
+      'Ձեր նվեր քարտի պատվերը {{businessName}}-ից ուղարկվել է {{recipientEmail}} հասցեին։\n\n{{purchaseLineText}}{{accountLinksText}}',
     bodyHtml:
-      '<p>Ձեր նվեր քարտի պատվերը <strong>{{businessName}}</strong>-ից ուղարկվել է {{recipientEmail}} հասցեին։</p>{{accountLinksHtml}}',
+      '<p>Ձեր նվեր քարտի պատվերը <strong>{{businessName}}</strong>-ից ուղարկվել է {{recipientEmail}} հասցեին։</p>{{purchaseLineHtml}}{{accountLinksHtml}}',
   },
 };
 
@@ -68,9 +68,9 @@ const ru: Partial<
   booking_confirmation: {
     subject: 'Подтверждено: {{serviceName}} в {{businessName}}',
     bodyText:
-      'Здравствуйте, {{customerName}}!\n\nВаша запись в {{businessName}} подтверждена.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Здравствуйте, {{customerName}}!\n\nВаша запись в {{businessName}} подтверждена.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Здравствуйте, {{customerName}}!</p><p>Ваша запись в {{businessName}} подтверждена.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Здравствуйте, {{customerName}}!</p><p>Ваша запись в {{businessName}} подтверждена.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
     subject:
@@ -83,9 +83,9 @@ const ru: Partial<
   booking_reminder: {
     subject: 'Напоминание: запись через {{reminderLabel}} — {{businessName}}',
     bodyText:
-      'Напоминание: ваша запись в {{businessName}} через {{reminderLabel}}.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}',
+      'Напоминание: ваша запись в {{businessName}} через {{reminderLabel}}.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}',
     bodyHtml:
-      '<p>Напоминание: ваша запись в {{businessName}} через {{reminderLabel}}.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}</p>',
+      '<p>Напоминание: ваша запись в {{businessName}} через {{reminderLabel}}.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}</p>',
   },
   booking_cancellation: {
     subject: 'Отменено: {{serviceName}} в {{businessName}}',
@@ -111,9 +111,9 @@ const ru: Partial<
   gift_card_purchaser_receipt: {
     subject: 'Подарочная карта отправлена — {{businessName}}',
     bodyText:
-      'Ваш заказ подарочной карты в {{businessName}} отправлен на {{recipientEmail}}.\n\n{{accountLinksText}}',
+      'Ваш заказ подарочной карты в {{businessName}} отправлен на {{recipientEmail}}.\n\n{{purchaseLineText}}{{accountLinksText}}',
     bodyHtml:
-      '<p>Ваш заказ подарочной карты в <strong>{{businessName}}</strong> отправлен на {{recipientEmail}}.</p>{{accountLinksHtml}}',
+      '<p>Ваш заказ подарочной карты в <strong>{{businessName}}</strong> отправлен на {{recipientEmail}}.</p>{{purchaseLineHtml}}{{accountLinksHtml}}',
   },
 };
 

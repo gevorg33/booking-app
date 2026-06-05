@@ -40,6 +40,14 @@ export class CreateCustomerDto {
   @IsBoolean()
   marketingOptIn?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  aiProcessingOptIn?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  thirdPartyIntegrationsOptIn?: boolean;
+
   /** Where the customer record was first created (for marketing alerts). */
   @IsOptional()
   @IsIn(['dashboard', 'web_booking', 'app'])

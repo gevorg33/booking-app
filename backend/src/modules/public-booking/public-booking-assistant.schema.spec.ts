@@ -7,7 +7,9 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('book_appointment');
     expect(schema).toContain('bookingFirstAvailable');
     expect(schema).toContain('timeOfDay');
-    expect(schema).toContain('who\'s free tomorrow evening for permanent lashes');
+    expect(schema).toContain(
+      "who's free tomorrow evening for permanent lashes",
+    );
     expect(schema).toContain('multi-step flows automatically');
     expect(schema).not.toContain('check_providers_for_service');
     expect(schema).not.toContain('book_nearest_slot');

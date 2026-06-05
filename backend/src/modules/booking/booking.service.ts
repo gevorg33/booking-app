@@ -52,6 +52,12 @@ import { ServiceSubscriptionsService } from '../service-subscriptions/service-su
 import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
 import { buildSequentialAppointments } from '../../common/utils/multi-service-booking.util.js';
 import { resolveMultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
+import {
+  readBookingListAmounts,
+  recordTaxInclusivePaymentAmount,
+} from './booking-payment-summary.util.js';
+import { PhiFieldService } from '../compliance/phi-field.service.js';
+import { BusinessService } from '../business/business.service.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -114,7 +120,53 @@ export class BookingService {
     private loyaltyAwardService: LoyaltyAwardService,
     private resourcesService: SchedulingResourcesService,
     private subscriptionsService: ServiceSubscriptionsService,
+    private phiFieldService: PhiFieldService,
+    private businessService: BusinessService,
   ) {}
+
+  private async loadBusinessEntity(businessId: string): Promise<Business> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    return business;
+  }
+
+  private async resolvePhiAuditActor(
+    businessId: string,
+    userId?: string,
+  ): Promise<
+    | { userId: string; role: string; ip?: string | null }
+    | { role: 'public' | 'system'; userId: null; ip?: string | null }
+  > {
+    if (!userId) return { role: 'public', userId: null };
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      userId,
+    );
+    return { userId, role: membership.role };
+  }
+
+  private async resolveStaffPhiContext(
+    businessId: string,
+    userId?: string,
+    ip?: string | null,
+  ) {
+    if (!userId) return null;
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      userId,
+    );
+    const employee = await this.employeeRepo.findOne({
+      where: { businessId, userId },
+    });
+    return {
+      userId,
+      role: membership.role,
+      ip,
+      employeeId: employee?.id ?? null,
+    };
+  }
 
   async getAvailability(businessId: string, dto: GetAvailabilityDto) {
     const date = new Date(dto.date);
@@ -203,11 +255,8 @@ export class BookingService {
     const totalDuration = service.durationMinutes + service.bufferMinutes;
     const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
-    const business = await this.businessRepo.findOne({
-      where: { id: businessId },
-      select: { timezone: true },
-    });
-    const timeZone = pickTimezone(business?.timezone);
+    const businessEntity = await this.loadBusinessEntity(businessId);
+    const timeZone = pickTimezone(businessEntity.timezone);
     if (isWallClockStartInPast(startTime, timeZone)) {
       throw new ConflictException('Cannot book in the past');
     }
@@ -368,6 +417,21 @@ export class BookingService {
                 ? PaymentStatus.NOT_APPLICABLE
                 : PaymentStatus.PENDING);
 
+      const bookingMetadata = {
+        ...(dto.metadata || {}),
+        ...(useSubscriptionId
+          ? {
+              subscriptionId: useSubscriptionId,
+              subscriptionCreditUsed: true,
+            }
+          : {}),
+      };
+      const encryptedPayload =
+        await this.phiFieldService.encryptBookingForStorage(businessEntity, {
+          notes: dto.notes,
+          metadata: bookingMetadata,
+        });
+
       const newBooking = manager.create(Booking, {
         businessId,
         employeeId: dto.employeeId,
@@ -379,19 +443,11 @@ export class BookingService {
         endTime,
         status: BookingStatus.CONFIRMED,
         paymentStatus,
-        notes: dto.notes,
+        notes: encryptedPayload.notes,
         description: dto.description,
         linkedEmployeeIds: dto.linkedEmployeeIds,
         virtualMeetingUrl: dto.virtualMeetingUrl,
-        metadata: {
-          ...(dto.metadata || {}),
-          ...(useSubscriptionId
-            ? {
-                subscriptionId: useSubscriptionId,
-                subscriptionCreditUsed: true,
-              }
-            : {}),
-        },
+        metadata: encryptedPayload.metadata ?? bookingMetadata,
         // Store the first slot id for backward compat
         slotId: slotsToLock[0]?.id,
       });
@@ -437,7 +493,15 @@ export class BookingService {
       await this.tryAwardLoyalty(booking.id);
     }
 
-    return this.findOne(booking.id);
+    const auditActor = await this.resolvePhiAuditActor(businessId, userId);
+    await this.phiFieldService.auditBookingPhiWrite(
+      businessEntity,
+      booking,
+      null,
+      auditActor,
+    );
+
+    return this.findOne(booking.id, { staffUserId: userId });
   }
 
   async update(
@@ -457,6 +521,26 @@ export class BookingService {
       relations: { employee: true, service: true, customer: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
+
+    const businessEntity = await this.loadBusinessEntity(booking.businessId);
+    let phiBefore = {
+      notes: booking.notes,
+      metadata: booking.metadata ? { ...booking.metadata } : undefined,
+    };
+    if (userId) {
+      const staff = await this.resolvePhiAuditActor(booking.businessId, userId);
+      if ('userId' in staff && staff.userId) {
+        const decrypted = await this.phiFieldService.decryptBookingForStaff(
+          businessEntity,
+          booking,
+          { userId: staff.userId, role: staff.role },
+        );
+        phiBefore = {
+          notes: decrypted.notes,
+          metadata: decrypted.metadata ? { ...decrypted.metadata } : undefined,
+        };
+      }
+    }
 
     this.assertExpectedUpdatedAt(booking, dto.expectedUpdatedAt);
 
@@ -668,7 +752,37 @@ export class BookingService {
     if (dto.hiddenFromCalendar !== undefined)
       booking.hiddenFromCalendar = dto.hiddenFromCalendar;
 
+    if (
+      booking.paymentStatus === PaymentStatus.PAID &&
+      previousPaymentStatus !== PaymentStatus.PAID
+    ) {
+      booking.metadata = recordTaxInclusivePaymentAmount(booking.metadata);
+    }
+
+    const phiPlainAfter = {
+      notes: booking.notes,
+      metadata: booking.metadata ? { ...booking.metadata } : undefined,
+    };
+    const encryptedPayload =
+      await this.phiFieldService.encryptBookingForStorage(
+        businessEntity,
+        phiPlainAfter,
+      );
+    booking.notes = encryptedPayload.notes ?? booking.notes;
+    booking.metadata = encryptedPayload.metadata ?? booking.metadata;
+
     await this.bookingRepo.save(booking);
+
+    const auditActor = await this.resolvePhiAuditActor(
+      booking.businessId,
+      userId,
+    );
+    await this.phiFieldService.auditBookingPhiWrite(
+      businessEntity,
+      { id: booking.id, businessId: booking.businessId, ...phiPlainAfter },
+      phiBefore,
+      auditActor,
+    );
 
     if (
       booking.paymentStatus === PaymentStatus.PAID &&
@@ -735,7 +849,7 @@ export class BookingService {
       userId,
     });
 
-    return this.findOne(booking.id);
+    return this.findOne(booking.id, { staffUserId: userId });
   }
 
   async findAll(
@@ -743,7 +857,46 @@ export class BookingService {
     date?: string,
     employeeId?: string,
     includeHidden = false,
+    startDate?: string,
+    endDate?: string,
   ): Promise<Booking[]> {
+    const rangeStart = startDate?.trim();
+    const rangeEnd = endDate?.trim();
+    if (rangeStart && rangeEnd) {
+      const weekStart = new Date(`${rangeStart}T00:00:00.000Z`);
+      const weekEnd = new Date(`${rangeEnd}T23:59:59.999Z`);
+      if (
+        !Number.isNaN(weekStart.getTime()) &&
+        !Number.isNaN(weekEnd.getTime())
+      ) {
+        const qb = this.bookingRepo
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.employee', 'employee')
+          .leftJoinAndSelect('booking.service', 'service')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .where('booking.business_id = :businessId', { businessId });
+
+        if (!includeHidden) {
+          qb.andWhere('booking.hidden_from_calendar = false');
+        }
+        if (employeeId) {
+          qb.andWhere('booking.employee_id = :employeeId', { employeeId });
+        }
+
+        qb.andWhere(
+          `(booking.start_time BETWEEN :weekStart AND :weekEnd
+            OR (
+              booking.metadata->>'tourStartDate' IS NOT NULL
+              AND (booking.metadata->>'tourStartDate') <= :rangeEnd
+              AND COALESCE(booking.metadata->>'tourEndDate', booking.metadata->>'tourStartDate') >= :rangeStart
+            ))`,
+          { weekStart, weekEnd, rangeStart, rangeEnd },
+        );
+
+        return qb.orderBy('booking.start_time', 'ASC').getMany();
+      }
+    }
+
     const where: any = { businessId };
     if (!includeHidden) {
       where.hiddenFromCalendar = false;
@@ -803,6 +956,8 @@ export class BookingService {
   async searchDashboard(
     businessId: string,
     query: GetBookingsQueryDto,
+    staffUserId?: string,
+    ip?: string | null,
   ): Promise<AppointmentsSearchResult> {
     const statuses = parseBookingStatusFilter(query.status);
     const sortBy = query.sortBy ?? 'startTime';
@@ -872,49 +1027,95 @@ export class BookingService {
       .take(pageSize)
       .getManyAndCount();
 
+    let decryptedBookings = bookings;
+    if (staffUserId) {
+      const businessEntity = await this.loadBusinessEntity(businessId);
+      const staff = await this.resolveStaffPhiContext(
+        businessId,
+        staffUserId,
+        ip,
+      );
+      if (staff) {
+        decryptedBookings = await this.phiFieldService.decryptBookingsForStaff(
+          businessEntity,
+          bookings.map((b) => ({
+            ...b,
+            id: b.id,
+            businessId: b.businessId,
+            employeeId: b.employeeId,
+            linkedEmployeeIds: b.linkedEmployeeIds,
+          })),
+          staff,
+        );
+      }
+    }
+
     return {
       totalItems,
       page,
       pageSize,
-      appointments: bookings.map((b) => ({
-        id: b.id,
-        startTime: b.startTime.toISOString(),
-        endTime: b.endTime.toISOString(),
-        status: b.status,
-        paymentStatus: b.paymentStatus,
-        hiddenFromCalendar: b.hiddenFromCalendar,
-        notes: b.notes ?? null,
-        createdAt: b.createdAt.toISOString(),
-        updatedAt: b.updatedAt.toISOString(),
-        customer: b.customer
-          ? {
-              id: b.customer.id,
-              name: b.customer.name,
-              email: b.customer.email ?? null,
-              phone: b.customer.phone ?? null,
-            }
-          : null,
-        employee: b.employee
-          ? { id: b.employee.id, name: b.employee.name }
-          : null,
-        service: b.service
-          ? {
-              id: b.service.id,
-              name: b.service.name,
-              price: Number(b.service.price),
-              currency: b.service.currency,
-            }
-          : null,
-      })),
+      appointments: decryptedBookings.map((b) => {
+        const amounts = readBookingListAmounts(b.metadata);
+        return {
+          id: b.id,
+          startTime: b.startTime.toISOString(),
+          endTime: b.endTime.toISOString(),
+          status: b.status,
+          paymentStatus: b.paymentStatus,
+          hiddenFromCalendar: b.hiddenFromCalendar,
+          notes: b.notes ?? null,
+          createdAt: b.createdAt.toISOString(),
+          updatedAt: b.updatedAt.toISOString(),
+          customer: b.customer
+            ? {
+                id: b.customer.id,
+                name: b.customer.name,
+                email: b.customer.email ?? null,
+                phone: b.customer.phone ?? null,
+              }
+            : null,
+          employee: b.employee
+            ? { id: b.employee.id, name: b.employee.name }
+            : null,
+          service: b.service
+            ? {
+                id: b.service.id,
+                name: b.service.name,
+                price: Number(b.service.price),
+                currency: b.service.currency,
+              }
+            : null,
+          amountPaid: amounts.amountPaid,
+          taxAmount: amounts.taxAmount,
+        };
+      }),
     };
   }
 
-  async findOne(id: string): Promise<Booking> {
+  async findOne(
+    id: string,
+    options?: { staffUserId?: string; ip?: string | null },
+  ): Promise<Booking> {
     const booking = await this.bookingRepo.findOne({
       where: { id },
       relations: { employee: true, service: true, customer: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    if (options?.staffUserId) {
+      const businessEntity = await this.loadBusinessEntity(booking.businessId);
+      const staff = await this.resolveStaffPhiContext(
+        booking.businessId,
+        options.staffUserId,
+        options.ip,
+      );
+      if (staff) {
+        return this.phiFieldService.decryptBookingForStaff(
+          businessEntity,
+          booking,
+          staff,
+        );
+      }
+    }
     return booking;
   }
 

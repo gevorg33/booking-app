@@ -37,6 +37,7 @@ describe('locale-format.util', () => {
 
   it('reads business default currency from settings', () => {
     expect(getBusinessDefaultCurrency({})).toBe('USD');
+    expect(getBusinessDefaultCurrency({ currency: 'amd' })).toBe('AMD');
     expect(getBusinessDefaultCurrency({ defaultCurrency: 'eur' })).toBe('EUR');
     expect(getBusinessDefaultCurrency({ locale: { currency: 'GBP' } })).toBe(
       'GBP',

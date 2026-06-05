@@ -1,3 +1,4 @@
+import { resolveTenantPriceCurrency } from './business-currency';
 import { formatTimeRangeDisplay } from './date-format';
 import type { BookingPaymentSummary } from './booking-payment-summary';
 
@@ -189,12 +190,17 @@ export function formatBookingBlockHeadline(
     endTime: string;
     status: string;
     service?: ServicePriceInfo | null;
+    businessCurrency?: string | null;
   },
   t?: TranslateFn,
 ): string {
   const parts = [formatTimeRangeDisplay(input.startTime, input.endTime)];
   parts.push(formatStatusLabel(input.status, t));
-  const cost = formatServicePrice(input.service?.price, input.service?.currency ?? undefined);
+  const currency = resolveTenantPriceCurrency(
+    input.service?.currency,
+    input.businessCurrency,
+  );
+  const cost = formatServicePrice(input.service?.price, currency);
   if (cost) parts.push(cost);
   return parts.join(' · ');
 }

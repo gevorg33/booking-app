@@ -16,10 +16,12 @@ export function LocalizedNamesFields({
   value,
   onChange,
   t,
+  enabledLocales = SUPPORTED_LOCALES,
 }: {
   value: LocalizedNamesFormState;
   onChange: (next: LocalizedNamesFormState) => void;
   t: (key: string) => string;
+  enabledLocales?: readonly AppLocale[];
 }) {
   return (
     <div className="md:col-span-2 space-y-4 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
@@ -28,7 +30,7 @@ export function LocalizedNamesFields({
         <p className="text-xs text-gray-500 mt-1">{t('servicesPage.localizedNamesHint')}</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {SUPPORTED_LOCALES.map((locale) => (
+        {enabledLocales.map((locale) => (
           <div key={locale} className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
               {t(LOCALE_LABEL_KEYS[locale])}

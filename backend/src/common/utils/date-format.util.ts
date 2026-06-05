@@ -1,8 +1,35 @@
 import {
+  type BusinessDateFormat,
+  type BusinessTimeFormat,
+  formatDateWithFormat,
+  formatTimeWithFormat,
+  readBusinessDateFormatSettings,
+} from './business-date-format.util.js';
+import {
   addDaysToDateKey,
   getDateKeyInTimezone,
   resolveTimezone,
 } from './timezone.util.js';
+
+export { readBusinessDateFormatSettings } from './business-date-format.util.js';
+
+export interface DateDisplayOptions {
+  dateFormat?: BusinessDateFormat;
+  timeFormat?: BusinessTimeFormat;
+  timeZone?: string;
+}
+
+function resolveDateFormat(
+  options?: DateDisplayOptions,
+): BusinessDateFormat | undefined {
+  return options?.dateFormat;
+}
+
+function resolveTimeFormat(
+  options?: DateDisplayOptions,
+): BusinessTimeFormat | undefined {
+  return options?.timeFormat;
+}
 
 /** DD/MM/YYYY from YYYY-MM-DD calendar key. */
 export function dateKeyToDisplay(dateKey: string): string {
@@ -22,10 +49,11 @@ function intlLocale(locale?: string): string | undefined {
   return undefined;
 }
 
-/** User-facing date: locale-aware when locale is en/hy/ru, else DD/MM/YYYY (UTC). */
+/** User-facing date: business format when provided, else locale-aware or DD/MM/YYYY (UTC). */
 export function formatDateDisplay(
   input: Date | string,
   locale?: string,
+  options?: DateDisplayOptions,
 ): string {
   const d =
     typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
@@ -34,6 +62,10 @@ export function formatDateDisplay(
         ? parseDateInput(input)
         : input;
   if (!d || Number.isNaN(d.getTime())) return String(input);
+  const dateFormat = resolveDateFormat(options);
+  if (dateFormat) {
+    return formatDateWithFormat(d, dateFormat);
+  }
   const intl = intlLocale(locale);
   if (intl) {
     return new Intl.DateTimeFormat(intl, {
@@ -49,10 +81,17 @@ export function formatDateDisplay(
   return `${dd}/${mm}/${yyyy}`;
 }
 
-/** User-facing time: 24-hour HH:mm (UTC). */
-export function formatTimeDisplay(input: Date | string): string {
+/** User-facing time: business 24h/12h when provided, else 24-hour HH:mm (UTC). */
+export function formatTimeDisplay(
+  input: Date | string,
+  options?: DateDisplayOptions,
+): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
+  const timeFormat = resolveTimeFormat(options);
+  if (timeFormat) {
+    return formatTimeWithFormat(d, timeFormat, options?.timeZone ?? 'UTC');
+  }
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const min = String(d.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${min}`;
@@ -62,11 +101,15 @@ export function formatTimeRangeDisplay(
   start: Date | string,
   end: Date | string,
   locale?: string,
+  options?: DateDisplayOptions,
 ): string {
   const s = typeof start === 'string' ? new Date(start) : start;
   const e = typeof end === 'string' ? new Date(end) : end;
   if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) {
-    return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
+    return `${formatTimeDisplay(start, options)}–${formatTimeDisplay(end, options)}`;
+  }
+  if (options?.timeFormat) {
+    return `${formatTimeDisplay(start, options)}–${formatTimeDisplay(end, options)}`;
   }
   const intl = intlLocale(locale);
   if (intl && typeof Intl.DateTimeFormat.prototype.formatRange === 'function') {
@@ -76,7 +119,7 @@ export function formatTimeRangeDisplay(
       hour12: false,
     }).formatRange(s, e);
   }
-  return `${formatTimeDisplay(start)}–${formatTimeDisplay(end)}`;
+  return `${formatTimeDisplay(start, options)}–${formatTimeDisplay(end, options)}`;
 }
 
 /** Parse DD/MM/YYYY, legacy DD_MM_YYYY, or YYYY-MM-DD into a UTC midnight Date. */

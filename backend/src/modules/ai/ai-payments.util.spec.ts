@@ -522,9 +522,9 @@ describe('ai-payments.util', () => {
       expect(isBookNearestSlotPrompt('book nearest slot')).toBe(true);
       expect(isBookNearestSlotPrompt('book first available slot')).toBe(true);
       expect(isBookNearestSlotPrompt('reserve the nearest slot')).toBe(true);
-      expect(isBookNearestSlotPrompt('schedule the next available appointment')).toBe(
-        true,
-      );
+      expect(
+        isBookNearestSlotPrompt('schedule the next available appointment'),
+      ).toBe(true);
       expect(isBookNearestSlotPrompt('book ASAP for massage')).toBe(true);
       expect(
         isCheckProvidersForServicePrompt(
@@ -532,7 +532,9 @@ describe('ai-payments.util', () => {
         ),
       ).toBe(true);
       expect(
-        isCheckProvidersForServicePrompt('see who is open tomorrow for massage'),
+        isCheckProvidersForServicePrompt(
+          'see who is open tomorrow for massage',
+        ),
       ).toBe(true);
       expect(
         isCheckProvidersForServicePrompt(

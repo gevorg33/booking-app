@@ -26,6 +26,11 @@ export interface AccountingExportRow {
   reference: string;
   customerName?: string;
   employeeName?: string;
+  subtotal?: number;
+  taxRate?: number | null;
+  taxAmount?: number;
+  taxName?: string | null;
+  total?: number;
 }
 
 export interface AccountingExportResult {

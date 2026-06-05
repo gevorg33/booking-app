@@ -22,6 +22,7 @@ import {
   type MultiServiceLineInput,
   validateMultiServiceSelection,
 } from '../../common/utils/multi-service-booking.util.js';
+import { resolvePriceCurrency } from '../../common/utils/business-currency.util.js';
 
 @Injectable()
 export class MultiServiceBookingsService {
@@ -68,6 +69,12 @@ export class MultiServiceBookingsService {
     serviceIds: string[],
   ): Promise<MultiServiceLineInput[]> {
     if (!serviceIds.length) return [];
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const businessSettings = business?.settings as
+      | Record<string, unknown>
+      | undefined;
     const services = await this.serviceRepo.find({
       where: { businessId, id: In(serviceIds), isActive: true },
     });
@@ -76,7 +83,7 @@ export class MultiServiceBookingsService {
       durationMinutes: svc.durationMinutes,
       bufferMinutes: svc.bufferMinutes,
       price: Number(svc.price),
-      currency: svc.currency || 'USD',
+      currency: resolvePriceCurrency(svc.currency, businessSettings),
       name: svc.name,
       categoryId: svc.categoryId,
     }));
@@ -103,11 +110,20 @@ export class MultiServiceBookingsService {
         validation.errors[0] ?? 'Invalid service selection',
       );
     }
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const businessSettings = business?.settings as
+      | Record<string, unknown>
+      | undefined;
     const services = await this.loadServicesForSelection(
       businessId,
       serviceIds,
     );
-    const currency = services[0]?.currency ?? 'USD';
+    const currency = resolvePriceCurrency(
+      services[0]?.currency,
+      businessSettings,
+    );
     return {
       ...validation,
       services: services.map((svc) => ({

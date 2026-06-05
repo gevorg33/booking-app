@@ -34,6 +34,7 @@ import { ServicePackagesModule } from '../service-packages/service-packages.modu
 import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-service-bookings.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AiModule } from '../ai/ai.module.js';
+import { InventoryModule } from '../inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { AiModule } from '../ai/ai.module.js';
     NotificationsModule,
     forwardRef(() => GiftCardsModule),
     forwardRef(() => AiModule),
+    InventoryModule,
   ],
   controllers: [PublicBookingController],
   providers: [

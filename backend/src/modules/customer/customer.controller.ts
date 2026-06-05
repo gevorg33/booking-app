@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { CustomerService } from './customer.service.js';
+import { CustomerPrivacyService } from './customer-privacy.service.js';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -20,7 +21,10 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 @Controller('businesses/:businessId/customers')
 @UseGuards(JwtAuthGuard)
 export class CustomerController {
-  constructor(private customerService: CustomerService) {}
+  constructor(
+    private customerService: CustomerService,
+    private customerPrivacyService: CustomerPrivacyService,
+  ) {}
 
   @Get('dashboard')
   searchDashboard(
@@ -61,5 +65,21 @@ export class CustomerController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.customerService.remove(id);
+  }
+
+  @Get(':id/data-export')
+  exportCustomerData(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+  ) {
+    return this.customerPrivacyService.exportCustomerData(businessId, id);
+  }
+
+  @Delete(':id/data')
+  deleteCustomerData(
+    @Param('businessId') businessId: string,
+    @Param('id') id: string,
+  ) {
+    return this.customerPrivacyService.deleteCustomerData(businessId, id);
   }
 }

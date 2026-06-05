@@ -1,3 +1,5 @@
+import { resolvePriceCurrency } from '../../common/utils/business-currency.util.js';
+import { DEFAULT_TAX_NAME } from '../../common/utils/business-tax.util.js';
 import { roundBonus } from '../loyalty/loyalty.constants.js';
 
 export interface BookingPaymentAdjustment {
@@ -13,6 +15,13 @@ export interface BookingRetailLineSummary {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+}
+
+export interface BookingTaxLine {
+  id: string;
+  name: string;
+  rate: number;
+  amount: number;
 }
 
 export interface BookingPaymentSummary {
@@ -32,6 +41,13 @@ export interface BookingPaymentSummary {
   totalDiscount: number;
   hasDiscounts: boolean;
   adjustments: BookingPaymentAdjustment[];
+  taxEnabled?: boolean;
+  taxName?: string | null;
+  taxRate?: number | null;
+  taxModel?: 'inclusive' | 'exclusive' | null;
+  taxAmount?: number;
+  netAmount?: number | null;
+  taxLines?: BookingTaxLine[];
 }
 
 export interface BookingPaymentSummarySource {
@@ -92,6 +108,77 @@ function readAdjustments(
   return adjustments;
 }
 
+function resolveTaxLinesFromPricing(
+  pricing: Record<string, unknown>,
+): BookingTaxLine[] {
+  const taxEnabled = pricing.taxEnabled === true;
+  const taxAmount = readNumber(pricing.taxAmount) ?? 0;
+  if (!taxEnabled || taxAmount <= 0) return [];
+
+  const rawRules = pricing.taxRules;
+  if (Array.isArray(rawRules) && rawRules.length > 1) {
+    const lines: BookingTaxLine[] = [];
+    for (const [index, entry] of rawRules.entries()) {
+      if (!entry || typeof entry !== 'object') continue;
+      const row = entry as Record<string, unknown>;
+      const amount = readNumber(row.amount);
+      const rate = readNumber(row.rate);
+      if (amount == null || amount <= 0) continue;
+      lines.push({
+        id:
+          typeof row.id === 'string' && row.id.trim()
+            ? row.id.trim()
+            : `rule-${index + 1}`,
+        name:
+          typeof row.name === 'string' && row.name.trim()
+            ? row.name.trim()
+            : DEFAULT_TAX_NAME,
+        rate: rate ?? 0,
+        amount,
+      });
+    }
+    if (lines.length > 0) return lines;
+  }
+
+  return [
+    {
+      id: 'aggregate',
+      name:
+        typeof pricing.taxName === 'string' && pricing.taxName.trim()
+          ? pricing.taxName.trim()
+          : DEFAULT_TAX_NAME,
+      rate: readNumber(pricing.taxRate) ?? 0,
+      amount: taxAmount,
+    },
+  ];
+}
+
+/** Persist tax-inclusive amount on booking metadata when marked paid. */
+export function readBookingListAmounts(
+  metadata?: Record<string, unknown> | null,
+): { amountPaid: number | null; taxAmount: number | null } {
+  const safe = metadata ?? {};
+  const pricing = readPricing(safe);
+  return {
+    amountPaid:
+      readNumber(pricing?.amountDue) ?? readNumber(safe.amountPaid) ?? null,
+    taxAmount: readNumber(pricing?.taxAmount),
+  };
+}
+
+export function recordTaxInclusivePaymentAmount(
+  metadata: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const next = { ...(metadata ?? {}) };
+  const pricing = readPricing(next);
+  const amountDue = readNumber(pricing?.amountDue);
+  if (amountDue != null && amountDue >= 0) {
+    next.amountPaid = amountDue;
+    next.cashPaidEligible = amountDue;
+  }
+  return next;
+}
+
 function fallbackAdjustments(
   promoDiscount: number,
   giftCardDiscount: number,
@@ -132,6 +219,7 @@ function fallbackAdjustments(
 export function resolveBookingPaymentSummary(
   source: BookingPaymentSummarySource,
   retailLines: BookingRetailLineSummary[] = [],
+  businessSettings?: Record<string, unknown>,
 ): BookingPaymentSummary | null {
   const metadata = source.metadata ?? {};
   const pricing = readPricing(metadata);
@@ -144,9 +232,10 @@ export function resolveBookingPaymentSummary(
     return null;
   }
 
-  const currency =
-    (typeof source.service?.currency === 'string' && source.service.currency) ||
-    'USD';
+  const currency = resolvePriceCurrency(
+    source.service?.currency,
+    businessSettings,
+  );
   const servicePrice =
     readNumber(pricing?.servicePrice) ?? readNumber(source.service?.price);
   const subtotal = readNumber(pricing?.subtotal);
@@ -202,6 +291,10 @@ export function resolveBookingPaymentSummary(
           loyaltyPointsRedeemed,
         );
 
+  const taxEnabled = pricing?.taxEnabled === true;
+  const taxAmount = readNumber(pricing?.taxAmount) ?? 0;
+  const taxLines = pricing ? resolveTaxLinesFromPricing(pricing) : [];
+
   return {
     currency,
     servicePrice,
@@ -221,8 +314,25 @@ export function resolveBookingPaymentSummary(
       promoDiscount > 0 ||
       giftCardDiscount > 0 ||
       loyaltyDiscount > 0 ||
-      retailTotal > 0,
+      retailTotal > 0 ||
+      taxAmount > 0,
     adjustments,
+    ...(taxEnabled && taxAmount > 0
+      ? {
+          taxEnabled: true,
+          taxName:
+            typeof pricing?.taxName === 'string' ? pricing.taxName : null,
+          taxRate: readNumber(pricing?.taxRate),
+          taxModel:
+            pricing?.taxModel === 'inclusive' ||
+            pricing?.taxModel === 'exclusive'
+              ? pricing.taxModel
+              : null,
+          taxAmount,
+          netAmount: readNumber(pricing?.netAmount),
+          taxLines,
+        }
+      : {}),
   };
 }
 
@@ -231,9 +341,14 @@ export function withBookingPaymentSummary<
 >(
   booking: T,
   retailLines: BookingRetailLineSummary[] = [],
+  businessSettings?: Record<string, unknown>,
 ): T & { paymentSummary: BookingPaymentSummary | null } {
   return {
     ...booking,
-    paymentSummary: resolveBookingPaymentSummary(booking, retailLines),
+    paymentSummary: resolveBookingPaymentSummary(
+      booking,
+      retailLines,
+      businessSettings,
+    ),
   };
 }

@@ -159,6 +159,8 @@ export interface CustomerDetail {
     notes: string | null;
     service: { id: string; name: string } | null;
     employee: { id: string; name: string } | null;
+    amountPaid: number | null;
+    taxAmount: number | null;
   }>;
 }
 
@@ -332,6 +334,14 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                       {appt.employee && (
                         <p className="text-gray-500 text-xs mt-0.5">
                           {t('customers.withProvider', { name: appt.employee.name })}
+                        </p>
+                      )}
+                      {appt.amountPaid != null && (
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {t('customers.appointmentAmount', { amount: appt.amountPaid })}
+                          {appt.taxAmount != null && appt.taxAmount > 0
+                            ? ` · ${t('customers.appointmentTax', { amount: appt.taxAmount })}`
+                            : ''}
                         </p>
                       )}
                     </li>

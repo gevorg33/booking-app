@@ -9,6 +9,7 @@ import { Service } from '../service/entities/service.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { ServicePackagesService } from './service-packages.service.js';
 import { ServicePackagesController } from './service-packages.controller.js';
+import { Business } from '../business/entities/business.entity.js';
 import { BusinessModule } from '../business/business.module.js';
 
 @Module({
@@ -19,6 +20,7 @@ import { BusinessModule } from '../business/business.module.js';
       PackagePurchase,
       Service,
       Booking,
+      Business,
     ]),
     BusinessModule,
   ],

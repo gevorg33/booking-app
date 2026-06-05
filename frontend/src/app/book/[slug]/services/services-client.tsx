@@ -12,6 +12,7 @@ import {
   type PublicBusinessProfile,
   type PublicService,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import {
@@ -98,8 +99,15 @@ export function ServicesClient({
     const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
     const duration = sumMultiServiceDuration(selectedServices, turnover);
     const price = sumMultiServicePrice(selectedServices);
-    return { duration, price, currency: selectedServices[0]?.currency ?? 'USD' };
-  }, [selectedServices, tenant.multiService?.turnoverBufferMinutes]);
+    return {
+      duration,
+      price,
+      currency: resolveTenantPriceCurrency(
+        selectedServices[0]?.currency,
+        tenant.currency,
+      ),
+    };
+  }, [selectedServices, tenant.currency, tenant.multiService?.turnoverBufferMinutes]);
 
   const disabledServiceIds = useMemo(() => {
     if (!multiEnabled || !tenant.multiService || selectedServiceIds.length === 0) {
@@ -198,6 +206,8 @@ export function ServicesClient({
           <ServiceList
             slug={slug}
             services={services}
+            businessCurrency={tenant.currency}
+            tax={tenant.tax}
             primaryColor={primary}
             selectedServiceId={serviceId}
             onSelect={setServiceId}
@@ -276,7 +286,10 @@ export function ServicesClient({
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-semibold text-gray-900">
-                            {formatPrice(service.price, service.currency)}
+                            {formatPrice(
+                              service.price,
+                              resolveTenantPriceCurrency(service.currency, tenant.currency),
+                            )}
                           </p>
                           <span
                             className="inline-block mt-2 w-5 h-5 rounded border-2"

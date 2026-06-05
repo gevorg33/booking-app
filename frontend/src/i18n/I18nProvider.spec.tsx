@@ -134,6 +134,24 @@ describe('I18nProvider', () => {
     writeSpy.mockRestore();
   });
 
+  it('constrains locales and selection to tenant enabledLocales', () => {
+    mountProvider({
+      initialLocale: 'ru',
+      localeCookie: 'public',
+      enabledLocales: ['en', 'hy'],
+    });
+    expect(latest!.locale).toBe('en');
+    expect(latest!.locales).toEqual(['en', 'hy']);
+    act(() => {
+      latest!.setLocale('ru');
+    });
+    expect(latest!.locale).toBe('en');
+    act(() => {
+      latest!.setLocale('hy');
+    });
+    expect(latest!.locale).toBe('hy');
+  });
+
   it('updates document lang when locale changes and exposes translate helpers', async () => {
     expireCookie(LOCALE_COOKIE);
     expireCookie(PUBLIC_LOCALE_COOKIE);

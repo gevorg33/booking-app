@@ -12,6 +12,7 @@ import {
   type PublicService,
   type PublicServicePackage,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import {
@@ -113,8 +114,15 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
     const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
     const duration = sumMultiServiceDuration(selectedServices, turnover);
     const price = sumMultiServicePrice(selectedServices);
-    return { duration, price, currency: selectedServices[0]?.currency ?? 'USD' };
-  }, [selectedServices, tenant.multiService?.turnoverBufferMinutes]);
+    return {
+      duration,
+      price,
+      currency: resolveTenantPriceCurrency(
+        selectedServices[0]?.currency,
+        tenant.currency,
+      ),
+    };
+  }, [selectedServices, tenant.currency, tenant.multiService?.turnoverBufferMinutes]);
 
   const disabledServiceIds = useMemo(() => {
     if (!multiEnabled || !tenant.multiService || selectedServiceIds.length === 0) {
@@ -212,6 +220,7 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
           <PackageServiceCards
             slug={slug}
             packages={packages}
+            businessCurrency={tenant.currency}
             primaryColor={primary}
             selectedPackageId={packageId}
             onSelect={(id) => {
@@ -277,7 +286,12 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
                           <p className="text-sm text-gray-500 mt-1">{formatDuration(totalMin)}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</p>
+                          <p className="font-semibold text-gray-900">
+                            {formatPrice(
+                              service.price,
+                              resolveTenantPriceCurrency(service.currency, tenant.currency),
+                            )}
+                          </p>
                           <span
                             className="inline-block mt-2 w-5 h-5 rounded border-2"
                             style={{

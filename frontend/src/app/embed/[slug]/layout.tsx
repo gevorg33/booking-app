@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
-import { I18nProvider } from '@/i18n';
+import { I18nProvider, type AppLocale } from '@/i18n';
 import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';;
+import { PublicDateFormatBootstrap } from '@/components/public-booking/public-date-format-bootstrap';
 import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 
 export const dynamic = 'force-dynamic';
@@ -21,11 +22,20 @@ export default async function EmbedLayout({
     notFound();
   }
 
-  const visitorLocale = await resolvePublicBookingLocale(tenant.locale);
+  const visitorLocale = await resolvePublicBookingLocale({
+    defaultLocale: tenant.defaultLocale ?? tenant.locale,
+    enabledLocales: tenant.enabledLocales,
+    locale: tenant.locale,
+  });
 
   return (
-    <I18nProvider initialLocale={visitorLocale} localeCookie="public">
+    <I18nProvider
+      initialLocale={visitorLocale}
+      localeCookie="public"
+      enabledLocales={tenant.enabledLocales as AppLocale[] | undefined}
+    >
       <div className="min-h-screen bg-white" lang={visitorLocale}>
+        <PublicDateFormatBootstrap tenant={tenant} />
         {children}
       </div>
     </I18nProvider>

@@ -8,7 +8,13 @@ import {
 
 const services = [
   { id: 's1', name: 'Massage', businessId: 'biz-1', price: 80, isActive: true },
-  { id: 's2', name: 'Permanent lips', businessId: 'biz-1', price: 120, isActive: true },
+  {
+    id: 's2',
+    name: 'Permanent lips',
+    businessId: 'biz-1',
+    price: 120,
+    isActive: true,
+  },
 ] as any[];
 
 function buildDeps(
@@ -55,7 +61,8 @@ function buildDeps(
           return services.filter(
             (service) =>
               service.businessId === where.businessId &&
-              (where.isActive === undefined || service.isActive === where.isActive),
+              (where.isActive === undefined ||
+                service.isActive === where.isActive),
           );
         }
         return services;
@@ -352,14 +359,19 @@ describe('ai provider availability integration', () => {
       expect(result.details?.availableProviders).toEqual(['Karo Mazmanyan']);
       expect(openAi.completeJson).toHaveBeenCalledWith(
         expect.anything(),
-        expect.stringContaining('Never tell the user to open a separate "provider list"'),
+        expect.stringContaining(
+          'Never tell the user to open a separate "provider list"',
+        ),
         expect.stringContaining('Karo Mazmanyan'),
         expect.anything(),
       );
     });
 
     it('keeps the original summary when enrichment returns blank text', async () => {
-      openAi.completeJson.mockResolvedValueOnce({ summary: '   ', reasoning: '' });
+      openAi.completeJson.mockResolvedValueOnce({
+        summary: '   ',
+        reasoning: '',
+      });
 
       const result = await service.enrichResult('biz-1', 'prompt', {
         success: true,

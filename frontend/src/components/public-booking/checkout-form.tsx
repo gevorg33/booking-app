@@ -25,6 +25,11 @@ import {
   type PublicSubscriptionPlan,
   type PublicCustomerSubscription,
 } from '@/lib/public-api';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
+import {
+  formatTaxLineLabel,
+  resolveCheckoutTaxDisplayLines,
+} from '@/lib/business-tax';
 import {
   buildQuoteRequest,
   isSubscriptionCheckoutSelection,
@@ -40,9 +45,12 @@ import { SpecialistPickerSheet,
   type SpecialistChoice,
 } from '@/components/public-booking/specialist-picker-sheet';
 import { BookingSuccessPanel } from '@/components/public-booking/booking-success-panel';
+import { ProductRecommendationCards } from '@/components/public-booking/product-recommendation-cards';
 import { AppointmentReminderPicker } from '@/components/public-booking/appointment-reminder-picker';
 import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 import { RadioCard, ToggleChoice } from '@/components/ui/radio-choice';
+import { isPublicClinicService } from '@/lib/clinic-service';
+import { isPublicTourService } from '@/lib/tour-service';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
@@ -64,6 +72,7 @@ export function CheckoutForm({
   const { t, locale } = useI18n();
   const { customer, loading: authLoading } = usePublicCustomerAuth();
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const currency = resolveTenantPriceCurrency(service.currency, tenant.currency);
   const dueNow = prepaymentDue(service);
   const defaultPhoneCountry = defaultCountryFromCallingCode(tenant.defaultPhoneCountryCode);
   const reminderOptions = tenant.appointmentReminders;
@@ -74,6 +83,8 @@ export function CheckoutForm({
     notes: '',
     consent: false,
     marketingOptIn: false,
+    aiProcessingOptIn: false,
+    thirdPartyIntegrationsOptIn: false,
     emailReminders: true,
     whatsappReminders: true,
     reminderHoursBefore: reminderOptions?.defaultHours ?? null,
@@ -105,6 +116,12 @@ export function CheckoutForm({
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [activeSubscription, setActiveSubscription] = useState<PublicCustomerSubscription | null>(null);
   const [useExistingSubscription, setUseExistingSubscription] = useState(true);
+  const isTour = isPublicTourService(service);
+  const isClinic = isPublicClinicService(service);
+  const maxPax = service.maxGroupSize && service.maxGroupSize > 0 ? service.maxGroupSize : 99;
+  const [paxCount, setPaxCount] = useState(1);
+  const [referralNotes, setReferralNotes] = useState('');
+  const [symptoms, setSymptoms] = useState('');
 
   const resolvedEmployee =
     specialistChoice.type === 'provider'
@@ -164,13 +181,16 @@ export function CheckoutForm({
     queueMicrotask(() => setQuoteError(null));
     void quotePublicBooking(
       tenant.slug,
-      buildQuoteRequest({
-        serviceId: service.id,
-        purchaseType,
-        selectedPlanId,
-        promoCode: appliedPromo || undefined,
-        loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
-      }),
+      {
+        ...buildQuoteRequest({
+          serviceId: service.id,
+          purchaseType,
+          selectedPlanId,
+          promoCode: appliedPromo || undefined,
+          loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+        }),
+        ...(isTour ? { paxCount } : {}),
+      },
     )
       .then((res) => {
         if (cancelled || requestId !== quoteRequestId.current) return;
@@ -213,6 +233,8 @@ export function CheckoutForm({
     customer?.id,
     purchaseType,
     selectedPlanId,
+    isTour,
+    paxCount,
     t,
   ]);
 
@@ -254,6 +276,13 @@ export function CheckoutForm({
       ? { useSubscriptionId: activeSubscription!.id }
       : subscriptionCheckoutPayload(purchaseType, selectedPlanId)),
     ...(paymentMethod === 'cash' ? { paymentMethod: 'cash' as const } : {}),
+    ...(isTour ? { paxCount } : {}),
+    ...(isClinic && service.acceptsPatientNotes
+      ? {
+          referralNotes: referralNotes.trim() || undefined,
+          symptoms: symptoms.trim() || undefined,
+        }
+      : {}),
     customer: {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
@@ -263,6 +292,12 @@ export function CheckoutForm({
       ...(reminderOptions?.enabled ? { reminderHoursBefore: form.reminderHoursBefore } : {}),
       privacyConsentAccepted: form.consent,
       marketingOptIn: form.marketingOptIn,
+      ...(tenant.privacy?.requireAiProcessingConsent
+        ? { aiProcessingOptIn: form.aiProcessingOptIn }
+        : {}),
+      ...(tenant.privacy?.requireThirdPartyIntegrationsConsent
+        ? { thirdPartyIntegrationsOptIn: form.thirdPartyIntegrationsOptIn }
+        : {}),
     },
   });
 
@@ -382,6 +417,17 @@ export function CheckoutForm({
       setError(t('public.consentRequired'));
       return;
     }
+    if (tenant.privacy?.requireAiProcessingConsent && !form.aiProcessingOptIn) {
+      setError(t('public.aiProcessingConsentRequired'));
+      return;
+    }
+    if (
+      tenant.privacy?.requireThirdPartyIntegrationsConsent &&
+      !form.thirdPartyIntegrationsOptIn
+    ) {
+      setError(t('public.thirdPartyConsentRequired'));
+      return;
+    }
     if (!isSubscriptionCheckoutSelection(purchaseType, selectedPlanId) && purchaseType === 'subscription') {
       setError(t('public.subscriptionPlanRequired'));
       return;
@@ -401,7 +447,7 @@ export function CheckoutForm({
         cashDueLabel:
           result.paymentMethod === 'cash' && (result.amountDue ?? 0) > 0
             ? t('public.payCashAtVisit', {
-                amount: formatPrice(result.amountDue ?? amountDue, service.currency),
+                amount: formatPrice(result.amountDue ?? amountDue, currency),
               })
             : null,
       });
@@ -431,6 +477,12 @@ export function CheckoutForm({
           manageToken={successMeta.manageToken}
           customerEmail={form.email.trim() || undefined}
           cashDueLabel={successMeta.cashDueLabel}
+        />
+        <ProductRecommendationCards
+          slug={tenant.slug}
+          service={service}
+          currency={currency || tenant.currency || 'USD'}
+          bookingId={successMeta.bookingId}
         />
       </div>
     );
@@ -523,12 +575,82 @@ export function CheckoutForm({
         </div>
       </section>
 
+      {isClinic && service.acceptsPatientNotes && (
+        <section className="border-b border-gray-100 pb-4 mb-4 space-y-4">
+          {service.preparationNotes && (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              {service.preparationNotes}
+            </p>
+          )}
+          <div>
+            <label htmlFor="clinic-symptoms" className="block text-sm font-medium text-gray-700 mb-2">
+              {t('clinic.symptoms')}
+            </label>
+            <textarea
+              id="clinic-symptoms"
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900"
+              placeholder={t('clinic.symptomsPlaceholder')}
+            />
+          </div>
+          <div>
+            <label htmlFor="clinic-referral" className="block text-sm font-medium text-gray-700 mb-2">
+              {t('clinic.referralNotes')}
+            </label>
+            <textarea
+              id="clinic-referral"
+              value={referralNotes}
+              onChange={(e) => setReferralNotes(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900"
+              placeholder={t('clinic.referralNotesPlaceholder')}
+            />
+          </div>
+        </section>
+      )}
+
+      {isTour && (
+        <section className="border-b border-gray-100 pb-4 mb-4">
+          <label htmlFor="tour-pax" className="block text-sm font-medium text-gray-700 mb-2">
+            {t('tours.groupSize')}
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="tour-pax"
+              type="number"
+              min={1}
+              max={maxPax}
+              value={paxCount}
+              onChange={(e) => {
+                const next = Math.min(maxPax, Math.max(1, parseInt(e.target.value, 10) || 1));
+                setPaxCount(next);
+              }}
+              className="w-24 rounded-xl border border-gray-200 px-3 py-2 text-gray-900"
+            />
+            <span className="text-sm text-gray-500">
+              {t('tours.travelersHint', { max: String(maxPax) })}
+            </span>
+          </div>
+        </section>
+      )}
+
       <section className="border-b border-gray-100 pb-4 mb-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-gray-500 mb-1">{t('public.servicesSection')}</p>
             <p className="font-medium text-gray-900">{service.name}</p>
-            <p className="text-sm text-gray-500 mt-1">{formatPrice(service.price, service.currency)}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {isTour && paxCount > 1
+                ? t('tours.lineTotal', {
+                    unit: formatPrice(service.price, currency),
+                    count: String(paxCount),
+                    total: formatPrice(service.price * paxCount, currency),
+                  })
+                : formatPrice(service.price, currency)}
+              {isTour && service.pricePerPerson ? ` ${t('tours.perPersonSuffix')}` : ''}
+            </p>
           </div>
           <a href={servicesHref} className="text-gray-400 hover:text-gray-600 mt-1">
             <Pencil className="w-4 h-4" />
@@ -538,8 +660,8 @@ export function CheckoutForm({
           <span className="font-semibold text-gray-900">{t('public.total')}</span>
           <span className="font-semibold text-gray-900">
             {usingSubscriptionCredit
-              ? formatPrice(0, service.currency)
-              : formatPrice(checkoutSubtotal, service.currency)}
+              ? formatPrice(0, currency)
+              : formatPrice(checkoutSubtotal, currency)}
           </span>
         </div>
         {(usingSubscriptionCredit || purchaseType === 'subscription') && (
@@ -547,13 +669,13 @@ export function CheckoutForm({
             {usingSubscriptionCredit
               ? `Using subscription — ${Math.max(0, (activeSubscription?.appointmentsRemaining ?? 1) - 1)} visits left after this booking`
               : selectedPlan
-                ? `Plan includes ${selectedPlan.includedAppointments} visits — first visit ${selectedPlan.preview.pricing.perAppointmentPrice ? `(${formatPrice(selectedPlan.preview.pricing.perAppointmentPrice, service.currency)} effective)` : 'included'}`
+                ? `Plan includes ${selectedPlan.includedAppointments} visits — first visit ${selectedPlan.preview.pricing.perAppointmentPrice ? `(${formatPrice(selectedPlan.preview.pricing.perAppointmentPrice, currency)} effective)` : 'included'}`
                 : null}
           </p>
         )}
         {dueNow > 0 && purchaseType !== 'subscription' && (
           <p className="text-sm text-violet-700 mt-2">
-            {t('public.totalDue')}: {formatPrice(dueNow, service.currency)}
+            {t('public.totalDue')}: {formatPrice(dueNow, currency)}
             {service.prepaymentMode === 'deposit' ? ' (deposit)' : ''}
           </p>
         )}
@@ -561,29 +683,61 @@ export function CheckoutForm({
           <div className="mt-3 space-y-1 text-sm">
             <div className="flex justify-between text-gray-600">
               <span>{t('public.totalDue')}</span>
-              <span>{formatPrice(quote.subtotal, service.currency)}</span>
+              <span>{formatPrice(quote.subtotal, currency)}</span>
             </div>
             {quote.promoDiscount > 0 && (
               <div className="flex justify-between text-green-700">
                 <span>{t('public.discountPromo')}</span>
-                <span>-{formatPrice(quote.promoDiscount, service.currency)}</span>
+                <span>-{formatPrice(quote.promoDiscount, currency)}</span>
               </div>
             )}
             {quote.giftCardDiscount > 0 && (
               <div className="flex justify-between text-green-700">
                 <span>{t('public.discountGiftCard')}</span>
-                <span>-{formatPrice(quote.giftCardDiscount, service.currency)}</span>
+                <span>-{formatPrice(quote.giftCardDiscount, currency)}</span>
               </div>
             )}
             {quote.loyaltyDiscount > 0 && (
               <div className="flex justify-between text-green-700">
                 <span>{t('public.discountLoyalty')}</span>
-                <span>-{formatPrice(quote.loyaltyDiscount, service.currency)}</span>
+                <span>-{formatPrice(quote.loyaltyDiscount, currency)}</span>
               </div>
             )}
+            {resolveCheckoutTaxDisplayLines(quote).map((line) => (
+              <div key={line.id} className="flex justify-between text-gray-600">
+                <span>
+                  {formatTaxLineLabel(line.name, line.rate)}
+                  {quote.taxModel === 'inclusive' ? ` (${t('public.taxIncluded')})` : ''}
+                </span>
+                <span>
+                  {quote.taxModel === 'exclusive' ? '+' : ''}
+                  {formatPrice(line.amount, currency)}
+                </span>
+              </div>
+            ))}
             <div className="flex justify-between font-semibold text-gray-900 pt-1">
               <span>{amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}</span>
-              <span>{formatPrice(amountDue, service.currency)}</span>
+              <span>{formatPrice(amountDue, currency)}</span>
+            </div>
+          </div>
+        )}
+        {quote && !hasDiscounts && resolveCheckoutTaxDisplayLines(quote).length > 0 && (
+          <div className="mt-3 space-y-1 text-sm">
+            {resolveCheckoutTaxDisplayLines(quote).map((line) => (
+              <div key={line.id} className="flex justify-between text-gray-600">
+                <span>
+                  {formatTaxLineLabel(line.name, line.rate)}
+                  {quote.taxModel === 'inclusive' ? ` (${t('public.taxIncluded')})` : ''}
+                </span>
+                <span>
+                  {quote.taxModel === 'exclusive' ? '+' : ''}
+                  {formatPrice(line.amount, currency)}
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-between font-semibold text-gray-900 pt-1">
+              <span>{t('public.totalDue')}</span>
+              <span>{formatPrice(amountDue, currency)}</span>
             </div>
           </div>
         )}
@@ -641,10 +795,10 @@ export function CheckoutForm({
                   <p className="text-sm text-gray-600 mt-1">
                     {subscriptionPlans[0].name} · {subscriptionPlans[0].includedAppointments} visits /{' '}
                     {subscriptionPlans[0].durationMonths} mo ·{' '}
-                    {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, service.currency)}
+                    {formatPrice(subscriptionPlans[0].preview.pricing.subscriptionPrice, currency)}
                     <span className="text-emerald-600 ml-1">
                       ({t('public.saveAmount', {
-                        amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, service.currency),
+                        amount: formatPrice(subscriptionPlans[0].preview.pricing.savings, currency),
                       })})
                     </span>
                   </p>
@@ -667,10 +821,10 @@ export function CheckoutForm({
                       <p className="font-medium text-gray-900">{plan.name}</p>
                       <p className="text-sm text-gray-600 mt-1">
                         {plan.includedAppointments} visits / {plan.durationMonths} mo ·{' '}
-                        {formatPrice(plan.preview.pricing.subscriptionPrice, service.currency)}
+                        {formatPrice(plan.preview.pricing.subscriptionPrice, currency)}
                         <span className="text-emerald-600 ml-1">
                           ({t('public.saveAmount', {
-                            amount: formatPrice(plan.preview.pricing.savings, service.currency),
+                            amount: formatPrice(plan.preview.pricing.savings, currency),
                           })})
                         </span>
                       </p>
@@ -726,7 +880,7 @@ export function CheckoutForm({
             <p className="text-xs text-gray-500 mb-2">
               {t('public.loyaltyBalance')
                 .replace('{points}', loyalty.pointsBalance.toFixed(2))
-                .replace('{value}', formatPrice(loyalty.pointsValue, service.currency))}
+                .replace('{value}', formatPrice(loyalty.pointsValue, currency))}
               {quote && quote.afterPromo > 0 && (
                 <span>
                   {' '}
@@ -845,6 +999,26 @@ export function CheckoutForm({
             primaryColor={primary}
             label={t('public.marketingOptIn')}
           />
+          {tenant.privacy?.requireAiProcessingConsent && (
+            <ToggleChoice
+              checked={form.aiProcessingOptIn}
+              onChange={(aiProcessingOptIn) =>
+                setForm((f) => ({ ...f, aiProcessingOptIn }))
+              }
+              primaryColor={primary}
+              label={t('public.aiProcessingConsent')}
+            />
+          )}
+          {tenant.privacy?.requireThirdPartyIntegrationsConsent && (
+            <ToggleChoice
+              checked={form.thirdPartyIntegrationsOptIn}
+              onChange={(thirdPartyIntegrationsOptIn) =>
+                setForm((f) => ({ ...f, thirdPartyIntegrationsOptIn }))
+              }
+              primaryColor={primary}
+              label={t('public.thirdPartyIntegrationsConsent')}
+            />
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -893,7 +1067,7 @@ export function CheckoutForm({
                   : t('public.total')}
             </span>
             <span className="font-semibold text-gray-900">
-              {formatPrice(amountDue, service.currency)}
+              {formatPrice(amountDue, currency)}
             </span>
           </div>
           <button
@@ -908,7 +1082,7 @@ export function CheckoutForm({
               : paymentMethod === 'cash' && showCashOption
                 ? t('public.confirmCashBooking')
                 : requiresOnlinePayment
-                  ? `Pay ${formatPrice(amountDue, service.currency)} & book`
+                  ? `Pay ${formatPrice(amountDue, currency)} & book`
                   : t('public.confirmBooking')}
           </button>
         </div>

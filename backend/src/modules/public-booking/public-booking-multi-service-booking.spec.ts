@@ -18,6 +18,10 @@ describe('PublicBookingService bookMultiService same_visit', () => {
   };
   const bookingPaymentService = {
     resolveMultiServiceCheckoutPricing: jest.fn(),
+    resolveFulfillmentCheckoutPricing: jest.fn(
+      (_recalculated: unknown, frozen?: unknown) => frozen ?? _recalculated,
+    ),
+    pricingMetadata: jest.fn().mockReturnValue({ pricing: { amountDue: 0 } }),
   };
   const checkoutPricingService = {
     applyRedemptions: jest.fn(),
@@ -52,6 +56,7 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     {} as any,
     multiServiceBookingsService as any,
     notificationsService as any,
+    {} as any,
     config as unknown as ConfigService,
     { find: jest.fn() } as any,
     { findOne: jest.fn(), find: jest.fn() } as any,

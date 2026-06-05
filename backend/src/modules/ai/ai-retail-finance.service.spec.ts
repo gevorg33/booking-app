@@ -41,19 +41,23 @@ describe('AiRetailFinanceService', () => {
       expenses: 200,
       commissions: 100,
       netProfit: 700,
+      currency: 'USD',
     })),
-    staffPerformance: jest.fn(async () => [
-      {
-        employeeId: 'e1',
-        employeeName: 'Alex',
-        revenue: 800,
-        bookings: 5,
-        completed: 4,
-        noShows: 0,
-        hoursBooked: 10,
-        utilizationPercent: 40,
-      },
-    ]),
+    staffPerformance: jest.fn(async () => ({
+      currency: 'USD',
+      rows: [
+        {
+          employeeId: 'e1',
+          employeeName: 'Alex',
+          revenue: 800,
+          bookings: 5,
+          completed: 4,
+          noShows: 0,
+          hoursBooked: 10,
+          utilizationPercent: 40,
+        },
+      ],
+    })),
   };
   const commissionsService = {
     list: jest.fn(async () => [

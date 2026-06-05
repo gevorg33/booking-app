@@ -1,15 +1,21 @@
 import { cookies } from 'next/headers';
-import { PUBLIC_LOCALE_COOKIE, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
+import { PUBLIC_LOCALE_COOKIE, type AppLocale } from '@/i18n';
+import { resolveTenantLocale } from '@/lib/business-locale';
+
+function toLocaleSettings(
+  businessSettings?: Record<string, unknown> | string | null,
+): Record<string, unknown> | null | undefined {
+  if (typeof businessSettings === 'string') {
+    return { locale: businessSettings, defaultLocale: businessSettings };
+  }
+  return businessSettings;
+}
 
 /** SSR locale for public booking: public-locale cookie, else business default (not dashboard app-locale). */
-export async function resolvePublicBookingLocale(businessLocale?: string): Promise<AppLocale> {
+export async function resolvePublicBookingLocale(
+  businessSettings?: Record<string, unknown> | string | null,
+): Promise<AppLocale> {
   const cookieStore = await cookies();
-  const publicVal = cookieStore.get(PUBLIC_LOCALE_COOKIE)?.value;
-  if (SUPPORTED_LOCALES.includes(publicVal as AppLocale)) {
-    return publicVal as AppLocale;
-  }
-  if (businessLocale && SUPPORTED_LOCALES.includes(businessLocale as AppLocale)) {
-    return businessLocale as AppLocale;
-  }
-  return 'en';
+  const publicVal = cookieStore.get(PUBLIC_LOCALE_COOKIE)?.value ?? null;
+  return resolveTenantLocale(publicVal, toLocaleSettings(businessSettings));
 }

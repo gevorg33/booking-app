@@ -35,6 +35,7 @@ describe('PublicBookingService growth profile fields', () => {
     {} as any,
     multiServiceBookingsService as any,
     {} as any,
+    {} as any,
     config as unknown as ConfigService,
     {} as any,
     {} as any,

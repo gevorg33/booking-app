@@ -597,9 +597,10 @@ export async function handleSummarizePlLogic(
       to,
       locationId: params.locationId as string | undefined,
     });
+    const { currency } = report;
     return success(
       'summarize_pl',
-      `P&L — revenue $${report.revenue}, expenses $${report.expenses}, net $${report.netProfit}.`,
+      `P&L (${currency}) — revenue ${report.revenue}, expenses ${report.expenses}, net ${report.netProfit}.`,
       { report, from, to },
     );
   } catch (err: any) {
@@ -618,7 +619,7 @@ export async function handleCommissionReportLogic(
     prompt ?? (params._prompt as string),
   );
   try {
-    const [staff, rules] = await Promise.all([
+    const [staffReport, rules] = await Promise.all([
       deps.analyticsService.staffPerformance(businessId, {
         from,
         to,
@@ -627,7 +628,7 @@ export async function handleCommissionReportLogic(
       deps.commissionsService.list(businessId),
     ]);
 
-    const summary = staff.map((row) => {
+    const summary = staffReport.rows.map((row) => {
       const employeeRules = rules.filter(
         (r) => r.employeeId === row.employeeId,
       );
@@ -649,7 +650,7 @@ export async function handleCommissionReportLogic(
     return success(
       'commission_report',
       `Commission report — ${summary.length} staff member(s), ${rules.length} rule(s).`,
-      { summary, rules, staff, from, to },
+      { summary, rules, staff: staffReport, from, to },
     );
   } catch (err: any) {
     return failure(

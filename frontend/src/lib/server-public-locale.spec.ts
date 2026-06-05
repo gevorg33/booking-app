@@ -43,4 +43,24 @@ describe('resolvePublicBookingLocale', () => {
     await expect(resolvePublicBookingLocale()).resolves.toBe('en');
     await expect(resolvePublicBookingLocale('de')).resolves.toBe('en');
   });
+
+  it('constrains visitor cookie to tenant enabled locales', async () => {
+    mockCookieStore({ [PUBLIC_LOCALE_COOKIE]: 'ru' });
+    await expect(
+      resolvePublicBookingLocale({
+        enabledLocales: ['en', 'hy'],
+        defaultLocale: 'hy',
+      }),
+    ).resolves.toBe('hy');
+  });
+
+  it('accepts visitor cookie when locale is enabled', async () => {
+    mockCookieStore({ [PUBLIC_LOCALE_COOKIE]: 'hy' });
+    await expect(
+      resolvePublicBookingLocale({
+        enabledLocales: ['en', 'hy'],
+        defaultLocale: 'en',
+      }),
+    ).resolves.toBe('hy');
+  });
 });

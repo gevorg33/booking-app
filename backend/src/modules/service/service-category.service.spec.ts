@@ -36,7 +36,17 @@ describe('ServiceCategoryService', () => {
     update: jest.fn(),
   };
 
-  const categoryService = new ServiceCategoryService(categoryRepo as any);
+  const businessRepo = {
+    findOne: jest.fn(async () => ({
+      id: 'biz-1',
+      settings: { enabledLocales: ['en', 'hy', 'ru'] },
+    })),
+  };
+
+  const categoryService = new ServiceCategoryService(
+    categoryRepo as any,
+    businessRepo as any,
+  );
 
   beforeEach(() => {
     categories.length = 0;

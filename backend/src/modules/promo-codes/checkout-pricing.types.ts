@@ -18,6 +18,21 @@ export interface GiftCardServiceRedemption {
   units: number;
 }
 
+export interface CheckoutTaxRuleInput {
+  id: string;
+  name: string;
+  rate: number;
+}
+
+export interface CheckoutTaxInput {
+  enabled: boolean;
+  name: string;
+  rate: number;
+  model: 'inclusive' | 'exclusive';
+  serviceRatePercent?: number | null;
+  rules?: CheckoutTaxRuleInput[];
+}
+
 export interface CheckoutPricingInput {
   businessId: string;
   servicePrice: number;
@@ -29,6 +44,7 @@ export interface CheckoutPricingInput {
   earnPercentCashback?: number;
   /** Cart lines used to match service/bundle gift card credits. */
   serviceLineItems?: CheckoutServiceLineItem[];
+  tax?: CheckoutTaxInput;
 }
 
 export interface CheckoutPricingResult {
@@ -51,4 +67,16 @@ export interface CheckoutPricingResult {
   giftCardCode?: string;
   giftCardServiceRedemptions?: GiftCardServiceRedemption[];
   adjustments: CheckoutAdjustment[];
+  taxEnabled?: boolean;
+  taxName?: string | null;
+  taxRate?: number | null;
+  taxModel?: 'inclusive' | 'exclusive' | null;
+  taxAmount?: number;
+  netAmount?: number;
+  taxRules?: Array<{
+    id: string;
+    name: string;
+    rate: number;
+    amount: number;
+  }>;
 }

@@ -11,6 +11,7 @@ import { InventoryServiceLinks } from '@/components/operations/inventory-service
 import { SchedulingResourcesPanel } from '@/components/operations/scheduling-resources-panel';
 import { ContextualHelpButton } from '@/components/help/contextual-help';
 import { DatePicker } from '@/components/ui/date-picker';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 type Tab = 'locations' | 'resources' | 'inventory' | 'expenses' | 'commissions' | 'pl';
 
@@ -31,6 +32,7 @@ function defaultDateRange() {
 export default function OperationsPage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const { currency, formatMoney } = useBusinessCurrency();
   const [tab, setTab] = useState<Tab>('locations');
   const [plRange, setPlRange] = useState(defaultDateRange);
 
@@ -51,9 +53,13 @@ export default function OperationsPage() {
       const { data } = await api.get(`/businesses/${business!.id}/analytics/pl`, { params: plParams });
       return unwrap<{
         revenue: number;
+        grossRevenue: number;
+        taxCollected: number;
+        netRevenue: number;
         expenses: number;
         commissions: number;
         netProfit: number;
+        currency: string;
       }>(data);
     },
     enabled: !!business?.id && tab === 'pl',
@@ -128,26 +134,51 @@ export default function OperationsPage() {
               <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
             </div>
           ) : pl ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <>
+            <p className="text-sm text-gray-500 mb-3">
+              {t('reports.currencyNote', { currency: pl.currency ?? currency })}
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="card">
-                <p className="text-xs text-gray-500">{t('common.revenue')}</p>
-                <p className="text-2xl font-bold text-emerald-400">${pl.revenue.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">
+                  {t('common.grossRevenueCurrency', { currency: pl.currency ?? currency })}
+                </p>
+                <p className="text-2xl font-bold text-emerald-400">{formatMoney(pl.grossRevenue ?? pl.revenue)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">{t('common.expenses')}</p>
-                <p className="text-2xl font-bold text-orange-400">${pl.expenses.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">
+                  {t('common.taxCollectedCurrency', { currency: pl.currency ?? currency })}
+                </p>
+                <p className="text-2xl font-bold text-amber-400">{formatMoney(pl.taxCollected ?? 0)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">{t('common.commissions')}</p>
-                <p className="text-2xl font-bold text-violet-400">${pl.commissions.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">
+                  {t('common.netRevenueCurrency', { currency: pl.currency ?? currency })}
+                </p>
+                <p className="text-2xl font-bold text-teal-400">{formatMoney(pl.netRevenue ?? pl.revenue)}</p>
               </div>
               <div className="card">
-                <p className="text-xs text-gray-500">{t('common.netProfit')}</p>
+                <p className="text-xs text-gray-500">
+                  {t('common.expensesCurrency', { currency: pl.currency ?? currency })}
+                </p>
+                <p className="text-2xl font-bold text-orange-400">{formatMoney(pl.expenses)}</p>
+              </div>
+              <div className="card">
+                <p className="text-xs text-gray-500">
+                  {t('common.commissionsCurrency', { currency: pl.currency ?? currency })}
+                </p>
+                <p className="text-2xl font-bold text-violet-400">{formatMoney(pl.commissions)}</p>
+              </div>
+              <div className="card">
+                <p className="text-xs text-gray-500">
+                  {t('common.netProfitCurrency', { currency: pl.currency ?? currency })}
+                </p>
                 <p className={`text-2xl font-bold ${pl.netProfit >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                  ${pl.netProfit.toFixed(2)}
+                  {formatMoney(pl.netProfit)}
                 </p>
               </div>
             </div>
+            </>
           ) : null}
         </div>
       )}
@@ -238,8 +269,31 @@ function LocationsTab({ businessId }: { businessId: string }) {
 
 function InventoryTab({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: '', sku: '', quantityOnHand: '0', unitCost: '0', retailPrice: '0' });
+  const [form, setForm] = useState({
+    name: '',
+    sku: '',
+    quantityOnHand: '0',
+    unitCost: '0',
+    retailPrice: '0',
+    description: '',
+    imageUrl: '',
+    externalLink: '',
+    isActive: true,
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    sku: '',
+    quantityOnHand: '0',
+    unitCost: '0',
+    retailPrice: '0',
+    description: '',
+    imageUrl: '',
+    externalLink: '',
+    isActive: true,
+  });
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['inventory', businessId],
@@ -257,12 +311,48 @@ function InventoryTab({ businessId }: { businessId: string }) {
         quantityOnHand: parseInt(form.quantityOnHand, 10),
         unitCost: parseFloat(form.unitCost),
         retailPrice: parseFloat(form.retailPrice),
+        description: form.description || undefined,
+        imageUrl: form.imageUrl || undefined,
+        externalLink: form.externalLink || undefined,
+        isActive: form.isActive,
       });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory', businessId] });
-      setForm({ name: '', sku: '', quantityOnHand: '0', unitCost: '0', retailPrice: '0' });
+      setForm({
+        name: '',
+        sku: '',
+        quantityOnHand: '0',
+        unitCost: '0',
+        retailPrice: '0',
+        description: '',
+        imageUrl: '',
+        externalLink: '',
+        isActive: true,
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) return;
+      const { data } = await api.put(`/businesses/${businessId}/inventory/products/${editingId}`, {
+        name: editForm.name,
+        sku: editForm.sku || undefined,
+        quantityOnHand: parseInt(editForm.quantityOnHand, 10),
+        unitCost: parseFloat(editForm.unitCost),
+        retailPrice: parseFloat(editForm.retailPrice),
+        description: editForm.description || undefined,
+        imageUrl: editForm.imageUrl || undefined,
+        externalLink: editForm.externalLink || undefined,
+        isActive: editForm.isActive,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', businessId] });
+      setEditingId(null);
     },
   });
 
@@ -296,6 +386,18 @@ function InventoryTab({ businessId }: { businessId: string }) {
           <input type="number" step="0.01" className="input" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} />
         </div>
         <div className="md:col-span-2">
+          <label className="label">{t('recommendations.admin.description')}</label>
+          <textarea className="input min-h-[80px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">{t('recommendations.admin.imageUrl')}</label>
+          <input className="input" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." />
+        </div>
+        <div>
+          <label className="label">{t('recommendations.admin.externalLink')}</label>
+          <input className="input" value={form.externalLink} onChange={(e) => setForm({ ...form, externalLink: e.target.value })} placeholder="https://..." />
+        </div>
+        <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             {t('operations.addProduct')}
@@ -319,16 +421,96 @@ function InventoryTab({ businessId }: { businessId: string }) {
                 <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableQty')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableRetail')}</th>
                 <th className="px-4 py-3 font-medium text-gray-400">{t('operations.tableUnitCost')}</th>
+                <th className="px-4 py-3 font-medium text-gray-400" />
               </tr>
             </thead>
             <tbody>
               {products.map((p) => (
-                <tr key={p.id} className="border-b border-gray-800/80">
-                  <td className="px-4 py-3 font-medium">{p.name}</td>
-                  <td className="px-4 py-3 text-gray-400">{p.sku || '—'}</td>
-                  <td className="px-4 py-3">{p.quantityOnHand}</td>
-                  <td className="px-4 py-3">${Number(p.retailPrice ?? 0).toFixed(2)}</td>
-                  <td className="px-4 py-3">${Number(p.unitCost).toFixed(2)}</td>
+                <tr key={p.id} className="border-b border-gray-800/80 align-top">
+                  {editingId === p.id ? (
+                    <td colSpan={6} className="px-4 py-4">
+                      <form
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          updateMutation.mutate();
+                        }}
+                      >
+                        <div>
+                          <label className="label">{t('operations.fieldProductName')}</label>
+                          <input className="input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+                        </div>
+                        <div>
+                          <label className="label">SKU</label>
+                          <input className="input" value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="label">{t('recommendations.admin.description')}</label>
+                          <textarea className="input min-h-[80px]" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label">{t('recommendations.admin.imageUrl')}</label>
+                          <input className="input" value={editForm.imageUrl} onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label">{t('recommendations.admin.externalLink')}</label>
+                          <input className="input" value={editForm.externalLink} onChange={(e) => setEditForm({ ...editForm, externalLink: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label">{t('operations.fieldRetailPrice')}</label>
+                          <input type="number" step="0.01" className="input" value={editForm.retailPrice} onChange={(e) => setEditForm({ ...editForm, retailPrice: e.target.value })} />
+                        </div>
+                        <div className="flex items-end">
+                          <label className="inline-flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={editForm.isActive}
+                              onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
+                            />
+                            {t('recommendations.admin.isActive')}
+                          </label>
+                        </div>
+                        <div className="md:col-span-2 flex gap-2">
+                          <button type="submit" className="btn-primary" disabled={updateMutation.isPending}>
+                            {t('common.save')}
+                          </button>
+                          <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>
+                            {t('common.cancel')}
+                          </button>
+                        </div>
+                      </form>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 font-medium">{p.name}</td>
+                      <td className="px-4 py-3 text-gray-400">{p.sku || '—'}</td>
+                      <td className="px-4 py-3">{p.quantityOnHand}</td>
+                      <td className="px-4 py-3">{formatMoney(p.retailPrice ?? 0)}</td>
+                      <td className="px-4 py-3">{formatMoney(p.unitCost)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          className="text-sm text-blue-400 hover:text-blue-300"
+                          onClick={() => {
+                            setEditingId(p.id);
+                            setEditForm({
+                              name: p.name,
+                              sku: p.sku ?? '',
+                              quantityOnHand: String(p.quantityOnHand ?? 0),
+                              unitCost: String(p.unitCost ?? 0),
+                              retailPrice: String(p.retailPrice ?? 0),
+                              description: p.description ?? '',
+                              imageUrl: p.imageUrl ?? '',
+                              externalLink: p.externalLink ?? '',
+                              isActive: p.isActive !== false,
+                            });
+                          }}
+                        >
+                          {t('common.edit')}
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -343,6 +525,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
 
 function ExpensesTab({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     category: '',
@@ -440,7 +623,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
                     <span className="font-medium">{exp.category}</span>
                     {exp.description && <p className="text-xs text-gray-500">{exp.description}</p>}
                   </td>
-                  <td className="px-4 py-3">${Number(exp.amount).toFixed(2)}</td>
+                  <td className="px-4 py-3">{formatMoney(exp.amount)}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"
@@ -462,6 +645,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
 
 function CommissionsTab({ businessId }: { businessId: string }) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ type: 'percent', value: '10' });
 
@@ -541,7 +725,7 @@ function CommissionsTab({ businessId }: { businessId: string }) {
                 <tr key={rule.id} className="border-b border-gray-800/80">
                   <td className="px-4 py-3 capitalize">{rule.type}</td>
                   <td className="px-4 py-3">
-                    {rule.type === 'percent' ? `${Number(rule.value)}%` : `$${Number(rule.value).toFixed(2)}`}
+                    {rule.type === 'percent' ? `${Number(rule.value)}%` : formatMoney(rule.value)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

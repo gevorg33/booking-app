@@ -53,5 +53,24 @@ describe('resolve-locale', () => {
       localStorage.setItem('provider-app-locale', 'fr');
       expect(resolveProviderAppLocale(null, null)).toBe('en');
     });
+
+    it('constrains user preference to tenant enabled locales', () => {
+      expect(
+        resolveProviderAppLocale('ru', 'ru', ['en', 'hy'], 'hy'),
+      ).toBe('hy');
+    });
+
+    it('uses enabled user preference when allowed', () => {
+      expect(
+        resolveProviderAppLocale('hy', 'en', ['en', 'hy'], 'en'),
+      ).toBe('hy');
+    });
+
+    it('falls back to tenant default when stored locale is disabled', () => {
+      writeStoredLocale('ru');
+      expect(
+        resolveProviderAppLocale(null, null, ['en', 'hy'], 'hy'),
+      ).toBe('hy');
+    });
   });
 });

@@ -2,7 +2,9 @@ import { Tag, Gift, CreditCard, ShoppingBag } from 'lucide-react';
 import {
   type BookingPaymentSummary,
   formatBookingMoney,
+  resolveBookingTaxDisplayLines,
 } from '@/lib/booking-payment-summary';
+import { formatTaxLineLabel } from '@/lib/business-tax';
 
 interface BookingPaymentBreakdownProps {
   summary: BookingPaymentSummary;
@@ -81,6 +83,18 @@ export function BookingPaymentBreakdown({ summary, labels }: BookingPaymentBreak
             <dd>{formatBookingMoney(summary.retailTotal, currency)}</dd>
           </div>
         )}
+        {resolveBookingTaxDisplayLines(summary).map((line) => (
+          <div key={line.id} className="flex justify-between gap-3 text-gray-400">
+            <dt>
+              {formatTaxLineLabel(line.name, line.rate)}
+              {summary.taxModel === 'inclusive' ? ` (${labels.taxIncluded})` : ''}
+            </dt>
+            <dd>
+              {summary.taxModel === 'exclusive' ? '+' : ''}
+              {formatBookingMoney(line.amount, currency)}
+            </dd>
+          </div>
+        ))}
         <div className="flex justify-between gap-3 pt-1.5 border-t border-gray-700/80 font-medium">
           <dt className="text-gray-300">
             {summary.grandTotal != null && summary.grandTotal > (summary.cashPaid ?? 0)

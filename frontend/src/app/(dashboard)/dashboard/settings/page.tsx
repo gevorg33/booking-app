@@ -9,6 +9,12 @@ import { NotificationEmailTemplatesPanel } from '@/components/dashboard/notifica
 import { CustomerReminderSettingsPanel } from '@/components/settings/customer-reminder-settings-panel';
 import { MarketingAlertsSettingsPanel } from '@/components/settings/marketing-alerts-settings-panel';
 import { PublicBookingSelfServiceSettings } from '@/components/settings/public-booking-self-service-settings';
+import { BusinessCurrencySettings } from '@/components/settings/business-currency-settings';
+import { BusinessDateFormatSettings } from '@/components/settings/business-date-format-settings';
+import { BusinessTaxSettings } from '@/components/settings/business-tax-settings';
+import { BusinessPrivacySettings } from '@/components/settings/business-privacy-settings';
+import { BusinessComplianceSettings } from '@/components/settings/business-compliance-settings';
+import { BusinessLanguageSettings } from '@/components/settings/business-language-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
 import { useI18n } from '@/i18n';
@@ -226,7 +232,15 @@ function ToggleRow({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
-  return <ToggleChoice variant="dashboard" label={label} checked={checked} onChange={onChange} />;
+  return (
+    <ToggleChoice
+      variant="dashboard"
+      layout="toggle-first"
+      label={label}
+      checked={checked}
+      onChange={onChange}
+    />
+  );
 }
 
 function FieldRow({
@@ -771,9 +785,45 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessCurrencySettings businessId={business.id} />
+          </div>
+        )}
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessLanguageSettings businessId={business.id} />
+          </div>
+        )}
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessDateFormatSettings businessId={business.id} />
+          </div>
+        )}
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessTaxSettings businessId={business.id} />
+          </div>
+        )}
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessPrivacySettings businessId={business.id} />
+          </div>
+        )}
+
+        {business?.id && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
+            <BusinessComplianceSettings businessId={business.id} />
+          </div>
+        )}
+
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{t('settings.languageSection')}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('languages.description')}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('settings.dashboardLanguageDescription')}</p>
           <LanguageSwitcher
             onChange={(next) => {
               saveLocale.mutate(next);

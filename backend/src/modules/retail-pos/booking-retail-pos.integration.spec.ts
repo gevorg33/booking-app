@@ -6,10 +6,13 @@ import { withBookingPaymentSummary } from '../booking/booking-payment-summary.ut
 describe('Booking detail + retail POS integration', () => {
   const bookingService = { findOne: jest.fn() };
   const retailPosService = { getBookingRetailSales: jest.fn() };
+  const bookingPaymentService = {} as never;
+  const staffUser = { id: 'staff-1' };
 
   const controller = new BookingController(
     bookingService as unknown as BookingService,
     retailPosService as unknown as RetailPosService,
+    bookingPaymentService,
   );
 
   const booking = {
@@ -37,9 +40,11 @@ describe('Booking detail + retail POS integration', () => {
   });
 
   it('attaches retail lines and payment summary on booking detail', async () => {
-    const result = await controller.findOne('biz-1', 'booking-1');
+    const result = await controller.findOne('biz-1', 'booking-1', staffUser);
 
-    expect(bookingService.findOne).toHaveBeenCalledWith('booking-1');
+    expect(bookingService.findOne).toHaveBeenCalledWith('booking-1', {
+      staffUserId: 'staff-1',
+    });
     expect(retailPosService.getBookingRetailSales).toHaveBeenCalledWith(
       'biz-1',
       'booking-1',
@@ -73,7 +78,11 @@ describe('Booking detail + retail POS integration', () => {
       }),
     );
 
-    const fromController = await controller.findOne('biz-1', 'booking-1');
+    const fromController = await controller.findOne(
+      'biz-1',
+      'booking-1',
+      staffUser,
+    );
     const fromHelper = withBookingPaymentSummary(booking, retailLines);
 
     expect(fromController.paymentSummary).toEqual(fromHelper.paymentSummary);
@@ -86,7 +95,7 @@ describe('Booking detail + retail POS integration', () => {
       currency: 'USD',
     });
 
-    const result = await controller.findOne('biz-1', 'booking-1');
+    const result = await controller.findOne('biz-1', 'booking-1', staffUser);
     expect(result.paymentSummary?.retailTotal).toBe(0);
     expect(result.paymentSummary?.grandTotal).toBe(80);
   });

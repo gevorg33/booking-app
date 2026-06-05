@@ -70,14 +70,4 @@ export function formatLocalizedCurrency(
   }).format(amount);
 }
 
-export function getBusinessDefaultCurrency(
-  settings?: Record<string, unknown>,
-): string {
-  const locale = settings?.locale as Record<string, unknown> | undefined;
-  const fromLocale =
-    typeof locale === 'object'
-      ? (locale.currency as string | undefined)
-      : undefined;
-  const direct = settings?.defaultCurrency as string | undefined;
-  return (direct || fromLocale || 'USD').toUpperCase();
-}
+export { getBusinessDefaultCurrency } from './business-currency.util.js';
