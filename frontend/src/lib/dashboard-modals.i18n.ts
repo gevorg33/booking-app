@@ -11,6 +11,8 @@ export const EMPLOYEE_FORM_MODAL_I18N_KEYS = [
   'employees.titlePlaceholder',
   'employees.servicesOffered',
   'employees.servicesOfferedHint',
+  'employees.accessRole',
+  'employees.accessRoleHint',
   'employees.createEmployee',
   'common.name',
   'common.email',

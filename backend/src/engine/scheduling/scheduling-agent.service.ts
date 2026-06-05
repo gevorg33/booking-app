@@ -6,7 +6,6 @@ import {
   AgentContext,
 } from '../agent/interfaces/agent.interfaces.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
-import { EventType } from '../../events/event-types.js';
 
 export interface SchedulingOptimizationResult {
   optimizationApplied: boolean;
@@ -54,8 +53,6 @@ export class SchedulingAgentService {
         endDate: params.endDate,
         applyDays: params.applyDays,
       };
-
-      const intent = `Optimize template "${params.templateName}" application for employee ${params.employeeId} from ${params.startDate} to ${params.endDate}. Days: ${params.applyDays.join(',')}. Analyze utilization, check for conflicts, and suggest optimal slot distribution.`;
 
       const agentResult =
         await this.scheduleApplyAgent.analyzeTemplateApplication(context);

@@ -1,7 +1,15 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getStoredTheme, storeTheme, type Theme } from '@/lib/theme';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
+import { getStoredTheme, storeTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -10,6 +18,14 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function subscribeTheme(onStoreChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === THEME_STORAGE_KEY) onStoreChange();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
+}
+
 export function ThemeProvider({
   children,
   initialTheme = 'dark',
@@ -17,16 +33,12 @@ export function ThemeProvider({
   children: ReactNode;
   initialTheme?: Theme;
 }) {
-  const [theme, setThemeState] = useState<Theme>(initialTheme);
-
-  useEffect(() => {
-    const stored = getStoredTheme();
-    setThemeState(stored);
-    storeTheme(stored);
-  }, [initialTheme]);
+  const storedTheme = useSyncExternalStore(subscribeTheme, getStoredTheme, () => initialTheme);
+  const [override, setOverride] = useState<Theme | null>(null);
+  const theme = override ?? storedTheme;
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+    setOverride(next);
     storeTheme(next);
   }, []);
 

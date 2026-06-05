@@ -68,7 +68,7 @@ export function BookingRetailPosPanel({
     for (const line of checkout.lines) {
       next[line.productId] = line.quantity;
     }
-    setCart(next);
+    queueMicrotask(() => setCart(next));
   }, [checkout]);
 
   const cartLines = useMemo(() => {

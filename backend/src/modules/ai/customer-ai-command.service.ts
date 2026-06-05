@@ -19,6 +19,7 @@ import {
 } from './intent-decomposition.util.js';
 import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
+import { rescuePaymentsIntent } from './ai-payments.util.js';
 import {
   buildCustomerClassifierSchema,
   isPublicOnlyAssistantAction,
@@ -264,7 +265,8 @@ export class CustomerAiCommandService {
   private rescueIntent(prompt: string, action: string) {
     return (
       rescueSelfServiceBookingIntent(prompt, action) ??
-      rescueMarketingGrowthIntent(prompt, action)
+      rescueMarketingGrowthIntent(prompt, action) ??
+      rescuePaymentsIntent(prompt, action)
     );
   }
 

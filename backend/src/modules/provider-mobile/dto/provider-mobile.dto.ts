@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsObject,
   ValidateNested,
   IsIn,
   IsOptional,

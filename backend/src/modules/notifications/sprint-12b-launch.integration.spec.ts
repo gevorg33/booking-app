@@ -75,9 +75,9 @@ describe('Sprint 12.b launch integration', () => {
       notificationsService,
     );
     const eventEmitter = new EventEmitter2();
-    eventEmitter.on(CUSTOMER_REGISTERED_EVENT, (payload) =>
-      listener.handleCustomerRegistered(payload),
-    );
+    eventEmitter.on(CUSTOMER_REGISTERED_EVENT, (payload) => {
+      void listener.handleCustomerRegistered(payload);
+    });
 
     const customerService = new CustomerService(
       customerRepo as any,

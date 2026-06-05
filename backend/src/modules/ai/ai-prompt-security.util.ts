@@ -109,7 +109,8 @@ export function detectPromptSignals(
 
 export function sanitizeUntrustedPrompt(prompt: string): string {
   return prompt
-    .replace(/\u0000/g, '')
+    .split('\0')
+    .join('')
     .replace(/<system>[\s\S]*?<\/system>/gi, '')
     .replace(/<assistant>[\s\S]*?<\/assistant>/gi, '')
     .replace(/<\/?system>/gi, '')

@@ -131,7 +131,6 @@ export class WorkflowExecutorService {
     steps: WorkflowStep[],
   ): Promise<WorkflowExecutionResult> {
     const completed = new Set<string>();
-    const stepMap = new Map(steps.map((s) => [s.id, s]));
     const context = { businessId: execution.businessId, ...execution.context };
 
     while (completed.size < steps.length) {

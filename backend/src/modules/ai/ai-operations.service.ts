@@ -13,7 +13,6 @@ import {
   applyPaymentSweepFilters,
   buildImportServicesFailure,
   buildNoShowRecoveryFailure,
-  buildRevenueForecastFailure,
   buildSickDayReplanFailure,
   buildStaffServiceMatrixFailure,
   buildUpdateServicePricesFailure,

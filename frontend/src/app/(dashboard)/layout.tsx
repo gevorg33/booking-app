@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => setMounted(true));
   }, []);
 
   useEffect(() => {

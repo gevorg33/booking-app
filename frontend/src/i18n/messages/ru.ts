@@ -1042,6 +1042,8 @@ const ru: MessageTree = {
     commandPlaceholder: 'Попросите AI управлять записями, расписанием или операциями…',
     thinking: 'Думаю…',
     clarifySubmit: 'Продолжить',
+    availableProvidersTitle: 'Доступные специалисты',
+    bookProvider: 'Записать',
     assistantClarifyTry: 'Попробуйте:',
     suggestionRun: 'Запустить',
     suggestionEdit: 'Изменить',

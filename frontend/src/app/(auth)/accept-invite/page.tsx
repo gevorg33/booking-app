@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { DashboardPhoneInput } from '@/components/dashboard-phone-input';
 import { formatPhoneForApi, isValidPhone } from '@/lib/phone-format';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 interface InviteInfo {
   email: string;
@@ -36,8 +37,10 @@ function AcceptInviteForm() {
 
   useEffect(() => {
     if (!token) {
-      setLoadError('Invalid invitation link');
-      setLoading(false);
+      queueMicrotask(() => {
+        setLoadError('Invalid invitation link');
+        setLoading(false);
+      });
       return;
     }
     api
@@ -55,7 +58,7 @@ function AcceptInviteForm() {
         }
       })
       .catch((err) => {
-        setLoadError(err.response?.data?.message || t('errors.invitationNotFound'));
+        setLoadError(getErrorMessage(err, t('errors.invitationNotFound')));
       })
       .finally(() => setLoading(false));
   }, [token]);
@@ -85,8 +88,8 @@ function AcceptInviteForm() {
       });
       setSuccess(true);
       setTimeout(() => router.push('/provider/login'), 2000);
-    } catch (err: any) {
-      setSubmitError(err.response?.data?.message || t('common.errorGeneric'));
+    } catch (err: unknown) {
+      setSubmitError(getErrorMessage(err, t('common.errorGeneric')));
     } finally {
       setSubmitting(false);
     }

@@ -128,7 +128,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['gift-cards', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/gift-cards`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 
@@ -178,7 +178,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['employees', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/employees`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
     enabled: subTab === 'settings',
   });
@@ -196,7 +196,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['service-packages', businessId, 'gift-products'],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/packages?filter=active`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
     enabled: subTab === 'products',
   });
@@ -207,7 +207,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
       const { data } = await api.get(
         `/businesses/${businessId}/subscriptions/plans?includeInactive=false`,
       );
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
     enabled: subTab === 'products',
   });

@@ -16,7 +16,6 @@ import { TemplateApplyService } from '../schedule/services/template-apply.servic
 import { LlmService } from '../../engine/agent/llm.service.js';
 import {
   BUSINESS_TYPE_OPTIONS,
-  getFallbackCatalog,
   isKnownBusinessType,
   type CatalogCategoryDraft,
 } from './business-types.constants.js';

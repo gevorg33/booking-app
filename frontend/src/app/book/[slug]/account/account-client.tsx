@@ -63,8 +63,10 @@ function PackageVisitRow({
   locale: string;
   onUpdated: () => void;
 }) {
-  const start = new Date(visit.appointments[0]?.startTime ?? Date.now());
-  const end = new Date(visit.appointments[visit.appointments.length - 1]?.endTime ?? Date.now());
+  const start = new Date(visit.appointments[0]?.startTime ?? '1970-01-01T00:00:00.000Z');
+  const end = new Date(
+    visit.appointments[visit.appointments.length - 1]?.endTime ?? visit.appointments[0]?.startTime ?? '1970-01-01T00:00:00.000Z',
+  );
   const allCancelled = visit.appointments.every((a) => a.status === 'cancelled');
 
   return (
@@ -191,17 +193,21 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
 
   useEffect(() => {
     if (!customer) {
-      setBookings([]);
-      setLoyalty(null);
-      setSubscriptions([]);
-      setGiftCardOrders([]);
-      setRedeemedGiftCards([]);
+      queueMicrotask(() => {
+        setBookings([]);
+        setLoyalty(null);
+        setSubscriptions([]);
+        setGiftCardOrders([]);
+        setRedeemedGiftCards([]);
+      });
       return;
     }
 
     let cancelled = false;
-    setBookingsLoading(true);
-    setBookingsError(null);
+    queueMicrotask(() => {
+      setBookingsLoading(true);
+      setBookingsError(null);
+    });
 
     void Promise.all([
       getPublicCustomerBookings(tenant.slug),

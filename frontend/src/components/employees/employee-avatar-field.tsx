@@ -27,8 +27,8 @@ export function EmployeeAvatarField({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setPreview(null);
-    setError(null);
+    queueMicrotask(() => setPreview(null));
+    queueMicrotask(() => setError(null));
   }, [avatarUrl]);
 
   const displayUrl = preview || avatarUrl || null;
@@ -42,7 +42,7 @@ export function EmployeeAvatarField({
     try {
       const url = await uploadEmployeeAvatar(businessId, file);
       onChange(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPreview(null);
       setError(err?.response?.data?.message || t('errors.uploadImageFailed'));
     } finally {

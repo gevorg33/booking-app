@@ -13,7 +13,6 @@ import {
   DASHBOARD_MUTATING_INTENTS,
   PROVIDER_INTENTS,
   PROVIDER_MUTATING_INTENTS,
-  PUBLIC_ASSISTANT_INTENTS,
   PUBLIC_INTENTS,
 } from './ai-command-registry.build.js';
 import {

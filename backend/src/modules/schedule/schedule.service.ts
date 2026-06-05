@@ -297,7 +297,7 @@ export class ScheduleService implements OnModuleInit {
   async duplicateTemplate(
     businessId: string,
     templateId: string,
-    userId?: string,
+    _userId?: string,
   ): Promise<ScheduleTemplate> {
     const source = await this.getTemplateById(businessId, templateId);
 

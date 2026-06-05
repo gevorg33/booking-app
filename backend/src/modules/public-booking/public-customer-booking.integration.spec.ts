@@ -82,7 +82,7 @@ describe('Public customer booking self-service integration', () => {
     findOne: jest.fn(
       async ({
         where,
-        relations,
+        relations: _relations,
       }: {
         where: Record<string, unknown>;
         relations?: unknown;

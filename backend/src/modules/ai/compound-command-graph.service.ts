@@ -17,6 +17,7 @@ import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { mergeCompoundStepParams } from './ai-command-entity-params.util.js';
+import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 
 export interface CompoundGraphCatalog {
   employees: Employee[];
@@ -221,6 +222,7 @@ export class CompoundCommandGraphService {
       parsed.action,
       state.catalog.employees,
     );
+    enrichBookingTimeHintsFromPrompt(parsed.action, parsedParams, state.prompt);
     this.completionPipeline.normalizeDateParams(
       parsedParams,
       state.prompt,

@@ -97,14 +97,16 @@ export function ProviderPushToggle() {
 
   useEffect(() => {
     const cap = isCapacitorNative();
-    setNative(cap);
-    setSupported(
+    const supported =
       cap ||
-        (typeof window !== 'undefined' &&
-          'serviceWorker' in navigator &&
-          'PushManager' in window &&
-          'Notification' in window),
-    );
+      (typeof window !== 'undefined' &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        'Notification' in window);
+    queueMicrotask(() => {
+      setNative(cap);
+      setSupported(supported);
+    });
   }, []);
 
   const subscribe = async () => {

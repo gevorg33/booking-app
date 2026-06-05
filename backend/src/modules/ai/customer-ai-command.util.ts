@@ -1,4 +1,5 @@
 import type { CommandResult } from './command-completion.types.js';
+import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
 import {
   CUSTOMER_INTENTS,
   PUBLIC_INTENTS,
@@ -81,6 +82,8 @@ Classify the user's message and extract parameters. Return JSON:
   "action": ${customerActions} | ${publicActions} | unknown,
   "params": {
     "employeeName": "string or null",
+    "allProviders": "boolean or null — true when no named provider and user asks who is free / any provider",
+    "bookingFirstAvailable": "boolean or null — true for nearest/first/soonest/next/earliest/ASAP; leave timeSlot null",
     "serviceName": "string or null",
     "serviceNames": ["string"] or null,
     "packageName": "string or null",
@@ -89,7 +92,9 @@ Classify the user's message and extract parameters. Return JSON:
     "promoCode": "string or null",
     "giftCardCode": "string or null",
     "date": "DD/MM/YYYY or null",
-    "timeSlot": "HH:MM or null",
+    "timeSlot": "HH:MM or null — omit when bookingFirstAvailable=true",
+    "timeFrom": "HH:MM or null — earliest hour for flexible booking (e.g. after 16:00)",
+    "timeOfDay": "morning | afternoon | evening | null",
     "paymentMethod": "cash | online | gift_card | null",
     "customerName": "string or null",
     "customerEmail": "string or null",
@@ -101,9 +106,10 @@ Classify the user's message and extract parameters. Return JSON:
 Rules:
 - Use public assistant actions (list_providers, check_availability, book_appointment, etc.) for anonymous discovery/booking on the public page.
 - Use customer self-service actions (book_package, list_my_appointments, cancel_my_booking, promo_code_help, etc.) for logged-in account flows.
-- Compound-style prompts should still pick the FIRST actionable intent; multi-step execution is handled separately.
+- Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — classify the first step as check_providers_for_service when only listing providers, or book_nearest_slot when only booking flexibly; never return create_booking/book_appointment with a missing timeSlot unless bookingFirstAvailable=true.
 - Never invent catalog names; use context when provided.
-- Default to "unknown" when unclear.`;
+- Default to "unknown" when unclear.
+${CHECK_AND_BOOK_CLASSIFIER_RULES}`;
 }
 
 export function mergeCustomerCompoundContext(

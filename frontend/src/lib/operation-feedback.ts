@@ -1,7 +1,6 @@
 import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { LOCALE_COOKIE, getMessages, type AppLocale, SUPPORTED_LOCALES } from '@/i18n';
 import { operationFeedbackStore } from '@/lib/operation-feedback-store';
-
 export type OperationKind = 'create' | 'update' | 'delete';
 
 declare module 'axios' {

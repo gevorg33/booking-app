@@ -100,6 +100,30 @@ describe('ai-command-bar.util', () => {
       expect(ctx.customerMetric).toBe('churn');
       expect(ctx.lastMetric).toBe('churn');
     });
+
+    it('derives availableProviders from details.providers when names are only there', () => {
+      const ctx = extractSessionContext({
+        action: 'check_providers_for_service',
+        details: {
+          providers: [
+            { id: 'e1', name: 'Karo Mazmanyan' },
+            { id: 'e2', name: 'Mary Torgomyan' },
+          ],
+        },
+      });
+      expect(ctx.availableProviders).toEqual(['Karo Mazmanyan', 'Mary Torgomyan']);
+      expect(ctx.lastAction).toBe('check_providers_for_service');
+    });
+
+    it('prefers explicit availableProviders over providers array', () => {
+      const ctx = extractSessionContext({
+        details: {
+          availableProviders: ['Anna'],
+          providers: [{ name: 'Bob' }],
+        },
+      });
+      expect(ctx.availableProviders).toEqual(['Anna']);
+    });
   });
 
   describe('mergeSessionContext', () => {

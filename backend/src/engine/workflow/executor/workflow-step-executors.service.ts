@@ -144,8 +144,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async createBooking(step: WorkflowStep, ctx: Record<string, any>) {
     const businessId = step.params.businessId ?? ctx.businessId;
-    let { employeeId, serviceId, customerId, startTime, notes, userId } =
-      step.params;
+    let { employeeId, serviceId } = step.params;
+    const { customerId, startTime, notes, userId } = step.params;
     const { employeeName, serviceName } = step.params;
 
     if (!employeeId && employeeName) {
@@ -464,7 +464,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async rescheduleBooking(
     step: WorkflowStep,
-    ctx: Record<string, any>,
+    _ctx: Record<string, any>,
   ) {
     const { bookingId, startTime, employeeId, serviceId, userId } = step.params;
     const existing = await this.bookingRepo.findOne({
@@ -548,7 +548,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
   private async assignEmployeeServices(
     step: WorkflowStep,
-    ctx: Record<string, any>,
+    _ctx: Record<string, any>,
   ) {
     const { employeeId, serviceIds, userId } = step.params;
     const before = await this.employeeService.findOne(employeeId);
@@ -634,7 +634,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
-  private async cancelBooking(step: WorkflowStep, ctx: Record<string, any>) {
+  private async cancelBooking(step: WorkflowStep, _ctx: Record<string, any>) {
     const { bookingId, reason, userId } = step.params;
     const snapshots = await this.loadBookingSnapshots([bookingId]);
     await this.bookingService.cancel(bookingId, reason, userId);
@@ -644,7 +644,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       : { cancelledId: bookingId };
   }
 
-  private async cancelBookings(step: WorkflowStep, ctx: Record<string, any>) {
+  private async cancelBookings(step: WorkflowStep, _ctx: Record<string, any>) {
     const { bookingIds, reason, userId } = step.params as {
       bookingIds: string[];
       reason?: string;

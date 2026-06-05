@@ -42,8 +42,8 @@ export function SpecialistPickerSheet({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
+    queueMicrotask(() => setLoading(true));
+    queueMicrotask(() => setLoadError(null));
 
     getPublicServiceSlotProviders(slug, serviceId, startTime)
       .then((res) => {

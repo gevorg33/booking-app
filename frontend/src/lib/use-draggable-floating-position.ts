@@ -109,7 +109,6 @@ export function useDraggableFloatingPosition({
   const [measuredSize, setMeasuredSize] = useState<ElementSize | null>(null);
 
   const positionRef = useRef(position);
-  positionRef.current = position;
 
   const dragRef = useRef<{
     pointerId: number;
@@ -127,7 +126,6 @@ export function useDraggableFloatingPosition({
   const observeCleanupRef = useRef<(() => void) | null>(null);
 
   const activeSize = measuredSize ?? estimatedSize;
-  sizeRef.current = activeSize;
 
   const persistAnchor = useCallback(
     (anchor: ViewportAnchor) => {
@@ -144,6 +142,14 @@ export function useDraggableFloatingPosition({
   const syncPositionFromAnchor = useCallback((size: ElementSize = sizeRef.current) => {
     setPosition(positionFromAnchor(anchorRef.current, size));
   }, []);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    sizeRef.current = activeSize;
+  }, [activeSize]);
 
   useLayoutEffect(() => {
     anchorRef.current = readStoredAnchor(storageKey);

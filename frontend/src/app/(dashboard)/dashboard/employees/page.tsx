@@ -8,7 +8,6 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EmployeeFormModal } from '@/components/employees/employee-form-modal';
 import TeamMembersCard, {
-  ASSIGNABLE_ROLES,
   roleLabel,
   type TeamMember,
   type TeamMemberRole,
@@ -20,6 +19,13 @@ import {
   type EmployeeRecord,
 } from '@/lib/employee-types';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
+import {
+  getDisplayAccessRole,
+  getEmployeeAccessRoleConfig,
+  resolveSaveAccessRole,
+  shouldPatchAccessRoleOnSave,
+} from '@/lib/employee-access-role.util';
 import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
@@ -49,7 +55,6 @@ export default function EmployeesPage() {
   const [accessSentId, setAccessSentId] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [appAccessRoles, setAppAccessRoles] = useState<Record<string, TeamMemberRole>>({});
-  const [roleUpdateError, setRoleUpdateError] = useState<string | null>(null);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees', business?.id],
@@ -122,19 +127,34 @@ export default function EmployeesPage() {
     mutationFn: async ({
       id,
       payload,
+      accessRole,
+      previousAccessRole,
+      savePendingAccessRole,
     }: {
       id: string;
       payload: ReturnType<typeof formToPayload>;
+      accessRole?: TeamMemberRole;
+      previousAccessRole?: TeamMemberRole;
+      savePendingAccessRole?: boolean;
     }) => {
       const { data } = await api.put(`/businesses/${business!.id}/employees/${id}`, payload);
-      return data;
+      if (shouldPatchAccessRoleOnSave(accessRole, previousAccessRole)) {
+        await api.patch(`/businesses/${business!.id}/employees/${id}/access-role`, {
+          role: accessRole,
+        });
+      }
+      return { id, accessRole, savePendingAccessRole };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, accessRole, savePendingAccessRole }) => {
+      if (savePendingAccessRole && accessRole) {
+        setAppAccessRoles((prev) => ({ ...prev, [id]: accessRole }));
+      }
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      void queryClient.invalidateQueries({ queryKey: ['team-members', business?.id] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err?.response?.data?.message || t('employees.errorsSaveFailed'));
+    onError: (err: unknown) => {
+      setFormError(getErrorMessage(err, t('employees.errorsSaveFailed')));
     },
   });
 
@@ -167,8 +187,8 @@ export default function EmployeesPage() {
         setInviteSuccess(false);
       }, 2000);
     },
-    onError: (err: any) => {
-      setInviteError(err?.response?.data?.message || t('employees.errorsInviteFailed'));
+    onError: (err: unknown) => {
+      setInviteError(getErrorMessage(err, t('employees.errorsInviteFailed')));
     },
   });
 
@@ -191,36 +211,9 @@ export default function EmployeesPage() {
       setAccessSentId(employeeId);
       setTimeout(() => setAccessSentId(null), 4000);
     },
-    onError: (err: any, { employeeId }) => {
+    onError: (err: unknown, { employeeId }) => {
       setAccessSentId(null);
-      setAccessError(
-        `${employeeId}:${err?.response?.data?.message || t('employees.errorsInviteFailed')}`,
-      );
-    },
-  });
-
-  const updateAccessRoleMutation = useMutation({
-    mutationFn: async ({
-      employeeId,
-      role,
-    }: {
-      employeeId: string;
-      role: TeamMemberRole;
-    }) => {
-      const { data } = await api.patch(
-        `/businesses/${business!.id}/employees/${employeeId}/access-role`,
-        { role },
-      );
-      return (data.data || data) as TeamMember;
-    },
-    onSuccess: () => {
-      setRoleUpdateError(null);
-      void queryClient.invalidateQueries({ queryKey: ['team-members', business?.id] });
-    },
-    onError: (err: any) => {
-      setRoleUpdateError(
-        err?.response?.data?.message || t('teamMembers.updateFailed'),
-      );
+      setAccessError(`${employeeId}:${getErrorMessage(err, t('employees.errorsInviteFailed'))}`);
     },
   });
 
@@ -236,14 +229,39 @@ export default function EmployeesPage() {
     setModalMode('edit');
   };
 
-  const handleSubmit = (payload: ReturnType<typeof formToPayload>) => {
+  const getAccessRoleConfig = (emp: EmployeeRecord) =>
+    getEmployeeAccessRoleConfig(emp, {
+      isOwner,
+      currentUserId: user?.id,
+      linkedMember: teamMemberByEmployeeId.get(emp.id),
+      pendingAppAccessRoles: appAccessRoles,
+    });
+
+  const handleSubmit = (
+    payload: ReturnType<typeof formToPayload>,
+    accessRole?: TeamMemberRole,
+  ) => {
     setFormError(null);
     if (modalMode === 'create') {
       createMutation.mutate(payload);
       return;
     }
     if (modalMode === 'edit' && editingEmployee) {
-      updateMutation.mutate({ id: editingEmployee.id, payload });
+      const linkedMember = teamMemberByEmployeeId.get(editingEmployee.id);
+      const resolved = resolveSaveAccessRole({
+        accessRole,
+        accessRoleConfig: getAccessRoleConfig(editingEmployee),
+        employee: editingEmployee,
+        linkedMemberRole: linkedMember?.role,
+      });
+
+      updateMutation.mutate({
+        id: editingEmployee.id,
+        payload,
+        accessRole: resolved.accessRole,
+        previousAccessRole: resolved.previousAccessRole,
+        savePendingAccessRole: resolved.savePendingAccessRole,
+      });
     }
   };
 
@@ -313,21 +331,14 @@ export default function EmployeesPage() {
               const avatar = employeeAvatarUrl(emp);
               const title = employeeTitle(emp);
               const linkedMember = teamMemberByEmployeeId.get(emp.id);
-              const isSelf = linkedMember?.userId === user?.id;
-              const canEditRole =
-                isOwner &&
-                emp.userId &&
-                linkedMember &&
-                linkedMember.role !== 'owner' &&
-                !isSelf;
               const pendingAppAccessRole = appAccessRoles[emp.id] ?? 'contributor';
+              const displayAccessRole = getDisplayAccessRole(
+                emp,
+                linkedMember?.role,
+                appAccessRoles,
+              );
               const rowAccessError =
                 accessError?.startsWith(`${emp.id}:`) ? accessError.slice(emp.id.length + 1) : null;
-              const rowRoleError =
-                roleUpdateError &&
-                updateAccessRoleMutation.variables?.employeeId === emp.id
-                  ? roleUpdateError
-                  : null;
               return (
                 <div key={emp.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
@@ -366,28 +377,9 @@ export default function EmployeesPage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
-                    {canEditRole ? (
-                      <select
-                        className="input text-xs py-1.5 min-w-[140px]"
-                        value={linkedMember.role}
-                        disabled={updateAccessRoleMutation.isPending}
-                        onChange={(e) =>
-                          updateAccessRoleMutation.mutate({
-                            employeeId: emp.id,
-                            role: e.target.value as TeamMemberRole,
-                          })
-                        }
-                        title={t('employees.accessRole')}
-                      >
-                        {ASSIGNABLE_ROLES.map((role) => (
-                          <option key={role} value={role}>
-                            {roleLabel(role, t)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : linkedMember ? (
+                    {displayAccessRole ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-violet-600/10 text-violet-300 whitespace-nowrap">
-                        {roleLabel(linkedMember.role, t)}
+                        {roleLabel(displayAccessRole, t)}
                       </span>
                     ) : null}
                     {emp.userId ? (
@@ -401,25 +393,6 @@ export default function EmployeesPage() {
                     )}
                     {!emp.userId && emp.email ? (
                       <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                        {isOwner ? (
-                          <select
-                            className="input text-xs py-1.5 min-w-[140px]"
-                            value={pendingAppAccessRole}
-                            onChange={(e) =>
-                              setAppAccessRoles((prev) => ({
-                                ...prev,
-                                [emp.id]: e.target.value as TeamMemberRole,
-                              }))
-                            }
-                            title={t('employees.accessRole')}
-                          >
-                            {ASSIGNABLE_ROLES.map((role) => (
-                              <option key={role} value={role}>
-                                {roleLabel(role, t)}
-                              </option>
-                            ))}
-                          </select>
-                        ) : null}
                         <button
                           type="button"
                           onClick={() =>
@@ -443,9 +416,6 @@ export default function EmployeesPage() {
                     ) : null}
                     {rowAccessError && (
                       <p className="text-xs text-red-400 max-w-[200px] text-right sm:text-left">{rowAccessError}</p>
-                    )}
-                    {rowRoleError && (
-                      <p className="text-xs text-red-400 max-w-[200px] text-right sm:text-left">{rowRoleError}</p>
                     )}
                     <div className="flex items-center gap-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-green-600/10 text-green-400 whitespace-nowrap hidden sm:inline">
@@ -590,6 +560,11 @@ export default function EmployeesPage() {
           businessId={business.id}
           employee={editingEmployee}
           services={services}
+          accessRoleConfig={
+            modalMode === 'edit' && editingEmployee
+              ? getAccessRoleConfig(editingEmployee)
+              : null
+          }
           saving={saving}
           errorMessage={formError}
           onClose={closeModal}

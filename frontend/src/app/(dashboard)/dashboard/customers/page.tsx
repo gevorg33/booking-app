@@ -43,7 +43,7 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
-    setParams((p) => ({ ...p, page: 1 }));
+    queueMicrotask(() => setParams((p) => ({ ...p, page: 1 })));
   }, [debouncedSearch]);
 
   const queryString = useMemo(

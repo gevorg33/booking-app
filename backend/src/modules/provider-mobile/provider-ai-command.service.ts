@@ -32,10 +32,7 @@ import {
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
-import {
-  isIntentAllowed,
-  normalizeActorRole,
-} from '../ai/ai-capability.matrix.js';
+import { isIntentAllowed } from '../ai/ai-capability.matrix.js';
 import {
   resolveAccessTier,
   type AccessTier,

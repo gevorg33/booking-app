@@ -371,7 +371,7 @@ export default function CalendarPage() {
                   onChange={(e) => setEmployeeId(e.target.value)}
                 >
                   <option value="">{t('calendarPage.selectProvider')}</option>
-                  {employees.map((emp: any) => (
+                  {employees.map((emp: { id: string; name: string }) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
                     </option>

@@ -120,15 +120,18 @@ export function readBookingError(
       };
     };
   };
-  const msg = ax.response?.data?.message;
-  if (typeof msg === 'object' && msg) {
+  const raw = ax.response?.data?.message;
+  if (typeof raw === 'object' && raw) {
     return {
-      message: msg.message ?? fallbackMessage,
-      code: msg.code,
-      updatedAt: msg.updatedAt,
+      message: raw.message ?? fallbackMessage,
+      code: raw.code,
+      updatedAt: raw.updatedAt,
     };
   }
-  return { message: typeof msg === 'string' ? msg : fallbackMessage };
+  if (typeof raw === 'string' && raw.trim()) {
+    return { message: raw.trim() };
+  }
+  return { message: fallbackMessage };
 }
 
 export interface BookingDetailSnapshot {

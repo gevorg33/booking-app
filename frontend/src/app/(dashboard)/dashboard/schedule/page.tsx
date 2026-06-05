@@ -16,7 +16,11 @@ import {
   Ban,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import { useSchedulingStore, type TimePeriod } from '@/lib/scheduling-store';
+import { useSchedulingStore, type ScheduleTemplate, type TimePeriod } from '@/lib/scheduling-store';
+import type { QueryClient } from '@tanstack/react-query';
+import type { EmployeeRecord } from '@/lib/employee-types';
+import type { AuthResult } from '@/lib/auth-types';
+import { getErrorMessage } from '@/lib/error-message';
 import api from '@/lib/api';
 import {
   formatDateDisplay,
@@ -41,6 +45,38 @@ import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StylishChoice } from '@/components/ui/radio-choice';
 
+interface ServiceOption {
+  id: string;
+  name: string;
+}
+
+type BusinessRef = NonNullable<AuthResult['business']>;
+type PeriodFieldValue = string | number | boolean | string[];
+
+interface ScheduleSuccessInfo {
+  slotsCreated: number;
+  optimization?: { reasoning?: string };
+}
+
+interface ApplyTemplateApiResponse {
+  data?: { slotsCreated?: number; optimization?: { reasoning?: string } };
+  slotsCreated?: number;
+  optimization?: { reasoning?: string };
+}
+
+interface TemplateListItem extends ScheduleTemplate {
+  periods?: TimePeriod[];
+  workingHours?: Array<{ startTime: string; endTime: string }>;
+}
+
+function applyResponseSlots(data: ApplyTemplateApiResponse | undefined): number | string | undefined {
+  return data?.data?.slotsCreated ?? data?.slotsCreated;
+}
+
+function applyResponseReasoning(data: ApplyTemplateApiResponse | undefined): string | undefined {
+  return data?.data?.optimization?.reasoning ?? data?.optimization?.reasoning;
+}
+
 // ─── Overlap detection ────────────────────────────────────────────────────────
 
 function toMinutes(hhmm: string): number {
@@ -53,7 +89,7 @@ function toMinutes(hhmm: string): number {
  * For template periods, only flags overlaps on days where both periods are active.
  */
 function getOverlappingIndexes(
-  periods: Array<{ startTime: string; endTime: string; [key: string]: any }>,
+  periods: Array<{ startTime: string; endTime: string; [key: string]: unknown }>,
   dayKey?: string, // if provided, only check periods active on that day
 ): Set<number> {
   const overlapping = new Set<number>();
@@ -149,7 +185,7 @@ const emptyPeriod = (): TimePeriod => ({
 });
 
 function mapPeriodsFromTemplate(
-  template: { periods?: any[] },
+  template: { periods?: TimePeriod[] },
 ): (TimePeriod & { serviceIds?: string[] })[] {
   const periodsArr = template.periods || [];
   if (periodsArr.length === 0) {
@@ -176,10 +212,10 @@ function mapPeriodsFromTemplate(
 
 interface PeriodEditorProps {
   periods: (TimePeriod & { serviceIds?: string[] })[];
-  services: any[];
+  services: ServiceOption[];
   onAdd: () => void;
   onRemove: (i: number) => void;
-  onUpdate: (i: number, field: string, value: any) => void;
+  onUpdate: (i: number, field: string, value: PeriodFieldValue) => void;
   /** When true, show active-days selector (for templates). Hide for direct (single-date) schedule. */
   showActiveDays?: boolean;
   /** Set of period indexes that have an overlap error */
@@ -198,7 +234,7 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
   );
 
   const toggleService = (periodIdx: number, serviceId: string) => {
-    const current: string[] = (periods[periodIdx] as any).serviceIds || [];
+    const current: string[] = periods[periodIdx].serviceIds || [];
     const next = current.includes(serviceId)
       ? current.filter((id) => id !== serviceId)
       : [...current, serviceId];
@@ -280,8 +316,8 @@ function PeriodEditor({ periods, services, onAdd, onRemove, onUpdate, showActive
                   <p className="text-xs text-gray-500">{t('schedule.noServicesHint')}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {services.map((svc: any) => {
-                      const ids: string[] = (period as any).serviceIds || [];
+                    {services.map((svc) => {
+                      const ids: string[] = period.serviceIds || [];
                       const active = ids.includes(svc.id);
                       return (
                         <button
@@ -468,10 +504,10 @@ function CreateScheduleTab({
   services,
   queryClient,
 }: {
-  business: any;
-  employees: any[];
-  services: any[];
-  queryClient: any;
+  business: BusinessRef;
+  employees: EmployeeRecord[];
+  services: ServiceOption[];
+  queryClient: QueryClient;
 }) {
   const { t, locale } = useI18n();
   const [employeeId, setEmployeeId] = useState('');
@@ -479,7 +515,7 @@ function CreateScheduleTab({
   const [periods, setPeriods] = useState<(TimePeriod & { serviceIds?: string[] })[]>([
     { ...emptyPeriod(), serviceIds: [] },
   ]);
-  const [successInfo, setSuccessInfo] = useState<{ slotsCreated: number; optimization?: any } | null>(null);
+  const [successInfo, setSuccessInfo] = useState<ScheduleSuccessInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const addPeriod = useCallback(() => {
@@ -488,7 +524,7 @@ function CreateScheduleTab({
   const removePeriod = useCallback((i: number) => {
     setPeriods((prev) => prev.filter((_, idx) => idx !== i));
   }, []);
-  const updatePeriod = useCallback((i: number, field: string, value: any) => {
+  const updatePeriod = useCallback((i: number, field: string, value: PeriodFieldValue) => {
     setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)));
   }, []);
 
@@ -506,8 +542,8 @@ function CreateScheduleTab({
       setSuccessInfo(data);
       queryClient.invalidateQueries({ queryKey: ['slots'] });
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.message || t('schedule.createFailed'));
+    onError: (err: unknown) => {
+      setError(getErrorMessage(err, t('schedule.createFailed')));
     },
   });
 
@@ -568,7 +604,7 @@ function CreateScheduleTab({
             onChange={(e) => setEmployeeId(e.target.value)}
           >
             <option value="">{t('common.selectEmployee')}</option>
-            {employees.map((emp: any) => (
+            {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>{emp.name}</option>
             ))}
           </select>
@@ -637,12 +673,12 @@ function TemplatesTab({
   setTemplates,
   setApplyResult,
 }: {
-  business: any;
-  employees: any[];
-  services: any[];
-  queryClient: any;
-  setTemplates: (templates: any[], total: number) => void;
-  setApplyResult: (result: any) => void;
+  business: BusinessRef;
+  employees: EmployeeRecord[];
+  services: ServiceOption[];
+  queryClient: QueryClient;
+  setTemplates: (templates: ScheduleTemplate[], total: number) => void;
+  setApplyResult: (result: unknown) => void;
 }) {
   const { t, locale } = useI18n();
   const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
@@ -689,7 +725,7 @@ function TemplatesTab({
     setPeriods((prev) => [...prev, { ...emptyPeriod(), serviceIds: [] }]), []);
   const removePeriod = useCallback((i: number) =>
     setPeriods((prev) => prev.filter((_, idx) => idx !== i)), []);
-  const updatePeriod = useCallback((i: number, field: string, value: any) =>
+  const updatePeriod = useCallback((i: number, field: string, value: PeriodFieldValue) =>
     setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p))), []);
 
   const resetTemplateForm = useCallback(() => {
@@ -709,7 +745,7 @@ function TemplatesTab({
     setFormOpen(true);
   }, []);
 
-  const openEditForm = useCallback((template: any) => {
+  const openEditForm = useCallback((template: TemplateListItem) => {
     setShowApply(null);
     setEditingId(template.id);
     setFormError(null);
@@ -729,8 +765,8 @@ function TemplatesTab({
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
       resetTemplateForm();
     },
-    onError: (err: any) => {
-      setFormError(err?.response?.data?.message || t('schedule.saveFailed'));
+    onError: (err: unknown) => {
+      setFormError(getErrorMessage(err, t('schedule.saveFailed')));
     },
   });
 
@@ -744,8 +780,8 @@ function TemplatesTab({
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
       resetTemplateForm();
     },
-    onError: (err: any) => {
-      setFormError(err?.response?.data?.message || t('schedule.saveFailed'));
+    onError: (err: unknown) => {
+      setFormError(getErrorMessage(err, t('schedule.saveFailed')));
     },
   });
 
@@ -932,7 +968,7 @@ function TemplatesTab({
                 onChange={(e) => setApplyForm({ ...applyForm, employeeId: e.target.value })}
               >
                 <option value="">{t('common.selectEmployee')}</option>
-                {employees.map((emp: any) => (
+                {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
               </select>
@@ -1003,18 +1039,14 @@ function TemplatesTab({
                 <span>
                   {t('schedule.applySuccess', {
                     slots:
-                      (applyMutation.data as any)?.data?.slotsCreated ??
-                      (applyMutation.data as any)?.slotsCreated ??
+                      applyResponseSlots(applyMutation.data as ApplyTemplateApiResponse) ??
                       t('common.notApplicable'),
                   })}
                 </span>
               </div>
-              {((applyMutation.data as any)?.data?.optimization?.reasoning ||
-                (applyMutation.data as any)?.optimization?.reasoning) && (
+              {applyResponseReasoning(applyMutation.data as ApplyTemplateApiResponse) && (
                 <p className="text-xs text-gray-400 mt-2">
-                  AI:{' '}
-                  {(applyMutation.data as any)?.data?.optimization?.reasoning ||
-                    (applyMutation.data as any)?.optimization?.reasoning}
+                  AI: {applyResponseReasoning(applyMutation.data as ApplyTemplateApiResponse)}
                 </p>
               )}
             </div>
@@ -1038,12 +1070,12 @@ function TemplatesTab({
           </div>
         ) : (
           <div className="divide-y divide-gray-800">
-            {templates.map((template: any) => {
-              const periodsArr: any[] = template.periods || [];
+            {templates.map((template: TemplateListItem) => {
+              const periodsArr: TimePeriod[] = template.periods || [];
               const serviceNames = periodsArr
-                .flatMap((p: any) =>
+                .flatMap((p) =>
                   (p.serviceIds || []).map((id: string) => {
-                    const svc = (services as any[]).find((s: any) => s.id === id);
+                    const svc = services.find((s) => s.id === id);
                     return svc?.name || id;
                   })
                 )
@@ -1065,11 +1097,11 @@ function TemplatesTab({
                         {periodsArr.length > 0 ? (
                           <span className="text-xs text-gray-400">
                             {t('schedule.periodsCount', { count: periodsArr.length })} &middot;{' '}
-                            {periodsArr.map((p: any) => `${p.startTime}–${p.endTime}`).join(', ')}
+                            {periodsArr.map((p) => `${p.startTime}–${p.endTime}`).join(', ')}
                           </span>
                         ) : template.workingHours ? (
                           <span className="text-xs text-gray-400">
-                            {template.workingHours.map((h: any) => `${h.startTime}–${h.endTime}`).join(', ')}
+                            {template.workingHours.map((h) => `${h.startTime}–${h.endTime}`).join(', ')}
                           </span>
                         ) : null}
                         {uniqueServiceNames.map((name) => (

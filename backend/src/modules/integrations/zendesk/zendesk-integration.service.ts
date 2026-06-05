@@ -503,10 +503,6 @@ export class ZendeskIntegrationService {
       `Change request ID: ${request.id}`,
     ].filter(Boolean);
 
-    const integration = getBusinessZendeskIntegration(
-      (await this.businessRepo.findOne({ where: { id: businessId } }))
-        ?.settings,
-    );
     const tags = [
       'optischedule',
       'gift-card',

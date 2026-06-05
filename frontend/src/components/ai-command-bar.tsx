@@ -17,8 +17,10 @@ import {
 } from '@/lib/ai-orchestration';
 import { resolveCommandBarExamples } from '@/lib/ai-command-bar-examples.util';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
+import { AiAvailableProvidersPanel } from '@/components/ai-available-providers-panel';
 import { AiClarifyForm, type ClarifyIssue } from '@/components/ai-clarify-form';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
+import { normalizeAvailableProviders } from '@/lib/ai-available-providers.util';
 import { useAiEvents } from '@/lib/use-ai-events';
 import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
 import {
@@ -44,7 +46,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  details?: any;
+  details?: unknown;
   action?: string;
   success?: boolean;
   timestamp: Date;
@@ -115,7 +117,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     queryKey: ['agent-tasks-pending', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/agents/tasks/pending`);
-      return (data.data ?? data ?? []) as any[];
+      return (data.data ?? data ?? []) as Array<Record<string, unknown>>;
     },
     enabled: !!business?.id,
     refetchInterval: 15_000,
@@ -152,11 +154,9 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
     },
-    onError: (error: any) => {
-      const text =
-        error?.response?.data?.message ??
-        error?.response?.data?.error ??
-        t('ai.undoFailed');
+    onError: (error: unknown) => {
+      const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } })?.response?.data;
+      const text = response?.message ?? response?.error ?? t('ai.undoFailed');
       setMessages((prev) => [
         ...prev,
         {
@@ -245,7 +245,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
           {
@@ -302,7 +302,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
           {
@@ -604,7 +604,20 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
               </div>
             )}
 
-            {messages.map((msg) => (
+            {messages.map((msg) => {
+              const msgDetails =
+                msg.details && typeof msg.details === 'object'
+                  ? (msg.details as Record<string, unknown>)
+                  : undefined;
+              const availableProviders = normalizeAvailableProviders(msgDetails);
+              const providerServiceName =
+                typeof msgDetails?.serviceName === 'string'
+                  ? msgDetails.serviceName
+                  : undefined;
+              const providerDate =
+                typeof msgDetails?.date === 'string' ? msgDetails.date : undefined;
+
+              return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
@@ -628,15 +641,24 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                     />
                   )}
 
+                  {msg.role === 'assistant' && availableProviders.length > 0 && (
+                    <AiAvailableProvidersPanel
+                      providers={availableProviders}
+                      serviceName={providerServiceName}
+                      date={providerDate}
+                      onBook={(composed) => void runPrompt(composed)}
+                    />
+                  )}
+
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <AiClarifyForm
                       issues={msg.details.missing as ClarifyIssue[]}
                       options={{
                         employees,
                         services,
-                        availableProviderNames: msg.details.availableProviders as
-                          | string[]
-                          | undefined,
+                        availableProviderNames:
+                          (msg.details.availableProviders as string[] | undefined) ??
+                          availableProviders.map((provider) => provider.name),
                       }}
                       onSubmit={(composed) => void runPrompt(composed)}
                     />
@@ -752,7 +774,8 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
 
             {(loading || confirmingId || approvingId) && (
               <div className="flex justify-start">

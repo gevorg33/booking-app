@@ -8,7 +8,6 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Business } from '../../business/entities/business.entity.js';
 import { Customer } from '../../customer/entities/customer.entity.js';
 import { loyaltyDecimalTransformer } from '../loyalty-decimal.transformer.js';
 

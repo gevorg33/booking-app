@@ -75,9 +75,9 @@ describe('I18nProvider', () => {
     });
     try {
       vi.stubGlobal('window', undefined);
-      let capturedLocale = '';
+      const capturedLocale: string[] = [];
       function Capture() {
-        capturedLocale = useI18n().locale;
+        capturedLocale.push(useI18n().locale);
         return null;
       }
       renderToString(
@@ -85,7 +85,7 @@ describe('I18nProvider', () => {
           <Capture />
         </I18nProvider>,
       );
-      expect(capturedLocale).toBe('hy');
+      expect(capturedLocale[0]).toBe('hy');
     } finally {
       vi.stubGlobal('window', win);
       if (previous) {

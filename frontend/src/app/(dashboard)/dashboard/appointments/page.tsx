@@ -67,7 +67,7 @@ export default function AppointmentsPage() {
   useOperationalEvents(business?.id, onOperationalEvent);
 
   useEffect(() => {
-    setParams((p) => ({ ...p, page: 1 }));
+    queueMicrotask(() => setParams((p) => ({ ...p, page: 1 })));
   }, [debouncedSearch, statusFilter, todayOnly]);
 
   const queryString = useMemo(

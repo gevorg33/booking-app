@@ -3,7 +3,6 @@ import {
   IsBoolean,
   IsOptional,
   IsDateString,
-  IsNumber,
   IsInt,
   Min,
   Max,

@@ -71,11 +71,13 @@ export function MultiServiceAvailabilityClient({
       const q = new URLSearchParams({ services: resolved.join(',') });
       router.replace(`${bookPath(slug, '/multi/availability')}?${q.toString()}`, { scroll: false });
     }
-    setServiceIds((prev) => {
-      const a = uniqueMultiServiceIds(prev).slice().sort().join(',');
-      const b = uniqueMultiServiceIds(resolved).slice().sort().join(',');
-      return a === b ? prev : resolved;
-    });
+    queueMicrotask(() =>
+      setServiceIds((prev) => {
+        const a = uniqueMultiServiceIds(prev).slice().sort().join(',');
+        const b = uniqueMultiServiceIds(resolved).slice().sort().join(',');
+        return a === b ? prev : resolved;
+      }),
+    );
   }, [router, searchParams, services, slug]);
 
   useEffect(() => {
@@ -188,17 +190,19 @@ export function MultiServiceAvailabilityClient({
     const requestId = ++suggestRequestRef.current;
     userPickedDateRef.current = false;
     selectedStartRef.current = null;
-    setSelectedStart(null);
-    setEmployeeId(null);
-    setDateKey('');
+    queueMicrotask(() => {
+      setSelectedStart(null);
+      setEmployeeId(null);
+      setDateKey('');
+      setSlots([]);
+      setSlotProviders([]);
+      setLaterProviders([]);
+      setProviderPickerOpen(false);
+      setLoading(true);
+      setSlotsLoading(true);
+      setError(null);
+    });
     dateKeyRef.current = '';
-    setSlots([]);
-    setSlotProviders([]);
-    setLaterProviders([]);
-    setProviderPickerOpen(false);
-    setLoading(true);
-    setSlotsLoading(true);
-    setError(null);
 
     const ids = serviceSelectionKey.split(',');
 
@@ -300,8 +304,8 @@ export function MultiServiceAvailabilityClient({
 
   useEffect(() => {
     if (!selectedStart || serviceIds.length < 2) {
-      setSlotProviders([]);
-      setLaterProviders([]);
+      queueMicrotask(() => setSlotProviders([]));
+      queueMicrotask(() => setLaterProviders([]));
       return;
     }
 

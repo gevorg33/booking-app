@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { NotificationsService } from './notifications.service.js';
 

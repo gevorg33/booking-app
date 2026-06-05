@@ -759,7 +759,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
   const dashboardSteps = DASHBOARD_INTENTS.filter((id) => id !== 'unknown');
   const customerSteps = CUSTOMER_INTENTS.filter((id) => id !== 'unknown');
   const publicSteps = PUBLIC_INTENTS.filter((id) => id !== 'unknown');
-  const providerSteps = PROVIDER_INTENTS.filter((id) => id !== 'unknown');
   const dashboardCrmSteps = [
     ...DASHBOARD_CRM_MUTATE_INTENTS,
     ...DASHBOARD_CRM_READ_INTENTS,

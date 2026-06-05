@@ -1,0 +1,126 @@
+/** Classifier rules shared by dashboard INTENT_SCHEMA and customer classifier schema. */
+export const CHECK_AND_BOOK_CLASSIFIER_RULES = `- Check-then-book compound (one message): when the user asks who is free/available/open for a service AND wants the nearest/soonest/next/earliest slot or ASAP, extract serviceName, date, timeOfDay (morning/afternoon/evening/tonight), allProviders=true when no named provider, and bookingFirstAvailable=true with timeSlot=null. Multi-step execution is handled automatically — do NOT require a fixed start time.
+- check_providers_for_service: READ — list providers with open bookable windows for a service on a date/time-of-day. Triggers: who/which/anyone/anybody + free|available|open|providers|stylists; "see who is open", "who can take {service}", "check providers for {service}".
+- book_nearest_slot: MUTATE — book the earliest open slot after an optional provider check. Triggers: book|find|get|reserve|schedule|grab + nearest|soonest|first|next|earliest|ASAP + slot|appointment|opening|time (or a service name). Set bookingFirstAvailable=true, timeSlot=null.
+- Do NOT use create_booking or book_appointment with a required timeSlot when the user says nearest/first/soonest/next available/earliest/ASAP — set bookingFirstAvailable=true instead.
+- Do NOT confuse with check_availability (single named provider's slots) or lookup_service_assignment (dashboard staff catalog assignment).
+- timeOfDay: morning (before 12:00), afternoon (12:00–17:00), evening (after 17:00); "tonight" counts as evening. Set timeOfDay when mentioned.
+- timeFrom: earliest hour for flexible booking (e.g. "after 16:00" → timeFrom="16:00"; evening implies a not-before window downstream).
+- allProviders: true when no specific provider is named and the user asks who is free / any provider / team-wide.
+- Examples:
+  - "who's free tomorrow evening for permanent lashes, book the nearest slot" → serviceName=permanent lashes, date=tomorrow, timeOfDay=evening, allProviders=true, bookingFirstAvailable=true
+  - "see who is open tomorrow afternoon for massage and find the nearest appointment" → serviceName=massage, timeOfDay=afternoon, bookingFirstAvailable=true
+  - "which stylist is available tomorrow for massage and book the soonest slot" → serviceName=massage, allProviders=true, bookingFirstAvailable=true`;
+
+/** Classifier rules for the anonymous public booking page (check_availability + book_appointment). */
+export const PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES = `- Check-then-book compound (one message): when the user asks who is free/available/open for a service AND wants the nearest/soonest/next/earliest slot or ASAP, extract serviceName, date, timeOfDay (morning/afternoon/evening/tonight), allProviders=true when no named specialist, and bookingFirstAvailable=true with timeSlot=null for the booking step. Multi-step execution is handled automatically — do NOT require a fixed start time.
+- check_availability: READ — open times / who is free for a service on a date/time-of-day. Triggers: who/which/anyone/anybody + free|available|open|providers|stylists; "see who is open", "who can take {service}".
+- book_appointment: MUTATE — book the earliest open slot. Triggers: book|find|get|reserve|schedule|grab + nearest|soonest|first|next|earliest|ASAP + slot|appointment|opening|time (or a service name). Set bookingFirstAvailable=true, timeSlot=null.
+- Do NOT use book_appointment with a required timeSlot when the user says nearest/first/soonest/next available/earliest/ASAP — set bookingFirstAvailable=true instead.
+- Do NOT use recommend_specialists when the user only asks who is free without asking for best/top rated.
+- timeOfDay: morning (before 12:00), afternoon (12:00–17:00), evening (after 17:00); "tonight" counts as evening. Set timeOfDay when mentioned.
+- timeFrom: earliest hour for flexible booking (e.g. "after 16:00" → timeFrom="16:00").
+- allProviders: true when no specific specialist is named and the user asks who is free / any provider / team-wide.
+- Examples:
+  - "who's free tomorrow evening for permanent lashes, book the nearest slot" → serviceName=permanent lashes, date=tomorrow, timeOfDay=evening, allProviders=true, bookingFirstAvailable=true
+  - "see who is open tomorrow afternoon for massage and find the nearest appointment" → serviceName=massage, timeOfDay=afternoon, bookingFirstAvailable=true
+  - "which stylist is available tomorrow for massage and book the soonest slot" → serviceName=massage, allProviders=true, bookingFirstAvailable=true`;
+
+/** Natural-language variants for check-provider + book-nearest compound flows. */
+export const SIMILAR_CHECK_AND_BOOK_PROMPTS = [
+  {
+    id: 'whos-free-comma',
+    prompt:
+      "who's free tomorrow evening for permanent lashes, book the nearest slot",
+    serviceName: 'permanent lashes',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'stylist-soonest',
+    prompt:
+      'which stylist is available tomorrow for massage and book the soonest slot',
+    serviceName: 'massage',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
+  {
+    id: 'see-who-open-find',
+    prompt:
+      'see who is open tomorrow afternoon for permanent lips and find the nearest appointment',
+    serviceName: 'permanent lips',
+    notBeforeTime: '12:00',
+    timeOfDay: 'afternoon',
+  },
+  {
+    id: 'who-can-take-semicolon',
+    prompt:
+      'check who can take permanent lashes tomorrow evening; book next available slot',
+    serviceName: 'permanent lashes',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'tonight-earliest',
+    prompt: 'who is free tonight for massage and get the earliest slot',
+    serviceName: 'massage',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'providers-for-lashes-comma',
+    prompt:
+      'check providers tomorrow evening for lashes, book nearest time slot',
+    serviceName: 'lashes',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'anyone-free-question',
+    prompt:
+      'anyone free tomorrow for permanent lashes? book the nearest opening',
+    serviceName: 'permanent lashes',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
+  {
+    id: 'availability-asap',
+    prompt:
+      'who has availability tomorrow evening for massage and book ASAP',
+    serviceName: 'massage',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'then-book-nearest',
+    prompt:
+      'which providers are free tomorrow for permanent lashes, then book nearest slot',
+    serviceName: 'permanent lashes',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
+  {
+    id: 'lookup-reserve',
+    prompt:
+      'look up who is available tomorrow evening for massage and reserve the nearest slot',
+    serviceName: 'massage',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'anybody-open-schedule',
+    prompt:
+      'is anybody open tomorrow morning for massage and schedule the next available appointment',
+    serviceName: 'massage',
+    notBeforeTime: '00:00',
+    timeOfDay: 'morning',
+  },
+  {
+    id: 'which-specialist-free',
+    prompt:
+      'which specialist is free tomorrow evening for permanent lips and book earliest slot',
+    serviceName: 'permanent lips',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+] as const;

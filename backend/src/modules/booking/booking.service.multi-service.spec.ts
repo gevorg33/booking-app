@@ -216,7 +216,6 @@ describe('BookingService same-visit multi-service create', () => {
       .mockResolvedValue(undefined);
     const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const segmentStart = new Date(futureStart.getTime() + 65 * 60 * 1000);
-    const segmentEnd = new Date(segmentStart.getTime() + 30 * 60 * 1000);
     bookingRepo.findOne.mockResolvedValue({
       ...savedBooking,
       id: 'booking-2',

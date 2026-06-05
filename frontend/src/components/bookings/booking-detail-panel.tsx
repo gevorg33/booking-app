@@ -184,26 +184,28 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     if (!rescheduleServiceId || availableServices.length === 0) return;
     if (!availableServices.some((s) => s.id === rescheduleServiceId)) {
       if (availableServices.length === 1) {
-        setRescheduleServiceId(availableServices[0].id);
+        queueMicrotask(() => setRescheduleServiceId(availableServices[0].id));
       }
     }
   }, [availableServices, rescheduleServiceId]);
 
   useEffect(() => {
     if (!booking) return;
-    setStatus(booking.status as BookingStatus);
-    setPaymentStatus((booking.paymentStatus as PaymentStatus) ?? 'pending');
-    setNotes(booking.notes ?? '');
-    setDescription(booking.description ?? '');
-    setCancelReason('');
-    setShowCancelConfirm(false);
-    setPendingStatus(null);
-    setRescheduleDate(bookingDayISO(booking.startTime));
-    setRescheduleTime(bookingTimeHHmm(booking.startTime));
-    setRescheduleEmployeeId(booking.employee?.id ?? '');
-    setRescheduleServiceId(booking.service?.id ?? '');
-    setCustomerId(booking.customer?.id ?? '');
-    setVersionConflict(false);
+    queueMicrotask(() => {
+      setStatus(booking.status as BookingStatus);
+      setPaymentStatus((booking.paymentStatus as PaymentStatus) ?? 'pending');
+      setNotes(booking.notes ?? '');
+      setDescription(booking.description ?? '');
+      setCancelReason('');
+      setShowCancelConfirm(false);
+      setPendingStatus(null);
+      setRescheduleDate(bookingDayISO(booking.startTime));
+      setRescheduleTime(bookingTimeHHmm(booking.startTime));
+      setRescheduleEmployeeId(booking.employee?.id ?? '');
+      setRescheduleServiceId(booking.service?.id ?? '');
+      setCustomerId(booking.customer?.id ?? '');
+      setVersionConflict(false);
+    });
   }, [booking]);
 
   const refreshBookings = () => {

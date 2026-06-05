@@ -61,7 +61,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
       (businessData?.settings?.publicBooking as Record<string, unknown> | undefined)
         ?.packageCheckoutGraceHours ?? 0,
     );
-    if (Number.isFinite(value)) setGraceHours(String(value));
+    if (Number.isFinite(value)) queueMicrotask(() => setGraceHours(String(value)));
   }, [businessData]);
 
   const saveGraceMutation = useMutation({

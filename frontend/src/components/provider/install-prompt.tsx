@@ -16,7 +16,7 @@ export function ProviderInstallPrompt() {
 
   useEffect(() => {
     if (window.matchMedia('(display-mode: standalone)').matches) {
-      setInstalled(true);
+      queueMicrotask(() => setInstalled(true));
       return;
     }
 

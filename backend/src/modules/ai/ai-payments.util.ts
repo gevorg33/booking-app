@@ -58,11 +58,21 @@ export interface PaymentsCompoundStep {
   segment: string;
 }
 
-const PAYMENTS_VERB =
-  /\b(summarize|validate|export|explain|list|configure|adjust|extend|refund|check|book|apply|buy|choose|pay|purchase|collect|who|which|available|nearest|gift|card|cash|stripe|receipt|subscription|accounting|commission|unpaid|balance|checkout|providers?)\b/i;
+const PAYMENTS_COMPOUND_BOUNDARY =
+  'summarize|validate|export|explain|list|configure|adjust|extend|refund|check|book|apply|buy|choose|pay|purchase|collect|who|which|available|nearest|soonest|earliest|find|get|reserve|schedule|free|open|gift|card|cash|stripe|receipt|subscription|accounting|commission|unpaid|balance|checkout|providers?';
 
-const COMPOUND_SPLIT =
-  /\s*;\s*|\s+and\s+(?=(?:summarize|validate|export|explain|list|configure|adjust|extend|refund|check|book|apply|buy|choose|pay|purchase|collect|who|which|available|nearest|gift|card|cash|stripe|receipt|subscription|accounting|commission|unpaid|balance|checkout|providers?)\b)|\s+then\s+(?=(?:summarize|validate|export|explain|list|configure|adjust|extend|refund|check|book|apply|buy|choose|pay|purchase|collect|who|which|available|nearest|gift|card|cash|stripe|receipt|subscription|accounting|commission|unpaid|balance|checkout|providers?)\b)/i;
+const PAYMENTS_VERB = new RegExp(
+  `\\b(${PAYMENTS_COMPOUND_BOUNDARY})\\b`,
+  'i',
+);
+
+const COMPOUND_SPLIT = new RegExp(
+  `\\s*;\\s*|\\?\\s*(?=(?:book|find|get|reserve|schedule)\\b)|\\s*,\\s*(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+and\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+then\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)`,
+  'i',
+);
+
+const PROVIDER_AVAILABILITY_WORDS =
+  /\b(available|availability|avail|free|open|providers?|specialists?|stylists?|stylist|therapists?|cosmetologists?)\b/i;
 
 export function isPaymentsIntent(action: string): action is PaymentsIntent {
   return (PAYMENTS_INTENTS as readonly string[]).includes(action);
@@ -173,21 +183,38 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   return (
     (!/\bpackages?\b/i.test(prompt) &&
       !/\b(membership|subscription)\s+plans?\b/i.test(prompt) &&
-      /\b(who|which|what)\b/i.test(prompt) &&
-      /\b(available|providers?|specialists?|stylists?)\b/i.test(prompt)) ||
+      /\b(who|which|what|anyone|anybody)\b/i.test(prompt) &&
+      PROVIDER_AVAILABILITY_WORDS.test(prompt)) ||
+    (/\b(?:see|look\s+up|find\s+out)\b/i.test(prompt) &&
+      /\bwho\b/i.test(prompt) &&
+      PROVIDER_AVAILABILITY_WORDS.test(prompt)) ||
+    (/\bwho\s+(?:can|has)\s+(?:take|fit|do|availability)\b/i.test(prompt) &&
+      !/\bpackages?\b/i.test(prompt)) ||
+    (/\b(?:anyone|anybody)\b[\s\S]{0,40}\b(?:free|available|open)\b/i.test(
+      prompt,
+    ) &&
+      !/\bpackages?\b/i.test(prompt)) ||
+    (/\bcheck\b/i.test(prompt) &&
+      /\b(who|which|providers?)\b/i.test(prompt) &&
+      /\b(available|free|open|for)\b/i.test(prompt)) ||
     (/\bcheck\b/i.test(prompt) &&
       /\bproviders?\b/i.test(prompt) &&
-      (/\bavailable\b/i.test(prompt) || /\bfor\b/i.test(prompt)))
+      (/\b(available|free|open)\b/i.test(prompt) || /\bfor\b/i.test(prompt)))
   );
 }
 
 export function isBookNearestSlotPrompt(prompt: string): boolean {
+  const wantsFlexibleSlot =
+    /\b(first\s+available|nearest|soonest|next|earliest)\b/i.test(prompt) ||
+    /\basap\b/i.test(prompt) ||
+    /\bas soon as possible\b/i.test(prompt);
   return (
-    /\b(book|find|get)\b/i.test(prompt) &&
-    /\b(nearest|soonest|next|earliest)\b/i.test(prompt) &&
+    /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt) &&
+    wantsFlexibleSlot &&
     (/\b(slot|appointment|opening|time)\b/i.test(prompt) ||
       !!extractServiceNameFromPrompt(prompt) ||
-      /\b(haircut|massage|facial|cut|color|service)\b/i.test(prompt))
+      /\b(haircut|massage|facial|cut|color|service)\b/i.test(prompt) ||
+      /\basap\b/i.test(prompt))
   );
 }
 
@@ -297,13 +324,27 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
   const quoted = prompt.match(/"([^"]{1,60})"/);
   if (quoted) return quoted[1].trim();
   const forService = prompt.match(
-    /\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,30}?)(?:\s+(?:tomorrow|tonight|evening|morning|afternoon|and|with)|$)/i,
+    /\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
   );
-  if (forService) return forService[1].trim();
+  if (forService) {
+    const name = forService[1].trim().replace(/[,.]$/, '');
+    if (name && !/^(the|a|an)$/i.test(name)) return name;
+  }
+  const takeService = prompt.match(
+    /\b(?:take|do)\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
+  );
+  if (takeService) {
+    const name = takeService[1].trim().replace(/[,.]$/, '');
+    if (name && !/^(the|a|an)$/i.test(name)) return name;
+  }
   const nearest = prompt.match(
-    /\bnearest\s+([\w\s'-]{2,30}?)(?:\s+slot|\s+and|$)/i,
+    /\bnearest\s+(?:available\s+)?([\w\s'-]{2,40}?)(?:\s+(?:slot|appointment|opening|time)\b|\s+and\b|$)/i,
   );
-  return nearest?.[1]?.trim() ?? null;
+  if (nearest) {
+    const name = nearest[1].trim();
+    if (name && !/^(the|a|an|slot|time)$/i.test(name)) return name;
+  }
+  return null;
 }
 
 export function extractAmountFromPrompt(prompt: string): number | null {
@@ -437,20 +478,60 @@ export function rescuePaymentsIntent(
   return null;
 }
 
-function classifyPaymentsSegment(segment: string): PaymentsCompoundStep | null {
-  const text = segment.trim();
-  if (!text) return null;
-
+function buildSharedBookingContextFromPrompt(
+  text: string,
+): Record<string, unknown> {
   const base: Record<string, unknown> = {};
   const serviceName = extractServiceNameFromPrompt(text);
   if (serviceName) base.serviceName = serviceName;
+  const timeOfDay = parseTimeOfDayWindow(text, {});
+  if (timeOfDay) base.timeOfDay = timeOfDay;
+  if (/\btomorrow\b/i.test(text)) base.date = resolveTomorrowDateKey();
+  const notBeforeTime = notBeforeTimeFromWindow(text, base);
+  if (notBeforeTime) base.notBeforeTime = notBeforeTime;
+  return base;
+}
+
+function tryDecomposeCheckAndBookPrompt(
+  prompt: string,
+): PaymentsCompoundStep[] | null {
+  if (
+    !isCheckProvidersForServicePrompt(prompt) ||
+    !isBookNearestSlotPrompt(prompt)
+  ) {
+    return null;
+  }
+
+  const shared = buildSharedBookingContextFromPrompt(prompt);
+  const checkStep: PaymentsCompoundStep = {
+    action: 'check_providers_for_service',
+    params: shared,
+    segment: prompt,
+  };
+  const bookStep: PaymentsCompoundStep = {
+    action: 'book_nearest_slot',
+    params: { ...shared, bookingFirstAvailable: true },
+    segment: prompt,
+  };
+
+  return [checkStep, bookStep];
+}
+
+function classifyPaymentsSegment(
+  segment: string,
+  sharedContext?: Record<string, unknown>,
+): PaymentsCompoundStep | null {
+  const text = segment.trim();
+  if (!text) return null;
+
+  const base: Record<string, unknown> = {
+    ...(sharedContext ?? {}),
+    ...buildSharedBookingContextFromPrompt(text),
+  };
   const giftCardCode = extractGiftCardCodeFromPrompt(text);
   if (giftCardCode) base.giftCardCode = giftCardCode;
   const amount = extractAmountFromPrompt(text);
   if (amount != null) base.amount = amount;
-  const timeOfDay = parseTimeOfDayWindow(text, {});
-  if (timeOfDay) base.timeOfDay = timeOfDay;
-  if (/\btomorrow\b/i.test(text)) base.date = resolveTomorrowDateKey();
 
   if (isCheckProvidersForServicePrompt(text)) {
     return {
@@ -460,7 +541,11 @@ function classifyPaymentsSegment(segment: string): PaymentsCompoundStep | null {
     };
   }
   if (isBookNearestSlotPrompt(text)) {
-    return { action: 'book_nearest_slot', params: base, segment: text };
+    return {
+      action: 'book_nearest_slot',
+      params: { ...base, bookingFirstAvailable: true },
+      segment: text,
+    };
   }
   if (
     isApplyGiftCardCodePrompt(text) ||
@@ -553,15 +638,19 @@ export function decomposePaymentsCompoundPrompt(
   const segments = trimmed.split(COMPOUND_SPLIT).map((s) => s.trim());
   const nonEmpty = segments.filter(Boolean);
 
-  if (nonEmpty.length <= 1) {
-    const single = classifyPaymentsSegment(trimmed);
-    return single ? [single] : [];
+  if (nonEmpty.length > 1) {
+    const shared = buildSharedBookingContextFromPrompt(trimmed);
+    const steps: PaymentsCompoundStep[] = [];
+    for (const segment of nonEmpty) {
+      const step = classifyPaymentsSegment(segment, shared);
+      if (step) steps.push(step);
+    }
+    return steps;
   }
 
-  const steps: PaymentsCompoundStep[] = [];
-  for (const segment of segments) {
-    const step = classifyPaymentsSegment(segment);
-    if (step) steps.push(step);
-  }
-  return steps;
+  const checkAndBook = tryDecomposeCheckAndBookPrompt(trimmed);
+  if (checkAndBook) return checkAndBook;
+
+  const single = classifyPaymentsSegment(trimmed);
+  return single ? [single] : [];
 }

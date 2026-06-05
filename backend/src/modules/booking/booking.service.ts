@@ -5,10 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import {
-  formatBookingOverlapConflict,
-  formatBookingWindowFullyBooked,
-} from '../../common/utils/booking-conflict-messages.util.js';
+import { formatBookingOverlapConflict } from '../../common/utils/booking-conflict-messages.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,

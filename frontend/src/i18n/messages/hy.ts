@@ -2280,6 +2280,8 @@ const hy: MessageTree = {
     commandPlaceholder: 'Հարցրեք AI-ին կառավարել ամրագրումները, ժամանակացույցը կամ օպերացիաները…',
     thinking: 'Մտածում…',
     clarifySubmit: 'Շարունակել',
+    availableProvidersTitle: 'Հասանելի մասնագետներ',
+    bookProvider: 'Ամրագրել',
     assistantClarifyTry: 'Փորձեք՝',
     suggestionRun: 'Գործարկել',
     suggestionEdit: 'Խմբագրել',

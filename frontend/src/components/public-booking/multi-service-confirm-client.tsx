@@ -93,20 +93,24 @@ export function MultiServiceConfirmClient({
   const currency = selectedServices[0]?.currency ?? 'USD';
 
   useEffect(() => {
-    setLines(
-      selectedServices.map((svc) => ({
-        key: svc.id,
-        serviceId: svc.id,
-        serviceName: svc.name,
-        durationMinutes: svc.durationMinutes + svc.bufferMinutes,
-        employeeId: '',
-        employeeName: '',
-        startTime: '',
-        dateKey: '',
-      })),
+    queueMicrotask(() =>
+      setLines(
+        selectedServices.map((svc) => ({
+          key: svc.id,
+          serviceId: svc.id,
+          serviceName: svc.name,
+          durationMinutes: svc.durationMinutes + svc.bufferMinutes,
+          employeeId: '',
+          employeeName: '',
+          startTime: '',
+          dateKey: '',
+        })),
+      ),
     );
-    setLoadingDefaults(true);
-    setError(null);
+    queueMicrotask(() => {
+      setLoadingDefaults(true);
+      setError(null);
+    });
 
     let cancelled = false;
     void (async () => {

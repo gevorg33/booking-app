@@ -16,7 +16,6 @@ import { StripeIntegrationService } from '../billing/stripe-integration.service.
 import { CustomerService } from '../customer/customer.service.js';
 import { BookingService } from './booking.service.js';
 import { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto.js';
-import { PaymentStatus } from './entities/booking.entity.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';

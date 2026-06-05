@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CommandResult } from './command-completion.types.js';
 import type { AiSurface } from './ai-capability.matrix.js';
 import {
-  resolveAccessTier,
   isRevenueRelatedRequest,
   isStaffDirectoryRequest,
   STAFF_SCOPED_INTENTS,

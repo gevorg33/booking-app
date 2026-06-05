@@ -1,17 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { BusinessSummary } from '@/lib/auth-types';
+import type { AuthResult, BusinessSummary } from '@/lib/auth-types';
+
+type AuthUser = AuthResult['user'];
+type AuthBusiness = AuthResult['business'];
 
 interface AuthState {
-  user: any | null;
-  business: any | null;
+  user: AuthUser | null;
+  business: AuthBusiness | null;
   employee: { id: string; name: string } | null;
   businesses: BusinessSummary[];
   token: string | null;
   isAuthenticated: boolean;
   setAuth: (
-    user: any,
-    business: any,
+    user: AuthUser,
+    business: AuthBusiness,
     token: string,
     extras?: { businesses?: BusinessSummary[]; employee?: { id: string; name: string } | null },
   ) => void;

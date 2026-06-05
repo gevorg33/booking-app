@@ -103,19 +103,21 @@ export function GiftCardCheckoutClient({
 
   useEffect(() => {
     if (authLoading || !customer) return;
-    setForm((prev) => ({
-      ...prev,
-      purchaserName: prev.purchaserName || customer.name || '',
-      purchaserEmail: prev.purchaserEmail || customer.email || '',
-      recipientName: prev.recipientName || customer.name,
-      recipientEmail: prev.recipientEmail || customer.email || '',
-      recipientPhone: prev.recipientPhone || customer.phone || undefined,
-    }));
+    queueMicrotask(() =>
+      setForm((prev) => ({
+        ...prev,
+        purchaserName: prev.purchaserName || customer.name || '',
+        purchaserEmail: prev.purchaserEmail || customer.email || '',
+        recipientName: prev.recipientName || customer.name,
+        recipientEmail: prev.recipientEmail || customer.email || '',
+        recipientPhone: prev.recipientPhone || customer.phone || undefined,
+      })),
+    );
   }, [authLoading, customer]);
 
   useEffect(() => {
     if (!paymentSessionId || success) return;
-    setSubmitting(true);
+    queueMicrotask(() => setSubmitting(true));
     confirmPublicBookingPayment(slug, paymentSessionId)
       .then(() => setSuccess(true))
       .catch((err) => setError(err instanceof Error ? err.message : t('public.giftCards.paymentFailed')))
@@ -187,8 +189,8 @@ export function GiftCardCheckoutClient({
     if (deliveryMethod === 'physical' && (!form.line1 || !form.city || !form.postalCode)) return;
 
     const requestId = ++quoteRequestId.current;
-    setQuoteLoading(true);
-    setQuoteError(null);
+    queueMicrotask(() => setQuoteLoading(true));
+    queueMicrotask(() => setQuoteError(null));
     void quotePublicGiftCardPurchase(slug, payload)
       .then((q) => {
         if (requestId !== quoteRequestId.current) return;

@@ -10,7 +10,12 @@ export function containsNonEnglishScript(text: string): boolean {
 
 /** Latin letters that are not basic ASCII (accented Latin still counts as "needs help"). */
 export function containsExtendedLatin(text: string): boolean {
-  return /[^\x00-\x7F]/.test(text) && !containsNonEnglishScript(text);
+  for (const char of text) {
+    if (char.codePointAt(0)! > 0x7f) {
+      return !containsNonEnglishScript(text);
+    }
+  }
+  return false;
 }
 
 /** Common hy/ru words typed in Latin without Armenian/Cyrillic letters. */

@@ -118,15 +118,19 @@ export function StrategyEvalTab() {
 
   useEffect(() => {
     if (summary?.hipaa) {
-      setHipaaAnswers(summary.hipaa.answers);
-      setHipaaNotes(summary.hipaa.notes ?? '');
-      setHipaaDecision(summary.hipaa.decidedAt ? summary.hipaa.recommendation : '');
+      queueMicrotask(() => {
+        setHipaaAnswers(summary.hipaa.answers);
+        setHipaaNotes(summary.hipaa.notes ?? '');
+        setHipaaDecision(summary.hipaa.decidedAt ? summary.hipaa.recommendation : '');
+      });
     }
     if (summary?.marketplace) {
-      setMarketplaceWeights(summary.marketplace.criterionWeights);
-      setMarketplaceNotes(summary.marketplace.notes ?? '');
-      setMarketplaceDecision(summary.marketplace.decidedAt ? summary.marketplace.recommendation : '');
-      setDirectoryOptIn(summary.marketplace.directoryOptIn);
+      queueMicrotask(() => {
+        setMarketplaceWeights(summary.marketplace.criterionWeights);
+        setMarketplaceNotes(summary.marketplace.notes ?? '');
+        setMarketplaceDecision(summary.marketplace.decidedAt ? summary.marketplace.recommendation : '');
+        setDirectoryOptIn(summary.marketplace.directoryOptIn);
+      });
     }
   }, [summary]);
 

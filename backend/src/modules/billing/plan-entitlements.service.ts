@@ -8,7 +8,6 @@ import {
   getLimitsForTier,
   resolvePlanTier,
   type PlanFeatureFlag,
-  type PlanLimitKind,
   type PlanLimits,
   type PlanTierId,
 } from './plan-limits.js';

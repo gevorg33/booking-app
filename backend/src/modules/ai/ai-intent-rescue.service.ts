@@ -8,6 +8,7 @@ import {
   extractProviderFallbackFromPrompt,
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
+  enrichBookingTimeHintsFromPrompt,
   isTeamWideProviderAvailabilityQuery,
   extractStatusFiltersFromPrompt,
   isBulkAllAppointmentsPrompt,
@@ -48,7 +49,11 @@ import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.j
 import { rescueProviderBookingIntent } from './ai-provider-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
 import { rescueRetailFinanceIntent } from './ai-retail-finance.util.js';
-import { rescuePaymentsIntent } from './ai-payments.util.js';
+import {
+  isBookNearestSlotPrompt,
+  isCheckProvidersForServicePrompt,
+  rescuePaymentsIntent,
+} from './ai-payments.util.js';
 
 export interface IntentRescueInput {
   prompt: string;
@@ -856,6 +861,39 @@ export class AiIntentRescueService {
         reasoning: 'Move/reschedule existing appointment — not a new booking.',
         rescued: true,
         rescueReason: 'create_booking_to_reschedule',
+      };
+    }
+
+    if (
+      action === 'create_booking' &&
+      isCheckProvidersForServicePrompt(prompt) &&
+      isBookNearestSlotPrompt(prompt)
+    ) {
+      const rescuedParams = { ...params };
+      enrichBookingTimeHintsFromPrompt('create_booking', rescuedParams, prompt);
+      return {
+        action: 'create_booking',
+        params: rescuedParams,
+        reasoning:
+          'Check-then-book compound — flexible earliest slot, no fixed start time.',
+        rescued: true,
+        rescueReason: 'check_and_book_compound',
+      };
+    }
+
+    if (
+      (action === 'create_booking' || action === 'reschedule_booking') &&
+      isFirstAvailableBookingPrompt(prompt)
+    ) {
+      const rescuedParams = { ...params };
+      enrichBookingTimeHintsFromPrompt(action, rescuedParams, prompt);
+      return {
+        action,
+        params: rescuedParams,
+        reasoning:
+          'Nearest/first available slot — no fixed start time required.',
+        rescued: true,
+        rescueReason: 'booking_first_available',
       };
     }
 

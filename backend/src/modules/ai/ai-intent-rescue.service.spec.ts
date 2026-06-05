@@ -89,6 +89,20 @@ describe('AiIntentRescueService', () => {
     expect(result?.action).toBe('create_schedule_template');
   });
 
+  it('disambiguates create_booking with nearest slot to first-available booking', () => {
+    const result = rescue.rescue({
+      prompt:
+        'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+      action: 'create_booking',
+      params: { serviceName: 'permanent lashes', date: '2026-06-06' },
+      employees,
+    });
+    expect(result?.rescued).toBe(true);
+    expect(result?.action).toBe('create_booking');
+    expect(result?.params.bookingFirstAvailable).toBe(true);
+    expect(result?.params.timeSlot).toBeUndefined();
+  });
+
   it('disambiguates create_booking misclassified as availability query', () => {
     const result = rescue.rescue({
       prompt: 'Who can do facemassage today at 9?',

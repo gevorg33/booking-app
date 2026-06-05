@@ -7,8 +7,6 @@ import {
 } from 'class-validator';
 import type { HipaaAnswer } from '../hipaa-baa.constants.js';
 
-const HIPAA_ANSWERS = ['yes', 'no', 'unsure'] as const;
-
 export class SubmitHipaaEvalDto {
   @IsObject()
   answers!: Record<string, HipaaAnswer>;

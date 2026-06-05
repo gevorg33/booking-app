@@ -87,16 +87,18 @@ export function NotificationEmailTemplatesPanel() {
 
   useEffect(() => {
     if (!selected) return;
-    setDraft({
-      enabled: selected.enabled,
-      subject: selected.subject,
-      bodyText: selected.bodyText,
-      bodyHtml: selected.bodyHtml,
-    });
+    queueMicrotask(() =>
+      setDraft({
+        enabled: selected.enabled,
+        subject: selected.subject,
+        bodyText: selected.bodyText,
+        bodyHtml: selected.bodyHtml,
+      }),
+    );
   }, [selected]);
 
   useEffect(() => {
-    if (data?.customVariables) setCustomVars(data.customVariables);
+    if (data?.customVariables) queueMicrotask(() => setCustomVars(data.customVariables));
   }, [data?.customVariables]);
 
   const saveTemplate = useMutation({

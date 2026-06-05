@@ -186,7 +186,7 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
 
   useEffect(() => {
     if (data) {
-      setSelectedTag(resolveCustomerTagForEdit(data.customer));
+      queueMicrotask(() => setSelectedTag(resolveCustomerTagForEdit(data.customer)));
     }
   }, [data]);
 

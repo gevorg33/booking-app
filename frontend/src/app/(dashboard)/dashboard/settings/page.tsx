@@ -308,21 +308,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (notifData?.settings) {
-      setNotif(normalizeNotificationSettings(notifData.settings));
+      queueMicrotask(() => setNotif(normalizeNotificationSettings(notifData.settings)));
     }
   }, [notifData]);
 
   useEffect(() => {
     if (whatsappData) {
-      setWhatsappMeta(whatsappData);
-      setWhatsapp(whatsappFormFromApi(whatsappData));
+      queueMicrotask(() => setWhatsappMeta(whatsappData));
+      queueMicrotask(() => setWhatsapp(whatsappFormFromApi(whatsappData)));
     }
   }, [whatsappData]);
 
   useEffect(() => {
     if (openAiData) {
-      setOpenAiMeta(openAiData);
-      setOpenAi(openAiFormFromApi(openAiData));
+      queueMicrotask(() => setOpenAiMeta(openAiData));
+      queueMicrotask(() => setOpenAi(openAiFormFromApi(openAiData)));
     }
   }, [openAiData]);
 

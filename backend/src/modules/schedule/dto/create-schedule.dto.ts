@@ -9,7 +9,6 @@ import {
   IsEnum,
   MaxLength,
   ArrayNotEmpty,
-  ArrayMinSize,
   Min,
   Max,
 } from 'class-validator';

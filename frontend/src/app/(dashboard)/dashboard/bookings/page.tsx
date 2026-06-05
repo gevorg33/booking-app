@@ -32,6 +32,25 @@ import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { StylishChoice } from '@/components/ui/radio-choice';
+import type { EmployeeRecord } from '@/lib/employee-types';
+import { getErrorMessage } from '@/lib/error-message';
+
+interface ServiceCatalogItem {
+  id: string;
+  name: string;
+  durationMinutes?: number;
+  bufferMinutes?: number;
+}
+
+interface CreateBookingPayload {
+  employeeId: string;
+  serviceId: string;
+  customerId: string;
+  startTime: string;
+  notes?: string;
+  description?: string;
+  useSubscriptionId?: string;
+}
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 
@@ -458,8 +477,8 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (employeeId || employees.length === 0) return;
-    const first = employees[0] as { id: string };
-    if (first?.id) setEmployeeId(first.id);
+    const first = employees[0] as EmployeeRecord;
+    if (first?.id) queueMicrotask(() => setEmployeeId(first.id));
   }, [employees, employeeId]);
 
   // Provider-calendar: returns whole applied period blocks (not micro-slots)
@@ -481,7 +500,7 @@ export default function BookingsPage() {
     queryKey: ['bookings', business?.id, dayStr, employeeId],
     queryFn: async () => {
       if (!business?.id) return [];
-      const params: any = { date: dayStr };
+      const params: { date: string; employeeId?: string } = { date: dayStr };
       if (employeeId) params.employeeId = employeeId;
       const { data } = await api.get(`/businesses/${business.id}/bookings`, { params });
       return (data.data || data || []) as BookingItem[];
@@ -507,14 +526,14 @@ export default function BookingsPage() {
     if (!selectedPeriod) return [];
     const ids = selectedPeriod.serviceIds;
     if (!ids || ids.length === 0) return allServices;
-    return (allServices as any[]).filter((s: any) => ids.includes(s.id));
+    return (allServices as ServiceCatalogItem[]).filter((s) => ids.includes(s.id));
   }, [selectedPeriod, allServices]);
 
   // Legend: unique services across all service_block periods
   const legendServices = useMemo(() => {
     const map = new Map<string, string>();
     const svcById: Record<string, string> = {};
-    (allServices as any[]).forEach((s: any) => { svcById[s.id] = s.name; });
+    (allServices as ServiceCatalogItem[]).forEach((s) => { svcById[s.id] = s.name; });
     calPeriods
       .filter((p) => p.type === 'service_block')
       .forEach((p) => {
@@ -531,7 +550,7 @@ export default function BookingsPage() {
   const periodMaxTime = selectedPeriod ? fmtUTC(new Date(selectedPeriod.endTime)) : undefined;
 
   const selectedService = form.serviceId
-    ? (allServices as any[]).find((s: any) => s.id === form.serviceId)
+    ? (allServices as ServiceCatalogItem[]).find((s) => s.id === form.serviceId)
     : null;
   const serviceDurationMin = selectedService
     ? (selectedService.durationMinutes || 0) + (selectedService.bufferMinutes || 0)
@@ -558,11 +577,13 @@ export default function BookingsPage() {
   });
 
   useEffect(() => {
-    if (activeSubscription?.id) {
-      setUseSubscriptionId(activeSubscription.id);
-    } else {
-      setUseSubscriptionId(null);
-    }
+    queueMicrotask(() => {
+      if (activeSubscription?.id) {
+        setUseSubscriptionId(activeSubscription.id);
+      } else {
+        setUseSubscriptionId(null);
+      }
+    });
   }, [activeSubscription?.id]);
 
   const [formResetKey, setFormResetKey] = useState(0);
@@ -578,7 +599,7 @@ export default function BookingsPage() {
       }
       const startISO = toISO(dayStr, snapped);
       if (!form.customerId) throw new Error('Select a customer');
-      const payload: any = {
+      const payload: CreateBookingPayload = {
         employeeId,
         serviceId: form.serviceId,
         customerId: form.customerId,
@@ -642,7 +663,7 @@ export default function BookingsPage() {
             <AiContextualSuggestions
               context={{
                 route: '/dashboard/bookings',
-                employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+                employeeName: employees.find((e: EmployeeRecord) => e.id === employeeId)?.name,
                 date: dayStr,
               }}
               title={t('bookings.aiInsightsTitle')}
@@ -651,7 +672,7 @@ export default function BookingsPage() {
               suggestions={AI_PAGE_SUGGESTIONS['/dashboard/bookings']}
               context={{
                 route: '/dashboard/bookings',
-                employeeName: employees.find((e: any) => e.id === employeeId)?.name,
+                employeeName: employees.find((e: EmployeeRecord) => e.id === employeeId)?.name,
                 date: dayStr,
               }}
             />
@@ -675,7 +696,7 @@ export default function BookingsPage() {
                   }}
                 >
                   <option value="">{t('bookings.selectProvider')}</option>
-                  {employees.map((emp: any) => (
+                  {employees.map((emp: EmployeeRecord) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
                     </option>
@@ -841,7 +862,7 @@ export default function BookingsPage() {
                       }
 
                       const svcNames = (period.serviceIds ?? [])
-                        .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
+                        .map((id) => (allServices as ServiceCatalogItem[]).find((s) => s.id === id)?.name)
                         .filter(Boolean);
 
                       const typeLabel = period.type === 'unavailable_block' ? t('common.unavailable') : t('common.blocked');
@@ -965,7 +986,7 @@ export default function BookingsPage() {
                   ? `${SVC_COLORS[serviceColorMap[repId] ?? 0].bg} ${SVC_COLORS[serviceColorMap[repId] ?? 0].border} ${SVC_COLORS[serviceColorMap[repId] ?? 0].text}`
                   : 'bg-emerald-600/15 border-emerald-500/40 text-emerald-300';
                 const svcNames = (selectedPeriod.serviceIds ?? [])
-                  .map((id) => (allServices as any[]).find((s: any) => s.id === id)?.name)
+                  .map((id) => (allServices as ServiceCatalogItem[]).find((s) => s.id === id)?.name)
                   .filter(Boolean);
                 const label = svcNames.length > 0 ? svcNames.join(', ') : t('bookings.anyService');
                 return (
@@ -985,7 +1006,7 @@ export default function BookingsPage() {
                 <div>
                   <label className="label">{t('bookings.provider')}</label>
                   <div className="input bg-gray-900/60 text-gray-200 cursor-default">
-                    {employees.find((emp: any) => emp.id === employeeId)?.name ?? t('bookings.unknownProvider')}
+                    {employees.find((emp: EmployeeRecord) => emp.id === employeeId)?.name ?? t('bookings.unknownProvider')}
                   </div>
                 </div>
 
@@ -1001,14 +1022,14 @@ export default function BookingsPage() {
                       onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
                     >
                       <option value="">{t('bookings.selectService')}</option>
-                      {periodServices.map((s: any) => (
+                      {periodServices.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name} ({s.durationMinutes}min)
                         </option>
                       ))}
                     </select>
                   )}
-                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as any[]).length && (
+                  {selectedPeriod.serviceIds?.length > 0 && periodServices.length < (allServices as ServiceCatalogItem[]).length && (
                     <p className="text-[10px] text-gray-500 mt-1">{t('bookings.servicesInPeriodHint')}</p>
                   )}
                 </div>
@@ -1105,7 +1126,7 @@ export default function BookingsPage() {
               {createMutation.isError && (
                 <div className="mt-3 p-2.5 bg-red-600/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{(createMutation.error as any)?.response?.data?.message || t('bookings.createFailed')}</span>
+                  <span>{getErrorMessage(createMutation.error, t('bookings.createFailed'))}</span>
                 </div>
               )}
               {createMutation.isSuccess && (
@@ -1136,7 +1157,7 @@ export default function BookingsPage() {
             {employeeId
               ? t('bookings.providerBookings').replace(
                   '{name}',
-                  employees.find((e: any) => e.id === employeeId)?.name ?? t('common.provider'),
+                  employees.find((e: EmployeeRecord) => e.id === employeeId)?.name ?? t('common.provider'),
                 )
               : t('bookings.allBookings')}{' '}
             — {fmtDate(day)}

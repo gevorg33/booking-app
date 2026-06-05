@@ -4,9 +4,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
-  IsString,
   Min,
-  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { MultiServiceSchedulingMode } from '../entities/multi-service-booking-group.entity.js';

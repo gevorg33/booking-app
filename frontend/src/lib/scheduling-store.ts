@@ -56,11 +56,11 @@ export interface Booking {
   cancellationReason?: string;
   linkedEmployeeIds?: string[];
   virtualMeetingUrl?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   employee?: { id: string; name: string };
   service?: { id: string; name: string; durationMinutes: number };
   customer?: { id: string; name: string };
-  optimization?: any;
+  optimization?: { reasoning?: string };
 }
 
 interface SchedulingState {
@@ -82,7 +82,7 @@ interface SchedulingState {
   isBookingsLoading: boolean;
 
   isApplyingTemplate: boolean;
-  applyResult: any | null;
+  applyResult: unknown | null;
 
   selectedDays: number[];
   dateRange: { start: string; end: string };
@@ -99,7 +99,7 @@ interface SchedulingState {
   setCurrentBooking: (booking: Booking | null) => void;
   setBookingsLoading: (loading: boolean) => void;
   setApplyingTemplate: (applying: boolean) => void;
-  setApplyResult: (result: any) => void;
+  setApplyResult: (result: unknown) => void;
   setSelectedDays: (days: number[]) => void;
   setDateRange: (range: { start: string; end: string }) => void;
 }

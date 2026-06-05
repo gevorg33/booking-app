@@ -82,7 +82,9 @@ export function useSpeechRecognition({
   const userStoppedRef = useRef(false);
   const keepListeningRef = useRef(false);
 
-  callbacksRef.current = { onTranscript, onError };
+  useEffect(() => {
+    callbacksRef.current = { onTranscript, onError };
+  }, [onTranscript, onError]);
 
   const finishSession = useCallback(() => {
     keepListeningRef.current = false;

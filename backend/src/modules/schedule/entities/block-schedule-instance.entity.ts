@@ -8,8 +8,6 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Business } from '../../business/entities/business.entity.js';
-import { Employee } from '../../employee/entities/employee.entity.js';
 import { BlockSchedule } from './block-schedule.entity.js';
 
 @Entity('block_schedule_instances')

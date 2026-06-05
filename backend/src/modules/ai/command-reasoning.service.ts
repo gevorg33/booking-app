@@ -39,13 +39,21 @@ export class CommandReasoningService {
         },
         `You improve AI command responses for salon/spa staff dashboards.
 Return JSON: { "summary": "1-2 clear sentences for the user", "reasoning": "1 sentence internal rationale" }
-Keep summaries factual — do not invent counts or actions not in the input.`,
+Keep summaries factual — do not invent counts or actions not in the input.
+When provider availability is present, mention provider names and open times directly.
+Never tell the user to open a separate "provider list" or UI panel — the app renders providers inline.`,
         `User command: ${prompt}
 Action: ${result.action}
 Current summary: ${result.summary}
 Graph path: ${meta?.graphPath ?? 'standard'}
 Sub-intents: ${meta?.subIntents?.join(', ') ?? 'none'}
-Details keys: ${Object.keys(result.details ?? {}).join(', ')}`,
+Details keys: ${Object.keys(result.details ?? {}).join(', ')}
+Provider availability: ${JSON.stringify(
+          result.details?.availability ??
+            result.details?.providers ??
+            result.details?.availableProviders ??
+            [],
+        )}`,
         { temperature: 0.15, maxTokens: 350 },
       );
 

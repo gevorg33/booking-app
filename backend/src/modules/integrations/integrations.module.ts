@@ -77,6 +77,7 @@ import { CustomerSubscription } from '../service-subscriptions/entities/subscrip
     DistributionIntegrationService,
     ZapierIntegrationService,
     AccountingIntegrationService,
+    IntegrationsDocsService,
   ],
 })
 export class IntegrationsModule {}

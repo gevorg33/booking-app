@@ -15,6 +15,7 @@ import api from '@/lib/api';
 import { formatDateDisplay } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 import { OpenAiUsagePanel } from '@/components/billing/open-ai-usage-panel';
 import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 import { PayAtVenueSettings } from '@/components/settings/pay-at-venue-settings';
@@ -81,12 +82,12 @@ export default function BillingPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('success')) setBanner('success');
-    if (params.get('canceled')) setBanner('canceled');
+    if (params.get('success')) queueMicrotask(() => setBanner('success'));
+    if (params.get('canceled')) queueMicrotask(() => setBanner('canceled'));
 
     const sessionId = params.get('session_id');
     if (params.get('success') && sessionId && business?.id) {
-      setConfirming(true);
+      queueMicrotask(() => setConfirming(true));
       api
         .post(`/businesses/${business.id}/billing/confirm-checkout`, { sessionId })
         .then(() => queryClient.invalidateQueries({ queryKey: ['billing-subscription'] }))
@@ -126,7 +127,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (stripeConnect?.connectCountry) {
-      setExpressCountry(stripeConnect.connectCountry);
+      queueMicrotask(() => setExpressCountry(stripeConnect.connectCountry));
     }
   }, [stripeConnect?.connectCountry]);
 
@@ -141,6 +142,41 @@ export default function BillingPage() {
       setConnectError(null);
       setConnectNotice(t('billing.stripeConnectSaved'));
       queryClient.invalidateQueries({ queryKey: ['stripe-connect', business?.id] });
+    },
+    onError: (err: unknown) => {
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
+
+  const oauthConnectMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
+        mode: 'oauth',
+      });
+      const url = data.data?.url || data.url;
+      if (!url) throw new Error('No OAuth URL returned');
+      window.location.href = url;
+    },
+    onError: (err: unknown) => {
+      setConnectError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          t('errors.saveFailed'),
+      );
+    },
+  });
+
+  const expressConnectMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
+        mode: 'express',
+        country: expressCountry,
+      });
+      const url = data.data?.url || data.url;
+      if (!url) throw new Error('No onboarding URL returned');
+      window.location.href = url;
     },
     onError: (err: unknown) => {
       setConnectError(
@@ -185,7 +221,7 @@ export default function BillingPage() {
       const error = params.get('error_description') || params.get('error');
       if (error) {
         oauthCallbackHandled.current = true;
-        setConnectError(error);
+        queueMicrotask(() => setConnectError(error));
         return;
       }
       const code = params.get('code');
@@ -197,47 +233,12 @@ export default function BillingPage() {
     }
 
     if (connectParam === 'return') {
-      void handleConnectCallback('return');
+      queueMicrotask(() => void handleConnectCallback('return'));
     } else if (connectParam === 'refresh') {
-      void handleConnectCallback('refresh');
+      queueMicrotask(() => void handleConnectCallback('refresh'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [business?.id]);
-
-  const oauthConnectMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
-        mode: 'oauth',
-      });
-      const url = data.data?.url || data.url;
-      if (!url) throw new Error('No OAuth URL returned');
-      window.location.href = url;
-    },
-    onError: (err: unknown) => {
-      setConnectError(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          t('errors.saveFailed'),
-      );
-    },
-  });
-
-  const expressConnectMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${business!.id}/billing/stripe-connect/onboard`, {
-        mode: 'express',
-        country: expressCountry,
-      });
-      const url = data.data?.url || data.url;
-      if (!url) throw new Error('No onboarding URL returned');
-      window.location.href = url;
-    },
-    onError: (err: unknown) => {
-      setConnectError(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          t('errors.saveFailed'),
-      );
-    },
-  });
 
   const syncConnectMutation = useMutation({
     mutationFn: async () => {
@@ -645,8 +646,7 @@ export default function BillingPage() {
 
       {checkoutMutation.isError && (
         <p className="mt-4 text-sm text-red-400">
-          {(checkoutMutation.error as any)?.response?.data?.message ||
-            t('billing.checkoutFailed')}
+          {getErrorMessage(checkoutMutation.error, t('billing.checkoutFailed'))}
         </p>
       )}
 

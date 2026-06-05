@@ -16,6 +16,7 @@ import { TimeInput } from '@/components/time-input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TablePagination } from '@/components/table/table-pagination';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 const WEEKDAY_CONFIG = [
   { key: 'isActiveOnMonday' as const, dayIndex: 1 },
@@ -111,12 +112,12 @@ export function BlockScheduleTab({
   }, [filteredBlockSchedules, listPage]);
 
   useEffect(() => {
-    setListPage(1);
+    queueMicrotask(() => setListPage(1));
   }, [listProviderSearch]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredBlockSchedules.length / BLOCK_LIST_PAGE_SIZE));
-    if (listPage > totalPages) setListPage(totalPages);
+    if (listPage > totalPages) queueMicrotask(() => setListPage(totalPages));
   }, [filteredBlockSchedules.length, listPage]);
 
   const refresh = () => {
@@ -160,8 +161,8 @@ export function BlockScheduleTab({
       refresh();
       setTimeout(() => setSuccess(false), 3000);
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.message || t('schedule.blockCreateFailed'));
+    onError: (err: unknown) => {
+      setError(getErrorMessage(err, t('schedule.blockCreateFailed')));
     },
   });
 

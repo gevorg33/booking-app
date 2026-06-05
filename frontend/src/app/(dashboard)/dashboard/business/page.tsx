@@ -17,6 +17,7 @@ import { bookPath } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { BusinessPublicProfileLocaleFields } from '@/components/business/business-public-profile-locale-fields';
 import { useI18n, LOCALE_LABELS, SUPPORTED_LOCALES, type AppLocale } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 export default function BusinessProfilePage() {
   const { t } = useI18n();
@@ -45,7 +46,7 @@ export default function BusinessProfilePage() {
   });
 
   useEffect(() => {
-    if (data) setForm(businessToProfileForm(data));
+    if (data) queueMicrotask(() => setForm(businessToProfileForm(data)));
   }, [data]);
 
   const saveMutation = useMutation({
@@ -282,7 +283,7 @@ export default function BusinessProfilePage() {
         <div className="mt-6 space-y-3 border-t border-gray-800 pt-6">
           {saveMutation.isError && (
             <p className="text-sm text-red-400">
-              {(saveMutation.error as any)?.response?.data?.message || t('business.saveFailed')}
+              {getErrorMessage(saveMutation.error, t('business.saveFailed'))}
             </p>
           )}
           <button

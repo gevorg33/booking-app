@@ -83,6 +83,11 @@ import { AiModule } from '../ai/ai.module.js';
     PublicCustomerAuthGuard,
     OptionalPublicCustomerAuthGuard,
   ],
-  exports: [PublicBookingService, PublicBookingAssistantService],
+  exports: [
+    PublicBookingService,
+    PublicBookingAssistantService,
+    PublicCustomerAuthService,
+    PublicCustomerBookingService,
+  ],
 })
 export class PublicBookingModule {}
