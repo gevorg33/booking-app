@@ -164,7 +164,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
     queryKey: ['locations', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/locations`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 
@@ -245,7 +245,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
     queryKey: ['inventory', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/inventory/products`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 
@@ -355,7 +355,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
     queryKey: ['expenses', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/expenses`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 
@@ -469,7 +469,7 @@ function CommissionsTab({ businessId }: { businessId: string }) {
     queryKey: ['commissions', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/commissions`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 

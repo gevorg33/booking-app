@@ -15,7 +15,7 @@ export function ProviderAppShell({ children }: { children: React.ReactNode }) {
   const isLogin = pathname === '/provider/login';
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => setMounted(true));
     void initCapacitorApp();
   }, []);
 

@@ -42,11 +42,11 @@ export function ConsumerAppBanner({ slug }: { slug: string }) {
   const dismissKey = useMemo(() => `consumer_banner_dismiss_${slug}`, [slug]);
 
   useEffect(() => {
-    setPlatform(detectConsumerMobilePlatform());
+    queueMicrotask(() => setPlatform(detectConsumerMobilePlatform()));
     try {
-      setDismissed(sessionStorage.getItem(dismissKey) === '1');
+      queueMicrotask(() => setDismissed(sessionStorage.getItem(dismissKey) === '1'));
     } catch {
-      setDismissed(false);
+      queueMicrotask(() => setDismissed(false));
     }
   }, [dismissKey]);
 

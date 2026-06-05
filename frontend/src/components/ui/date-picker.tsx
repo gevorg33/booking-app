@@ -179,7 +179,7 @@ export function DatePicker({
 
   useEffect(() => {
     if (open) {
-      setViewMonthKey(value ? monthKeyFromDateKey(value) : monthKeyFromDateKey(todayKey));
+      queueMicrotask(() => setViewMonthKey(value ? monthKeyFromDateKey(value) : monthKeyFromDateKey(todayKey)));
     }
   }, [open, value, todayKey]);
 

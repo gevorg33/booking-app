@@ -232,17 +232,19 @@ export function MultiServiceCheckoutClient({
 
   useEffect(() => {
     if (authLoading || !customer) return;
-    setForm((prev) => ({
-      ...prev,
-      name: prev.name || customer.name,
-      email: prev.email || customer.email || '',
-      phone: prev.phone || customer.phone || undefined,
-    }));
+    queueMicrotask(() =>
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || customer.name,
+        email: prev.email || customer.email || '',
+        phone: prev.phone || customer.phone || undefined,
+      })),
+    );
   }, [authLoading, customer]);
 
   useEffect(() => {
     if (!customer) {
-      setLoyalty(null);
+      queueMicrotask(() => setLoyalty(null));
       return;
     }
     void getPublicCustomerLoyalty(slug)
@@ -254,8 +256,8 @@ export function MultiServiceCheckoutClient({
     if (serviceIds.length < 2) return;
     let cancelled = false;
     const requestId = ++quoteRequestId.current;
-    setQuoteLoading(true);
-    setQuoteError(null);
+    queueMicrotask(() => setQuoteLoading(true));
+    queueMicrotask(() => setQuoteError(null));
     void quotePublicMultiService(slug, {
       serviceIds,
       promoCode: appliedPromo || undefined,

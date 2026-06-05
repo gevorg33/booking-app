@@ -131,18 +131,20 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
     const requestId = ++suggestRequestRef.current;
     userPickedDateRef.current = false;
     selectedStartRef.current = null;
-    setSelectedStart(null);
-    setEmployeeId(null);
-    setEmployeeName(null);
-    setDateKey('');
+    queueMicrotask(() => {
+      setSelectedStart(null);
+      setEmployeeId(null);
+      setEmployeeName(null);
+      setDateKey('');
+      setSlots([]);
+      setSlotProviders([]);
+      setLaterProviders([]);
+      setProviderPickerOpen(false);
+      setLoading(true);
+      setSlotsLoading(true);
+      setError(null);
+    });
     dateKeyRef.current = '';
-    setSlots([]);
-    setSlotProviders([]);
-    setLaterProviders([]);
-    setProviderPickerOpen(false);
-    setLoading(true);
-    setSlotsLoading(true);
-    setError(null);
 
     void (async () => {
       try {
@@ -244,8 +246,8 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
 
   useEffect(() => {
     if (!selectedStart) {
-      setSlotProviders([]);
-      setLaterProviders([]);
+      queueMicrotask(() => setSlotProviders([]));
+      queueMicrotask(() => setLaterProviders([]));
       return;
     }
 

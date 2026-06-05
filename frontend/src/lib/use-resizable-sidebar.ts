@@ -3,19 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   clampDashboardSidebarWidth,
-  DASHBOARD_SIDEBAR_DEFAULT_WIDTH,
   persistDashboardSidebarWidth,
   readDashboardSidebarWidth,
 } from './dashboard-sidebar-width';
 
 export function useResizableSidebar() {
-  const [width, setWidth] = useState(DASHBOARD_SIDEBAR_DEFAULT_WIDTH);
+  const [width, setWidth] = useState(() => readDashboardSidebarWidth());
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
-
-  useEffect(() => {
-    setWidth(readDashboardSidebarWidth());
-  }, []);
 
   useEffect(() => {
     widthRef.current = width;

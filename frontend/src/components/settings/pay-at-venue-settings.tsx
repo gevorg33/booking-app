@@ -55,7 +55,7 @@ export function PayAtVenueSettings({
 
   useEffect(() => {
     if (businessData?.settings) {
-      setForm(readForm(businessData.settings));
+      queueMicrotask(() => setForm(readForm(businessData.settings)));
     }
   }, [businessData]);
 

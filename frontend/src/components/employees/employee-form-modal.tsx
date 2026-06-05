@@ -50,9 +50,11 @@ export function EmployeeFormModal({
 
   useEffect(() => {
     if (!open) return;
-    setForm(employee ? employeeToForm(employee) : emptyEmployeeForm());
-    setPhoneError(null);
-    setServicesError(null);
+    queueMicrotask(() => {
+      setForm(employee ? employeeToForm(employee) : emptyEmployeeForm());
+      setPhoneError(null);
+      setServicesError(null);
+    });
   }, [open, employee]);
 
   if (!open) return null;

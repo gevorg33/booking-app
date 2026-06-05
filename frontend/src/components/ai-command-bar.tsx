@@ -44,7 +44,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  details?: any;
+  details?: unknown;
   action?: string;
   success?: boolean;
   timestamp: Date;
@@ -115,7 +115,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     queryKey: ['agent-tasks-pending', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/agents/tasks/pending`);
-      return (data.data ?? data ?? []) as any[];
+      return (data.data ?? data ?? []) as Array<Record<string, unknown>>;
     },
     enabled: !!business?.id,
     refetchInterval: 15_000,
@@ -152,11 +152,9 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
     },
-    onError: (error: any) => {
-      const text =
-        error?.response?.data?.message ??
-        error?.response?.data?.error ??
-        t('ai.undoFailed');
+    onError: (error: unknown) => {
+      const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } })?.response?.data;
+      const text = response?.message ?? response?.error ?? t('ai.undoFailed');
       setMessages((prev) => [
         ...prev,
         {
@@ -245,7 +243,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
           {
@@ -302,7 +300,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
           {

@@ -12,6 +12,7 @@ import { BusinessPicker } from '@/components/business-picker';
 import type { BusinessSummary } from '@/lib/auth-types';
 import { canAccessProviderApp } from '@/lib/provider-access';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 export default function ProviderLoginPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function ProviderLoginPage() {
       }
 
       finishLogin(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!err.response) {
         setError(t('provider.networkError'));
         return;
@@ -72,7 +73,7 @@ export default function ProviderLoginPage() {
       } else if (code === 'INVALID_CREDENTIALS') {
         setError(t('auth.invalidCredentials'));
       } else {
-        setError(err.response?.data?.message || t('auth.loginFailed'));
+        setError(getErrorMessage(err, t('auth.loginFailed')));
       }
     } finally {
       setLoading(false);

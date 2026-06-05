@@ -19,6 +19,24 @@ export interface PolicyPreview {
   reasons: string[];
 }
 
+interface ConflictWorkspaceBooking {
+  id: string;
+  customer?: string;
+  customerName?: string;
+  service?: string;
+  serviceName?: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface ConflictWorkspaceItem {
+  id?: string;
+  employeeName?: string;
+  overlapMinutes?: number;
+  bookings?: ConflictWorkspaceBooking[];
+  fix?: { type: string; bookingId: string; startTime: string };
+}
+
 const ACTION_ICON: Record<string, typeof Sparkles> = {
   cancel_bookings: CalendarX,
   hide_appointments_from_calendar: EyeOff,
@@ -122,7 +140,7 @@ export function ConflictResolutionWorkspace({
         {t('ai.conflictWorkspaceTitle')}
       </h3>
 
-      {(data.resolutions ?? data.conflicts ?? []).map((item: any, idx: number) => (
+      {(data.resolutions ?? data.conflicts ?? []).map((item: ConflictWorkspaceItem, idx: number) => (
         <div key={item.id ?? idx} className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
           <p className="text-sm font-medium text-gray-200">
             {item.employeeName ?? t('ai.providerFallback')}
@@ -131,7 +149,7 @@ export function ConflictResolutionWorkspace({
               : ''}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {(item.bookings ?? []).map((b: any) => (
+            {(item.bookings ?? []).map((b: ConflictWorkspaceBooking) => (
               <div key={b.id} className="rounded-md bg-gray-800/80 p-2 text-xs">
                 <p className="text-gray-200">{b.customer ?? b.customerName}</p>
                 <p className="text-gray-500">{b.service ?? b.serviceName}</p>

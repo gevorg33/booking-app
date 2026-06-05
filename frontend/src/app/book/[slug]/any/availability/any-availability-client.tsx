@@ -42,9 +42,11 @@ export function AnyAvailabilityClient({ slug, tenant, service, backHref }: AnyAv
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingSlots(true);
-    setSlotError(null);
-    setSelectedStartTime(null);
+    queueMicrotask(() => {
+      setLoadingSlots(true);
+      setSlotError(null);
+      setSelectedStartTime(null);
+    });
 
     getPublicServiceDaySlots(slug, service.id, selectedDateKey)
       .then((res) => {

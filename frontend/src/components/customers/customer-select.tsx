@@ -62,7 +62,7 @@ export function CustomerSelect({
 
   useEffect(() => {
     if (!value) {
-      setInputValue('');
+      queueMicrotask(() => setInputValue(''));
       return;
     }
     if (selectedCustomer && document.activeElement !== inputRef.current) {

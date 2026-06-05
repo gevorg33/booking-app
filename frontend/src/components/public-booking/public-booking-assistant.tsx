@@ -132,7 +132,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       if (result.sessionContext) {
         setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessages((prev) => [
         ...prev,
         {

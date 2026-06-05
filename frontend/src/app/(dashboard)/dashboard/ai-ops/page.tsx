@@ -16,6 +16,22 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
+
+interface AgentPlanStep {
+  id: string;
+  action: string;
+  description: string;
+  estimatedImpact?: string;
+}
+
+interface AgentTask {
+  id: string;
+  status: string;
+  intent?: string;
+  plan?: { steps?: AgentPlanStep[] };
+  result?: { preview?: { planDiff?: AgentPlanStep[] } };
+}
 import { confirmDialog } from '@/lib/app-dialog';
 import { AI_MUTATION_QUERY_KEYS } from '@/lib/ai-orchestration';
 import {
@@ -126,11 +142,9 @@ export default function AiOpsPage() {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview'] });
       invalidateAiMutations(queryClient);
     },
-    onError: (error: any) => {
-      const text =
-        error?.response?.data?.message ??
-        error?.response?.data?.error ??
-        t('ai.undoFailed');
+    onError: (error: unknown) => {
+      const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } })?.response?.data;
+      const text = response?.message ?? response?.error ?? getErrorMessage(error, t('ai.undoFailed'));
       setUndoMessage({ type: 'error', text: Array.isArray(text) ? text.join(', ') : String(text) });
     },
   });
@@ -210,10 +224,10 @@ export default function AiOpsPage() {
             <p className="text-gray-500 text-sm">{t('ai.tasksEmptyBody')}</p>
           </div>
         ) : (
-          tasks.map((task: any) => {
+          (tasks as AgentTask[]).map((task) => {
             const { Icon: StatusIcon, color } = getStatusConfig(task.status);
             const preview = task.result?.preview;
-            const planDiff = preview?.planDiff ?? task.plan?.steps?.map((s: any) => ({
+            const planDiff = preview?.planDiff ?? task.plan?.steps?.map((s) => ({
               id: s.id,
               action: s.action,
               description: s.description,

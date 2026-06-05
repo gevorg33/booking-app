@@ -8,7 +8,7 @@
     "start": "next start",
     "mobile:serve": "next start -H 127.0.0.1 -p 3000",
     "mobile:stable": "next build && next start -H 127.0.0.1 -p 3000",
-    "lint": "eslint",
+    "lint": "eslint src",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:multi-service": "vitest run --config vitest.multi-service.config.ts --coverage src/lib/multi-service-booking.spec.ts",

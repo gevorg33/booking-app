@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Smartphone } from 'lucide-react';
 import api from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -23,8 +24,8 @@ function SetPasswordForm() {
 
   useEffect(() => {
     if (!token) {
-      setLoadError(t('auth.resetLinkInvalid'));
-      setLoading(false);
+      queueMicrotask(() => setLoadError(t('auth.resetLinkInvalid')));
+      queueMicrotask(() => setLoading(false));
       return;
     }
     api
@@ -34,7 +35,7 @@ function SetPasswordForm() {
         setEmail((info as { email?: string }).email ?? '');
       })
       .catch((err) => {
-        setLoadError(err.response?.data?.message || t('auth.resetLinkInvalid'));
+        setLoadError(getErrorMessage(err, t('auth.resetLinkInvalid')));
       })
       .finally(() => setLoading(false));
   }, [token, t]);
@@ -47,8 +48,8 @@ function SetPasswordForm() {
       await api.post('/auth/reset-password', { token, password });
       setSuccess(true);
       setTimeout(() => router.push('/provider/login'), 2000);
-    } catch (err: any) {
-      setSubmitError(err.response?.data?.message || t('common.errorGeneric'));
+    } catch (err: unknown) {
+      setSubmitError(getErrorMessage(err, t('common.errorGeneric')));
     } finally {
       setSubmitting(false);
     }

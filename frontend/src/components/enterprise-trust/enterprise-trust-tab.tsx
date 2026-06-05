@@ -83,7 +83,7 @@ export function EnterpriseTrustTab() {
   });
 
   useEffect(() => {
-    if (settings) setForm(settings);
+    if (settings) queueMicrotask(() => setForm(settings));
   }, [settings]);
 
   const saveMutation = useMutation({

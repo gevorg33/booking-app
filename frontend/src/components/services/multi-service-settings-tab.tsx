@@ -61,12 +61,14 @@ export function MultiServiceSettingsTab({
 
   useEffect(() => {
     if (data) {
-      setForm({
-        ...DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS,
-        ...data,
-        incompatiblePairMode: data.incompatiblePairMode ?? 'service',
-        incompatibleCategoryPairs: data.incompatibleCategoryPairs ?? [],
-      });
+      queueMicrotask(() =>
+        setForm({
+          ...DEFAULT_MULTI_SERVICE_ADMIN_SETTINGS,
+          ...data,
+          incompatiblePairMode: data.incompatiblePairMode ?? 'service',
+          incompatibleCategoryPairs: data.incompatibleCategoryPairs ?? [],
+        }),
+      );
     }
   }, [data]);
 

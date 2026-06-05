@@ -52,7 +52,7 @@ export function PublicCustomerBookingActions({
   useEffect(() => {
     if (!rescheduleOpen || !selectedDate) return;
     let cancelled = false;
-    setSlotsLoading(true);
+    queueMicrotask(() => setSlotsLoading(true));
     void getPublicServiceDaySlots(slug, booking.serviceId, selectedDate)
       .then((res) => {
         if (!cancelled) {

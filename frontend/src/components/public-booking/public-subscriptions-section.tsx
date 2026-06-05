@@ -19,7 +19,7 @@ export function PublicSubscriptionsSection({
   locale: string;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [usageById, setUsageById] = useState<Record<string, { loading: boolean; rows: any[] }>>({});
+  const [usageById, setUsageById] = useState<Record<string, { loading: boolean; rows: unknown[] }>>({});
 
   async function toggleUsage(sub: PublicCustomerSubscription) {
     if (expandedId === sub.id) {

@@ -157,39 +157,43 @@ export function GrowthDistributionTab() {
 
   useEffect(() => {
     if (!zendesk) return;
-    setZendeskForm((prev) => ({
-      ...prev,
-      enabled: zendesk.enabled,
-      subdomain: zendesk.subdomain ?? '',
-      apiUserEmail: zendesk.apiUserEmail ?? '',
-      widgetKey: zendesk.widgetKey ?? '',
-      widgetEnabledOnDashboard: zendesk.widgetEnabledOnDashboard,
-      widgetEnabledOnPublicBooking: zendesk.widgetEnabledOnPublicBooking,
-      syncCustomersEnabled: zendesk.syncCustomersEnabled,
-      createTicketOnReview: zendesk.createTicketOnReview,
-      reviewTicketMaxRating:
-        zendesk.reviewTicketMaxRating != null ? String(zendesk.reviewTicketMaxRating) : '',
-      defaultAssigneeEmail: zendesk.defaultAssigneeEmail ?? '',
-    }));
+    queueMicrotask(() =>
+      setZendeskForm((prev) => ({
+        ...prev,
+        enabled: zendesk.enabled,
+        subdomain: zendesk.subdomain ?? '',
+        apiUserEmail: zendesk.apiUserEmail ?? '',
+        widgetKey: zendesk.widgetKey ?? '',
+        widgetEnabledOnDashboard: zendesk.widgetEnabledOnDashboard,
+        widgetEnabledOnPublicBooking: zendesk.widgetEnabledOnPublicBooking,
+        syncCustomersEnabled: zendesk.syncCustomersEnabled,
+        createTicketOnReview: zendesk.createTicketOnReview,
+        reviewTicketMaxRating:
+          zendesk.reviewTicketMaxRating != null ? String(zendesk.reviewTicketMaxRating) : '',
+        defaultAssigneeEmail: zendesk.defaultAssigneeEmail ?? '',
+      })),
+    );
   }, [zendesk]);
 
   useEffect(() => {
     if (!distribution) return;
-    setDistForm({
-      googleReserveEnabled: distribution.googleReserve.enabled,
-      googleMerchantId: distribution.googleReserve.merchantId ?? '',
-      googlePartnerNotes: distribution.googleReserve.partnerNotes ?? '',
-      metaBookingEnabled: distribution.metaBooking.enabled,
-      facebookPageId: distribution.metaBooking.facebookPageId ?? '',
-      facebookPageUrl: distribution.metaBooking.facebookPageUrl ?? '',
-      instagramUsername: distribution.metaBooking.instagramUsername ?? '',
-      metaBookingButtonLabel: distribution.metaBooking.bookingButtonLabel ?? 'Book online',
-      telegramEnabled: distribution.messaging.telegramEnabled,
-      telegramBotUsername: distribution.messaging.telegramBotUsername ?? '',
-      whatsappBookingEnabled: distribution.messaging.whatsappBookingEnabled,
-      whatsappBusinessPhone: distribution.messaging.whatsappBusinessPhone ?? '',
-      whatsappBookingMessage: '',
-    });
+    queueMicrotask(() =>
+      setDistForm({
+        googleReserveEnabled: distribution.googleReserve.enabled,
+        googleMerchantId: distribution.googleReserve.merchantId ?? '',
+        googlePartnerNotes: distribution.googleReserve.partnerNotes ?? '',
+        metaBookingEnabled: distribution.metaBooking.enabled,
+        facebookPageId: distribution.metaBooking.facebookPageId ?? '',
+        facebookPageUrl: distribution.metaBooking.facebookPageUrl ?? '',
+        instagramUsername: distribution.metaBooking.instagramUsername ?? '',
+        metaBookingButtonLabel: distribution.metaBooking.bookingButtonLabel ?? 'Book online',
+        telegramEnabled: distribution.messaging.telegramEnabled,
+        telegramBotUsername: distribution.messaging.telegramBotUsername ?? '',
+        whatsappBookingEnabled: distribution.messaging.whatsappBookingEnabled,
+        whatsappBusinessPhone: distribution.messaging.whatsappBusinessPhone ?? '',
+        whatsappBookingMessage: '',
+      }),
+    );
   }, [distribution]);
 
   const saveZendesk = useMutation({

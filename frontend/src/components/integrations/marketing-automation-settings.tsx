@@ -45,7 +45,7 @@ export function MarketingAutomationSettingsPanel() {
 
   useEffect(() => {
     if (summary?.settings) {
-      setForm(summary.settings);
+      queueMicrotask(() => setForm(summary.settings));
     }
   }, [summary]);
 

@@ -33,8 +33,8 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
 
   useEffect(() => {
     if (!bookingId || !token) {
-      setError(t('public.manageBookingInvalidLink'));
-      setLoading(false);
+      queueMicrotask(() => setError(t('public.manageBookingInvalidLink')));
+      queueMicrotask(() => setLoading(false));
       return;
     }
     let cancelled = false;

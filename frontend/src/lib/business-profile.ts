@@ -59,7 +59,22 @@ export const emptyBusinessProfileForm = (): BusinessProfileForm => ({
   publicProfileLocales: emptyPublicProfileLocalesForm(),
 });
 
-export function businessToProfileForm(business: any): BusinessProfileForm {
+interface BusinessProfileSource {
+  name?: string;
+  description?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  settings?: {
+    locale?: string;
+    branding?: BusinessBranding;
+    social?: BusinessSocialLinks;
+    location?: BusinessLocationSettings;
+    publicProfileLocales?: unknown;
+  };
+}
+
+export function businessToProfileForm(business: BusinessProfileSource): BusinessProfileForm {
   const branding = business.settings?.branding || {};
   const social = business.settings?.social || {};
   const location = business.settings?.location || {};

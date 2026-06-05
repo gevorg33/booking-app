@@ -106,8 +106,8 @@ export function PublicCustomerPackageVisitActions({
   useEffect(() => {
     if (!rescheduleOpen || !packageVisit.packageId) return;
     let cancelled = false;
-    setPickerLoading(true);
-    setError(null);
+    queueMicrotask(() => setPickerLoading(true));
+    queueMicrotask(() => setError(null));
     void (async () => {
       try {
         const suggested = await suggestPublicPackageBlock(slug, packageVisit.packageId!);

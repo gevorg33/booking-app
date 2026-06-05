@@ -84,22 +84,26 @@ export function PlatformMaturityTab() {
 
   useEffect(() => {
     if (!zapier) return;
-    setZapierForm({
-      enabled: zapier.enabled,
-      hookDescription: zapier.hookDescription || '',
-    });
+    queueMicrotask(() =>
+      setZapierForm({
+        enabled: zapier.enabled,
+        hookDescription: zapier.hookDescription || '',
+      }),
+    );
   }, [zapier]);
 
   useEffect(() => {
     if (!accounting) return;
-    setAcctForm({
-      enabled: accounting.enabled,
-      provider: accounting.provider,
-      incomeAccountName: accounting.incomeAccountName || 'Service Income',
-      accountCode: accounting.accountCode || '200',
-      includeCommissions: accounting.includeCommissions,
-      includeExpenses: accounting.includeExpenses,
-    });
+    queueMicrotask(() =>
+      setAcctForm({
+        enabled: accounting.enabled,
+        provider: accounting.provider,
+        incomeAccountName: accounting.incomeAccountName || 'Service Income',
+        accountCode: accounting.accountCode || '200',
+        includeCommissions: accounting.includeCommissions,
+        includeExpenses: accounting.includeExpenses,
+      }),
+    );
   }, [accounting]);
 
   const saveZapier = useMutation({

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/store';
 import { unwrapAuthResult } from '@/lib/auth-types';
 import { savePreferredBusinessSlug } from '@/lib/auth-session';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,8 +42,8 @@ export default function RegisterPage() {
       });
       savePreferredBusinessSlug(result.business?.slug);
       router.push('/dashboard/onboarding');
-    } catch (err: any) {
-      setError(err.response?.data?.message || t('auth.registrationFailed'));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t('auth.registrationFailed')));
     } finally {
       setLoading(false);
     }

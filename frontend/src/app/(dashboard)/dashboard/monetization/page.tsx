@@ -128,7 +128,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
       const { data } = await api.get(
         `/businesses/${businessId}/subscriptions/plans?includeInactive=true`,
       );
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 
@@ -616,10 +616,10 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
 
   useEffect(() => {
     if (settings?.earnPercentCashback != null) {
-      setEarnPercent(String(settings.earnPercentCashback));
+      queueMicrotask(() => setEarnPercent(String(settings.earnPercentCashback)));
     }
     if (settings?.earnExcludedServiceIds) {
-      setExcludedServiceIds(settings.earnExcludedServiceIds);
+      queueMicrotask(() => setExcludedServiceIds(settings.earnExcludedServiceIds));
     }
   }, [settings?.earnPercentCashback, settings?.earnExcludedServiceIds]);
 
@@ -629,7 +629,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
       const { data: res } = await api.get(
         `/businesses/${businessId}/loyalty/customer/${customerId}`,
       );
-      return unwrap<{ account: { pointsBalance: number; lifetimeEarned: number }; transactions: any[] }>(res);
+      return unwrap<{ account: { pointsBalance: number; lifetimeEarned: number }; transactions: unknown[] }>(res);
     },
     enabled: !!customerId,
   });
@@ -828,7 +828,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
     queryKey: ['promo-codes', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/promo-codes`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
   });
 

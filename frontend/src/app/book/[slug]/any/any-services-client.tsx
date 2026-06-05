@@ -81,9 +81,11 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
     const raw = searchParams.get('services');
     const ids = resolveMultiServiceCartFromLocation(slug, raw, services);
     if (ids.length === 0) return;
-    setSelectedServiceIds(ids);
-    setServiceId(null);
-    setPackageId(null);
+    queueMicrotask(() => {
+      setSelectedServiceIds(ids);
+      setServiceId(null);
+      setPackageId(null);
+    });
     persistMultiServiceCart(slug, ids);
     if (!raw) {
       const q = new URLSearchParams({ services: ids.join(',') });
@@ -131,7 +133,7 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
 
   useEffect(() => {
     if (!multiEnabled || selectedServiceIds.length < 2) {
-      setCartErrors([]);
+      queueMicrotask(() => setCartErrors([]));
       return;
     }
     void previewPublicMultiService(slug, selectedServiceIds)

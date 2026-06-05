@@ -11,6 +11,7 @@ import { getLoginTenantHint, savePreferredBusinessSlug } from '@/lib/auth-sessio
 import { BusinessPicker } from '@/components/business-picker';
 import type { BusinessSummary } from '@/lib/auth-types';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,9 +52,9 @@ export default function LoginPage() {
       });
       savePreferredBusinessSlug(result.business.slug);
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       const code = err.response?.data?.code ?? null;
-      const rawMessage = err.response?.data?.message;
+      const rawMessage = getErrorMessage(err);
       const message = Array.isArray(rawMessage) ? rawMessage[0] : rawMessage;
 
       if (code === 'ACCOUNT_NOT_FOUND') {

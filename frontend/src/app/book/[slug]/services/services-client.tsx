@@ -118,7 +118,7 @@ export function ServicesClient({
 
   useEffect(() => {
     if (!multiEnabled || selectedServiceIds.length < 2) {
-      setCartErrors([]);
+      queueMicrotask(() => setCartErrors([]));
       return;
     }
     void previewPublicMultiService(slug, selectedServiceIds)

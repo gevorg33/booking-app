@@ -32,7 +32,7 @@ export default function ReviewsPage() {
     queryKey: ['reviews', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/reviews`);
-      return unwrap<any[]>(data);
+      return unwrap<unknown[]>(data);
     },
     enabled: !!business?.id,
   });

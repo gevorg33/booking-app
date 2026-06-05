@@ -32,7 +32,7 @@ export function BusinessLogoField({
     try {
       const url = await uploadBusinessLogo(businessId, file);
       onChange(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err?.response?.data?.message || t('errors.uploadLogoFailed'));
     } finally {
       setUploading(false);

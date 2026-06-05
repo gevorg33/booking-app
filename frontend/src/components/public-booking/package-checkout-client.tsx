@@ -112,17 +112,19 @@ export function PackageCheckoutClient({
 
   useEffect(() => {
     if (authLoading || !customer) return;
-    setForm((prev) => ({
-      ...prev,
-      name: prev.name || customer.name,
-      email: prev.email || customer.email || '',
-      phone: prev.phone || customer.phone || undefined,
-    }));
+    queueMicrotask(() =>
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || customer.name,
+        email: prev.email || customer.email || '',
+        phone: prev.phone || customer.phone || undefined,
+      })),
+    );
   }, [authLoading, customer]);
 
   useEffect(() => {
     if (!customer) {
-      setLoyalty(null);
+      queueMicrotask(() => setLoyalty(null));
       return;
     }
     void getPublicCustomerLoyalty(slug)
@@ -134,8 +136,8 @@ export function PackageCheckoutClient({
     if (!pkg.id) return;
     let cancelled = false;
     const requestId = ++quoteRequestId.current;
-    setQuoteLoading(true);
-    setQuoteError(null);
+    queueMicrotask(() => setQuoteLoading(true));
+    queueMicrotask(() => setQuoteError(null));
     void quotePublicPackage(slug, {
       packageId: pkg.id,
       promoCode: appliedPromo || undefined,

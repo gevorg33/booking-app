@@ -60,7 +60,7 @@ export function PublicBookingSelfServiceSettings({ businessId }: { businessId: s
 
   useEffect(() => {
     if (businessData?.settings) {
-      setForm(readSettings(businessData.settings));
+      queueMicrotask(() => setForm(readSettings(businessData.settings)));
     }
   }, [businessData]);
 

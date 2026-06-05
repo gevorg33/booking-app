@@ -20,6 +20,7 @@ import {
   type EmployeeRecord,
 } from '@/lib/employee-types';
 import { useI18n } from '@/i18n';
+import { getErrorMessage } from '@/lib/error-message';
 import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
@@ -133,8 +134,8 @@ export default function EmployeesPage() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err?.response?.data?.message || t('employees.errorsSaveFailed'));
+    onError: (err: unknown) => {
+      setFormError(getErrorMessage(err, t('employees.errorsSaveFailed')));
     },
   });
 
@@ -167,8 +168,8 @@ export default function EmployeesPage() {
         setInviteSuccess(false);
       }, 2000);
     },
-    onError: (err: any) => {
-      setInviteError(err?.response?.data?.message || t('employees.errorsInviteFailed'));
+    onError: (err: unknown) => {
+      setInviteError(getErrorMessage(err, t('employees.errorsInviteFailed')));
     },
   });
 
@@ -191,11 +192,9 @@ export default function EmployeesPage() {
       setAccessSentId(employeeId);
       setTimeout(() => setAccessSentId(null), 4000);
     },
-    onError: (err: any, { employeeId }) => {
+    onError: (err: unknown, { employeeId }) => {
       setAccessSentId(null);
-      setAccessError(
-        `${employeeId}:${err?.response?.data?.message || t('employees.errorsInviteFailed')}`,
-      );
+      setAccessError(`${employeeId}:${getErrorMessage(err, t('employees.errorsInviteFailed'))}`);
     },
   });
 
@@ -217,10 +216,8 @@ export default function EmployeesPage() {
       setRoleUpdateError(null);
       void queryClient.invalidateQueries({ queryKey: ['team-members', business?.id] });
     },
-    onError: (err: any) => {
-      setRoleUpdateError(
-        err?.response?.data?.message || t('teamMembers.updateFailed'),
-      );
+    onError: (err: unknown) => {
+      setRoleUpdateError(getErrorMessage(err, t('teamMembers.updateFailed')));
     },
   });
 

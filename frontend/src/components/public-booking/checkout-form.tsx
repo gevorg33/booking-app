@@ -118,18 +118,20 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (authLoading || !customer) return;
-    setForm((prev) => ({
-      ...prev,
-      name: prev.name || customer.name,
-      email: prev.email || customer.email || '',
-      phone: prev.phone || customer.phone || undefined,
-    }));
+    queueMicrotask(() =>
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || customer.name,
+        email: prev.email || customer.email || '',
+        phone: prev.phone || customer.phone || undefined,
+      })),
+    );
   }, [authLoading, customer]);
 
   useEffect(() => {
     if (!customer) {
-      setLoyalty(null);
-      setActiveSubscription(null);
+      queueMicrotask(() => setLoyalty(null));
+      queueMicrotask(() => setActiveSubscription(null));
       return;
     }
     void getPublicCustomerLoyalty(tenant.slug)
@@ -147,7 +149,7 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (!service.hasSubscriptionPlans) {
-      setSubscriptionPlans([]);
+      queueMicrotask(() => setSubscriptionPlans([]));
       return;
     }
     void getPublicServiceSubscriptionPlans(tenant.slug, service.id)
@@ -158,8 +160,8 @@ export function CheckoutForm({
   useEffect(() => {
     let cancelled = false;
     const requestId = ++quoteRequestId.current;
-    setQuoteLoading(true);
-    setQuoteError(null);
+    queueMicrotask(() => setQuoteLoading(true));
+    queueMicrotask(() => setQuoteError(null));
     void quotePublicBooking(
       tenant.slug,
       buildQuoteRequest({
@@ -389,7 +391,7 @@ export function CheckoutForm({
     try {
       if (requiresOnlinePayment) {
         const { url } = await createPublicBookingCheckout(tenant.slug, payload());
-        window.location.href = url;
+        window.location.assign(url);
         return;
       }
       const result = await createPublicBooking(tenant.slug, payload());
