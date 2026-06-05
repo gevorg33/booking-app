@@ -1,0 +1,82 @@
+---
+description: How the AI command system works end-to-end — gateway, four surfaces, classify→resolve→validate→plan→execute→clarify pipeline, intent registry, deterministic rescue, normalization, and the eval harness. Read this before editing any backend/src/modules/ai code, adding an intent, or handling an AI prompt task.
+globs: backend/src/modules/ai/**/*.ts,backend/src/modules/provider-mobile/provider-ai-*.ts,backend/src/modules/public-booking/*assistant*.ts,frontend/src/components/ai-command-*.tsx,frontend/src/lib/use-ai-command.ts
+alwaysApply: false
+---
+
+# AI Command Pipeline (architecture map — ground every AI prompt task here)
+
+Every natural-language request enters through **one gateway** and flows through a fixed pipeline. Do not invent new entry points; extend the existing stages.
+
+## Single entry point
+
+`AiGatewayService.execute()` — `backend/src/modules/ai/ai-gateway.service.ts`
+
+Order of stages (each is a real call in `execute()`):
+
+1. **Access tier** — `resolveAccessTier(membershipRole)` (`access-control.matrix.ts`); dashboard rejects `client`.
+2. **Security preflight** — `AiPromptSecurityService.preflightBlock()` → returns `security_blocked` early. Prompt-injection / scope-escalation lives here.
+3. **PHI guard** — `assessPhiInAiContext()` (`common/utils/phi-ai-guard.util.ts`); blocks PHI in AI context when HIPAA mode is on (`compliance-1.15`).
+4. **Plan entitlements** — `assertCanRunDashboardAiCommand()` + usage counters (`PlanEntitlementsService`).
+5. **Confidence / A·B** — `platform.resolveConfidenceForExperiment()` returns `_confidenceHigh` + `_abVariantId`.
+6. **Context enrichment** — parallel `entityMemory.buildMemoryContextBlock()` (ai-i2), `conversationSummary.prepareHistoryForClassifier()` (ai-i3), `rag.buildRagContextBlock()` (ai-i8) → merged into `enrichedContext` (`_entityMemoryBlock`, `_conversationSummary`, `_ragContextBlock`, `_confidenceHigh`, …).
+7. **Per-surface dispatch** → `executeCommand()` on the surface service (below).
+8. **Learn + outcome** — `entityMemory.learnFromCommand()` + `platform.recordCommandOutcome()` (this is the ai-e6 analytics sink).
+
+When you add telemetry, hooks, or guards, wire them into **this method** — it is the one place all surfaces pass through.
+
+## Four surfaces (never assume dashboard-only)
+
+| Surface | Service | Classifier schema | Validator |
+|---------|---------|-------------------|-----------|
+| `dashboard` | `AiCommandService` (`ai-command.service.ts`) | `INTENT_SCHEMA` | `command-completion.validator.ts` |
+| `provider` | `ProviderAiCommandService` (`provider-mobile/provider-ai-command.service.ts`) | `PROVIDER_INTENT_SCHEMA` | `provider-command-completion.validator.ts` |
+| `customer` | `CustomerAiCommandService` (`customer-ai-command.service.ts`) | `buildCustomerClassifierSchema()` (`customer-ai-command.util.ts`) | `command-completion.validator.ts` |
+| `public` | `PublicBookingAssistantService` (`public-booking/public-booking-assistant.service.ts`) | `buildPublicClassifierSchema()` | inline |
+
+**Action names differ per surface** — dashboard `create_booking` / `check_providers_for_service`, public `book_appointment` / `check_availability`, provider `mark_paid` / `list_my_bookings`. Duplicate rules with the correct verbs.
+
+## The command pipeline (inside each surface service)
+
+Stages are typed in `command-completion.types.ts` → `PipelineStage = classify | resolve | validate | plan | execute | clarify`.
+
+1. **classify** — LLM `classify_intent` against the surface schema, run in parallel with deterministic complexity routing (`runParallelRouteAndClassification` in `ai-command-routing.util.ts`; tiers from `command-complexity-router.service.ts`: `read_only` skips the LLM route, up to `compound`). Output: `ClassifiedIntent { action, params, reasoning, confidence }`.
+2. **rescue (post-LLM)** — deterministic correction when the LLM mislabels: `AiIntentRescueService` (`ai-intent-rescue.service.ts`), heuristics in `ai-intent-heuristics.ts`, plus per-domain `rescue*` / `enrich*FromPrompt` helpers. **Rescue is the cheapest accuracy lever — prefer a rescue rule over a new LLM prompt.**
+3. **resolve** — fuzzy text → IDs (name→`employeeId`, service text→`serviceId`, date phrase→ISO) via entity-completion utils; catalog injected by `buildClassifierCatalogContext()`.
+4. **validate** — `command-completion.validator.ts` checks required params per action; missing → drives **clarify**.
+5. **plan / execute** — handler runs the mutation/read; returns `CommandResult { success, action, summary, details }`.
+6. **clarify** — when params are missing/ambiguous, return a clarify (form) instead of guessing; emitted via `AiEventsService.emitClarify()`.
+
+## Intent registry (~270 intents)
+
+- `ai-command-registry.build.ts` builds the registry; `ai-command-entity-params.registry.ts` declares per-intent entity params; compound recipes in `ai-command-registry.ts` (`COMPOUND_COMMAND_RECIPES`).
+- Adding an intent = schema rule (per surface) + registry entry + entity params + handler + rescue + eval case. See `feature-ai-prompt-coverage` rule for the per-surface checklist.
+
+## Eval harness (the accuracy ground truth)
+
+- Golden cases: `backend/src/modules/ai/eval/ai-command-eval.cases.ts`; types in `ai-command-eval.types.ts` (`AiCommandEvalCase`, `AiEvalLocale = en | hy | ru | translit`, `requiresLlm`); runner in `ai-command-eval.runner.ts`.
+- Per-feature scenarios live in `*.fixtures.ts` (e.g. `ai-check-and-book.fixtures.ts`, `ai-cmd-eval.fixtures.ts`) and feed both unit `it.each` and the eval cases.
+- Deterministic cases run in CI; `requiresLlm: true` cases are documented for nightly live-model eval only.
+
+## Conventions (follow these)
+
+- **Deterministic-first**: prefer rules/rescue/normalization (no token cost, regression-tested) over LLM changes. `read_only` prompts must never trigger an LLM route.
+- **Redact before logging**: reuse compliance PII redaction before persisting any prompt/params.
+- **Outcome + analytics already exist**: extend `ai-platform.service.ts` `recordCommandOutcome()` / `getCommandAnalytics()` and `ai-events.service.ts` — do not build a parallel analytics path.
+- **DB schema**: TypeORM entities (`*.entity.ts`) auto-sync in dev (`synchronize` on when `NODE_ENV!=='production'`); add a migration in `src/database/migrations/` for production and register the entity in `ai.module.ts` `TypeOrmModule.forFeature([...])`.
+
+## Key test commands
+
+```bash
+cd backend && npm run test:sprint14       # eval cases + routing gate
+cd backend && npm run test:ai-cmd         # full AI command suite (per-domain coverage)
+cd backend && npm run test:ai-providers   # availability + check-and-book
+cd backend && npm run test:ai-payments    # payments util/logic
+```
+
+## Related skills
+
+- `feature-ai-prompt-coverage` — per-surface prompt checklist for any new feature.
+- `ai-multi-command-handling` — compound / "do X and Y" decomposition.
+- `ai-accuracy-program` — Sprints 38–43 playbook to reach 99% accurate executions.
+

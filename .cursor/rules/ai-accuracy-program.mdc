@@ -1,0 +1,93 @@
+---
+description: Playbook to execute the AI Accuracy Program (Sprints 38–43, acc-1…acc-6) toward 99% accurate executions — telemetry, eval+CI gate, classification engine, smart clarification, execution verification/rollback, and the continuous-learning loop. Read before starting any acc-* task or AI-accuracy work.
+globs: backend/src/modules/ai/**/*.ts,backend/src/modules/ai/eval/*.ts,frontend/src/app/**/ai-ops/*.tsx,frontend/src/components/ai-command-*.tsx
+alwaysApply: false
+---
+
+# AI Accuracy Program — 99% accurate executions (Sprints 38–43)
+
+**Definition of accurate:** `(correct intent) × (correct params) × (correct execution)` **OR** an honest clarify / safe refusal. A wrong action is a failure; a *good question* is a success. Optimize for "never do the wrong thing," not "always do something."
+
+## Accuracy ladder (climb in order — you cannot improve what you cannot measure)
+
+| Stage | No-clarify completion | Unlocks via |
+|-------|-----------------------|-------------|
+| Baseline | ~75% | classify + rescue + confidence routing, clarify form, eval harness (shipped) |
+| Stage 1 | ~85% | telemetry (**acc-1**) + 10× eval set (**acc-2**) |
+| Stage 2 | ~92% | classification engine: few-shot + retrieval + self-verify (**acc-3**) |
+| Stage 3 | ~96% | smart clarification (**acc-4**) + execution verification (**acc-5**) |
+| Stage 4 | **99%** | continuous learning + escalation (**acc-6**) |
+
+**Order is mandatory:** `acc-1` (measure) and `acc-2` (eval+gate) come first; every later sprint is scored against the `acc-2` eval set with a CI regression gate so accuracy never silently drops.
+
+## Build on, do NOT rebuild
+
+Reuse: `AiGatewayService` (pipeline), `classify_intent`, `AiIntentRescueService` (rescue), confidence routing (`ai-command-routing.util.ts` / `command-complexity-router.service.ts`), clarify-as-form (frontend `ai-command-wizard.tsx`), entity memory (`ai-entity-memory.service.ts`), conversation summaries (`ai-conversation-summary.service.ts`), RAG (`ai-rag.service.ts`), eval harness (`eval/ai-command-eval.*`), command analytics (`ai-platform.service.ts` `recordCommandOutcome` / `getCommandAnalytics`), undo (`engine/agent/agent-task-undo.service.ts`, `schedule/schedule-undo-snapshot.util.ts`), prompt security preflight (`ai-prompt-security.service.ts`). See the `ai-command-pipeline` skill for the full map.
+
+---
+
+## Sprint 38 — telemetry & measurement (`acc-1`) — nothing else works without this
+
+- **`ai_command_trace` table (`acc-1.1`)** — new TypeORM entity `backend/src/modules/ai/entities/ai-command-trace.entity.ts` (follow `gift-card-redemption.entity.ts` shape: `@Entity('ai_command_trace')`, uuid PK, `@CreateDateColumn`). Columns: `businessId`, `surface`, `userId`, `role`, raw + normalized `prompt`, detected `locale`, classified `action`, `confidence`, `params` (redacted JSON), routing tier, `source` (deterministic|llm), `outcome` (`executed | clarified | approval | failed | security_blocked`), latency, model, token cost. Register in `ai.module.ts` `TypeOrmModule.forFeature([...])`; add a migration in `src/database/migrations/` (prod uses migrations; dev auto-syncs). Index `(businessId, createdAt)`, `(surface, action)`, `(outcome)`.
+- **Gateway hook (`acc-1.2`)** — write the trace inside `AiGatewayService.execute()` next to `recordOutcome()`; **redact params first** (reuse compliance redaction) and respect the PHI guard (`compliance-1.15`). One write per command, all surfaces.
+- **`traceId` (`acc-1.3`)** — thread a correlation id classify→resolve→validate→execute (use `PipelineTrace`/`PipelineStage` in `command-completion.types.ts`) so each stage's contribution is attributable.
+- **Failure signals (`acc-1.4`–`acc-1.7`)** — retry/rephrase (embedding similarity > 0.8 within 2 min → `suspected_miss`), abandon (clarify never answered → `clarify_abandoned`), undo within 1 min → `wrong_execution`, explicit 👍/👎 (add to frontend `ai-command-bar.tsx` results; 👎 → one-tap reason).
+- **Accuracy dashboard (`acc-1.8`–`acc-1.11`)** — extend `getCommandAnalytics()` (ai-e6) with real `ai_command_trace` metrics (no-clarify completion, clarify rate, misclassification, per-intent/locale/surface), confusion matrix, worst-prompts feed, SLO widget; surface on `frontend/src/app/(dashboard)/dashboard/ai-ops/page.tsx`.
+
+## Sprint 39 — eval set expansion & CI gate (`acc-2`)
+
+- **Harvester + labeling (`acc-2.1`–`acc-2.2`)** — weekly job pulls anonymized `suspected_miss`/low-confidence/👎 prompts into a labeling queue; internal admin UI confirms expected `action` + params + expected clarify → appends to `eval/ai-command-eval.cases.ts` / `*.fixtures.ts`.
+- **2,000+ labeled cases (`acc-2.3`)** — balanced across booking/catalog/schedule/payments/gift cards/CRM/integrations; tag surface, locale, difficulty.
+- **Corpora (`acc-2.4`–`acc-2.7`)** — locale parity (every EN case has HY + RU + `translit`, per `AiEvalLocale`), typo/fuzzy, **ambiguity** (expected clarify, not execution → use `compoundExpectEmpty`/clarify expectations), **adversarial** (expected `security_blocked`).
+- **CI gate (`acc-2.8`–`acc-2.11`)** — add `test:ai-accuracy` script to `backend/package.json` running the full deterministic eval (`ai-command-eval.runner.ts`); **accuracy floor gate** fails CI on regression (start at current %, ratchet up each sprint); nightly LLM eval for `requiresLlm: true` cases tracked separately; per-intent precision/recall scorecards.
+
+## Sprint 40 — classification engine (`acc-3`)
+
+- **Retrieval (`acc-3.1`–`acc-3.3`)** — few-shot retriever: embed prompt, retrieve top-K similar labeled eval cases as in-context examples (extend `ai-rag.service.ts`); per-business phrasing memory (build on `ai-entity-memory.service.ts` — "the usual", nicknames, shorthand); **dynamic intent shortlist** — pre-filter the ~270-intent registry (`ai-command-registry.build.ts`) to ~10–15 plausible intents before the LLM call.
+- **Self-verify (`acc-3.4`–`acc-3.6`)** — cheap second pass verifies "action+params satisfy the prompt?"; on mismatch lower confidence → clarify. Deterministic-vs-LLM disagreement on a **mutating** intent → escalate to a stronger model as tie-breaker. Return **field-level confidence** (action/date/provider/service) to drive targeted clarify in `acc-4`.
+- **Robustness (`acc-3.7`–`acc-3.10`)** — upgrade `ai-prompt-normalization.service.ts` `normalizeForClassifier()` (spell-correct, abbreviation expansion, number/date words, mixed-script split); convert recurring `suspected_miss` patterns into deterministic rescues in `ai-intent-rescue.service.ts` (no LLM cost, regression-tested); improve multi-intent precision (see `ai-multi-command-handling` skill, `acc-3.9`); A/B prompt/few-shot variants scored on the eval set.
+
+## Sprint 41 — smart clarification & disambiguation (`acc-4`)
+
+- **Targeted slot-fill (`acc-4.1`–`acc-4.3`)** — ask only missing fields (drive from field-level confidence + `command-completion.validator.ts`); never re-ask known fields; render as form (`ai-command-wizard.tsx`). Top-2 intent chips ("cancel vs reschedule?") instead of generic "rephrase". Entity disambiguation ("2 Annas", "massage matches 3 services") → specific options.
+- **Context carry (`acc-4.4`–`acc-4.6`)** — clarify answers persist for the session + feed entity memory (never ask twice); cross-turn slot merge keeps earlier params; **always preview + confirm** bulk/destructive intents in plain language.
+- **Honest failure (`acc-4.7`–`acc-4.8`)** — when still low-confidence after one clarify, return "I'm not sure — here's what I can do" with 2–3 valid suggestions rather than guessing; track clarify→next-turn-success (target > 90%); bad clarifies feed `acc-2` labeling.
+
+## Sprint 42 — execution verification & rollback (`acc-5`)
+
+- **Pre-exec (`acc-5.1`–`acc-5.3`)** — resolution accuracy guard: fuzzy-resolved entities (name→id, service→id, date→ISO) must clear a confidence threshold, else clarify — never silently pick; plan-vs-prompt check before running a workflow; preview diff on medium-risk mutations.
+- **Post-exec (`acc-5.4`–`acc-5.6`)** — assert the world matches intent (booking exists at requested time/provider); mismatch → auto-flag + **rollback** via `agent-task-undo.service.ts` / `schedule-undo-snapshot.util.ts`; re-validate conflicts/duplicates at execute time (reject stale plans, don't double-book).
+- **Safety rails (`acc-5.7`–`acc-5.8`)** — blast-radius cap (max N cancellations/providers/date range → force confirm or split); new intents ship **dry-run / propose-only** until they hit an accuracy bar on real traffic, then graduate to auto-execute.
+
+## Sprint 43 — continuous learning loop & escalation (`acc-6`)
+
+- **Loop (`acc-6.1`–`acc-6.4`)** — weekly review job (new failures, regressions, top confused intents, locales below target); every triaged failure becomes a new eval case **plus** a rescue rule / few-shot example / prompt fix, tracked to closure; recurring entity corrections → suggested aliases for one-click approval into entity memory; **accuracy ratchet** raises the CI floor each release.
+- **Escalation — the last 1% (`acc-6.5`–`acc-6.7`)** — after 2 failed clarifies, offer "Get help" → staff/owner (dashboard) or support ticket (customer, reuse Zendesk gap-4.2); suggested-action chips when classification truly fails; track escalation rate as inverse of accuracy (target < 1%).
+- **Exit criteria (`acc-6.8`)** — rolling 30-day: no-clarify completion ≥ 90%, (completion + good-clarify) ≥ 99%, wrong-execution < 1%, all three locales within 3 points; documented on the accuracy dashboard.
+
+---
+
+## Per-task definition of done (every acc-* task)
+
+- [ ] Reads/writes go through existing services (gateway, analytics, eval) — no parallel pipeline.
+- [ ] New behavior is **measured**: trace fields and/or analytics updated so the change is visible on the accuracy dashboard.
+- [ ] **Eval cases added** to `eval/ai-command-eval.cases.ts` (EN + HY + RU + `translit`) covering the new path, incl. an ambiguity case that must clarify and an adversarial case that must block.
+- [ ] Deterministic-first: prefer rescue/normalization over new LLM prompts; `read_only` prompts stay off the LLM route.
+- [ ] Unit + integration tests (see `feature-test-coverage`); `npm run test:sprint14` and (once it exists) `npm run test:ai-accuracy` pass; CI accuracy floor not regressed.
+- [ ] Do not mark the TODO `[x]` until trace + eval + tests are in.
+
+## Test commands
+
+```bash
+cd backend && npm run test:sprint14      # eval cases + routing gate
+cd backend && npm run test:ai-accuracy   # acc-2.8 — add this script; full deterministic accuracy gate
+cd backend && npm run test:ai-cmd        # full AI command suite
+```
+
+## Related skills
+
+- `ai-command-pipeline` — the architecture every acc-* hook plugs into.
+- `ai-multi-command-handling` — compound precision (`acc-3.9`) + compound eval cases (`acc-2`).
+- `feature-ai-prompt-coverage` / `feature-test-coverage` — per-surface prompts + full tests for anything new.
+
+

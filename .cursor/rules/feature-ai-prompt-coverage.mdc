@@ -58,3 +58,11 @@ When implementing or reviewing ANY feature:
 - [ ] **Do not mark TODO `[x]` or say "done" without this checklist**
 
 Reference: `ai-cmd-h1` — `ai-check-and-book.fixtures.ts` (dashboard/customer/public rules), `ai-payments.util.ts`, `ai-check-and-book.integration.spec.ts`, `public-booking-assistant.schema.spec.ts`, `customer-ai-command.util.spec.ts`.
+
+## Related skills
+
+- `ai-command-pipeline` — how the gateway + classify→resolve→validate→execute→clarify pipeline works (where to wire each surface).
+- `ai-multi-command-handling` — decomposing "do X and Y" compounds with shared context.
+- `ai-accuracy-program` — Sprints 38–43 path to 99% accurate executions.
+- `feature-test-coverage` — the matching mandatory test checklist.
+

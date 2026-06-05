@@ -1,0 +1,67 @@
+---
+description: How to handle multi-command / compound AI prompts ("do X and Y", "check who's free then book", "cancel and notify") — decomposition, shared context across steps, golden recipes, per-step params, and compound eval cases. Read when a prompt can contain more than one action.
+globs: backend/src/modules/ai/intent-decomposition*.ts,backend/src/modules/ai/ai-command-registry*.ts,backend/src/modules/ai/ai-check-and-book.fixtures.ts,backend/src/modules/ai/ai-payments.util.ts,backend/src/modules/ai/eval/*.ts
+alwaysApply: false
+---
+
+# Multi-command / compound handling (do not lose a step, do not split a single intent)
+
+A "compound" prompt asks for **two or more actions** in one message. Target: every reasonable multi-action request decomposes into ordered steps with **shared context**, and single-action prompts are **never** falsely split.
+
+## Detect → decompose (deterministic-first)
+
+All in `backend/src/modules/ai/intent-decomposition.util.ts`:
+
+- `COMPOUND_PROMPT_MARKERS` — connectors ("and then", ";", "also", "after that", "плюс", "հետո", …).
+- `isCompoundPrompt(prompt)` — gate; if false, route as a single intent.
+- `GOLDEN_COMPOUND_PATTERNS` + `matchGoldenCompoundPattern()` — high-confidence known shapes (e.g. check-and-book, cancel-and-notify). Golden match wins over generic split.
+- `decomposeDeterministicForSurface(surface, prompt)` — produces ordered `DecomposedIntentStep[]`.
+- `decomposeCustomerSelfServiceCompound()` — customer-surface helper.
+- `validateStepsAgainstRecipe()` / `getCompoundRecipeById()` — enforce a recipe's allowed steps.
+
+Decomposition source is typed: `DecompositionSource = 'deterministic' | 'golden' | 'llm'` (`intent-decomposition.types.ts`). Only fall back to `llm` decomposition when deterministic + golden both miss.
+
+## Recipes & routing
+
+- Compound recipes: `COMPOUND_COMMAND_RECIPES` in `ai-command-registry.ts` (`examplePrompts`, `surfaces`, `decomposeUtil`, `llmDecompose`).
+- The complexity router tags compound prompts with `routeTier: 'compound'` (`command-complexity-router.service.ts`). Compound tier unlocks the multi-step executor.
+- **Today decomposition is deterministic/golden.** LangGraph compound graphs (`booking-command-graph` / `compound-command-graph`) are **planned (`ai-cmd-h2.4`)** behind `LANGGRAPH_ENABLED` — do not assume those files exist; extend the deterministic util unless you are implementing that task.
+
+## Shared context across steps (the #1 correctness bug)
+
+Every sub-step must inherit entities resolved earlier: `date`, `timeOfDay`, `notBeforeTime`, `serviceName`, provider, `allProviders`. Reference helpers (verified): `enrichBookingTimeHintsFromPrompt`, `bookingFirstAvailable`, and the check→book compound (`check_and_book_compound`) in `ai-payments.util.ts` + `customer-ai-command.util.ts`.
+
+Rules:
+- Resolve shared booking context **once** from the prompt, then merge into each step — never re-classify each clause in isolation.
+- A "check who's free + book the soonest" prompt forwards the availability result into the book step (no second lookup, no dropped time hint).
+- Action names differ per surface — a dashboard compound uses `check_providers_for_service` → `book_nearest_slot`; public uses `check_availability` → `book_appointment`. Decompose to the **right verbs for that surface**.
+
+## Reference implementation (copy this shape)
+
+`ai-cmd-h1` check+book: `ai-check-and-book.fixtures.ts` (scenarios + per-surface rules), decomposition in `ai-payments.util.ts`, `ai-check-and-book.integration.spec.ts`.
+
+## Eval coverage (mandatory for any compound work)
+
+Add cases to `eval/ai-command-eval.cases.ts` (mapped from `intent-decomposition.fixtures.ts` `COMPOUND_DECOMPOSITION_SCENARIOS` via `compoundScenarioToEvalCase`). Use these expectation fields (`ai-command-eval.types.ts`):
+
+- `routeTier: 'compound'`, `compoundSurface`
+- `compoundSteps` (exact ordered actions) **or** `compoundActionsContains` (subset, any order) **or** `compoundMinSteps`
+- `compoundStepParams` (per-step param subset — proves shared context propagated)
+- `compoundSource` / `compoundRecipeId` when stable
+- `compoundExpectEmpty: true` for single-intent prompts that must **not** split (false-compound guard)
+
+## Definition of done (compound)
+
+- [ ] `isCompoundPrompt` true only for genuine multi-action prompts; add a `compoundExpectEmpty` eval guard for the nearest single-intent phrasing.
+- [ ] Golden pattern added when the shape recurs; otherwise deterministic split per surface.
+- [ ] Shared context (date/time/service/provider) asserted to flow into every step via `compoundStepParams`.
+- [ ] Per-surface decomposition + verbs (dashboard, provider, customer, public where applicable).
+- [ ] Integration spec mirrors `ai-check-and-book.integration.spec.ts` (2-step and 3+-step flows).
+- [ ] `npm run test:sprint14` (eval) + the relevant `test:ai-*` suite pass.
+
+## Related skills
+
+- `ai-command-pipeline` — where decomposition sits in the overall pipeline.
+- `feature-ai-prompt-coverage` — per-surface NL coverage incl. compounds.
+- `ai-accuracy-program` — compound precision is `acc-3.9`; eval gate is `acc-2`.
+
