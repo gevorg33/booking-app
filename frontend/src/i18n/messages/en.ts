@@ -1954,6 +1954,8 @@ const en: MessageTree = {
     commandPlaceholder: 'Ask AI to manage bookings, schedule, or operations…',
     thinking: 'Thinking…',
     clarifySubmit: 'Continue',
+    availableProvidersTitle: 'Available providers',
+    bookProvider: 'Book',
     assistantClarifyTry: 'Try:',
     suggestionRun: 'Run',
     suggestionEdit: 'Edit',

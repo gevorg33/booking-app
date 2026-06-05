@@ -7,6 +7,12 @@ import { DashboardPhoneInput } from '@/components/dashboard-phone-input';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import {
+  ASSIGNABLE_ROLES,
+  roleLabel,
+  type TeamMemberRole,
+} from '@/components/employees/team-members-card';
+import type { EmployeeAccessRoleConfig } from '@/lib/employee-access-role.util';
+import {
   emptyEmployeeForm,
   employeeToForm,
   formToPayload,
@@ -15,16 +21,22 @@ import {
   type EmployeeRecord,
 } from '@/lib/employee-types';
 
+export type { EmployeeAccessRoleConfig };
+
 interface EmployeeFormModalProps {
   open: boolean;
   mode: 'create' | 'edit';
   businessId: string;
   employee?: EmployeeRecord | null;
   services: Array<{ id: string; name: string }>;
+  accessRoleConfig?: EmployeeAccessRoleConfig | null;
   saving?: boolean;
   errorMessage?: string | null;
   onClose: () => void;
-  onSubmit: (payload: ReturnType<typeof formToPayload>) => void;
+  onSubmit: (
+    payload: ReturnType<typeof formToPayload>,
+    accessRole?: TeamMemberRole,
+  ) => void;
 }
 
 export function EmployeeFormModal({
@@ -33,6 +45,7 @@ export function EmployeeFormModal({
   businessId,
   employee,
   services,
+  accessRoleConfig,
   saving,
   errorMessage,
   onClose,
@@ -45,6 +58,7 @@ export function EmployeeFormModal({
     (user?.locale === 'ru' ? '7' : user?.locale === 'hy' ? '374' : '374');
 
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm());
+  const [accessRole, setAccessRole] = useState<TeamMemberRole>('contributor');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [servicesError, setServicesError] = useState<string | null>(null);
 
@@ -52,10 +66,11 @@ export function EmployeeFormModal({
     if (!open) return;
     queueMicrotask(() => {
       setForm(employee ? employeeToForm(employee) : emptyEmployeeForm());
+      setAccessRole(accessRoleConfig?.initialRole ?? 'contributor');
       setPhoneError(null);
       setServicesError(null);
     });
-  }, [open, employee]);
+  }, [open, employee, accessRoleConfig]);
 
   if (!open) return null;
 
@@ -100,7 +115,10 @@ export function EmployeeFormModal({
               return;
             }
             try {
-              onSubmit(formToPayload(form));
+              onSubmit(
+                formToPayload(form),
+                accessRoleConfig ? accessRole : undefined,
+              );
             } catch (err) {
               if (err instanceof Error && err.message === 'INVALID_PHONE') {
                 setPhoneError(t('employees.invalidPhone'));
@@ -138,6 +156,29 @@ export function EmployeeFormModal({
               placeholder={t('employees.titlePlaceholder')}
             />
           </div>
+
+          {mode === 'edit' && accessRoleConfig ? (
+            <div>
+              <label className="label">{t('employees.accessRole')}</label>
+              <p className="text-[11px] text-gray-500 mb-2">{t('employees.accessRoleHint')}</p>
+              {accessRoleConfig.editable ? (
+                <select
+                  className="input"
+                  value={accessRole}
+                  onChange={(e) => setAccessRole(e.target.value as TeamMemberRole)}
+                  disabled={saving}
+                >
+                  {ASSIGNABLE_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabel(role, t)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm text-gray-300">{roleLabel(accessRoleConfig.initialRole, t)}</p>
+              )}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4">
             <div>

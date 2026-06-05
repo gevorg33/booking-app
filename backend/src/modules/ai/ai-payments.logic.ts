@@ -31,6 +31,7 @@ import {
   resolveTomorrowDateKey,
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
+import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -716,19 +717,21 @@ export async function handleCheckProvidersForServiceLogic(
       notBeforeTime,
       limit: params.limit as number | undefined,
     });
-    return success(
-      'check_providers_for_service',
-      result.providers.length
-        ? `${result.providers.length} provider(s) available for ${service.name} on ${dateKey}.`
-        : `No providers available for ${service.name} on ${dateKey}.`,
-      {
-        providers: result.providers,
-        serviceId: service.id,
-        serviceName: service.name,
-        date: dateKey,
-        notBeforeTime,
-      },
-    );
+    const formatted = buildCheckProvidersSummary({
+      serviceName: service.name,
+      dateKey,
+      providers: result.providers,
+    });
+
+    return success('check_providers_for_service', formatted.summary, {
+      providers: result.providers,
+      availableProviders: formatted.availableProviders,
+      availability: formatted.availability,
+      serviceId: service.id,
+      serviceName: service.name,
+      date: dateKey,
+      notBeforeTime,
+    });
   } catch (err: any) {
     return failure(
       'check_providers_for_service',
@@ -1355,6 +1358,13 @@ export async function handlePaymentsCompoundLogic(
     compoundContext = mergeCompoundContext(compoundContext, step, result);
   }
 
+  const providerStep = [...results]
+    .reverse()
+    .find((entry) => entry.action === 'check_providers_for_service');
+  const providerDetails = providerStep?.details as
+    | Record<string, unknown>
+    | undefined;
+
   return {
     success: true,
     action: 'compound_intent',
@@ -1365,6 +1375,11 @@ export async function handlePaymentsCompoundLogic(
       paymentsCompound: true,
       userId,
       finalContext: compoundContext,
+      providers: providerDetails?.providers,
+      availableProviders: providerDetails?.availableProviders,
+      availability: providerDetails?.availability,
+      serviceName: providerDetails?.serviceName,
+      date: providerDetails?.date,
     },
   };
 }

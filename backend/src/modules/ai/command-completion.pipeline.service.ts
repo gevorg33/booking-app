@@ -377,6 +377,12 @@ export class CommandCompletionPipelineService {
     }
     if (Array.isArray(result.details?.availableProviders)) {
       sessionContext.availableProviders = result.details.availableProviders;
+    } else if (Array.isArray(result.details?.providers)) {
+      sessionContext.availableProviders = (
+        result.details.providers as Array<{ name?: string }>
+      )
+        .map((provider) => provider.name)
+        .filter((name): name is string => Boolean(name));
     }
     if (result.details?.serviceName && !sessionContext.serviceName) {
       sessionContext.serviceName = String(result.details.serviceName);

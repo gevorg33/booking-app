@@ -68,6 +68,10 @@ export function extractSessionContext(result: {
   const available = result.details?.availableProviders;
   if (Array.isArray(available) && available.length > 0) {
     ctx.availableProviders = available.map(String);
+  } else if (Array.isArray(details?.providers) && details.providers.length > 0) {
+    ctx.availableProviders = (details.providers as Array<{ name?: string }>)
+      .map((provider) => provider.name)
+      .filter((name): name is string => Boolean(name));
   }
   if (result.action) ctx.lastAction = result.action;
   if (details?.metric) ctx.customerMetric = String(details.metric);
