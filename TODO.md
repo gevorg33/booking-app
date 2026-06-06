@@ -147,66 +147,6 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 ---
 
-#### Phase H1 — NLU & classifier prompts
-
-- [x] **ai-cmd-h1** — **Check+book compound** — who is free/available + book nearest/soonest/ASAP; decomposition in `ai-payments.util`, fixtures in `ai-check-and-book.fixtures.ts`, integration specs (`ai-check-and-book.integration.spec.ts`)
-- [x] **ai-cmd-h1.1** — **Classifier prompt parity** — shared `CHECK_AND_BOOK_CLASSIFIER_RULES` on dashboard `INTENT_SCHEMA`, customer `buildCustomerClassifierSchema()`, public `buildPublicClassifierSchema()`
-- [x] **ai-cmd-h1.2** — **Post-LLM rescue** — `bookingFirstAvailable`, `check_and_book_compound`, `enrichBookingTimeHintsFromPrompt`, `rescuePaymentsIntent` on customer path
-- [x] **ai-cmd-h1.3** — **Eval golden cases** — add check+book and flexible-booking variants to `ai-command-eval.cases.ts` for live LLM regression (**gap-3.1** / `npm run test:sprint14`)
-- [x] **ai-cmd-h1.4** — **Intent disambiguation matrix** — document + enforce in classifiers: `check_availability` vs `lookup_service_assignment` vs `check_providers_for_service` vs `create_booking` / `book_appointment` (per surface action names)
-- [x] **ai-cmd-h1.5** — **Multilingual NL** — extend `CLASSIFIER_MULTILINGUAL_RULES` + eval cases for Armenian/Russian check+book and flexible-slot phrasing
-
-#### Phase H2 — Handler execution & compound graphs
-
-- [x] **ai-cmd-h2** — **Compound context propagation** — `date`, `timeOfDay`, `notBeforeTime`, `serviceName`, `allProviders` shared across all steps; audit `buildSharedBookingContextFromPrompt`, `mergeCustomerCompoundContext`, `applyPromptEntityOverrides`
-- [x] **ai-cmd-h2.1** — **Handler error copy** — NL-aware summaries when no slots (e.g. no providers free tomorrow evening → suggest morning or another day) instead of generic validation errors
-- [x] **ai-cmd-h2.2** — **Check → book handoff** — `check_providers_for_service` availability summary forwarded into `book_nearest_slot` / `book_appointment` details on dashboard + customer
-- [x] **ai-cmd-h2.3** — **Public flexible booking** — `book_appointment` + `bookingFirstAvailable` uses same slot resolver path as customer `book_nearest_slot`
-- [x] **ai-cmd-h2.4** — **LangGraph compound paths** — `booking-command-graph` / `compound-command-graph` enrich booking hints on every sub-step when `LANGGRAPH_ENABLED=true`
-
-#### Phase H3 — Per-domain handler hardening
-
-- [x] **ai-cmd-h3.1** — **Booking & reschedule** — first-available, provider fallback chains, possessive provider vs customer, `reschedule_booking` nearest-free-time
-- [x] **ai-cmd-h3.2** — **Schedule ops** — `clear_schedule` vs `hide_appointments_from_calendar`; template apply + fill-gaps follow-ups; multi-provider date ranges
-- [x] **ai-cmd-h3.3** — **Package & multi-service** — cart + per-line availability + checkout compound; staff-assisted `create_package_booking` / `create_multi_service_booking`
-- [x] **ai-cmd-h3.4** — **Gift card & payments** — book + apply gift card + choose payment method compounds; physical gift card order handoff
-- [x] **ai-cmd-h3.5** — **Provider mobile** — scoped handlers, push deep-link actions parity with NL commands (`ProviderAiCommandService`)
-
-#### Phase H4 — Tests & observability
-
-- [x] **ai-cmd-h4.1** — **Integration spec families** — mirror `ai-check-and-book.integration.spec.ts` for package booking, multi-service, gift-card checkout compounds
-- [x] **ai-cmd-h4.2** — **Coverage thresholds** — extend `test:ai-providers` / `test:ai-payments` / `test:ai-cmd` for rescue, decomposition, enrichment utils
-- [x] **ai-cmd-h4.3** — **Validator audit** — `command-completion.validator.ts`: `bookingFirstAvailable` skips `timeSlot` on all surfaces; `timeOfDay` / `notBeforeTime` where applicable
-- [x] **ai-cmd-h4.4** — **Failure telemetry** — log `rescueReason`, compound step count, classifier confidence via `AiEventsService` for top mis-route prompts
-
-**Key files:** `ai-command.service.ts`, `customer-ai-command.service.ts`, `public-booking-assistant.service.ts`, `ai-payments.util.ts`, `ai-payments.logic.ts`, `ai-intent-rescue.service.ts`, `ai-intent-heuristics.ts`, `ai-check-and-book.fixtures.ts`, `command-completion.validator.ts`, `ai-command-eval.cases.ts`
-
-**Test commands:**
-```bash
-cd backend && npm run test:ai-providers
-cd backend && npm run test:ai-payments
-cd backend && npm run test:sprint14
-```
-
-**Already shipped (do not re-plan)** — schedule orchestration (Sprint 23), booking ops sweeps (Sprint 24), enterprise analytics (Sprint 25), dashboard/mobile baseline intents in `DASHBOARD_INTENTS` / `PROVIDER_INTENTS`, public `list_providers` / `check_availability` / `book_appointment`.
-
----
-
-### AI success metrics (Sprints 13–24)
-
-| Metric | Target |
-|--------|--------|
-| Command completion rate (no clarify) | >75% |
-| Clarify → success on 2nd turn | >90% |
-| Auto-execute rate (low-risk) | >60% |
-| Approval → execute rate | >80% |
-| Mobile AI adoption (DAU providers using AI) | >40% |
-| Mean time to resolve conflict via AI | <2 min |
-
-**AI baseline (already shipped):** command completion pipeline, schedule/booking/catalog intents on dashboard, narrow booking ops on mobile, proactive suggestions, conflict recovery, waitlist fill, autopilot rules, morning briefing.
-
----
-
 ## Sprint 26 — Onboarding & pricing UX
 
 **Goal:** Streamlined first-run setup and public pricing once product, consumer app, and AI are ready.
@@ -233,46 +173,6 @@ cd backend && npm run test:sprint14
 in the end when I will have many clients:
 create Full marketplace per country
 Central place where clients discover and book across tenants
-
----
-
-### curr-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
-
-- [x] **ai-cmd-curr-1** — Dashboard: **`configure_business_currency`** — "Set default currency to AMD", "Switch the salon to euros", "Use rubles for new services"
-- [x] **ai-cmd-curr-2** — Dashboard: **`explain_business_currency`** (READ) — current default, Stripe support flag, count of services still on a different code
-- [x] **ai-cmd-curr-3** — Dashboard: **`bulk_update_service_currency`** — optional migration: align existing catalog `service.currency` to business default (confirm before mutate)
-- [x] **ai-cmd-curr-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for currency configuration and explain phrasing (EN/HY/RU)
-- [x] **ai-cmd-curr-5** — Customer/public: **`explain_checkout_currency`** — READ when user asks why prices show € / ֏ / ₽ on booking page
-- [x] **ai-cmd-curr-6** — Consumer app: **`explain_tenant_currency`** — READ when customer asks why the salon app shows prices in a specific currency after profile load
-- [x] **ai-cmd-curr-7** — Public booking: **`explain_package_currency`** — READ when package or gift-card totals use business default vs legacy service currency
-- [x] **ai-cmd-curr-8** — Provider app: **`explain_provider_payment_currency`** — READ when provider asks why appointment payment breakdown or POS total shows € / ֏ / ₽ (business default vs legacy service code vs retail add-on)
-- [x] **ai-cmd-curr-9** — Notifications: **`explain_notification_currency`** — READ when customer asks why confirmation/reminder/gift-card email or WhatsApp shows a specific currency symbol (business default vs legacy service code vs paid amount)
-- [x] **ai-cmd-curr-10** — Dashboard: **`explain_stripe_currency_warning`** (READ) — why Settings shows Stripe Connect warning for current business currency; which ISO codes Stripe supports for online card payments vs cash/pay-at-venue
-- [x] **ai-cmd-curr-11** — Customer/public: **`explain_stripe_checkout_currency`** (READ) — why online checkout charged in € / ֏ / $; when `stripeCurrencySupported` is false and cash/pay-at-venue is the alternative
-- [x] **ai-cmd-curr-12** — Dashboard: **`diagnose_stripe_checkout_failure`** (READ) — common Stripe Connect currency mismatch causes when checkout session creation fails for tenant currency
-- [x] **ai-cmd-curr-13** — Dashboard: **`explain_reports_currency`** (READ) — why staff/service revenue and P&L KPIs show a specific currency code; clarify no FX conversion in v1
-- [x] **ai-cmd-curr-14** — Dashboard: **`summarize_revenue_kpis`** (READ) — natural-language summary of dashboard overview + reports revenue for current period in business currency
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
-
-### AI commands — language enablement (planned, not implemented)
-
-- [x] **ai-cmd-lang-1** — Dashboard: **`configure_business_languages`** — "Enable Armenian and Russian", "Turn off Russian for our salon", "Set default language to English"
-- [x] **ai-cmd-lang-2** — Dashboard: **`explain_business_languages`** (READ) — enabled locales, default locale, count of services/categories/packages with translations in disabled locales
-- [x] **ai-cmd-lang-3** — Dashboard: **`bulk_strip_disabled_locale_translations`** — optional cleanup: remove `localizedNames` (services, categories, packages) / `publicProfileLocales` keys for locales no longer enabled (confirm before mutate)
-- [x] **ai-cmd-lang-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for language configuration and explain phrasing (EN/HY/RU)
-- [x] **ai-cmd-lang-5** — Customer/public: **`explain_booking_languages`** — READ when user asks why they only see EN/HY on the booking page
-- [x] **ai-cmd-lang-6** — Dashboard: **`configure_package_localized_names`** — set or clear localized display names for a service package in enabled locales only ("Add Armenian name for Spa Day package")
-- [x] **ai-cmd-lang-7** — Dashboard/public: **`explain_package_display_name`** (READ) — which localized name public booking shows for a package given visitor locale; primary name fallback
-- [x] **ai-cmd-lang-8** — Classifier rules + eval cases for package localized-name configuration and explain phrasing (EN/HY/RU)
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
-
-### vert-tour-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
 - [x] **ai-cmd-tour-1** — Dashboard: **`configure_tour_service`** — "Mark City Tour as a tour with max 12 people", "Set difficulty to moderate for the mountain trek"
 - [x] **ai-cmd-tour-2** — Dashboard: **`explain_tour_services`** (READ) — list tour services, group sizes, cover images, upcoming tour bookings with pax / `tourStartDate`–`tourEndDate`
@@ -331,9 +231,6 @@ cd frontend && npm run test:sprint31
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
-
-### rec-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
-
 - [x] **ai-cmd-rec-1** — Dashboard: **`configure_recommendation_product`** — "Add a shampoo product for post-checkout with image and link"
 - [x] **ai-cmd-rec-2** — Dashboard: **`link_recommended_products`** — "Recommend shampoo and conditioner after haircut service"
 - [x] **ai-cmd-rec-3** — Dashboard: **`explain_recommendation_setup`** (READ) — linked products per service/category, max count, active products
@@ -383,29 +280,6 @@ cd frontend && npm run test:sprint31
 
 ---
 
-### fmt-1.6 — AI commands (planned)
-- [x] **ai-cmd-fmt-1** — Dashboard: **`configure_business_date_format`** — "Use US date format", "Switch to 12-hour time", "Set ISO dates for our salon"
-- [x] **ai-cmd-fmt-2** — Dashboard: **`explain_business_date_format`** (READ) — current date/time format, example of today's date in each format
-- [x] **ai-cmd-fmt-3** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for date format configuration phrasing (EN/HY/RU)
-- [x] **ai-cmd-fmt-4** — Customer/public: **`explain_booking_date_format`** — READ when user asks why dates show as DD/MM vs MM/DD on booking page
-- [x] **ai-cmd-fmt-5** — Dashboard: **`preview_business_date_format`** (READ) — sample booking date/time in current vs alternate formats before saving settings
-- [x] **ai-cmd-fmt-6** — Dashboard: **`audit_dashboard_date_surfaces`** (READ) — list pages/components still using locale/`toLocaleString` vs business format cache (deferred fmt-1.6 sweep)
-- [x] **ai-cmd-fmt-7** — Dashboard: **`migrate_dashboard_date_display`** — guided sweep to replace remaining raw `Intl`/`toLocale*` calls with `formatDateDisplay` / `formatTimeDisplay` (deferred surfaces)
-- [x] **ai-cmd-fmt-8** — Classifier rules + eval cases for dashboard date-format preview and audit phrasing (EN/HY/RU)
-- [x] **ai-cmd-fmt-9** — Dashboard: **`explain_notification_date_format`** (READ) — how booking confirmation/reminder emails and WhatsApp messages format dates vs dashboard display
-- [x] **ai-cmd-fmt-10** — Dashboard: **`preview_notification_datetime`** (READ) — sample confirmation/reminder/gift-card message with current business date/time format
-- [x] **ai-cmd-fmt-11** — Dashboard: **`notify_patient_result_ready`** — when **vert-clinic-1.7** ships; uses `formatResultReadyNotificationWhen` in result-ready email/WhatsApp
-- [x] **ai-cmd-fmt-12** — Classifier rules + eval cases for notification date-format and result-ready phrasing (EN/HY/RU)
-- [x] **ai-cmd-fmt-13** — Dashboard: **`explain_date_input_format`** (READ) — how typed date fields parse input for current business `dateFormat` vs calendar picker
-- [x] **ai-cmd-fmt-14** — Dashboard: **`preview_date_input_parse`** (READ) — sample typed date strings → parsed ISO day for current format (DD/MM vs MM/DD disambiguation)
-- [x] **ai-cmd-fmt-15** — Provider app: **`explain_provider_date_display`** (READ) — how schedule/booking cards format dates from auth business settings
-- [x] **ai-cmd-fmt-16** — Provider app: **`configure_provider_push_date_format`** — when push notification bodies ship; format booking times in FCM payload using business `timeFormat` (deferred fmt-1.8 push)
-- [x] **ai-cmd-fmt-17** — Classifier rules + eval cases for date-input parse preview and provider date-format phrasing (EN/HY/RU)
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
-
 ## Sprint 35 — Additional payment gateways (PayPal, Tap Payments, Payme, Wise)
 
 **Goal:** Expand payment options to cover more countries and use cases; each gateway is opt-in per business; existing Stripe + Ameria flows unaffected.
@@ -450,57 +324,8 @@ cd frontend && npm run test:sprint31
 ---
 
 - [ ] **tax-1.8** — Ameria / other gateways — same tax-aware total passed to payment initiation
-
-### tax-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
-
-- [x] **ai-cmd-tax-1** — Dashboard: **`configure_business_tax`** — "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%"
-- [x] **ai-cmd-tax-2** — Dashboard: **`set_service_tax_rate`** — "Make massage services tax-exempt", "Apply 10% tax to medical consultations only"
-- [x] **ai-cmd-tax-3** — Dashboard: **`explain_business_tax`** (READ) — current tax name, rate, model, tax number; example breakdown on a sample price
-- [x] **ai-cmd-tax-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tax configuration phrasing (EN/HY/RU)
-- [x] **ai-cmd-tax-5** — Customer/public: **`explain_checkout_tax`** — READ when user asks why tax was added or what "incl. VAT" means on service cards
-- [x] **ai-cmd-tax-6** — Dashboard: **`configure_stacked_tax_rules`** — "Add 5% GST and 8% PST", "Stack federal and state sales tax", "Remove the state tax rule"
-- [x] **ai-cmd-tax-7** — Dashboard: **`explain_stacked_tax`** (READ) — list each stacked rule, combined effective rate, example breakdown on a sample price (exclusive vs inclusive)
-- [x] **ai-cmd-tax-8** — Classifier rules + eval cases for stacked-tax phrasing (EN/HY/RU): "GST plus PST", "federal and provincial tax"
-- [x] **ai-cmd-tax-9** — Dashboard: **`explain_stripe_tax_charge`** (READ) — why Stripe charged X (inclusive gross vs exclusive net+tax); link to booking `metadata.pricing` tax fields
-- [x] **ai-cmd-tax-10** — Support: **`lookup_booking_tax_metadata`** (READ) — retrieve tax breakdown from booking metadata after Stripe checkout (for disputes/receipts)
-- [x] **ai-cmd-tax-11** — Provider app: **`explain_appointment_tax`** (READ) — tax lines on booking detail, inclusive vs exclusive, amount collected when marked paid
-- [x] **ai-cmd-tax-12** — Dashboard: **`quote_staff_booking_tax`** (READ) — preview tax on a service before staff creates a booking; explain stacked rules vs service override
-- [x] **ai-cmd-tax-13** — Dashboard: **`summarize_customer_tax_paid`** (READ) — total tax paid across customer appointment history from profile metadata
-- [x] **ai-cmd-tax-14** — Consumer app: **`explain_consumer_checkout_tax`** (READ) — checkout/confirmation tax breakdown, inclusive badge on service list
-- [x] **ai-cmd-tax-15** — Classifier rules + eval cases for provider/dashboard/consumer tax display phrasing (EN)
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
 - [~] **compliance-1.6** — **DPA (Data Processing Agreement)** — DPA template exists (**gap-5.4** ✅ / Enterprise Trust tab); e-sign step + signed DPA storage deferred
 
-### compliance-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
-
-- [x] **ai-cmd-compliance-1** — Dashboard: **`configure_privacy_retention`** — "Keep customer data for 3 years", "Enable cookie banner on our booking page"
-- [x] **ai-cmd-compliance-2** — Dashboard: **`configure_granular_consent`** — "Require AI processing consent at checkout", "Ask for third-party integration consent"
-- [x] **ai-cmd-compliance-3** — Dashboard: **`enable_hipaa_mode`** (clinic only) — "Enable HIPAA safeguards", "Set 15-minute session timeout for HIPAA"
-- [x] **ai-cmd-compliance-4** — Dashboard: **`explain_compliance_status`** (READ) — GDPR checklist, HIPAA/BAA status, retention periods, sub-processors
-- [x] **ai-cmd-compliance-5** — Dashboard: **`admin_delete_customer_data`** — "Forget this customer" / anonymize PII from customer profile
-- [x] **ai-cmd-compliance-6** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for compliance configuration phrasing (EN/HY/RU)
-- [x] **ai-cmd-compliance-7** — Customer/public: **`explain_data_rights`** — READ when user asks about export, delete, or cookie banner
-- [x] **ai-cmd-compliance-8** — Dashboard (owner): **`report_data_breach`** — "Report a data breach", "Log security incident affecting customer emails"
-- [x] **ai-cmd-compliance-9** — Dashboard (owner, READ): **`list_breach_incidents`** — "Show breach incidents", "What is our GDPR 72-hour deadline?"
-- [x] **ai-cmd-compliance-10** — Dashboard (owner, READ): **`view_phi_access_audit`** — "Who accessed patient notes?", "Show HIPAA PHI audit log for last week"
-- [x] **ai-cmd-compliance-11** — Dashboard (clinic, READ): **`explain_phi_encryption_status`** — "Is HIPAA encryption on?", "Are referral notes encrypted at rest?"
-- [x] **ai-cmd-compliance-12** — Dashboard (READ): **`explain_minimum_necessary_phi_access`** — "Who can see patient notes?", "What PHI can staff access?"
-- [x] **ai-cmd-compliance-13** — Dashboard (clinic, READ): **`explain_hipaa_session_timeout`** — "When will I be logged out?", "What is our HIPAA session timeout?"
-- [x] **ai-cmd-compliance-14** — Dashboard: **`configure_hipaa_session_timeout`** — "Set HIPAA timeout to 10 minutes", "Require 15-minute auto logout"
-- [x] **ai-cmd-compliance-15** — Classifier + eval: block/redact prompts that embed PHI field payloads in AI context when HIPAA on (extends **compliance-1.15**)
-- [x] **ai-cmd-compliance-16** — Dashboard (owner): **`accept_hipaa_baa`** — "Accept the HIPAA business associate agreement", "Sign BAA to enable HIPAA mode"
-- [x] **ai-cmd-compliance-17** — Dashboard (owner, READ): **`list_sub_processors`** — "Who are our data sub-processors?", "Show Article 28 processor list"
-- [x] **ai-cmd-compliance-18** — Dashboard (owner, READ): **`explain_gdpr_checklist`** — "Are we GDPR compliant?", "What privacy items are still missing?"
-- [x] **ai-cmd-compliance-19** — Dashboard (owner): **`send_breach_notification`** — "Email affected customers about breach BR-42", "Send draft breach notice for incident X"
-- [x] **ai-cmd-compliance-20** — Provider app (clinic): **`explain_provider_session_timeout`** (READ) — "When will the provider app log me out?" (**compliance-1.13** provider deferred)
-- [x] **ai-cmd-compliance-21** — Dashboard (owner, READ): **`open_compliance_dashboard`** — "Open compliance settings", "Take me to breach log" (**compliance-1.16** dedicated page deferred → deep-link into Settings → Compliance panels)
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
 
 # AI Accuracy Program — 99% accurate executions (Sprints 38–43)
 
