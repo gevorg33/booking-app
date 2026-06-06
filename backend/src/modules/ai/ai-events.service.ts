@@ -5,7 +5,21 @@ export type AiEventType =
   | 'ai.clarify'
   | 'ai.task.progress'
   | 'ai.task.completed'
-  | 'ai.alert';
+  | 'ai.alert'
+  | 'ai.misroute';
+
+export type MisrouteTelemetryEventPayload = {
+  surface: string;
+  prompt: string;
+  classifierAction: string;
+  rescuedAction: string;
+  rescueReason?: string;
+  classifierConfidence?: number;
+  compoundStepCount: number;
+  scenarioId?: string;
+  misrouted: boolean;
+  timestamp: string;
+};
 
 @Injectable()
 export class AiEventsService {
@@ -48,6 +62,14 @@ export class AiEventsService {
     },
   ) {
     this.emit(businessId, 'ai.task.completed', payload);
+  }
+
+  /** Failure telemetry for top mis-route prompts (ai-cmd-h4.4). */
+  emitMisrouteTelemetry(
+    businessId: string,
+    payload: MisrouteTelemetryEventPayload,
+  ) {
+    this.emit(businessId, 'ai.misroute', payload);
   }
 
   /** In-app alert for conflicts, approvals, etc. (ai-d19). */

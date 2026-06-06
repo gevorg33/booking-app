@@ -115,4 +115,25 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
     });
     expect(dashboardCommands.executeCommand).not.toHaveBeenCalled();
   });
+
+  it('blocks dashboard AI when HIPAA prompt embeds PHI field payloads', async () => {
+    const { gateway, dashboardCommands } = buildGateway();
+
+    const result = await gateway.execute({
+      surface: 'dashboard',
+      businessId: 'biz-clinic',
+      prompt: 'Summarize visit {"symptoms": "severe headache"}',
+      membershipRole: 'manager',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      action: 'security_blocked',
+      details: expect.objectContaining({
+        reason: 'phi_in_prompt',
+        matchedFields: expect.arrayContaining(['symptoms']),
+      }),
+    });
+    expect(dashboardCommands.executeCommand).not.toHaveBeenCalled();
+  });
 });

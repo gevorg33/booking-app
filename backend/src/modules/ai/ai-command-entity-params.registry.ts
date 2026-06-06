@@ -26,6 +26,7 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'list_packages',
       'discover_packages',
       'describe_package_includes',
+      'configure_package_localized_names',
     ],
   },
   {

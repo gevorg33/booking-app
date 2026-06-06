@@ -156,7 +156,7 @@ describe('intent-decomposition.util', () => {
       getCompoundRecipeById('customer_booking_compound')?.surfaces,
     ).toContain('customer');
     expect(getCompoundRecipeById('missing_recipe')).toBeUndefined();
-    expect(GOLDEN_COMPOUND_PATTERNS.length).toBeGreaterThanOrEqual(3);
+    expect(GOLDEN_COMPOUND_PATTERNS.length).toBeGreaterThanOrEqual(5);
   });
 
   it('maps raw handler steps to decomposed intent steps', () => {
@@ -191,9 +191,11 @@ describe('intent-decomposition.util', () => {
     );
     expect(withoutCode?.steps[1].params.promoCode).toBeUndefined();
 
-    const buildSteps = GOLDEN_COMPOUND_PATTERNS[0].buildSteps;
-    const spy = jest
-      .spyOn(GOLDEN_COMPOUND_PATTERNS[0], 'buildSteps')
+    const promoPattern = GOLDEN_COMPOUND_PATTERNS.find(
+      (pattern) => pattern.id === 'customer_book_package_apply_promo',
+    )!;
+    const buildSteps = promoPattern.buildSteps;
+    const spy = jest.spyOn(promoPattern, 'buildSteps')
       .mockReturnValueOnce([
         { action: 'book_package', params: {}, reasoning: 'only one' },
       ]);

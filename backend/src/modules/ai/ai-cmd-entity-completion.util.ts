@@ -2,6 +2,11 @@ import type {
   ResolvedCommand,
   ValidationIssue,
 } from './command-completion.types.js';
+import {
+  hasRequiredBookingDate,
+  hasRequiredBookingStartTime,
+  hasRescheduleNewTime,
+} from './booking-time-completion.util.js';
 
 type EntityRule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -22,10 +27,10 @@ const paramPresent = (cmd: ResolvedCommand, key: string): boolean => {
 const hasDate = (cmd: ResolvedCommand): boolean =>
   paramPresent(cmd, 'date') ||
   paramPresent(cmd, 'dateFrom') ||
-  cmd.params.bookingFirstAvailable === true;
+  hasRequiredBookingDate(cmd.params);
 
 const hasTime = (cmd: ResolvedCommand): boolean =>
-  paramPresent(cmd, 'timeSlot') || cmd.params.bookingFirstAvailable === true;
+  hasRequiredBookingStartTime(cmd.params);
 
 const hasPackage = (cmd: ResolvedCommand): boolean =>
   paramPresent(cmd, 'packageName') || paramPresent(cmd, 'packageId');
@@ -202,7 +207,7 @@ export const AI_CMD_ENTITY_ACTION_RULES: Record<string, EntityRule> = {
         ),
       );
     }
-    if (!hasDate(cmd) && !hasTime(cmd)) {
+    if (!hasRescheduleNewTime(cmd.params)) {
       issues.push(
         issue('date', 'New time', 'Specify new date and time', 'Friday 10am'),
       );
@@ -234,7 +239,7 @@ export const AI_CMD_ENTITY_ACTION_RULES: Record<string, EntityRule> = {
         ),
       );
     }
-    if (!hasTime(cmd)) {
+    if (!hasRescheduleNewTime(cmd.params)) {
       issues.push(issue('timeSlot', 'New time', 'Specify new time', '3pm'));
     }
     return issues;

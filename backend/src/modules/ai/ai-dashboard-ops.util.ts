@@ -9,6 +9,12 @@ import { isRevenueForecastPrompt } from './ai-operations.util.js';
 export function isCustomerBookingContextPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (
+    /\b(anonymize|forget|erase|gdpr|erasure|right\s+to)\b/i.test(lower) &&
+    /\b(customer|profile|pii|data)\b/i.test(lower)
+  ) {
+    return false;
+  }
+  if (
     !/\bcustomer\b/i.test(lower) &&
     !/\b(who has|has a booking|booking with|booking on)\b/i.test(lower)
   ) {
@@ -74,8 +80,26 @@ export function extractCustomerBookingContextFromPrompt(prompt: string): {
   return result;
 }
 
+function isReportsCurrencyExplainPrompt(prompt: string): boolean {
+  const hasReportsSurface =
+    /\b(reports?|analytics|dashboard\s+overview|operations|p\s*&\s*l|profit\s+(and|&)\s+loss|kpi|kpis)\b/i.test(
+      prompt,
+    ) ||
+    /\b(staff\s+(?:performance|revenue)|service\s+(?:popularity|revenue)|revenue\s+this\s+month|net\s+profit|gross\s+revenue)\b/i.test(
+      prompt,
+    );
+
+  return (
+    hasReportsSurface &&
+    /\b(why|explain|what\s+currency|which\s+currency|convert|conversion|fx|currency)\b/i.test(
+      prompt,
+    )
+  );
+}
+
 /** Single named provider revenue — not top-N ranking. */
 export function isSingleProviderRevenuePrompt(prompt: string): boolean {
+  if (isReportsCurrencyExplainPrompt(prompt)) return false;
   if (
     isTopStaffRevenuePrompt(prompt) ||
     isTotalEarningsPrompt(prompt) ||

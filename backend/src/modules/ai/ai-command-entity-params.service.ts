@@ -14,7 +14,7 @@ import {
   mergeCompoundStepParams,
   normalizeSharedEntityParams,
   pickSharedEntitySessionSlice,
-  propagateSharedEntityParamsAcrossSteps,
+  propagateCompoundStepParamsAcrossSteps,
   summarizeSharedParamsForIntent,
 } from './ai-command-entity-params.util.js';
 import type { CompoundStepWithParams } from './ai-command-entity-params.util.js';
@@ -66,7 +66,7 @@ export class AiCommandEntityParamsService {
   }
 
   propagateAcrossSteps<T extends CompoundStepWithParams>(steps: T[]): T[] {
-    return propagateSharedEntityParamsAcrossSteps(steps);
+    return propagateCompoundStepParamsAcrossSteps(steps);
   }
 
   enrich(params: Record<string, unknown>, prompt?: string) {

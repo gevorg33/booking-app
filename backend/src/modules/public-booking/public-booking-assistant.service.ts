@@ -38,6 +38,52 @@ import {
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
+import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
+import {
+  attachCheckProvidersHandoff,
+  buildCheckProvidersHandoffFromResult,
+  pickCheckProvidersHandoff,
+  type CheckProvidersHandoff,
+} from '../ai/ai-check-book-handoff.util.js';
+import { buildNearestBookableSlotQuery } from '../ai/ai-nearest-slot-resolver.util.js';
+import { CLASSIFIER_MULTILINGUAL_RULES } from '../ai/ai-prompt-i18n.js';
+import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.fixtures.js';
+import { BOOKING_LANGUAGES_CLASSIFIER_RULES } from '../ai/ai-booking-languages.fixtures.js';
+import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from '../ai/ai-booking-date-format.fixtures.js';
+import { PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from '../ai/ai-package-display-name.fixtures.js';
+import { TOUR_BOOKING_CLASSIFIER_RULES } from '../ai/ai-tour-booking.fixtures.js';
+import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from '../ai/ai-tour-day-slots.fixtures.js';
+import { PACKAGE_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-package-currency.fixtures.js';
+import { rescueBookingLanguagesIntent } from '../ai/ai-booking-languages.util.js';
+import { rescueBookingDateFormatIntent } from '../ai/ai-booking-date-format.util.js';
+import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
+import { rescueCheckoutCurrencyIntent } from '../ai/ai-checkout-currency.util.js';
+import { rescueStripeCheckoutCurrencyIntent } from '../ai/ai-stripe-checkout-currency.util.js';
+import { STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-stripe-checkout-currency.fixtures.js';
+import { rescuePackageCurrencyIntent } from '../ai/ai-package-currency.util.js';
+import { rescuePackageDisplayNameIntent } from '../ai/ai-package-display-name.util.js';
+import { rescueDiagnoseTourCapacityIntent } from '../ai/ai-tour-capacity.util.js';
+import { TOUR_CAPACITY_CLASSIFIER_RULES } from '../ai/ai-tour-capacity.fixtures.js';
+import { CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations.fixtures.js';
+import { rescueTourBookingIntent } from '../ai/ai-tour-booking.util.js';
+import { rescueTourDaySlotsIntent } from '../ai/ai-tour-day-slots.util.js';
+import { rescueExplainCheckoutRecommendationsIntent } from '../ai/ai-checkout-recommendations.util.js';
+import { rescueExplainDataRightsIntent } from '../ai/ai-data-rights.util.js';
+import { DATA_RIGHTS_CLASSIFIER_RULES } from '../ai/ai-data-rights.fixtures.js';
+import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
+import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
+import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
+import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
+import { AiBusinessLanguagesService } from '../ai/ai-business-languages.service.js';
+import { AiPackageLocalizedNamesService } from '../ai/ai-package-localized-names.service.js';
+import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
+import { disambiguateMisclassifiedAvailabilityIntent } from '../ai/ai-intent-disambiguation.util.js';
+import { AiEventsService } from '../ai/ai-events.service.js';
+import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
+import {
+  decomposeDeterministicForSurface,
+  isCompoundPrompt,
+} from '../ai/intent-decomposition.util.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -57,6 +103,7 @@ export interface PublicAssistantResult {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  details?: Record<string, unknown>;
 }
 
 export function buildPublicClassifierSchema(): string {
@@ -64,7 +111,7 @@ export function buildPublicClassifierSchema(): string {
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "unknown",
+  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "serviceName": "string or null — one exact or closest catalog service name",
@@ -98,6 +145,12 @@ Action rules:
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
 - business_info / booking_help: as named.
+- explain_checkout_currency: why prices show € / ֏ / ₽ / $ on this booking page; READ only.
+- explain_stripe_checkout_currency: why online Stripe checkout charges in € / ֏ / ₽ / $; when stripeCurrencySupported is false use cash/pay-at-venue; READ only.
+- explain_package_currency: why package or gift-card totals use business default vs legacy bundled service currency; READ only.
+- explain_booking_languages: why the language menu only shows certain locales on this booking page; READ only.
+- explain_booking_date_format: why dates show DD/MM vs MM/DD (or ISO) on this booking page; READ only.
+${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
 
 Service extraction (critical):
 - "massage specialist" / "best rated massage" → serviceCategory: "massage" (NOT serviceName "massage specialist").
@@ -111,7 +164,20 @@ Examples:
 - "book nearest facemassage on any specialist after 16:00" → book_appointment, serviceName: facemassage, bookingFirstAvailable: true, allProviders: true, timeFrom: "16:00"
 
 Normalize all dates to DD/MM/YYYY.
-${PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES}`;
+${PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES}
+${PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES}
+${CHECKOUT_CURRENCY_CLASSIFIER_RULES}
+${STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES}
+${PACKAGE_CURRENCY_CLASSIFIER_RULES}
+${BOOKING_LANGUAGES_CLASSIFIER_RULES}
+${BOOKING_DATE_FORMAT_CLASSIFIER_RULES}
+${TOUR_BOOKING_CLASSIFIER_RULES}
+${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
+${TOUR_CAPACITY_CLASSIFIER_RULES}
+${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
+${DATA_RIGHTS_CLASSIFIER_RULES}
+
+${CLASSIFIER_MULTILINGUAL_RULES}`;
 }
 
 @Injectable()
@@ -125,6 +191,14 @@ export class PublicBookingAssistantService {
     private slotResolver: BookingSlotResolverService,
     private platform: AiPlatformService,
     private aiSettings: AiSettingsService,
+    private aiEvents: AiEventsService,
+    private businessCurrency: AiBusinessCurrencyService,
+    private businessLanguages: AiBusinessLanguagesService,
+    private businessDateFormat: AiBusinessDateFormatService,
+    private packageLocalizedNames: AiPackageLocalizedNamesService,
+    private tourService: AiTourServiceService,
+    private recommendationProduct: AiRecommendationProductService,
+    private businessCompliance: AiBusinessComplianceService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -211,6 +285,114 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
+    const classifierAction = parsed.action;
+    const classifierConfidence =
+      typeof parsed.confidence === 'number' ? parsed.confidence : undefined;
+    const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
+      'public',
+      prompt,
+      parsed.action,
+      parsed.params ?? {},
+    );
+    if (availabilityFix) {
+      parsed.action = availabilityFix.action;
+      parsed.params = {
+        ...parsed.params,
+        ...availabilityFix.params,
+      };
+    }
+
+    const packageCurrencyRescue = rescuePackageCurrencyIntent(
+      prompt,
+      parsed.action,
+    );
+    if (packageCurrencyRescue) {
+      parsed.action = packageCurrencyRescue.action;
+    }
+
+    const stripeCheckoutCurrencyRescue = rescueStripeCheckoutCurrencyIntent(
+      prompt,
+      parsed.action,
+    );
+    if (stripeCheckoutCurrencyRescue) {
+      parsed.action = stripeCheckoutCurrencyRescue.action;
+    }
+
+    const tourCapacityRescue = rescueDiagnoseTourCapacityIntent(
+      prompt,
+      parsed.action,
+    );
+    if (tourCapacityRescue) {
+      parsed.action = tourCapacityRescue.action;
+    }
+
+    const checkoutRecommendationsRescue =
+      rescueExplainCheckoutRecommendationsIntent(prompt, parsed.action);
+    if (checkoutRecommendationsRescue) {
+      parsed.action = checkoutRecommendationsRescue.action;
+    }
+
+    const tourDaySlotsRescue = rescueTourDaySlotsIntent(prompt, parsed.action);
+    if (tourDaySlotsRescue) {
+      parsed.action = tourDaySlotsRescue.action;
+    }
+
+    const tourBookingRescue = rescueTourBookingIntent(prompt, parsed.action);
+    if (tourBookingRescue) {
+      parsed.action = tourBookingRescue.action;
+    }
+
+    const checkoutCurrencyRescue = rescueCheckoutCurrencyIntent(
+      prompt,
+      parsed.action,
+    );
+    if (checkoutCurrencyRescue) {
+      parsed.action = checkoutCurrencyRescue.action;
+    }
+
+    const packageDisplayNameRescue = rescuePackageDisplayNameIntent(
+      prompt,
+      parsed.action,
+    );
+    if (packageDisplayNameRescue) {
+      parsed.action = packageDisplayNameRescue.action;
+    }
+
+    const bookingLanguagesRescue = rescueBookingLanguagesIntent(
+      prompt,
+      parsed.action,
+    );
+    if (bookingLanguagesRescue) {
+      parsed.action = bookingLanguagesRescue.action;
+    }
+
+    const bookingDateFormatRescue = rescueBookingDateFormatIntent(
+      prompt,
+      parsed.action,
+    );
+    if (bookingDateFormatRescue) {
+      parsed.action = bookingDateFormatRescue.action;
+    }
+
+    const dataRightsRescue = rescueExplainDataRightsIntent(prompt, parsed.action);
+    if (dataRightsRescue) {
+      parsed.action = dataRightsRescue.action;
+    }
+
+    const compoundDecomposition = isCompoundPrompt(prompt)
+      ? decomposeDeterministicForSurface('public', prompt)
+      : null;
+    recordMisrouteTelemetry(this.aiEvents, business.id, {
+      surface: 'public',
+      prompt,
+      classifierAction,
+      rescuedAction: parsed.action,
+      rescueReason:
+        checkoutCurrencyRescue?.rescueReason ?? availabilityFix?.rescueReason,
+      classifierConfidence,
+      compoundStepCount: compoundDecomposition?.steps.length ?? 1,
+    });
+
     parsed.params = this.mergeSessionContext(
       parsed.params,
       orchestratedSession,
@@ -261,10 +443,65 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           employees,
           services,
           locale,
+          prompt,
         );
         break;
       case 'booking_help':
         result = this.handleBookingHelp(locale);
+        break;
+      case 'explain_checkout_currency':
+        result = await this.handleExplainCheckoutCurrency(business.id);
+        break;
+      case 'explain_stripe_checkout_currency':
+        result = await this.handleExplainStripeCheckoutCurrency(business.id);
+        break;
+      case 'explain_package_currency':
+        result = await this.handleExplainPackageCurrency(business.id);
+        break;
+      case 'explain_booking_languages':
+        result = await this.handleExplainBookingLanguages(business.id, locale);
+        break;
+      case 'explain_booking_date_format':
+        result = await this.handleExplainBookingDateFormat(business.id);
+        break;
+      case 'explain_package_display_name':
+        result = await this.handleExplainPackageDisplayName(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          locale,
+        );
+        break;
+      case 'explain_tour_booking':
+        result = await this.handleExplainTourBooking(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_tour_day_slots':
+        result = await this.handleExplainTourDaySlots(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'diagnose_tour_capacity':
+        result = await this.handleDiagnoseTourCapacity(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_checkout_recommendations':
+        result = await this.handleExplainCheckoutRecommendations(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_data_rights':
+        result = await this.handleExplainDataRights(business.id, prompt);
         break;
       default:
         result = {
@@ -527,22 +764,32 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         targets.length === 1
           ? targets[0].name
           : t(locale, 'assistant.anySpecialist');
-      return {
-        success: true,
-        action: 'check_availability',
-        summary: t(locale, 'assistant.availabilityNoSlots', {
-          service: serviceLabel,
-          provider: providerLabel,
-          days:
-            dayCount === 1
-              ? formatDateDisplay(dateKeys[0], locale)
-              : String(dayCount),
-        }),
-        navigate:
-          targets.length === 1
-            ? { path: 'professionals', query: { employeeId: targets[0].id } }
-            : { path: 'professionals', query: {} },
-      };
+      const summary = t(locale, 'assistant.availabilityNoSlots', {
+        service: serviceLabel,
+        provider: providerLabel,
+        days:
+          dayCount === 1
+            ? formatDateDisplay(dateKeys[0], locale)
+            : String(dayCount),
+      });
+      return this.withCheckProvidersHandoff(
+        {
+          success: true,
+          action: 'check_availability',
+          summary,
+          navigate:
+            targets.length === 1
+              ? { path: 'professionals', query: { employeeId: targets[0].id } }
+              : { path: 'professionals', query: {} },
+        },
+        this.buildPublicAvailabilityHandoff(
+          summary,
+          params,
+          [],
+          true,
+          dateKeys[0],
+        ),
+      );
     }
 
     const lines: string[] = [
@@ -592,15 +839,33 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (matchedServices.length === 1)
       navigateQuery.serviceId = matchedServices[0].id;
 
-    return {
-      success: true,
-      action: 'check_availability',
-      summary: lines.join('\n'),
-      navigate: {
-        path: bestNavigate ? 'services' : 'professionals',
-        query: navigateQuery,
+    const summary = lines.join('\n');
+    const availableProviders = [
+      ...new Set(
+        dayReports.flatMap((day) =>
+          day.providers.map((provider) => provider.employee.name),
+        ),
+      ),
+    ];
+
+    return this.withCheckProvidersHandoff(
+      {
+        success: true,
+        action: 'check_availability',
+        summary,
+        navigate: {
+          path: bestNavigate ? 'services' : 'professionals',
+          query: navigateQuery,
+        },
       },
-    };
+      this.buildPublicAvailabilityHandoff(
+        summary,
+        params,
+        availableProviders,
+        false,
+        dayReports[0]?.dateKey,
+      ),
+    );
   }
 
   private async handleRecommendSpecialists(
@@ -826,6 +1091,187 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     });
   }
 
+  private async handleExplainBookingLanguages(
+    businessId: string,
+    visitorLocale: AppLocale,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.businessLanguages.handleExplainBookingLanguages(
+      businessId,
+      visitorLocale,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_booking_languages',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainBookingDateFormat(
+    businessId: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.businessDateFormat.handleExplainBookingDateFormat(businessId);
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_booking_date_format',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainCheckoutCurrency(
+    businessId: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.businessCurrency.handleExplainCheckoutCurrency(businessId);
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_checkout_currency',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainDataRights(
+    businessId: string,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.businessCompliance.handleExplainDataRights(
+      businessId,
+      { _prompt: prompt },
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_data_rights',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainStripeCheckoutCurrency(
+    businessId: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.businessCurrency.handleExplainStripeCheckoutCurrency(
+        businessId,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_stripe_checkout_currency',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainPackageCurrency(
+    businessId: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.businessCurrency.handleExplainPackageCurrency(businessId);
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_package_currency',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainPackageDisplayName(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    visitorLocale: AppLocale,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.packageLocalizedNames.handleExplainPackageDisplayName(
+        businessId,
+        params,
+        prompt,
+        visitorLocale,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_package_display_name',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainTourBooking(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.tourService.handleExplainTourBooking(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_tour_booking',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainTourDaySlots(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.tourService.handleExplainTourDaySlots(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_tour_day_slots',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleDiagnoseTourCapacity(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.tourService.handleDiagnoseTourCapacity(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'diagnose_tour_capacity',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainCheckoutRecommendations(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.recommendationProduct.handleExplainCheckoutRecommendations(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_checkout_recommendations',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
   private handleBusinessInfo(business: {
     name: string;
     description?: string;
@@ -889,6 +1335,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     employees: Employee[],
     services: Service[],
     locale: AppLocale,
+    prompt = '',
   ): Promise<PublicAssistantResult> {
     const business = await this.publicBookingService.resolveBusiness(slug);
     const tz = resolveTimezone(business.timezone);
@@ -933,26 +1380,45 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
       }
 
+      const slotQuery = buildNearestBookableSlotQuery(
+        params,
+        prompt,
+        employee?.id ?? null,
+      );
+
       const nearest = await this.publicBookingService.findNearestBookableSlot(
         slug,
         {
           serviceId: service.id,
-          employeeId: params.allProviders ? null : (employee?.id ?? null),
-          notBeforeTime: params.timeFrom ?? null,
-          startDateKey: params.date ?? null,
+          employeeId: slotQuery.employeeId,
+          notBeforeTime: slotQuery.notBeforeTime,
+          startDateKey: slotQuery.startDateKey,
         },
       );
 
       if (!nearest) {
-        const afterLabel = params.timeFrom ? ` after ${params.timeFrom}` : '';
-        return {
-          success: false,
-          action: 'book_appointment',
-          summary: t(locale, 'assistant.noNearestSlot', {
-            service: service.name,
-            after: afterLabel,
-          }),
-        };
+        const summary =
+          locale === 'en'
+            ? buildNoNearestSlotMessage({
+                serviceName: service.name,
+                dateKey: slotQuery.startDateKey,
+                timeOfDay: slotQuery.timeOfDay,
+                notBeforeTime: slotQuery.notBeforeTime,
+              })
+            : t(locale, 'assistant.noNearestSlot', {
+                service: service.name,
+                after: slotQuery.notBeforeTime
+                  ? ` after ${slotQuery.notBeforeTime}`
+                  : '',
+              });
+        return this.withBookAppointmentHandoff(
+          {
+            success: false,
+            action: 'book_appointment',
+            summary,
+          },
+          params,
+        );
       }
 
       params.employeeName = nearest.employeeName;
@@ -1057,8 +1523,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       missing.length > 0 ||
       !resolvedEmployee ||
       !resolvedService ||
-      !params.date ||
-      !params.timeSlot
+      (!params.bookingFirstAvailable && (!params.date || !params.timeSlot))
     ) {
       const navigateQuery: Record<string, string> = {};
       if (resolvedEmployee) navigateQuery.employeeId = resolvedEmployee.id;
@@ -1135,19 +1600,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
 
     const hasContact = params.customerEmail || params.customerPhone;
     if (!params.customerName || !hasContact) {
-      return {
-        success: true,
-        action: 'book_appointment',
-        summary: `Great — ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
-        navigate: {
-          path: 'checkout',
-          query: {
-            employeeId: resolvedEmployee.id,
-            startTime,
-            serviceId: resolvedService.id,
+      return this.withBookAppointmentHandoff(
+        {
+          success: true,
+          action: 'book_appointment',
+          summary: `Great — ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} at ${snappedTime}. Please add your name and email or phone on the checkout screen to confirm.`,
+          navigate: {
+            path: 'checkout',
+            query: {
+              employeeId: resolvedEmployee.id,
+              startTime,
+              serviceId: resolvedService.id,
+            },
           },
         },
-      };
+        params,
+      );
     }
 
     const dto: CreatePublicBookingDto = {
@@ -1177,24 +1645,30 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         ),
       );
 
-      return {
-        success: true,
-        action: 'book_appointment',
-        summary: `You're booked! ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} (${range}).`,
-        bookingId,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        action: 'book_appointment',
-        summary:
-          err?.message ||
-          'That slot is no longer available. Please pick another time.',
-        navigate: {
-          path: 'professionals',
-          query: { employeeId: resolvedEmployee.id, startTime },
+      return this.withBookAppointmentHandoff(
+        {
+          success: true,
+          action: 'book_appointment',
+          summary: `You're booked! ${resolvedService.name} with ${resolvedEmployee.name} on ${formatDateDisplay(params.date, locale)} (${range}).`,
+          bookingId,
         },
-      };
+        params,
+      );
+    } catch (err: any) {
+      return this.withBookAppointmentHandoff(
+        {
+          success: false,
+          action: 'book_appointment',
+          summary:
+            err?.message ||
+            'That slot is no longer available. Please pick another time.',
+          navigate: {
+            path: 'professionals',
+            query: { employeeId: resolvedEmployee.id, startTime },
+          },
+        },
+        params,
+      );
     }
   }
 
@@ -1254,6 +1728,46 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
   }
 
+  private buildPublicAvailabilityHandoff(
+    summary: string,
+    params: Record<string, any>,
+    availableProviders: string[],
+    noProviders: boolean,
+    dateKey?: string,
+  ): CheckProvidersHandoff {
+    return {
+      summary,
+      serviceName: params.serviceName ?? params.serviceCategory ?? undefined,
+      date: dateKey ?? params.date,
+      timeOfDay: params.timeOfDay ?? null,
+      notBeforeTime: params.timeFrom ?? null,
+      availableProviders,
+      noProviders,
+    };
+  }
+
+  private withCheckProvidersHandoff(
+    result: PublicAssistantResult,
+    handoff: CheckProvidersHandoff,
+  ): PublicAssistantResult {
+    return {
+      ...result,
+      details: attachCheckProvidersHandoff(result.details ?? {}, handoff),
+    };
+  }
+
+  private withBookAppointmentHandoff(
+    result: PublicAssistantResult,
+    params: Record<string, any>,
+  ): PublicAssistantResult {
+    const handoff = pickCheckProvidersHandoff(params);
+    if (!handoff) return result;
+    return {
+      ...result,
+      details: attachCheckProvidersHandoff(result.details ?? {}, handoff),
+    };
+  }
+
   private mergeSessionContext(
     params: Record<string, any>,
     session?: Record<string, any>,
@@ -1288,6 +1802,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       if ((merged[key] == null || merged[key] === '') && session[key]) {
         merged[key] = session[key];
       }
+    }
+    if (session.checkProvidersHandoff) {
+      merged.checkProvidersHandoff = session.checkProvidersHandoff;
+    }
+    if (session.priorCheckSummary && !merged.priorCheckSummary) {
+      merged.priorCheckSummary = session.priorCheckSummary;
+    }
+    if (session.availableProviders && !merged.availableProviders) {
+      merged.availableProviders = session.availableProviders;
     }
     return merged;
   }
@@ -1385,6 +1908,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       ? this.fuzzyMatchByName(employees, params.employeeName)
       : undefined;
 
+    const handoff = result.details?.checkProvidersHandoff as
+      | CheckProvidersHandoff
+      | undefined;
+
     return {
       ...result,
       sessionContext: {
@@ -1396,6 +1923,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         customerName: params.customerName ?? null,
         customerEmail: params.customerEmail ?? null,
         customerPhone: params.customerPhone ?? null,
+        priorCheckSummary: handoff?.summary ?? null,
       },
     };
   }

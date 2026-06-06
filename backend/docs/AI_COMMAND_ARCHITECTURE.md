@@ -84,14 +84,15 @@ When LangGraph is off, compound prompts still decompose via `IntentDecomposition
 
 0. **Multilingual hint** — `AiPromptNormalizationService` (no extra LLM; Armenian/Russian/transliteration get a classifier context block; cached per business+prompt; `classify_intent` has multilingual rules)
 1. **Route + classify (parallel)** — `complexity_route` and `classify_intent` LLM calls overlap after catalog load (classify result reused on single-intent path; compound path may ignore it)
-2. **Rescue** — `AiIntentRescueService` maps `unknown`/misclassified intents via language rules
-3. **Capability** — role matrix enforcement (`ai-capability.matrix.ts`)
-4. **Merge session** — inherit provider/date/service from prior turns
-5. **Heuristics** — post-LLM overrides (fallback booking, status filters, etc.)
-6. **Resolve** — fuzzy match entities → IDs
-7. **Validate** — field rules (`command-completion.validator.ts`)
-8. **Confirm** — bulk mutations may require `confirmed: true`
-9. **Execute** — handler or workflow plan
+2. **Semantic intent match (acc-3.4, planned)** — only on `unknown`/low-confidence classify: `AiSemanticIntentService` embeds the prompt and cosine-matches a canonical phrasing bank to resolve paraphrases by *meaning* (see [Semantic intent matching](#semantic-intent-matching-acc-34-planned))
+3. **Rescue** — `AiIntentRescueService` maps `unknown`/misclassified intents via language rules
+4. **Capability** — role matrix enforcement (`ai-capability.matrix.ts`)
+5. **Merge session** — inherit provider/date/service from prior turns
+6. **Heuristics** — post-LLM overrides (fallback booking, status filters, etc.)
+7. **Resolve** — fuzzy match entities → IDs
+8. **Validate** — field rules (`command-completion.validator.ts`)
+9. **Confirm** — bulk mutations may require `confirmed: true`
+10. **Execute** — handler or workflow plan
 
 ## Compound commands
 
@@ -109,6 +110,25 @@ Supported in compound plans: bookings, services, schedule ops, assign services, 
 39 tools (11 read + 28 propose). Mutations always require dashboard approval (`autoExecute: false`).
 
 Key tools: `check_slot_availability`, `propose_book_with_fallback`, `propose_compound_workflow`, `propose_create_schedule_template`, `propose_mark_no_shows`, `propose_payment_sweep`, `propose_day_replan`.
+
+## Semantic intent matching (acc-3.4, planned)
+
+A meaning-based tier that sits **between classify (stage 1) and rescue (stage 3)** to resolve paraphrases the deterministic regex rescues cannot anticipate.
+
+**Why:** rescue heuristics (`ai-intent-heuristics.ts`, `ai-intent-rescue.service.ts`) match literal keywords/patterns, so every phrasing must be hardcoded. A request worded differently but meaning the same — e.g. *"whoever has a gap soonest"* vs *"first available"* — fires no regex and, if the LLM also missed it, falls through to `unknown`. Embedding similarity matches by meaning, so novel phrasings resolve without a new regex.
+
+**When it runs:** only when classify returns `unknown` or low confidence — the confident happy path skips it, so there is no added cost/latency on the common case.
+
+**Flow:**
+
+1. Embed the normalized prompt (reuse `AiPromptNormalizationService` output).
+2. Cosine-match against the **canonical phrasing bank** — per-intent example utterances (EN/HY/RU), embedded once and indexed via `AiRagService`; augmented per business through `AiEntityMemoryService`.
+3. Above the confidence threshold → adopt the matched intent (`rescueReason: 'semantic_match'`).
+4. Below threshold → fall through to deterministic **rescue**, then smart clarify (acc-4) instead of guessing.
+
+**Guardrails:** low confidence never auto-executes a mutating/destructive intent (wrong-execution stays < 1%). Regex remains responsible for **structured extraction** (dates, times, counts); the semantic tier only decides *intent meaning*.
+
+**Telemetry:** matched intent, similarity score, and the `semantic_match` rescue reason are logged via `AiEventsService` (acc-1) to feed the eval/learning loop (`ai-command-eval.cases.ts`, `npm run test:ai-accuracy`).
 
 ## Intent rescue (unknown → action)
 

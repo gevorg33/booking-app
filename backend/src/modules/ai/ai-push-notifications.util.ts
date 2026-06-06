@@ -506,7 +506,7 @@ export function rescuePushNotificationsIntent(
   return null;
 }
 
-function classifyPushNotificationsSegment(
+export function classifyPushNotificationsSegment(
   segment: string,
 ): PushNotificationsCompoundStep | null {
   const text = segment.trim();

@@ -271,6 +271,33 @@ describe('ai-intent-heuristics', () => {
       expect(params.allProviders).toBe(true);
       expect(params.timeSlot).toBeUndefined();
     });
+
+    it('enriches check_providers_for_service without flexible booking flag', () => {
+      const params: Record<string, unknown> = { serviceName: 'massage' };
+      enrichBookingTimeHintsFromPrompt(
+        'check_providers_for_service',
+        params,
+        'who is free tomorrow evening for massage',
+      );
+      expect(params.timeOfDay).toBe('evening');
+      expect(params.allProviders).toBe(true);
+      expect(params.bookingFirstAvailable).toBeUndefined();
+    });
+
+    it('always marks book_nearest_slot as first-available', () => {
+      const params: Record<string, unknown> = {
+        serviceName: 'massage',
+        timeSlot: '10:00',
+      };
+      enrichBookingTimeHintsFromPrompt(
+        'book_nearest_slot',
+        params,
+        'book nearest massage tomorrow evening',
+      );
+      expect(params.bookingFirstAvailable).toBe(true);
+      expect(params.timeSlot).toBeUndefined();
+      expect(params.timeOfDay).toBe('evening');
+    });
   });
 
   describe('isRecommendSpecialistsPrompt', () => {

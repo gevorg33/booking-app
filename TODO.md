@@ -57,10 +57,20 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **37** | GDPR & HIPAA compliance hardening (core v1 shipped) | **compliance-1**, **ai-cmd-compliance** |
 | **38** | AI accuracy — telemetry & measurement | **acc-1** |
 | **39** | AI accuracy — eval set expansion & CI gate | **acc-2** |
-| **40** | AI accuracy — classification engine | **acc-3** |
+| **40** | AI accuracy — classification engine + semantic intent matching | **acc-3** |
 | **41** | AI accuracy — smart clarification & disambiguation | **acc-4** |
 | **42** | AI accuracy — execution verification & rollback | **acc-5** |
 | **43** | AI accuracy — continuous learning & escalation | **acc-6** |
+| **44** | Apps adoption — telemetry & funnel measurement | **adopt-1** |
+| **45** | Apps adoption — acquisition & install funnel | **adopt-2** |
+| **46** | Apps adoption — activation & onboarding | **adopt-3** |
+| **47** | Apps adoption — retention & re-engagement | **adopt-4** |
+| **48** | Apps adoption — performance, reliability & trust | **adopt-5** |
+| **49** | Apps adoption — growth loops, habit & exit criteria | **adopt-6** |
+| **50** | Near-99%: clarify → success on next turn | **n99-1** |
+| **51** | Near-99%: no-clarify completion rate | **n99-2** |
+| **52** | Near-99%: install → activation (≤ 7d) | **n99-3** |
+| **53** | Near-99%: push opt-in / reachability | **n99-4** |
 
 ---
 
@@ -142,32 +152,32 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 - [x] **ai-cmd-h1** — **Check+book compound** — who is free/available + book nearest/soonest/ASAP; decomposition in `ai-payments.util`, fixtures in `ai-check-and-book.fixtures.ts`, integration specs (`ai-check-and-book.integration.spec.ts`)
 - [x] **ai-cmd-h1.1** — **Classifier prompt parity** — shared `CHECK_AND_BOOK_CLASSIFIER_RULES` on dashboard `INTENT_SCHEMA`, customer `buildCustomerClassifierSchema()`, public `buildPublicClassifierSchema()`
 - [x] **ai-cmd-h1.2** — **Post-LLM rescue** — `bookingFirstAvailable`, `check_and_book_compound`, `enrichBookingTimeHintsFromPrompt`, `rescuePaymentsIntent` on customer path
-- [ ] **ai-cmd-h1.3** — **Eval golden cases** — add check+book and flexible-booking variants to `ai-command-eval.cases.ts` for live LLM regression (**gap-3.1** / `npm run test:sprint14`)
-- [ ] **ai-cmd-h1.4** — **Intent disambiguation matrix** — document + enforce in classifiers: `check_availability` vs `lookup_service_assignment` vs `check_providers_for_service` vs `create_booking` / `book_appointment` (per surface action names)
-- [ ] **ai-cmd-h1.5** — **Multilingual NL** — extend `CLASSIFIER_MULTILINGUAL_RULES` + eval cases for Armenian/Russian check+book and flexible-slot phrasing
+- [x] **ai-cmd-h1.3** — **Eval golden cases** — add check+book and flexible-booking variants to `ai-command-eval.cases.ts` for live LLM regression (**gap-3.1** / `npm run test:sprint14`)
+- [x] **ai-cmd-h1.4** — **Intent disambiguation matrix** — document + enforce in classifiers: `check_availability` vs `lookup_service_assignment` vs `check_providers_for_service` vs `create_booking` / `book_appointment` (per surface action names)
+- [x] **ai-cmd-h1.5** — **Multilingual NL** — extend `CLASSIFIER_MULTILINGUAL_RULES` + eval cases for Armenian/Russian check+book and flexible-slot phrasing
 
 #### Phase H2 — Handler execution & compound graphs
 
-- [ ] **ai-cmd-h2** — **Compound context propagation** — `date`, `timeOfDay`, `notBeforeTime`, `serviceName`, `allProviders` shared across all steps; audit `buildSharedBookingContextFromPrompt`, `mergeCustomerCompoundContext`, `applyPromptEntityOverrides`
-- [ ] **ai-cmd-h2.1** — **Handler error copy** — NL-aware summaries when no slots (e.g. no providers free tomorrow evening → suggest morning or another day) instead of generic validation errors
-- [ ] **ai-cmd-h2.2** — **Check → book handoff** — `check_providers_for_service` availability summary forwarded into `book_nearest_slot` / `book_appointment` details on dashboard + customer
-- [ ] **ai-cmd-h2.3** — **Public flexible booking** — `book_appointment` + `bookingFirstAvailable` uses same slot resolver path as customer `book_nearest_slot`
-- [ ] **ai-cmd-h2.4** — **LangGraph compound paths** — `booking-command-graph` / `compound-command-graph` enrich booking hints on every sub-step when `LANGGRAPH_ENABLED=true`
+- [x] **ai-cmd-h2** — **Compound context propagation** — `date`, `timeOfDay`, `notBeforeTime`, `serviceName`, `allProviders` shared across all steps; audit `buildSharedBookingContextFromPrompt`, `mergeCustomerCompoundContext`, `applyPromptEntityOverrides`
+- [x] **ai-cmd-h2.1** — **Handler error copy** — NL-aware summaries when no slots (e.g. no providers free tomorrow evening → suggest morning or another day) instead of generic validation errors
+- [x] **ai-cmd-h2.2** — **Check → book handoff** — `check_providers_for_service` availability summary forwarded into `book_nearest_slot` / `book_appointment` details on dashboard + customer
+- [x] **ai-cmd-h2.3** — **Public flexible booking** — `book_appointment` + `bookingFirstAvailable` uses same slot resolver path as customer `book_nearest_slot`
+- [x] **ai-cmd-h2.4** — **LangGraph compound paths** — `booking-command-graph` / `compound-command-graph` enrich booking hints on every sub-step when `LANGGRAPH_ENABLED=true`
 
 #### Phase H3 — Per-domain handler hardening
 
-- [ ] **ai-cmd-h3.1** — **Booking & reschedule** — first-available, provider fallback chains, possessive provider vs customer, `reschedule_booking` nearest-free-time
-- [ ] **ai-cmd-h3.2** — **Schedule ops** — `clear_schedule` vs `hide_appointments_from_calendar`; template apply + fill-gaps follow-ups; multi-provider date ranges
-- [ ] **ai-cmd-h3.3** — **Package & multi-service** — cart + per-line availability + checkout compound; staff-assisted `create_package_booking` / `create_multi_service_booking`
-- [ ] **ai-cmd-h3.4** — **Gift card & payments** — book + apply gift card + choose payment method compounds; physical gift card order handoff
-- [ ] **ai-cmd-h3.5** — **Provider mobile** — scoped handlers, push deep-link actions parity with NL commands (`ProviderAiCommandService`)
+- [x] **ai-cmd-h3.1** — **Booking & reschedule** — first-available, provider fallback chains, possessive provider vs customer, `reschedule_booking` nearest-free-time
+- [x] **ai-cmd-h3.2** — **Schedule ops** — `clear_schedule` vs `hide_appointments_from_calendar`; template apply + fill-gaps follow-ups; multi-provider date ranges
+- [x] **ai-cmd-h3.3** — **Package & multi-service** — cart + per-line availability + checkout compound; staff-assisted `create_package_booking` / `create_multi_service_booking`
+- [x] **ai-cmd-h3.4** — **Gift card & payments** — book + apply gift card + choose payment method compounds; physical gift card order handoff
+- [x] **ai-cmd-h3.5** — **Provider mobile** — scoped handlers, push deep-link actions parity with NL commands (`ProviderAiCommandService`)
 
 #### Phase H4 — Tests & observability
 
-- [ ] **ai-cmd-h4.1** — **Integration spec families** — mirror `ai-check-and-book.integration.spec.ts` for package booking, multi-service, gift-card checkout compounds
-- [ ] **ai-cmd-h4.2** — **Coverage thresholds** — extend `test:ai-providers` / `test:ai-payments` / `test:ai-cmd` for rescue, decomposition, enrichment utils
-- [ ] **ai-cmd-h4.3** — **Validator audit** — `command-completion.validator.ts`: `bookingFirstAvailable` skips `timeSlot` on all surfaces; `timeOfDay` / `notBeforeTime` where applicable
-- [ ] **ai-cmd-h4.4** — **Failure telemetry** — log `rescueReason`, compound step count, classifier confidence via `AiEventsService` for top mis-route prompts
+- [x] **ai-cmd-h4.1** — **Integration spec families** — mirror `ai-check-and-book.integration.spec.ts` for package booking, multi-service, gift-card checkout compounds
+- [x] **ai-cmd-h4.2** — **Coverage thresholds** — extend `test:ai-providers` / `test:ai-payments` / `test:ai-cmd` for rescue, decomposition, enrichment utils
+- [x] **ai-cmd-h4.3** — **Validator audit** — `command-completion.validator.ts`: `bookingFirstAvailable` skips `timeSlot` on all surfaces; `timeOfDay` / `notBeforeTime` where applicable
+- [x] **ai-cmd-h4.4** — **Failure telemetry** — log `rescueReason`, compound step count, classifier confidence via `AiEventsService` for top mis-route prompts
 
 **Key files:** `ai-command.service.ts`, `customer-ai-command.service.ts`, `public-booking-assistant.service.ts`, `ai-payments.util.ts`, `ai-payments.logic.ts`, `ai-intent-rescue.service.ts`, `ai-intent-heuristics.ts`, `ai-check-and-book.fixtures.ts`, `command-completion.validator.ts`, `ai-command-eval.cases.ts`
 
@@ -228,20 +238,20 @@ Central place where clients discover and book across tenants
 
 ### curr-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
-- [ ] **ai-cmd-curr-1** — Dashboard: **`configure_business_currency`** — "Set default currency to AMD", "Switch the salon to euros", "Use rubles for new services"
-- [ ] **ai-cmd-curr-2** — Dashboard: **`explain_business_currency`** (READ) — current default, Stripe support flag, count of services still on a different code
-- [ ] **ai-cmd-curr-3** — Dashboard: **`bulk_update_service_currency`** — optional migration: align existing catalog `service.currency` to business default (confirm before mutate)
-- [ ] **ai-cmd-curr-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for currency configuration and explain phrasing (EN/HY/RU)
-- [ ] **ai-cmd-curr-5** — Customer/public: **`explain_checkout_currency`** — READ when user asks why prices show € / ֏ / ₽ on booking page
-- [ ] **ai-cmd-curr-6** — Consumer app: **`explain_tenant_currency`** — READ when customer asks why the salon app shows prices in a specific currency after profile load
-- [ ] **ai-cmd-curr-7** — Public booking: **`explain_package_currency`** — READ when package or gift-card totals use business default vs legacy service currency
-- [ ] **ai-cmd-curr-8** — Provider app: **`explain_provider_payment_currency`** — READ when provider asks why appointment payment breakdown or POS total shows € / ֏ / ₽ (business default vs legacy service code vs retail add-on)
-- [ ] **ai-cmd-curr-9** — Notifications: **`explain_notification_currency`** — READ when customer asks why confirmation/reminder/gift-card email or WhatsApp shows a specific currency symbol (business default vs legacy service code vs paid amount)
-- [ ] **ai-cmd-curr-10** — Dashboard: **`explain_stripe_currency_warning`** (READ) — why Settings shows Stripe Connect warning for current business currency; which ISO codes Stripe supports for online card payments vs cash/pay-at-venue
-- [ ] **ai-cmd-curr-11** — Customer/public: **`explain_stripe_checkout_currency`** (READ) — why online checkout charged in € / ֏ / $; when `stripeCurrencySupported` is false and cash/pay-at-venue is the alternative
-- [ ] **ai-cmd-curr-12** — Dashboard: **`diagnose_stripe_checkout_failure`** (READ) — common Stripe Connect currency mismatch causes when checkout session creation fails for tenant currency
-- [ ] **ai-cmd-curr-13** — Dashboard: **`explain_reports_currency`** (READ) — why staff/service revenue and P&L KPIs show a specific currency code; clarify no FX conversion in v1
-- [ ] **ai-cmd-curr-14** — Dashboard: **`summarize_revenue_kpis`** (READ) — natural-language summary of dashboard overview + reports revenue for current period in business currency
+- [x] **ai-cmd-curr-1** — Dashboard: **`configure_business_currency`** — "Set default currency to AMD", "Switch the salon to euros", "Use rubles for new services"
+- [x] **ai-cmd-curr-2** — Dashboard: **`explain_business_currency`** (READ) — current default, Stripe support flag, count of services still on a different code
+- [x] **ai-cmd-curr-3** — Dashboard: **`bulk_update_service_currency`** — optional migration: align existing catalog `service.currency` to business default (confirm before mutate)
+- [x] **ai-cmd-curr-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for currency configuration and explain phrasing (EN/HY/RU)
+- [x] **ai-cmd-curr-5** — Customer/public: **`explain_checkout_currency`** — READ when user asks why prices show € / ֏ / ₽ on booking page
+- [x] **ai-cmd-curr-6** — Consumer app: **`explain_tenant_currency`** — READ when customer asks why the salon app shows prices in a specific currency after profile load
+- [x] **ai-cmd-curr-7** — Public booking: **`explain_package_currency`** — READ when package or gift-card totals use business default vs legacy service currency
+- [x] **ai-cmd-curr-8** — Provider app: **`explain_provider_payment_currency`** — READ when provider asks why appointment payment breakdown or POS total shows € / ֏ / ₽ (business default vs legacy service code vs retail add-on)
+- [x] **ai-cmd-curr-9** — Notifications: **`explain_notification_currency`** — READ when customer asks why confirmation/reminder/gift-card email or WhatsApp shows a specific currency symbol (business default vs legacy service code vs paid amount)
+- [x] **ai-cmd-curr-10** — Dashboard: **`explain_stripe_currency_warning`** (READ) — why Settings shows Stripe Connect warning for current business currency; which ISO codes Stripe supports for online card payments vs cash/pay-at-venue
+- [x] **ai-cmd-curr-11** — Customer/public: **`explain_stripe_checkout_currency`** (READ) — why online checkout charged in € / ֏ / $; when `stripeCurrencySupported` is false and cash/pay-at-venue is the alternative
+- [x] **ai-cmd-curr-12** — Dashboard: **`diagnose_stripe_checkout_failure`** (READ) — common Stripe Connect currency mismatch causes when checkout session creation fails for tenant currency
+- [x] **ai-cmd-curr-13** — Dashboard: **`explain_reports_currency`** (READ) — why staff/service revenue and P&L KPIs show a specific currency code; clarify no FX conversion in v1
+- [x] **ai-cmd-curr-14** — Dashboard: **`summarize_revenue_kpis`** (READ) — natural-language summary of dashboard overview + reports revenue for current period in business currency
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -249,14 +259,14 @@ Central place where clients discover and book across tenants
 
 ### AI commands — language enablement (planned, not implemented)
 
-- [ ] **ai-cmd-lang-1** — Dashboard: **`configure_business_languages`** — "Enable Armenian and Russian", "Turn off Russian for our salon", "Set default language to English"
-- [ ] **ai-cmd-lang-2** — Dashboard: **`explain_business_languages`** (READ) — enabled locales, default locale, count of services/categories/packages with translations in disabled locales
-- [ ] **ai-cmd-lang-3** — Dashboard: **`bulk_strip_disabled_locale_translations`** — optional cleanup: remove `localizedNames` (services, categories, packages) / `publicProfileLocales` keys for locales no longer enabled (confirm before mutate)
-- [ ] **ai-cmd-lang-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for language configuration and explain phrasing (EN/HY/RU)
-- [ ] **ai-cmd-lang-5** — Customer/public: **`explain_booking_languages`** — READ when user asks why they only see EN/HY on the booking page
-- [ ] **ai-cmd-lang-6** — Dashboard: **`configure_package_localized_names`** — set or clear localized display names for a service package in enabled locales only ("Add Armenian name for Spa Day package")
-- [ ] **ai-cmd-lang-7** — Dashboard/public: **`explain_package_display_name`** (READ) — which localized name public booking shows for a package given visitor locale; primary name fallback
-- [ ] **ai-cmd-lang-8** — Classifier rules + eval cases for package localized-name configuration and explain phrasing (EN/HY/RU)
+- [x] **ai-cmd-lang-1** — Dashboard: **`configure_business_languages`** — "Enable Armenian and Russian", "Turn off Russian for our salon", "Set default language to English"
+- [x] **ai-cmd-lang-2** — Dashboard: **`explain_business_languages`** (READ) — enabled locales, default locale, count of services/categories/packages with translations in disabled locales
+- [x] **ai-cmd-lang-3** — Dashboard: **`bulk_strip_disabled_locale_translations`** — optional cleanup: remove `localizedNames` (services, categories, packages) / `publicProfileLocales` keys for locales no longer enabled (confirm before mutate)
+- [x] **ai-cmd-lang-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for language configuration and explain phrasing (EN/HY/RU)
+- [x] **ai-cmd-lang-5** — Customer/public: **`explain_booking_languages`** — READ when user asks why they only see EN/HY on the booking page
+- [x] **ai-cmd-lang-6** — Dashboard: **`configure_package_localized_names`** — set or clear localized display names for a service package in enabled locales only ("Add Armenian name for Spa Day package")
+- [x] **ai-cmd-lang-7** — Dashboard/public: **`explain_package_display_name`** (READ) — which localized name public booking shows for a package given visitor locale; primary name fallback
+- [x] **ai-cmd-lang-8** — Classifier rules + eval cases for package localized-name configuration and explain phrasing (EN/HY/RU)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -264,19 +274,19 @@ Central place where clients discover and book across tenants
 
 ### vert-tour-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
-- [ ] **ai-cmd-tour-1** — Dashboard: **`configure_tour_service`** — "Mark City Tour as a tour with max 12 people", "Set difficulty to moderate for the mountain trek"
-- [ ] **ai-cmd-tour-2** — Dashboard: **`explain_tour_services`** (READ) — list tour services, group sizes, cover images, upcoming tour bookings with pax / `tourStartDate`–`tourEndDate`
-- [ ] **ai-cmd-tour-3** — Dashboard: **`apply_tour_playbook`** — shortcut to apply tour vertical playbook (catalog + 08:00–18:00 schedule) for `tour_operator` tenants
-- [ ] **ai-cmd-tour-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tour configuration and explain phrasing (EN/HY/RU)
-- [ ] **ai-cmd-tour-5** — Customer/public: **`explain_tour_booking`** — READ when user asks about group size, per-person pricing, or tour duration on booking page
-- [ ] **ai-cmd-tour-6** — Customer/public: **`explain_tour_day_slots`** (READ) — why multi-day tours show one departure per day, `remainingSpots`, and when a date is fully booked (links **vert-tour-1.6** deferred date-only picker)
-- [ ] **ai-cmd-tour-7** — Dashboard: **`explain_tour_booking_record`** (READ) — `paxCount`, `tourStartDate`, `tourEndDate`, special requirements on a booking; link provider calendar tour spans (**vert-tour-1.10** shipped)
-- [ ] **ai-cmd-tour-8** — Dashboard: **`list_upcoming_tour_departures`** (READ) — summarize confirmed tour bookings by departure date, pax, and remaining capacity
-- [ ] **ai-cmd-tour-9** — Customer/public: **`diagnose_tour_capacity`** (READ) — why checkout rejected pax count or date (max group, fully booked, clamped pax)
-- [ ] **ai-cmd-tour-10** — Classifier rules + eval cases for day-level slots, tour booking metadata, and capacity phrasing (EN/HY/RU)
-- [ ] **ai-cmd-tour-11** — Dashboard: **`explain_tour_calendar_span`** (READ) — why a tour appears across multiple days on the provider calendar, service colors, clipped weeks, stacked departures (**vert-tour-1.10**)
-- [ ] **ai-cmd-tour-12** — Dashboard: **`list_tour_calendar_week`** (READ) — summarize tour departures visible in the current calendar week for a provider (dates, pax, service)
-- [ ] **ai-cmd-tour-13** — Classifier rules + eval cases for tour calendar span phrasing and week-navigation intents (EN/HY/RU)
+- [x] **ai-cmd-tour-1** — Dashboard: **`configure_tour_service`** — "Mark City Tour as a tour with max 12 people", "Set difficulty to moderate for the mountain trek"
+- [x] **ai-cmd-tour-2** — Dashboard: **`explain_tour_services`** (READ) — list tour services, group sizes, cover images, upcoming tour bookings with pax / `tourStartDate`–`tourEndDate`
+- [x] **ai-cmd-tour-3** — Dashboard: **`apply_tour_playbook`** — shortcut to apply tour vertical playbook (catalog + 08:00–18:00 schedule) for `tour_operator` tenants
+- [x] **ai-cmd-tour-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tour configuration and explain phrasing (EN/HY/RU)
+- [x] **ai-cmd-tour-5** — Customer/public: **`explain_tour_booking`** — READ when user asks about group size, per-person pricing, or tour duration on booking page
+- [x] **ai-cmd-tour-6** — Customer/public: **`explain_tour_day_slots`** (READ) — why multi-day tours show one departure per day, `remainingSpots`, and when a date is fully booked (links **vert-tour-1.6** deferred date-only picker)
+- [x] **ai-cmd-tour-7** — Dashboard: **`explain_tour_booking_record`** (READ) — `paxCount`, `tourStartDate`, `tourEndDate`, special requirements on a booking; link provider calendar tour spans (**vert-tour-1.10** shipped)
+- [x] **ai-cmd-tour-8** — Dashboard: **`list_upcoming_tour_departures`** (READ) — summarize confirmed tour bookings by departure date, pax, and remaining capacity
+- [x] **ai-cmd-tour-9** — Customer/public: **`diagnose_tour_capacity`** (READ) — why checkout rejected pax count or date (max group, fully booked, clamped pax)
+- [x] **ai-cmd-tour-10** — Classifier rules + eval cases for day-level slots, tour booking metadata, and capacity phrasing (EN/HY/RU)
+- [x] **ai-cmd-tour-11** — Dashboard: **`explain_tour_calendar_span`** (READ) — why a tour appears across multiple days on the provider calendar, service colors, clipped weeks, stacked departures (**vert-tour-1.10**)
+- [x] **ai-cmd-tour-12** — Dashboard: **`list_tour_calendar_week`** (READ) — summarize tour departures visible in the current calendar week for a provider (dates, pax, service)
+- [x] **ai-cmd-tour-13** — Classifier rules + eval cases for tour calendar span phrasing and week-navigation intents (EN/HY/RU)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -293,7 +303,7 @@ Central place where clients discover and book across tenants
 - [ ] **vert-clinic-1.12** — Privacy guard for results API (**deferred**)
 
 ### vert-clinic-1.4 — Clinic-only UI gating
-- [~] **vert-clinic-1.13** — Results tab gating by `businessType` (**deferred** until vert-clinic-1.5–1.7); `isClinicVerticalBusinessType` util ready
+- [x] **vert-clinic-1.13** — Results tab gating by `businessType` — `shouldShowPatientResultsTab` / `isClinicVerticalBusinessType` in `clinic-service` utils (EN+BE); booking-detail Results tab UI ships with **vert-clinic-1.7**
 - [x] **vert-clinic-1.14** — Clinic booking form — optional `referralNotes` and `symptoms` on public checkout for clinic services; stored in booking metadata
 
 **Tests (Sprint 31):**
@@ -324,16 +334,16 @@ cd frontend && npm run test:sprint31
 
 ### rec-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
-- [ ] **ai-cmd-rec-1** — Dashboard: **`configure_recommendation_product`** — "Add a shampoo product for post-checkout with image and link"
-- [ ] **ai-cmd-rec-2** — Dashboard: **`link_recommended_products`** — "Recommend shampoo and conditioner after haircut service"
-- [ ] **ai-cmd-rec-3** — Dashboard: **`explain_recommendation_setup`** (READ) — linked products per service/category, max count, active products
-- [ ] **ai-cmd-rec-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for recommendation configuration phrasing (EN/HY/RU)
-- [ ] **ai-cmd-rec-5** — Customer/public: **`explain_checkout_recommendations`** — READ when user asks about "You might also like" products on success screen (web + consumer app **rec-1.6**)
-- [ ] **ai-cmd-rec-6** — Consumer app: **`explain_consumer_checkout_success`** (READ) — confirmed booking summary, view appointments / book another, and when product cards appear
-- [ ] **ai-cmd-rec-7** — Classifier rules + eval cases for consumer-app checkout success and recommendation dismiss phrasing (EN)
-- [ ] **ai-cmd-rec-8** — Dashboard: **`explain_recommendation_analytics`** (READ) — impression vs click counts from `product_recommendation.shown` / `.clicked` events, top products, surfaces (web vs consumer app)
-- [ ] **ai-cmd-rec-9** — Dashboard: **`summarize_recommendation_performance`** (READ) — CTR by product/service, bookings with recommendations shown, period filter
-- [ ] **ai-cmd-rec-10** — Classifier rules + eval cases for recommendation analytics phrasing (EN/HY/RU)
+- [x] **ai-cmd-rec-1** — Dashboard: **`configure_recommendation_product`** — "Add a shampoo product for post-checkout with image and link"
+- [x] **ai-cmd-rec-2** — Dashboard: **`link_recommended_products`** — "Recommend shampoo and conditioner after haircut service"
+- [x] **ai-cmd-rec-3** — Dashboard: **`explain_recommendation_setup`** (READ) — linked products per service/category, max count, active products
+- [x] **ai-cmd-rec-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for recommendation configuration phrasing (EN/HY/RU)
+- [x] **ai-cmd-rec-5** — Customer/public: **`explain_checkout_recommendations`** — READ when user asks about "You might also like" products on success screen (web + consumer app **rec-1.6**)
+- [x] **ai-cmd-rec-6** — Consumer app: **`explain_consumer_checkout_success`** (READ) — confirmed booking summary, view appointments / book another, and when product cards appear
+- [x] **ai-cmd-rec-7** — Classifier rules + eval cases for consumer-app checkout success and recommendation dismiss phrasing (EN)
+- [x] **ai-cmd-rec-8** — Dashboard: **`explain_recommendation_analytics`** (READ) — impression vs click counts from `product_recommendation.shown` / `.clicked` events, top products, surfaces (web vs consumer app)
+- [x] **ai-cmd-rec-9** — Dashboard: **`summarize_recommendation_performance`** (READ) — CTR by product/service, bookings with recommendations shown, period filter
+- [x] **ai-cmd-rec-10** — Classifier rules + eval cases for recommendation analytics phrasing (EN/HY/RU)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -374,23 +384,23 @@ cd frontend && npm run test:sprint31
 ---
 
 ### fmt-1.6 — AI commands (planned)
-- [ ] **ai-cmd-fmt-1** — Dashboard: **`configure_business_date_format`** — "Use US date format", "Switch to 12-hour time", "Set ISO dates for our salon"
-- [ ] **ai-cmd-fmt-2** — Dashboard: **`explain_business_date_format`** (READ) — current date/time format, example of today's date in each format
-- [ ] **ai-cmd-fmt-3** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for date format configuration phrasing (EN/HY/RU)
-- [ ] **ai-cmd-fmt-4** — Customer/public: **`explain_booking_date_format`** — READ when user asks why dates show as DD/MM vs MM/DD on booking page
-- [ ] **ai-cmd-fmt-5** — Dashboard: **`preview_business_date_format`** (READ) — sample booking date/time in current vs alternate formats before saving settings
-- [ ] **ai-cmd-fmt-6** — Dashboard: **`audit_dashboard_date_surfaces`** (READ) — list pages/components still using locale/`toLocaleString` vs business format cache (deferred fmt-1.6 sweep)
-- [ ] **ai-cmd-fmt-7** — Dashboard: **`migrate_dashboard_date_display`** — guided sweep to replace remaining raw `Intl`/`toLocale*` calls with `formatDateDisplay` / `formatTimeDisplay` (deferred surfaces)
-- [ ] **ai-cmd-fmt-8** — Classifier rules + eval cases for dashboard date-format preview and audit phrasing (EN/HY/RU)
-- [ ] **ai-cmd-fmt-9** — Dashboard: **`explain_notification_date_format`** (READ) — how booking confirmation/reminder emails and WhatsApp messages format dates vs dashboard display
-- [ ] **ai-cmd-fmt-10** — Dashboard: **`preview_notification_datetime`** (READ) — sample confirmation/reminder/gift-card message with current business date/time format
-- [ ] **ai-cmd-fmt-11** — Dashboard: **`notify_patient_result_ready`** — when **vert-clinic-1.7** ships; uses `formatResultReadyNotificationWhen` in result-ready email/WhatsApp
-- [ ] **ai-cmd-fmt-12** — Classifier rules + eval cases for notification date-format and result-ready phrasing (EN/HY/RU)
-- [ ] **ai-cmd-fmt-13** — Dashboard: **`explain_date_input_format`** (READ) — how typed date fields parse input for current business `dateFormat` vs calendar picker
-- [ ] **ai-cmd-fmt-14** — Dashboard: **`preview_date_input_parse`** (READ) — sample typed date strings → parsed ISO day for current format (DD/MM vs MM/DD disambiguation)
-- [ ] **ai-cmd-fmt-15** — Provider app: **`explain_provider_date_display`** (READ) — how schedule/booking cards format dates from auth business settings
-- [ ] **ai-cmd-fmt-16** — Provider app: **`configure_provider_push_date_format`** — when push notification bodies ship; format booking times in FCM payload using business `timeFormat` (deferred fmt-1.8 push)
-- [ ] **ai-cmd-fmt-17** — Classifier rules + eval cases for date-input parse preview and provider date-format phrasing (EN/HY/RU)
+- [x] **ai-cmd-fmt-1** — Dashboard: **`configure_business_date_format`** — "Use US date format", "Switch to 12-hour time", "Set ISO dates for our salon"
+- [x] **ai-cmd-fmt-2** — Dashboard: **`explain_business_date_format`** (READ) — current date/time format, example of today's date in each format
+- [x] **ai-cmd-fmt-3** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for date format configuration phrasing (EN/HY/RU)
+- [x] **ai-cmd-fmt-4** — Customer/public: **`explain_booking_date_format`** — READ when user asks why dates show as DD/MM vs MM/DD on booking page
+- [x] **ai-cmd-fmt-5** — Dashboard: **`preview_business_date_format`** (READ) — sample booking date/time in current vs alternate formats before saving settings
+- [x] **ai-cmd-fmt-6** — Dashboard: **`audit_dashboard_date_surfaces`** (READ) — list pages/components still using locale/`toLocaleString` vs business format cache (deferred fmt-1.6 sweep)
+- [x] **ai-cmd-fmt-7** — Dashboard: **`migrate_dashboard_date_display`** — guided sweep to replace remaining raw `Intl`/`toLocale*` calls with `formatDateDisplay` / `formatTimeDisplay` (deferred surfaces)
+- [x] **ai-cmd-fmt-8** — Classifier rules + eval cases for dashboard date-format preview and audit phrasing (EN/HY/RU)
+- [x] **ai-cmd-fmt-9** — Dashboard: **`explain_notification_date_format`** (READ) — how booking confirmation/reminder emails and WhatsApp messages format dates vs dashboard display
+- [x] **ai-cmd-fmt-10** — Dashboard: **`preview_notification_datetime`** (READ) — sample confirmation/reminder/gift-card message with current business date/time format
+- [x] **ai-cmd-fmt-11** — Dashboard: **`notify_patient_result_ready`** — when **vert-clinic-1.7** ships; uses `formatResultReadyNotificationWhen` in result-ready email/WhatsApp
+- [x] **ai-cmd-fmt-12** — Classifier rules + eval cases for notification date-format and result-ready phrasing (EN/HY/RU)
+- [x] **ai-cmd-fmt-13** — Dashboard: **`explain_date_input_format`** (READ) — how typed date fields parse input for current business `dateFormat` vs calendar picker
+- [x] **ai-cmd-fmt-14** — Dashboard: **`preview_date_input_parse`** (READ) — sample typed date strings → parsed ISO day for current format (DD/MM vs MM/DD disambiguation)
+- [x] **ai-cmd-fmt-15** — Provider app: **`explain_provider_date_display`** (READ) — how schedule/booking cards format dates from auth business settings
+- [x] **ai-cmd-fmt-16** — Provider app: **`configure_provider_push_date_format`** — when push notification bodies ship; format booking times in FCM payload using business `timeFormat` (deferred fmt-1.8 push)
+- [x] **ai-cmd-fmt-17** — Classifier rules + eval cases for date-input parse preview and provider date-format phrasing (EN/HY/RU)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -443,21 +453,21 @@ cd frontend && npm run test:sprint31
 
 ### tax-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
-- [ ] **ai-cmd-tax-1** — Dashboard: **`configure_business_tax`** — "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%"
-- [ ] **ai-cmd-tax-2** — Dashboard: **`set_service_tax_rate`** — "Make massage services tax-exempt", "Apply 10% tax to medical consultations only"
-- [ ] **ai-cmd-tax-3** — Dashboard: **`explain_business_tax`** (READ) — current tax name, rate, model, tax number; example breakdown on a sample price
-- [ ] **ai-cmd-tax-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tax configuration phrasing (EN/HY/RU)
-- [ ] **ai-cmd-tax-5** — Customer/public: **`explain_checkout_tax`** — READ when user asks why tax was added or what "incl. VAT" means on service cards
-- [ ] **ai-cmd-tax-6** — Dashboard: **`configure_stacked_tax_rules`** — "Add 5% GST and 8% PST", "Stack federal and state sales tax", "Remove the state tax rule"
-- [ ] **ai-cmd-tax-7** — Dashboard: **`explain_stacked_tax`** (READ) — list each stacked rule, combined effective rate, example breakdown on a sample price (exclusive vs inclusive)
-- [ ] **ai-cmd-tax-8** — Classifier rules + eval cases for stacked-tax phrasing (EN/HY/RU): "GST plus PST", "federal and provincial tax"
-- [ ] **ai-cmd-tax-9** — Dashboard: **`explain_stripe_tax_charge`** (READ) — why Stripe charged X (inclusive gross vs exclusive net+tax); link to booking `metadata.pricing` tax fields
-- [ ] **ai-cmd-tax-10** — Support: **`lookup_booking_tax_metadata`** (READ) — retrieve tax breakdown from booking metadata after Stripe checkout (for disputes/receipts)
-- [ ] **ai-cmd-tax-11** — Provider app: **`explain_appointment_tax`** (READ) — tax lines on booking detail, inclusive vs exclusive, amount collected when marked paid
-- [ ] **ai-cmd-tax-12** — Dashboard: **`quote_staff_booking_tax`** (READ) — preview tax on a service before staff creates a booking; explain stacked rules vs service override
-- [ ] **ai-cmd-tax-13** — Dashboard: **`summarize_customer_tax_paid`** (READ) — total tax paid across customer appointment history from profile metadata
-- [ ] **ai-cmd-tax-14** — Consumer app: **`explain_consumer_checkout_tax`** (READ) — checkout/confirmation tax breakdown, inclusive badge on service list
-- [ ] **ai-cmd-tax-15** — Classifier rules + eval cases for provider/dashboard/consumer tax display phrasing (EN)
+- [x] **ai-cmd-tax-1** — Dashboard: **`configure_business_tax`** — "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%"
+- [x] **ai-cmd-tax-2** — Dashboard: **`set_service_tax_rate`** — "Make massage services tax-exempt", "Apply 10% tax to medical consultations only"
+- [x] **ai-cmd-tax-3** — Dashboard: **`explain_business_tax`** (READ) — current tax name, rate, model, tax number; example breakdown on a sample price
+- [x] **ai-cmd-tax-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tax configuration phrasing (EN/HY/RU)
+- [x] **ai-cmd-tax-5** — Customer/public: **`explain_checkout_tax`** — READ when user asks why tax was added or what "incl. VAT" means on service cards
+- [x] **ai-cmd-tax-6** — Dashboard: **`configure_stacked_tax_rules`** — "Add 5% GST and 8% PST", "Stack federal and state sales tax", "Remove the state tax rule"
+- [x] **ai-cmd-tax-7** — Dashboard: **`explain_stacked_tax`** (READ) — list each stacked rule, combined effective rate, example breakdown on a sample price (exclusive vs inclusive)
+- [x] **ai-cmd-tax-8** — Classifier rules + eval cases for stacked-tax phrasing (EN/HY/RU): "GST plus PST", "federal and provincial tax"
+- [x] **ai-cmd-tax-9** — Dashboard: **`explain_stripe_tax_charge`** (READ) — why Stripe charged X (inclusive gross vs exclusive net+tax); link to booking `metadata.pricing` tax fields
+- [x] **ai-cmd-tax-10** — Support: **`lookup_booking_tax_metadata`** (READ) — retrieve tax breakdown from booking metadata after Stripe checkout (for disputes/receipts)
+- [x] **ai-cmd-tax-11** — Provider app: **`explain_appointment_tax`** (READ) — tax lines on booking detail, inclusive vs exclusive, amount collected when marked paid
+- [x] **ai-cmd-tax-12** — Dashboard: **`quote_staff_booking_tax`** (READ) — preview tax on a service before staff creates a booking; explain stacked rules vs service override
+- [x] **ai-cmd-tax-13** — Dashboard: **`summarize_customer_tax_paid`** (READ) — total tax paid across customer appointment history from profile metadata
+- [x] **ai-cmd-tax-14** — Consumer app: **`explain_consumer_checkout_tax`** (READ) — checkout/confirmation tax breakdown, inclusive badge on service list
+- [x] **ai-cmd-tax-15** — Classifier rules + eval cases for provider/dashboard/consumer tax display phrasing (EN)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -466,27 +476,27 @@ cd frontend && npm run test:sprint31
 
 ### compliance-1.4 — AI commands (planned — link to **ai-cmd-h** / implement later)
 
-- [ ] **ai-cmd-compliance-1** — Dashboard: **`configure_privacy_retention`** — "Keep customer data for 3 years", "Enable cookie banner on our booking page"
-- [ ] **ai-cmd-compliance-2** — Dashboard: **`configure_granular_consent`** — "Require AI processing consent at checkout", "Ask for third-party integration consent"
-- [ ] **ai-cmd-compliance-3** — Dashboard: **`enable_hipaa_mode`** (clinic only) — "Enable HIPAA safeguards", "Set 15-minute session timeout for HIPAA"
-- [ ] **ai-cmd-compliance-4** — Dashboard: **`explain_compliance_status`** (READ) — GDPR checklist, HIPAA/BAA status, retention periods, sub-processors
-- [ ] **ai-cmd-compliance-5** — Dashboard: **`admin_delete_customer_data`** — "Forget this customer" / anonymize PII from customer profile
-- [ ] **ai-cmd-compliance-6** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for compliance configuration phrasing (EN/HY/RU)
-- [ ] **ai-cmd-compliance-7** — Customer/public: **`explain_data_rights`** — READ when user asks about export, delete, or cookie banner
-- [ ] **ai-cmd-compliance-8** — Dashboard (owner): **`report_data_breach`** — "Report a data breach", "Log security incident affecting customer emails"
-- [ ] **ai-cmd-compliance-9** — Dashboard (owner, READ): **`list_breach_incidents`** — "Show breach incidents", "What is our GDPR 72-hour deadline?"
-- [ ] **ai-cmd-compliance-10** — Dashboard (owner, READ): **`view_phi_access_audit`** — "Who accessed patient notes?", "Show HIPAA PHI audit log for last week"
-- [ ] **ai-cmd-compliance-11** — Dashboard (clinic, READ): **`explain_phi_encryption_status`** — "Is HIPAA encryption on?", "Are referral notes encrypted at rest?"
-- [ ] **ai-cmd-compliance-12** — Dashboard (READ): **`explain_minimum_necessary_phi_access`** — "Who can see patient notes?", "What PHI can staff access?"
-- [ ] **ai-cmd-compliance-13** — Dashboard (clinic, READ): **`explain_hipaa_session_timeout`** — "When will I be logged out?", "What is our HIPAA session timeout?"
-- [ ] **ai-cmd-compliance-14** — Dashboard: **`configure_hipaa_session_timeout`** — "Set HIPAA timeout to 10 minutes", "Require 15-minute auto logout"
-- [ ] **ai-cmd-compliance-15** — Classifier + eval: block/redact prompts that embed PHI field payloads in AI context when HIPAA on (extends **compliance-1.15**)
-- [ ] **ai-cmd-compliance-16** — Dashboard (owner): **`accept_hipaa_baa`** — "Accept the HIPAA business associate agreement", "Sign BAA to enable HIPAA mode"
-- [ ] **ai-cmd-compliance-17** — Dashboard (owner, READ): **`list_sub_processors`** — "Who are our data sub-processors?", "Show Article 28 processor list"
-- [ ] **ai-cmd-compliance-18** — Dashboard (owner, READ): **`explain_gdpr_checklist`** — "Are we GDPR compliant?", "What privacy items are still missing?"
-- [ ] **ai-cmd-compliance-19** — Dashboard (owner): **`send_breach_notification`** — "Email affected customers about breach BR-42", "Send draft breach notice for incident X"
-- [ ] **ai-cmd-compliance-20** — Provider app (clinic): **`explain_provider_session_timeout`** (READ) — "When will the provider app log me out?" (**compliance-1.13** provider deferred)
-- [ ] **ai-cmd-compliance-21** — Dashboard (owner, READ): **`open_compliance_dashboard`** — "Open compliance settings", "Take me to breach log" (**compliance-1.16** dedicated page deferred → deep-link into Settings → Compliance panels)
+- [x] **ai-cmd-compliance-1** — Dashboard: **`configure_privacy_retention`** — "Keep customer data for 3 years", "Enable cookie banner on our booking page"
+- [x] **ai-cmd-compliance-2** — Dashboard: **`configure_granular_consent`** — "Require AI processing consent at checkout", "Ask for third-party integration consent"
+- [x] **ai-cmd-compliance-3** — Dashboard: **`enable_hipaa_mode`** (clinic only) — "Enable HIPAA safeguards", "Set 15-minute session timeout for HIPAA"
+- [x] **ai-cmd-compliance-4** — Dashboard: **`explain_compliance_status`** (READ) — GDPR checklist, HIPAA/BAA status, retention periods, sub-processors
+- [x] **ai-cmd-compliance-5** — Dashboard: **`admin_delete_customer_data`** — "Forget this customer" / anonymize PII from customer profile
+- [x] **ai-cmd-compliance-6** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for compliance configuration phrasing (EN/HY/RU)
+- [x] **ai-cmd-compliance-7** — Customer/public: **`explain_data_rights`** — READ when user asks about export, delete, or cookie banner
+- [x] **ai-cmd-compliance-8** — Dashboard (owner): **`report_data_breach`** — "Report a data breach", "Log security incident affecting customer emails"
+- [x] **ai-cmd-compliance-9** — Dashboard (owner, READ): **`list_breach_incidents`** — "Show breach incidents", "What is our GDPR 72-hour deadline?"
+- [x] **ai-cmd-compliance-10** — Dashboard (owner, READ): **`view_phi_access_audit`** — "Who accessed patient notes?", "Show HIPAA PHI audit log for last week"
+- [x] **ai-cmd-compliance-11** — Dashboard (clinic, READ): **`explain_phi_encryption_status`** — "Is HIPAA encryption on?", "Are referral notes encrypted at rest?"
+- [x] **ai-cmd-compliance-12** — Dashboard (READ): **`explain_minimum_necessary_phi_access`** — "Who can see patient notes?", "What PHI can staff access?"
+- [x] **ai-cmd-compliance-13** — Dashboard (clinic, READ): **`explain_hipaa_session_timeout`** — "When will I be logged out?", "What is our HIPAA session timeout?"
+- [x] **ai-cmd-compliance-14** — Dashboard: **`configure_hipaa_session_timeout`** — "Set HIPAA timeout to 10 minutes", "Require 15-minute auto logout"
+- [x] **ai-cmd-compliance-15** — Classifier + eval: block/redact prompts that embed PHI field payloads in AI context when HIPAA on (extends **compliance-1.15**)
+- [x] **ai-cmd-compliance-16** — Dashboard (owner): **`accept_hipaa_baa`** — "Accept the HIPAA business associate agreement", "Sign BAA to enable HIPAA mode"
+- [x] **ai-cmd-compliance-17** — Dashboard (owner, READ): **`list_sub_processors`** — "Who are our data sub-processors?", "Show Article 28 processor list"
+- [x] **ai-cmd-compliance-18** — Dashboard (owner, READ): **`explain_gdpr_checklist`** — "Are we GDPR compliant?", "What privacy items are still missing?"
+- [x] **ai-cmd-compliance-19** — Dashboard (owner): **`send_breach_notification`** — "Email affected customers about breach BR-42", "Send draft breach notice for incident X"
+- [x] **ai-cmd-compliance-20** — Provider app (clinic): **`explain_provider_session_timeout`** (READ) — "When will the provider app log me out?" (**compliance-1.13** provider deferred)
+- [x] **ai-cmd-compliance-21** — Dashboard (owner, READ): **`open_compliance_dashboard`** — "Open compliance settings", "Take me to breach log" (**compliance-1.16** dedicated page deferred → deep-link into Settings → Compliance panels)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -586,6 +596,17 @@ cd frontend && npm run test:sprint31
 - [ ] **acc-3.9** — **Multi-intent precision** — improve compound detection so "do X and Y" reliably decomposes; reduce false-compound on single-intent prompts (measured on ambiguity corpus)
 - [ ] **acc-3.10** — **A/B prompt harness** — test system-prompt / few-shot variants against the eval set; promote the variant with best accuracy (ties into ai-e5 A/B infra)
 
+### acc-3.4 — Semantic intent matching (replace brittle regex heuristics)
+
+**Problem:** Context/paraphrase failures — when a user phrases a request with different words that convey the same meaning (e.g. "whoever has a gap soonest" vs "first available"), the deterministic rescue layer (`ai-intent-heuristics.ts`, `ai-intent-rescue.service.ts`) misses it because every phrasing must be anticipated by a hardcoded regex. Today this is handled by literal keyword/pattern heuristics; the better approach is matching by *meaning* instead.
+
+- [ ] **acc-3.11** — **Embedding-based intent matcher** — new `AiSemanticIntentService`: embed the incoming prompt and cosine-match against a curated bank of canonical phrasings per intent (seeded from `ai-command-eval.cases.ts`); above a confidence threshold, resolve the intent without a regex match — runs as a rescue tier *before* falling back to `unknown` (reuse `AiRagService` index)
+- [ ] **acc-3.12** — **Canonical phrasing bank** — per-intent example utterances (EN/HY/RU) stored + embedded once (reuse `AiRagService` + `AiPromptNormalizationService`); eval pipeline can add new paraphrases without code changes
+- [ ] **acc-3.13** — **Per-business paraphrase learning** — feed confirmed corrections and recurring phrasings into the matcher via `AiEntityMemoryService` (build on **acc-3.2**) so a business's own shorthand resolves on the first try
+- [ ] **acc-3.14** — **Heuristic → semantic migration** — incrementally replace the most paraphrase-sensitive regex resolvers (`isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers in `ai-intent-heuristics.ts`) with semantic matches; keep regex only for structured extraction (dates, times, numbers), not for intent meaning
+- [ ] **acc-3.15** — **Confidence + clarify fallback** — low semantic-match confidence routes to smart clarification (**acc-4**) instead of a wrong guess; wrong-execution guardrail stays < 1%
+- [ ] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-command-eval.cases.ts`: each intent gets 5+ lexically-distinct equivalents (EN/HY/RU); CI asserts the semantic matcher resolves them (extends `npm run test:ai-accuracy` / **acc-2.8**)
+
 ---
 
 ## Sprint 41 — AI accuracy: smart clarification & disambiguation
@@ -663,6 +684,297 @@ cd frontend && npm run test:sprint31
 | Per-locale accuracy spread (EN vs HY vs RU) | unknown | < 3 pts |
 | Escalation rate (human handoff) | n/a | < 1% |
 | Eval set size (labeled golden cases) | hundreds | 2,000+ |
+
+---
+
+# Apps Adoption Program — near-99% adoption (Sprints 44–49)
+
+**Goal:** Move the **customer (consumer app + public booking web) and mobile (consumer app + provider app)** experiences from "shipped" to "habitually used." Drive the full adoption funnel toward best-in-class, with the technically-bounded rates at **≥ 99%**: install→activation completion, push opt-in deliverability, crash-free sessions, and notification reach.
+
+**Core principle:** Adoption = (they install) × (they activate) × (they come back) × (they invite others). Every drop-off is **measured before it is fixed**. A feature only counts as "adopted" when telemetry shows real users completing it — not when it ships.
+
+### Adoption ladder (how we climb)
+
+| Stage | What it means | What unlocks it |
+|-------|---------------|-----------------|
+| Baseline (today) | Apps shipped: consumer app (**gap-2.5**), provider app (Sprints 19–22), deep links, Firebase auth, provider push + offline | — |
+| **Stage 1** | We can *see* the funnel | Adoption telemetry (**adopt-1**) |
+| **Stage 2** | More installs that activate | Acquisition + attribution (**adopt-2**) + frictionless activation (**adopt-3**) |
+| **Stage 3** | Users come back | Retention, **consumer push**, lifecycle (**adopt-4**) |
+| **Stage 4** | Fast, reliable, trusted | Performance + crash-free + ratings (**adopt-5**) |
+| **Stage 5** | The funnel compounds | Referral + habit loops; exit gate (**adopt-6**) |
+
+**Why this order:** like the AI Accuracy Program, you cannot improve what you cannot measure. Funnel telemetry (**adopt-1**) ships first; every later sprint is scored against the same funnel so adoption never silently drops.
+
+**Builds on existing infra (do not rebuild):** consumer `deep-link.ts` / `customer-auth.ts` / `recent-salons.ts` / `branding.ts` / `tenant-locale.ts` / `product-recommendation-analytics.ts` / `google-auth.ts`; provider `provider-native-push.util.ts` / `provider-push-deep-link.util.ts` / `provider-push-foreground.util.ts` / `offline-queue.ts` / `use-online-status.ts`; backend `analytics` module + `AiEventsService` + event-store; marketing-automation + loyalty + promo-codes modules; store listings (**gap-1.5**, **gap-2.5.10**); push & offline (**gap-2.1**, **gap-2.3**); onboarding (**gap-6.1**).
+
+> **Note (per `.cursor/rules/feature-ai-prompt-coverage`):** every adoption feature that is user-visible on the customer or provider surface also needs AI command coverage (classifier rules + eval cases, EN/HY/RU). See **adopt-6.6 / adopt-6.7**.
+
+---
+
+## Sprint 44 — Apps adoption: telemetry & funnel measurement
+
+**Goal:** Instrument both mobile apps and the public booking web so the full adoption funnel — install → first open → sign-in → first booking → repeat booking → referral — is measurable per tenant, platform, and locale. **Nothing else in this program works without this.**
+
+- [ ] **adopt-1** — Adoption telemetry & funnel measurement foundation
+
+### adopt-1.1 — Client event SDK (both apps + web)
+- [ ] **adopt-1.1** — Lightweight `analytics` client in consumer + provider apps (extend the existing `product-recommendation-analytics.ts` pattern): typed `track(event, props)` → batched `POST /events/app`; events: `app_installed`, `app_opened`, `signed_in`, `viewed_salon`, `started_booking`, `completed_booking`, `rebooked`, `referral_sent`. Consent-gated (GDPR **compliance-1**) — no PII, businessId + anonymous deviceId only
+- [ ] **adopt-1.2** — Session + device context — platform (iOS/Android/web), app version, locale, tenant slug, cold vs warm start, first-open vs returning; attach to every event
+- [ ] **adopt-1.3** — Backend `app_event` sink — table + ingest endpoint (reuse event-store / `ai_command_trace` migration pattern); indexes on `(businessId, event, createdAt)`, `(platform)`, `(anonId)`; redact + rate-limit
+
+### adopt-1.2 — Funnel & cohort metrics
+- [ ] **adopt-1.4** — Funnel builder — install→open→sign-in→first-booking→repeat conversion per step; drop-off attribution per platform/locale/tenant
+- [ ] **adopt-1.5** — Retention cohorts — D1/D7/D30 return rate; "booked again within 30/60/90 days"; resurrection (win-back) cohort
+- [ ] **adopt-1.6** — Activation definition — "activated user" = installed + signed in + ≥1 completed in-app booking within 7 days; track activation rate as the north-star sub-metric
+- [ ] **adopt-1.7** — Adoption dashboard — extend backend `analytics` module + a dashboard page (mirror the AI-ops accuracy dashboard): funnel, cohorts, push opt-in rate, crash-free %, referral K-factor; alert when weekly activation drops > 2 pts
+
+---
+
+## Sprint 45 — Apps adoption: acquisition & install funnel
+
+**Goal:** Turn intent into installs that attribute correctly, and make the web→app handoff seamless so customers land in the right salon on the first try.
+
+- [ ] **adopt-2** — Acquisition & install funnel
+
+### adopt-2.1 — Store presence (ASO)
+- [ ] **adopt-2.1** — App Store / Play Store optimization — localized titles, keywords, screenshots, preview video per locale (EN/HY/RU); build on listings (**gap-1.5**, **gap-2.5.10**)
+- [ ] **adopt-2.2** — Ratings & reviews flow — in-app prompt at peak-happiness (after a completed booking); route happy → store review, unhappy → support (Zendesk **gap-4.2**); never prompt mid-task
+
+### adopt-2.2 — Web → app handoff & attribution
+- [ ] **adopt-2.3** — Smart app banner on public booking web — "Open in app" / "Get the app" carrying a deferred deep link to the same salon + service
+- [ ] **adopt-2.4** — Deferred deep links + install attribution — capture intended salon/service before install, restore on first open (extend consumer `deep-link.ts`); attribute install source (QR / link / referral / ad)
+- [ ] **adopt-2.5** — QR at venue / on receipts & confirmations — per-tenant QR → install or open app pre-scoped to that salon
+- [ ] **adopt-2.6** — Universal Links + Android App Links verification — https links open the app directly (no chooser), graceful web fallback
+
+### adopt-2.3 — Multi-tenant discovery
+- [ ] **adopt-2.7** — Recent / saved salons home (extend `recent-salons.ts`) — one-tap return to previously-booked salons
+- [ ] **adopt-2.8** — Low-friction tenant switch — remembered tenants list, switch without re-login (build on `customer-auth.ts` + `tenant-locale.ts`)
+
+---
+
+## Sprint 46 — Apps adoption: activation & onboarding
+
+**Goal:** Get a new install to its first completed booking in the fewest taps; remove sign-in friction; earn the push opt-in.
+
+- [ ] **adopt-3** — Activation & onboarding
+
+### adopt-3.1 — Frictionless sign-in
+- [ ] **adopt-3.1** — One-tap social / passwordless — Apple + Google sign-in parity on both apps (build on Firebase auth + `google-auth.ts`); phone-OTP fallback; **guest → account merge** so a guest booking is never lost on sign-up
+- [ ] **adopt-3.2** — Prefill & autofill — name/email/phone autofill, SMS-OTP autofill, saved payment where available; minimize keyboard entry
+
+### adopt-3.2 — First-run value
+- [ ] **adopt-3.3** — First-run value screen — skip generic carousels; land on the intended salon (from deep link) or recent salons; show "book in 3 taps"
+- [ ] **adopt-3.4** — Time-to-first-booking guided flow — Welcome→Salon→Service→Slot→Confirm with nearest-available pre-selected and a progress indicator
+- [ ] **adopt-3.5** — Push opt-in priming — soft pre-prompt explaining value (reminders, "your slot is confirmed") before the OS dialog; ask only after the first booking; track opt-in rate (target ≥ 80%)
+
+### adopt-3.3 — Activation instrumentation
+- [ ] **adopt-3.6** — Wire activation events into the funnel (**adopt-1**); A/B onboarding variants; abandonment recovery — resume an unfinished booking on next open
+
+---
+
+## Sprint 47 — Apps adoption: retention & re-engagement
+
+**Goal:** Bring customers back. The consumer app currently has **no push** — add the full consumer push lifecycle, plus lifecycle campaigns and home-screen presence.
+
+- [ ] **adopt-4** — Retention & re-engagement
+
+### adopt-4.1 — Consumer push (new — consumer app lacks push today)
+- [ ] **adopt-4.1** — Add `@capacitor/push-notifications` to the consumer app + FCM/APNs registration; per-customer+tenant token API (mirror provider `provider-native-push.util.ts`)
+- [ ] **adopt-4.2** — Transactional push — booking confirmed, reminder (24h / 2h), rescheduled/cancelled, result-ready (clinic), gift-card received; deep-link into the right screen (extend `deep-link.ts`)
+- [ ] **adopt-4.3** — Push deep-link + foreground handling parity with the provider app (`provider-push-deep-link.util.ts`, `provider-push-foreground.util.ts`)
+
+### adopt-4.2 — Lifecycle campaigns
+- [ ] **adopt-4.4** — Rebooking nudges — "time for your next appointment" based on service cadence; build on the marketing-automation module
+- [ ] **adopt-4.5** — Win-back — lapsed-customer campaign (no booking in N days) with optional incentive (loyalty / promo)
+- [ ] **adopt-4.6** — Loyalty + offers surfacing — show points/rewards and active promos in-app (loyalty + promo-codes modules) to create a reason to return
+
+### adopt-4.3 — Home-screen presence
+- [ ] **adopt-4.7** — Home-screen widgets — next appointment + quick rebook (iOS WidgetKit / Android App Widget)
+- [ ] **adopt-4.8** — Notification preference center — per-category opt-in/out (reminders / offers / news) so users keep useful push instead of disabling all
+
+---
+
+## Sprint 48 — Apps adoption: performance, reliability & trust
+
+**Goal:** Make both apps fast, crash-free, and trustworthy so they are kept and used — technically-bounded rates **≥ 99%**.
+
+- [ ] **adopt-5** — Performance, reliability & trust
+
+### adopt-5.1 — Stability
+- [ ] **adopt-5.1** — Crash + error reporting (e.g. Sentry) in both apps; release-health tracking; target crash-free sessions **≥ 99.5%**
+- [ ] **adopt-5.2** — Cold-start & TTI budget — splash→interactive under target; lazy-load + route-level code-split; measure on low-end Android
+
+### adopt-5.2 — Resilience
+- [ ] **adopt-5.3** — Consumer offline resilience — cache recent salons/services, queue + retry booking mutations (mirror provider `offline-queue.ts` / `use-online-status.ts`); clear offline UX
+- [ ] **adopt-5.4** — Network-aware UX — optimistic UI, retry, friendly errors; no dead-ends on flaky networks
+
+### adopt-5.3 — Trust & freshness
+- [ ] **adopt-5.5** — Update nudges — min-supported-version gate with a friendly prompt; remote kill-switch for broken builds
+- [ ] **adopt-5.6** — Accessibility & localization QA — VoiceOver/TalkBack, dynamic type, RTL-safe, full EN/HY/RU coverage on every adoption surface
+- [ ] **adopt-5.7** — Performance/stability CI gates — bundle-size budget, crash-free SLO check, startup-time regression alarm
+
+---
+
+## Sprint 49 — Apps adoption: growth loops, habit & exit criteria
+
+**Goal:** Make adoption compound through referrals and habit, add AI command coverage for the new surfaces, and lock the program's exit gate.
+
+- [ ] **adopt-6** — Growth loops, habit & exit criteria
+
+### adopt-6.1 — Referral & sharing
+- [ ] **adopt-6.1** — Referral program — shareable invite link/code (deferred deep link from **adopt-2.4**); reward both sides (loyalty / promo); track K-factor
+- [ ] **adopt-6.2** — Share a booking / salon — native share sheet with a deep link to the salon/service
+- [ ] **adopt-6.3** — Review solicitation loop — post-visit review prompt feeding tenant reputation; route to store review at peak-happiness (ties **adopt-2.2**)
+
+### adopt-6.2 — Habit
+- [ ] **adopt-6.4** — One-tap rebook of last service/provider/time from Account + widget
+- [ ] **adopt-6.5** — Smart reminder cadence — learn each customer's rebooking interval; nudge at the right time (respect preference center **adopt-4.8**)
+
+### adopt-6.3 — AI command coverage (per `feature-ai-prompt-coverage`)
+- [ ] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface
+- [ ] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; depends on **ai-cmd-h1**
+
+### adopt-6.4 — Program exit criteria
+- [ ] **adopt-6.8** — **Adoption gate met** — rolling 30-day: install→activation ≥ 60%, push opt-in ≥ 80%, crash-free sessions ≥ 99.5%, D30 retention and referral K-factor trending up, all three locales within 3 pts; documented on the adoption dashboard
+
+### Apps adoption success metrics (Sprints 44–49)
+
+| Metric | Baseline | Target |
+|--------|----------|--------|
+| Install → activation (signed in + 1st booking ≤ 7d) | unknown | ≥ 60% |
+| Push opt-in rate (after priming) | n/a (consumer app has no push) | ≥ 80% |
+| Crash-free sessions (both apps) | unknown | ≥ 99.5% |
+| Notification deliverability | n/a | ≥ 99% |
+| D30 retention (booked again ≤ 30d) | unknown | trending ↑ |
+| Referral K-factor | 0 | > 0.2 |
+| Per-locale adoption spread (EN vs HY vs RU) | unknown | < 3 pts |
+| Adoption telemetry coverage (key funnel events instrumented) | ~0% (rec events only) | 100% |
+
+---
+
+# Near-99% Targets Program — clarify, completion, activation, push opt-in (Sprints 50–53)
+
+**Goal:** Push four headline rates from their base-program targets to **near 99%**:
+
+| Metric | Base-program target | This program |
+|--------|--------------------:|-------------:|
+| Clarify → success on next turn | > 90% (**acc-4**) | **near 99%** |
+| No-clarify completion rate | ≥ 90% (acc ladder) | **near 99%** |
+| Install → activation (signed in + 1st booking ≤ 7d) | ≥ 60% (**adopt-3**) | **near 99%** |
+| Push opt-in rate (after priming) | ≥ 80% (**adopt-3.5**) | **near 99%** |
+
+**This is a stretch tier on top of the AI Accuracy (Sprints 38–43) and Apps Adoption (Sprints 44–49) programs — do those first.** The last few points are the hardest; each sprint below names the levers *and* the honest denominator that makes 99% real instead of vanity.
+
+**Guardrail (non-negotiable):** chasing these numbers must not break correctness or trust — wrong-execution stays **< 1%** (**acc-5**) and no dark-pattern opt-ins. A metric "won" by doing the wrong thing or nagging users is a regression, not a win.
+
+---
+
+## Sprint 50 — Near-99%: clarify → success on next turn
+
+**Lever thesis:** when we *do* ask, the next turn should almost always succeed — because we ask the *right* question as a *tappable* choice, carry every known param, and resolve the answer deterministically.
+
+- [ ] **n99-1** — Clarify → success on next turn → near 99%
+
+### n99-1.1 — Make the answer un-missable (tap, don't type)
+- [ ] **n99-1.1** — Structured clarify controls — render every clarify as the right input, not free text: date picker, provider chips, service chips, time-slot list (extend clarify-as-form `ai-command-wizard.tsx`, ai-d4); a tap resolves deterministically
+- [ ] **n99-1.2** — Pre-resolved option sets — for entity ambiguity (2 Annas, 3 "massage" services) show the concrete catalog candidates, never a "type the name again" re-ask (**acc-4.3**)
+- [ ] **n99-1.3** — Single-form multi-field clarify — collect *all* missing fields in one turn (driven by field-level confidence **acc-3.6** + `command-completion.validator.ts`); never serialize into 3 separate questions
+
+### n99-1.2 — Never lose context across the turn
+- [ ] **n99-1.4** — Lossless slot merge — merge the answer into the original intent keeping every earlier param (**acc-4.5**); the merged command is complete and executes immediately
+- [ ] **n99-1.5** — Inline answer validation — reject an answer that still doesn't resolve (e.g. ambiguous date) *before* re-running, with a corrective hint, so a turn is never wasted
+- [ ] **n99-1.6** — Localized + voice/typo-tolerant answers — parse EN/HY/RU and voice-to-text answers ("tomrw", "2pm", "Աննա" all resolve); extend normalization **acc-3.7**
+
+### n99-1.3 — Close the loop on the failures
+- [ ] **n99-1.7** — Per-intent / per-locale clarify→success metric (from `ai_command_trace`, **acc-1**) with a worst-clarifies feed; any clarify that led to abandon/second-clarify is auto-queued to eval labeling (**acc-2**)
+- [ ] **n99-1.8** — "Something else" escape that still routes — an explicit none-of-these option offers the 2–3 closest valid commands as chips (**acc-6.6**) instead of dead-ending
+- [ ] **n99-1.9** — Eval gate — `clarify_followup` cases in `ai-command-eval.cases.ts` assert second-turn success; CI floor ratchets toward 99% (EN/HY/RU)
+
+---
+
+## Sprint 51 — Near-99%: no-clarify completion rate
+
+**Lever thesis:** the best clarify is the one you didn't need — resolve correctly *without asking* by inferring high-confidence defaults, while **never** raising wrong-execution.
+
+- [ ] **n99-2** — No-clarify completion → near 99%
+
+### n99-2.1 — Infer instead of ask (confidence-gated)
+- [ ] **n99-2.1** — High-confidence auto-fill — when a missing param is strongly inferable (last provider, "the usual" service, business default duration, current-screen context), fill it and proceed instead of clarifying; gated by field confidence (**acc-3.6**) and risk tier
+- [ ] **n99-2.2** — Screen/context grounding — pass the current app context (the booking/customer/service on screen) into the command so "book this", "cancel it", "remind her" resolve without asking
+- [ ] **n99-2.3** — Per-business phrasing memory — aliases, nicknames, shorthand learned over time (**acc-3.2**, `ai-entity-memory.service.ts`) so recurring phrasings resolve first try
+- [ ] **n99-2.4** — Few-shot retrieval on by default — top-K similar labeled cases injected into classify (**acc-3.1**, extend `ai-rag.service.ts`) for rare phrasings
+
+### n99-2.2 — Resolve the long tail
+- [ ] **n99-2.5** — Deterministic rescue expansion — mine recurring `suspected_miss` patterns (**acc-1.4**) into no-LLM rescues (**acc-3.8**, `ai-intent-rescue.service.ts`); each one regression-tested
+- [ ] **n99-2.6** — Don't over-ask — audit `command-completion.validator.ts`: required-field lists that force needless clarifies are trimmed where a safe default exists
+
+### n99-2.3 — Keep it honest (the guardrail)
+- [ ] **n99-2.7** — Wrong-execution watchdog — auto-filled/auto-executed commands carry preview + one-tap undo (**acc-5**) and post-exec assertion (**acc-5.4**); if undo/👎 rate on auto-fill rises, the confidence gate auto-tightens
+- [ ] **n99-2.8** — Ambiguous/destructive still clarifies — pushing no-clarify up must never auto-guess a destructive or low-confidence action (those count toward **n99-1**, not as failures)
+- [ ] **n99-2.9** — Eval gate — completion-without-clarify measured on the **acc-2** set; CI floor ratchets toward 99% **while** wrong-execution stays < 1% (both gates must hold)
+
+---
+
+## Sprint 52 — Near-99%: install → activation
+
+**Lever thesis:** an install that arrived *to book a specific salon* should almost always reach a completed first booking — by restoring intent and removing every step between open and confirm.
+
+**Reality / denominator:** 99% is meaningful on **intent-qualified installs** (deferred deep link carrying a target salon/service, **adopt-2.4**). Cold / ad / curiosity installs get a separate, lower bar — don't average them into this number.
+
+- [ ] **n99-3** — Install → activation (intent-qualified, ≤ 7d) → near 99%
+
+### n99-3.1 — Restore intent, kill steps
+- [ ] **n99-3.1** — Deferred deep-link resume — after install, land directly on the intended salon→service→slot→**confirm** (extend `deep-link.ts` + **adopt-2.4**); no re-navigation, no re-search
+- [ ] **n99-3.2** — One-tap sign-in + guest→account merge — Apple/Google one-tap (**adopt-3.1**); a guest can complete the booking and the account merges after, so sign-in is never a wall before activation
+- [ ] **n99-3.3** — Pre-filled, payment-optional booking — slot pre-selected; pay-at-venue / pay-later fallback so a payment hiccup never blocks the first booking (activation ≠ payment)
+
+### n99-3.2 — Recover the stragglers
+- [ ] **n99-3.4** — Abandonment resume — reopen an unfinished booking exactly where it was left on next app open (**adopt-3.6**)
+- [ ] **n99-3.5** — Activation concierge nudges — if not activated within 24h / 72h, a single well-timed push/email with a one-tap resume link (consumer push **adopt-4.1** + marketing-automation module)
+- [ ] **n99-3.6** — Dead-end audit — instrument every step of the qualified-install funnel (**adopt-1.4**); any step with > 1% drop gets a fix ticket
+
+### n99-3.3 — Measure it right
+- [ ] **n99-3.7** — Qualified-install cohort metric — activation tracked separately for intent-qualified vs cold installs; per-locale parity (< 3 pts EN/HY/RU)
+- [ ] **n99-3.8** — A/B the activation path relentlessly — sign-in placement, slot pre-selection, payment timing; promote the variant with the highest qualified activation
+
+---
+
+## Sprint 53 — Near-99%: push opt-in / reachability
+
+**Lever thesis:** "reachable by notification" can approach 99% even though *explicit full opt-in* cannot — via iOS provisional authorization and Android default channels, then upgrading to full opt-in at peak-happiness.
+
+**Reality / denominator:** track **two** numbers — **reachability** (iOS provisional + authorized + Android default-on), targeting **near 99%**; and **explicit full opt-in**, targeting ≥ 80% (**adopt-3.5**). The headline near-99% is reachability; never dark-pattern the explicit prompt.
+
+- [ ] **n99-4** — Push opt-in / reachability → near 99%
+
+### n99-4.1 — Reach without the wall
+- [ ] **n99-4.1** — iOS provisional authorization — request `provisional` so transactional notifications (confirmations, reminders) deliver quietly to Notification Center with **no upfront prompt**; near-100% reachable from first open
+- [ ] **n99-4.2** — Android 13+ POST_NOTIFICATIONS timing — request the runtime permission right after the first booking success (not on launch); pre-13 default-on; consumer push plumbing from **adopt-4.1**
+- [ ] **n99-4.3** — Channel-level notifications — separate transactional (reminders) vs marketing channels so users keep the useful ones (preference center **adopt-4.8**); reachability counts transactional
+
+### n99-4.2 — Earn the full opt-in
+- [ ] **n99-4.4** — Value-first priming at peak-happiness — soft pre-prompt only after a completed booking, framed around "we'll remind you / confirm your slot"; only users who accept see the OS dialog (**adopt-3.5**)
+- [ ] **n99-4.5** — Upgrade provisional → full — after a user engages with a provisional notification, prompt to "keep these on" to convert to full authorization
+- [ ] **n99-4.6** — Re-ask flow for the denied — at a later high-value moment, deep-link to system settings with a one-line reason; never nag (max 1 re-ask)
+
+### n99-4.3 — Measure both numbers
+- [ ] **n99-4.7** — Reachability vs explicit opt-in dashboards (**adopt-1.7**) — track delivered/reachable rate and explicit-grant rate separately, per platform/locale; alert on drops
+- [ ] **n99-4.8** — Deliverability hardening — token refresh, APNs/FCM error handling, silent-failure detection so "reachable" actually delivers (≥ 99% of sends land)
+
+### Near-99% success metrics (Sprints 50–53)
+
+| Metric | Base target | This program |
+|--------|------------:|-------------:|
+| Clarify → success on next turn | > 90% | **near 99%** |
+| No-clarify completion rate | ≥ 90% | **near 99%** |
+| Wrong-execution rate (guardrail — must hold) | < 1% | **< 1%** |
+| Install → activation, intent-qualified (≤ 7d) | ≥ 60% | **near 99%** |
+| Install → activation, cold / ad (separate bar) | — | trending ↑ |
+| Push **reachability** (provisional + authorized + default-on) | n/a | **near 99%** |
+| Push **explicit** full opt-in | ≥ 80% | ≥ 80% (no dark patterns) |
+
+**Exit criteria:** rolling 30-day — all four headline rates at/near 99% on their honest denominators, wrong-execution < 1%, per-locale spread < 3 pts; documented on the AI-ops accuracy dashboard (**acc-1**) and the adoption dashboard (**adopt-1**).
 
 ---
 

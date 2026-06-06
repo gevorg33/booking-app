@@ -117,6 +117,12 @@ export function parseSickEmployeeName(
 
 /** ai-o1 — catalog import from menu text / photo OCR output. */
 export function isImportServicesFromMenuPrompt(prompt: string): boolean {
+  if (
+    /\bpost[- ]?checkout\b/i.test(prompt) &&
+    /\b(?:recommendation|product)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(import|add|create)\b.+\b(?:menu|catalog|photo|image|ocr)\b/i.test(
       prompt,
@@ -224,6 +230,7 @@ export function applyPriceAdjustment(
 
 /** ai-o3 — staff-service matrix by seniority + category. */
 export function isStaffServiceMatrixPrompt(prompt: string): boolean {
+  if (/\bcurrenc/i.test(prompt)) return false;
   if (
     /\bto\s+(?:service\s+)?provider\s+[A-Za-z]/i.test(prompt) ||
     (/\bto\s+[A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?\s*$/i.test(prompt) &&
@@ -388,6 +395,19 @@ export function parseTimeOfDayWindow(
   if (/\bmorning\b/i.test(prompt)) return 'morning';
   if (/\bafternoon\b/i.test(prompt)) return 'afternoon';
   if (/\b(evening|tonight)\b/i.test(prompt)) return 'evening';
+  if (/(?:առավոտ|утр[оа]?м|утром|\butrom\b|\baravot\b)/iu.test(prompt)) {
+    return 'morning';
+  }
+  if (/(?:ցերեկ|дн[её]м|\bdnyom\b|\btserek\b)/iu.test(prompt)) {
+    return 'afternoon';
+  }
+  if (
+    /(?:երեկոյան|երեկո|вечером|вечер|\bvecherom\b|\bvecher\b|\berek\b)/iu.test(
+      prompt,
+    )
+  ) {
+    return 'evening';
+  }
   return null;
 }
 

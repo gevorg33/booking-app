@@ -37,6 +37,13 @@ export function isClinicVerticalBusinessType(
   );
 }
 
+/** Gate booking-detail Results tab by clinic vertical (vert-clinic-1.13; tab UI ships in 1.7). */
+export function shouldShowPatientResultsTab(
+  businessType: string | undefined | null,
+): boolean {
+  return isClinicVerticalBusinessType(businessType);
+}
+
 export function formatClinicServiceTypeBadge(
   serviceType: ClinicServiceType | undefined,
   t: (key: string) => string,

@@ -17,7 +17,26 @@ import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { mergeCompoundStepParams } from './ai-command-entity-params.util.js';
-import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
+import {
+  enrichCompoundSubStepBookingHints,
+  isBookingCompoundSubStepAction,
+  mergeBookingHintsIntoSessionContext,
+} from './ai-compound-booking-hints.util.js';
+import {
+  enrichCompoundSubStepScheduleHints,
+  isScheduleOpsAction,
+  mergeScheduleHintsIntoSessionContext,
+} from './ai-schedule-ops-hints.util.js';
+import {
+  enrichCompoundSubStepPackageMultiHints,
+  isDashboardPackageMultiAction,
+  mergePackageMultiServiceHintsIntoSessionContext,
+} from './ai-package-multi-service-hints.util.js';
+import {
+  enrichCompoundSubStepGiftCardPaymentsHints,
+  isGiftCardPaymentsAction,
+  mergeGiftCardPaymentsHintsIntoSessionContext,
+} from './ai-gift-card-payments-hints.util.js';
 
 export interface CompoundGraphCatalog {
   employees: Employee[];
@@ -222,7 +241,31 @@ export class CompoundCommandGraphService {
       parsed.action,
       state.catalog.employees,
     );
-    enrichBookingTimeHintsFromPrompt(parsed.action, parsedParams, state.prompt);
+    enrichCompoundSubStepBookingHints(
+      parsed.action,
+      parsedParams,
+      state.prompt,
+      state.timeZone,
+    );
+    enrichCompoundSubStepScheduleHints(
+      parsed.action,
+      parsedParams,
+      state.prompt,
+      state.timeZone,
+      state.catalog.employees.map((e) => ({ id: e.id, name: e.name })),
+    );
+    enrichCompoundSubStepPackageMultiHints(
+      parsed.action,
+      parsedParams,
+      state.prompt,
+      state.catalog.employees.map((e) => ({ id: e.id, name: e.name })),
+      state.catalog.customers.map((c) => ({ id: c.id, name: c.name })),
+    );
+    enrichCompoundSubStepGiftCardPaymentsHints(
+      parsed.action,
+      parsedParams,
+      state.prompt,
+    );
     this.completionPipeline.normalizeDateParams(
       parsedParams,
       state.prompt,
@@ -332,10 +375,39 @@ export class CompoundCommandGraphService {
         resolved.enrichedParams,
       );
       if (readResult?.success) {
+        let sessionContext = state.sessionContext;
+        if (isBookingCompoundSubStepAction(parsed.action)) {
+          sessionContext = mergeBookingHintsIntoSessionContext(
+            sessionContext,
+            parsedParams,
+          );
+        }
+        if (isScheduleOpsAction(parsed.action)) {
+          sessionContext = mergeScheduleHintsIntoSessionContext(
+            sessionContext,
+            parsedParams,
+            parsed.action,
+          );
+        }
+        if (isDashboardPackageMultiAction(parsed.action)) {
+          sessionContext = mergePackageMultiServiceHintsIntoSessionContext(
+            sessionContext,
+            parsedParams,
+            parsed.action,
+          );
+        }
+        if (isGiftCardPaymentsAction(parsed.action)) {
+          sessionContext = mergeGiftCardPaymentsHintsIntoSessionContext(
+            sessionContext,
+            parsedParams,
+            parsed.action,
+          );
+        }
         return {
           currentIndex: state.currentIndex + 1,
           plans,
           pendingCancelBookingIds,
+          sessionContext,
           pipelineTrace: [
             ...state.pipelineTrace,
             this.completionPipeline.trace(
@@ -369,11 +441,41 @@ export class CompoundCommandGraphService {
       this.completionPipeline.trace('resolve', parsed.action, sub.reasoning),
     ];
 
+    let sessionContext = state.sessionContext;
+    if (isBookingCompoundSubStepAction(parsed.action)) {
+      sessionContext = mergeBookingHintsIntoSessionContext(
+        sessionContext,
+        parsedParams,
+      );
+    }
+    if (isScheduleOpsAction(parsed.action)) {
+      sessionContext = mergeScheduleHintsIntoSessionContext(
+        sessionContext,
+        parsedParams,
+        parsed.action,
+      );
+    }
+    if (isDashboardPackageMultiAction(parsed.action)) {
+      sessionContext = mergePackageMultiServiceHintsIntoSessionContext(
+        sessionContext,
+        parsedParams,
+        parsed.action,
+      );
+    }
+    if (isGiftCardPaymentsAction(parsed.action)) {
+      sessionContext = mergeGiftCardPaymentsHintsIntoSessionContext(
+        sessionContext,
+        parsedParams,
+        parsed.action,
+      );
+    }
+
     return {
       currentIndex: state.currentIndex + 1,
       plans,
       pendingCancelBookingIds,
       pipelineTrace,
+      sessionContext,
     };
   }
 

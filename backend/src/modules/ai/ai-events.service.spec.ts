@@ -66,6 +66,33 @@ describe('AiEventsService', () => {
     );
   });
 
+  it('emitMisrouteTelemetry forwards failure telemetry payload (ai-cmd-h4.4)', () => {
+    service.emitMisrouteTelemetry('biz-1', {
+      surface: 'dashboard',
+      prompt: 'who is free tomorrow evening for permanent lashes',
+      classifierAction: 'create_booking',
+      rescuedAction: 'check_providers_for_service',
+      rescueReason: 'create_booking_to_check_providers',
+      classifierConfidence: 0.66,
+      compoundStepCount: 1,
+      scenarioId: 'dashboard-create-to-check-providers',
+      misrouted: true,
+      timestamp: '2026-06-06T00:00:00.000Z',
+    });
+    expect(emitBusinessEvent).toHaveBeenCalledWith('biz-1', 'ai.misroute', {
+      surface: 'dashboard',
+      prompt: 'who is free tomorrow evening for permanent lashes',
+      classifierAction: 'create_booking',
+      rescuedAction: 'check_providers_for_service',
+      rescueReason: 'create_booking_to_check_providers',
+      classifierConfidence: 0.66,
+      compoundStepCount: 1,
+      scenarioId: 'dashboard-create-to-check-providers',
+      misrouted: true,
+      timestamp: '2026-06-06T00:00:00.000Z',
+    });
+  });
+
   it('emitAlert forwards in-app alert payload (ai-d19)', () => {
     service.emitAlert('biz-1', {
       alertType: 'conflict',

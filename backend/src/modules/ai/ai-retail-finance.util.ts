@@ -70,7 +70,27 @@ export function isListProductsPrompt(prompt: string): boolean {
   );
 }
 
+function isPostCheckoutRecommendationProductPrompt(prompt: string): boolean {
+  if (
+    /\b(link|attach|connect)\b/i.test(prompt) &&
+    /\bservice\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  return (
+    /\b(add|create|set|update|configure|edit)\b/i.test(prompt) &&
+    /\bproduct\b/i.test(prompt) &&
+    (/\bpost[- ]?checkout\b/i.test(prompt) ||
+      /\bcheckout\s+recommendation/i.test(prompt) ||
+      /\brecommendation\s+product/i.test(prompt) ||
+      /\bproduct\s+recommendation/i.test(prompt) ||
+      /\bafter\s+checkout\b/i.test(prompt) ||
+      /\brecommendation\s+carousel\b/i.test(prompt))
+  );
+}
+
 export function isCreateProductPrompt(prompt: string): boolean {
+  if (isPostCheckoutRecommendationProductPrompt(prompt)) return false;
   return (
     /\b(create|add)\b/i.test(prompt) &&
     /\bproduct\b/i.test(prompt) &&
@@ -78,7 +98,18 @@ export function isCreateProductPrompt(prompt: string): boolean {
   );
 }
 
+function isCheckoutRecommendationLinkPrompt(prompt: string): boolean {
+  return (
+    /\b(?:recommended|recommendation|checkout|post[- ]?checkout)\b/i.test(
+      prompt,
+    ) &&
+    /\b(?:link|attach|set|recommend|suggest)\b/i.test(prompt) &&
+    /\b(?:service|category)\b/i.test(prompt)
+  );
+}
+
 export function isLinkProductToServicePrompt(prompt: string): boolean {
+  if (isCheckoutRecommendationLinkPrompt(prompt)) return false;
   return (
     /\b(link|attach|connect)\b/i.test(prompt) &&
     /\bservice\b/i.test(prompt) &&
@@ -148,6 +179,14 @@ export function isPayoutExportPrompt(prompt: string): boolean {
 }
 
 export function isSuggestRetailUpsellPrompt(prompt: string): boolean {
+  if (
+    /\b(recommend|suggest)\b/i.test(prompt) &&
+    /\b(?:after|for|following)\s+(?:the\s+)?[A-Za-z][\w\s'-]+\s+service\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(suggest|recommend)\b/i.test(prompt) &&
     /\b(retail|product|upsell)\b/i.test(prompt)

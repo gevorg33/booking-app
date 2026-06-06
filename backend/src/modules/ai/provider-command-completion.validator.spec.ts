@@ -57,10 +57,30 @@ describe('provider-command-completion.validator (ai-cmd-t4)', () => {
     expect(result.issues.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('reschedule_booking passes with first-available and timeOfDay', () => {
+    const result = validateProviderCommand('reschedule_booking', {
+      customerName: 'John',
+      bookingFirstAvailable: true,
+      timeOfDay: 'evening',
+      notBeforeTime: '17:00',
+    });
+    expect(result.ok).toBe(true);
+    expect(result.issues.some((i) => i.field === 'timeSlot')).toBe(false);
+  });
+
   it('check_availability requires date', () => {
     const result = validateProviderCommand('check_availability', {});
     expect(result.ok).toBe(false);
     expect(result.issues[0]?.field).toBe('date');
+  });
+
+  it('check_availability passes with timeOfDay window', () => {
+    expect(
+      validateProviderCommand('check_availability', {
+        timeOfDay: 'afternoon',
+        notBeforeTime: '12:00',
+      }).ok,
+    ).toBe(true);
   });
 
   it('block_schedule requires employee and date', () => {

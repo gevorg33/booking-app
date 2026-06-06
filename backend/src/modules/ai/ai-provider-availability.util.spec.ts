@@ -149,8 +149,23 @@ describe('buildCheckProvidersSummary', () => {
       providers: [],
     });
 
-    expect(result.summary).toContain('No providers available');
+    expect(result.summary).toContain('No providers are free');
+    expect(result.summary).toMatch(/another date|time of day/i);
     expect(result.availableProviders).toEqual([]);
     expect(result.availability).toEqual([]);
+  });
+
+  it('suggests morning and afternoon when evening has no providers', () => {
+    const result = buildCheckProvidersSummary({
+      serviceName: 'massage',
+      dateKey: '2026-06-07',
+      providers: [],
+      timeOfDay: 'evening',
+      notBeforeTime: '17:00',
+    });
+
+    expect(result.summary).toContain('evening');
+    expect(result.summary).toContain('morning');
+    expect(result.summary).toContain('afternoon');
   });
 });

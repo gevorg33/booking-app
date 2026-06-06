@@ -103,11 +103,22 @@ describe('AiIntentRescueService', () => {
     expect(result?.params.timeSlot).toBeUndefined();
   });
 
-  it('disambiguates create_booking misclassified as availability query', () => {
+  it('disambiguates create_booking misclassified as team availability query', () => {
     const result = rescue.rescue({
       prompt: 'Who can do facemassage today at 9?',
       action: 'create_booking',
       params: { serviceName: 'facemassage', timeSlot: '09:00' },
+      employees,
+    });
+    expect(result?.action).toBe('check_providers_for_service');
+    expect(result?.rescued).toBe(true);
+  });
+
+  it('disambiguates create_booking misclassified as staff assignment lookup', () => {
+    const result = rescue.rescue({
+      prompt: 'who is doing facemassage today',
+      action: 'create_booking',
+      params: { serviceName: 'facemassage' },
       employees,
     });
     expect(result?.action).toBe('lookup_service_assignment');

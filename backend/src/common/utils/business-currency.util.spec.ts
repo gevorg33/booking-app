@@ -3,6 +3,7 @@ import {
   formatBusinessMoney,
   getBusinessDefaultCurrency,
   isStripeChargeCurrencySupported,
+  listStripeChargeCurrencyCodes,
   isSupportedBusinessCurrency,
   normalizeBusinessCurrency,
   resolvePriceCurrency,
@@ -127,6 +128,13 @@ describe('business-currency.util', () => {
 
     it('rejects unknown Stripe currencies', () => {
       expect(isStripeChargeCurrencySupported('xyz')).toBe(false);
+    });
+
+    it('lists uppercase Stripe charge ISO codes', () => {
+      const codes = listStripeChargeCurrencyCodes();
+      expect(codes).toContain('EUR');
+      expect(codes).toContain('AMD');
+      expect(codes.every((code) => code === code.toUpperCase())).toBe(true);
     });
   });
 

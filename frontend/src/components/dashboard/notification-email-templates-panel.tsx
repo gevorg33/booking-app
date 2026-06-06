@@ -6,7 +6,11 @@ import { Mail, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n, LOCALE_LABELS, type AppLocale } from '@/i18n';
-import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
+import { readSettingsFromAuthBusiness } from '@/hooks/use-business-enabled-locales';
+import {
+  readBusinessDefaultLocale,
+  readBusinessEnabledLocales,
+} from '@/lib/business-locale';
 import {
   emailTemplateDescription,
   emailTemplateLabel,
@@ -69,10 +73,24 @@ const inputClass =
 /** Hide until custom-variable UX is clearer (footerNote, discoverability). */
 const SHOW_EMAIL_CUSTOM_VARIABLES_UI = false;
 
-export function NotificationEmailTemplatesPanel() {
+export function NotificationEmailTemplatesPanel({ businessId }: { businessId: string }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
-  const { enabledLocales, defaultLocale } = useBusinessEnabledLocales();
+  const localeSettings = useMemo(
+    () =>
+      readSettingsFromAuthBusiness(
+        business as unknown as Record<string, unknown> | null | undefined,
+      ),
+    [business],
+  );
+  const enabledLocales = useMemo(
+    () => readBusinessEnabledLocales(localeSettings),
+    [localeSettings],
+  );
+  const defaultLocale = useMemo(
+    () => readBusinessDefaultLocale(localeSettings),
+    [localeSettings],
+  );
   const queryClient = useQueryClient();
   const [selectedKey, setSelectedKey] = useState<EmailTemplateKey>('booking_confirmation');
   const [activeLocale, setActiveLocale] = useState<AppLocale>(defaultLocale);
@@ -87,12 +105,11 @@ export function NotificationEmailTemplatesPanel() {
   const [saved, setSaved] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['email-templates', business?.id],
+    queryKey: ['email-templates', businessId],
     queryFn: async () => {
-      const { data: res } = await api.get(`/businesses/${business!.id}/notifications/email-templates`);
+      const { data: res } = await api.get(`/businesses/${businessId}/notifications/email-templates`);
       return (res.data || res) as EmailTemplatesResponse;
     },
-    enabled: !!business?.id,
   });
 
   const selected = useMemo(
@@ -108,8 +125,10 @@ export function NotificationEmailTemplatesPanel() {
 
   useEffect(() => {
     if (!selected) return;
+    if (!enabledLocales.includes(activeLocale)) return;
     const localeContent =
-      selected.byLocale?.[activeLocale] ?? {
+      selected.byLocale?.[activeLocale] ??
+      selected.byLocale?.[defaultLocale] ?? {
         subject: selected.subject,
         bodyText: selected.bodyText,
         bodyHtml: selected.bodyHtml,
@@ -122,7 +141,7 @@ export function NotificationEmailTemplatesPanel() {
         bodyHtml: localeContent.bodyHtml,
       }),
     );
-  }, [selected, activeLocale]);
+  }, [selected, activeLocale, defaultLocale, enabledLocales]);
 
   useEffect(() => {
     if (data?.customVariables) queueMicrotask(() => setCustomVars(data.customVariables));
@@ -132,7 +151,7 @@ export function NotificationEmailTemplatesPanel() {
     mutationFn: async () => {
       if (!draft) return;
       const { data: res } = await api.put(
-        `/businesses/${business!.id}/notifications/email-templates/${selectedKey}`,
+        `/businesses/${businessId}/notifications/email-templates/${selectedKey}`,
         {
           enabled: draft.enabled,
           locales: {
@@ -149,7 +168,7 @@ export function NotificationEmailTemplatesPanel() {
     onSuccess: () => {
       setError(null);
       setSaved(true);
-      queryClient.invalidateQueries({ queryKey: ['email-templates', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['email-templates', businessId] });
       setTimeout(() => setSaved(false), 2000);
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('errors.saveFailed')),
@@ -158,12 +177,12 @@ export function NotificationEmailTemplatesPanel() {
   const resetTemplate = useMutation({
     mutationFn: async () => {
       const { data: res } = await api.put(
-        `/businesses/${business!.id}/notifications/email-templates/${selectedKey}/reset`,
+        `/businesses/${businessId}/notifications/email-templates/${selectedKey}/reset`,
       );
       return res.data || res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-templates', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['email-templates', businessId] });
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('errors.saveFailed')),
   });
@@ -171,13 +190,13 @@ export function NotificationEmailTemplatesPanel() {
   const saveCustomVars = useMutation({
     mutationFn: async () => {
       const { data: res } = await api.put(
-        `/businesses/${business!.id}/notifications/email-templates/custom-variables`,
+        `/businesses/${businessId}/notifications/email-templates/custom-variables`,
         { variables: customVars.filter((v) => v.key.trim()) },
       );
       return res.data || res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-templates', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['email-templates', businessId] });
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('errors.saveFailed')),
   });
@@ -195,8 +214,6 @@ export function NotificationEmailTemplatesPanel() {
   function removeCustomVariable(index: number) {
     setCustomVars((prev) => prev.filter((_, i) => i !== index));
   }
-
-  if (!business?.id) return null;
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-800 pt-6">

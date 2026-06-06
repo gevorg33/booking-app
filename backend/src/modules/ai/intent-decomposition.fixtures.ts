@@ -29,6 +29,25 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     noLlm: true,
   },
   {
+    id: 'customer_gift_card_checkout_compound',
+    surface: 'customer',
+    prompt:
+      'Book nearest slot for massage tomorrow and apply gift card GCM-ABCD1234 and choose payment method',
+    orderedActions: [
+      'book_nearest_slot',
+      'apply_gift_card_code',
+      'choose_payment_method',
+    ],
+    noLlm: true,
+  },
+  {
+    id: 'customer_physical_gift_card_handoff',
+    surface: 'customer',
+    prompt: 'Buy physical gift card $100 and track my order',
+    orderedActions: ['buy_gift_card_physical', 'track_physical_gift_card_order'],
+    noLlm: true,
+  },
+  {
     id: 'customer_availability_then_book_cash',
     surface: 'customer',
     prompt:
@@ -59,6 +78,29 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     prompt:
       'Cancel package visit for customer Anna and notify waitlist about the slot',
     orderedActions: ['cancel_package_visit', 'fill_slot_from_waitlist'],
+    noLlm: true,
+  },
+  {
+    id: 'dashboard_package_line_checkout',
+    surface: 'dashboard',
+    prompt:
+      'Check package line availability for Spa Day tomorrow and book for James at 2pm',
+    orderedActions: [
+      'check_package_line_availability',
+      'create_package_booking',
+    ],
+    noLlm: true,
+  },
+  {
+    id: 'dashboard_multi_service_cart_checkout',
+    surface: 'dashboard',
+    prompt:
+      'Add haircut and beard trim to cart, check block availability Tuesday, and book for Maria at 10am with Anna',
+    minSteps: 2,
+    actions: [
+      'check_multi_service_block_availability',
+      'create_multi_service_booking',
+    ],
     noLlm: true,
   },
   {

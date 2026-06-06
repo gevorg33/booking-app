@@ -12,6 +12,7 @@ import type {
   SharedEntityParamValue,
   SharedPaymentMethod,
 } from './ai-command-entity-params.types.js';
+import { propagateSharedBookingContextAcrossSteps } from './ai-compound-booking-context.util.js';
 import { SHARED_ENTITY_PARAM_IDS } from './ai-command-entity-params.types.js';
 
 const ENTITY_ID_CAPTURE = '([a-z0-9][a-z0-9-]{5,})';
@@ -395,6 +396,15 @@ export function propagateSharedEntityParamsAcrossSteps<
     }
     return { ...step, params: mergedParams };
   });
+}
+
+/** Forward-fill shared entity + booking context across compound steps (ai-cmd-h2). */
+export function propagateCompoundStepParamsAcrossSteps<
+  T extends CompoundStepWithParams,
+>(steps: T[]): T[] {
+  return propagateSharedBookingContextAcrossSteps(
+    propagateSharedEntityParamsAcrossSteps(steps),
+  );
 }
 
 export function enrichParamsWithSharedEntities(

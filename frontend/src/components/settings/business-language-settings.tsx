@@ -10,11 +10,13 @@ import {
   readBusinessEnabledLocales,
 } from '@/lib/business-locale';
 import { fetchBusinessSettings, unwrapBusinessApiPayload } from '@/lib/business-query';
+import { useAuthStore } from '@/lib/store';
 import { ToggleChoice } from '@/components/ui/radio-choice';
 
 export function BusinessLanguageSettings({ businessId }: { businessId: string }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const { user, token, business, businesses, employee, setAuth } = useAuthStore();
   const [enabledLocales, setEnabledLocales] = useState<AppLocale[]>([...SUPPORTED_LOCALES]);
   const [defaultLocale, setDefaultLocale] = useState<AppLocale>('en');
   const [saved, setSaved] = useState(false);
@@ -52,6 +54,30 @@ export function BusinessLanguageSettings({ businessId }: { businessId: string })
       queryClient.invalidateQueries({ queryKey: ['business', businessId] });
       queryClient.invalidateQueries({ queryKey: ['business-settings', businessId] });
       queryClient.invalidateQueries({ queryKey: ['business-profile', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['email-templates', businessId] });
+
+      if (user && token && business?.id === businessId) {
+        const currentSettings =
+          (business as { settings?: Record<string, unknown> }).settings ?? {};
+        setAuth(
+          user,
+          {
+            ...business,
+            locale: defaultLocale,
+            enabledLocales,
+            defaultLocale,
+            settings: {
+              ...currentSettings,
+              enabledLocales,
+              defaultLocale,
+              locale: defaultLocale,
+            },
+          } as typeof business,
+          token,
+          { businesses, employee },
+        );
+      }
+
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
     },

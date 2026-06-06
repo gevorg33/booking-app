@@ -24,18 +24,20 @@ import { normalizeAvailableProviders } from '@/lib/ai-available-providers.util';
 import { useAiEvents } from '@/lib/use-ai-events';
 import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
 import {
+  extractDashboardNavigate,
   extractSessionContext,
   findLastUndoableMessageId,
   mergeSessionContext,
   shouldInvalidateAfterAi,
   type AiCommandSessionContext,
 } from '@/lib/ai-command-bar.util';
+import { buildDashboardNavigateUrl } from '@/lib/compliance-dashboard-nav';
 import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
 import { AiCommandWizard, type WizardStepView } from '@/components/ai-command-wizard';
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useI18n } from '@/i18n';
 import type { OnboardingAiStep } from '@/lib/ai-onboarding.util';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
@@ -70,6 +72,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -264,6 +267,15 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     [approvingId, business?.id, queryClient, t],
   );
 
+  const followDashboardNavigate = useCallback(
+    (details?: Record<string, unknown>) => {
+      const navigate = extractDashboardNavigate(details);
+      if (!navigate) return;
+      router.push(buildDashboardNavigateUrl(navigate));
+    },
+    [router],
+  );
+
   const confirmExecution = useCallback(
     async (msg: Message) => {
       const prompt = String(msg.details?.confirmationPrompt ?? '').trim();
@@ -298,6 +310,9 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           },
         ]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+        if (result.success) {
+          followDashboardNavigate(result.details as Record<string, unknown> | undefined);
+        }
         if (shouldInvalidateAfterAi(result.action, result.success)) {
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
@@ -318,7 +333,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         setConfirmingId(null);
       }
     },
-    [business?.id, confirmingId, loading, messages, pathname, queryClient, sessionContext, t],
+    [business?.id, confirmingId, followDashboardNavigate, loading, messages, pathname, queryClient, sessionContext, t],
   );
 
   const handleVoiceError = useCallback(
@@ -377,6 +392,10 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         setMessages((prev) => [...prev, assistantMsg]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
 
+        if (result.success) {
+          followDashboardNavigate(result.details as Record<string, unknown> | undefined);
+        }
+
         if (shouldInvalidateAfterAi(result.action, result.success)) {
           invalidateAfterMutation(queryClient);
           queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
@@ -401,7 +420,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         setLoading(false);
       }
     },
-    [business?.id, loading, queryClient, messages, sessionContext, pathname, t],
+    [business?.id, followDashboardNavigate, loading, queryClient, messages, sessionContext, pathname, t],
   );
 
   const submit = useCallback(() => {

@@ -105,12 +105,52 @@ describe('Sprint 19 provider AI commands integration', () => {
       {
         isPushNotificationsCompound: jest.fn(() => false),
         handlePushNotificationsCompound: jest.fn(),
+        rescuePushNotificationsIntent: jest.fn(() => null),
       } as any,
       {
         isProviderBookingCompound: jest.fn(() => false),
         handleProviderBookingCompound: jest.fn(),
         rescueProviderBookingIntent: jest.fn(() => null),
       } as any,
+      {
+        handleExplainProviderPaymentCurrency: jest.fn(async () => ({
+          success: true,
+          action: 'explain_provider_payment_currency',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainProviderDateDisplay: jest.fn(async () => ({
+          success: true,
+          action: 'explain_provider_date_display',
+          summary: 'ok',
+          details: {},
+        })),
+        handleConfigureProviderPushDateFormat: jest.fn(async () => ({
+          success: true,
+          action: 'configure_provider_push_date_format',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainAppointmentTax: jest.fn(async () => ({
+          success: true,
+          action: 'explain_appointment_tax',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainProviderSessionTimeout: jest.fn(async () => ({
+          success: true,
+          action: 'explain_provider_session_timeout',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      { handleAction: jest.fn() } as any,
     );
   });
 

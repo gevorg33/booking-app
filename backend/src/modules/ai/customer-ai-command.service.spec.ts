@@ -25,6 +25,7 @@ describe('CustomerAiCommandService', () => {
       stripParams: jest.fn((p: Record<string, unknown>) => p),
     };
     const platform = { gateCustomerAction: jest.fn(() => null) };
+    const aiEvents = { emitMisrouteTelemetry: jest.fn() };
     const selfServiceBooking = {
       isCustomerBookingCompound: jest.fn(() => true),
       handleCustomerBookingCompound: jest.fn(async () => compoundResult),
@@ -62,6 +63,117 @@ describe('CustomerAiCommandService', () => {
         summary: 'hours',
       })),
     };
+    const businessLanguages = {
+      handleExplainBookingLanguages: jest.fn(async () => ({
+        success: true,
+        action: 'explain_booking_languages',
+        summary:
+          'This booking page offers English (en) and Armenian (hy). Default language: English (en).',
+        details: { enabledLocales: ['en', 'hy'], defaultLocale: 'en' },
+      })),
+    };
+    const businessDateFormat = {
+      handleExplainBookingDateFormat: jest.fn(async () => ({
+        success: true,
+        action: 'explain_booking_date_format',
+        summary:
+          'This booking page shows dates in European (DD/MM/YYYY) because the salon configured that format in dashboard settings.',
+        details: { dateFormat: 'DD/MM/YYYY', timeFormat: '24h' },
+      })),
+    };
+    const businessTax = {
+      handleExplainCheckoutTax: jest.fn(async () => ({
+        success: true,
+        action: 'explain_checkout_tax',
+        summary:
+          'This booking page adds VAT (20%) as a separate line at checkout because tax-exclusive pricing is enabled.',
+        details: { taxEnabled: true, taxName: 'VAT', taxRatePercent: 20 },
+      })),
+      handleExplainConsumerCheckoutTax: jest.fn(async () => ({
+        success: true,
+        action: 'explain_consumer_checkout_tax',
+        summary:
+          'In the consumer app, service list cards show an "incl. 20% VAT" badge when tax is embedded in listed prices.',
+        details: { taxEnabled: true, aspect: 'service_list' },
+      })),
+    };
+    const businessCompliance = {
+      handleExplainDataRights: jest.fn(async () => ({
+        success: true,
+        action: 'explain_data_rights',
+        summary:
+          'To export your personal data, sign in to your account and ask to export your data.',
+        details: { aspect: 'export' },
+      })),
+    };
+    const tourService = {
+      handleExplainTourBooking: jest.fn(async () => ({
+        success: true,
+        action: 'explain_tour_booking',
+        summary:
+          '"City Tour" on the booking page — max group size 12; unit price 45 per person (€ (EUR)); checkout total multiplies by pax; duration 8h.',
+        details: { serviceName: 'City Tour', maxGroupSize: 12 },
+      })),
+      handleExplainTourDaySlots: jest.fn(async () => ({
+        success: true,
+        action: 'explain_tour_day_slots',
+        summary:
+          '"3-Day Mountain Trek" uses day-level booking (vert-tour-1.6): the page shows one departure per calendar day — the earliest bookable guide slot — because the tour spans 3 day(s).',
+        details: { serviceName: '3-Day Mountain Trek', dayLevelBooking: true },
+      })),
+      handleDiagnoseTourCapacity: jest.fn(async () => ({
+        success: true,
+        action: 'diagnose_tour_capacity',
+        summary:
+          '"3-Day Mountain Trek" — checkout clamps pax from 4 to 4 (max group 8); Only 2 spots remaining for this tour date.',
+        details: { rejectionReason: 'insufficientSpots', remainingSpots: 2 },
+      })),
+    };
+    const recommendationProduct = {
+      handleExplainCheckoutRecommendations: jest.fn(async () => ({
+        success: true,
+        action: 'explain_checkout_recommendations',
+        summary:
+          'On the booking success screen after your "Haircut" booking, you should see: Shampoo — price 18.',
+        details: { serviceName: 'Haircut', productCount: 1 },
+      })),
+      handleExplainConsumerCheckoutSuccess: jest.fn(async () => ({
+        success: true,
+        action: 'explain_consumer_checkout_success',
+        summary:
+          'After checkout in the consumer app, the success screen shows a green checkmark with "Booking confirmed!" for your "Haircut" booking.',
+        details: { serviceName: 'Haircut', aspect: 'summary' },
+      })),
+    };
+    const businessCurrency = {
+      handleExplainCheckoutCurrency: jest.fn(async () => ({
+        success: true,
+        action: 'explain_checkout_currency',
+        summary: 'Prices on this booking page are shown in euros (€) (EUR).',
+        details: { currencyCode: 'EUR' },
+      })),
+      handleExplainTenantCurrency: jest.fn(async () => ({
+        success: true,
+        action: 'explain_tenant_currency',
+        summary:
+          "After your profile loads in this salon's consumer app, prices are shown in euros (€) (EUR).",
+        details: { currencyCode: 'EUR' },
+      })),
+      handleExplainNotificationCurrency: jest.fn(async () => ({
+        success: true,
+        action: 'explain_notification_currency',
+        summary:
+          'Confirmation emails format amounts in euros (€) (EUR) when the booked service has no legacy ISO code.',
+        details: { currencyCode: 'EUR' },
+      })),
+      handleExplainStripeCheckoutCurrency: jest.fn(async () => ({
+        success: true,
+        action: 'explain_stripe_checkout_currency',
+        summary:
+          'Online Stripe checkout charges in euros (€) (EUR) when the booked service has no legacy ISO code.',
+        details: { currencyCode: 'EUR', stripeCurrencySupported: true },
+      })),
+    };
 
     const noopSprint = new Proxy(
       {},
@@ -96,6 +208,7 @@ describe('CustomerAiCommandService', () => {
       llm,
       promptSecurity,
       platform,
+      aiEvents,
       customerCrm: sprintHandlers,
       scheduleResources: noopSprint,
       payments: noopSprint,
@@ -104,6 +217,13 @@ describe('CustomerAiCommandService', () => {
       marketingGrowth,
       pushNotifications: noopSprint,
       selfServiceBooking,
+      businessCurrency,
+      businessLanguages,
+      businessDateFormat,
+      businessTax,
+      businessCompliance,
+      tourService,
+      recommendationProduct,
       publicAssistant,
     };
   }
@@ -113,6 +233,7 @@ describe('CustomerAiCommandService', () => {
       mocks.llm as any,
       mocks.promptSecurity as any,
       mocks.platform as any,
+      mocks.aiEvents as any,
       mocks.customerCrm as any,
       mocks.scheduleResources as any,
       mocks.payments as any,
@@ -121,6 +242,13 @@ describe('CustomerAiCommandService', () => {
       mocks.marketingGrowth as any,
       mocks.pushNotifications as any,
       mocks.selfServiceBooking as any,
+      mocks.businessCurrency as any,
+      mocks.businessLanguages as any,
+      mocks.businessDateFormat as any,
+      mocks.businessTax as any,
+      mocks.businessCompliance as any,
+      mocks.tourService as any,
+      mocks.recommendationProduct as any,
       mocks.publicAssistant as any,
     );
     return { service, ...mocks };
@@ -621,6 +749,284 @@ describe('CustomerAiCommandService', () => {
     );
     expect(result.action).toBe('promo_code_help');
     expect(marketingGrowth.handlePromoCodeHelp).toHaveBeenCalled();
+  });
+
+  it('rescues explain_tenant_currency from consumer app currency questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessCurrency } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why does the salon app show prices in euros after I log in?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_tenant_currency');
+    expect(businessCurrency.handleExplainTenantCurrency).toHaveBeenCalledWith(
+      'biz-1',
+    );
+  });
+
+  it('rescues explain_notification_currency from email and WhatsApp currency questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessCurrency } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why does my booking confirmation email show euros (€)?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_notification_currency');
+    expect(
+      businessCurrency.handleExplainNotificationCurrency,
+    ).toHaveBeenCalledWith('biz-1');
+  });
+
+  it('rescues explain_stripe_checkout_currency from online Stripe charge questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessCurrency } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why was I charged in euros on Stripe checkout?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_stripe_checkout_currency');
+    expect(
+      businessCurrency.handleExplainStripeCheckoutCurrency,
+    ).toHaveBeenCalledWith('biz-1');
+  });
+
+  it('rescues explain_booking_languages from booking-page language questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessLanguages } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why can I only see English and Armenian on the booking page?',
+      [],
+      { customerId: 'cust-1', locale: 'ru' },
+    );
+    expect(result.action).toBe('explain_booking_languages');
+    expect(businessLanguages.handleExplainBookingLanguages).toHaveBeenCalledWith(
+      'biz-1',
+      'ru',
+    );
+  });
+
+  it('rescues explain_booking_date_format from booking-page date display questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessDateFormat } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why do dates show as DD/MM instead of MM/DD on the booking page?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_booking_date_format');
+    expect(businessDateFormat.handleExplainBookingDateFormat).toHaveBeenCalledWith(
+      'biz-1',
+    );
+  });
+
+  it('rescues explain_tour_day_slots from tour departure date questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, tourService } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why does the 3-Day Mountain Trek only show one departure per day?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_tour_day_slots');
+    expect(tourService.handleExplainTourDaySlots).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'Why does the 3-Day Mountain Trek only show one departure per day?',
+    );
+  });
+
+  it('rescues explain_checkout_recommendations from success-screen product questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, recommendationProduct } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'What are these You might also like products on the confirmation screen?',
+      [],
+      { customerId: 'cust-1', serviceId: 'svc-haircut', bookingId: 'bk-1' },
+    );
+    expect(result.action).toBe('explain_checkout_recommendations');
+    expect(recommendationProduct.handleExplainCheckoutRecommendations).toHaveBeenCalled();
+  });
+
+  it('rescues explain_consumer_checkout_success from app success-screen overview questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, recommendationProduct } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'What does View appointments do on the booking success screen in the app?',
+      [],
+      { customerId: 'cust-1', serviceId: 'svc-haircut', bookingId: 'bk-1' },
+    );
+    expect(result.action).toBe('explain_consumer_checkout_success');
+    expect(
+      recommendationProduct.handleExplainConsumerCheckoutSuccess,
+    ).toHaveBeenCalled();
+  });
+
+  it('rescues diagnose_tour_capacity from checkout rejection questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, tourService } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why did checkout reject 4 people for the mountain trek on 15/08/2026?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('diagnose_tour_capacity');
+    expect(tourService.handleDiagnoseTourCapacity).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'Why did checkout reject 4 people for the mountain trek on 15/08/2026?',
+    );
+  });
+
+  it('rescues explain_tour_booking from booking-page tour detail questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, tourService } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'What is the max group size for City Tour on this booking page?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_tour_booking');
+    expect(tourService.handleExplainTourBooking).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'What is the max group size for City Tour on this booking page?',
+    );
+  });
+
+  it('rescues explain_checkout_currency from booking-page currency questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessCurrency } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'Why do prices show euros on the booking page?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_checkout_currency');
+    expect(businessCurrency.handleExplainCheckoutCurrency).toHaveBeenCalledWith(
+      'biz-1',
+    );
+  });
+
+  it('rescues explain_consumer_checkout_tax from consumer app tax display questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessTax } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'What does incl. VAT mean on services in the salon app?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_consumer_checkout_tax');
+    expect(businessTax.handleExplainConsumerCheckoutTax).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'What does incl. VAT mean on services in the salon app?',
+    );
+  });
+
+  it('rescues explain_checkout_tax from booking-page tax questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, businessTax } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'What does incl. VAT mean on the service cards?',
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_checkout_tax');
+    expect(businessTax.handleExplainCheckoutTax).toHaveBeenCalledWith('biz-1');
   });
 
   it('returns deterministic compound failure without cascading when failedStep is set', async () => {

@@ -1,7 +1,7 @@
 import { hasDashboardCustomerReference } from './ai-customer-crm.util.js';
 import {
   enrichParamsWithSharedEntities,
-  propagateSharedEntityParamsAcrossSteps,
+  propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
 
 export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
@@ -576,6 +576,6 @@ export function decomposeCustomerBookingCompoundPrompt(
     if (step) steps.push(step);
   }
   return steps.length >= 2
-    ? propagateSharedEntityParamsAcrossSteps(steps)
+    ? propagateCompoundStepParamsAcrossSteps(steps)
     : steps;
 }

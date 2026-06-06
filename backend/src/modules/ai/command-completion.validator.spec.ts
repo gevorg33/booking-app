@@ -65,6 +65,71 @@ describe('command-completion.validator', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts first-available booking with timeOfDay and notBeforeTime', () => {
+    const result = validateCommand(
+      baseCmd({
+        params: {
+          bookingFirstAvailable: true,
+          allProviders: true,
+          serviceName: 'facemassage',
+          timeOfDay: 'evening',
+          notBeforeTime: '17:00',
+        },
+        enrichedParams: { serviceId: 's1' },
+        entities: { service: { id: 's1', name: 'facemassage' } as any },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.issues.some((i) => i.field === 'timeSlot')).toBe(false);
+  });
+
+  it('still requires timeSlot when only timeOfDay is set without first-available', () => {
+    const result = validateCommand(
+      baseCmd({
+        params: {
+          allProviders: true,
+          serviceName: 'facemassage',
+          date: '2026-06-06',
+          timeOfDay: 'evening',
+        },
+        enrichedParams: { serviceId: 's1' },
+        entities: { service: { id: 's1', name: 'facemassage' } as any },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((i) => i.field === 'timeSlot')).toBe(true);
+  });
+
+  it('accepts reschedule_booking with first-available and evening window', () => {
+    const result = validateCommand(
+      baseCmd({
+        action: 'reschedule_booking',
+        params: {
+          customerName: 'Maria',
+          bookingFirstAvailable: true,
+          timeOfDay: 'evening',
+          notBeforeTime: '17:00',
+        },
+        enrichedParams: {},
+        entities: {},
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.issues.some((i) => i.field === 'timeSlot')).toBe(false);
+  });
+
+  it('accepts check_availability with timeOfDay only', () => {
+    const result = validateCommand(
+      baseCmd({
+        action: 'check_availability',
+        params: { timeOfDay: 'afternoon', notBeforeTime: '12:00' },
+        enrichedParams: {},
+        entities: {},
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
   it('validates cancel_bookings requires a scope', () => {
     const result = validateCommand(
       baseCmd({

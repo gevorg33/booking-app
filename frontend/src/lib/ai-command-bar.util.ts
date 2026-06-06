@@ -1,4 +1,8 @@
 import type { AiPageContext } from '@/lib/ai-orchestration';
+import {
+  buildDashboardNavigateUrl,
+  type DashboardNavigateTarget,
+} from '@/lib/compliance-dashboard-nav';
 
 export interface AiCommandSessionContext extends Partial<AiPageContext> {
   lastAction?: string | null;
@@ -109,6 +113,22 @@ export function mergeSessionContext(
     bookingMetric: next.bookingMetric ?? prev.bookingMetric,
     route: next.route ?? prev.route,
     availableProviders: next.availableProviders ?? prev.availableProviders,
+  };
+}
+
+export function extractDashboardNavigate(
+  details?: Record<string, unknown>,
+): DashboardNavigateTarget | null {
+  const navigate = details?.navigate;
+  if (!navigate || typeof navigate !== 'object') return null;
+  const path = (navigate as DashboardNavigateTarget).path;
+  if (typeof path !== 'string' || !path.startsWith('/')) return null;
+  const query = (navigate as DashboardNavigateTarget).query;
+  const hash = (navigate as DashboardNavigateTarget).hash;
+  return {
+    path,
+    ...(query && typeof query === 'object' ? { query: query as Record<string, string> } : {}),
+    ...(typeof hash === 'string' ? { hash } : {}),
   };
 }
 

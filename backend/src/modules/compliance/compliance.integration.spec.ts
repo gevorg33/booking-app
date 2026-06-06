@@ -56,9 +56,17 @@ describe('Sprint 37 — compliance breach + PHI', () => {
     ),
   } as unknown as ConfigService;
 
+  const customerRepo = {
+    find: jest.fn(async () => []),
+  };
+  const emailService = {
+    send: jest.fn(async () => ({ ok: true })),
+  };
   const breachService = new ComplianceBreachService(
     incidentRepo as never,
+    customerRepo as never,
     businessService,
+    emailService as never,
   );
   const phiAudit = new PhiAccessAuditService(auditRepo as never);
   const phiFieldService = new PhiFieldService(

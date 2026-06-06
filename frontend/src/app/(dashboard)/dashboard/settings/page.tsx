@@ -564,7 +564,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <NotificationEmailTemplatesPanel />
+        {business?.id && <NotificationEmailTemplatesPanel businessId={business.id} />}
 
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6">
           <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100 flex items-center gap-2">

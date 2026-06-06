@@ -3,6 +3,10 @@ import {
   ValidationResult,
 } from './command-completion.types.js';
 import { buildClarifySummary } from './command-completion.validator.js';
+import {
+  hasAvailabilityWhen,
+  hasRescheduleNewTime,
+} from './booking-time-completion.util.js';
 
 const PROVIDER_VALIDATED_ACTIONS = new Set([
   'cancel_bookings',
@@ -108,7 +112,7 @@ const PROVIDER_ACTION_RULES: Record<
   show_appointments: () => [],
   summarize_day: () => [],
   check_availability: (params) =>
-    params.date || params.timeSlot || params.timeFrom
+    hasAvailabilityWhen(params)
       ? []
       : [
           {
@@ -136,7 +140,7 @@ const PROVIDER_ACTION_RULES: Record<
       !!params.customerName ||
       !!params.timeSlot ||
       params.allAppointments === true;
-    const hasNewTime = !!params.date || !!params.timeSlot;
+    const hasNewTime = hasRescheduleNewTime(params);
     return [
       ...(hasTarget
         ? []

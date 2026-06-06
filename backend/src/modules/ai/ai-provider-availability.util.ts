@@ -1,4 +1,6 @@
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
+import { buildNoProvidersAvailableMessage } from './ai-booking-slot-messages.util.js';
+import type { TimeOfDayWindow } from './ai-operations.util.js';
 import type { RecommendedProvider } from '../public-booking/public-booking.service.js';
 
 export interface ProviderAvailabilityRow {
@@ -29,6 +31,8 @@ export function buildCheckProvidersSummary(input: {
   serviceName: string;
   dateKey: string;
   providers: RecommendedProvider[];
+  timeOfDay?: TimeOfDayWindow | string | null;
+  notBeforeTime?: string | null;
 }): {
   summary: string;
   availableProviders: string[];
@@ -38,7 +42,12 @@ export function buildCheckProvidersSummary(input: {
 
   if (input.providers.length === 0) {
     return {
-      summary: `No providers available for ${input.serviceName} on ${displayDay}.`,
+      summary: buildNoProvidersAvailableMessage({
+        serviceName: input.serviceName,
+        dateKey: input.dateKey,
+        timeOfDay: input.timeOfDay,
+        notBeforeTime: input.notBeforeTime,
+      }),
       availableProviders: [],
       availability: [],
     };

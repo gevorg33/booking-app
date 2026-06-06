@@ -7,6 +7,8 @@ import { ComplianceController } from './compliance.controller.js';
 import { ComplianceBreachService } from './compliance-breach.service.js';
 import { PhiAccessAuditService } from './phi-access-audit.service.js';
 import { PhiFieldService } from './phi-field.service.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { EmailService } from '../notifications/email.service.js';
 import { DataBreachIncident } from './entities/data-breach-incident.entity.js';
 import { PhiAccessAuditLog } from './entities/phi-access-audit-log.entity.js';
 
@@ -46,6 +48,14 @@ describe('ComplianceModule wiring', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(Customer),
+          useValue: { find: jest.fn() },
+        },
+        {
+          provide: EmailService,
+          useValue: { sendEmail: jest.fn() },
         },
       ],
     }).compile();

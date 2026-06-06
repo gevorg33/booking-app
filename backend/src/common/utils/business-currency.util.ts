@@ -100,6 +100,11 @@ export function isStripeChargeCurrencySupported(currency: string): boolean {
   return STRIPE_CHARGE_CURRENCIES.has(currency.trim().toLowerCase());
 }
 
+/** Uppercase ISO codes Stripe Connect supports for online card charges (admin Settings warning subset). */
+export function listStripeChargeCurrencyCodes(): string[] {
+  return [...STRIPE_CHARGE_CURRENCIES].map((code) => code.toUpperCase()).sort();
+}
+
 export function resolvePriceCurrency(
   entityCurrency: string | null | undefined,
   businessSettings?: Record<string, unknown>,

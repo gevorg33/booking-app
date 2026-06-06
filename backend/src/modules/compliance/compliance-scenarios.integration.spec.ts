@@ -193,9 +193,17 @@ describe('Sprint 37 — compliance scenario matrix', () => {
       ensureOwner: jest.fn(),
       findOne: jest.fn(async () => ({ name: 'Metro Clinic' })),
     } as unknown as BusinessService;
+    const customerRepo = {
+      find: jest.fn(async () => []),
+    };
+    const emailService = {
+      send: jest.fn(async () => ({ ok: true })),
+    };
     const breachService = new ComplianceBreachService(
       incidentRepo as never,
+      customerRepo as never,
       businessService,
+      emailService as never,
     );
 
     const incident = await breachService.reportBreach('biz-1', 'owner-1', {

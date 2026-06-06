@@ -4,6 +4,7 @@ import { AiPaymentsService } from './ai-payments.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
+import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
 import { validateCommand } from './command-completion.validator.js';
 import type { ResolvedCommand } from './command-completion.types.js';
 import {
@@ -260,13 +261,17 @@ describe('ai check-and-book integration', () => {
           'book_nearest_slot',
         ]);
         expect(steps[0]?.params.serviceName).toBe(serviceName);
+        expect(steps[0]?.params.allProviders).toBe(true);
         expect(steps[1]?.params.bookingFirstAvailable).toBe(true);
+        expect(steps[1]?.params.serviceName).toBe(serviceName);
+        expect(steps[1]?.params.allProviders).toBe(true);
         if (notBeforeTime) {
           expect(steps[0]?.params.notBeforeTime).toBe(notBeforeTime);
           expect(steps[1]?.params.notBeforeTime).toBe(notBeforeTime);
         }
         if (timeOfDay) {
           expect(steps[0]?.params.timeOfDay).toBe(timeOfDay);
+          expect(steps[1]?.params.timeOfDay).toBe(timeOfDay);
         }
       },
     );
@@ -301,6 +306,12 @@ describe('ai check-and-book integration', () => {
         'book_nearest_slot',
         'apply_gift_card_code',
       ]);
+      for (const step of steps) {
+        expect(step.params.serviceName).toBe('massage');
+        expect(step.params.timeOfDay).toBe('evening');
+        expect(step.params.allProviders).toBe(true);
+      }
+      expect(steps[2]?.params.giftCardCode).toBe('GCM-ABCD1234');
     });
 
     it('does not treat unrelated prompts as check+book compound', () => {
@@ -490,7 +501,62 @@ describe('ai check-and-book integration', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.summary).toContain('No bookable slot found');
+      expect(result.summary).toContain('No bookable slot for Massage');
+      expect(result.summary).toMatch(/another date|time of day/i);
+    });
+
+    it('suggests alternate windows when evening has no nearest slot', async () => {
+      const result = await handleBookNearestSlotLogic(
+        buildLogicDeps({
+          publicBookingService: {
+            findNearestBookableSlot: jest.fn(async () => null),
+          } as any,
+        }),
+        'biz-1',
+        {
+          serviceName: 'massage',
+          date: '2026-06-07',
+          timeOfDay: 'evening',
+          notBeforeTime: '17:00',
+        },
+        'book nearest massage tomorrow evening',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('evening');
+      expect(result.summary).toContain('morning');
+      expect(result.summary).toContain('afternoon');
+      expect(result.details?.reason).toBe('no_slots');
+    });
+  });
+
+  describe('flexible booking resolver parity (ai-cmd-h2.3)', () => {
+    it('public book_appointment and book_nearest_slot share the same slot query', () => {
+      const params = {
+        serviceName: 'massage',
+        bookingFirstAvailable: true,
+        allProviders: true,
+        timeOfDay: 'evening',
+        date: '2026-06-07',
+      };
+      const prompt =
+        'book nearest massage tomorrow evening on any specialist after 17:00';
+
+      const publicQuery = buildNearestBookableSlotQuery(params, prompt, null);
+      const customerQuery = buildNearestBookableSlotQuery(params, prompt);
+
+      expect(publicQuery).toEqual(customerQuery);
+      expect(publicQuery.employeeId).toBeNull();
+      expect(publicQuery.notBeforeTime).toBe('17:00');
+      expect(publicQuery.startDateKey).toBe('2026-06-07');
+    });
+
+    it('uses employeeId from check handoff when allProviders is false', () => {
+      const query = buildNearestBookableSlotQuery(
+        { employeeId: 'e1', date: '2026-06-07' },
+        'book the nearest slot',
+      );
+      expect(query.employeeId).toBe('e1');
     });
   });
 
@@ -533,12 +599,19 @@ describe('ai check-and-book integration', () => {
       expect(result.success).toBe(true);
       expect(
         deps.publicBookingService.findNearestBookableSlot,
-      ).toHaveBeenCalledWith(
-        'salon',
-        expect.objectContaining({ employeeId: 'e1', serviceId: 's3' }),
-      );
+      ).toHaveBeenCalledWith('salon', {
+        serviceId: 's3',
+        employeeId: null,
+        notBeforeTime: '17:00',
+        startDateKey: expect.any(String),
+      });
       expect(result.details?.serviceName).toBe('Permanent lashes');
       expect(result.details?.date).toBeTruthy();
+      const handoff = result.details?.checkProvidersHandoff as
+        | { summary?: string; availableProviders?: string[] }
+        | undefined;
+      expect(handoff?.summary).toMatch(/provider/i);
+      expect(handoff?.availableProviders).toContain('Karo Mazmanyan');
     });
 
     it('stops compound when book step cannot find a slot', async () => {

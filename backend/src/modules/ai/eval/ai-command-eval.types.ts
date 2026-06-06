@@ -24,6 +24,10 @@ export interface AiCommandEvalExpectation {
   needsMultilingual?: boolean;
   /** Intent rescue should change unknown → this action */
   rescuedAction?: string;
+  /** Input action for disambiguation rescue (defaults to unknown). */
+  rescueFromAction?: string;
+  /** Expected rescueReason when stable. */
+  rescueReason?: string;
   /** Compound decomposition surface (ai-cmd-0.4). */
   compoundSurface?: CommandSurface;
   /** Exact ordered sub-intent actions from deterministic/golden decomposition. */
@@ -40,6 +44,13 @@ export interface AiCommandEvalExpectation {
   compoundRecipeId?: string;
   /** Per-step param subset checks after decomposition. */
   compoundStepParams?: CompoundStepParamExpectation[];
+  /** HIPAA PHI guard assessment (ai-cmd-compliance-15). */
+  phiGuard?: {
+    blocked: boolean;
+    reason?: 'phi_in_context' | 'phi_in_prompt';
+    matchedFields?: string[];
+    redactedSubstring?: string;
+  };
 }
 
 export interface AiCommandEvalCase {

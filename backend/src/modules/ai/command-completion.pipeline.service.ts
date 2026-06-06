@@ -32,9 +32,14 @@ import {
   inheritSharedEntityParams,
   pickSharedEntitySessionSlice,
 } from './ai-command-entity-params.util.js';
+import {
+  getSharedParamsForIntent,
+  SHARED_ENTITY_SESSION_INHERIT_KEYS,
+} from './ai-command-entity-params.registry.js';
 
 const SESSION_INHERIT_KEYS = [
   'employeeName',
+  'employeeNames',
   'date',
   'dateFrom',
   'dateTo',
@@ -42,6 +47,15 @@ const SESSION_INHERIT_KEYS = [
   'timeSlot',
   'customerName',
   'templateName',
+  'packageName',
+  'packageId',
+  'packageLines',
+  'serviceNames',
+  'giftCardCode',
+  'paymentMethod',
+  'giftCardOrderId',
+  'deliveryMethod',
+  'amount',
   'timeFrom',
   'timeTo',
   'allProviders',
@@ -71,6 +85,9 @@ const PROVIDER_SESSION_INHERIT_KEYS = [
   'timeSlot',
   'serviceName',
   'allAppointments',
+  'bookingId',
+  'lastPush',
+  'pushActionId',
 ] as const;
 
 @Injectable()
@@ -91,11 +108,26 @@ export class CommandCompletionPipelineService {
       )
         continue;
       const value = merged[key];
-      if ((value == null || value === '') && session[key]) {
+      const empty =
+        value == null ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0);
+      if (empty && session[key] != null && session[key] !== '') {
         merged[key] = session[key];
       }
     }
-    return inheritSharedEntityParams(merged, session, action);
+    const inherited = inheritSharedEntityParams(merged, session, action);
+    if (action) {
+      const allowed = getSharedParamsForIntent(action);
+      if (allowed) {
+        for (const key of SHARED_ENTITY_SESSION_INHERIT_KEYS) {
+          if (!allowed.has(key)) {
+            delete inherited[key];
+          }
+        }
+      }
+    }
+    return inherited;
   }
 
   mergeProviderSessionContext(
@@ -278,6 +310,10 @@ export class CommandCompletionPipelineService {
     const p = resolved.enrichedParams;
     return {
       employeeName: p.employeeName ?? resolved.params.employeeName ?? null,
+      employeeNames:
+        p.employeeNames ??
+        resolved.params.employeeNames ??
+        null,
       date: p.date ? formatDateDisplay(p.date) : null,
       dateFrom: p.dateFrom ? formatDateDisplay(p.dateFrom) : null,
       dateTo: p.dateTo ? formatDateDisplay(p.dateTo) : null,
@@ -285,6 +321,15 @@ export class CommandCompletionPipelineService {
       timeSlot: p.timeSlot ?? null,
       customerName: p.customerName ?? null,
       templateName: p.templateName ?? null,
+      packageName: p.packageName ?? resolved.params.packageName ?? null,
+      packageId: p.packageId ?? resolved.params.packageId ?? null,
+      packageLines: p.packageLines ?? resolved.params.packageLines ?? null,
+      giftCardCode: p.giftCardCode ?? resolved.params.giftCardCode ?? null,
+      paymentMethod: p.paymentMethod ?? resolved.params.paymentMethod ?? null,
+      giftCardOrderId:
+        p.giftCardOrderId ?? resolved.params.giftCardOrderId ?? null,
+      deliveryMethod: p.deliveryMethod ?? resolved.params.deliveryMethod ?? null,
+      amount: p.amount ?? resolved.params.amount ?? null,
       timeFrom: p.timeFrom ?? null,
       timeTo: p.timeTo ?? null,
       allProviders: p.allProviders ?? null,
@@ -312,6 +357,9 @@ export class CommandCompletionPipelineService {
       timeSlot: params.timeSlot ?? null,
       serviceName: params.serviceName ?? null,
       allAppointments: params.allAppointments ?? null,
+      bookingId: params.bookingId ?? null,
+      lastPush: params.lastPush ?? null,
+      pushActionId: params.pushActionId ?? null,
       ...pickSharedEntitySessionSlice(params),
     };
   }

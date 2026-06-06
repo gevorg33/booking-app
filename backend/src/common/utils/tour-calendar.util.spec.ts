@@ -1,4 +1,9 @@
 import {
+  assignTourSpanLanes,
+  buildServiceColorMap,
+  buildTourCalendarSpans,
+  buildWeekDateKeys,
+  computeWeekColumnSpan,
   dateKeysOverlap,
   resolveTourBookingDateRange,
   tourBookingOverlapsDateRange,
@@ -112,5 +117,80 @@ describe('tour-calendar.util', () => {
         '2026-06-15',
       ),
     ).toBe(true);
+  });
+
+  const weekKeys = [
+    '2026-06-08',
+    '2026-06-09',
+    '2026-06-10',
+    '2026-06-11',
+    '2026-06-12',
+    '2026-06-13',
+    '2026-06-14',
+  ];
+
+  it('builds Monday-based week date keys', () => {
+    expect(buildWeekDateKeys('2026-06-11')).toEqual(weekKeys);
+  });
+
+  it('computes column span and stacked lanes (vert-tour-1.10)', () => {
+    const placement = computeWeekColumnSpan(
+      '2026-06-11',
+      '2026-06-13',
+      weekKeys,
+    );
+    expect(placement).toEqual({ colStart: 3, colEnd: 5 });
+
+    const spans = buildTourCalendarSpans(
+      [
+        {
+          id: 't1',
+          startTime: new Date('2026-06-11T08:00:00.000Z'),
+          endTime: new Date('2026-06-13T18:00:00.000Z'),
+          status: 'confirmed',
+          serviceId: 'trek',
+          service: { id: 'trek', name: '3-Day Trek' },
+          metadata: {
+            paxCount: 4,
+            tourStartDate: '2026-06-11',
+            tourEndDate: '2026-06-13',
+          },
+        },
+        {
+          id: 't2',
+          startTime: new Date('2026-06-10T08:00:00.000Z'),
+          endTime: new Date('2026-06-11T18:00:00.000Z'),
+          status: 'confirmed',
+          serviceId: 'a',
+          service: { id: 'a', name: 'Tour A' },
+          metadata: {
+            tourStartDate: '2026-06-10',
+            tourEndDate: '2026-06-11',
+          },
+        },
+        {
+          id: 't3',
+          startTime: new Date('2026-06-10T08:00:00.000Z'),
+          endTime: new Date('2026-06-12T18:00:00.000Z'),
+          status: 'confirmed',
+          serviceId: 'b',
+          service: { id: 'b', name: 'Tour B' },
+          metadata: {
+            tourStartDate: '2026-06-10',
+            tourEndDate: '2026-06-12',
+          },
+        },
+      ],
+      weekKeys,
+    );
+    expect(spans.map((span) => span.lane)).toEqual([0, 1, 2]);
+    expect(assignTourSpanLanes(spans)).toEqual([0, 1, 2]);
+  });
+
+  it('assigns stable service colors', () => {
+    expect(buildServiceColorMap(['svc-a', 'svc-b'])).toEqual({
+      'svc-a': 'blue',
+      'svc-b': 'violet',
+    });
   });
 });

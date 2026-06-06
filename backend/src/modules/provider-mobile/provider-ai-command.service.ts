@@ -30,6 +30,7 @@ import {
   validateProviderCommand,
 } from '../ai/provider-command-completion.validator.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
+import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
 import { isIntentAllowed } from '../ai/ai-capability.matrix.js';
@@ -81,6 +82,29 @@ import {
 } from '../ai/ai-coordination.util.js';
 import { AiPushNotificationsService } from '../ai/ai-push-notifications.service.js';
 import { AiProviderBookingService } from '../ai/ai-provider-booking.service.js';
+import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
+import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
+import { AiBusinessTaxService } from '../ai/ai-business-tax.service.js';
+import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
+import {
+  parseExplainAppointmentTaxFromPrompt,
+  rescueAppointmentTaxIntent,
+} from '../ai/ai-appointment-tax.util.js';
+import { rescueProviderPaymentCurrencyIntent } from '../ai/ai-provider-payment-currency.util.js';
+import {
+  parseProviderPushTimeFormatFromPrompt,
+  rescueProviderDateFormatIntent,
+} from '../ai/ai-provider-date-format.util.js';
+import { rescueProviderSessionTimeoutIntent } from '../ai/ai-provider-session-timeout.util.js';
+import { PROVIDER_MOBILE_CLASSIFIER_RULES } from '../ai/ai-provider-mobile.fixtures.js';
+import {
+  applyProviderMobilePromptHints,
+  decomposeProviderMobileCompoundPrompt,
+  disambiguateProviderMobileAction,
+  isProviderMobileCompoundPrompt,
+  mergeProviderMobileHintsIntoSessionContext,
+} from '../ai/ai-provider-mobile-hints.util.js';
+import { ProviderPushActionService } from './provider-push-action.service.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -103,7 +127,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -146,9 +170,18 @@ Rules:
 - list_my_package_visits: READ-ONLY — provider-scoped package visits on own calendar for a date range.
 - list_my_multi_service_groups: READ-ONLY — provider-scoped multi-service groups/blocks on own calendar.
 - mark_paid: mark a single booking paid (own calendar unless manager team view). NOT payment_sweep (bulk). Set bookingId when known.
+- explain_appointment_tax: READ — tax lines on appointment payment breakdown: inclusive vs exclusive model, per-rule amounts, and amount collected when marked paid. Optional bookingId. NOT explain_provider_payment_currency (ISO currency symbol) and NOT lookup_booking_tax_metadata (support metadata dump).
+- explain_provider_payment_currency: READ — why appointment payment breakdown or POS grand total shows € / ֏ / ₽ / $ (business default vs legacy service code vs retail add-on). NOT explain_payment_status (paid/pending status) and NOT explain_appointment_tax (tax lines).
+- explain_provider_date_display: READ — how provider schedule/booking cards format dates and times from auth business dateFormat/timeFormat (fmt-1.8). NOT explain_provider_payment_currency (currency) and NOT explain_last_push (push actions).
+- configure_provider_push_date_format: MUTATE — wire FCM push booking times to business timeFormat when fmt-1.8 push bodies ship (confirmation required). NOT explain_provider_date_display (read-only).
+- explain_provider_session_timeout: READ — clinic only: when provider mobile app auto-logs out after HIPAA inactivity timeout (compliance-1.13 provider deferred). NOT explain_provider_date_display (date formatting) and NOT dashboard explain_hipaa_session_timeout.
+- confirm_booking_from_push: confirm one booking — same as Confirm on a new-booking push. Requires bookingId (inherit from lastPush).
+- suggest_reschedule_from_push: open AI to reschedule — same as Reschedule on a new-booking push (guidance only, no slot move).
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
 - Default date to today when the user says "today" or gives no date for today's context.
-- If unclear, use action "unknown".`;
+- If unclear, use action "unknown".
+
+${PROVIDER_MOBILE_CLASSIFIER_RULES}`;
 
 interface ParsedIntent {
   action: string;
@@ -181,6 +214,11 @@ export class ProviderAiCommandService {
     private pushNotifications: AiPushNotificationsService,
     @Inject(forwardRef(() => AiProviderBookingService))
     private providerBooking: AiProviderBookingService,
+    private businessCurrency: AiBusinessCurrencyService,
+    private businessDateFormat: AiBusinessDateFormatService,
+    private businessTax: AiBusinessTaxService,
+    private businessCompliance: AiBusinessComplianceService,
+    private pushActions: ProviderPushActionService,
   ) {}
 
   async executeCommand(
@@ -260,6 +298,20 @@ export class ProviderAiCommandService {
       }
     }
 
+    if (isProviderMobileCompoundPrompt(prompt)) {
+      const mobileCompound = await this.handleProviderMobileCompound(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+        scopedEmployeeId ?? undefined,
+      );
+      if (mobileCompound.success || mobileCompound.details?.failedStep) {
+        return mobileCompound;
+      }
+    }
+
     const parsed = await this.classifyIntent(
       businessId,
       userId,
@@ -283,9 +335,108 @@ export class ProviderAiCommandService {
       context,
     ) as Record<string, unknown>;
     parsed.params = applyProviderEntityMemory(parsed.params, prompt, context);
+    applyProviderMobilePromptHints(parsed.action, parsed.params as Record<string, any>, prompt, {
+      session: context,
+    });
     this.completionPipeline.normalizeDateParams(
       parsed.params as Record<string, any>,
     );
+
+    const classifierAction = parsed.action;
+    let rescueReason: string | undefined;
+
+    const providerHeuristic = rescueProviderAiIntent(prompt, parsed.action);
+    if (providerHeuristic !== parsed.action) {
+      parsed.action = providerHeuristic;
+      rescueReason = 'provider_heuristic';
+    }
+
+    const coordination = rescueCoordinationIntent(prompt, parsed.action);
+    if (coordination !== parsed.action) {
+      parsed.action = coordination;
+      rescueReason = 'coordination_intent';
+    }
+
+    const appointmentTaxRescue = rescueAppointmentTaxIntent(
+      prompt,
+      parsed.action,
+    );
+    if (appointmentTaxRescue) {
+      parsed.action = appointmentTaxRescue.action;
+      rescueReason = appointmentTaxRescue.rescueReason;
+    }
+
+    const providerPaymentCurrencyRescue = rescueProviderPaymentCurrencyIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerPaymentCurrencyRescue) {
+      parsed.action = providerPaymentCurrencyRescue.action;
+      rescueReason = providerPaymentCurrencyRescue.rescueReason;
+    }
+
+    const providerSessionTimeoutRescue = rescueProviderSessionTimeoutIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerSessionTimeoutRescue) {
+      parsed.action = providerSessionTimeoutRescue.action;
+      rescueReason = providerSessionTimeoutRescue.rescueReason;
+    }
+
+    const providerDateFormatRescue = rescueProviderDateFormatIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerDateFormatRescue) {
+      parsed.action = providerDateFormatRescue.action;
+      rescueReason = providerDateFormatRescue.rescueReason;
+      const parsedTimeFormat = parseProviderPushTimeFormatFromPrompt(
+        prompt,
+        parsed.params,
+      );
+      if (parsedTimeFormat?.timeFormat) {
+        parsed.params.timeFormat = parsedTimeFormat.timeFormat;
+      }
+    }
+
+    const providerBookingRescue =
+      this.providerBooking.rescueProviderBookingIntent(prompt, parsed.action);
+    if (providerBookingRescue) {
+      parsed.action = providerBookingRescue.action;
+      rescueReason = providerBookingRescue.rescueReason;
+    }
+
+    const pushRescue = this.pushNotifications.rescuePushNotificationsIntent(
+      prompt,
+      parsed.action,
+    );
+    if (pushRescue) {
+      parsed.action = pushRescue.action;
+      rescueReason = pushRescue.rescueReason;
+    }
+
+    const mobileFix = disambiguateProviderMobileAction(
+      prompt,
+      parsed.action,
+      context,
+    );
+    if (mobileFix) {
+      parsed.action = mobileFix.action;
+      rescueReason = mobileFix.rescueReason;
+    }
+
+    recordMisrouteTelemetry(this.aiEvents, businessId, {
+      surface: 'provider',
+      prompt,
+      classifierAction,
+      rescuedAction: parsed.action,
+      rescueReason,
+      compoundStepCount: 1,
+    });
+    applyProviderMobilePromptHints(parsed.action, parsed.params as Record<string, any>, prompt, {
+      session: context,
+    });
 
     if (shouldValidateProviderAction(parsed.action)) {
       const validation = validateProviderCommand(parsed.action, parsed.params);
@@ -308,11 +459,6 @@ export class ProviderAiCommandService {
     }
 
     this.normalizeParams(parsed.params);
-    parsed.action = rescueProviderAiIntent(prompt, parsed.action);
-    parsed.action = rescueCoordinationIntent(prompt, parsed.action);
-    const providerBookingRescue =
-      this.providerBooking.rescueProviderBookingIntent(prompt, parsed.action);
-    if (providerBookingRescue) parsed.action = providerBookingRescue.action;
 
     if (!isIntentAllowed('provider', actorTier, parsed.action)) {
       return {
@@ -510,6 +656,20 @@ export class ProviderAiCommandService {
       case 'new_booking_push_actions':
         result = await this.pushNotifications.handleNewBookingPushActions();
         break;
+      case 'confirm_booking_from_push':
+        result = await this.handleConfirmBookingFromPush(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
+      case 'suggest_reschedule_from_push':
+        result = await this.handleSuggestRescheduleFromPush(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
       case 'list_package_appointments_today':
         result = await this.providerBooking.handleListPackageAppointmentsToday(
           businessId,
@@ -550,6 +710,48 @@ export class ProviderAiCommandService {
           userId,
         );
         break;
+      case 'explain_appointment_tax': {
+        const parsedAppointmentTax = parseExplainAppointmentTaxFromPrompt(
+          prompt,
+          parsed.params,
+        );
+        result = await this.businessTax.handleExplainAppointmentTax(
+          businessId,
+          parsedAppointmentTax
+            ? { ...parsed.params, ...parsedAppointmentTax, _prompt: prompt }
+            : { ...parsed.params, _prompt: prompt },
+          prompt,
+          scopedEmployeeId ?? undefined,
+        );
+        break;
+      }
+      case 'explain_provider_payment_currency':
+        result =
+          await this.businessCurrency.handleExplainProviderPaymentCurrency(
+            businessId,
+          );
+        break;
+      case 'explain_provider_date_display':
+        result =
+          await this.businessDateFormat.handleExplainProviderDateDisplay(
+            businessId,
+          );
+        break;
+      case 'configure_provider_push_date_format':
+        result =
+          await this.businessDateFormat.handleConfigureProviderPushDateFormat(
+            businessId,
+            { ...parsed.params, _prompt: prompt },
+            prompt,
+            context?.confirmed === true,
+          );
+        break;
+      case 'explain_provider_session_timeout':
+        result =
+          await this.businessCompliance.handleExplainProviderSessionTimeout(
+            businessId,
+          );
+        break;
       default:
         result = {
           success: false,
@@ -560,7 +762,367 @@ export class ProviderAiCommandService {
         };
     }
 
-    return this.attachProviderSession(result, parsed.params);
+    return this.attachProviderSession(
+      result,
+      mergeProviderMobileHintsIntoSessionContext(
+        context ?? {},
+        parsed.params,
+        parsed.action,
+      ),
+    );
+  }
+
+  private async handleProviderMobileCompound(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+    scopedEmployeeId: string | undefined,
+  ): Promise<ProviderCommandResult> {
+    const steps = decomposeProviderMobileCompoundPrompt(prompt);
+    if (steps.length < 2) {
+      return {
+        success: false,
+        action: 'compound_intent',
+        summary:
+          'Could not split this into multiple provider commands. Try separating with "and".',
+        details: { clarify: true },
+      };
+    }
+
+    const results: ProviderCommandResult[] = [];
+    let compoundContext: Record<string, unknown> = {
+      ...context,
+      sessionEmployeeId: scopedEmployeeId,
+    };
+
+    for (const step of steps.slice(0, 4)) {
+      const stepParams = {
+        ...compoundContext,
+        ...step.params,
+        _prompt: step.segment,
+      };
+      applyProviderMobilePromptHints(step.action, stepParams as Record<string, any>, step.segment, {
+        session: compoundContext,
+      });
+
+      let stepResult: ProviderCommandResult;
+      switch (step.action) {
+        case 'confirm_booking_from_push':
+          stepResult = await this.handleConfirmBookingFromPush(
+            businessId,
+            userId,
+            stepParams,
+          );
+          break;
+        case 'suggest_reschedule_from_push':
+          stepResult = await this.handleSuggestRescheduleFromPush(
+            businessId,
+            userId,
+            stepParams,
+          );
+          break;
+        case 'mark_paid': {
+          const markPaid = await this.providerBooking.handleMarkPaid(
+            businessId,
+            stepParams as Record<string, any>,
+            userId,
+          );
+          stepResult = {
+            success: markPaid.success,
+            action: markPaid.action,
+            summary: markPaid.summary,
+            details: markPaid.details as Record<string, unknown>,
+          };
+          break;
+        }
+        case 'explain_last_push':
+        case 'open_booking_from_push':
+        case 'offline_queue_status':
+        case 'retry_offline_action':
+        case 'dismiss_push':
+        case 'end_of_day_summary':
+        case 'new_booking_push_actions':
+          stepResult = await this.executeProviderPushStep(
+            businessId,
+            step.action,
+            stepParams,
+            step.segment,
+            scopedEmployeeId,
+          );
+          break;
+        case 'list_package_appointments_today':
+        case 'list_my_package_visits':
+        case 'list_my_multi_service_groups':
+          stepResult = await this.executeProviderBookingReadStep(
+            businessId,
+            step.action,
+            prompt,
+            stepParams,
+            scopedEmployeeId,
+          );
+          break;
+        default:
+          return {
+            success: false,
+            action: step.action,
+            summary: `Unsupported provider mobile compound step: ${step.action}.`,
+            details: { failedStep: step.action, completedSteps: results.length },
+          };
+      }
+
+      results.push(stepResult);
+      compoundContext = mergeProviderMobileHintsIntoSessionContext(
+        compoundContext,
+        stepParams,
+        step.action,
+      );
+      if (stepResult.details?.bookingId) {
+        compoundContext.bookingId = stepResult.details.bookingId;
+      }
+
+      if (!stepResult.success && stepResult.details?.needsClarification) {
+        return {
+          ...stepResult,
+          details: {
+            ...stepResult.details,
+            compoundSteps: results,
+            failedStep: step.action,
+          },
+        };
+      }
+    }
+
+    const last = results[results.length - 1];
+    return {
+      success: results.every((r) => r.success),
+      action: 'compound_intent',
+      summary: results.map((r) => r.summary).join(' → '),
+      details: {
+        compound: true,
+        steps: results.map((r) => ({ action: r.action, summary: r.summary })),
+        sessionContext: this.completionPipeline.buildProviderSessionContext(
+          compoundContext as Record<string, any>,
+        ),
+        ...last.details,
+      },
+    };
+  }
+
+  private async executeProviderPushStep(
+    businessId: string,
+    action: string,
+    params: Record<string, unknown>,
+    segment: string,
+    scopedEmployeeId: string | undefined,
+  ): Promise<ProviderCommandResult> {
+    switch (action) {
+      case 'explain_last_push': {
+        const r = await this.pushNotifications.handleExplainLastPush({
+          ...params,
+          lastPush: params.lastPush,
+        });
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'open_booking_from_push': {
+        const r = await this.pushNotifications.handleOpenBookingFromPush(
+          businessId,
+          { ...params, lastPush: params.lastPush },
+          segment,
+        );
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'offline_queue_status': {
+        const r = await this.pushNotifications.handleOfflineQueueStatus(params);
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'retry_offline_action': {
+        const r = await this.pushNotifications.handleRetryOfflineAction(params);
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'dismiss_push': {
+        const r = await this.pushNotifications.handleDismissPush(params);
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'end_of_day_summary': {
+        const r = await this.pushNotifications.handleEndOfDaySummary(
+          businessId,
+          { ...params, sessionEmployeeId: scopedEmployeeId },
+        );
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      case 'new_booking_push_actions': {
+        const r = await this.pushNotifications.handleNewBookingPushActions();
+        return {
+          success: r.success,
+          action: r.action,
+          summary: r.summary,
+          details: r.details as Record<string, unknown>,
+        };
+      }
+      default:
+        return {
+          success: false,
+          action,
+          summary: `Unsupported push step: ${action}`,
+          details: {},
+        };
+    }
+  }
+
+  private async executeProviderBookingReadStep(
+    businessId: string,
+    action: string,
+    prompt: string,
+    params: Record<string, unknown>,
+    scopedEmployeeId: string | undefined,
+  ): Promise<ProviderCommandResult> {
+    const stepParams = {
+      ...params,
+      sessionEmployeeId: scopedEmployeeId,
+    };
+    let r;
+    switch (action) {
+      case 'list_package_appointments_today':
+        r = await this.providerBooking.handleListPackageAppointmentsToday(
+          businessId,
+          stepParams as Record<string, any>,
+        );
+        break;
+      case 'list_my_package_visits':
+        r = await this.providerBooking.handleListMyPackageVisits(
+          businessId,
+          prompt,
+          stepParams as Record<string, any>,
+        );
+        break;
+      case 'list_my_multi_service_groups':
+        r = await this.providerBooking.handleListMyMultiServiceGroups(
+          businessId,
+          prompt,
+          stepParams as Record<string, any>,
+        );
+        break;
+      default:
+        return {
+          success: false,
+          action,
+          summary: `Unsupported booking read step: ${action}`,
+          details: {},
+        };
+    }
+    return {
+      success: r.success,
+      action: r.action,
+      summary: r.summary,
+      details: r.details as Record<string, unknown>,
+    };
+  }
+
+  private async handleConfirmBookingFromPush(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const bookingId = params.bookingId as string | undefined;
+    if (!bookingId) {
+      return {
+        success: false,
+        action: 'confirm_booking_from_push',
+        summary:
+          'No booking linked — open the push notification or say which appointment to confirm.',
+        details: {
+          needsClarification: true,
+          missing: ['bookingId'],
+          pushParity: 'confirm',
+        },
+      };
+    }
+
+    const pushResult = await this.pushActions.handleAction(businessId, userId, {
+      actionId: 'confirm',
+      bookingId,
+      businessId,
+    });
+    return {
+      success: pushResult.success,
+      action: 'confirm_booking_from_push',
+      summary: pushResult.summary,
+      details: {
+        bookingId,
+        pushParity: 'confirm',
+        pushActionId: 'confirm',
+      },
+    };
+  }
+
+  private async handleSuggestRescheduleFromPush(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const bookingId = params.bookingId as string | undefined;
+    if (!bookingId) {
+      return {
+        success: false,
+        action: 'suggest_reschedule_from_push',
+        summary:
+          'No booking linked — open the push notification or specify which appointment to reschedule.',
+        details: {
+          needsClarification: true,
+          missing: ['bookingId'],
+          pushParity: 'suggest_reschedule',
+        },
+      };
+    }
+
+    const pushResult = await this.pushActions.handleAction(businessId, userId, {
+      actionId: 'suggest_reschedule',
+      bookingId,
+      businessId,
+    });
+    return {
+      success: pushResult.success,
+      action: 'suggest_reschedule_from_push',
+      summary: pushResult.summary,
+      details: {
+        bookingId,
+        pushParity: 'suggest_reschedule',
+        pushActionId: 'suggest_reschedule',
+        openAi: true,
+      },
+    };
   }
 
   private buildConfirmationDetails(

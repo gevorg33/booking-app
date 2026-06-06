@@ -24,6 +24,10 @@ import {
   type LocalizedNamesFormState,
   type LocalizedNamesMap,
 } from '@/lib/localized-names';
+import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { isTourVerticalBusinessType } from '@/lib/tour-service';
+import { unwrapBusinessApiPayload } from '@/lib/business-query';
+import { readSettingsFromAuthBusiness } from '@/hooks/use-business-enabled-locales';
 
 type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
 
@@ -136,7 +140,13 @@ function parseFloatField(value: string, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'create') {
+function formToPayload(
+  form: ServiceFormState,
+  mode: 'create' | 'update' = 'create',
+  businessType?: string,
+) {
+  const allowTour = isTourVerticalBusinessType(businessType);
+  const allowClinic = isClinicVerticalBusinessType(businessType);
   const depositAmount = parseFloatField(form.depositAmount);
   const base = {
     name: form.name,
@@ -157,7 +167,7 @@ function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'crea
       : localizedNames
         ? { ...base, localizedNames }
         : base;
-  const verticalPayload = form.isTour
+  const verticalPayload = allowTour && form.isTour
     ? {
         serviceType: 'tour' as const,
         coverImage: form.coverImage.trim() || undefined,
@@ -167,7 +177,7 @@ function formToPayload(form: ServiceFormState, mode: 'create' | 'update' = 'crea
         includedItems: form.includedItems.trim() || undefined,
         durationDays: parseIntField(form.durationDays) || undefined,
       }
-    : form.isClinic && form.clinicServiceType
+    : allowClinic && form.isClinic && form.clinicServiceType
       ? {
           serviceType: form.clinicServiceType,
           requiresFasting: form.requiresFasting || undefined,
@@ -259,6 +269,8 @@ function ServiceFormFields({
   businessId,
   editingServiceId,
   inventoryProducts,
+  showTourVertical,
+  showClinicVertical,
   t,
 }: {
   form: ServiceFormState;
@@ -269,6 +281,8 @@ function ServiceFormFields({
   businessId?: string;
   editingServiceId?: string | null;
   inventoryProducts?: Array<{ id: string; name: string; isActive?: boolean }>;
+  showTourVertical: boolean;
+  showClinicVertical: boolean;
   t: (key: string) => string;
 }) {
   return (
@@ -365,6 +379,7 @@ function ServiceFormFields({
         />
         <p className="text-xs text-gray-500 mt-1">{t('servicesPage.taxRateOverrideHint')}</p>
       </div>
+      {showTourVertical && (
       <div className="md:col-span-2 space-y-3 rounded-lg border border-violet-500/20 bg-violet-600/5 p-4">
         <ToggleChoice
           variant="dashboard"
@@ -450,6 +465,8 @@ function ServiceFormFields({
           </div>
         )}
       </div>
+      )}
+      {showClinicVertical && (
       <div className="md:col-span-2 space-y-3 rounded-lg border border-sky-500/20 bg-sky-600/5 p-4">
         <ToggleChoice
           variant="dashboard"
@@ -502,6 +519,7 @@ function ServiceFormFields({
           </div>
         )}
       </div>
+      )}
       <div className="md:col-span-2 space-y-3 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <ToggleChoice variant="dashboard"
           checked={form.onlinePaymentEnabled}
@@ -851,6 +869,9 @@ function ServiceTypesTab({
   enabledLocales,
   businessId,
   inventoryProducts,
+  showTourVertical,
+  showClinicVertical,
+  businessType,
   t,
 }: {
   categories: ServiceCategoryRecord[];
@@ -860,6 +881,9 @@ function ServiceTypesTab({
   enabledLocales: readonly AppLocale[];
   businessId?: string;
   inventoryProducts: Array<{ id: string; name: string; isActive?: boolean }>;
+  showTourVertical: boolean;
+  showClinicVertical: boolean;
+  businessType?: string;
   showForm: boolean;
   setShowForm: (v: boolean) => void;
   editingId: string | null;
@@ -909,7 +933,7 @@ function ServiceTypesTab({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              createMutation.mutate(formToPayload(form, 'create'));
+              createMutation.mutate(formToPayload(form, 'create', businessType));
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
@@ -919,6 +943,8 @@ function ServiceTypesTab({
               stripeReady={stripeReady}
               categories={categories}
               enabledLocales={enabledLocales}
+              showTourVertical={showTourVertical}
+              showClinicVertical={showClinicVertical}
               t={t}
             />
             {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
@@ -958,7 +984,10 @@ function ServiceTypesTab({
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
-                            updateMutation.mutate({ id: svc.id, data: formToPayload(form, 'update') });
+                            updateMutation.mutate({
+                              id: svc.id,
+                              data: formToPayload(form, 'update', businessType),
+                            });
                           }}
                           className="grid grid-cols-1 md:grid-cols-2 gap-4"
                         >
@@ -971,6 +1000,8 @@ function ServiceTypesTab({
                             businessId={businessId}
                             editingServiceId={svc.id}
                             inventoryProducts={inventoryProducts}
+                            showTourVertical={showTourVertical}
+                            showClinicVertical={showClinicVertical}
                             t={t}
                           />
                           {formError && <p className="md:col-span-2 text-sm text-red-500">{formError}</p>}
@@ -1053,6 +1084,23 @@ export default function ServicesPage() {
     { id: 'packages', label: t('servicesPage.tabPackages') },
     { id: 'multiService', label: t('servicesPage.tabMultiService') },
   ];
+
+  const { data: businessData } = useQuery({
+    queryKey: ['business', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}`);
+      return unwrapBusinessApiPayload<{ settings?: Record<string, unknown> }>(data);
+    },
+    enabled: !!business?.id,
+  });
+
+  const businessType =
+    (businessData?.settings?.businessType as string | undefined) ??
+    (readSettingsFromAuthBusiness(
+      business as unknown as Record<string, unknown> | null | undefined,
+    )?.businessType as string | undefined);
+  const showTourVertical = isTourVerticalBusinessType(businessType);
+  const showClinicVertical = isClinicVerticalBusinessType(businessType);
 
   const { data: stripeConnect } = useQuery({
     queryKey: ['stripe-connect', business?.id],
@@ -1309,6 +1357,9 @@ export default function ServicesPage() {
           enabledLocales={enabledLocales}
           businessId={business?.id}
           inventoryProducts={inventoryProducts}
+          showTourVertical={showTourVertical}
+          showClinicVertical={showClinicVertical}
+          businessType={businessType}
           t={t}
         />
       )}

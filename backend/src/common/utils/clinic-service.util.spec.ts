@@ -9,6 +9,7 @@ import {
   isClinicService,
   isClinicServiceType,
   isClinicVerticalBusinessType,
+  shouldShowPatientResultsTab,
   type ClinicServiceType,
 } from './clinic-service.util.js';
 
@@ -20,6 +21,17 @@ describe('clinic-service.util', () => {
     expect(isClinicVerticalBusinessType('hair_salon')).toBe(false);
     expect(isClinicVerticalBusinessType(null)).toBe(false);
     expect(isClinicVerticalBusinessType(undefined)).toBe(false);
+  });
+
+  it('gates patient Results tab by clinic vertical business type', () => {
+    expect(shouldShowPatientResultsTab('clinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('polyclinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('beauty_clinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('dental')).toBe(true);
+    expect(shouldShowPatientResultsTab('hair_salon')).toBe(false);
+    expect(shouldShowPatientResultsTab('tour_operator')).toBe(false);
+    expect(shouldShowPatientResultsTab(null)).toBe(false);
+    expect(shouldShowPatientResultsTab(undefined)).toBe(false);
   });
 
   it('applies clinic metadata when existing metadata is null', () => {

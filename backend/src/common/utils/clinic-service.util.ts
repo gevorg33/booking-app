@@ -45,6 +45,13 @@ export function isClinicVerticalBusinessType(
   );
 }
 
+/** Gate dashboard/public Results tabs by clinic vertical (vert-clinic-1.13; UI ships in 1.7). */
+export function shouldShowPatientResultsTab(
+  businessType: string | undefined | null,
+): boolean {
+  return isClinicVerticalBusinessType(businessType);
+}
+
 export function extractClinicMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): ClinicServiceMetadata | null {

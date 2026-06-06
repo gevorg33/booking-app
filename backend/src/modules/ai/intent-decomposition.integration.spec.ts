@@ -3,6 +3,7 @@ import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js'
 import { IntentDecompositionService } from './intent-decomposition.service.js';
 import { buildDecompositionSchemaView } from './intent-decomposition.schema.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
+import { GOLDEN_COMPOUND_PROMPT_BY_ID } from './ai-rescue-pipeline.fixtures.js';
 import {
   decomposeDeterministicForSurface,
   GOLDEN_COMPOUND_PATTERNS,
@@ -114,17 +115,8 @@ describe('intent-decomposition integration (ai-cmd-0.3)', () => {
       GOLDEN_COMPOUND_PATTERNS.map((pattern) => pattern.id),
     );
 
-    const goldenPrompts: Record<string, string> = {
-      customer_book_package_apply_promo:
-        'Book spa day package and apply promo code SPRING25',
-      dashboard_cancel_visit_notify_waitlist:
-        'Cancel package visit and notify waitlist for Anna',
-      dashboard_cancel_visit_coordinate_waitlist:
-        'Cancel package visit and coordinate waitlist offer for Friday',
-    };
-
     for (const pattern of GOLDEN_COMPOUND_PATTERNS) {
-      const prompt = goldenPrompts[pattern.id];
+      const prompt = GOLDEN_COMPOUND_PROMPT_BY_ID[pattern.id];
       expect(prompt).toBeDefined();
       expect(pattern.matches(prompt)).toBe(true);
       const result = decomposeDeterministicForSurface(pattern.surface, prompt);

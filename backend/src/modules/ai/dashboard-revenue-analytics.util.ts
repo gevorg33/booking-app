@@ -1,8 +1,26 @@
 export const STAFF_ROLE_WORDS =
   /\b(staff|provider|providers|employee|employees|team|specialist|specialists|stylist|stylists|therapist|therapists)\b/i;
 
+function isReportsCurrencyExplainPrompt(prompt: string): boolean {
+  const hasReportsSurface =
+    /\b(reports?|analytics|dashboard\s+overview|operations|p\s*&\s*l|profit\s+(and|&)\s+loss|kpi|kpis)\b/i.test(
+      prompt,
+    ) ||
+    /\b(staff\s+(?:performance|revenue)|service\s+(?:popularity|revenue)|revenue\s+this\s+month|net\s+profit|gross\s+revenue)\b/i.test(
+      prompt,
+    );
+
+  return (
+    hasReportsSurface &&
+    /\b(why|explain|what\s+currency|which\s+currency|convert|conversion|fx|currency)\b/i.test(
+      prompt,
+    )
+  );
+}
+
 /** Dashboard: total business earnings/revenue for a period (not per-provider rankings). */
 export function isTotalEarningsPrompt(prompt: string): boolean {
+  if (isReportsCurrencyExplainPrompt(prompt)) return false;
   if (isTopStaffRevenuePrompt(prompt)) return false;
   if (
     /\b(?:for|of)\s+(?!today|tomorrow|yesterday|this|last|the\b|week|month|year)([A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?)\b/i.test(

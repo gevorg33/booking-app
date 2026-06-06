@@ -158,14 +158,14 @@ export class AiGatewayService {
     const phiGuard = assessPhiInAiContext(
       businessRecord.settings,
       businessRecord.settings?.businessType as string | undefined,
-      { context: params.context },
+      { context: params.context, prompt: params.prompt },
     );
     if (phiGuard.blocked) {
       return attachGatewayMeta(
         {
           success: false,
           action: 'security_blocked',
-          summary: phiAiBlockMessage(),
+          summary: phiAiBlockMessage(phiGuard.reason),
           details: {
             securityBlocked: true,
             reason: phiGuard.reason,

@@ -3,6 +3,8 @@ import { LlmService } from '../../engine/agent/llm.service.js';
 import { PublicBookingAssistantService } from '../public-booking/public-booking-assistant.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
+import { AiEventsService } from './ai-events.service.js';
+import { recordMisrouteTelemetry } from './ai-misroute-telemetry.util.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
 import { AiPaymentsService } from './ai-payments.service.js';
@@ -11,6 +13,19 @@ import { AiIntegrationsService } from './ai-integrations.service.js';
 import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
+import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
+import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { AiBusinessTaxService } from './ai-business-tax.service.js';
+import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { rescueCheckoutTaxIntent } from './ai-checkout-tax.util.js';
+import { rescueExplainDataRightsIntent } from './ai-data-rights.util.js';
+import { rescueBookingLanguagesIntent } from './ai-booking-languages.util.js';
+import { rescueBookingDateFormatIntent } from './ai-booking-date-format.util.js';
+import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
+import { rescueStripeCheckoutCurrencyIntent } from './ai-stripe-checkout-currency.util.js';
+import { rescueNotificationCurrencyIntent } from './ai-notification-currency.util.js';
+import { rescueTenantCurrencyIntent } from './ai-tenant-currency.util.js';
 import { isIntentAllowed } from './ai-capability.matrix.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -20,6 +35,15 @@ import {
 import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
 import { rescuePaymentsIntent } from './ai-payments.util.js';
+import { rescueDiagnoseTourCapacityIntent } from './ai-tour-capacity.util.js';
+import { rescueTourBookingIntent } from './ai-tour-booking.util.js';
+import { rescueTourDaySlotsIntent } from './ai-tour-day-slots.util.js';
+import { AiTourServiceService } from './ai-tour-service.service.js';
+import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
+import { rescueExplainCheckoutRecommendationsIntent } from './ai-checkout-recommendations.util.js';
+import { rescueExplainConsumerCheckoutSuccessIntent } from './ai-consumer-checkout-success.util.js';
+import { rescueExplainConsumerCheckoutTaxIntent } from './ai-consumer-checkout-tax.util.js';
+import { disambiguateMisclassifiedAvailabilityIntent } from './ai-intent-disambiguation.util.js';
 import {
   buildCustomerClassifierSchema,
   isPublicOnlyAssistantAction,
@@ -47,6 +71,7 @@ export class CustomerAiCommandService {
     private readonly llm: LlmService,
     private readonly promptSecurity: AiPromptSecurityService,
     private readonly platform: AiPlatformService,
+    private readonly aiEvents: AiEventsService,
     private readonly customerCrm: AiCustomerCrmService,
     private readonly scheduleResources: AiScheduleResourcesService,
     private readonly payments: AiPaymentsService,
@@ -55,6 +80,13 @@ export class CustomerAiCommandService {
     private readonly marketingGrowth: AiMarketingGrowthService,
     private readonly pushNotifications: AiPushNotificationsService,
     private readonly selfServiceBooking: AiSelfServiceBookingService,
+    private readonly businessCurrency: AiBusinessCurrencyService,
+    private readonly businessLanguages: AiBusinessLanguagesService,
+    private readonly businessDateFormat: AiBusinessDateFormatService,
+    private readonly businessTax: AiBusinessTaxService,
+    private readonly businessCompliance: AiBusinessComplianceService,
+    private readonly tourService: AiTourServiceService,
+    private readonly recommendationProduct: AiRecommendationProductService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
   ) {
@@ -67,6 +99,13 @@ export class CustomerAiCommandService {
       marketingGrowth: this.marketingGrowth,
       pushNotifications: this.pushNotifications,
       selfServiceBooking: this.selfServiceBooking,
+      businessCurrency: this.businessCurrency,
+      businessLanguages: this.businessLanguages,
+      businessDateFormat: this.businessDateFormat,
+      businessTax: this.businessTax,
+      businessCompliance: this.businessCompliance,
+      tourService: this.tourService,
+      recommendationProduct: this.recommendationProduct,
     };
   }
 
@@ -111,9 +150,19 @@ export class CustomerAiCommandService {
       };
     }
 
+    const classifierAction = parsed.action;
     const rescued = this.rescueIntent(prompt, parsed.action);
     const action = rescued?.action ?? parsed.action;
     const params = { ...parsed.params };
+
+    recordMisrouteTelemetry(this.aiEvents, businessId, {
+      surface: 'customer',
+      prompt,
+      classifierAction,
+      rescuedAction: action,
+      rescueReason: rescued?.rescueReason,
+      compoundStepCount: 1,
+    });
 
     if (!isIntentAllowed('customer', 'client', action)) {
       return (
@@ -173,6 +222,14 @@ export class CustomerAiCommandService {
 
     const deterministic = decomposeDeterministicForSurface('customer', prompt);
     if (deterministic && deterministic.steps.length >= 2) {
+      recordMisrouteTelemetry(this.aiEvents, businessId, {
+        surface: 'customer',
+        prompt,
+        classifierAction: 'compound_intent',
+        rescuedAction: 'compound_intent',
+        rescueReason: 'compound_decomposition',
+        compoundStepCount: deterministic.steps.length,
+      });
       const result = await executeCustomerCompoundFromSteps(
         this.deps,
         businessId,
@@ -263,7 +320,33 @@ export class CustomerAiCommandService {
   }
 
   private rescueIntent(prompt: string, action: string) {
+    const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
+      'customer',
+      prompt,
+      action,
+      {},
+    );
+    if (availabilityFix) {
+      return {
+        action: availabilityFix.action,
+        rescueReason: availabilityFix.rescueReason,
+      };
+    }
     return (
+      rescueTenantCurrencyIntent(prompt, action) ??
+      rescueNotificationCurrencyIntent(prompt, action) ??
+      rescueStripeCheckoutCurrencyIntent(prompt, action) ??
+      rescueDiagnoseTourCapacityIntent(prompt, action) ??
+      rescueExplainConsumerCheckoutTaxIntent(prompt, action) ??
+      rescueExplainConsumerCheckoutSuccessIntent(prompt, action) ??
+      rescueExplainCheckoutRecommendationsIntent(prompt, action) ??
+      rescueTourDaySlotsIntent(prompt, action) ??
+      rescueTourBookingIntent(prompt, action) ??
+      rescueExplainDataRightsIntent(prompt, action) ??
+      rescueCheckoutTaxIntent(prompt, action) ??
+      rescueCheckoutCurrencyIntent(prompt, action) ??
+      rescueBookingLanguagesIntent(prompt, action) ??
+      rescueBookingDateFormatIntent(prompt, action) ??
       rescueSelfServiceBookingIntent(prompt, action) ??
       rescueMarketingGrowthIntent(prompt, action) ??
       rescuePaymentsIntent(prompt, action)

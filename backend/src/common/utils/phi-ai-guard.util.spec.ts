@@ -1,7 +1,10 @@
 import {
   assessPhiInAiContext,
+  detectPhiPayloadInPrompt,
   listPhiFieldsInValue,
   phiAiBlockMessage,
+  PHI_AI_PROMPT_BLOCK_REASON,
+  redactEmbeddedPhiFromPrompt,
   redactPhiFromValue,
 } from './phi-ai-guard.util.js';
 
@@ -17,7 +20,25 @@ describe('phi-ai-guard.util', () => {
     });
     expect(assessment.blocked).toBe(true);
     expect(assessment.matchedFields).toContain('symptoms');
-    expect(phiAiBlockMessage()).toContain('HIPAA mode');
+    expect(phiAiBlockMessage(assessment.reason)).toContain('HIPAA mode');
+  });
+
+  it('blocks prompts that embed PHI field payloads when HIPAA is on', () => {
+    const assessment = assessPhiInAiContext(hipaaSettings, 'clinic', {
+      prompt: 'Summarize visit {"symptoms": "severe headache"}',
+    });
+    expect(assessment.blocked).toBe(true);
+    expect(assessment.reason).toBe(PHI_AI_PROMPT_BLOCK_REASON);
+    expect(assessment.matchedFields).toContain('symptoms');
+    expect(phiAiBlockMessage(PHI_AI_PROMPT_BLOCK_REASON)).toContain('remove');
+  });
+
+  it('allows policy questions that mention PHI fields without payloads', () => {
+    expect(
+      assessPhiInAiContext(hipaaSettings, 'clinic', {
+        prompt: 'Who can see patient notes?',
+      }).blocked,
+    ).toBe(false);
   });
 
   it('allows AI context without PHI when HIPAA is on', () => {
@@ -36,6 +57,24 @@ describe('phi-ai-guard.util', () => {
         { context: { symptoms: 'fever' } },
       ).blocked,
     ).toBe(false);
+  });
+
+  it('detects key-value PHI payloads in prompts', () => {
+    expect(detectPhiPayloadInPrompt('referral notes: cardiology')).toEqual([
+      'referralNotes',
+    ]);
+    expect(detectPhiPayloadInPrompt('patient notes: follow up')).toEqual([
+      'notes',
+    ]);
+  });
+
+  it('redacts embedded PHI from prompts', () => {
+    expect(redactEmbeddedPhiFromPrompt('Chart symptoms: fever')).toContain(
+      '[REDACTED_PHI]',
+    );
+    expect(
+      redactEmbeddedPhiFromPrompt('Save {"notes": "follow up in 2 weeks"}'),
+    ).toContain('[REDACTED_PHI]');
   });
 
   it('returns passthrough values for nullish redact input', () => {

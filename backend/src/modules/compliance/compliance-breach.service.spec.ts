@@ -1,6 +1,8 @@
 import { ComplianceBreachService } from './compliance-breach.service.js';
 import { BusinessService } from '../business/business.service.js';
 import type { DataBreachIncident } from './entities/data-breach-incident.entity.js';
+import type { Customer } from '../customer/entities/customer.entity.js';
+import type { EmailService } from '../notifications/email.service.js';
 
 describe('ComplianceBreachService', () => {
   const incidentRepo = {
@@ -8,14 +10,22 @@ describe('ComplianceBreachService', () => {
     save: jest.fn(async (row: DataBreachIncident) => ({ ...row, id: 'inc-1' })),
     find: jest.fn(),
   };
+  const customerRepo = {
+    find: jest.fn(),
+  };
   const businessService = {
     ensureOwner: jest.fn(),
     findOne: jest.fn(async () => ({ id: 'biz-1', name: 'Wellness Clinic' })),
   } as unknown as BusinessService;
+  const emailService = {
+    send: jest.fn(async () => ({ ok: true })),
+  } as unknown as EmailService;
 
   const service = new ComplianceBreachService(
     incidentRepo as never,
+    customerRepo as never,
     businessService,
+    emailService,
   );
 
   beforeEach(() => {
@@ -104,5 +114,54 @@ describe('ComplianceBreachService', () => {
         }),
       ]),
     );
+  });
+
+  it('sends draft breach emails to active customers and marks incident notified', async () => {
+    const incident: DataBreachIncident = {
+      id: 'a1b2c3d4-0000-4000-8000-000000000099',
+      businessId: 'biz-1',
+      reportedByUserId: 'owner-1',
+      description: 'API leak',
+      affectedCustomerCount: 2,
+      draftEmailSubject: 'Important security notice',
+      draftEmailBody: 'Dear customer,\n\nWe are writing to inform you.',
+      gdprNotificationDeadlineAt: new Date(),
+      status: 'open',
+      reportedAt: new Date(),
+    };
+
+    incidentRepo.find.mockResolvedValue([incident]);
+    customerRepo.find.mockResolvedValue([
+      { id: 'c1', email: 'anna@example.com', isActive: true } as Customer,
+      { id: 'c2', email: 'bob@example.com', isActive: true } as Customer,
+      { id: 'c3', email: '', isActive: true } as Customer,
+    ]);
+
+    const result = await service.sendBreachNotification(
+      'biz-1',
+      'owner-1',
+      'BR-a1b2c3d4',
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        emailsSent: 2,
+        emailsFailed: 0,
+        recipientsSkipped: 1,
+        resent: false,
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledTimes(2);
+    expect(incidentRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'notified' }),
+    );
+  });
+
+  it('returns not_found when incident ref does not match', async () => {
+    incidentRepo.find.mockResolvedValue([]);
+    await expect(
+      service.sendBreachNotification('biz-1', 'owner-1', 'BR-missing'),
+    ).resolves.toEqual({ ok: false, reason: 'not_found' });
   });
 });

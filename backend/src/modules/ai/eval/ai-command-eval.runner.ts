@@ -11,10 +11,19 @@ import {
   decomposeDeterministicForSurface,
   isCompoundPrompt,
 } from '../intent-decomposition.util.js';
+import {
+  assessPhiInAiContext,
+  redactEmbeddedPhiFromPrompt,
+} from '../../../common/utils/phi-ai-guard.util.js';
 import type {
   AiCommandEvalCase,
   AiEvalCaseResult,
 } from './ai-command-eval.types.js';
+
+const HIPAA_EVAL_SETTINGS = {
+  businessType: 'clinic',
+  hipaa: { enabled: true, baaAcceptedAt: '2026-01-01' },
+};
 
 const decomposition = {
   isCompoundPrompt,
@@ -104,13 +113,21 @@ export function evaluateDeterministicEvalCase(
   if (expect.rescuedAction) {
     const rescued = rescue.rescue({
       prompt,
-      action: 'unknown',
+      action: expect.rescueFromAction ?? 'unknown',
       params: {},
       employees: SAMPLE_EMPLOYEES,
     });
     if (!rescued?.rescued || rescued.action !== expect.rescuedAction) {
       errors.push(
         `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
+      );
+    }
+    if (
+      expect.rescueReason &&
+      rescued?.rescueReason !== expect.rescueReason
+    ) {
+      errors.push(
+        `rescueReason: expected ${expect.rescueReason}, got ${rescued?.rescueReason ?? 'none'}`,
       );
     }
     if (expect.paramsPartial && rescued?.params) {
@@ -206,6 +223,41 @@ export function evaluateDeterministicEvalCase(
             );
           }
         }
+      }
+    }
+  }
+
+  if (expect.phiGuard) {
+    const assessment = assessPhiInAiContext(
+      HIPAA_EVAL_SETTINGS,
+      'clinic',
+      { prompt },
+    );
+    if (assessment.blocked !== expect.phiGuard.blocked) {
+      errors.push(
+        `phiGuard.blocked: expected ${expect.phiGuard.blocked}, got ${assessment.blocked}`,
+      );
+    }
+    if (expect.phiGuard.reason && assessment.reason !== expect.phiGuard.reason) {
+      errors.push(
+        `phiGuard.reason: expected ${expect.phiGuard.reason}, got ${assessment.reason ?? 'none'}`,
+      );
+    }
+    if (expect.phiGuard.matchedFields) {
+      for (const field of expect.phiGuard.matchedFields) {
+        if (!assessment.matchedFields?.includes(field as never)) {
+          errors.push(
+            `phiGuard.matchedFields: missing ${field} in [${assessment.matchedFields?.join(', ') ?? ''}]`,
+          );
+        }
+      }
+    }
+    if (expect.phiGuard.redactedSubstring) {
+      const redacted = redactEmbeddedPhiFromPrompt(prompt);
+      if (!redacted.includes(expect.phiGuard.redactedSubstring)) {
+        errors.push(
+          `phiGuard.redactedSubstring: expected "${expect.phiGuard.redactedSubstring}" in redacted prompt`,
+        );
       }
     }
   }

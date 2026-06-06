@@ -6,11 +6,91 @@ import {
 } from './business-compliance.util.js';
 
 export const PHI_AI_BLOCK_REASON = 'phi_in_context' as const;
+export const PHI_AI_PROMPT_BLOCK_REASON = 'phi_in_prompt' as const;
+
+export type PhiAiBlockReason =
+  | typeof PHI_AI_BLOCK_REASON
+  | typeof PHI_AI_PROMPT_BLOCK_REASON;
 
 export interface PhiAiGuardAssessment {
   blocked: boolean;
-  reason?: typeof PHI_AI_BLOCK_REASON;
+  reason?: PhiAiBlockReason;
   matchedFields?: PhiFieldName[];
+}
+
+const PHI_PROMPT_KV_PATTERNS: Array<{
+  fields: PhiFieldName[];
+  pattern: RegExp;
+}> = [
+  {
+    fields: ['symptoms'],
+    pattern: /\bsymptoms\s*[:=]\s*["']?[^\s"',\n}]+/i,
+  },
+  {
+    fields: ['referralNotes'],
+    pattern: /\breferral\s+notes?\s*[:=]\s*["']?[^\s"',\n}]+/i,
+  },
+  {
+    fields: ['notes'],
+    pattern: /\bpatient\s+notes?\s*[:=]\s*["']?[^\s"',\n}]+/i,
+  },
+  {
+    fields: ['patient_test_results'],
+    pattern:
+      /\bpatient\s+test\s+results?\s*[:=]\s*["']?[^\s"',\n}]+/i,
+  },
+];
+
+const PHI_JSON_FIELD_PATTERN = new RegExp(
+  `["']?(?:${PHI_FIELD_NAMES.join('|')})["']?\\s*[:=]`,
+  'i',
+);
+
+function tryParseLooseJsonObject(chunk: string): unknown | null {
+  const trimmed = chunk.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    try {
+      const normalized = trimmed.replace(
+        /([{,]\s*)([A-Za-z_][\w]*)(\s*:)/g,
+        '$1"$2"$3',
+      );
+      return JSON.parse(normalized) as unknown;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function extractJsonObjectsFromPrompt(prompt: string): unknown[] {
+  const objects: unknown[] = [];
+  const chunks = prompt.match(/\{[^{}]*\}/g) ?? [];
+  for (const chunk of chunks) {
+    if (!PHI_JSON_FIELD_PATTERN.test(chunk)) continue;
+    const parsed = tryParseLooseJsonObject(chunk);
+    if (parsed != null) objects.push(parsed);
+  }
+  return objects;
+}
+
+export function detectPhiPayloadInPrompt(prompt: string): PhiFieldName[] {
+  const found = new Set<PhiFieldName>();
+
+  for (const obj of extractJsonObjectsFromPrompt(prompt)) {
+    for (const field of listPhiFieldsInValue(obj)) {
+      found.add(field);
+    }
+  }
+
+  for (const { fields, pattern } of PHI_PROMPT_KV_PATTERNS) {
+    if (pattern.test(prompt)) {
+      for (const field of fields) found.add(field);
+    }
+  }
+
+  return [...found];
 }
 
 export function listPhiFieldsInValue(
@@ -42,19 +122,34 @@ export function assessPhiInAiContext(
   businessType: string | null | undefined,
   payload: {
     context?: Record<string, unknown> | null;
+    prompt?: string | null;
   },
 ): PhiAiGuardAssessment {
   if (!isHipaaModeActive(settings, businessType)) {
     return { blocked: false };
   }
-  if (!payload.context || !objectContainsPhiFields(payload.context)) {
-    return { blocked: false };
+
+  if (payload.context && objectContainsPhiFields(payload.context)) {
+    return {
+      blocked: true,
+      reason: PHI_AI_BLOCK_REASON,
+      matchedFields: listPhiFieldsInValue(payload.context),
+    };
   }
-  return {
-    blocked: true,
-    reason: PHI_AI_BLOCK_REASON,
-    matchedFields: listPhiFieldsInValue(payload.context),
-  };
+
+  const prompt = payload.prompt?.trim();
+  if (prompt) {
+    const matchedFields = detectPhiPayloadInPrompt(prompt);
+    if (matchedFields.length > 0) {
+      return {
+        blocked: true,
+        reason: PHI_AI_PROMPT_BLOCK_REASON,
+        matchedFields,
+      };
+    }
+  }
+
+  return { blocked: false };
 }
 
 export function redactPhiFromValue(value: unknown, depth = 0): unknown {
@@ -85,6 +180,35 @@ export function redactPhiFromValue(value: unknown, depth = 0): unknown {
   return next;
 }
 
-export function phiAiBlockMessage(): string {
+export function redactEmbeddedPhiFromPrompt(prompt: string): string {
+  let next = prompt;
+
+  for (const { pattern } of PHI_PROMPT_KV_PATTERNS) {
+    next = next.replace(pattern, (match) => {
+      const separator = match.includes('=') ? '=' : ':';
+      const [prefix] = match.split(separator);
+      return `${prefix}${separator} [REDACTED_PHI]`;
+    });
+  }
+
+  next = next.replace(/\{[^{}]*\}/g, (chunk) => {
+    if (!PHI_JSON_FIELD_PATTERN.test(chunk)) return chunk;
+    const parsed = tryParseLooseJsonObject(chunk);
+    if (parsed == null || typeof parsed !== 'object') return chunk;
+    const redacted = redactPhiFromValue(parsed);
+    try {
+      return JSON.stringify(redacted);
+    } catch {
+      return chunk;
+    }
+  });
+
+  return next;
+}
+
+export function phiAiBlockMessage(reason?: PhiAiBlockReason): string {
+  if (reason === PHI_AI_PROMPT_BLOCK_REASON) {
+    return 'HIPAA mode is on — remove symptoms, referral notes, patient notes, or clinical test results from your message before using the AI assistant.';
+  }
   return 'HIPAA mode is on — protected health fields cannot be sent to the AI assistant. Remove symptoms, referral notes, or clinical notes from the request.';
 }

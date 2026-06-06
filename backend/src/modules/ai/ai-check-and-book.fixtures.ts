@@ -1,3 +1,5 @@
+import type { CommandSurface } from './ai-command-registry.types.js';
+
 /** Classifier rules shared by dashboard INTENT_SCHEMA and customer classifier schema. */
 export const CHECK_AND_BOOK_CLASSIFIER_RULES = `- Check-then-book compound (one message): when the user asks who is free/available/open for a service AND wants the nearest/soonest/next/earliest slot or ASAP, extract serviceName, date, timeOfDay (morning/afternoon/evening/tonight), allProviders=true when no named provider, and bookingFirstAvailable=true with timeSlot=null. Multi-step execution is handled automatically — do NOT require a fixed start time.
 - check_providers_for_service: READ — list providers with open bookable windows for a service on a date/time-of-day. Triggers: who/which/anyone/anybody + free|available|open|providers|stylists; "see who is open", "who can take {service}", "check providers for {service}".
@@ -123,3 +125,157 @@ export const SIMILAR_CHECK_AND_BOOK_PROMPTS = [
     timeOfDay: 'evening',
   },
 ] as const;
+
+/** Core check+book compound prompts (dashboard + customer eval). */
+export const CHECK_AND_BOOK_CORE_PROMPTS = [
+  {
+    id: 'free-comma-nearest-slot',
+    prompt:
+      'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+    serviceName: 'permanent lashes',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'available-and-nearest-slot',
+    prompt:
+      'Who is available tomorrow evening for massage and book the nearest slot',
+    serviceName: 'massage',
+    notBeforeTime: '17:00',
+    timeOfDay: 'evening',
+  },
+  {
+    id: 'open-and-book-nearest',
+    prompt:
+      'who is open tomorrow morning for massage and book the nearest appointment',
+    serviceName: 'massage',
+    notBeforeTime: '00:00',
+    timeOfDay: 'morning',
+  },
+  {
+    id: 'check-providers-comma-book',
+    prompt:
+      'check providers for permanent lips tomorrow afternoon, book nearest slot',
+    serviceName: 'permanent lips',
+    notBeforeTime: '12:00',
+    timeOfDay: 'afternoon',
+  },
+  {
+    id: 'quoted-service-and-book',
+    prompt:
+      'check who is free tomorrow for "Permanent lashes" and book the nearest slot',
+    serviceName: 'Permanent lashes',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
+  {
+    id: 'asap-booking-wording',
+    prompt:
+      'check who is available tomorrow for massage and book first available slot',
+    serviceName: 'massage',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
+] as const;
+
+export type CheckAndBookEvalScenario = {
+  id: string;
+  surface: Extract<CommandSurface, 'dashboard' | 'customer'>;
+  prompt: string;
+  serviceName: string;
+  notBeforeTime?: string | null;
+  timeOfDay?: string | null;
+};
+
+/** Golden eval scenarios for check+book compound decomposition (ai-cmd-h1.3). */
+export const CHECK_AND_BOOK_EVAL_SCENARIOS: CheckAndBookEvalScenario[] = [
+  ...(['dashboard', 'customer'] as const).flatMap((surface) =>
+    [...CHECK_AND_BOOK_CORE_PROMPTS, ...SIMILAR_CHECK_AND_BOOK_PROMPTS].map(
+      (entry) => ({
+        id: `${surface}-${entry.id}`,
+        surface,
+        prompt: entry.prompt,
+        serviceName: entry.serviceName,
+        notBeforeTime: entry.notBeforeTime,
+        timeOfDay: entry.timeOfDay,
+      }),
+    ),
+  ),
+];
+
+export type FlexibleBookingEvalScenario = {
+  id: string;
+  prompt: string;
+  /** LLM mislabel to disambiguate (defaults to unknown for pure rescue). */
+  rescueFromAction?: string;
+  rescuedAction: string;
+  rescueReason?: string;
+  paramsPartial?: Record<string, unknown>;
+};
+
+/** Single-intent flexible booking rescue/disambiguation golden cases (ai-cmd-h1.3). */
+export const FLEXIBLE_BOOKING_EVAL_SCENARIOS: FlexibleBookingEvalScenario[] = [
+  {
+    id: 'unknown-book-nearest-slot',
+    prompt: 'book the nearest slot for massage tomorrow evening',
+    rescuedAction: 'book_nearest_slot',
+    rescueReason: 'nearest_slot',
+  },
+  {
+    id: 'unknown-check-providers-free',
+    prompt: 'check who is free tomorrow evening for permanent lashes',
+    rescuedAction: 'check_providers_for_service',
+    rescueReason: 'providers_for_service',
+  },
+  {
+    id: 'misclassified-first-available',
+    prompt: 'Book the nearest available slot for massage tomorrow',
+    rescueFromAction: 'create_booking',
+    rescuedAction: 'create_booking',
+    rescueReason: 'booking_first_available',
+    paramsPartial: { bookingFirstAvailable: true },
+  },
+  {
+    id: 'misclassified-check-book-compound',
+    prompt:
+      'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+    rescueFromAction: 'create_booking',
+    rescuedAction: 'create_booking',
+    rescueReason: 'check_and_book_compound',
+    paramsPartial: {
+      bookingFirstAvailable: true,
+      allProviders: true,
+      timeOfDay: 'evening',
+    },
+  },
+  {
+    id: 'unknown-first-available-asap',
+    prompt: 'Book first available permanent lashes tomorrow evening',
+    rescuedAction: 'create_booking',
+    rescueReason: 'create_booking_pattern',
+    paramsPartial: { bookingFirstAvailable: true },
+  },
+  {
+    id: 'misclassified-soonest-any-provider',
+    prompt:
+      'Book the soonest slot for massage tomorrow evening on any provider',
+    rescueFromAction: 'create_booking',
+    rescuedAction: 'create_booking',
+    rescueReason: 'booking_first_available',
+    paramsPartial: { bookingFirstAvailable: true, allProviders: true },
+  },
+  {
+    id: 'unknown-earliest-opening',
+    prompt: 'get the earliest slot for permanent lips tomorrow evening',
+    rescuedAction: 'book_nearest_slot',
+    rescueReason: 'nearest_slot',
+  },
+  {
+    id: 'misclassified-reschedule-nearest',
+    prompt: 'Move to June 11 nearest free time for Maria',
+    rescueFromAction: 'reschedule_booking',
+    rescuedAction: 'reschedule_booking',
+    rescueReason: 'booking_first_available',
+    paramsPartial: { bookingFirstAvailable: true },
+  },
+];

@@ -34,6 +34,11 @@ import { User } from '../user/entities/user.entity.js';
     TeamMembersService,
     TenantMemberContactService,
   ],
-  exports: [BusinessService, TenantMemberContactService, TeamMembersService],
+  exports: [
+    BusinessService,
+    DashboardService,
+    TenantMemberContactService,
+    TeamMembersService,
+  ],
 })
 export class BusinessModule {}

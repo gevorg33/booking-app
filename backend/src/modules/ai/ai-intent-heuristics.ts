@@ -19,6 +19,11 @@ import {
   normalizeServiceLookup,
   parseEarliestBookingTimeFromPrompt,
 } from './ai-orchestration.helpers.js';
+import {
+  isMultilingualCheckProvidersPrompt,
+  isMultilingualFirstAvailableBookingPrompt,
+  parseMultilingualTimeOfDayWindow,
+} from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
   BookingStatus,
@@ -699,7 +704,8 @@ export function isFirstAvailableBookingPrompt(prompt: string): boolean {
       lower,
     ) ||
     /\bas soon as possible\b/i.test(lower) ||
-    /\basap\b/i.test(lower)
+    /\basap\b/i.test(lower) ||
+    isMultilingualFirstAvailableBookingPrompt(prompt)
   );
 }
 
@@ -709,21 +715,43 @@ export function enrichBookingTimeHintsFromPrompt(
   params: Record<string, any>,
   prompt: string,
 ): void {
-  if (action !== 'create_booking' && action !== 'reschedule_booking') return;
-  if (isFirstAvailableBookingPrompt(prompt)) {
+  const isBookingHintAction =
+    action === 'create_booking' ||
+    action === 'reschedule_booking' ||
+    action === 'check_providers_for_service' ||
+    action === 'book_nearest_slot';
+  if (!isBookingHintAction) return;
+
+  const wantsFirstAvailable =
+    action === 'book_nearest_slot' ||
+    ((action === 'create_booking' || action === 'reschedule_booking') &&
+      isFirstAvailableBookingPrompt(prompt));
+  if (wantsFirstAvailable) {
     params.bookingFirstAvailable = true;
     delete params.timeSlot;
   }
-  const timeOfDay = parseTimeOfDayWindow(prompt, params);
+
+  const timeOfDay =
+    parseTimeOfDayWindow(prompt, params) ??
+    parseMultilingualTimeOfDayWindow(prompt, params);
   if (timeOfDay && !params.timeOfDay) params.timeOfDay = timeOfDay;
+
   const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
   if (earliestTime) params.timeFrom = earliestTime;
+
   if (
-    isAnyProviderBookingPrompt(prompt) ||
-    (/\b(who|which|anyone|anybody)\b/i.test(prompt) &&
-      /\b(?:free|available|open)\b/i.test(prompt))
+    action === 'check_providers_for_service' ||
+    action === 'book_nearest_slot' ||
+    action === 'create_booking'
   ) {
-    params.allProviders = true;
+    if (
+      isAnyProviderBookingPrompt(prompt) ||
+      (/\b(who|which|anyone|anybody)\b/i.test(prompt) &&
+        /\b(?:free|available|open)\b/i.test(prompt)) ||
+      isMultilingualCheckProvidersPrompt(prompt)
+    ) {
+      params.allProviders = true;
+    }
   }
 }
 

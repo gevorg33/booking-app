@@ -3,6 +3,7 @@ import {
   formatTourDifficulty,
   isDayLevelTourService,
   isPublicTourService,
+  isTourVerticalBusinessType,
   tourPriceLabel,
 } from './tour-service';
 
@@ -10,6 +11,13 @@ describe('tour-service', () => {
   it('detects public tour services', () => {
     expect(isPublicTourService({ isTour: true })).toBe(true);
     expect(isPublicTourService({ isTour: false })).toBe(false);
+  });
+
+  it('detects tour vertical business types', () => {
+    expect(isTourVerticalBusinessType('tour_operator')).toBe(true);
+    expect(isTourVerticalBusinessType('clinic')).toBe(false);
+    expect(isTourVerticalBusinessType('hair_salon')).toBe(false);
+    expect(isTourVerticalBusinessType(null)).toBe(false);
   });
 
   it('detects day-level tour booking', () => {

@@ -87,12 +87,30 @@ describe('ai-cmd command completion (ai-cmd-t4)', () => {
       },
     ],
     [
+      'create_package_booking',
+      {
+        packageName: 'Spa Day',
+        customerName: 'Maria',
+        bookingFirstAvailable: true,
+        timeOfDay: 'evening',
+      },
+    ],
+    [
       'create_multi_service_booking',
       {
         serviceNames: ['haircut', 'beard trim'] as string[],
         employeeName: 'Anna',
         date: '29_05_2026',
         timeSlot: '10:00',
+      },
+    ],
+    [
+      'create_multi_service_booking',
+      {
+        serviceNames: ['haircut', 'beard trim'] as string[],
+        employeeName: 'Anna',
+        bookingFirstAvailable: true,
+        timeOfDay: 'morning',
       },
     ],
     ['book_package', { packageName: 'Spa Day', date: 'tomorrow' }],

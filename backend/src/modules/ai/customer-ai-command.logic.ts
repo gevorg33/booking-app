@@ -7,8 +7,18 @@ import type { AiIntegrationsService } from './ai-integrations.service.js';
 import type { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import type { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
+import type { AiBusinessCurrencyService } from './ai-business-currency.service.js';
+import type { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import type { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import type { AiBusinessTaxService } from './ai-business-tax.service.js';
+import type { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import type { AiTourServiceService } from './ai-tour-service.service.js';
+import type { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
+import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
 import { mergeCustomerCompoundContext } from './customer-ai-command.util.js';
+import type { CheckProvidersHandoff } from './ai-check-book-handoff.util.js';
+import type { ProviderAvailabilityRow } from './ai-provider-availability.util.js';
 
 export interface CustomerAiCommandLogicDeps {
   customerCrm: AiCustomerCrmService;
@@ -19,6 +29,13 @@ export interface CustomerAiCommandLogicDeps {
   marketingGrowth: AiMarketingGrowthService;
   pushNotifications: AiPushNotificationsService;
   selfServiceBooking: AiSelfServiceBookingService;
+  businessCurrency: AiBusinessCurrencyService;
+  businessLanguages: AiBusinessLanguagesService;
+  businessDateFormat: AiBusinessDateFormatService;
+  businessTax: AiBusinessTaxService;
+  businessCompliance: AiBusinessComplianceService;
+  tourService: AiTourServiceService;
+  recommendationProduct: AiRecommendationProductService;
 }
 
 export interface CustomerIntentSession {
@@ -32,6 +49,20 @@ export interface CustomerIntentSession {
   paymentMethod?: string;
   useSubscriptionId?: string;
   bookingId?: string;
+  date?: string;
+  timeOfDay?: string;
+  notBeforeTime?: string;
+  serviceName?: string;
+  allProviders?: boolean;
+  bookingFirstAvailable?: boolean;
+  timeFrom?: string;
+  serviceId?: string;
+  employeeId?: string;
+  checkProvidersHandoff?: CheckProvidersHandoff;
+  availableProviders?: string[];
+  availability?: ProviderAvailabilityRow[];
+  priorCheckSummary?: string;
+  noProviders?: boolean;
   lastPush?: unknown;
   offlineQueueCount?: number;
   online?: boolean;
@@ -54,6 +85,16 @@ function withCustomerSession(
     paymentMethod: session.paymentMethod ?? params.paymentMethod,
     useSubscriptionId: session.useSubscriptionId ?? params.useSubscriptionId,
     bookingId: session.bookingId ?? params.bookingId,
+    date: session.date ?? params.date,
+    timeOfDay: session.timeOfDay ?? params.timeOfDay,
+    notBeforeTime: session.notBeforeTime ?? params.notBeforeTime,
+    serviceName: session.serviceName ?? params.serviceName,
+    allProviders: session.allProviders ?? params.allProviders,
+    bookingFirstAvailable:
+      session.bookingFirstAvailable ?? params.bookingFirstAvailable,
+    timeFrom: session.timeFrom ?? params.timeFrom,
+    serviceId: session.serviceId ?? params.serviceId,
+    employeeId: session.employeeId ?? params.employeeId,
     lastPush: session.lastPush ?? params.lastPush,
     offlineQueueCount: session.offlineQueueCount ?? params.offlineQueueCount,
     online: session.online ?? params.online,
@@ -148,6 +189,53 @@ export async function dispatchCustomerIntent(
       return deps.payments.handlePayCashAtVisit(businessId);
     case 'purchase_subscription_checkout':
       return deps.payments.handlePurchaseSubscriptionCheckout(businessId, p);
+    case 'explain_booking_languages':
+      return deps.businessLanguages.handleExplainBookingLanguages(
+        businessId,
+        session.locale,
+      );
+    case 'explain_booking_date_format':
+      return deps.businessDateFormat.handleExplainBookingDateFormat(businessId);
+    case 'explain_tour_booking':
+      return deps.tourService.handleExplainTourBooking(businessId, p, prompt);
+    case 'explain_tour_day_slots':
+      return deps.tourService.handleExplainTourDaySlots(businessId, p, prompt);
+    case 'diagnose_tour_capacity':
+      return deps.tourService.handleDiagnoseTourCapacity(businessId, p, prompt);
+    case 'explain_checkout_recommendations':
+      return deps.recommendationProduct.handleExplainCheckoutRecommendations(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_consumer_checkout_success':
+      return deps.recommendationProduct.handleExplainConsumerCheckoutSuccess(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_consumer_checkout_tax':
+      return deps.businessTax.handleExplainConsumerCheckoutTax(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_checkout_currency':
+      return deps.businessCurrency.handleExplainCheckoutCurrency(businessId);
+    case 'explain_checkout_tax':
+      return deps.businessTax.handleExplainCheckoutTax(businessId);
+    case 'explain_data_rights':
+      return deps.businessCompliance.handleExplainDataRights(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_stripe_checkout_currency':
+      return deps.businessCurrency.handleExplainStripeCheckoutCurrency(businessId);
+    case 'explain_tenant_currency':
+      return deps.businessCurrency.handleExplainTenantCurrency(businessId);
+    case 'explain_notification_currency':
+      return deps.businessCurrency.handleExplainNotificationCurrency(businessId);
     case 'explain_why_stripe_required':
       return deps.payments.handleExplainWhyStripeRequired(businessId);
     case 'receipt_status':
@@ -293,7 +381,13 @@ export async function executeCustomerCompoundFromSteps(
   let compoundContext: CustomerIntentSession = { ...session, prompt };
 
   for (const step of steps.slice(0, 4)) {
-    const stepParams = { ...step.params, _prompt: step.segment };
+    const stepParams = {
+      ...mergeSharedBookingStepParams(
+        compoundContext as Record<string, unknown>,
+        step.params,
+      ),
+      _prompt: step.segment,
+    };
     const result = await dispatchCustomerIntent(
       deps,
       businessId,
@@ -322,6 +416,17 @@ export async function executeCustomerCompoundFromSteps(
     compoundContext.prompt = prompt;
   }
 
+  const providerStep = [...results]
+    .reverse()
+    .find((entry) => entry.action === 'check_providers_for_service');
+  const providerDetails = providerStep?.details as
+    | Record<string, unknown>
+    | undefined;
+  const bookStep = [...results]
+    .reverse()
+    .find((entry) => entry.action === 'book_nearest_slot');
+  const bookDetails = bookStep?.details as Record<string, unknown> | undefined;
+
   return {
     success: true,
     action: 'compound_intent',
@@ -334,6 +439,13 @@ export async function executeCustomerCompoundFromSteps(
       customerCompound: true,
       decomposed: true,
       finalContext: compoundContext,
+      availableProviders: providerDetails?.availableProviders,
+      availability: providerDetails?.availability,
+      serviceName: providerDetails?.serviceName,
+      date: providerDetails?.date,
+      checkProvidersHandoff:
+        bookDetails?.checkProvidersHandoff ??
+        compoundContext.checkProvidersHandoff,
     },
   };
 }

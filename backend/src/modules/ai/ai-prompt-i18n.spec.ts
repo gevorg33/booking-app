@@ -1,5 +1,7 @@
+import { MULTILINGUAL_CHECK_AND_BOOK_CORE_PROMPTS } from './ai-check-and-book-multilingual.fixtures.js';
 import {
   buildMultilingualClassifierContext,
+  CLASSIFIER_MULTILINGUAL_RULES,
   containsExtendedLatin,
   containsNonEnglishScript,
   looksLikeTransliteration,
@@ -325,5 +327,65 @@ describe('ai-prompt-i18n detection', () => {
       expect(ctx).toContain('Марии');
       expect(ctx).toContain('hot stone massage');
     });
+  });
+
+  describe('CLASSIFIER_MULTILINGUAL_RULES (ai-cmd-h1.5)', () => {
+    it('documents hy/ru check+book and flexible-slot phrasing', () => {
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/ամրագրիր մոտակա/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/забронируй ближайший/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/bookingFirstAvailable=true/i);
+    });
+
+    it('documents hy/ru business compliance phrasing (ai-cmd-compliance-6)', () => {
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /configure_privacy_retention/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /admin_delete_customer_data/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /պահել հաճախորդի տվյալները 3 տարի/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /хранить данные клиента 3 года/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/մոռանալ այս հաճախորդին/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/забыть этого клиента/i);
+    });
+
+    it('documents hy/ru business currency phrasing (ai-cmd-curr-4)', () => {
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/configure_business_currency/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/սահմանել լռելյա արժույթը AMD/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/установить валюту по умолчанию AMD/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/bulk_update_service_currency/i);
+    });
+
+    it('documents hy/ru recommendation product phrasing (ai-cmd-rec-4)', () => {
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /configure_recommendation_product/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /link_recommended_products/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /explain_recommendation_setup/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /ավելացրու շամպուն ապրանք checkout-ից հետո/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /рекомендовать шампунь и кондиционер после стрижки/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /բացատրիր recommendation setup/i,
+      );
+    });
+
+    it.each(MULTILINGUAL_CHECK_AND_BOOK_CORE_PROMPTS)(
+      'requires normalization for check+book prompt: $id',
+      ({ prompt }) => {
+        expect(needsMultilingualNormalization(prompt)).toBe(true);
+      },
+    );
   });
 });

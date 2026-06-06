@@ -3,6 +3,7 @@ import {
   formatClinicServiceTypeBadge,
   isClinicVerticalBusinessType,
   isPublicClinicService,
+  shouldShowPatientResultsTab,
 } from './clinic-service';
 
 describe('clinic-service', () => {
@@ -17,6 +18,14 @@ describe('clinic-service', () => {
     expect(isClinicVerticalBusinessType('hair_salon')).toBe(false);
     expect(isClinicVerticalBusinessType(null)).toBe(false);
     expect(isClinicVerticalBusinessType(undefined)).toBe(false);
+  });
+
+  it('gates patient Results tab by clinic vertical business type', () => {
+    expect(shouldShowPatientResultsTab('clinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('polyclinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('dental')).toBe(true);
+    expect(shouldShowPatientResultsTab('hair_salon')).toBe(false);
+    expect(shouldShowPatientResultsTab(null)).toBe(false);
   });
 
   it('formats clinic service type badges with translations', () => {

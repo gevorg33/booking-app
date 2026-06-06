@@ -93,6 +93,85 @@ describe('customer-ai-command.util', () => {
       "who's free tomorrow evening for permanent lashes",
     );
     expect(schema).not.toContain('pick the FIRST actionable intent');
+    expect(schema).toContain('Availability vs booking (customer / consumer app)');
+    expect(schema).toContain('Do NOT use lookup_service_assignment');
+    expect(schema).toContain('Armenian/Russian/transliteration check+book');
+    expect(schema).toContain('ամրագրիր մոտակա');
+    expect(schema).toContain('explain_tenant_currency');
+    expect(schema).toContain('explain_notification_currency');
+    expect(schema).toContain('explain_stripe_checkout_currency');
+    expect(schema).toContain('Why was I charged in euros on Stripe checkout?');
+    expect(schema).toContain('Why does the salon app show prices in euros after I log in?');
+    expect(schema).toContain('Why does my booking confirmation email show euros (€)?');
+    expect(schema).toContain('explain_booking_languages');
+    expect(schema).toContain('explain_booking_date_format');
+    expect(schema).toContain(
+      'Why do dates show as DD/MM instead of MM/DD on the booking page?',
+    );
+    expect(schema).toContain(
+      'Why can I only see English and Armenian on the booking page?',
+    );
+    expect(schema).toContain('NOT explain_business_languages');
+    expect(schema).toContain('NOT explain_checkout_currency');
+    expect(schema).toContain('explain_tour_booking');
+    expect(schema).toContain(
+      'What is the max group size for City Tour on this booking page?',
+    );
+    expect(schema).toContain('NOT explain_tour_services');
+    expect(schema).toContain('explain_tour_day_slots');
+    expect(schema).toContain('explain_checkout_recommendations');
+    expect(schema).toContain('explain_consumer_checkout_success');
+    expect(schema).toContain('explain_consumer_checkout_tax');
+    expect(schema).toContain('Dismiss recommendations');
+    expect(schema).toContain('You might also like');
+    expect(schema).toContain('NOT explain_recommendation_setup');
+    expect(schema).toContain('diagnose_tour_capacity');
+    expect(schema).toContain(
+      'Why does Mountain Trek show only one departure time per day when I book?',
+    );
+    expect(schema).toContain('NOT explain_tour_booking');
+  });
+
+  it('merges shared booking context between compound steps', () => {
+    const merged = mergeCustomerCompoundContext(
+      { customerId: 'cust-1' },
+      {
+        success: true,
+        action: 'check_providers_for_service',
+        summary: 'ok',
+        details: {
+          serviceName: 'Massage',
+          timeOfDay: 'evening',
+          allProviders: true,
+          date: '2026-06-07',
+        },
+      },
+    );
+    expect(merged.serviceName).toBe('Massage');
+    expect(merged.timeOfDay).toBe('evening');
+    expect(merged.allProviders).toBe(true);
+    expect(merged.date).toBe('2026-06-07');
+  });
+
+  it('forwards check_providers handoff into compound context (ai-cmd-h2.2)', () => {
+    const merged = mergeCustomerCompoundContext(
+      { customerId: 'cust-1' },
+      {
+        success: true,
+        action: 'check_providers_for_service',
+        summary: '2 provider(s) available for massage',
+        details: {
+          serviceName: 'massage',
+          availableProviders: ['Karo Mazmanyan'],
+          date: '2026-06-07',
+        },
+      },
+    );
+    expect(merged.checkProvidersHandoff).toMatchObject({
+      serviceName: 'massage',
+      availableProviders: ['Karo Mazmanyan'],
+    });
+    expect(merged.priorCheckSummary).toContain('2 provider(s) available');
   });
 
   it('merges compound context from sessionContext and detail keys', () => {

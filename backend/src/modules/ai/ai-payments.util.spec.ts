@@ -335,7 +335,7 @@ describe('ai-payments.util', () => {
         'book_nearest_slot',
       ]);
       expect(freeSteps[0]?.params.serviceName).toBe('permanent lashes');
-      expect(freeSteps[0]?.params.date).toBe('2026-06-06');
+      expect(freeSteps[0]?.params.date).toBe(resolveTomorrowDateKey());
       expect(freeSteps[0]?.params.notBeforeTime).toBe('17:00');
       expect(freeSteps[1]?.params.bookingFirstAvailable).toBe(true);
 
@@ -546,6 +546,12 @@ describe('ai-payments.util', () => {
           'check who can take permanent lashes tomorrow evening',
         ),
       ).toBe('permanent lashes');
+      expect(extractServiceNameFromPrompt('who can take slot tomorrow')).toBeNull();
+      expect(
+        isCheckProvidersForServicePrompt(
+          'who is available for spa packages tomorrow',
+        ),
+      ).toBe(false);
       expect(isBookNearestSlotPrompt('find nearest haircut')).toBe(true);
       expect(isBookNearestSlotPrompt('get next facial service')).toBe(true);
       expect(

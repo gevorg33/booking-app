@@ -26,6 +26,25 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       {},
       {
         get: (_target, prop: string) => {
+          if (prop === 'handleBuyGiftCard') {
+            return jest.fn(
+              async (
+                _businessId: string,
+                _params?: Record<string, unknown>,
+                physical?: boolean,
+              ) => ({
+                success: true,
+                action: physical ? 'buy_gift_card_physical' : 'buy_gift_card',
+                summary: 'gift card ok',
+                details: {
+                  bookingId: 'bk-1',
+                  packageId: 'pkg-1',
+                  manageUrl: 'https://example.com/manage/bk-1',
+                  sessionContext: { serviceName: 'Spa Day' },
+                },
+              }),
+            );
+          }
           if (prop.startsWith('handle')) {
             const action = prop
               .replace(/^handle/, '')
@@ -72,12 +91,48 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       llm as any,
       promptSecurity as any,
       { gateCustomerAction: jest.fn(() => null) } as any,
+      { emitMisrouteTelemetry: jest.fn() } as any,
       sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
+      sprintHandlers as any,
+      sprintHandlers as any,
+      {
+        handleExplainCheckoutCurrency: jest.fn(async () => ({
+          success: true,
+          action: 'explain_checkout_currency',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainBookingLanguages: jest.fn(async () => ({
+          success: true,
+          action: 'explain_booking_languages',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainBookingDateFormat: jest.fn(async () => ({
+          success: true,
+          action: 'explain_booking_date_format',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      sprintHandlers as any,
+      {
+        handleExplainDataRights: jest.fn(async () => ({
+          success: true,
+          action: 'explain_data_rights',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
       sprintHandlers as any,
       sprintHandlers as any,
       { chat: jest.fn() } as any,
@@ -179,12 +234,48 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       llm as any,
       promptSecurity as any,
       { gateCustomerAction: jest.fn(() => null) } as any,
+      { emitMisrouteTelemetry: jest.fn() } as any,
       noop as any,
       noop as any,
       noop as any,
       noop as any,
       noop as any,
       noop as any,
+      noop as any,
+      noop as any,
+      {
+        handleExplainCheckoutCurrency: jest.fn(async () => ({
+          success: true,
+          action: 'explain_checkout_currency',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainBookingLanguages: jest.fn(async () => ({
+          success: true,
+          action: 'explain_booking_languages',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      {
+        handleExplainBookingDateFormat: jest.fn(async () => ({
+          success: true,
+          action: 'explain_booking_date_format',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      noop as any,
+      {
+        handleExplainDataRights: jest.fn(async () => ({
+          success: true,
+          action: 'explain_data_rights',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
       noop as any,
       noop as any,
       publicAssistant as any,

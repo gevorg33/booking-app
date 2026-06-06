@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessModule } from '../business/business.module.js';
 import { Business } from '../business/entities/business.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ComplianceController } from './compliance.controller.js';
 import { ComplianceBreachService } from './compliance-breach.service.js';
 import { PhiAccessAuditService } from './phi-access-audit.service.js';
@@ -11,8 +13,14 @@ import { PhiAccessAuditLog } from './entities/phi-access-audit-log.entity.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DataBreachIncident, PhiAccessAuditLog, Business]),
+    TypeOrmModule.forFeature([
+      DataBreachIncident,
+      PhiAccessAuditLog,
+      Business,
+      Customer,
+    ]),
     BusinessModule,
+    NotificationsModule,
   ],
   controllers: [ComplianceController],
   providers: [ComplianceBreachService, PhiAccessAuditService, PhiFieldService],

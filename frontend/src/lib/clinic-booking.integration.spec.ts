@@ -3,6 +3,7 @@ import {
   formatClinicServiceTypeBadge,
   isClinicVerticalBusinessType,
   isPublicClinicService,
+  shouldShowPatientResultsTab,
 } from './clinic-service';
 import type { PublicService } from './public-api';
 
@@ -76,6 +77,14 @@ describe('Sprint 31 — clinic booking scenario matrix', () => {
     expect(isClinicVerticalBusinessType('clinic')).toBe(true);
     expect(isClinicVerticalBusinessType('beauty_clinic')).toBe(true);
     expect(isClinicVerticalBusinessType('tour_operator')).toBe(false);
+  });
+
+  it('gates booking-detail Results tab for clinic tenants only (vert-clinic-1.13)', () => {
+    expect(shouldShowPatientResultsTab('polyclinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('clinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('beauty_clinic')).toBe(true);
+    expect(shouldShowPatientResultsTab('hair_salon')).toBe(false);
+    expect(shouldShowPatientResultsTab('tour_operator')).toBe(false);
   });
 
   it('shows appointment type badges for consultation, lab, and procedure', () => {

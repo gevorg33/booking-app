@@ -260,6 +260,76 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
         'show_cart_total_duration',
       ),
     } as any,
+    businessLanguages: {
+      handleExplainBookingLanguages: register(
+        'lang.explain_booking_languages',
+        'explain_booking_languages',
+      ),
+    } as any,
+    businessDateFormat: {
+      handleExplainBookingDateFormat: register(
+        'fmt.explain_booking_date_format',
+        'explain_booking_date_format',
+      ),
+    } as any,
+    businessTax: {
+      handleExplainCheckoutTax: register(
+        'tax.explain_checkout_tax',
+        'explain_checkout_tax',
+      ),
+      handleExplainConsumerCheckoutTax: register(
+        'tax.explain_consumer_checkout_tax',
+        'explain_consumer_checkout_tax',
+      ),
+    } as any,
+    businessCompliance: {
+      handleExplainDataRights: register(
+        'compliance.explain_data_rights',
+        'explain_data_rights',
+      ),
+    } as any,
+    tourService: {
+      handleExplainTourBooking: register(
+        'tour.explain_tour_booking',
+        'explain_tour_booking',
+      ),
+      handleExplainTourDaySlots: register(
+        'tour.explain_tour_day_slots',
+        'explain_tour_day_slots',
+      ),
+      handleDiagnoseTourCapacity: register(
+        'tour.diagnose_tour_capacity',
+        'diagnose_tour_capacity',
+      ),
+    } as any,
+    recommendationProduct: {
+      handleExplainCheckoutRecommendations: register(
+        'rec.explain_checkout_recommendations',
+        'explain_checkout_recommendations',
+      ),
+      handleExplainConsumerCheckoutSuccess: register(
+        'rec.explain_consumer_checkout_success',
+        'explain_consumer_checkout_success',
+      ),
+    } as any,
+    businessCurrency: {
+      handleExplainCheckoutCurrency: register(
+        'curr.explain_checkout_currency',
+        'explain_checkout_currency',
+      ),
+      handleExplainTenantCurrency: register(
+        'curr.explain_tenant_currency',
+        'explain_tenant_currency',
+      ),
+      handleExplainNotificationCurrency: register(
+        'curr.explain_notification_currency',
+        'explain_notification_currency',
+      ),
+      handleExplainStripeCheckoutCurrency: register(
+        'curr.explain_stripe_checkout_currency',
+        'explain_stripe_checkout_currency',
+      ),
+    } as any,
   };
 }
 
@@ -398,6 +468,58 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   {
     action: 'show_cart_total_duration',
     callKey: 's36.show_cart_total_duration',
+  },
+  {
+    action: 'explain_booking_languages',
+    callKey: 'lang.explain_booking_languages',
+  },
+  {
+    action: 'explain_booking_date_format',
+    callKey: 'fmt.explain_booking_date_format',
+  },
+  {
+    action: 'explain_checkout_tax',
+    callKey: 'tax.explain_checkout_tax',
+  },
+  {
+    action: 'explain_data_rights',
+    callKey: 'compliance.explain_data_rights',
+  },
+  {
+    action: 'explain_consumer_checkout_tax',
+    callKey: 'tax.explain_consumer_checkout_tax',
+  },
+  {
+    action: 'explain_tour_booking',
+    callKey: 'tour.explain_tour_booking',
+  },
+  {
+    action: 'explain_tour_day_slots',
+    callKey: 'tour.explain_tour_day_slots',
+  },
+  {
+    action: 'explain_checkout_recommendations',
+    callKey: 'rec.explain_checkout_recommendations',
+  },
+  {
+    action: 'explain_consumer_checkout_success',
+    callKey: 'rec.explain_consumer_checkout_success',
+  },
+  {
+    action: 'explain_checkout_currency',
+    callKey: 'curr.explain_checkout_currency',
+  },
+  {
+    action: 'explain_tenant_currency',
+    callKey: 'curr.explain_tenant_currency',
+  },
+  {
+    action: 'explain_notification_currency',
+    callKey: 'curr.explain_notification_currency',
+  },
+  {
+    action: 'explain_stripe_checkout_currency',
+    callKey: 'curr.explain_stripe_checkout_currency',
   },
 ];
 

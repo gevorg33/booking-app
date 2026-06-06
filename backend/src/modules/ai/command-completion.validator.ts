@@ -8,6 +8,64 @@ import {
   isAiCmdEntityValidatedAction,
   validateAiCmdEntityFields,
 } from './ai-cmd-entity-completion.util.js';
+import {
+  hasAvailabilityWhen,
+  hasRequiredBookingDate,
+  hasRequiredBookingStartTime,
+  hasRescheduleNewTime,
+  isBookingFirstAvailable,
+} from './booking-time-completion.util.js';
+import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
+import {
+  parseBusinessTaxFromPrompt,
+  parseSetServiceTaxRateFromPrompt,
+} from './ai-business-tax.util.js';
+import { parseConfigureStackedTaxRulesFromPrompt } from './ai-stacked-tax.util.js';
+import {
+  parseAdminDeleteCustomerDataFromPrompt,
+  parseConfigureGranularConsentFromPrompt,
+  parseConfigurePrivacyRetentionFromPrompt,
+  parseAcceptHipaaBaaFromPrompt,
+  parseConfigureHipaaSessionTimeoutFromPrompt,
+  parseEnableHipaaModeFromPrompt,
+  parseExplainComplianceStatusFromPrompt,
+  parseExplainGdprChecklistFromPrompt,
+  parseExplainHipaaSessionTimeoutFromPrompt,
+  parseListSubProcessorsFromPrompt,
+  parseExplainMinimumNecessaryPhiAccessFromPrompt,
+  parseExplainPhiEncryptionStatusFromPrompt,
+  parseListBreachIncidentsFromPrompt,
+  parseReportDataBreachFromPrompt,
+  parseSendBreachNotificationFromPrompt,
+  parseOpenComplianceDashboardFromPrompt,
+  parseViewPhiAccessAuditFromPrompt,
+} from './ai-business-compliance.util.js';
+import { parseExplainDataRightsFromPrompt } from './ai-data-rights.util.js';
+import {
+  parseConfigureRecommendationProductFromPrompt,
+  parseLinkRecommendedProductsFromPrompt,
+} from './ai-recommendation-product.util.js';
+import { parseBusinessLanguagesFromPrompt } from './ai-business-languages.util.js';
+import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.util.js';
+import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
+import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
+import { parseExplainTourBookingFromPrompt } from './ai-tour-booking.util.js';
+import { parseExplainTourDaySlotsFromPrompt } from './ai-tour-day-slots.util.js';
+import { parseExplainCheckoutRecommendationsFromPrompt } from './ai-checkout-recommendations.util.js';
+import { parseExplainConsumerCheckoutSuccessFromPrompt } from './ai-consumer-checkout-success.util.js';
+import { parseExplainConsumerCheckoutTaxFromPrompt } from './ai-consumer-checkout-tax.util.js';
+import { parseExplainRecommendationAnalyticsFromPrompt } from './ai-recommendation-analytics.util.js';
+import { parseSummarizeRecommendationPerformanceFromPrompt } from './ai-recommendation-performance.util.js';
+import { parseExplainTourBookingRecordFromPrompt } from './ai-tour-booking-record.util.js';
+import { parseExplainTourCalendarSpanFromPrompt } from './ai-tour-calendar-span.util.js';
+import { parseListTourCalendarWeekFromPrompt } from './ai-tour-calendar-week.util.js';
+import { parseDiagnoseTourCapacityFromPrompt } from './ai-tour-capacity.util.js';
+import { parseListUpcomingTourDeparturesFromPrompt } from './ai-upcoming-tour-departures.util.js';
+import {
+  isApplyTourPlaybookPrompt,
+  isExplainTourServicesPrompt,
+  parseConfigureTourServiceFromPrompt,
+} from './ai-tour-service.util.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -22,7 +80,7 @@ const needs = (
 const ACTION_RULES: Record<string, Rule> = {
   create_booking: (cmd) => {
     const anyProvider = cmd.params.allProviders === true;
-    const firstAvailable = cmd.params.bookingFirstAvailable === true;
+    const firstAvailable = isBookingFirstAvailable(cmd.params);
     const fallbackNames = cmd.params.providerFallbackNames;
     const hasFallbackChain =
       cmd.params.fallbackAnyProvider === true ||
@@ -51,13 +109,13 @@ const ACTION_RULES: Record<string, Rule> = {
       needs(
         'date',
         'Date',
-        !!cmd.params.date || firstAvailable,
+        hasRequiredBookingDate(cmd.params),
         '29/05/2026 or tomorrow',
       ),
       needs(
         'timeSlot',
         'Start time',
-        !!cmd.params.timeSlot || firstAvailable,
+        hasRequiredBookingStartTime(cmd.params),
         '09:00 or first available',
       ),
     ].filter(Boolean) as ValidationIssue[];
@@ -229,10 +287,7 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.bookingId ||
       !!cmd.params.customerName ||
       !!cmd.params.employeeName;
-    const hasNewTime =
-      !!cmd.params.date ||
-      !!cmd.params.timeSlot ||
-      cmd.params.bookingFirstAvailable === true;
+    const hasNewTime = hasRescheduleNewTime(cmd.params);
     const hasServiceChange = !!(
       cmd.entities.service || cmd.enrichedParams.serviceId
     );
@@ -262,9 +317,14 @@ const ACTION_RULES: Record<string, Rule> = {
   },
 
   check_availability: (cmd) =>
-    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
-      Boolean,
-    ) as ValidationIssue[],
+    [
+      needs(
+        'date',
+        'Date',
+        hasAvailabilityWhen(cmd.params),
+        'tomorrow or 29/05/2026',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
 
   show_appointments: (cmd) =>
     [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
@@ -778,6 +838,606 @@ const ACTION_RULES: Record<string, Rule> = {
         'next week',
       ),
     ].filter(Boolean) as ValidationIssue[],
+
+  configure_business_currency: (cmd) =>
+    parseCurrencyFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'currencyCode',
+            label: 'Currency',
+            message: 'Specify which ISO currency to use',
+            example: 'Set default currency to AMD',
+          },
+        ],
+
+  configure_business_tax: (cmd) =>
+    parseBusinessTaxFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'rate',
+            label: 'Tax settings',
+            message: 'Specify tax rate, model, or enable/disable',
+            example: 'Enable 20% VAT',
+          },
+        ],
+
+  configure_privacy_retention: (cmd) =>
+    parseConfigurePrivacyRetentionFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'retention',
+            label: 'Privacy retention',
+            message:
+              'Specify retention period or cookie banner change',
+            example: 'Keep customer data for 3 years',
+          },
+        ],
+
+  configure_granular_consent: (cmd) =>
+    parseConfigureGranularConsentFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'granularConsent',
+            label: 'Granular consent',
+            message:
+              'Specify AI processing or third-party integration consent toggle',
+            example: 'Require AI processing consent at checkout',
+          },
+        ],
+
+  enable_hipaa_mode: (cmd) =>
+    parseEnableHipaaModeFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'hipaa',
+            label: 'HIPAA mode',
+            message: 'Specify HIPAA enable/disable or session timeout',
+            example: 'Enable HIPAA safeguards',
+          },
+        ],
+
+  explain_compliance_status: (cmd) =>
+    parseExplainComplianceStatusFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Compliance status',
+            message:
+              'Ask about compliance overview, HIPAA/BAA status, or retention periods',
+            example: 'What is our compliance status?',
+          },
+        ],
+
+  list_sub_processors: (cmd) =>
+    parseListSubProcessorsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'processors',
+            label: 'Sub-processors',
+            message:
+              'Ask who your data sub-processors are or to show the Article 28 processor list',
+            example: 'Who are our data sub-processors?',
+          },
+        ],
+
+  explain_gdpr_checklist: (cmd) =>
+    parseExplainGdprChecklistFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'GDPR checklist',
+            message:
+              'Ask whether you are GDPR compliant or what privacy items are missing',
+            example: 'Are we GDPR compliant?',
+          },
+        ],
+
+  admin_delete_customer_data: (cmd) => {
+    const parsed = parseAdminDeleteCustomerDataFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const customerName =
+      parsed?.customerName ??
+      (typeof cmd.params.customerName === 'string'
+        ? cmd.params.customerName.trim()
+        : '');
+    return parsed && customerName
+      ? []
+      : [
+          {
+            field: 'customerName',
+            label: 'Customer to forget',
+            message: 'Specify which customer to anonymize',
+            example: 'Forget this customer Anna',
+          },
+        ];
+  },
+
+  report_data_breach: (cmd) =>
+    parseReportDataBreachFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'description',
+            label: 'Breach description',
+            message:
+              'Describe the data breach or security incident (at least 10 characters)',
+            example:
+              'Report a data breach: unauthorized access to customer emails',
+          },
+        ],
+
+  send_breach_notification: (cmd) =>
+    parseSendBreachNotificationFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'incidentRef',
+            label: 'Breach incident',
+            message:
+              'Specify which breach incident to notify (BR-42, incident X, or UUID prefix)',
+            example: 'Email affected customers about breach BR-42',
+          },
+        ],
+
+  list_breach_incidents: (cmd) =>
+    parseListBreachIncidentsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Breach incidents',
+            message:
+              'Ask to show breach incidents or GDPR 72-hour deadlines',
+            example: 'Show breach incidents',
+          },
+        ],
+
+  open_compliance_dashboard: (cmd) =>
+    parseOpenComplianceDashboardFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'panel',
+            label: 'Compliance panel',
+            message:
+              'Ask to open compliance settings or a compliance panel (breach log, HIPAA, PHI audit)',
+            example: 'Open compliance settings',
+          },
+        ],
+
+  view_phi_access_audit: (cmd) =>
+    parseViewPhiAccessAuditFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'audit',
+            label: 'PHI access audit',
+            message:
+              'Ask who accessed patient notes or to show the HIPAA PHI audit log',
+            example: 'Who accessed patient notes?',
+          },
+        ],
+
+  explain_phi_encryption_status: (cmd) =>
+    parseExplainPhiEncryptionStatusFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'encryption',
+            label: 'PHI encryption',
+            message:
+              'Ask whether HIPAA PHI encryption is on or if fields are encrypted at rest',
+            example: 'Is HIPAA encryption on?',
+          },
+        ],
+
+  explain_minimum_necessary_phi_access: (cmd) =>
+    parseExplainMinimumNecessaryPhiAccessFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Minimum necessary PHI access',
+            message:
+              'Ask who can see patient notes or what PHI staff can access',
+            example: 'Who can see patient notes?',
+          },
+        ],
+
+  explain_hipaa_session_timeout: (cmd) =>
+    parseExplainHipaaSessionTimeoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'timeout',
+            label: 'HIPAA session timeout',
+            message:
+              'Ask when you will be logged out or what the HIPAA session timeout is',
+            example: 'When will I be logged out?',
+          },
+        ],
+
+  configure_hipaa_session_timeout: (cmd) =>
+    parseConfigureHipaaSessionTimeoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'sessionTimeoutMinutes',
+            label: 'HIPAA session timeout',
+            message:
+              'Specify a HIPAA session timeout in minutes (5–60)',
+            example: 'Set HIPAA timeout to 10 minutes',
+          },
+        ],
+
+  accept_hipaa_baa: (cmd) =>
+    parseAcceptHipaaBaaFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'baa',
+            label: 'HIPAA BAA',
+            message:
+              'Ask to accept or sign the HIPAA Business Associate Agreement',
+            example: 'Accept the HIPAA business associate agreement',
+          },
+        ],
+
+  explain_data_rights: (cmd) =>
+    parseExplainDataRightsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Data rights',
+            message:
+              'Ask how to export or delete your data, or about the cookie banner',
+            example: 'How can I export my personal data?',
+          },
+        ],
+
+  set_service_tax_rate: (cmd) =>
+    parseSetServiceTaxRateFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'serviceQuery',
+            label: 'Service tax override',
+            message: 'Specify which services and tax rate to apply',
+            example: 'Make massage services tax-exempt',
+          },
+        ],
+
+  configure_stacked_tax_rules: (cmd) =>
+    parseConfigureStackedTaxRulesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'rules',
+            label: 'Stacked tax rules',
+            message: 'Specify rules to add/stack or a rule name to remove',
+            example: 'Add 5% GST and 8% PST',
+          },
+        ],
+
+  link_recommended_products: (cmd) => {
+    const parsed = parseLinkRecommendedProductsFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed?.productNames.length && !parsed?.productIds?.length) {
+      issues.push({
+        field: 'productNames',
+        label: 'Products',
+        message: 'Specify which products to recommend',
+        example: 'Recommend shampoo and conditioner after haircut service',
+      });
+    }
+    if (
+      !parsed?.serviceName &&
+      !parsed?.serviceId &&
+      !parsed?.categoryName &&
+      !parsed?.categoryId
+    ) {
+      issues.push({
+        field: 'serviceName',
+        label: 'Service',
+        message: 'Specify which service or category should show these products',
+        example: 'Recommend shampoo after haircut service',
+      });
+    }
+    return issues;
+  },
+
+  configure_recommendation_product: (cmd) => {
+    const parsed = parseConfigureRecommendationProductFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed?.productName && !parsed?.productId) {
+      issues.push({
+        field: 'productName',
+        label: 'Product',
+        message: 'Specify the recommendation product name',
+        example: 'Add a shampoo product for post-checkout with image and link',
+      });
+    }
+    if (parsed?.wantsImage && !parsed.imageUrl) {
+      issues.push({
+        field: 'imageUrl',
+        label: 'Image',
+        message: 'Provide an image URL for the recommendation product',
+        example:
+          'Add shampoo for post-checkout with image https://cdn.test/shampoo.jpg',
+      });
+    }
+    if (parsed?.wantsLink && !parsed.externalLink) {
+      issues.push({
+        field: 'externalLink',
+        label: 'Link',
+        message: 'Provide an external shop link for the recommendation product',
+        example:
+          'Add shampoo for post-checkout with link https://shop.test/shampoo',
+      });
+    }
+    return issues;
+  },
+
+  configure_business_languages: (cmd) =>
+    parseBusinessLanguagesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'locales',
+            label: 'Languages',
+            message: 'Specify which languages to enable, disable, or set as default',
+            example: 'Enable Armenian and Russian',
+          },
+        ],
+
+  configure_business_date_format: (cmd) =>
+    parseBusinessDateFormatFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'dateFormat',
+            label: 'Date/time format',
+            message: 'Specify a date or time format to use',
+            example: 'Use US date format',
+          },
+        ],
+
+  configure_package_localized_names: (cmd) =>
+    parsePackageLocalizedNamesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'packageName',
+            label: 'Package',
+            message:
+              'Specify the package and locale display name to set or clear',
+            example: 'Add Armenian name «Սպա օր» for Spa Day package',
+          },
+        ],
+
+  configure_tour_service: (cmd) =>
+    parseConfigureTourServiceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'serviceName',
+            label: 'Service',
+            message:
+              'Specify the service and tour settings to update (group size, difficulty, etc.)',
+            example: 'Mark City Tour as a tour with max 12 people',
+          },
+        ],
+
+  explain_tour_services: (cmd) =>
+    isExplainTourServicesPrompt(cmd.prompt ?? '') ? [] : [],
+
+  explain_tour_booking_record: (cmd) =>
+    parseExplainTourBookingRecordFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour booking record',
+            message:
+              'Ask about one tour booking record (pax, tour dates, special requirements, or calendar span)',
+            example:
+              'Explain tour booking record for booking bk-tour-1 — pax and dates',
+          },
+        ],
+
+  explain_tour_calendar_span: (cmd) =>
+    parseExplainTourCalendarSpanFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour calendar span',
+            message:
+              'Ask how the provider calendar renders tour spans (colors, clipping, stacked lanes)',
+            example:
+              'Why do tours appear across multiple days on the provider calendar?',
+          },
+        ],
+
+  list_tour_calendar_week: (cmd) =>
+    parseListTourCalendarWeekFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour calendar week',
+            message:
+              'Ask to list tour departures on the provider calendar week',
+            example:
+              'List tour departures on the provider calendar this week',
+          },
+        ],
+
+  list_upcoming_tour_departures: (cmd) =>
+    parseListUpcomingTourDeparturesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Upcoming tour departures',
+            message:
+              'Ask to list upcoming tour departures with pax and remaining capacity',
+            example:
+              'List upcoming tour departures with pax and remaining capacity',
+          },
+        ],
+
+  apply_tour_playbook: (cmd) =>
+    isApplyTourPlaybookPrompt(cmd.prompt ?? '') ? [] : [
+      {
+        field: 'prompt',
+        label: 'Tour playbook',
+        message:
+          'Ask to apply the tour vertical playbook (catalog + 08:00–18:00 schedule)',
+        example: 'Apply tour playbook',
+      },
+    ],
+
+  explain_package_display_name: (cmd) =>
+    parsePackageDisplayNameExplainFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'packageName',
+            label: 'Package',
+            message:
+              'Specify which package to explain for the visitor locale',
+            example:
+              'What Armenian name shows for Spa Day package on public booking?',
+          },
+        ],
+
+  explain_tour_booking: (cmd) =>
+    parseExplainTourBookingFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'serviceName',
+            label: 'Tour service',
+            message:
+              'Specify which tour to explain (group size, per-person price, or duration)',
+            example:
+              'What is the max group size for City Tour on this booking page?',
+          },
+        ],
+
+  explain_tour_day_slots: (cmd) =>
+    parseExplainTourDaySlotsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour day slots',
+            message:
+              'Ask about one departure per day, remainingSpots, or a fully booked tour date',
+            example:
+              'Why does Mountain Trek show only one departure per day?',
+          },
+        ],
+
+  explain_checkout_recommendations: (cmd) =>
+    parseExplainCheckoutRecommendationsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Checkout recommendations',
+            message:
+              'Ask about You might also like product cards on the booking success screen',
+            example:
+              'What are these You might also like products on the confirmation screen?',
+          },
+        ],
+
+  explain_consumer_checkout_success: (cmd) =>
+    parseExplainConsumerCheckoutSuccessFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Consumer checkout success',
+            message:
+              'Ask about the consumer app booking success screen, its actions, or when product cards appear',
+            example:
+              'Explain the booking success screen in the consumer app after I confirm',
+          },
+        ],
+
+  explain_consumer_checkout_tax: (cmd) =>
+    parseExplainConsumerCheckoutTaxFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Consumer checkout tax',
+            message:
+              'Ask about tax display in the consumer app: incl. badge on services, checkout tax lines, or confirmation breakdown',
+            example:
+              'What does incl. VAT mean on services in the salon app?',
+          },
+        ],
+
+  explain_recommendation_analytics: (cmd) =>
+    parseExplainRecommendationAnalyticsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Recommendation analytics',
+            message:
+              'Ask about product_recommendation.shown impressions, clicked events, top products, or surface breakdown',
+            example: 'Explain recommendation analytics',
+          },
+        ],
+
+  summarize_recommendation_performance: (cmd) =>
+    parseSummarizeRecommendationPerformanceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Recommendation performance',
+            message:
+              'Ask about checkout recommendation CTR, CTR by product/service, or bookings with recommendations shown',
+            example: 'Summarize recommendation performance',
+          },
+        ],
+
+  diagnose_tour_capacity: (cmd) =>
+    parseDiagnoseTourCapacityFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour capacity diagnosis',
+            message:
+              'Ask why checkout rejected a pax count or tour date (max group, fully booked, clamped pax)',
+            example:
+              'Why did checkout reject 4 people for the mountain trek?',
+          },
+        ],
 };
 
 /** Entity resolution failures become clarify prompts */
@@ -915,6 +1575,11 @@ const VALIDATED_ACTIONS = new Set([
   'staff_service_matrix',
   'check_schedule_compliance',
   'revenue_forecast',
+  'configure_business_currency',
+  'configure_business_languages',
+  'configure_business_date_format',
+  'configure_recommendation_product',
+  'link_recommended_products',
 ]);
 
 export function shouldValidateAction(action: string): boolean {

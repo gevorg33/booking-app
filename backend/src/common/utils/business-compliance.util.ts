@@ -420,6 +420,20 @@ export function anonymizePiiPlaceholder(
   return `+0000000${hash.slice(0, 7)}`;
 }
 
+export function mergeBusinessPrivacySettings(
+  settings: Record<string, unknown>,
+  privacy: BusinessPrivacySettings,
+): Record<string, unknown> {
+  return { ...settings, privacy };
+}
+
+export function mergeBusinessHipaaSettings(
+  settings: Record<string, unknown>,
+  hipaa: BusinessHipaaSettings,
+): Record<string, unknown> {
+  return { ...settings, hipaa };
+}
+
 export function shouldPromptPrivacyReconsent(
   consentedVersion: string | undefined,
   currentVersion: string,

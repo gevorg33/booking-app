@@ -122,6 +122,97 @@ describe('ai-command-eval.runner', () => {
     expect(result.errors[0]).toMatch(/rescuedAction/);
   });
 
+  it('passes disambiguation rescue with rescueFromAction and rescueReason', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-disambiguate',
+      prompt:
+        'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+      expect: {
+        rescueFromAction: 'create_booking',
+        rescuedAction: 'create_booking',
+        rescueReason: 'check_and_book_compound',
+        paramsPartial: { bookingFirstAvailable: true, allProviders: true },
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports rescueReason mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-reason-miss',
+      prompt: 'book the nearest slot for massage tomorrow evening',
+      expect: {
+        rescuedAction: 'book_nearest_slot',
+        rescueReason: 'wrong_reason',
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescueReason/);
+  });
+
+  it('skips paramsPartial check when rescued params are absent', () => {
+    jest.spyOn(AiIntentRescueService.prototype, 'rescue').mockReturnValueOnce({
+      rescued: true,
+      action: 'book_nearest_slot',
+      rescueReason: 'nearest_slot',
+    } as ReturnType<AiIntentRescueService['rescue']>);
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-no-params-object',
+      prompt: 'book nearest slot',
+      expect: {
+        rescuedAction: 'book_nearest_slot',
+        paramsPartial: { bookingFirstAvailable: true },
+      },
+    });
+    expect(result.passed).toBe(true);
+    jest.restoreAllMocks();
+  });
+
+  it('passes rescue with rescueReason and no paramsPartial', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-reason-only',
+      prompt: 'book the nearest slot for massage tomorrow evening',
+      expect: {
+        rescuedAction: 'book_nearest_slot',
+        rescueReason: 'nearest_slot',
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports rescueReason when rescue omits rescueReason field', () => {
+    jest.spyOn(AiIntentRescueService.prototype, 'rescue').mockReturnValueOnce({
+      rescued: true,
+      action: 'book_nearest_slot',
+    } as ReturnType<AiIntentRescueService['rescue']>);
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-reason-undefined',
+      prompt: 'book the nearest slot for massage tomorrow evening',
+      expect: {
+        rescuedAction: 'book_nearest_slot',
+        rescueReason: 'nearest_slot',
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/rescueReason.*none/);
+    jest.restoreAllMocks();
+  });
+
+  it('reports rescueReason when rescue does not apply', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'rescue-reason-none',
+      prompt: 'Show appointments today',
+      expect: {
+        rescuedAction: 'book_nearest_slot',
+        rescueReason: 'nearest_slot',
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((error) => error.includes('rescueReason'))).toBe(
+      true,
+    );
+  });
+
   it('reports paramsPartial mismatch', () => {
     const result = evaluateDeterministicEvalCase({
       id: 'params',

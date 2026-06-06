@@ -42,6 +42,86 @@ import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
+import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
+import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { AiBusinessTaxService } from './ai-business-tax.service.js';
+import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { BUSINESS_COMPLIANCE_CLASSIFIER_RULES } from './ai-business-compliance.fixtures.js';
+import {
+  parseAdminDeleteCustomerDataFromPrompt,
+  parseConfigureGranularConsentFromPrompt,
+  parseConfigurePrivacyRetentionFromPrompt,
+  parseAcceptHipaaBaaFromPrompt,
+  parseConfigureHipaaSessionTimeoutFromPrompt,
+  parseEnableHipaaModeFromPrompt,
+  parseExplainComplianceStatusFromPrompt,
+  parseExplainGdprChecklistFromPrompt,
+  parseExplainHipaaSessionTimeoutFromPrompt,
+  parseListSubProcessorsFromPrompt,
+  parseOpenComplianceDashboardFromPrompt,
+  parseExplainMinimumNecessaryPhiAccessFromPrompt,
+  parseExplainPhiEncryptionStatusFromPrompt,
+  parseListBreachIncidentsFromPrompt,
+  parseReportDataBreachFromPrompt,
+  parseSendBreachNotificationFromPrompt,
+  parseViewPhiAccessAuditFromPrompt,
+} from './ai-business-compliance.util.js';
+import { BUSINESS_CURRENCY_CLASSIFIER_RULES } from './ai-business-currency.fixtures.js';
+import { BUSINESS_TAX_CLASSIFIER_RULES } from './ai-business-tax.fixtures.js';
+import { STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES } from './ai-stripe-currency-warning.fixtures.js';
+import { STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES } from './ai-stripe-checkout-failure.fixtures.js';
+import { REPORTS_CURRENCY_CLASSIFIER_RULES } from './ai-reports-currency.fixtures.js';
+import { REVENUE_KPIS_CLASSIFIER_RULES } from './ai-revenue-kpis.fixtures.js';
+import { BUSINESS_LANGUAGES_CLASSIFIER_RULES } from './ai-business-languages.fixtures.js';
+import { BUSINESS_DATE_FORMAT_CLASSIFIER_RULES } from './ai-business-date-format.fixtures.js';
+import { PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES } from './ai-package-localized-names.fixtures.js';
+import { DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from './ai-package-display-name.fixtures.js';
+import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
+import { parseBusinessLanguagesFromPrompt } from './ai-business-languages.util.js';
+import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.util.js';
+import { parseDateStringsFromPrompt } from './ai-date-input-format.util.js';
+import {
+  parseBusinessTaxFromPrompt,
+  parseSetServiceTaxRateFromPrompt,
+} from './ai-business-tax.util.js';
+import { parseConfigureStackedTaxRulesFromPrompt } from './ai-stacked-tax.util.js';
+import { parseExplainStripeTaxChargeFromPrompt } from './ai-stripe-tax-charge.util.js';
+import { STRIPE_TAX_CHARGE_CLASSIFIER_RULES } from './ai-stripe-tax-charge.fixtures.js';
+import { LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES } from './ai-lookup-booking-tax-metadata.fixtures.js';
+import { parseLookupBookingTaxMetadataFromPrompt } from './ai-lookup-booking-tax-metadata.util.js';
+import { QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES } from './ai-quote-staff-booking-tax.fixtures.js';
+import { parseQuoteStaffBookingTaxFromPrompt } from './ai-quote-staff-booking-tax.util.js';
+import { SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES } from './ai-summarize-customer-tax-paid.fixtures.js';
+import { parseSummarizeCustomerTaxPaidFromPrompt } from './ai-summarize-customer-tax-paid.util.js';
+import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
+import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
+import { UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES } from './ai-upcoming-tour-departures.fixtures.js';
+import { TOUR_BOOKING_RECORD_CLASSIFIER_RULES } from './ai-tour-booking-record.fixtures.js';
+import { TOUR_CALENDAR_SPAN_CLASSIFIER_RULES } from './ai-tour-calendar-span.fixtures.js';
+import { TOUR_CALENDAR_WEEK_CLASSIFIER_RULES } from './ai-tour-calendar-week.fixtures.js';
+import { parseListUpcomingTourDeparturesFromPrompt } from './ai-upcoming-tour-departures.util.js';
+import { parseExplainTourBookingRecordFromPrompt } from './ai-tour-booking-record.util.js';
+import { parseExplainTourCalendarSpanFromPrompt } from './ai-tour-calendar-span.util.js';
+import { parseListTourCalendarWeekFromPrompt } from './ai-tour-calendar-week.util.js';
+import { TOUR_SERVICE_CLASSIFIER_RULES } from './ai-tour-service.fixtures.js';
+import {
+  parseConfigureTourServiceFromPrompt,
+  parseExplainTourServicesFromPrompt,
+} from './ai-tour-service.util.js';
+import { AiTourServiceService } from './ai-tour-service.service.js';
+import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
+import { RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES } from './ai-recommendation-analytics.fixtures.js';
+import { RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES } from './ai-recommendation-performance.fixtures.js';
+import { RECOMMENDATION_PRODUCT_CLASSIFIER_RULES } from './ai-recommendation-product.fixtures.js';
+import { parseExplainRecommendationAnalyticsFromPrompt } from './ai-recommendation-analytics.util.js';
+import { parseSummarizeRecommendationPerformanceFromPrompt } from './ai-recommendation-performance.util.js';
+import {
+  parseConfigureRecommendationProductFromPrompt,
+  parseExplainRecommendationSetupFromPrompt,
+  parseLinkRecommendedProductsFromPrompt,
+} from './ai-recommendation-product.util.js';
+import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCatalogService } from './ai-catalog.service.js';
@@ -73,7 +153,6 @@ import {
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
   matchEmployeesInPrompt,
-  parseEarliestBookingTimeFromPrompt,
   sanitizeProviderScopeFromPrompt,
   inferDirectSchedulePeriods,
 } from './ai-orchestration.helpers.js';
@@ -85,6 +164,7 @@ import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiEventsService } from './ai-events.service.js';
+import { recordMisrouteTelemetry } from './ai-misroute-telemetry.util.js';
 import { IntentDecompositionService } from './intent-decomposition.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
@@ -103,12 +183,6 @@ import {
   resolveServiceMetric,
   resolveStaffMetric,
   extractLimitFromPrompt,
-  isAnyProviderBookingPrompt,
-  isFirstAvailableBookingPrompt,
-  enrichBookingTimeHintsFromPrompt,
-  extractProviderFallbackFromPrompt,
-  extractCustomerFromReschedulePrompt,
-  extractProviderPossessiveFromReschedulePrompt,
   isBulkAllAppointmentsPrompt,
   normalizeBookingStatusValue,
   normalizePaymentStatusValue,
@@ -159,6 +233,27 @@ import {
   isExecutionConfirmed,
 } from './ai-execution-confirm.util.js';
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
+import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
+import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
+import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
+import { enrichCompoundSubStepBookingHints } from './ai-compound-booking-hints.util.js';
+import {
+  applyBookingRescheduleActionHints,
+  buildRescheduleFirstAvailableNoSlotMessage,
+  resolveFirstAvailableNotBeforeTime,
+} from './ai-booking-reschedule-hints.util.js';
+import {
+  applyScheduleOpsPromptHints,
+  enrichCompoundSubStepScheduleHints,
+} from './ai-schedule-ops-hints.util.js';
+import {
+  applyPackageMultiServicePromptHints,
+  enrichCompoundSubStepPackageMultiHints,
+} from './ai-package-multi-service-hints.util.js';
+import {
+  applyGiftCardPaymentsPromptHints,
+  enrichCompoundSubStepGiftCardPaymentsHints,
+} from './ai-gift-card-payments-hints.util.js';
 
 export type { CommandResult };
 
@@ -280,6 +375,13 @@ Rules:
 - configure_gift_card_products: enable presets and purchasable service cards (presetAmounts, serviceName).
 - create_gift_card_bundle: bundle multiple services as a gift card product (bundleName + serviceNames).
 - configure_multi_service_settings: enable multi-service booking limits (maxServiceCount, maxDurationMinutes).
+- configure_tour_service: enable tour mode and set tour metadata on one service (maxGroupSize, difficulty, durationDays, meetingPoint, coverImage, includedItems). "Mark City Tour as a tour with max 12 people" → serviceName, enableTour, maxGroupSize. NOT create_service or configure_multi_service_settings.
+- explain_tour_services: READ-ONLY — list tour catalog services (group sizes, cover images) and upcoming tour bookings with pax / tourStartDate–tourEndDate. Optional serviceName filter and daysAhead. NOT configure_tour_service (mutate), NOT explain_tour_booking_record (one booking's stored metadata), or list_bookings (all appointment types).
+- explain_tour_booking_record: READ-ONLY — explain one tour booking's paxCount, tourStartDate, tourEndDate, specialRequirements, and provider calendar multi-day span (vert-tour-1.10). Optional bookingId or customerName. NOT explain_tour_services (catalog/upcoming list), NOT explain_tour_calendar_span (general calendar UI), NOT list_bookings (all types), NOT explain_booking_policy (cancellation/deposit).
+- explain_tour_calendar_span: READ-ONLY — explain vert-tour-1.10 provider calendar rendering: multi-day spans, service colors, clipped weeks, stacked departure lanes. Optional serviceName or weekStartDate. NOT explain_tour_booking_record (one booking metadata), NOT list_tour_calendar_week, NOT list_upcoming_tour_departures, NOT explain_tour_services (catalog list).
+- list_tour_calendar_week: READ-ONLY — summarize confirmed tour departures visible on a provider calendar week (dates, pax, service). Optional employeeName, serviceName, weekStartDate. NOT explain_tour_calendar_span, NOT list_upcoming_tour_departures, NOT show_appointments, NOT explain_tour_services.
+- list_upcoming_tour_departures: READ-ONLY — summarize confirmed tour bookings grouped by departure date with booked pax and remaining capacity (max group − booked pax). Optional serviceName and daysAhead. NOT explain_tour_services (catalog metadata or per-guest booking lines), NOT explain_tour_calendar_span, NOT list_tour_calendar_week, NOT list_bookings (all appointment types).
+- apply_tour_playbook: MUTATE — tour_operator shortcut to seed tour vertical playbook catalog (Day/Multi-Day/Private tours) and Tour operating hours 08:00–18:00 schedule. "Apply tour playbook" / "Set up tour operator starter catalog and schedule". NOT bulk_create_catalog or apply_schedule.
 - set_service_compatibility: block two services from same visit (incompatibleServiceNames).
 - deactivate_service: hide a service from public catalog (NOT deactivate_package).
 - list_packages / list_subscription_plans: READ-ONLY catalog monetization lists.
@@ -294,6 +396,47 @@ Rules:
 - check_multi_service_block_availability / check_package_line_availability / earliest_slot_all_services / providers_available_later_days / explain_why_no_slots: customer multi-service and package availability (serviceNames or serviceIds, packageId).
 - summarize_unpaid / configure_cash_payments / validate_gift_card / adjust_gift_card_balance / extend_gift_card_expiry / refund_gift_card_order / export_accounting / export_commissions / explain_checkout_total / list_subscription_revenue: payments, gift cards, and accounting (Sprint 30).
 - list_products / create_product / link_product_to_service / adjust_inventory / add_retail_sale_to_booking / remove_retail_line / record_expense / list_expenses / summarize_pl / commission_report / payout_export: inventory, retail POS, and finance (Sprint 33).
+- configure_recommendation_product: MUTATE — create or update a post-checkout recommendation product (name, description, imageUrl, externalLink, retailPrice). "Add a shampoo product for post-checkout with image and link" → productName, wantsImage, wantsLink. NOT create_product (retail SKU/stock), NOT link_recommended_products (service/category links).
+- link_recommended_products: MUTATE — attach existing products to a service or category for post-checkout recommendations. "Recommend shampoo and conditioner after haircut service" → productNames, serviceName. NOT link_product_to_service (inventory consumption), NOT configure_recommendation_product (create product).
+- explain_recommendation_setup: READ — summarize max checkout product count, active catalog products, and linked products per service/category. "Explain recommendation setup" or "Which products are linked for post-checkout recommendations?" Optional serviceName or categoryName filter. NOT link_recommended_products (mutate), NOT list_products (retail inventory).
+- explain_recommendation_analytics: READ — explain product_recommendation.shown impressions and product_recommendation.clicked shop-link clicks with top products and web_checkout vs consumer_app surfaces. Optional daysAhead. NOT explain_recommendation_setup (configuration), NOT summarize_recommendation_performance (CTR summary).
+- summarize_recommendation_performance: READ — summarize checkout recommendation CTR (overall, by product, by booked service) and bookings with recommendation cards shown from product_recommendation events. Optional daysAhead and surface. NOT explain_recommendation_analytics (raw counts), NOT explain_recommendation_setup (configuration).
+- configure_business_date_format: MUTATE — set business dateFormat (DD/MM/YYYY | MM/DD/YYYY | YYYY-MM-DD) and/or timeFormat (24h | 12h). "Use US date format", "Switch to 12-hour time", "Set ISO dates for our salon". NOT explain_business_date_format (read-only status).
+- explain_business_date_format: READ — explain current salon date/time format and show examples of today's date in each supported date format plus a sample time display. NOT configure_business_date_format (mutate) and NOT explain_booking_date_format (customer booking page).
+- preview_business_date_format: READ — preview sample booking date/time in current vs alternate dateFormat/timeFormat before saving settings. NOT configure_business_date_format (mutate) and NOT explain_business_date_format (status only).
+- audit_dashboard_date_surfaces: READ — list dashboard pages/components still using locale/toLocaleString vs business format cache (deferred fmt-1.6 sweep). NOT migrate_dashboard_date_display (mutate sweep).
+- migrate_dashboard_date_display: MUTATE — guided sweep checklist to replace deferred toLocaleString/Intl calls with formatDateDisplay/formatTimeDisplay. NOT audit_dashboard_date_surfaces (inventory).
+- explain_notification_date_format: READ — how confirmation/reminder/gift-card emails and WhatsApp format dates vs dashboard (same business dateFormat/timeFormat). NOT explain_notification_currency (amount symbol) and NOT explain_business_date_format (settings without notification channels).
+- preview_notification_datetime: READ — sample confirmation/reminder/gift-card email or WhatsApp line with current business date/time format. NOT preview_business_date_format (alternate format before saving).
+- notify_patient_result_ready: MUTATE — clinic result-ready email/WhatsApp (vert-clinic-1.7) using formatResultReadyNotificationWhen. NOT preview_notification_datetime (read-only sample).
+- explain_date_input_format: READ — how typed dashboard date fields parse slash input using business dateFormat vs calendar picker ISO selection. NOT preview_date_input_parse (sample parse) and NOT explain_business_date_format (display settings).
+- preview_date_input_parse: READ — preview typed date strings → ISO calendar day under current dateFormat (DD/MM vs MM/DD). Optional dateStrings. NOT explain_date_input_format (rules) and NOT preview_business_date_format (booking display).
+- configure_business_tax: MUTATE — set business.settings.tax enabled, name (VAT/GST), rate percent, and inclusive/exclusive pricing model. "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%". NOT explain_business_tax (read-only), NOT configure_stacked_tax_rules (parallel rules), and NOT set_service_tax_rate (per-service).
+- set_service_tax_rate: MUTATE — set service.metadata.taxRatePercent override (0 = tax-exempt). "Make massage services tax-exempt", "Apply 10% tax to medical consultations only". NOT configure_business_tax (salon-wide) and NOT explain_business_tax (read-only).
+- configure_stacked_tax_rules: MUTATE — add, stack, or remove parallel tax rules in business.settings.tax.rules (GST + PST, federal + state). "Add 5% GST and 8% PST", "Remove the state tax rule". NOT configure_business_tax (single rate) and NOT explain_stacked_tax (read-only).
+- explain_business_tax: READ — current tax name, rate, inclusive/exclusive model, tax number; example breakdown on a sample price. NOT configure_business_tax, NOT set_service_tax_rate, and NOT explain_stacked_tax.
+- explain_stacked_tax: READ — list each stacked rule, combined effective rate, per-rule breakdown on a sample price. NOT explain_business_tax (single-rate) and NOT configure_stacked_tax_rules.
+- quote_staff_booking_tax: READ — preview tax on a catalog service before staff creates a booking; explain stacked rules vs per-service override. Optional serviceName and sample price. NOT set_service_tax_rate (mutate) and NOT explain_stacked_tax (rules list without a service).
+- summarize_customer_tax_paid: READ — total tax paid across a customer's paid appointment history from metadata.pricing.taxAmount. Requires customerName. NOT lookup_customer (general profile) and NOT summarize_customers (rankings).
+- lookup_booking_tax_metadata: READ — retrieve frozen metadata.pricing tax fields from a booking after Stripe checkout (disputes/receipts). Optional bookingId or customerName. NOT explain_stripe_tax_charge (why charged) and NOT explain_appointment_tax (provider breakdown).
+- explain_stripe_tax_charge: READ — why Stripe charged a booking amount using frozen metadata.pricing tax fields (inclusive gross vs exclusive net+tax). Optional bookingId or customerName. NOT explain_stripe_checkout_currency (ISO currency) and NOT explain_checkout_tax (booking page settings).
+- configure_privacy_retention: MUTATE — set business.settings.privacy retention days and cookie banner on the booking page. "Keep customer data for 3 years", "Enable cookie banner on our booking page". NOT configure_granular_consent (AI/integration consent), NOT explain_compliance_status (read-only), and NOT privacy_delete (customer forget).
+- configure_granular_consent: MUTATE — set requireAiProcessing and requireThirdPartyIntegrations in business.settings.privacy.granularConsent. "Require AI processing consent at checkout", "Ask for third-party integration consent". NOT configure_privacy_retention (retention/cookie banner) and NOT explain_compliance_status (read-only).
+- enable_hipaa_mode: MUTATE — enable/disable HIPAA safeguards and session timeout for clinic businesses (business.settings.hipaa). "Enable HIPAA safeguards", "Set 15-minute session timeout for HIPAA". Requires BAA before enabling. NOT explain_compliance_status (read-only) and NOT configure_hipaa_session_timeout (timeout-only mutate).
+- configure_hipaa_session_timeout: MUTATE — clinic only: set HIPAA session timeout minutes without enabling/disabling HIPAA mode. "Set HIPAA timeout to 10 minutes", "Require 15-minute auto logout". NOT enable_hipaa_mode (enable/disable or "for HIPAA" wording) and NOT explain_hipaa_session_timeout (read-only).
+- accept_hipaa_baa: MUTATE — clinic owner accepts/signs HIPAA BAA (business.settings.hipaa.baaAcceptedAt). "Accept the HIPAA business associate agreement", "Sign BAA to enable HIPAA mode". NOT explain_compliance_status (BAA status read) and NOT enable_hipaa_mode (enable without BAA acceptance wording).
+- explain_compliance_status: READ — general compliance overview, retention periods, HIPAA/BAA status. "What is our compliance status?", "What is our HIPAA BAA status?". NOT list_sub_processors (processor list), NOT explain_gdpr_checklist (GDPR checklist/missing items), and NOT configure_privacy_retention.
+- list_sub_processors: READ — owner lists Article 28 data sub-processors. "Who are our data sub-processors?", "Show Article 28 processor list". NOT explain_compliance_status (general overview) and NOT explain_gdpr_checklist.
+- explain_gdpr_checklist: READ — owner reviews GDPR privacy checklist and missing items. "Are we GDPR compliant?", "What privacy items are still missing?". NOT explain_compliance_status (general overview) and NOT list_sub_processors.
+- admin_delete_customer_data: MUTATE — GDPR right-to-erasure for a named customer (anonymize PII on profile). "Forget this customer Anna", "Anonymize PII from Anna's customer profile". NOT privacy_delete (customer self-service) and NOT delete_customer_data (generic CRM delete).
+- report_data_breach: MUTATE — owner logs a data breach or security incident (GDPR 72-hour deadline, draft notification). "Report a data breach", "Log security incident affecting customer emails". NOT explain_compliance_status (read-only) and NOT list_breach_incidents (read incident list).
+- list_breach_incidents: READ — owner lists logged breach incidents and GDPR 72-hour deadlines. "Show breach incidents", "What is our GDPR 72-hour deadline?". NOT report_data_breach (mutate) and NOT explain_compliance_status (general checklist).
+- send_breach_notification: MUTATE — owner emails affected customers using saved draft breach notice. "Email affected customers about breach BR-42", "Send draft breach notice for incident X". NOT report_data_breach and NOT list_breach_incidents.
+- open_compliance_dashboard: READ — owner deep-links into Settings → Compliance panels (compliance-1.16 dedicated page deferred). "Open compliance settings", "Take me to breach log". NOT explain_compliance_status (text overview) and NOT list_breach_incidents (AI lists incidents).
+- view_phi_access_audit: READ — owner views HIPAA PHI access audit log. "Who accessed patient notes?", "Show HIPAA PHI audit log for last week". NOT explain_minimum_necessary_phi_access (policy) and NOT explain_phi_encryption_status.
+- explain_phi_encryption_status: READ — clinic only: HIPAA PHI encryption at rest. "Is HIPAA encryption on?", "Are referral notes encrypted at rest?". NOT explain_compliance_status and NOT enable_hipaa_mode.
+- explain_minimum_necessary_phi_access: READ — who can see PHI under minimum-necessary rules. "Who can see patient notes?", "What PHI can staff access?". NOT view_phi_access_audit (past audit log).
+- explain_hipaa_session_timeout: READ — clinic only: HIPAA session timeout and auto-logout after inactivity. "When will I be logged out?", "What is our HIPAA session timeout?". NOT explain_compliance_status and NOT configure_hipaa_session_timeout.
 - configure_marketing_automation / summarize_automation_performance / trigger_reengagement / list_inactive_customers / explain_plan_limits / suggest_upgrade / toggle_annual_billing / summarize_new_registrations: marketing automation, billing, and growth (Sprint 34). trigger_reengagement is bulk automation — NOT send_reengagement_message (single customer Zendesk).
 - explain_last_push / open_booking_from_push / offline_queue_status / retry_offline_action / dismiss_push / end_of_day_summary / new_booking_push_actions: provider push and offline queue (Sprint 35).
 - configure_push_recipients / test_push / notification_history / toggle_business_email_on_customer_change: dashboard notification settings (Sprint 35). test_push is NOT test_webhook.
@@ -369,7 +512,10 @@ Rules:
 - Example follow-up: after "available slots for Gevorg on 30/06/2026", the message "book facemassage at 16:00" → action create_booking, employeeName="Gevorg Gasparyan" (or "Gevorg"), date="30/06/2026", serviceName="facemassage", timeSlot="16:00".
 - Example follow-up: after show_appointments, "change service to hot stone massage" → action reschedule_booking, inherit customerName/date/timeSlot from session, serviceName="hot stone massage".
 - Use DD/MM/YYYY for all date params (legacy DD_MM_YYYY is still accepted when parsing).
-${CHECK_AND_BOOK_CLASSIFIER_RULES}`;
+${CHECK_AND_BOOK_CLASSIFIER_RULES}
+${DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES}
+${GIFT_CARD_PAYMENTS_CLASSIFIER_RULES}
+${DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES}`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -400,6 +546,14 @@ export class AiCommandService {
     private scheduleHandlers: AiScheduleHandlersService,
     private scheduling: AiSchedulingService,
     private operations: AiOperationsService,
+    private businessCurrency: AiBusinessCurrencyService,
+    private businessLanguages: AiBusinessLanguagesService,
+    private businessDateFormat: AiBusinessDateFormatService,
+    private businessTax: AiBusinessTaxService,
+    private businessCompliance: AiBusinessComplianceService,
+    private packageLocalizedNames: AiPackageLocalizedNamesService,
+    private tourService: AiTourServiceService,
+    private recommendationProduct: AiRecommendationProductService,
     private platform: AiPlatformService,
     private bookingDepth: AiBookingDepthService,
     private catalog: AiCatalogService,
@@ -867,6 +1021,14 @@ export class AiCommandService {
         timeZone,
       );
       if (subIntents.length > 1) {
+        recordMisrouteTelemetry(this.aiEvents, businessId, {
+          surface: 'dashboard',
+          prompt: effectivePrompt,
+          classifierAction: 'compound_intent',
+          rescuedAction: 'compound_intent',
+          rescueReason: 'compound_decomposition',
+          compoundStepCount: subIntents.length,
+        });
         return this.executeCompoundIntents(
           businessId,
           effectivePrompt,
@@ -967,16 +1129,6 @@ export class AiCommandService {
     if (parsed.action === 'create_booking') {
       parsed.params.customerName = null;
       delete parsed.params.customerId;
-      const fallback = extractProviderFallbackFromPrompt(
-        effectivePrompt,
-        employees,
-      );
-      if (fallback.providerFallbackNames.length) {
-        parsed.params.providerFallbackNames = fallback.providerFallbackNames;
-      }
-      if (fallback.fallbackAnyProvider) {
-        parsed.params.fallbackAnyProvider = true;
-      }
     }
     this.applyPromptEntityOverrides(
       effectivePrompt,
@@ -985,6 +1137,7 @@ export class AiCommandService {
       employees,
       services,
       customers,
+      sessionContext,
     );
     parsed.params._timeZone = timeZone;
     this.enrichMultiEmployeeFromPrompt(
@@ -1025,12 +1178,18 @@ export class AiCommandService {
       }
     }
 
+    const classifierAction = parsed.action;
+    const classifierConfidence =
+      typeof parsed.confidence === 'number' ? parsed.confidence : undefined;
+
     const rescued = this.intentRescue.rescue({
       prompt: effectivePrompt,
       action: parsed.action,
       params: parsed.params,
       reasoning: parsed.reasoning,
       employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      customers: customers.map((c) => ({ id: c.id, name: c.name })),
+      timeZone,
     });
     if (rescued?.rescued) {
       parsed.action = rescued.action;
@@ -1040,7 +1199,55 @@ export class AiCommandService {
         typeof parsed.confidence === 'number' ? parsed.confidence : 0,
         0.85,
       );
+      applyBookingRescheduleActionHints(
+        parsed.action,
+        parsed.params,
+        effectivePrompt,
+        {
+          employees: employees.map((e) => ({ id: e.id, name: e.name })),
+          customers: customers.map((c) => ({ id: c.id, name: c.name })),
+          timeZone,
+        },
+      );
+      applyScheduleOpsPromptHints(
+        parsed.action,
+        parsed.params,
+        effectivePrompt,
+        {
+          employees: employees.map((e) => ({ id: e.id, name: e.name })),
+          timeZone,
+          session: sessionContext,
+        },
+      );
+      applyPackageMultiServicePromptHints(
+        parsed.action,
+        parsed.params,
+        effectivePrompt,
+        {
+          employees: employees.map((e) => ({ id: e.id, name: e.name })),
+          customers: customers.map((c) => ({ id: c.id, name: c.name })),
+          timeZone,
+          session: sessionContext,
+        },
+      );
+      applyGiftCardPaymentsPromptHints(
+        parsed.action,
+        parsed.params,
+        effectivePrompt,
+        { session: sessionContext },
+      );
     }
+
+    recordMisrouteTelemetry(this.aiEvents, businessId, {
+      surface: 'dashboard',
+      prompt: effectivePrompt,
+      classifierAction,
+      rescuedAction: parsed.action,
+      rescueReason: rescued?.rescued ? rescued.rescueReason : undefined,
+      classifierConfidence,
+      compoundStepCount: 1,
+    });
+
     this.applyBulkAppointmentScope(
       effectivePrompt,
       parsed.params,
@@ -1270,6 +1477,28 @@ export class AiCommandService {
       'configure_multi_service_scheduling_mode',
       'block_resource_unavailable',
       'configure_cash_payments',
+      'configure_business_currency',
+      'configure_business_tax',
+      'configure_privacy_retention',
+      'configure_granular_consent',
+      'enable_hipaa_mode',
+      'configure_hipaa_session_timeout',
+      'admin_delete_customer_data',
+      'report_data_breach',
+      'send_breach_notification',
+      'configure_stacked_tax_rules',
+      'set_service_tax_rate',
+      'configure_business_languages',
+      'configure_business_date_format',
+      'configure_package_localized_names',
+      'configure_tour_service',
+      'configure_recommendation_product',
+      'link_recommended_products',
+      'apply_tour_playbook',
+      'bulk_strip_disabled_locale_translations',
+      'migrate_dashboard_date_display',
+      'notify_patient_result_ready',
+      'bulk_update_service_currency',
       'adjust_gift_card_balance',
       'extend_gift_card_expiry',
       'refund_gift_card_order',
@@ -2339,6 +2568,173 @@ export class AiCommandService {
           },
         );
         break;
+      case 'explain_recommendation_setup': {
+        const parsedExplainSetup = parseExplainRecommendationSetupFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.recommendationProduct.handleExplainRecommendationSetup(
+          businessId,
+          parsedExplainSetup
+            ? {
+                ...params,
+                ...(parsedExplainSetup.serviceId
+                  ? { serviceId: parsedExplainSetup.serviceId }
+                  : {}),
+                ...(parsedExplainSetup.serviceName
+                  ? { serviceName: parsedExplainSetup.serviceName }
+                  : {}),
+                ...(parsedExplainSetup.categoryId
+                  ? { categoryId: parsedExplainSetup.categoryId }
+                  : {}),
+                ...(parsedExplainSetup.categoryName
+                  ? { categoryName: parsedExplainSetup.categoryName }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_recommendation_analytics': {
+        const parsedAnalytics = parseExplainRecommendationAnalyticsFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.recommendationProduct.handleExplainRecommendationAnalytics(
+          businessId,
+          parsedAnalytics
+            ? {
+                ...params,
+                ...(parsedAnalytics.aspect
+                  ? { aspect: parsedAnalytics.aspect }
+                  : {}),
+                ...(parsedAnalytics.surface
+                  ? { surface: parsedAnalytics.surface }
+                  : {}),
+                ...(parsedAnalytics.productName
+                  ? { productName: parsedAnalytics.productName }
+                  : {}),
+                ...(parsedAnalytics.daysAhead
+                  ? { daysAhead: parsedAnalytics.daysAhead }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'summarize_recommendation_performance': {
+        const parsedPerformance =
+          parseSummarizeRecommendationPerformanceFromPrompt(
+            effectivePrompt,
+            params,
+          );
+        result =
+          await this.recommendationProduct.handleSummarizeRecommendationPerformance(
+            businessId,
+            parsedPerformance
+              ? {
+                  ...params,
+                  ...(parsedPerformance.aspect
+                    ? { aspect: parsedPerformance.aspect }
+                    : {}),
+                  ...(parsedPerformance.surface
+                    ? { surface: parsedPerformance.surface }
+                    : {}),
+                  ...(parsedPerformance.serviceName
+                    ? { serviceName: parsedPerformance.serviceName }
+                    : {}),
+                  ...(parsedPerformance.productName
+                    ? { productName: parsedPerformance.productName }
+                    : {}),
+                  ...(parsedPerformance.daysAhead
+                    ? { daysAhead: parsedPerformance.daysAhead }
+                    : {}),
+                }
+              : params,
+            effectivePrompt,
+          );
+        break;
+      }
+      case 'configure_recommendation_product': {
+        const parsedRecommendation = parseConfigureRecommendationProductFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.recommendationProduct.handleConfigureRecommendationProduct(
+          businessId,
+          parsedRecommendation
+            ? {
+                ...params,
+                ...(parsedRecommendation.productId
+                  ? { productId: parsedRecommendation.productId }
+                  : {}),
+                ...(parsedRecommendation.productName
+                  ? {
+                      productName: parsedRecommendation.productName,
+                      name: parsedRecommendation.productName,
+                    }
+                  : {}),
+                ...(parsedRecommendation.description
+                  ? { description: parsedRecommendation.description }
+                  : {}),
+                ...(parsedRecommendation.imageUrl
+                  ? { imageUrl: parsedRecommendation.imageUrl }
+                  : {}),
+                ...(parsedRecommendation.externalLink
+                  ? { externalLink: parsedRecommendation.externalLink }
+                  : {}),
+                ...(parsedRecommendation.retailPrice !== undefined
+                  ? { retailPrice: parsedRecommendation.retailPrice }
+                  : {}),
+                ...(parsedRecommendation.wantsImage
+                  ? { wantsImage: true }
+                  : {}),
+                ...(parsedRecommendation.wantsLink ? { wantsLink: true } : {}),
+                ...(parsedRecommendation.isUpdate
+                  ? { isUpdate: true }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'link_recommended_products': {
+        const parsedLinks = parseLinkRecommendedProductsFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.recommendationProduct.handleLinkRecommendedProducts(
+          businessId,
+          parsedLinks
+            ? {
+                ...params,
+                ...(parsedLinks.productNames.length > 0
+                  ? { productNames: parsedLinks.productNames }
+                  : {}),
+                ...(parsedLinks.productIds
+                  ? { productIds: parsedLinks.productIds }
+                  : {}),
+                ...(parsedLinks.serviceId
+                  ? { serviceId: parsedLinks.serviceId }
+                  : {}),
+                ...(parsedLinks.serviceName
+                  ? { serviceName: parsedLinks.serviceName }
+                  : {}),
+                ...(parsedLinks.categoryId
+                  ? { categoryId: parsedLinks.categoryId }
+                  : {}),
+                ...(parsedLinks.categoryName
+                  ? { categoryName: parsedLinks.categoryName }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
       case 'create_product':
         result = await this.retailFinance.handleCreateProduct(
           businessId,
@@ -2733,6 +3129,747 @@ export class AiCommandService {
           businessId,
           params,
           effectivePrompt,
+        );
+        break;
+      case 'configure_business_currency': {
+        const currencyCode =
+          parseCurrencyFromPrompt(effectivePrompt, params) ??
+          (params.currencyCode as string | undefined);
+        result = await this.businessCurrency.handleConfigureBusinessCurrency(
+          businessId,
+          { ...params, currencyCode },
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_business_tax': {
+        const parsedTax = parseBusinessTaxFromPrompt(effectivePrompt, params);
+        result = await this.businessTax.handleConfigureBusinessTax(
+          businessId,
+          parsedTax ? { ...params, ...parsedTax, _prompt: effectivePrompt } : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_privacy_retention': {
+        const parsedPrivacy = parseConfigurePrivacyRetentionFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleConfigurePrivacyRetention(
+          businessId,
+          parsedPrivacy
+            ? { ...params, ...parsedPrivacy, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_granular_consent': {
+        const parsedConsent = parseConfigureGranularConsentFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleConfigureGranularConsent(
+          businessId,
+          parsedConsent
+            ? { ...params, ...parsedConsent, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'enable_hipaa_mode': {
+        const parsedHipaa = parseEnableHipaaModeFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleEnableHipaaMode(
+          businessId,
+          parsedHipaa
+            ? { ...params, ...parsedHipaa, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_hipaa_session_timeout': {
+        const parsedHipaaTimeout = parseConfigureHipaaSessionTimeoutFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result =
+          await this.businessCompliance.handleConfigureHipaaSessionTimeout(
+            businessId,
+            parsedHipaaTimeout
+              ? {
+                  ...params,
+                  ...parsedHipaaTimeout,
+                  _prompt: effectivePrompt,
+                }
+              : params,
+            effectivePrompt,
+          );
+        break;
+      }
+      case 'accept_hipaa_baa': {
+        const parsedBaa = parseAcceptHipaaBaaFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleAcceptHipaaBaa(
+          businessId,
+          userId,
+          parsedBaa
+            ? { ...params, ...parsedBaa, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_compliance_status': {
+        const parsedComplianceStatus = parseExplainComplianceStatusFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleExplainComplianceStatus(
+          businessId,
+          parsedComplianceStatus
+            ? { ...params, ...parsedComplianceStatus, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'list_sub_processors': {
+        const parsedSubProcessors = parseListSubProcessorsFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleListSubProcessors(
+          businessId,
+          userId,
+          parsedSubProcessors
+            ? { ...params, ...parsedSubProcessors, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_gdpr_checklist': {
+        const parsedGdprChecklist = parseExplainGdprChecklistFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleExplainGdprChecklist(
+          businessId,
+          userId,
+          parsedGdprChecklist
+            ? { ...params, ...parsedGdprChecklist, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'open_compliance_dashboard': {
+        const parsedOpenCompliance = parseOpenComplianceDashboardFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleOpenComplianceDashboard(
+          businessId,
+          userId,
+          parsedOpenCompliance
+            ? { ...params, ...parsedOpenCompliance, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'admin_delete_customer_data': {
+        const parsedAdminDelete = parseAdminDeleteCustomerDataFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleAdminDeleteCustomerData(
+          businessId,
+          parsedAdminDelete
+            ? { ...params, ...parsedAdminDelete, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'report_data_breach': {
+        const parsedBreach = parseReportDataBreachFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleReportDataBreach(
+          businessId,
+          userId,
+          parsedBreach
+            ? { ...params, ...parsedBreach, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'send_breach_notification': {
+        const parsedSendBreach = parseSendBreachNotificationFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleSendBreachNotification(
+          businessId,
+          userId,
+          parsedSendBreach
+            ? { ...params, ...parsedSendBreach, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'list_breach_incidents': {
+        const parsedBreachList = parseListBreachIncidentsFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleListBreachIncidents(
+          businessId,
+          userId,
+          parsedBreachList
+            ? { ...params, ...parsedBreachList, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'view_phi_access_audit': {
+        const parsedPhiAudit = parseViewPhiAccessAuditFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleViewPhiAccessAudit(
+          businessId,
+          userId,
+          parsedPhiAudit
+            ? { ...params, ...parsedPhiAudit, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_phi_encryption_status': {
+        const parsedPhiEncryption = parseExplainPhiEncryptionStatusFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessCompliance.handleExplainPhiEncryptionStatus(
+          businessId,
+          parsedPhiEncryption
+            ? { ...params, ...parsedPhiEncryption, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_minimum_necessary_phi_access': {
+        const parsedMinimumNecessary =
+          parseExplainMinimumNecessaryPhiAccessFromPrompt(
+            effectivePrompt,
+            params,
+          );
+        result =
+          await this.businessCompliance.handleExplainMinimumNecessaryPhiAccess(
+            businessId,
+            parsedMinimumNecessary
+              ? {
+                  ...params,
+                  ...parsedMinimumNecessary,
+                  _prompt: effectivePrompt,
+                }
+              : params,
+            effectivePrompt,
+          );
+        break;
+      }
+      case 'explain_hipaa_session_timeout': {
+        const parsedHipaaTimeoutExplain =
+          parseExplainHipaaSessionTimeoutFromPrompt(effectivePrompt, params);
+        result = await this.businessCompliance.handleExplainHipaaSessionTimeout(
+          businessId,
+          parsedHipaaTimeoutExplain
+            ? {
+                ...params,
+                ...parsedHipaaTimeoutExplain,
+                _prompt: effectivePrompt,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'set_service_tax_rate': {
+        const parsedServiceTax = parseSetServiceTaxRateFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleSetServiceTaxRate(
+          businessId,
+          parsedServiceTax
+            ? { ...params, ...parsedServiceTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      }
+      case 'explain_business_tax':
+        result = await this.businessTax.handleExplainBusinessTax(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+        );
+        break;
+      case 'configure_stacked_tax_rules': {
+        const parsedStackedTax = parseConfigureStackedTaxRulesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleConfigureStackedTaxRules(
+          businessId,
+          parsedStackedTax
+            ? { ...params, ...parsedStackedTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_stacked_tax':
+        result = await this.businessTax.handleExplainStackedTax(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+        );
+        break;
+      case 'explain_stripe_tax_charge': {
+        const parsedStripeTax = parseExplainStripeTaxChargeFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleExplainStripeTaxCharge(
+          businessId,
+          parsedStripeTax
+            ? { ...params, ...parsedStripeTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'quote_staff_booking_tax': {
+        const parsedQuoteTax = parseQuoteStaffBookingTaxFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleQuoteStaffBookingTax(
+          businessId,
+          parsedQuoteTax
+            ? { ...params, ...parsedQuoteTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'summarize_customer_tax_paid': {
+        const parsedCustomerTax = parseSummarizeCustomerTaxPaidFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleSummarizeCustomerTaxPaid(
+          businessId,
+          parsedCustomerTax
+            ? { ...params, ...parsedCustomerTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'lookup_booking_tax_metadata': {
+        const parsedLookupTax = parseLookupBookingTaxMetadataFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessTax.handleLookupBookingTaxMetadata(
+          businessId,
+          parsedLookupTax
+            ? { ...params, ...parsedLookupTax, _prompt: effectivePrompt }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_business_languages':
+        result = await this.businessLanguages.handleExplainBusinessLanguages(
+          businessId,
+        );
+        break;
+      case 'bulk_strip_disabled_locale_translations':
+        result =
+          await this.businessLanguages.handleBulkStripDisabledLocaleTranslations(
+            businessId,
+            { ...params, _prompt: effectivePrompt },
+            effectivePrompt,
+            isExecutionConfirmed(session),
+          );
+        break;
+      case 'configure_business_languages': {
+        const parsedLanguages = parseBusinessLanguagesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessLanguages.handleConfigureBusinessLanguages(
+          businessId,
+          parsedLanguages
+            ? {
+                ...params,
+                operation: parsedLanguages.operation,
+                locales: parsedLanguages.locales,
+                defaultLocale:
+                  parsedLanguages.operation === 'set_default'
+                    ? parsedLanguages.locales[0]
+                    : params.defaultLocale,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_business_date_format':
+        result = await this.businessDateFormat.handleExplainBusinessDateFormat(
+          businessId,
+        );
+        break;
+      case 'preview_business_date_format': {
+        const parsedPreview = parseBusinessDateFormatFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessDateFormat.handlePreviewBusinessDateFormat(
+          businessId,
+          parsedPreview
+            ? {
+                ...params,
+                ...(parsedPreview.dateFormat
+                  ? { dateFormat: parsedPreview.dateFormat }
+                  : {}),
+                ...(parsedPreview.timeFormat
+                  ? { timeFormat: parsedPreview.timeFormat }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'audit_dashboard_date_surfaces':
+        result =
+          await this.businessDateFormat.handleAuditDashboardDateSurfaces(
+            businessId,
+          );
+        break;
+      case 'migrate_dashboard_date_display':
+        result =
+          await this.businessDateFormat.handleMigrateDashboardDateDisplay(
+            businessId,
+            { ...params, _prompt: effectivePrompt },
+            effectivePrompt,
+            isExecutionConfirmed(session),
+          );
+        break;
+      case 'explain_notification_date_format':
+        result =
+          await this.businessDateFormat.handleExplainNotificationDateFormat(
+            businessId,
+          );
+        break;
+      case 'preview_notification_datetime': {
+        const messageKind =
+          typeof params.messageKind === 'string'
+            ? params.messageKind
+            : undefined;
+        result = await this.businessDateFormat.handlePreviewNotificationDatetime(
+          businessId,
+          messageKind ? { ...params, messageKind } : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'notify_patient_result_ready':
+        result = await this.businessDateFormat.handleNotifyPatientResultReady(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      case 'explain_date_input_format':
+        result = await this.businessDateFormat.handleExplainDateInputFormat(
+          businessId,
+        );
+        break;
+      case 'preview_date_input_parse': {
+        const dateStrings = parseDateStringsFromPrompt(effectivePrompt, params);
+        result = await this.businessDateFormat.handlePreviewDateInputParse(
+          businessId,
+          { ...params, dateStrings, _prompt: effectivePrompt },
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_business_date_format': {
+        const parsedDateFormat = parseBusinessDateFormatFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.businessDateFormat.handleConfigureBusinessDateFormat(
+          businessId,
+          parsedDateFormat
+            ? {
+                ...params,
+                ...(parsedDateFormat.dateFormat
+                  ? { dateFormat: parsedDateFormat.dateFormat }
+                  : {}),
+                ...(parsedDateFormat.timeFormat
+                  ? { timeFormat: parsedDateFormat.timeFormat }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'configure_package_localized_names': {
+        const parsedPackageNames = parsePackageLocalizedNamesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result =
+          await this.packageLocalizedNames.handleConfigurePackageLocalizedNames(
+            businessId,
+            parsedPackageNames
+              ? {
+                  ...params,
+                  operation: parsedPackageNames.operation,
+                  packageId: parsedPackageNames.packageId,
+                  packageName: parsedPackageNames.packageName,
+                  locale: parsedPackageNames.locale,
+                  displayName: parsedPackageNames.displayName,
+                }
+              : params,
+            effectivePrompt,
+          );
+        break;
+      }
+      case 'configure_tour_service': {
+        const parsedTour = parseConfigureTourServiceFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleConfigureTourService(
+          businessId,
+          parsedTour
+            ? {
+                ...params,
+                serviceId: parsedTour.serviceId,
+                serviceName: parsedTour.serviceName,
+                ...(parsedTour.enableTour ? { enableTour: true, serviceType: 'tour' } : {}),
+                ...(parsedTour.maxGroupSize !== undefined
+                  ? { maxGroupSize: parsedTour.maxGroupSize }
+                  : {}),
+                ...(parsedTour.difficulty
+                  ? { difficulty: parsedTour.difficulty }
+                  : {}),
+                ...(parsedTour.coverImage
+                  ? { coverImage: parsedTour.coverImage }
+                  : {}),
+                ...(parsedTour.meetingPoint
+                  ? { meetingPoint: parsedTour.meetingPoint }
+                  : {}),
+                ...(parsedTour.includedItems
+                  ? { includedItems: parsedTour.includedItems }
+                  : {}),
+                ...(parsedTour.durationDays !== undefined
+                  ? { durationDays: parsedTour.durationDays }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_tour_services': {
+        const parsedExplainTours = parseExplainTourServicesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleExplainTourServices(
+          businessId,
+          parsedExplainTours
+            ? {
+                ...params,
+                serviceId: parsedExplainTours.serviceId,
+                serviceName: parsedExplainTours.serviceName,
+                daysAhead: parsedExplainTours.daysAhead,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_tour_booking_record': {
+        const parsedRecord = parseExplainTourBookingRecordFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleExplainTourBookingRecord(
+          businessId,
+          parsedRecord
+            ? {
+                ...params,
+                bookingId: parsedRecord.bookingId,
+                customerName: parsedRecord.customerName,
+                serviceName: parsedRecord.serviceName,
+                aspect: parsedRecord.aspect,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_tour_calendar_span': {
+        const parsedCalendarSpan = parseExplainTourCalendarSpanFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleExplainTourCalendarSpan(
+          businessId,
+          parsedCalendarSpan
+            ? {
+                ...params,
+                serviceId: parsedCalendarSpan.serviceId,
+                serviceName: parsedCalendarSpan.serviceName,
+                weekStartDate: parsedCalendarSpan.weekStartDate,
+                aspect: parsedCalendarSpan.aspect,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'list_tour_calendar_week': {
+        const parsedCalendarWeek = parseListTourCalendarWeekFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleListTourCalendarWeek(
+          businessId,
+          parsedCalendarWeek
+            ? {
+                ...params,
+                employeeId: parsedCalendarWeek.employeeId,
+                employeeName: parsedCalendarWeek.employeeName,
+                serviceId: parsedCalendarWeek.serviceId,
+                serviceName: parsedCalendarWeek.serviceName,
+                weekStartDate: parsedCalendarWeek.weekStartDate,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'list_upcoming_tour_departures': {
+        const parsedDepartures = parseListUpcomingTourDeparturesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.tourService.handleListUpcomingTourDepartures(
+          businessId,
+          parsedDepartures
+            ? {
+                ...params,
+                serviceId: parsedDepartures.serviceId,
+                serviceName: parsedDepartures.serviceName,
+                daysAhead: parsedDepartures.daysAhead,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'apply_tour_playbook':
+        result = await this.tourService.handleApplyTourPlaybook(
+          businessId,
+          userId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'explain_package_display_name': {
+        const parsedDisplayName = parsePackageDisplayNameExplainFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.packageLocalizedNames.handleExplainPackageDisplayName(
+          businessId,
+          parsedDisplayName
+            ? {
+                ...params,
+                packageId: parsedDisplayName.packageId,
+                packageName: parsedDisplayName.packageName,
+                locale: parsedDisplayName.queryLocale,
+              }
+            : params,
+          effectivePrompt,
+          typeof session?.context?.locale === 'string'
+            ? session.context.locale
+            : undefined,
+        );
+        break;
+      }
+      case 'explain_business_currency':
+        result = await this.businessCurrency.handleExplainBusinessCurrency(
+          businessId,
+        );
+        break;
+      case 'explain_stripe_currency_warning':
+        result = await this.businessCurrency.handleExplainStripeCurrencyWarning(
+          businessId,
+        );
+        break;
+      case 'diagnose_stripe_checkout_failure':
+        result = await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
+          businessId,
+        );
+        break;
+      case 'explain_reports_currency':
+        result = await this.businessCurrency.handleExplainReportsCurrency(
+          businessId,
+        );
+        break;
+      case 'summarize_revenue_kpis':
+        result = await this.businessCurrency.handleSummarizeRevenueKpis(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'bulk_update_service_currency':
+        result = await this.businessCurrency.handleBulkUpdateServiceCurrency(
+          businessId,
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
         );
         break;
       case 'adjust_gift_card_balance':
@@ -3461,6 +4598,7 @@ export class AiCommandService {
     employees: Employee[],
     services: Service[],
     customers: Customer[],
+    session?: Record<string, any>,
   ): void {
     const promptService = extractServiceFromPrompt(
       prompt,
@@ -3553,50 +4691,34 @@ export class AiCommandService {
       }
     }
 
-    if (action === 'create_booking') {
-      if (isAnyProviderBookingPrompt(prompt)) {
-        params.allProviders = true;
-        params.employeeName = null;
-        delete params.employeeId;
-      }
-      if (isFirstAvailableBookingPrompt(prompt)) {
-        params.bookingFirstAvailable = true;
-        delete params.timeSlot;
-      }
-      const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
-      if (earliestTime) {
-        params.timeFrom = earliestTime;
-      }
-    }
+    enrichCompoundSubStepBookingHints(
+      action,
+      params,
+      prompt,
+      params._timeZone as string | undefined,
+    );
 
-    if (action === 'reschedule_booking') {
-      if (isFirstAvailableBookingPrompt(prompt)) {
-        params.bookingFirstAvailable = true;
-        delete params.timeSlot;
-      }
-      const providerPossessive = extractProviderPossessiveFromReschedulePrompt(
-        prompt,
-        employees.map((e) => ({ id: e.id, name: e.name })),
-      );
-      if (providerPossessive) {
-        params.employeeName = providerPossessive.name;
-        params.employeeId = providerPossessive.id;
-        params.customerName = null;
-        delete params.customerId;
-      } else {
-        const rescheduleCustomer = extractCustomerFromReschedulePrompt(
-          prompt,
-          customers.map((c) => ({ id: c.id, name: c.name })),
-          employees.map((e) => ({ id: e.id, name: e.name })),
-        );
-        if (rescheduleCustomer) {
-          params.customerName = rescheduleCustomer.name;
-          params.customerId = rescheduleCustomer.id;
-        } else {
-          params.customerName = null;
-          delete params.customerId;
-        }
-      }
+    applyBookingRescheduleActionHints(action, params, prompt, {
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      customers: customers.map((c) => ({ id: c.id, name: c.name })),
+      timeZone: params._timeZone as string | undefined,
+    });
+    applyScheduleOpsPromptHints(action, params, prompt, {
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      timeZone: params._timeZone as string | undefined,
+      session,
+    });
+    applyPackageMultiServicePromptHints(action, params, prompt, {
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      customers: customers.map((c) => ({ id: c.id, name: c.name })),
+      timeZone: params._timeZone as string | undefined,
+      session,
+    });
+    applyGiftCardPaymentsPromptHints(action, params, prompt, { session });
+
+    if (action === 'check_providers_for_service' && params.allProviders) {
+      params.employeeName = null;
+      delete params.employeeId;
     }
 
     if (
@@ -3645,7 +4767,7 @@ export class AiCommandService {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       {
@@ -3824,17 +4946,18 @@ export class AiCommandService {
         };
       }
 
+      const notBeforeTime = resolveFirstAvailableNotBeforeTime(params);
       const pick = await this.findFirstAvailableBookingSlot(
         businessId,
         service,
         startIsoDay,
         searchTargets,
         timeZone,
-        params.timeFrom ?? null,
+        notBeforeTime,
       );
 
       if (!pick) {
-        const afterLabel = params.timeFrom ? ` after ${params.timeFrom}` : '';
+        const afterLabel = notBeforeTime ? ` after ${notBeforeTime}` : '';
         return {
           success: false,
           action: 'create_booking',
@@ -5587,7 +6710,31 @@ export class AiCommandService {
         parsed.action,
         catalog.employees,
       );
-      enrichBookingTimeHintsFromPrompt(parsed.action, parsedParams, prompt);
+      enrichCompoundSubStepBookingHints(
+        parsed.action,
+        parsedParams,
+        prompt,
+        timeZone,
+      );
+      enrichCompoundSubStepScheduleHints(
+        parsed.action,
+        parsedParams,
+        prompt,
+        timeZone,
+        catalog.employees.map((e) => ({ id: e.id, name: e.name })),
+      );
+      enrichCompoundSubStepPackageMultiHints(
+        parsed.action,
+        parsedParams,
+        prompt,
+        catalog.employees.map((e) => ({ id: e.id, name: e.name })),
+        catalog.customers.map((c) => ({ id: c.id, name: c.name })),
+      );
+      enrichCompoundSubStepGiftCardPaymentsHints(
+        parsed.action,
+        parsedParams,
+        prompt,
+      );
       this.completionPipeline.normalizeDateParams(
         parsedParams,
         prompt,
@@ -6217,7 +7364,7 @@ export class AiCommandService {
         startIsoDay,
         searchTargets,
         timeZone,
-        params.timeFrom ?? null,
+        resolveFirstAvailableNotBeforeTime(params),
       );
       if (!pick) return null;
       resolvedEmployee = pick.employee;
@@ -9030,19 +10177,26 @@ export class AiCommandService {
         toIsoDay(params.date, timeZone),
         [provider],
         timeZone,
-        params.timeFrom ?? null,
+        resolveFirstAvailableNotBeforeTime(params),
       );
 
       if (!pick) {
         return {
           success: false,
           action: 'reschedule_booking',
-          summary: `No open ${targetService.name} slots found for ${provider.name} on ${formatDateDisplay(toIsoDay(params.date, timeZone))}.`,
+          summary: buildRescheduleFirstAvailableNoSlotMessage(
+            targetService.name,
+            provider.name,
+            params,
+            '',
+          ),
           details: {
             bookingId: booking.id,
             serviceName: targetService.name,
             employeeName: provider.name,
             date: formatDateDisplay(toIsoDay(params.date, timeZone)),
+            timeOfDay: params.timeOfDay ?? null,
+            reason: 'no_slots',
           },
         };
       }

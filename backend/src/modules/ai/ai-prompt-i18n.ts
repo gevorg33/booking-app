@@ -1,3 +1,20 @@
+import { CHECK_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES } from './ai-check-and-book-multilingual.fixtures.js';
+import { BUSINESS_CURRENCY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-currency-multilingual.fixtures.js';
+import { BUSINESS_LANGUAGES_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-languages-multilingual.fixtures.js';
+import { BUSINESS_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-date-format-multilingual.fixtures.js';
+import { BUSINESS_DATE_FORMAT_PREVIEW_AUDIT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-date-format-preview-audit-multilingual.fixtures.js';
+import { DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-date-input-provider-format-multilingual.fixtures.js';
+import { BUSINESS_TAX_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-tax-multilingual.fixtures.js';
+import { BUSINESS_COMPLIANCE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-business-compliance-multilingual.fixtures.js';
+import { STACKED_TAX_MULTILINGUAL_CLASSIFIER_RULES } from './ai-stacked-tax-multilingual.fixtures.js';
+import { NOTIFICATION_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-notification-date-format-multilingual.fixtures.js';
+import { PACKAGE_LOCALIZED_NAMES_MULTILINGUAL_CLASSIFIER_RULES } from './ai-package-localized-names-multilingual.fixtures.js';
+import { TOUR_CALENDAR_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-calendar-multilingual.fixtures.js';
+import { RECOMMENDATION_PRODUCT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recommendation-product-multilingual.fixtures.js';
+import { RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recommendation-analytics-multilingual.fixtures.js';
+import { TOUR_CONSUMER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-consumer-multilingual.fixtures.js';
+import { TOUR_SERVICE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-service-multilingual.fixtures.js';
+
 /**
  * Detection helpers for multilingual AI commands (Armenian, Russian, transliteration).
  * Non-English prompts are passed through to classify_intent with a context hint (no extra LLM normalize step).
@@ -20,7 +37,7 @@ export function containsExtendedLatin(text: string): boolean {
 
 /** Common hy/ru words typed in Latin without Armenian/Cyrillic letters. */
 const TRANSLITERATION_HINT =
-  /\b(aysor|vagh[ay]?|vax[ay]?|erek|chaxord|tsarayutyun|amsagrum|chegharke?l|azat|ogtagortum|sevodnya|zavtra|vchera|kklient|usluga|zapis|otmen|skolko|pokazhi|zapolni|grafik|raspisanie)\b/i;
+  /\b(aysor|vagh@?|vax[ay]?|erek|chaxord|tsarayutyun|amsagrum|chegharke?l|azat|ogtagortum|sevodnya|zavtra|vchera|kklient|usluga|zapis|otmen|skolko|pokazhi|zapolni|grafik|raspisanie|svobodn|dostupn|zabroniruy|blizhaysh|skoreysh|vecherom|kto|dlya)\b/i;
 
 export function looksLikeTransliteration(text: string): boolean {
   if (containsNonEnglishScript(text)) return false;
@@ -105,7 +122,39 @@ export function promptMentionsNativeServiceType(prompt: string): boolean {
   );
 }
 
-export const CLASSIFIER_MULTILINGUAL_RULES = `Multilingual commands: Users may write in Armenian, Russian, English, or Latin transliteration. Interpret the same operational intents (book, cancel, show appointments, fill slots, reschedule, utilization, waitlist, etc.). Extract employeeName, customerName, and serviceName exactly as written in the user message (fuzzy-match to Available lists). Use DD/MM/YYYY for dates and HH:mm 24h for times.`;
+export const CLASSIFIER_MULTILINGUAL_RULES = `Multilingual commands: Users may write in Armenian, Russian, English, or Latin transliteration. Interpret the same operational intents (book, cancel, show appointments, fill slots, reschedule, utilization, waitlist, etc.). Extract employeeName, customerName, and serviceName exactly as written in the user message (fuzzy-match to Available lists). Use DD/MM/YYYY for dates and HH:mm 24h for times.
+
+${CHECK_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_CURRENCY_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_TAX_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_COMPLIANCE_MULTILINGUAL_CLASSIFIER_RULES}
+
+${STACKED_TAX_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_LANGUAGES_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${BUSINESS_DATE_FORMAT_PREVIEW_AUDIT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${NOTIFICATION_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${PACKAGE_LOCALIZED_NAMES_MULTILINGUAL_CLASSIFIER_RULES}
+
+${TOUR_SERVICE_MULTILINGUAL_CLASSIFIER_RULES}
+
+${TOUR_CONSUMER_MULTILINGUAL_CLASSIFIER_RULES}
+
+${TOUR_CALENDAR_MULTILINGUAL_CLASSIFIER_RULES}
+
+${RECOMMENDATION_PRODUCT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES}`;
 
 /** Context block for classify_intent when the prompt is non-English. */
 export function buildMultilingualClassifierContext(

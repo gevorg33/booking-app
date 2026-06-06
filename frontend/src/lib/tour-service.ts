@@ -1,5 +1,16 @@
 export const TOUR_SERVICE_TYPE = 'tour' as const;
 
+export const TOUR_VERTICAL_BUSINESS_TYPES = ['tour_operator'] as const;
+
+export function isTourVerticalBusinessType(
+  businessType: string | undefined | null,
+): boolean {
+  if (!businessType) return false;
+  return (TOUR_VERTICAL_BUSINESS_TYPES as readonly string[]).includes(
+    businessType,
+  );
+}
+
 export type TourDifficulty = 'easy' | 'moderate' | 'challenging';
 
 export interface TourServiceFields {

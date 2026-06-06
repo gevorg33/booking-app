@@ -7,6 +7,14 @@ import { OperationalPlanBuilderService } from './operational-plan-builder.servic
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
+import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
+import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { AiBusinessTaxService } from './ai-business-tax.service.js';
+import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
+import { AiTourServiceService } from './ai-tour-service.service.js';
+import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import { AiPlatformScheduler } from './ai-platform.scheduler.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
@@ -23,6 +31,7 @@ import { AiSelfServiceBookingService } from './ai-self-service-booking.service.j
 import { AiProviderBookingService } from './ai-provider-booking.service.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ServiceModule } from '../service/service.module.js';
+import { OnboardingModule } from '../onboarding/onboarding.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
@@ -34,6 +43,7 @@ import { CommandCompletionPipelineService } from './command-completion.pipeline.
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { ServiceCategory } from '../service/entities/service-category.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
@@ -42,6 +52,7 @@ import { BlockSchedule } from '../schedule/entities/block-schedule.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
+import { EmployeeModule } from '../employee/employee.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { WebSocketModule } from '../../websocket/websocket.module.js';
@@ -85,13 +96,19 @@ import { InventoryModule } from '../inventory/inventory.module.js';
 import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 import { ExpensesModule } from '../expenses/expenses.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
-import { Product } from '../inventory/entities/inventory.entity.js';
+import { BusinessModule } from '../business/business.module.js';
+import {
+  CategoryRecommendedProduct,
+  Product,
+  ServiceRecommendedProduct,
+} from '../inventory/entities/inventory.entity.js';
 import { MarketingAutomationModule } from '../marketing-automation/marketing-automation.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
+import { ComplianceModule } from '../compliance/compliance.module.js';
 
 @Module({
   imports: [
@@ -100,6 +117,7 @@ import { NotificationLog } from '../notifications/entities/notification-log.enti
       Booking,
       Employee,
       Service,
+      ServiceCategory,
       Customer,
       SchedulingPeriod,
       SchedulingSlot,
@@ -113,9 +131,12 @@ import { NotificationLog } from '../notifications/entities/notification-log.enti
       SchedulingResource,
       AgentTask,
       Product,
+      ServiceRecommendedProduct,
+      CategoryRecommendedProduct,
       NotificationLog,
     ]),
     forwardRef(() => BookingModule),
+    EmployeeModule,
     forwardRef(() => AgentModule),
     SchedulingEngineModule,
     OpenAiModule,
@@ -134,13 +155,16 @@ import { NotificationLog } from '../notifications/entities/notification-log.enti
     RetailPosModule,
     ExpensesModule,
     AnalyticsModule,
+    BusinessModule,
     MarketingAutomationModule,
     BillingModule,
     LoyaltyModule,
     forwardRef(() => PromoCodesModule),
     NotificationsModule,
+    ComplianceModule,
     forwardRef(() => PublicBookingModule),
     ServiceModule,
+    OnboardingModule,
     forwardRef(() => GiftCardsModule),
     ZendeskModule,
   ],
@@ -152,6 +176,14 @@ import { NotificationLog } from '../notifications/entities/notification-log.enti
     AiScheduleHandlersService,
     AiSchedulingService,
     AiOperationsService,
+    AiBusinessCurrencyService,
+    AiBusinessLanguagesService,
+    AiBusinessDateFormatService,
+    AiBusinessTaxService,
+    AiBusinessComplianceService,
+    AiPackageLocalizedNamesService,
+    AiTourServiceService,
+    AiRecommendationProductService,
     AiPlatformService,
     AiPlatformScheduler,
     AiBookingDepthService,
@@ -205,6 +237,14 @@ import { NotificationLog } from '../notifications/entities/notification-log.enti
     AiSettingsService,
     AiGatewayService,
     CustomerAiCommandService,
+    AiBusinessCurrencyService,
+    AiBusinessLanguagesService,
+    AiBusinessDateFormatService,
+    AiBusinessTaxService,
+    AiBusinessComplianceService,
+    AiRecommendationProductService,
+    AiPackageLocalizedNamesService,
+    AiTourServiceService,
     AiIntelligenceService,
     CommandComplexityRouterService,
     AiIntentRescueService,

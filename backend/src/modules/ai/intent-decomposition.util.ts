@@ -7,19 +7,28 @@ import { getCompoundRecipesForSurface } from './ai-command-registry.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import {
   enrichParamsWithSharedEntities,
-  propagateSharedEntityParamsAcrossSteps,
+  propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
 import { extractPromoCodeFromPrompt } from './ai-marketing-growth.util.js';
 import { decomposeCatalogCompoundPrompt } from './ai-catalog.util.js';
 import { decomposeCrmCompoundPrompt } from './ai-customer-crm.util.js';
 import { decomposeScheduleResourceCompoundPrompt } from './ai-schedule-resources.util.js';
-import { decomposePaymentsCompoundPrompt } from './ai-payments.util.js';
+import {
+  decomposePaymentsCompoundPrompt,
+  isBookNearestSlotPrompt,
+  isCheckProvidersForServicePrompt,
+} from './ai-payments.util.js';
 import { decomposeFulfillmentCompoundPrompt } from './ai-gift-fulfillment.util.js';
 import { decomposeIntegrationsCompoundPrompt } from './ai-integrations.util.js';
 import { decomposeMarketingGrowthCompoundPrompt } from './ai-marketing-growth.util.js';
 import { decomposePushNotificationsCompoundPrompt } from './ai-push-notifications.util.js';
 import { decomposeCustomerBookingCompoundPrompt } from './ai-self-service-booking.util.js';
 import { decomposeProviderBookingCompoundPrompt } from './ai-provider-booking.util.js';
+import { decomposeDashboardPackageMultiServiceCompoundPrompt } from './ai-package-multi-service-hints.util.js';
+import {
+  classifyGiftCardPaymentsSegment,
+  decomposeGiftCardPaymentsCompoundPrompt,
+} from './ai-gift-card-payments-hints.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -53,9 +62,40 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeCustomerBookingCompoundPrompt,
   decomposeProviderBookingCompoundPrompt,
   decomposePushNotificationsCompoundPrompt,
+  decomposeDashboardPackageMultiServiceCompoundPrompt,
+  decomposeGiftCardPaymentsCompoundPrompt,
 };
 
+function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
+  const raw = decomposePaymentsCompoundPrompt(prompt);
+  if (raw.length < 2) return [];
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Check-and-book compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
 export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
+  {
+    id: 'dashboard_check_and_book_nearest',
+    surface: 'dashboard',
+    recipeId: 'dashboard_payments_compound',
+    matches: (prompt) =>
+      isCheckProvidersForServicePrompt(prompt) &&
+      isBookNearestSlotPrompt(prompt),
+    buildSteps: buildCheckAndBookGoldenSteps,
+  },
+  {
+    id: 'customer_check_and_book_nearest',
+    surface: 'customer',
+    recipeId: 'customer_self_service_compound',
+    matches: (prompt) =>
+      isCheckProvidersForServicePrompt(prompt) &&
+      isBookNearestSlotPrompt(prompt),
+    buildSteps: buildCheckAndBookGoldenSteps,
+  },
   {
     id: 'customer_book_package_apply_promo',
     surface: 'customer',
@@ -139,6 +179,85 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
       ];
     },
   },
+  {
+    id: 'dashboard_package_line_checkout',
+    surface: 'dashboard',
+    recipeId: 'dashboard_package_multi_service_compound',
+    matches: (prompt) =>
+      /\bcheck\b/i.test(prompt) &&
+      /\bpackage\b/i.test(prompt) &&
+      /\b(line|availability)\b/i.test(prompt) &&
+      /\bbook\b/i.test(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeDashboardPackageMultiServiceCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Package checkout compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'customer_gift_card_checkout_compound',
+    surface: 'customer',
+    recipeId: 'customer_gift_card_payments_compound',
+    matches: (prompt) =>
+      /\bbook\b/i.test(prompt) &&
+      /\b(apply|use|redeem)\b/i.test(prompt) &&
+      /\bgift\s*card\b/i.test(prompt) &&
+      (/\bchoose\b/i.test(prompt) ||
+        /\bpayment\s+method\b/i.test(prompt) ||
+        /\bpay\s+online\b/i.test(prompt)),
+    buildSteps: (prompt) => {
+      const raw = decomposeGiftCardPaymentsCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Gift card checkout compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'customer_physical_gift_card_handoff',
+    surface: 'customer',
+    recipeId: 'customer_gift_card_payments_compound',
+    matches: (prompt) =>
+      /\b(buy|purchase|order)\b/i.test(prompt) &&
+      /\b(physical|mail|ship)\b/i.test(prompt) &&
+      /\bgift\s*card\b/i.test(prompt) &&
+      /\b(track|where|status)\b/i.test(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeGiftCardPaymentsCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Physical gift card handoff: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_multi_service_cart_checkout',
+    surface: 'dashboard',
+    recipeId: 'dashboard_package_multi_service_compound',
+    matches: (prompt) =>
+      (/\bcart\b/i.test(prompt) ||
+        /\bmulti[\s-]?service\b/i.test(prompt) ||
+        /\bblock\s+availability\b/i.test(prompt)) &&
+      /\bcheck\b/i.test(prompt) &&
+      /\bbook\b/i.test(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeDashboardPackageMultiServiceCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Multi-service checkout compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
 ];
 
 export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
@@ -167,9 +286,11 @@ export function normalizeHandlerSteps(
   allowedIntentIds: readonly string[],
 ): DecomposedIntentStep[] {
   const allowed = new Set(allowedIntentIds);
-  return rawSteps
+  const filtered = rawSteps
     .filter((step) => allowed.has(step.action))
     .map((step) => toDecomposedIntentStep(step));
+  if (filtered.length < 2) return filtered;
+  return propagateCompoundStepParamsAcrossSteps(filtered);
 }
 
 export function buildCustomerPromoHelpStep(text: string): DecomposedIntentStep {
@@ -212,7 +333,7 @@ export function matchGoldenCompoundPattern(
       surface,
       recipeId: pattern.recipeId,
       source: 'golden',
-      steps,
+      steps: propagateCompoundStepParamsAcrossSteps(steps),
     };
   }
   return null;
@@ -224,6 +345,10 @@ function classifyCustomerSelfServiceSegment(
   const text = segment.trim();
 
   const handlers = [
+    (text: string) => {
+      const step = classifyGiftCardPaymentsSegment(text);
+      return step ? [step] : [];
+    },
     decomposeCustomerBookingCompoundPrompt,
     decomposePaymentsCompoundPrompt,
     decomposeMarketingGrowthCompoundPrompt,
@@ -268,7 +393,7 @@ export function decomposeCustomerSelfServiceCompound(
   }
 
   if (steps.length < 2) return steps;
-  const propagated = propagateSharedEntityParamsAcrossSteps(
+  const propagated = propagateCompoundStepParamsAcrossSteps(
     steps.map((step) => ({ action: step.action, params: step.params })),
   );
   return propagated.map((step, index) => ({

@@ -140,7 +140,8 @@ describe('ai provider availability integration', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.summary).toContain('No providers available');
+      expect(result.summary).toContain('No providers are free');
+      expect(result.summary).toMatch(/another date|time of day/i);
       expect(result.details?.availableProviders).toEqual([]);
       expect(result.details?.availability).toEqual([]);
     });

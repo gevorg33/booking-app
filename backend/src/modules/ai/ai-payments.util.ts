@@ -1,4 +1,15 @@
 import { isTrackPhysicalGiftCardPrompt } from './ai-customer-crm.util.js';
+import {
+  isMultilingualBookNearestPrompt,
+  isMultilingualCheckProvidersPrompt,
+} from './ai-check-and-book-multilingual.util.js';
+import {
+  buildSharedBookingContextFromPrompt,
+  mergeSharedBookingContext,
+  propagateSharedBookingContextAcrossSteps,
+} from './ai-compound-booking-context.util.js';
+
+export { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
   isCheckMultiServiceBlockAvailabilityPrompt,
@@ -39,6 +50,10 @@ export const CUSTOMER_PAYMENTS_INTENTS = [
   'pay_online',
   'pay_cash_at_visit',
   'purchase_subscription_checkout',
+  'explain_checkout_currency',
+  'explain_stripe_checkout_currency',
+  'explain_tenant_currency',
+  'explain_notification_currency',
   'explain_why_stripe_required',
   'receipt_status',
 ] as const;
@@ -196,11 +211,14 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
       /\b(available|free|open|for)\b/i.test(prompt)) ||
     (/\bcheck\b/i.test(prompt) &&
       /\bproviders?\b/i.test(prompt) &&
-      (/\b(available|free|open)\b/i.test(prompt) || /\bfor\b/i.test(prompt)))
+      (/\b(available|free|open)\b/i.test(prompt) || /\bfor\b/i.test(prompt))) ||
+    isMultilingualCheckProvidersPrompt(prompt)
   );
 }
 
 export function isBookNearestSlotPrompt(prompt: string): boolean {
+  if (isMultilingualBookNearestPrompt(prompt)) return true;
+
   const wantsFlexibleSlot =
     /\b(first\s+available|nearest|soonest|next|earliest)\b/i.test(prompt) ||
     /\basap\b/i.test(prompt) ||
@@ -216,6 +234,7 @@ export function isBookNearestSlotPrompt(prompt: string): boolean {
 }
 
 export function isApplyGiftCardCodePrompt(prompt: string): boolean {
+  if (/\bcurrency\s+code\b/i.test(prompt)) return false;
   return (
     /\b(apply|use|redeem|preview)\b/i.test(prompt) &&
     (/\b(gift\s*card)\b/i.test(prompt) || /\bcode\b/i.test(prompt)) &&
@@ -325,21 +344,27 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
   );
   if (forService) {
     const name = forService[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an)$/i.test(name)) return name;
+    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
+      return name;
+    }
   }
   const takeService = prompt.match(
     /\b(?:take|do)\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
   );
   if (takeService) {
     const name = takeService[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an)$/i.test(name)) return name;
+    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
+      return name;
+    }
   }
   const nearest = prompt.match(
     /\bnearest\s+(?:available\s+)?([\w\s'-]{2,40}?)(?:\s+(?:slot|appointment|opening|time)\b|\s+and\b|$)/i,
   );
   if (nearest) {
     const name = nearest[1].trim();
-    if (name && !/^(the|a|an|slot|time)$/i.test(name)) return name;
+    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
+      return name;
+    }
   }
   return null;
 }
@@ -475,20 +500,6 @@ export function rescuePaymentsIntent(
   return null;
 }
 
-function buildSharedBookingContextFromPrompt(
-  text: string,
-): Record<string, unknown> {
-  const base: Record<string, unknown> = {};
-  const serviceName = extractServiceNameFromPrompt(text);
-  if (serviceName) base.serviceName = serviceName;
-  const timeOfDay = parseTimeOfDayWindow(text, {});
-  if (timeOfDay) base.timeOfDay = timeOfDay;
-  if (/\btomorrow\b/i.test(text)) base.date = resolveTomorrowDateKey();
-  const notBeforeTime = notBeforeTimeFromWindow(text, base);
-  if (notBeforeTime) base.notBeforeTime = notBeforeTime;
-  return base;
-}
-
 function tryDecomposeCheckAndBookPrompt(
   prompt: string,
 ): PaymentsCompoundStep[] | null {
@@ -521,10 +532,10 @@ function classifyPaymentsSegment(
   const text = segment.trim();
   if (!text) return null;
 
-  const base: Record<string, unknown> = {
-    ...(sharedContext ?? {}),
-    ...buildSharedBookingContextFromPrompt(text),
-  };
+  const base = mergeSharedBookingContext(
+    sharedContext ?? {},
+    buildSharedBookingContextFromPrompt(text),
+  );
   const giftCardCode = extractGiftCardCodeFromPrompt(text);
   if (giftCardCode) base.giftCardCode = giftCardCode;
   const amount = extractAmountFromPrompt(text);
@@ -642,12 +653,14 @@ export function decomposePaymentsCompoundPrompt(
       const step = classifyPaymentsSegment(segment, shared);
       if (step) steps.push(step);
     }
-    return steps;
+    return propagateSharedBookingContextAcrossSteps(steps);
   }
 
   const checkAndBook = tryDecomposeCheckAndBookPrompt(trimmed);
-  if (checkAndBook) return checkAndBook;
+  if (checkAndBook) {
+    return propagateSharedBookingContextAcrossSteps(checkAndBook);
+  }
 
   const single = classifyPaymentsSegment(trimmed);
-  return single ? [single] : [];
+  return single ? propagateSharedBookingContextAcrossSteps([single]) : [];
 }

@@ -31,7 +31,17 @@ import {
   resolveTomorrowDateKey,
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
+import { buildNoNearestSlotMessage } from './ai-booking-slot-messages.util.js';
+import {
+  attachCheckProvidersHandoff,
+  mergeCheckProvidersHandoffIntoContext,
+  pickCheckProvidersHandoff,
+} from './ai-check-book-handoff.util.js';
+import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
+import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
+import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -709,6 +719,10 @@ export async function handleCheckProvidersForServiceLogic(
       ? resolveTomorrowDateKey()
       : new Date().toISOString().slice(0, 10));
   const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
+  const timeOfDay =
+    (params.timeOfDay as string | undefined) ??
+    parseTimeOfDayWindow(prompt ?? '', params) ??
+    parseMultilingualTimeOfDayWindow(prompt ?? '', params);
 
   try {
     const result = await deps.publicBookingService.recommendProviders(slug, {
@@ -721,6 +735,8 @@ export async function handleCheckProvidersForServiceLogic(
       serviceName: service.name,
       dateKey,
       providers: result.providers,
+      timeOfDay,
+      notBeforeTime,
     });
 
     return success('check_providers_for_service', formatted.summary, {
@@ -731,6 +747,8 @@ export async function handleCheckProvidersForServiceLogic(
       serviceName: service.name,
       date: dateKey,
       notBeforeTime,
+      timeOfDay,
+      noProviders: result.providers.length === 0,
     });
   } catch (err: any) {
     return failure(
@@ -760,36 +778,54 @@ export async function handleBookNearestSlotLogic(
     });
   }
 
-  const startDateKey =
-    (params.date as string | undefined) ??
-    (/\btomorrow\b/i.test(prompt ?? '') ? resolveTomorrowDateKey() : null);
-  const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
+  const slotQuery = buildNearestBookableSlotQuery(params, prompt ?? '');
+  const { employeeId, notBeforeTime, startDateKey, timeOfDay } = slotQuery;
 
   const slot = await deps.publicBookingService.findNearestBookableSlot(slug, {
     serviceId: service.id,
-    employeeId: (params.employeeId as string | undefined) ?? null,
+    employeeId,
     notBeforeTime,
     startDateKey,
   });
 
+  const priorCheck = pickCheckProvidersHandoff(params);
+
   if (!slot) {
     return failure(
       'book_nearest_slot',
-      `No bookable slot found for ${service.name}.`,
-      { serviceId: service.id },
+      buildNoNearestSlotMessage({
+        serviceName: service.name,
+        dateKey: startDateKey ?? undefined,
+        timeOfDay,
+        notBeforeTime,
+      }),
+      attachCheckProvidersHandoff(
+        {
+          serviceId: service.id,
+          serviceName: service.name,
+          date: startDateKey,
+          timeOfDay,
+          notBeforeTime,
+          reason: 'no_slots',
+        },
+        priorCheck,
+      ),
     );
   }
 
   return success(
     'book_nearest_slot',
     `Nearest slot: ${slot.startTime} with ${slot.employeeName}.`,
-    {
-      slot,
-      serviceId: service.id,
-      serviceName: service.name,
-      employeeId: slot.employeeId,
-      startTime: slot.startTime,
-    },
+    attachCheckProvidersHandoff(
+      {
+        slot,
+        serviceId: service.id,
+        serviceName: service.name,
+        employeeId: slot.employeeId,
+        startTime: slot.startTime,
+      },
+      priorCheck,
+    ),
   );
 }
 
@@ -1127,7 +1163,10 @@ function mergeCompoundContext(
   result: CommandResult,
 ): Record<string, unknown> {
   const details = result.details as Record<string, unknown>;
-  const next = { ...context };
+  const next = {
+    ...context,
+    ...pickSharedBookingContextSlice(step.params),
+  };
 
   if (step.action === 'book_nearest_slot') {
     next.serviceId = details.serviceId;
@@ -1141,6 +1180,7 @@ function mergeCompoundContext(
     const providers = details.providers as Array<{ id: string }> | undefined;
     if (providers?.length && !next.employeeId)
       next.employeeId = providers[0].id;
+    Object.assign(next, mergeCheckProvidersHandoffIntoContext({}, result));
   }
   if (
     step.action === 'apply_gift_card_code' ||
@@ -1149,6 +1189,7 @@ function mergeCompoundContext(
     const balance = details.balance as { code?: string } | undefined;
     if (balance?.code) next.giftCardCode = balance.code;
   }
+  Object.assign(next, pickSharedBookingContextSlice(details));
   return next;
 }
 
@@ -1368,6 +1409,10 @@ export async function handlePaymentsCompoundLogic(
   const providerDetails = providerStep?.details as
     | Record<string, unknown>
     | undefined;
+  const bookStep = [...results]
+    .reverse()
+    .find((entry) => entry.action === 'book_nearest_slot');
+  const bookDetails = bookStep?.details as Record<string, unknown> | undefined;
 
   return {
     success: true,
@@ -1384,6 +1429,9 @@ export async function handlePaymentsCompoundLogic(
       availability: providerDetails?.availability,
       serviceName: providerDetails?.serviceName,
       date: providerDetails?.date,
+      checkProvidersHandoff:
+        bookDetails?.checkProvidersHandoff ??
+        compoundContext.checkProvidersHandoff,
     },
   };
 }

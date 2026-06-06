@@ -17,6 +17,11 @@ import {
   canSubmitBreachReport,
   isBusinessOwner,
 } from '@/lib/compliance-workflow';
+import {
+  resolveCompliancePanelFromSearch,
+  scrollToCompliancePanel,
+} from '@/lib/compliance-dashboard-nav';
+import { useSearchParams } from 'next/navigation';
 
 interface BreachIncident {
   id: string;
@@ -75,6 +80,7 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
   const { t } = useI18n();
   const { user, businesses } = useAuthStore();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [hipaa, setHipaa] = useState(DEFAULT_BUSINESS_HIPAA_SETTINGS);
   const [baaAccepted, setBaaAccepted] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -106,6 +112,16 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
       setBaaAccepted(Boolean(current.baaAcceptedAt));
     });
   }, [businessData]);
+
+  useEffect(() => {
+    const panel = resolveCompliancePanelFromSearch(
+      searchParams.get('panel'),
+      searchParams.get('section'),
+    );
+    if (!panel) return;
+    const timer = window.setTimeout(() => scrollToCompliancePanel(panel), 150);
+    return () => window.clearTimeout(timer);
+  }, [searchParams]);
 
   const { data: complianceStatus } = useQuery({
     queryKey: ['compliance-status', businessId],
@@ -197,7 +213,7 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="compliance-overview">
       <div>
         <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">
           {t('settings.complianceSection')}
@@ -258,7 +274,10 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+      <div
+        id="compliance-sub-processors"
+        className="rounded-xl border border-gray-200 dark:border-gray-800 p-4"
+      >
         <p className="text-sm font-medium mb-2">{t('settings.subProcessorsTitle')}</p>
         <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
           {SUB_PROCESSORS.map((sp) => (
@@ -270,7 +289,10 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
       </div>
 
       {clinicEligible ? (
-        <div className="space-y-4 border-t border-gray-200 dark:border-gray-800 pt-4">
+        <div
+          id="compliance-hipaa"
+          className="space-y-4 border-t border-gray-200 dark:border-gray-800 pt-4"
+        >
           <h3 className="font-medium text-gray-900 dark:text-gray-100">
             {t('settings.hipaaSection')}
           </h3>
@@ -337,7 +359,10 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
       )}
 
       {isOwner ? (
-        <div className="space-y-4 border-t border-gray-200 dark:border-gray-800 pt-4">
+        <div
+          id="compliance-breach"
+          className="space-y-4 border-t border-gray-200 dark:border-gray-800 pt-4"
+        >
           <div>
             <h3 className="font-medium text-gray-900 dark:text-gray-100">
               {t('settings.breachSection')}
@@ -448,7 +473,10 @@ export function BusinessComplianceSettings({ businessId }: { businessId: string 
       ) : null}
 
       {isOwner && clinicEligible && hipaa.enabled ? (
-        <div className="space-y-3 border-t border-gray-200 dark:border-gray-800 pt-4">
+        <div
+          id="compliance-phi-audit"
+          className="space-y-3 border-t border-gray-200 dark:border-gray-800 pt-4"
+        >
           <div>
             <h3 className="font-medium text-gray-900 dark:text-gray-100">
               {t('settings.phiAuditSection')}

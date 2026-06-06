@@ -1,6 +1,6 @@
 import {
   extractSharedEntityParamsFromPrompt,
-  propagateSharedEntityParamsAcrossSteps,
+  propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
 
 export const PROVIDER_BOOKING_MUTATE_INTENTS = ['mark_paid'] as const;
@@ -117,7 +117,7 @@ export function isProviderBookingCompoundPrompt(prompt: string): boolean {
   return decomposeProviderBookingCompoundPrompt(prompt).length >= 2;
 }
 
-function classifyProviderBookingSegment(
+export function classifyProviderBookingSegment(
   segment: string,
 ): ProviderBookingCompoundStep | null {
   const text = segment.trim();
@@ -172,7 +172,7 @@ export function decomposeProviderBookingCompoundPrompt(
     if (step) steps.push(step);
   }
   return steps.length >= 2
-    ? propagateSharedEntityParamsAcrossSteps(steps)
+    ? propagateCompoundStepParamsAcrossSteps(steps)
     : steps;
 }
 
