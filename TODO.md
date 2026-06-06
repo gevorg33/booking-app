@@ -95,57 +95,6 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 *(Integrates **sub-1** subscriptions — one-time vs plan picker, My subscriptions profile.)*
 
----
-
-## AI product commands — Sprints 1–13 feature coverage (planned)
-
-**Goal:** Add AI command services for **every shipped product capability from Sprints 1–13** across three surfaces — **dashboard admin**, **service provider (mobile)**, and **customer (public web + consumer app)**. Target **~99.9% command coverage**: any reasonable NL request a user could make in the UI should map to a classified intent (or a clarify turn).
-
-**Status:** Planned only — not implemented. Builds on AI baseline (Sprints 14–25). Existing intents cover single booking, schedule ops, and basic public assistant; this backlog closes gaps for **multi-service**, **packages**, **subscriptions**, **gift cards**, **cash pay**, **self-service**, **integrations**, **inventory/POS**, **marketing**, and **provider fulfillment**.
-
-**Surfaces**
-
-| Surface | Code | Users | Gateway today |
-|---------|------|--------|-----------------|
-| Dashboard admin | `dashboard` | Owner, manager, receptionist | `AiGatewayService` → `AiCommandService` |
-| Service provider | `provider` | Stylists, card creators, delivery staff | `AiGatewayService` → `ProviderAiCommandService` |
-| Customer | `customer` | Public booking + consumer app | `AiGatewayService` → `CustomerAiCommandService` (**ai-cmd-0.5** / **ai-e8**) |
-
-**Command count target (planned intents)**
-
-| Domain | Dashboard | Provider | Customer | Notes |
-|--------|-------------|----------|----------|-------|
-| Booking & appointments | 42 | 18 | 22 | incl. multi-service, package visit, subscription credit |
-| Catalog & monetization | 38 | 4 | 14 | categories bulk, packages, plans, gift card products |
-| Customer CRM & self-service | 16 | 6 | 18 | my appointments, GDPR, subscription/gift card account |
-| Schedule & resources | 28 | 12 | 8 | templates, blocks, rooms/chairs (**gap-8.2**) |
-| Payments & reconciliation | 14 | 8 | 10 | cash, gift card redeem, sweep, accounting export |
-| Gift card fulfillment | 10 | 12 | 8 | purchase, redeem, physical queue (**gc-1**, Sprint 9) |
-| Integrations & exports | 12 | 0 | 2 | webhooks, Zapier, Zendesk, CSV (**Sprints 2–3, 12**) |
-| Inventory, POS, finance | 14 | 2 | 0 | retail at chair, expenses, commissions (**Sprints 4, 7**) |
-| Marketing & growth | 10 | 0 | 4 | automation, registration alerts (**Sprints 6, 12**) |
-| Push, offline, notifications | 6 | 10 | 4 | deep links, queue replay (**Sprints 1, 13, 20**) |
-| Help & policy | 6 | 4 | 8 | cancel policy, cash rules, compatibility explain |
-| **Total (unique intents)** | **~196** | **~76** | **~98** | **~270** after dedupe across surfaces |
-
-### Sprint 1–13 → command mapping (feature themes)
-
-| Sprint | Product shipped | AI command themes to add |
-|--------|-----------------|---------------------------|
-| **1** | Push delivery, offline queue | Provider: queue status, retry failed mutation; explain push notification |
-| **2** | Webhooks, Zapier, commission CSV | Dashboard: configure webhook, list deliveries, export commissions |
-| **3** | QuickBooks/Xero, Zendesk | Dashboard: run accounting export, open Zendesk ticket, sync customer |
-| **4** | Inventory link UI, help center | Dashboard: link product to service; contextual help lookup |
-| **5** | Resources, subscriptions, packages, multi-service | **Core gap** — see Booking + Catalog sections below |
-| **6** | Marketing automation, vertical playbooks | Dashboard: apply salon/clinic playbook; summarize automation |
-| **7** | Retail POS, DPA/SOC2 docs | Dashboard: attach retail to booking; list trust docs (read-only) |
-| **8** | Strategy eval | Low priority — read-only compliance summaries |
-| **9** | Gift cards (all types + physical fulfillment) | All surfaces — purchase, redeem, fulfillment queues |
-| **10–12** | Billing upgrade, marketing alerts, subscription accounting | Dashboard: explain plan limits; configure marketing email on register |
-| **11** | Consumer app | Customer: same intents as public web + tenant switch |
-| **13** | Customer cancel/reschedule, staff push, cash pay | Customer self-service; provider mark paid; dashboard cash filter |
-
----
 
 ## Sprint 26 — Onboarding & pricing UX
 
@@ -168,7 +117,6 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 - [ ] **gap-1.5** — App Store / Play Store listings for provider app and consumer app with screenshots + reviews flow
 
 ---
-
 
 in the end when I will have many clients:
 create Full marketplace per country
