@@ -34,7 +34,10 @@ import { BusinessSwitcher } from '@/components/business-switcher';
 import { DashboardZendeskWidget } from '@/components/integrations/dashboard-zendesk-widget';
 import { SupportTicketButton } from '@/components/integrations/support-ticket-button';
 import { ResizableDashboardSidebar } from '@/components/dashboard/resizable-dashboard-sidebar';
+import { BusinessDateFormatBootstrap } from '@/components/business-date-format-bootstrap';
 import { useI18n } from '@/i18n';
+import { useHipaaSessionTimeout } from '@/lib/use-hipaa-session-timeout';
+import { HipaaSessionNotice } from '@/components/hipaa-session-notice';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -43,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t, setLocale } = useI18n();
   const [mounted, setMounted] = useState(false);
   const isOnboardingRoute = pathname === '/dashboard/onboarding';
+  useHipaaSessionTimeout();
 
   const { data: onboardingStatus } = useQuery({
     queryKey: ['onboarding-status', business?.id],
@@ -104,6 +108,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (isOnboardingRoute) {
     return (
       <div className="dashboard-app min-h-screen bg-gray-50 dark:bg-gray-950">
+        <BusinessDateFormatBootstrap business={business} />
         <div className="max-w-7xl mx-auto p-6">{children}</div>
       </div>
     );
@@ -111,6 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="dashboard-app min-h-screen flex bg-gray-50 dark:bg-gray-950">
+      <BusinessDateFormatBootstrap business={business} />
       <ResizableDashboardSidebar>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-gray-200 p-4 dark:border-gray-800">
@@ -162,6 +168,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </ResizableDashboardSidebar>
 
       <main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
+        <HipaaSessionNotice />
         <div className="shrink-0 flex justify-end px-6 pt-4">
           <AiNotificationCenter />
         </div>

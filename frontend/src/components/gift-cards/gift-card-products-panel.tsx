@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Package, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { CheckboxChoice } from '@/components/ui/radio-choice';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 export interface GiftCardBundleLine {
   serviceId: string;
@@ -87,6 +88,7 @@ export function GiftCardProductsPanel({
   onChange,
 }: GiftCardProductsPanelProps) {
   const { t } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const [showBundleForm, setShowBundleForm] = useState(false);
   const [bundleForm, setBundleForm] = useState(defaultBundleForm());
   const [editingBundleId, setEditingBundleId] = useState<string | null>(null);
@@ -276,7 +278,7 @@ export function GiftCardProductsPanel({
                     label={svc.name}
                     labelClassName="text-sm text-gray-200"
                   />
-                  <span className="text-xs text-gray-500">${Number(svc.price).toFixed(2)}</span>
+                  <span className="text-xs text-gray-500">{formatMoney(svc.price)}</span>
                   {enabled && (
                     <input
                       type="number"
@@ -318,7 +320,7 @@ export function GiftCardProductsPanel({
                     labelClassName="text-sm text-gray-200"
                   />
                   <span className="text-xs text-gray-500">
-                    ${Number(pkg.packagePrice).toFixed(2)} · {pkg.itemSummary}
+                    {formatMoney(pkg.packagePrice)} · {pkg.itemSummary}
                   </span>
                   {enabled && (
                     <input
@@ -361,7 +363,7 @@ export function GiftCardProductsPanel({
                     labelClassName="text-sm text-gray-200"
                   />
                   <span className="text-xs text-gray-500">
-                    {plan.serviceName} · ${Number(plan.subscriptionPrice).toFixed(2)}
+                    {plan.serviceName} · {formatMoney(plan.subscriptionPrice)}
                   </span>
                   {enabled && (
                     <input
@@ -448,7 +450,7 @@ export function GiftCardProductsPanel({
                               });
                             }
                           }}
-                          label={`${svc.name} ($${Number(svc.price).toFixed(2)})`}
+                          label={`${svc.name} (${formatMoney(svc.price)})`}
                           labelClassName="text-sm text-gray-200"
                         />
                         {selected && (
@@ -502,7 +504,7 @@ export function GiftCardProductsPanel({
                       {bundle.name}
                     </p>
                     <p className="text-sm text-gray-400 mt-1">
-                      ${Number(bundle.price).toFixed(2)} ·{' '}
+                      {formatMoney(bundle.price)} ·{' '}
                       {bundle.lines.map((l) => `${l.serviceName} × ${l.quantity}`).join(', ')}
                     </p>
                   </div>

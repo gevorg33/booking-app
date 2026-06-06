@@ -9,17 +9,40 @@ export function normalizeAppLocale(value?: string | null): AppLocale {
   return 'en';
 }
 
-/** Provider app default: user locale → business locale → stored override → English. */
+/** Provider app default: user locale → business locale → stored override → tenant default. */
 export function resolveProviderAppLocale(
   userLocale?: string | null,
   businessLocale?: string | null,
+  enabledLocales?: readonly AppLocale[] | null,
+  defaultLocale?: AppLocale | null,
 ): AppLocale {
-  const fromUser = normalizeAppLocale(userLocale);
-  if (userLocale && SUPPORTED_LOCALES.includes(userLocale as AppLocale)) {
-    return fromUser;
+  const enabled =
+    enabledLocales && enabledLocales.length > 0
+      ? enabledLocales
+      : SUPPORTED_LOCALES;
+  const fallback =
+    defaultLocale && enabled.includes(defaultLocale)
+      ? defaultLocale
+      : (enabled[0] ?? 'en');
+
+  if (
+    userLocale &&
+    SUPPORTED_LOCALES.includes(userLocale as AppLocale) &&
+    enabled.includes(userLocale as AppLocale)
+  ) {
+    return userLocale as AppLocale;
   }
-  if (businessLocale && SUPPORTED_LOCALES.includes(businessLocale as AppLocale)) {
+
+  if (
+    businessLocale &&
+    SUPPORTED_LOCALES.includes(businessLocale as AppLocale) &&
+    enabled.includes(businessLocale as AppLocale)
+  ) {
     return businessLocale as AppLocale;
   }
-  return readStoredLocale() ?? 'en';
+
+  const stored = readStoredLocale();
+  if (stored && enabled.includes(stored)) return stored;
+
+  return fallback;
 }

@@ -79,9 +79,16 @@ const hy: MessageTree = {
     percent: 'Տոկոս',
     flat: 'Ֆիքսված',
     revenue: 'Եկամուտ',
+    revenueCurrency: 'Եկամուտ ({currency})',
+    grossRevenueCurrency: 'Ընդհանուր եկամուտ ({currency})',
+    taxCollectedCurrency: 'Հավաքված հարկ ({currency})',
+    netRevenueCurrency: 'Զուտ եկամուտ ({currency})',
     expenses: 'Ծախսեր',
+    expensesCurrency: 'Ծախսեր ({currency})',
     commissions: 'Հանձնաժողովներ',
+    commissionsCurrency: 'Հանձնաժողովներ ({currency})',
     netProfit: 'Զուտ շահույթ',
+    netProfitCurrency: 'Զուտ շահույթ ({currency})',
     hours: 'Ժամեր',
     utilization: 'Օգտագործում',
     completed: 'Ավարտված',
@@ -93,6 +100,9 @@ const hy: MessageTree = {
   },
   datePicker: {
     selectDate: 'Ընտրել ամսաթիվ',
+    formatHint: 'Օգտագործեք {format} ձևաչափը (օր. {example})',
+    invalidDate: 'Մուտքագրեք վավեր ամսաթիվ {format} ձևաչափով',
+    openCalendar: 'Բացել օրացույցը',
     today: 'Այսօր',
     clear: 'Մաքրել',
     prevMonth: 'Նախորդ ամիս',
@@ -409,6 +419,7 @@ const hy: MessageTree = {
   
     utilization: 'Օգտագործման արդյունավետություն',
     revenueThisMonth: 'Եկամուտ (ամիս)',
+    revenueThisMonthCurrency: 'Եկամուտ (ամիս, {currency})',
     bookingsThisMonth: 'Ամրագրումներ (ամիս)',
     noShowRate: 'Չներկայացման տոկոս',
   
@@ -694,6 +705,9 @@ const hy: MessageTree = {
     columnCompleted: 'Ավարտված',
     columnNoShows: 'Չներկայացած',
     columnRevenue: 'Եկամուտ',
+    columnRevenueCurrency: 'Եկամուտ ({currency})',
+    currencyNote:
+      'Բոլոր գումարները {currency} արժույթով են։ Արժույթի փոխարկում չի կիրառվում (մեկ արժույթ մեկ բիզնեսի համար)։',
     columnHours: 'Ժամեր',
     columnUtilization: 'Օգտագործում',
   },
@@ -1595,6 +1609,9 @@ const hy: MessageTree = {
     durationMinutes: 'Տևողություն (րոպե)',
     bufferMinutes: 'Բուֆեր (րոպե)',
     price: 'Գին',
+    taxRateOverride: 'Հարկի դրույքի գերակայում (%)',
+    taxRateOverridePlaceholder: 'Ժառանգել բիզնեսի լռելյայնը',
+    taxRateOverrideHint: 'Դատարկ թողեք բիզնեսի լռելյայն դրույքի համար։ 0 — հարկից ազատ։',
     noServices: 'Դեռ ծառայություններ չկան',
     currency: 'Արժույթ',
   
@@ -1818,6 +1835,10 @@ const hy: MessageTree = {
       spa: 'Սպա և wellness',
       spaDesc: 'Դեմքի խնամք, մերսում, մարմնի պրոցեդուրաներ',
   
+      clinic: 'Կլինիկա',
+      clinicDesc: 'Ընդհանուր պրակտիկա, լաբորատորիա և մասնագիտացված բաժիններ',
+      polyclinic: 'Պոլիկլինիկա',
+      polyclinicDesc: 'Բազմաբաժին բժշկական կենտրոն լաբորատորիայով',
       beautyClinic: 'Գեղեցկության կլինիկա',
       beautyClinicDesc: 'Աստետիկա, լազեր, մաշկի խնամք',
   
@@ -1826,6 +1847,9 @@ const hy: MessageTree = {
   
       dental: 'Ատամնաբուժարան',
       dentalDesc: 'Ստուգում, մաքրում, սպիտակեցում',
+
+      tourOperator: 'Տուր օպերատոր',
+      tourOperatorDesc: 'Օրական տուրեր, բազմօրյա արշավներ և անհատական փորձ',
   
       other: 'Այլ ծառայողական բիզնես',
       otherDesc: 'Ընդհանուր ամրագրումներ և խորհրդատվություններ',
@@ -1837,7 +1861,20 @@ const hy: MessageTree = {
   
       clinic: 'Կլինիկայի playbook',
       clinicDesc:
-        'Խորհրդատվություններ և բուժումներ՝ առավոտ/երեկո բաժանված ժամերով և ճաշի ընդմիջումով',
+        'Ընդհանուր պրակտիկա, լաբորատորիա և կարդիոլոգիա՝ աշխատանքային և շաբաթ օրերի ժամերով',
+      clinicSampleTitle: 'Այս playbook-ի բաժինները',
+      clinicType: {
+        consultation: 'Խորհրդատվություն',
+        lab_test: 'Լաբորատոր թեստ',
+        procedure: 'Գործընթաց',
+      },
+
+      tour: 'Տուր օպերատորի playbook',
+      tourDesc: 'Օրական և բազմօրյա տուրեր՝ 08:00–18:00 աշխատանքային ժամերով',
+      tourSampleTitle: 'Նմուշ տուրեր այս playbook-ում',
+      tourDurationDay: 'Ամբողջ օր',
+      tourDurationDays: '{count} օր',
+      tourTypeBadge: 'Տուր',
   
       previewTitle: 'Ձեր ոլորտային playbook-ը',
       templateCount: '{count} ժամանակացույցի template',
@@ -2125,6 +2162,13 @@ const hy: MessageTree = {
     statusBooked: 'Ամրագրված',
     statusBlocked: 'Արգելափակված',
     statusUnavailable: 'Անհասանելի',
+    tourDepartures: 'Տուրեր',
+    tourDetails: 'Տուրի ամրագրում',
+    tourDates: 'Ամսաթվեր',
+    tourPax: 'Խմբի չափ',
+    tourCustomer: 'Հաճախորդ',
+    tourNotes: 'Հատուկ պահանջներ',
+    tourSpanPax: '{count} մարդ',
   },
   business: {
     title: 'Բիզնեսի պրոֆիլ',
@@ -2894,10 +2938,127 @@ const hy: MessageTree = {
     payAtVenueSaved: 'Պահպանված է',
     publicBookingSaved: 'Պահպանված է',
   
+    generalSection: 'Ընդհանուր',
+    businessCurrency: 'Լռելյայն արժույթ',
+    currencyDescription:
+      'Գները, վճարումը և արտահանումները օգտագործում են այս արժույթը։ Գոյություն ունեցող ծառայությունները պահպանում են իրենց արժույթը մինչև խմբագրումը։',
+    currencyHint: 'Մեկ արժույթ մեկ բիզնեսի համար (v1)։ Ավտոմատ փոխարկում չկա։',
+    saveCurrency: 'Պահպանել արժույթը',
+    currencySaved: 'Արժույթը պահպանված է',
+    currencyStripeWarning:
+      'Այս արժույթը հնարավոր է չլինի աջակցված Stripe օնլայն վճարումների համար։',
+    dashboardLanguageDescription:
+      'Ձեր անձնական dashboard-ի լեզուն։ Չի փոխում հաճախորդների տեսնող լեզուները booking էջում։',
+    tenantLanguagesSection: 'Բիզնեսի լեզուներ',
+    tenantLanguagesDescription:
+      'Ընտրեք, թե որ լեզուներն են աջակցվում։ Թարգմանության դաշտերն ու լեզվի ընտրիչը ցուցադրվում են միայն միացված լեզուների համար։',
+    enabledLocalesLabel: 'Միացված լեզուներ',
+    enabledLocalesHint: 'Պետք է միացված լինի առնվազն մեկ լեզու։',
+    defaultTenantLocale: 'Լռելյայն լեզու',
+    defaultTenantLocaleHint:
+      'Օգտագործվում է, երբ այցելուն չի ընտրել լեզու (հանրային booking և consumer հավելված)։',
+    saveTenantLanguages: 'Պահպանել լեզուները',
+    tenantLanguagesSaved: 'Բիզնեսի լեզուները պահպանված են',
+    dateFormatSection: 'Ամսաթվի և ժամի ձևաչափ',
+    dateFormatDescription:
+      'Ամսաթվերի և ժամերի ցուցադրումը դաշտբորդում, մատակարարի հավելվածում, սպառողի հավելվածում և հանրային ամրագրման էջում։',
+    businessDateFormat: 'Ամսաթվի ձևաչափ',
+    businessTimeFormat: 'Ժամի ձևաչափ',
+    timeFormat24h: '24-ժամ (13:30)',
+    timeFormat12h: '12-ժամ AM/PM (1:30 PM)',
+    dateFormatHint: 'Լռելյայն՝ DD/MM/YYYY և 24-ժամյա ժամաչափ։',
+    saveDateFormat: 'Պահպանել ամսաթվի ձևաչափը',
+    dateFormatSaved: 'Ամսաթվի ձևաչափը պահպանված է',
+    taxSection: 'Հարկ / ԱԱՀ',
+    taxDescription:
+      'Կարգավորեք, թե ինչպես է հարկը հաշվարկվում և ցուցադրվում վճարման ժամանակ։',
+    taxEnabled: 'Միացնել հարկը ամրագրումներում',
+    taxName: 'Հարկի անվանում',
+    taxRate: 'Հարկի դրույք (%)',
+    taxModel: 'Գնման մոդել',
+    taxModelExclusive: 'Բացառիկ — հարկը ավելացվում է վճարման ժամանակ',
+    taxModelInclusive: 'Ներառական — գները ներառում են հարկը',
+    taxNumber: 'Հարկային գրանցման համար',
+    taxHint:
+      'Ցուցադրվում է անդորրագրերում։ Մեկ դրույք կամ մի քանի կանոն (օր.՝ դաշնային + նահանգային)։',
+    taxStackedEnabled: 'Օգտագործել մի քանի հարկային կանոն',
+    taxStackedDescription:
+      'Յուրաքանչյուր կանոն կիրառվում է նույն հարկվող գումարի վրա։',
+    taxAddRule: 'Ավելացնել հարկային կանոն',
+    taxRemoveRule: 'Հեռացնել հարկային կանոն',
+    taxStackedEffectiveRate: 'Ընդհանուր դրույք՝ {rate}%',
+    taxStackedRateRequired: 'Մուտքագրեք 0-ից մեծ դրույք առնվազն մեկ կանոնի համար։',
+    taxRateRequired: 'Միացված հարկի դեպքում մուտքագրեք 0-ից մեծ դրույք։',
+    saveTax: 'Պահպանել հարկի կարգավորումները',
+    taxSaved: 'Հարկի կարգավորումները պահպանված են',
+    enabledLocalesRequired: 'Միացրեք առնվազն մեկ լեզու։',
+    defaultLocaleMustBeEnabled: 'Լռելյայն լեզուն պետք է լինի միացված լեզուներից մեկը։',
+    emailTemplateLocaleTab: 'Նամակի լեզու',
     languageSection: 'Լեզու',
     dashboardLanguage: 'Dashboard լեզու',
   
     saveSettings: 'Պահպանել կարգավորումները',
+  },
+  clinic: {
+    serviceType: {
+      consultation: 'Խորհրդատվություն',
+      lab_test: 'Լաբորատոր թեստ',
+      procedure: 'Գործընթաց',
+    },
+    fastingRequired: 'Պահանջվում է ծոմապահություն',
+    symptoms: 'Ախտանիշներ կամ այցի պատճառ',
+    symptomsPlaceholder: 'Նկարագրեք ախտանիշները (ընտրովի)',
+    referralNotes: 'Ուղղորդման նշումներ',
+    referralNotesPlaceholder: 'Ուղղորդող բժիշկ կամ նախորդ թեստեր (ընտրովի)',
+    admin: {
+      enableClinic: 'Կլինիկական ծառայություն',
+      serviceType: 'Այցի տեսակ',
+      requiresFasting: 'Պահանջում է ծոմապահություն',
+      preparationNotes: 'Պատրաստման հրահանգներ',
+    },
+  },
+
+  recommendations: {
+    youMightAlsoLike: 'Դուք կարող եք նաև հավանել',
+    dismiss: 'Թաքցնել առաջարկները',
+    learnMore: 'Իմանալ ավելին',
+    admin: {
+      description: 'Նկարագրություն',
+      imageUrl: 'Պատկերի հղում',
+      externalLink: 'Արտաքին հղում',
+      isActive: 'Ակտիվ է առաջարկների համար',
+      recommendedProducts: 'Առաջարկվող ապրանքներ',
+      recommendedProductsHint:
+        'Ցուցադրվում է վճարումից հետո այս ծառայության կամ կատեգորիայի համար։',
+      noProductsYet: 'Նախ ավելացրեք ապրանքներ Գործառնություններ → Պահեստ բաժնում։',
+    },
+  },
+
+  tours: {
+    tourImagePlaceholder: 'Տուր',
+    pricePerPerson: '{price} / անձ',
+    perPersonSuffix: 'մեկ անձի համար',
+    maxGroup: 'Մինչև {count}',
+    groupSize: 'Խմբի չափ',
+    travelersHint: '1–{max} ճանապարհորդ',
+    lineTotal: '{unit} × {count} = {total}',
+    difficulty: {
+      easy: 'Հեշտ',
+      moderate: 'Միջին',
+      challenging: 'Բարդ',
+    },
+    admin: {
+      enableTour: 'Տուրային ծառայություն',
+      coverImage: 'Շապիկի նկարի URL',
+      maxGroupSize: 'Խմբի առավելագույն չափ',
+      difficulty: 'Բարդություն',
+      meetingPoint: 'Հանդիպման վայր',
+      includedItems: 'Ներառված է',
+      durationDays: 'Տևողություն (օր)',
+    },
+    remainingSpots: '{count} տեղ մնաց',
+    tourDates: '{start} – {end}',
+    paxLabel: '{count} ճանապարհորդ',
   },
   public: {
     chooseSpecialist: 'Ընտրել մասնագետ',
@@ -3112,6 +3273,7 @@ discountPromo: 'Պրոմո զեղչ',
 discountLoyalty: 'Միավորների զեղչ',
 pointsToEarn: 'Դուք կստանաք {points} միավոր այցից հետո',
 totalDue: 'Վճարման ենթակա',
+    taxIncluded: 'ներառված',
 freeAfterDiscounts: 'Անվճար զեղչերից հետո',
 promoInvalid: 'Պրոմո կոդը անվավեր է կամ ժամկետանց',
 quoteFailed: 'Չհաջողվեց թարմացնել գինը. փորձեք կրկին',

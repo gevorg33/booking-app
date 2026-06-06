@@ -5,6 +5,8 @@ export interface BusinessSummary {
   name: string;
   slug: string;
   locale?: string;
+  dateFormat?: string;
+  timeFormat?: string;
   membershipRole: TeamMemberRole;
   employee: { id: string; name: string } | null;
 }
@@ -23,6 +25,8 @@ export interface AuthResult {
     name: string;
     slug: string;
     locale?: string;
+    dateFormat?: string;
+    timeFormat?: string;
     membershipRole?: TeamMemberRole;
   } | null;
   employee: { id: string; name: string } | null;

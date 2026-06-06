@@ -24,6 +24,7 @@ import { fetchMyBookings, fetchMySubscriptions } from '../services/public-api.js
 import { ConsumerBookingActions } from '../components/ConsumerBookingActions.js';
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
 import { RescheduleConfirmationCard } from '../components/RescheduleConfirmationCard.js';
+import { useConsumerLocale } from '../hooks/use-consumer-locale.js';
 
 function statusLabel(status: string): string {
   switch (status) {
@@ -89,7 +90,7 @@ export default function AccountPage({
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
-  const locale = profile.locale?.slice(0, 2) ?? 'en';
+  const { locale } = useConsumerLocale(slug, profile);
 
   const [rescheduleNotice, setRescheduleNotice] = useState<{
     previousStartTime: string;

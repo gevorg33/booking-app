@@ -7,6 +7,7 @@ import {
   formatTimeRangeDisplay,
   getTodayDateKey,
   parseDateInput,
+  readBusinessDateFormatSettings,
   resolveRelativeDateKeyword,
   todayDisplay,
   toIsoDay,
@@ -132,5 +133,52 @@ describe('date-format.util', () => {
   it('formatDateDisplay uses numeric fallback without intl locale', () => {
     const d = new Date('2026-06-04T12:00:00.000Z');
     expect(formatDateDisplay(d, 'de')).toBe('04/06/2026');
+  });
+
+  it('formatDateDisplay respects business dateFormat option', () => {
+    expect(
+      formatDateDisplay('2026-06-04', 'en', { dateFormat: 'MM/DD/YYYY' }),
+    ).toBe('06/04/2026');
+    expect(
+      formatDateDisplay('2026-06-04', 'en', { dateFormat: 'YYYY-MM-DD' }),
+    ).toBe('2026-06-04');
+  });
+
+  it('formatTimeDisplay respects business timeFormat option', () => {
+    expect(
+      formatTimeDisplay('2026-06-04T13:30:00.000Z', { timeFormat: '12h' }),
+    ).toMatch(/1:30\s*PM/i);
+    expect(
+      formatTimeRangeDisplay(
+        '2026-06-04T10:00:00.000Z',
+        '2026-06-04T11:00:00.000Z',
+        'en',
+        { timeFormat: '12h' },
+      ),
+    ).toMatch(/AM|PM/i);
+  });
+
+  it('formatTimeDisplay uses custom timezone with business 12h format', () => {
+    expect(
+      formatTimeDisplay('2026-06-04T13:30:00.000Z', {
+        timeFormat: '12h',
+        timeZone: 'UTC',
+      }),
+    ).toMatch(/1:30\s*PM/i);
+  });
+
+  it('formatTimeRangeDisplay uses business options for invalid instants', () => {
+    expect(
+      formatTimeRangeDisplay('bad', 'also-bad', 'en', { timeFormat: '12h' }),
+    ).toBe('bad–also-bad');
+  });
+
+  it('readBusinessDateFormatSettings is re-exported for notification formatters', () => {
+    expect(
+      readBusinessDateFormatSettings({
+        dateFormat: 'MM/DD/YYYY',
+        timeFormat: '12h',
+      }),
+    ).toEqual({ dateFormat: 'MM/DD/YYYY', timeFormat: '12h' });
   });
 });

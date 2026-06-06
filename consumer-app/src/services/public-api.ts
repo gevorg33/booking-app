@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { Capacitor } from '@capacitor/core';
 import { getCustomerToken } from '../lib/customer-auth.js';
 import type {
   PublicBookingManageContext,
@@ -9,25 +8,17 @@ import type {
   PublicCustomerSubscription,
   PackageVisitRescheduleLine,
   PublicProvider,
+  PublicRecommendationProduct,
   PublicService,
+  PublicCheckoutQuote,
   PublicSlot,
 } from '../lib/types.js';
 import type { PublicServicePackage } from '../lib/package-booking.js';
-
-function getApiBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
-  if (
-    Capacitor.isNativePlatform() &&
-    Capacitor.getPlatform() === 'android' &&
-    /localhost|127\.0\.0\.1/.test(envUrl)
-  ) {
-    return envUrl.replace(/localhost|127\.0\.0\.1/, '10.0.2.2');
-  }
-  return envUrl.replace(/\/$/, '');
-}
+import { buildCheckoutRecommendationsPath } from '../lib/checkout-recommendations.js';
+import { getPublicApiBaseUrl } from './api-base.js';
 
 const http = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: getPublicApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -230,6 +221,40 @@ export async function fetchPackageBlockSlots(slug: string, packageId: string, da
     `/public/${slug}/packages/${packageId}/block-slots?date=${encodeURIComponent(date)}`,
   );
   return unwrap<{ slots: PublicSlot[] }>(data);
+}
+
+export async function recordCheckoutRecommendationEvent(
+  slug: string,
+  body: {
+    event: 'shown' | 'clicked';
+    productId: string;
+    serviceId?: string;
+    categoryId?: string;
+    bookingId?: string;
+    surface?: string;
+  },
+): Promise<{ recorded: boolean }> {
+  const { data } = await http.post(
+    `/public/${slug}/checkout/recommendations/events`,
+    body,
+  );
+  return unwrap<{ recorded: boolean }>(data);
+}
+
+export async function fetchCheckoutRecommendations(
+  slug: string,
+  params: { serviceId?: string; categoryId?: string },
+): Promise<{ products: PublicRecommendationProduct[] }> {
+  const { data } = await http.get(buildCheckoutRecommendationsPath(slug, params));
+  return unwrap<{ products: PublicRecommendationProduct[] }>(data);
+}
+
+export async function quotePublicBooking(
+  slug: string,
+  body: { serviceId: string },
+): Promise<PublicCheckoutQuote> {
+  const { data } = await http.post(`/public/${slug}/bookings/quote`, body, publicConfig(slug));
+  return unwrap<PublicCheckoutQuote>(data);
 }
 
 export async function createBooking(

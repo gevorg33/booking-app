@@ -10,6 +10,7 @@ import {
   GiftCardExpirationEditor,
   type GiftCardRow,
 } from '@/components/gift-cards/gift-card-expiration-editor';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -57,6 +58,7 @@ export function GiftCardOrderDetailModal({
   onUpdated: () => void;
 }) {
   const { t, locale } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
   const [showExpirationEditor, setShowExpirationEditor] = useState(false);
 
   const { data: order, isLoading, error } = useQuery({
@@ -143,12 +145,12 @@ export function GiftCardOrderDetailModal({
               />
               <DetailRow
                 label={t('monetization.giftCardDetailBalance')}
-                value={`${Number(order.balance).toFixed(2)} ${order.currency}`}
+                value={formatMoney(order.balance, order.currency)}
               />
               {order.purchaseAmount != null && (
                 <DetailRow
                   label={t('monetization.giftCardDetailPurchaseAmount')}
-                  value={`${Number(order.purchaseAmount).toFixed(2)} ${order.currency}`}
+                  value={formatMoney(order.purchaseAmount, order.currency)}
                 />
               )}
               {order.trackingNumber && (

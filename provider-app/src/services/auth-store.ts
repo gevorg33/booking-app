@@ -24,6 +24,11 @@ interface AuthState {
     slug?: string;
     membershipRole?: string;
     locale?: string;
+    defaultLocale?: string;
+    enabledLocales?: string[];
+    dateFormat?: string;
+    timeFormat?: string;
+    currency?: string;
   } | null;
   employee: { id: string; name: string } | null;
   businesses: BusinessSummary[];

@@ -25,6 +25,7 @@ import { isFcmBuild, ensurePushRegistered } from './services/native-push';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderAiShell } from './components/ProviderAiShell';
 import { ProviderPushBridge } from './components/ProviderPushBridge';
+import { BusinessDateFormatBootstrap } from './components/BusinessDateFormatBootstrap';
 import './components/operation-feedback.css';
 
 function AuthedTabs() {
@@ -89,6 +90,7 @@ export default function App() {
 
   return (
     <IonApp>
+      <BusinessDateFormatBootstrap />
       <OperationFeedbackHost />
       <IonReactRouter>
         <IonRouterOutlet>

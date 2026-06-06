@@ -1,4 +1,6 @@
 import {
+  readBookingListAmounts,
+  recordTaxInclusivePaymentAmount,
   resolveBookingPaymentSummary,
   withBookingPaymentSummary,
 } from './booking-payment-summary.util.js';
@@ -242,6 +244,277 @@ describe('resolveBookingPaymentSummary', () => {
       ),
     ).toBeNull();
   });
+
+  it.each([
+    {
+      id: 'missing-service',
+      serviceCurrency: null,
+      settings: { currency: 'AMD' },
+      expected: 'AMD',
+    },
+    {
+      id: 'invalid-service',
+      serviceCurrency: 'BOGUS',
+      settings: { currency: 'GEL' },
+      expected: 'GEL',
+    },
+    {
+      id: 'legacy-usd-preserved',
+      serviceCurrency: 'USD',
+      settings: { currency: 'EUR' },
+      expected: 'USD',
+    },
+  ])(
+    'uses business default currency when service currency is $id',
+    ({ serviceCurrency, settings, expected }) => {
+      const summary = resolveBookingPaymentSummary(
+        {
+          metadata: { pricing: { subtotal: 50, amountDue: 50 } },
+          service: { price: 50, currency: serviceCurrency },
+        },
+        [],
+        settings,
+      );
+
+      expect(summary?.currency).toBe(expected);
+    },
+  );
+
+  it('combines business currency with retail POS grand total', () => {
+    const summary = resolveBookingPaymentSummary(
+      {
+        metadata: { pricing: { subtotal: 80, amountDue: 64 } },
+        service: { price: 80, currency: null },
+      },
+      [{ productName: 'Oil', quantity: 1, unitPrice: 36, lineTotal: 36 }],
+      { currency: 'CHF' },
+    );
+
+    expect(summary).toMatchObject({
+      currency: 'CHF',
+      retailTotal: 36,
+      grandTotal: 100,
+      cashPaid: 64,
+    });
+  });
+
+  it('parses stacked tax lines from pricing metadata', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          servicePrice: 100,
+          subtotal: 100,
+          amountDue: 113,
+          taxEnabled: true,
+          taxName: 'GST + PST',
+          taxRate: 13,
+          taxModel: 'exclusive',
+          taxAmount: 13,
+          netAmount: 100,
+          taxRules: [
+            { id: 'gst', name: 'GST', rate: 5, amount: 5 },
+            { id: 'pst', name: 'PST', rate: 8, amount: 8 },
+          ],
+        },
+        amountPaid: 113,
+      },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(summary).toMatchObject({
+      taxEnabled: true,
+      taxAmount: 13,
+      grandTotal: 113,
+      taxLines: [
+        { id: 'gst', name: 'GST', rate: 5, amount: 5 },
+        { id: 'pst', name: 'PST', rate: 8, amount: 8 },
+      ],
+    });
+  });
+
+  it.each([
+    {
+      id: 'exclusive-single',
+      pricing: {
+        amountDue: 120,
+        taxEnabled: true,
+        taxName: 'VAT',
+        taxRate: 20,
+        taxModel: 'exclusive',
+        taxAmount: 20,
+        netAmount: 100,
+      },
+      expected: {
+        taxEnabled: true,
+        taxAmount: 20,
+        taxModel: 'exclusive',
+        taxLines: [{ id: 'aggregate', name: 'VAT', rate: 20, amount: 20 }],
+        hasDiscounts: true,
+      },
+    },
+    {
+      id: 'inclusive-single',
+      pricing: {
+        amountDue: 120,
+        taxEnabled: true,
+        taxName: 'GST',
+        taxRate: 5,
+        taxModel: 'inclusive',
+        taxAmount: 5.71,
+        netAmount: 114.29,
+      },
+      expected: {
+        taxModel: 'inclusive',
+        taxLines: [{ id: 'aggregate', name: 'GST', rate: 5, amount: 5.71 }],
+      },
+    },
+    {
+      id: 'tax-disabled',
+      pricing: {
+        amountDue: 100,
+        taxEnabled: false,
+        taxAmount: 0,
+      },
+      expected: {
+        hasDiscounts: false,
+      },
+    },
+    {
+      id: 'zero-tax-amount',
+      pricing: {
+        amountDue: 100,
+        taxEnabled: true,
+        taxAmount: 0,
+      },
+      expected: {
+        hasDiscounts: false,
+      },
+    },
+  ])('parses $id tax metadata', ({ pricing, expected }) => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: { pricing },
+      service: { price: 100, currency: 'USD' },
+    });
+    expect(summary).toMatchObject(expected);
+  });
+
+  it('normalizes stacked tax rule ids and names when fields are partial', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          amountDue: 113,
+          taxEnabled: true,
+          taxAmount: 13,
+          taxRules: [
+            null,
+            { amount: 5 },
+            { id: '  pst  ', name: '  ', amount: 8, rate: 8 },
+          ],
+        },
+      },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(summary?.taxLines).toEqual([
+      { id: 'rule-2', name: 'VAT', rate: 0, amount: 5 },
+      { id: 'pst', name: 'VAT', rate: 8, amount: 8 },
+    ]);
+  });
+
+  it('falls back to aggregate tax line when stacked rules are invalid', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          amountDue: 113,
+          taxEnabled: true,
+          taxName: 'Tax',
+          taxRate: 13,
+          taxAmount: 13,
+          taxRules: [{ bad: true }, { amount: 0 }],
+        },
+      },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(summary?.taxLines).toEqual([
+      { id: 'aggregate', name: 'Tax', rate: 13, amount: 13 },
+    ]);
+  });
+
+  it('uses single stacked rule as aggregate line', () => {
+    const summary = resolveBookingPaymentSummary({
+      metadata: {
+        pricing: {
+          amountDue: 105,
+          taxEnabled: true,
+          taxAmount: 5,
+          taxRules: [{ id: 'gst', name: 'GST', rate: 5, amount: 5 }],
+        },
+      },
+      service: { price: 100, currency: 'USD' },
+    });
+
+    expect(summary?.taxLines).toEqual([
+      { id: 'aggregate', name: 'VAT', rate: 0, amount: 5 },
+    ]);
+  });
+});
+
+describe('readBookingListAmounts', () => {
+  it.each([
+    {
+      id: 'pricing-amount-due',
+      metadata: { pricing: { amountDue: 120, taxAmount: 20 } },
+      expected: { amountPaid: 120, taxAmount: 20 },
+    },
+    {
+      id: 'fallback-amount-paid',
+      metadata: { amountPaid: 80 },
+      expected: { amountPaid: 80, taxAmount: null },
+    },
+    {
+      id: 'null-metadata',
+      metadata: null,
+      expected: { amountPaid: null, taxAmount: null },
+    },
+  ])('reads list amounts for $id', ({ metadata, expected }) => {
+    expect(readBookingListAmounts(metadata)).toEqual(expected);
+  });
+});
+
+describe('recordTaxInclusivePaymentAmount', () => {
+  it('stores tax-inclusive amount paid from pricing metadata', () => {
+    expect(
+      recordTaxInclusivePaymentAmount({
+        pricing: { amountDue: 120, taxAmount: 20 },
+      }),
+    ).toMatchObject({
+      amountPaid: 120,
+      cashPaidEligible: 120,
+    });
+  });
+
+  it('leaves metadata unchanged when pricing amount due is missing', () => {
+    expect(
+      recordTaxInclusivePaymentAmount({ source: 'dashboard_booking' }),
+    ).toEqual({ source: 'dashboard_booking' });
+  });
+
+  it('handles null and undefined metadata', () => {
+    expect(recordTaxInclusivePaymentAmount(null)).toEqual({});
+    expect(recordTaxInclusivePaymentAmount(undefined)).toEqual({});
+  });
+
+  it('records zero amount due for fully discounted tax-inclusive bookings', () => {
+    expect(
+      recordTaxInclusivePaymentAmount({
+        pricing: { amountDue: 0, taxAmount: 0 },
+      }),
+    ).toMatchObject({
+      amountPaid: 0,
+      cashPaidEligible: 0,
+    });
+  });
 });
 
 describe('withBookingPaymentSummary', () => {
@@ -254,5 +527,19 @@ describe('withBookingPaymentSummary', () => {
 
     expect(result.id).toBe('b1');
     expect(result.paymentSummary?.subtotal).toBe(80);
+  });
+
+  it('passes business settings through to payment summary currency', () => {
+    const result = withBookingPaymentSummary(
+      {
+        id: 'b2',
+        metadata: { pricing: { subtotal: 60, amountDue: 60 } },
+        service: { price: 60, currency: null },
+      },
+      [],
+      { currency: 'UAH' },
+    );
+
+    expect(result.paymentSummary?.currency).toBe('UAH');
   });
 });

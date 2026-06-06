@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Business } from '../business/entities/business.entity.js';
 import { ServiceCategory } from './entities/service-category.entity.js';
+import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
 import {
   CreateServiceCategoryDto,
   UpdateServiceCategoryDto,
@@ -16,7 +18,20 @@ export class ServiceCategoryService {
   constructor(
     @InjectRepository(ServiceCategory)
     private categoryRepo: Repository<ServiceCategory>,
+    @InjectRepository(Business)
+    private businessRepo: Repository<Business>,
   ) {}
+
+  private async enabledLocalesForBusiness(
+    businessId: string,
+  ): Promise<ReturnType<typeof getBusinessEnabledLocales>> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    return getBusinessEnabledLocales(
+      business?.settings as Record<string, unknown> | undefined,
+    );
+  }
 
   private enrichCategory(category: ServiceCategory) {
     const localizedNames = extractLocalizedNamesFromMetadata(category.metadata);
@@ -41,13 +56,16 @@ export class ServiceCategoryService {
 
   async create(businessId: string, dto: CreateServiceCategoryDto) {
     const { localizedNames, ...rest } = dto;
+    const enabledLocales = await this.enabledLocalesForBusiness(businessId);
     const saved = await this.categoryRepo.save(
       this.categoryRepo.create({
         businessId,
         name: rest.name,
         description: rest.description,
         sortOrder: rest.sortOrder ?? 0,
-        metadata: applyLocalizedNamesToMetadata({}, localizedNames),
+        metadata: applyLocalizedNamesToMetadata({}, localizedNames, {
+          enabledLocales,
+        }),
       }),
     );
     return this.enrichCategory(saved);
@@ -61,9 +79,11 @@ export class ServiceCategoryService {
 
     const { localizedNames, ...rest } = dto;
     if (localizedNames !== undefined) {
+      const enabledLocales = await this.enabledLocalesForBusiness(businessId);
       category.metadata = applyLocalizedNamesToMetadata(
         category.metadata ?? {},
         localizedNames,
+        { enabledLocales },
       );
     }
     Object.assign(category, rest);

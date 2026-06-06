@@ -16,6 +16,7 @@ import {
   CreateCustomerDto,
   UpdateCustomerDto,
 } from './dto/create-customer.dto.js';
+import { readBusinessPrivacySettings } from '../../common/utils/business-compliance.util.js';
 import { buildGdprMetadata } from './customer-privacy.types.js';
 import {
   GetCustomersQueryDto,
@@ -25,6 +26,7 @@ import {
   sanitizeCustomerTags,
   isCustomerTag,
 } from './customer-tag.constants.js';
+import { readBookingListAmounts } from '../booking/booking-payment-summary.util.js';
 
 export interface CustomerBookingStats {
   total: number;
@@ -63,6 +65,8 @@ export interface CustomerAppointmentItem {
   notes: string | null;
   service: { id: string; name: string } | null;
   employee: { id: string; name: string } | null;
+  amountPaid: number | null;
+  taxAmount: number | null;
 }
 
 export interface CustomerDetailResult {
@@ -555,18 +559,25 @@ export class CustomerService {
         updatedAt: customer.updatedAt.toISOString(),
       },
       stats,
-      appointments: bookings.map((b) => ({
-        id: b.id,
-        startTime: b.startTime.toISOString(),
-        endTime: b.endTime.toISOString(),
-        status: b.status,
-        paymentStatus: b.paymentStatus,
-        notes: b.notes ?? null,
-        service: b.service ? { id: b.service.id, name: b.service.name } : null,
-        employee: b.employee
-          ? { id: b.employee.id, name: b.employee.name }
-          : null,
-      })),
+      appointments: bookings.map((b) => {
+        const amounts = readBookingListAmounts(b.metadata);
+        return {
+          id: b.id,
+          startTime: b.startTime.toISOString(),
+          endTime: b.endTime.toISOString(),
+          status: b.status,
+          paymentStatus: b.paymentStatus,
+          notes: b.notes ?? null,
+          service: b.service
+            ? { id: b.service.id, name: b.service.name }
+            : null,
+          employee: b.employee
+            ? { id: b.employee.id, name: b.employee.name }
+            : null,
+          amountPaid: amounts.amountPaid,
+          taxAmount: amounts.taxAmount,
+        };
+      }),
     };
   }
 
@@ -615,6 +626,7 @@ export class CustomerService {
   async findOrCreateByContact(
     businessId: string,
     dto: CreateCustomerDto,
+    businessSettings?: Record<string, unknown>,
   ): Promise<{ customer: Customer; created: boolean }> {
     const email = dto.email ? this.normalizeEmail(dto.email) : null;
     const phone = dto.phone ? this.normalizePhone(dto.phone) : null;
@@ -637,7 +649,7 @@ export class CustomerService {
         }
         const saved = await this.applyNotificationPreferences(byEmail, dto);
         return {
-          customer: await this.applyGdprConsent(saved, dto),
+          customer: await this.applyGdprConsent(saved, dto, businessSettings),
           created: false,
         };
       }
@@ -661,7 +673,7 @@ export class CustomerService {
         }
         const saved = await this.applyNotificationPreferences(byPhone, dto);
         return {
-          customer: await this.applyGdprConsent(saved, dto),
+          customer: await this.applyGdprConsent(saved, dto, businessSettings),
           created: false,
         };
       }
@@ -674,22 +686,33 @@ export class CustomerService {
     });
 
     const saved = await this.applyNotificationPreferences(customer, dto);
-    return { customer: await this.applyGdprConsent(saved, dto), created: true };
+    return {
+      customer: await this.applyGdprConsent(saved, dto, businessSettings),
+      created: true,
+    };
   }
 
   private async applyGdprConsent(
     customer: Customer,
     dto: CreateCustomerDto,
+    businessSettings?: Record<string, unknown>,
   ): Promise<Customer> {
     if (
       dto.privacyConsentAccepted === undefined &&
-      dto.marketingOptIn === undefined
+      dto.marketingOptIn === undefined &&
+      dto.aiProcessingOptIn === undefined &&
+      dto.thirdPartyIntegrationsOptIn === undefined
     ) {
       return customer;
     }
+    const privacyVersion =
+      readBusinessPrivacySettings(businessSettings).privacyPolicyVersion;
     customer.metadata = buildGdprMetadata(customer.metadata, {
       privacyAccepted: dto.privacyConsentAccepted,
+      privacyVersion,
       marketingOptIn: dto.marketingOptIn,
+      aiProcessingOptIn: dto.aiProcessingOptIn,
+      thirdPartyIntegrationsOptIn: dto.thirdPartyIntegrationsOptIn,
       source: 'checkout',
     });
     return this.customerRepo.save(customer);

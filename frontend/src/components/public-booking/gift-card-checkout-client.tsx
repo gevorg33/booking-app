@@ -381,7 +381,7 @@ export function GiftCardCheckoutClient({
               >
                 {settings.shippingMethods.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.label} — {formatPrice(m.fee, quote?.currency ?? 'USD')} ({m.estimatedDays})
+                    {m.label} — {formatPrice(m.fee, quote?.currency ?? tenant.currency)} ({m.estimatedDays})
                   </option>
                 ))}
               </select>

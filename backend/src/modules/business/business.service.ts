@@ -14,6 +14,33 @@ import {
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
 import { applyPublicProfileLocalesToSettings } from '../../common/i18n/business-public-profile-locales.util.js';
+import {
+  getBusinessDefaultCurrency,
+  isSupportedBusinessCurrency,
+  normalizeBusinessCurrency,
+} from '../../common/utils/business-currency.util.js';
+import {
+  normalizeBusinessDateFormat,
+  normalizeBusinessTimeFormat,
+} from '../../common/utils/business-date-format.util.js';
+import {
+  assertBusinessTaxSettings,
+  readBusinessTaxSettings,
+} from '../../common/utils/business-tax.util.js';
+import {
+  assertBusinessHipaaSettings,
+  assertBusinessPrivacySettings,
+  readBusinessHipaaSettings,
+  readBusinessPrivacySettings,
+} from '../../common/utils/business-compliance.util.js';
+import {
+  assertBusinessLocaleSettings,
+  getBusinessDefaultLocale,
+  getBusinessEnabledLocales,
+  mergeBusinessLocaleSettings,
+  normalizeAppLocale,
+  type AppLocale,
+} from '../../common/utils/business-locale.util.js';
 
 const FORBIDDEN_MAP_EMBED = /<script|javascript:/i;
 
@@ -50,13 +77,142 @@ export class BusinessService {
     const business = await this.findOne(id);
     const patch: Partial<Business> = { ...data };
     if (patch.settings !== undefined && patch.settings !== null) {
+      const incoming = patch.settings as Record<string, unknown>;
+      if (incoming.currency !== undefined) {
+        const normalized = normalizeBusinessCurrency(
+          incoming.currency as string,
+        );
+        if (!normalized || !isSupportedBusinessCurrency(normalized)) {
+          throw new BadRequestException(
+            'Currency must be a supported ISO 4217 code (e.g. USD, EUR, AMD).',
+          );
+        }
+        incoming.currency = normalized;
+        incoming.defaultCurrency = normalized;
+      }
+      if (incoming.dateFormat !== undefined) {
+        const normalized = normalizeBusinessDateFormat(
+          incoming.dateFormat as string,
+        );
+        if (!normalized) {
+          throw new BadRequestException(
+            'Date format must be DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD.',
+          );
+        }
+        incoming.dateFormat = normalized;
+      }
+      if (incoming.timeFormat !== undefined) {
+        const normalized = normalizeBusinessTimeFormat(
+          incoming.timeFormat as string,
+        );
+        if (!normalized) {
+          throw new BadRequestException('Time format must be 24h or 12h.');
+        }
+        incoming.timeFormat = normalized;
+      }
+      if (incoming.tax !== undefined && incoming.tax !== null) {
+        const current = readBusinessTaxSettings(
+          business.settings as Record<string, unknown> | undefined,
+        );
+        try {
+          incoming.tax = assertBusinessTaxSettings({
+            ...current,
+            ...(incoming.tax as Record<string, unknown>),
+          });
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error ? error.message : 'Invalid tax settings',
+          );
+        }
+      }
+      if (incoming.privacy !== undefined && incoming.privacy !== null) {
+        const current = readBusinessPrivacySettings(
+          business.settings as Record<string, unknown> | undefined,
+        );
+        try {
+          incoming.privacy = assertBusinessPrivacySettings(
+            {
+              ...current,
+              ...(incoming.privacy as Record<string, unknown>),
+            },
+            business.settings as Record<string, unknown> | undefined,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error ? error.message : 'Invalid privacy settings',
+          );
+        }
+      }
+      if (incoming.hipaa !== undefined && incoming.hipaa !== null) {
+        const current = readBusinessHipaaSettings(
+          business.settings as Record<string, unknown> | undefined,
+        );
+        const businessType = (
+          business.settings as Record<string, unknown> | undefined
+        )?.businessType as string | undefined;
+        try {
+          incoming.hipaa = assertBusinessHipaaSettings(
+            {
+              ...current,
+              ...(incoming.hipaa as Record<string, unknown>),
+            },
+            businessType,
+            business.settings as Record<string, unknown> | undefined,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error ? error.message : 'Invalid HIPAA settings',
+          );
+        }
+      }
+      if (
+        incoming.enabledLocales !== undefined ||
+        incoming.defaultLocale !== undefined
+      ) {
+        const normalized = assertBusinessLocaleSettings({
+          enabledLocales:
+            incoming.enabledLocales !== undefined
+              ? incoming.enabledLocales
+              : getBusinessEnabledLocales(
+                  business.settings as Record<string, unknown> | undefined,
+                ),
+          defaultLocale:
+            incoming.defaultLocale !== undefined
+              ? incoming.defaultLocale
+              : getBusinessDefaultLocale(
+                  business.settings as Record<string, unknown> | undefined,
+                ),
+        });
+        Object.assign(
+          incoming,
+          mergeBusinessLocaleSettings(incoming, normalized),
+        );
+      }
       patch.settings = mergeBusinessSettings(
         business.settings as Record<string, unknown> | undefined,
-        patch.settings as Record<string, unknown>,
+        incoming,
       ) as Business['settings'];
     }
     Object.assign(business, patch);
     return this.businessRepo.save(business);
+  }
+
+  getDefaultCurrency(business: Business): string {
+    return getBusinessDefaultCurrency(
+      business.settings as Record<string, unknown> | undefined,
+    );
+  }
+
+  getEnabledLocales(business: Business): AppLocale[] {
+    return getBusinessEnabledLocales(
+      business.settings as Record<string, unknown> | undefined,
+    );
+  }
+
+  getDefaultLocale(business: Business): AppLocale {
+    return getBusinessDefaultLocale(
+      business.settings as Record<string, unknown> | undefined,
+    );
   }
 
   async updateProfile(
@@ -111,8 +267,22 @@ export class BusinessService {
       settings.embed = { ...(settings.embed || {}), ...dto.embed };
     }
 
+    const enabledLocales = getBusinessEnabledLocales(settings);
+
     if (dto.locale !== undefined) {
-      settings.locale = dto.locale;
+      const locale = normalizeAppLocale(dto.locale);
+      if (!locale) {
+        throw new BadRequestException(
+          'Public default language must be one of: en, hy, ru',
+        );
+      }
+      if (!enabledLocales.includes(locale)) {
+        throw new BadRequestException(
+          'Public default language must be one of the enabled languages',
+        );
+      }
+      settings.defaultLocale = locale;
+      settings.locale = locale;
     }
 
     const mergedSettings =
@@ -120,6 +290,7 @@ export class BusinessService {
         ? applyPublicProfileLocalesToSettings(
             settings,
             dto.publicProfileLocales,
+            { enabledLocales },
           )
         : settings;
 

@@ -141,16 +141,16 @@ type ToggleChoiceProps = {
   disabled?: boolean;
   className?: string;
   variant?: ToggleChoiceVariant;
-  /** `inline` — label beside switch; `spread` — label left, switch far right */
-  layout?: 'inline' | 'spread';
+  /** `inline` — label beside switch; `spread` — label left, switch far right; `toggle-first` — switch left, aligned column */
+  layout?: 'inline' | 'spread' | 'toggle-first';
 };
 
-function toggleLabelClass(variant: ToggleChoiceVariant, layout: 'inline' | 'spread') {
+function toggleLabelClass(variant: ToggleChoiceVariant, layout: 'inline' | 'spread' | 'toggle-first') {
   const base =
     variant === 'dashboard'
       ? 'text-sm text-gray-700 dark:text-gray-200 leading-snug min-w-0'
       : 'text-sm text-gray-700 leading-snug min-w-0';
-  return layout === 'spread' ? `${base} flex-1 pr-3` : base;
+  return layout === 'spread' || layout === 'toggle-first' ? `${base} flex-1` : base;
 }
 
 function toggleTrackOffClass(variant: ToggleChoiceVariant) {
@@ -174,38 +174,59 @@ export function ToggleChoice({
   const accent = primaryColor;
   /** Public booking stacks toggles — align switches on one column at the right. */
   const resolvedLayout = layout ?? (variant === 'light' ? 'spread' : 'inline');
+  const fullWidth = resolvedLayout === 'spread' || resolvedLayout === 'toggle-first';
+
+  const labelEl =
+    label != null ? (
+      <span className={toggleLabelClass(variant, resolvedLayout)}>{label}</span>
+    ) : null;
+
+  const toggleEl = (
+    <span
+      className="relative isolate h-7 w-12 shrink-0 rounded-full"
+      style={{ ['--toggle-accent' as string]: accent }}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        role="switch"
+        aria-checked={checked}
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden
+        className={`absolute inset-0 rounded-full transition-[background-color,box-shadow] duration-200 peer-checked:bg-[var(--toggle-accent)] peer-checked:shadow-[0_1px_6px_color-mix(in_srgb,var(--toggle-accent)_30%,transparent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--toggle-accent)]/35 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-gray-900 ${toggleTrackOffClass(variant)}`}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ease-out peer-checked:translate-x-5"
+      />
+    </span>
+  );
 
   return (
     <label
       htmlFor={id}
       className={`flex max-w-full cursor-pointer select-none items-center gap-3 py-2 ${
-        resolvedLayout === 'spread' ? 'w-full justify-between' : 'w-fit justify-start'
-      } ${disabled ? 'pointer-events-none opacity-60' : ''} ${className}`}
+        fullWidth ? 'w-full' : 'w-fit'
+      } ${resolvedLayout === 'spread' ? 'justify-between' : 'justify-start'} ${
+        disabled ? 'pointer-events-none opacity-60' : ''
+      } ${className}`}
     >
-      {label != null && <span className={toggleLabelClass(variant, resolvedLayout)}>{label}</span>}
-      <span
-        className="relative isolate h-7 w-12 shrink-0 rounded-full"
-        style={{ ['--toggle-accent' as string]: accent }}
-      >
-        <input
-          id={id}
-          type="checkbox"
-          role="switch"
-          aria-checked={checked}
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="peer sr-only"
-        />
-        <span
-          aria-hidden
-          className={`absolute inset-0 rounded-full transition-[background-color,box-shadow] duration-200 peer-checked:bg-[var(--toggle-accent)] peer-checked:shadow-[0_1px_6px_color-mix(in_srgb,var(--toggle-accent)_30%,transparent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--toggle-accent)]/35 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-gray-900 ${toggleTrackOffClass(variant)}`}
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ease-out peer-checked:translate-x-5"
-        />
-      </span>
+      {resolvedLayout === 'toggle-first' ? (
+        <>
+          {toggleEl}
+          {labelEl}
+        </>
+      ) : (
+        <>
+          {labelEl}
+          {toggleEl}
+        </>
+      )}
     </label>
   );
 }

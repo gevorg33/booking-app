@@ -1,4 +1,5 @@
 import { getApiBaseUrl, getServerApiBaseUrl } from '@/lib/api-base';
+import { formatPublicMoney, formatPublicPrice } from '@/lib/public-currency';
 import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
 import { readClientLocaleForPublicApi } from '@/lib/public-locale-cookie';
 
@@ -158,6 +159,27 @@ export interface PublicBusinessProfile {
   address?: string;
   timezone: string;
   locale: string;
+  defaultLocale?: string;
+  enabledLocales?: string[];
+  dateFormat?: string;
+  timeFormat?: string;
+  tax?: {
+    enabled: boolean;
+    name: string;
+    rate: number;
+    model: 'inclusive' | 'exclusive';
+    rules?: Array<{ name: string; rate: number }>;
+  };
+  privacy?: {
+    cookieBannerEnabled: boolean;
+    cookieBannerMessage?: string;
+    privacyPolicyVersion: string;
+    requireAiProcessingConsent: boolean;
+    requireThirdPartyIntegrationsConsent: boolean;
+    dataResidencyRegion: 'eu' | 'us' | 'other';
+  };
+  currency: string;
+  stripeCurrencySupported?: boolean;
   branding: PublicBranding;
   social?: PublicSocialLinks;
   location?: PublicLocation;
@@ -233,6 +255,22 @@ export interface PublicService {
   depositAmount?: number | null;
   hasSubscriptionPlans?: boolean;
   category?: PublicServiceCategory | null;
+  isTour?: boolean;
+  tourDurationBadge?: string;
+  coverImage?: string;
+  maxGroupSize?: number;
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+  meetingPoint?: string;
+  includedItems?: string;
+  durationDays?: number;
+  dayLevelBooking?: boolean;
+  pricePerPerson?: boolean;
+  isClinic?: boolean;
+  clinicServiceType?: 'consultation' | 'lab_test' | 'procedure';
+  clinicServiceTypeBadge?: string;
+  requiresFasting?: boolean;
+  preparationNotes?: string;
+  acceptsPatientNotes?: boolean;
 }
 
 export function prepaymentDue(service: PublicService): number {
@@ -650,6 +688,18 @@ export interface PublicCheckoutQuote {
   loyaltyDiscount: number;
   totalDiscount: number;
   amountDue: number;
+  taxEnabled?: boolean;
+  taxName?: string | null;
+  taxRate?: number | null;
+  taxModel?: 'inclusive' | 'exclusive' | null;
+  taxAmount?: number;
+  netAmount?: number;
+  taxRules?: Array<{
+    id: string;
+    name: string;
+    rate: number;
+    amount: number;
+  }>;
   currency: string;
   loyaltyPointsToRedeem: number;
   loyaltyPointsBalance: number | null;
@@ -814,6 +864,49 @@ export function sendPublicAssistantMessage(
   });
 }
 
+export interface PublicRecommendationProduct {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  externalLink?: string;
+  price?: number;
+}
+
+export function getCheckoutRecommendations(
+  slug: string,
+  params: { serviceId?: string; categoryId?: string },
+) {
+  const q = new URLSearchParams();
+  if (params.serviceId) q.set('serviceId', params.serviceId);
+  if (params.categoryId) q.set('categoryId', params.categoryId);
+  const query = q.toString();
+  return publicFetch<{ products: PublicRecommendationProduct[] }>(
+    `/public/${slug}/checkout/recommendations${query ? `?${query}` : ''}`,
+  );
+}
+
+export function recordProductRecommendationEvent(
+  slug: string,
+  body: {
+    event: 'shown' | 'clicked';
+    productId: string;
+    serviceId?: string;
+    categoryId?: string;
+    bookingId?: string;
+    surface?: string;
+  },
+) {
+  return publicFetch<{ recorded: boolean }>(
+    `/public/${slug}/checkout/recommendations/events`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+      skipOperationFeedback: true,
+    },
+  );
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
@@ -822,14 +915,10 @@ export function formatDuration(minutes: number): string {
 }
 
 export function formatPrice(price: number, currency: string, locale?: string): string {
-  try {
-    const intlLocale =
-      locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
-    return new Intl.NumberFormat(intlLocale, { style: 'currency', currency }).format(price);
-  } catch {
-    return `${price} ${currency}`;
-  }
+  return formatPublicPrice(price, currency, locale);
 }
+
+export { formatPublicMoney } from '@/lib/public-currency';
 
 export interface PublicReviewContext {
   businessName: string;

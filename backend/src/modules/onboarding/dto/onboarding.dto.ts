@@ -6,6 +6,9 @@ import {
   IsNumber,
   Min,
   MaxLength,
+  IsIn,
+  IsInt,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -40,6 +43,44 @@ export class CatalogServiceDraftDto {
   @IsNumber()
   @Min(0)
   bufferMinutes?: number;
+
+  @IsOptional()
+  @IsIn(['tour', 'consultation', 'lab_test', 'procedure'])
+  serviceType?: 'tour' | 'consultation' | 'lab_test' | 'procedure';
+
+  @IsOptional()
+  @IsString()
+  coverImage?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxGroupSize?: number;
+
+  @IsOptional()
+  @IsIn(['easy', 'moderate', 'challenging'])
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+
+  @IsOptional()
+  @IsString()
+  meetingPoint?: string;
+
+  @IsOptional()
+  @IsString()
+  includedItems?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresFasting?: boolean;
+
+  @IsOptional()
+  @IsString()
+  preparationNotes?: string;
 }
 
 export class CatalogCategoryDraftDto {

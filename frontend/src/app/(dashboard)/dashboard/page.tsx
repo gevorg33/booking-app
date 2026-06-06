@@ -13,10 +13,12 @@ import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 export default function DashboardPage() {
   const { user, business } = useAuthStore();
   const { t } = useI18n();
+  const { currency, formatMoney } = useBusinessCurrency();
 
   const { data: overview, isLoading } = useQuery({
     queryKey: ['dashboard-overview', business?.id],
@@ -48,10 +50,10 @@ export default function DashboardPage() {
       href: '/dashboard/bookings',
     },
     {
-      label: t('dashboard.revenueThisMonth'),
+      label: t('dashboard.revenueThisMonthCurrency', { currency: overview?.currency ?? currency }),
       value: isLoading || overview?.revenueThisMonth === undefined
         ? '—'
-        : `$${overview.revenueThisMonth.toFixed(0)}`,
+        : formatMoney(Math.round(overview.revenueThisMonth)),
       icon: DollarSign,
       colorClass: 'text-emerald-400 bg-emerald-600/10',
       href: '/dashboard/bookings',

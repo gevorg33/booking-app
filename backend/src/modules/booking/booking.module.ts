@@ -34,6 +34,8 @@ import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-serv
 import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
 import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
+import { ComplianceModule } from '../compliance/compliance.module.js';
+import { BusinessModule } from '../business/business.module.js';
 
 @Module({
   imports: [
@@ -65,6 +67,8 @@ import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
     MultiServiceBookingsModule,
     RetailPosModule,
     forwardRef(() => GiftCardsModule),
+    ComplianceModule,
+    BusinessModule,
   ],
   controllers: [BookingController, AgentController],
   providers: [

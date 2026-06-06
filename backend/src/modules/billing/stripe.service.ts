@@ -8,6 +8,7 @@ type ConnectCheckoutExtras = {
   payment_intent_data?: {
     transfer_data?: { destination: string; amount?: number };
     application_fee_amount?: number;
+    metadata?: Record<string, string>;
   };
 };
 
@@ -191,15 +192,34 @@ export class StripeService implements OnModuleInit {
     sessionParams: Record<string, unknown>,
     settings?: Record<string, unknown>,
     amountCents?: number,
+    paymentIntentMetadata?: Record<string, string>,
   ): [Record<string, unknown>, ConnectRequestOptions] {
+    const connectExtras = this.connectCheckoutSessionParams(
+      connectAccountId,
+      settings,
+      amountCents,
+    );
+    const sessionPaymentIntent = sessionParams.payment_intent_data as
+      | ConnectCheckoutExtras['payment_intent_data']
+      | undefined;
+    const connectPaymentIntent = connectExtras.payment_intent_data;
+    const mergedPaymentIntent = {
+      ...connectPaymentIntent,
+      ...sessionPaymentIntent,
+      metadata: {
+        ...(connectPaymentIntent?.metadata ?? {}),
+        ...(sessionPaymentIntent?.metadata ?? {}),
+        ...(paymentIntentMetadata ?? {}),
+      },
+    };
+
     return [
       {
-        ...this.connectCheckoutSessionParams(
-          connectAccountId,
-          settings,
-          amountCents,
-        ),
+        ...connectExtras,
         ...sessionParams,
+        ...(Object.keys(mergedPaymentIntent).length > 0
+          ? { payment_intent_data: mergedPaymentIntent }
+          : {}),
       },
       this.connectRequestOptions(connectAccountId, settings),
     ];

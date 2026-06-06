@@ -27,8 +27,25 @@ describe('AccountingExportService', () => {
     const result = service.buildExport('csv', rows);
     expect(result.format).toBe('csv');
     expect(result.content).toContain('IncomeSubType');
+    expect(result.content).toContain('TaxName');
     expect(result.content).toContain('Haircut');
     expect(result.rowCount).toBe(2);
+  });
+
+  it('includes tax columns when present on income rows', () => {
+    const result = service.buildExport('csv', [
+      {
+        ...rows[0],
+        subtotal: 100,
+        taxName: 'VAT',
+        taxRate: 20,
+        taxAmount: 20,
+        total: 120,
+      },
+    ]);
+    expect(result.content).toContain('VAT');
+    expect(result.content).toContain('20.00');
+    expect(result.content).toContain('120.00');
   });
 
   it('builds xero csv export', () => {

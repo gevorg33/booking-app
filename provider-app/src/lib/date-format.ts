@@ -6,26 +6,26 @@ export function getBrowserTimeZone(): string {
   }
 }
 
-import { resolveProviderAppLocale } from '../i18n/resolve-locale';
+import {
+  DEFAULT_BUSINESS_DATE_FORMAT,
+  DEFAULT_BUSINESS_TIME_FORMAT,
+  formatDateWithFormat,
+  formatTimeWithFormat,
+  normalizeBusinessDateFormat,
+  normalizeBusinessTimeFormat,
+  parseBusinessDateInput,
+  parseBusinessDateToKey,
+} from './business-date-format';
 import { useAuthStore } from '../services/auth-store';
 
-function resolveAppLocale(): string | undefined {
-  const { user, business } = useAuthStore.getState();
-  if (user?.locale || business?.locale) {
-    return resolveProviderAppLocale(user?.locale, business?.locale);
-  }
-  if (typeof navigator === 'undefined') return undefined;
-  const lang = navigator.language?.slice(0, 2).toLowerCase();
-  if (lang === 'hy' || lang === 'ru' || lang === 'en') return lang;
-  return undefined;
-}
-
-function toIntlLocale(locale?: string): string | undefined {
-  const resolved = locale ?? resolveAppLocale();
-  if (resolved === 'hy') return 'hy-AM';
-  if (resolved === 'ru') return 'ru-RU';
-  if (resolved === 'en') return 'en-GB';
-  return undefined;
+function resolveBusinessFormats() {
+  const { business } = useAuthStore.getState();
+  return {
+    dateFormat:
+      normalizeBusinessDateFormat(business?.dateFormat) ?? DEFAULT_BUSINESS_DATE_FORMAT,
+    timeFormat:
+      normalizeBusinessTimeFormat(business?.timeFormat) ?? DEFAULT_BUSINESS_TIME_FORMAT,
+  };
 }
 
 export function getTodayDateKey(timeZone?: string): string {
@@ -54,29 +54,36 @@ export function addCalendarDays(d: Date, days: number, timeZone?: string): Date 
   return parseDateKey(iso) ?? shifted;
 }
 
-export function formatDateDisplay(input: Date | string, locale?: string): string {
+export function formatDateDisplay(input: Date | string, _locale?: string): string {
+  const { dateFormat } = resolveBusinessFormats();
   const d =
     typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)
       ? (parseDateKey(input) ?? new Date(input))
       : typeof input === 'string'
-        ? new Date(input)
+        ? (parseBusinessDateInput(input, dateFormat) ?? new Date(input))
         : input;
   if (Number.isNaN(d.getTime())) return String(input);
-  const intlLocale = toIntlLocale(locale) ?? 'en-GB';
-  return new Intl.DateTimeFormat(intlLocale, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
+  return formatDateWithFormat(d, dateFormat);
 }
+
+export function parseTypedBusinessDateToKey(value: string): string | null {
+  const { dateFormat } = resolveBusinessFormats();
+  return parseBusinessDateToKey(value, dateFormat);
+}
+
+export {
+  businessDateFormatPattern,
+  businessDateInputPlaceholder,
+  parseBusinessDateInput,
+  parseBusinessDateToKey,
+  readAuthBusinessDateFormats,
+} from './business-date-format';
 
 export function formatTimeDisplay(input: Date | string): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return String(input);
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const min = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${hh}:${min}`;
+  const { timeFormat } = resolveBusinessFormats();
+  return formatTimeWithFormat(d, timeFormat, 'UTC');
 }
 
 export function formatTimeRangeDisplay(start: Date | string, end: Date | string): string {

@@ -24,13 +24,20 @@ import {
   fetchPublicProviders,
   fetchPublicServices,
   fetchServiceSlots,
+  quotePublicBooking,
 } from '../services/public-api.js';
+import { CheckoutTaxSummary } from '../components/CheckoutTaxSummary.js';
+import type { PublicCheckoutQuote } from '../lib/types.js';
 import {
   getCustomerToken,
   getStoredCustomerProfile,
   setCustomerSession,
 } from '../lib/customer-auth.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { computeBookingSuccessEndTime } from '../lib/checkout-recommendations.js';
+import { formatBookingDateTimeRange } from '../lib/date-format.js';
+import { copy } from '../lib/copy.js';
+import { ConsumerProductRecommendationCards } from '../components/ConsumerProductRecommendationCards.js';
 
 export default function BookPage() {
   const { serviceId } = useParams<{ slug: string; serviceId: string }>();
@@ -41,6 +48,11 @@ export default function BookPage() {
   const [slot, setSlot] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [bookingSuccess, setBookingSuccess] = useState<{
+    bookingId: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
 
   const { data: services = [] } = useQuery({
     queryKey: ['services', slug],
@@ -65,6 +77,12 @@ export default function BookPage() {
   const authed = slug ? !!getCustomerToken(slug) : false;
 
   const minDate = useMemo(() => new Date().toISOString(), []);
+
+  const { data: checkoutQuote } = useQuery({
+    queryKey: ['booking-quote', slug, serviceId],
+    queryFn: () => quotePublicBooking(slug!, { serviceId: serviceId! }),
+    enabled: !!slug && !!serviceId && !bookingSuccess,
+  });
 
   if (loading) {
     return (
@@ -119,13 +137,98 @@ export default function BookPage() {
         setCustomerSession(slug, token, result.customer);
       }
       void queryClient.invalidateQueries({ queryKey: ['bookings', slug] });
-      setMessage('Booking confirmed!');
+      setBookingSuccess({
+        bookingId: result.booking.id,
+        startTime: slot,
+        endTime: computeBookingSuccessEndTime(slot, service.durationMinutes),
+        quote: checkoutQuote ?? null,
+      });
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : 'Booking failed');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (bookingSuccess) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
+            </IonButtons>
+            <IonTitle>{service.name}</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding ion-text-center">
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              background: '#dcfce7',
+              color: '#16a34a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.75rem',
+              margin: '2rem auto 1rem',
+            }}
+            aria-hidden
+          >
+            ✓
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{copy.bookingConfirmed}</h2>
+          <p style={{ color: '#6b7280', marginTop: 8, fontSize: '0.875rem' }}>
+            {formatBookingDateTimeRange(
+              bookingSuccess.startTime,
+              bookingSuccess.endTime,
+              profile.locale,
+            )}
+          </p>
+          <p style={{ color: '#6b7280', marginTop: 8, fontSize: '0.875rem', maxWidth: 320, marginInline: 'auto' }}>
+            {copy.bookingConfirmedHint}
+          </p>
+          {bookingSuccess.quote && (
+            <div style={{ maxWidth: 360, margin: '16px auto 0' }}>
+              <CheckoutTaxSummary
+                quote={bookingSuccess.quote}
+                currency={bookingSuccess.quote.currency}
+                tenantCurrency={profile.currency}
+                labels={{
+                  subtotal: copy.checkoutSubtotal,
+                  totalDue: copy.checkoutTotalDue,
+                  taxIncluded: copy.taxIncluded,
+                }}
+              />
+            </div>
+          )}
+          <ConsumerProductRecommendationCards
+            slug={slug}
+            service={service}
+            tenantCurrency={profile.currency}
+            bookingId={bookingSuccess.bookingId}
+          />
+          <IonButton
+            expand="block"
+            className="ion-margin-top"
+            routerLink={buildSalonPath(slug, '/account')}
+          >
+            {copy.viewAppointments}
+          </IonButton>
+          <IonButton
+            expand="block"
+            fill="outline"
+            className="ion-margin-top"
+            routerLink={buildSalonPath(slug, '/services')}
+          >
+            {copy.bookAnotherService}
+          </IonButton>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   return (
     <IonPage>
@@ -196,6 +299,19 @@ export default function BookPage() {
           <p style={{ color: '#b45309', marginTop: 16 }}>
             Sign in under Account before booking to save your appointment.
           </p>
+        )}
+
+        {checkoutQuote && (
+          <CheckoutTaxSummary
+            quote={checkoutQuote}
+            currency={checkoutQuote.currency}
+            tenantCurrency={profile.currency}
+            labels={{
+              subtotal: copy.checkoutSubtotal,
+              totalDue: copy.checkoutTotalDue,
+              taxIncluded: copy.taxIncluded,
+            }}
+          />
         )}
 
         <IonButton

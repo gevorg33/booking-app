@@ -7,7 +7,11 @@ import type {
   TenantCustomEmailVariable,
   TenantEmailTemplatesSettings,
 } from './notification-email-template.types.js';
-import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
+import {
+  getBusinessDefaultLocale,
+  getBusinessEnabledLocales,
+} from '../../common/utils/business-locale.util.js';
 import {
   EMAIL_TEMPLATE_DEFINITIONS,
   resolveEmailTemplate,
@@ -34,8 +38,7 @@ export function readTenantEmailTemplatesSettings(
 }
 
 function settingsLocale(settings?: Record<string, unknown>): AppLocale {
-  const raw = settings?.locale;
-  return resolveLocale(typeof raw === 'string' ? raw : null);
+  return getBusinessDefaultLocale(settings);
 }
 
 export function listResolvedEmailTemplates(
@@ -43,9 +46,32 @@ export function listResolvedEmailTemplates(
 ): ResolvedEmailTemplate[] {
   const stored = readTenantEmailTemplatesSettings(settings);
   const locale = settingsLocale(settings);
-  return EMAIL_TEMPLATE_DEFINITIONS.map((def) =>
-    resolveEmailTemplate(def.key, stored.templates?.[def.key], locale),
-  );
+  const enabledLocales = getBusinessEnabledLocales(settings);
+  return EMAIL_TEMPLATE_DEFINITIONS.map((def) => {
+    const resolved = resolveEmailTemplate(
+      def.key,
+      stored.templates?.[def.key],
+      locale,
+    );
+    const byLocale = Object.fromEntries(
+      enabledLocales.map((code) => {
+        const perLocale = resolveEmailTemplate(
+          def.key,
+          stored.templates?.[def.key],
+          code,
+        );
+        return [
+          code,
+          {
+            subject: perLocale.subject,
+            bodyText: perLocale.bodyText,
+            bodyHtml: perLocale.bodyHtml,
+          },
+        ];
+      }),
+    ) as ResolvedEmailTemplate['byLocale'];
+    return { ...resolved, byLocale };
+  });
 }
 
 export function listAllTemplateVariables(

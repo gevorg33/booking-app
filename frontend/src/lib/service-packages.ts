@@ -1,4 +1,11 @@
 import { calculatePackagePricing, type PackageDiscountType } from './service-package-pricing';
+import {
+  emptyLocalizedNamesForm,
+  localizedNamesFromApi,
+  localizedNamesToPayload,
+  type LocalizedNamesFormState,
+  type LocalizedNamesMap,
+} from './localized-names';
 
 export type PackageStatus = 'active' | 'inactive' | 'expired';
 
@@ -10,6 +17,7 @@ export interface ServicePackageItemInput {
 export interface ServicePackageRecord {
   id: string;
   name: string;
+  localizedNames?: LocalizedNamesMap;
   description?: string | null;
   imageUrl?: string | null;
   discountType: PackageDiscountType;
@@ -99,6 +107,7 @@ export function packageToFormState(pkg: ServicePackageRecord) {
   );
   return {
     name: pkg.name,
+    localizedNames: localizedNamesFromApi(pkg.localizedNames),
     description: pkg.description ?? '',
     imageUrl: pkg.imageUrl ?? '',
     discountType: pkg.discountType,
@@ -108,6 +117,29 @@ export function packageToFormState(pkg: ServicePackageRecord) {
     selectedServiceIds,
     quantities,
   };
+}
+
+export function defaultPackageFormState() {
+  return {
+    name: '',
+    localizedNames: emptyLocalizedNamesForm(),
+    description: '',
+    imageUrl: '',
+    discountType: 'percent' as const,
+    discountValue: '15',
+    displayOrder: '0',
+    expiresAtDay: '',
+    selectedServiceIds: [] as string[],
+    quantities: {} as Record<string, number>,
+  };
+}
+
+export type PackageFormState = ReturnType<typeof defaultPackageFormState>;
+
+export function packageLocalizedNamesPayload(
+  form: Pick<PackageFormState, 'localizedNames'>,
+) {
+  return localizedNamesToPayload(form.localizedNames);
 }
 
 function formatMoney(value: number, currency: string): string {

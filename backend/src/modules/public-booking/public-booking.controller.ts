@@ -30,6 +30,7 @@ import {
   MultiServiceBlockProvidersQueryDto,
   BookPublicMultiServiceDto,
   PublicMultiServiceQuoteDto,
+  RecordProductRecommendationEventDto,
   parseServiceIdsQuery,
 } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
@@ -67,6 +68,30 @@ export class PublicBookingController {
   @Get()
   getProfile(@Param('slug') slug: string, @Query('locale') locale?: string) {
     return this.publicBookingService.getProfile(slug, locale);
+  }
+
+  @Get('checkout/recommendations')
+  getCheckoutRecommendations(
+    @Param('slug') slug: string,
+    @Query('serviceId') serviceId?: string,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.publicBookingService.getCheckoutRecommendations(
+      slug,
+      serviceId,
+      categoryId,
+    );
+  }
+
+  @Post('checkout/recommendations/events')
+  recordCheckoutRecommendationEvent(
+    @Param('slug') slug: string,
+    @Body() dto: RecordProductRecommendationEventDto,
+  ) {
+    return this.publicBookingService.recordCheckoutRecommendationEvent(
+      slug,
+      dto,
+    );
   }
 
   @Get('providers')
@@ -141,16 +166,17 @@ export class PublicBookingController {
   }
 
   @Get('packages')
-  getPackages(@Param('slug') slug: string) {
-    return this.publicBookingService.getPublicPackages(slug);
+  getPackages(@Param('slug') slug: string, @Query('locale') locale?: string) {
+    return this.publicBookingService.getPublicPackages(slug, locale);
   }
 
   @Get('packages/:packageId')
   getPackage(
     @Param('slug') slug: string,
     @Param('packageId') packageId: string,
+    @Query('locale') locale?: string,
   ) {
-    return this.publicBookingService.getPublicPackage(slug, packageId);
+    return this.publicBookingService.getPublicPackage(slug, packageId, locale);
   }
 
   @Get('packages/:packageId/suggest-slots')

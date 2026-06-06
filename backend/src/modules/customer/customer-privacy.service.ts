@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
+import { anonymizePiiPlaceholder } from '../../common/utils/business-compliance.util.js';
 import {
   CustomerPrivacyExport,
   buildGdprMetadata,
@@ -82,9 +83,9 @@ export class CustomerPrivacyService {
     });
     if (!customer) throw new NotFoundException('Customer not found');
 
-    customer.name = 'Deleted customer';
-    customer.email = undefined as unknown as string;
-    customer.phone = undefined as unknown as string;
+    customer.name = anonymizePiiPlaceholder(customerId, 'name');
+    customer.email = anonymizePiiPlaceholder(customerId, 'email');
+    customer.phone = anonymizePiiPlaceholder(customerId, 'phone');
     customer.tags = [];
     customer.isVip = false;
     customer.isActive = false;

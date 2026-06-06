@@ -6,6 +6,10 @@ export function createAiGatewayPlatformMocks() {
   return {
     aiSettings: {
       getSettings: jest.fn(async () => DEFAULT_AI_SETTINGS),
+      getBusinessRecord: jest.fn(async () => ({
+        id: 'biz-1',
+        settings: { businessType: 'hair_salon' },
+      })),
     },
     platform: {
       resolveRoleProfile: jest.fn(() => 'owner' as const),

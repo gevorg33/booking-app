@@ -34,7 +34,7 @@ describe('service-localized-names.util', () => {
 
     it('rejects unknown locales when strict', () => {
       expect(() => normalizeLocalizedNames({ de: ['Test'] })).toThrow(
-        new BadRequestException('Unsupported locale in localizedNames: de'),
+        new BadRequestException('Unsupported locale in translations: de'),
       );
     });
 

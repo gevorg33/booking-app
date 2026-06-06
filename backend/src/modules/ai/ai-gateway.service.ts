@@ -36,6 +36,10 @@ import {
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
+import {
+  assessPhiInAiContext,
+  phiAiBlockMessage,
+} from '../../common/utils/phi-ai-guard.util.js';
 
 export interface AiGatewayCapabilitiesView extends AiCapabilitiesView {
   usage: PlanEntitlementsView['usage'];
@@ -146,6 +150,31 @@ export class AiGatewayService {
     );
     if (blocked) {
       return attachGatewayMeta(blocked, surface, tier);
+    }
+
+    const businessRecord = await this.aiSettings.getBusinessRecord(
+      params.businessId,
+    );
+    const phiGuard = assessPhiInAiContext(
+      businessRecord.settings,
+      businessRecord.settings?.businessType as string | undefined,
+      { context: params.context },
+    );
+    if (phiGuard.blocked) {
+      return attachGatewayMeta(
+        {
+          success: false,
+          action: 'security_blocked',
+          summary: phiAiBlockMessage(),
+          details: {
+            securityBlocked: true,
+            reason: phiGuard.reason,
+            matchedFields: phiGuard.matchedFields,
+          },
+        },
+        surface,
+        tier,
+      );
     }
 
     if (surface === 'dashboard') {

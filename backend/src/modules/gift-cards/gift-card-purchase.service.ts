@@ -18,6 +18,7 @@ import {
   type GiftCardType,
 } from './gift-card.types.js';
 import { EventType } from '../../events/event-types.js';
+import { getBusinessDefaultCurrency } from '../../common/utils/business-currency.util.js';
 import { resolvePublicPaymentSettings } from '../../common/utils/customer-self-service.util.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
@@ -127,7 +128,9 @@ export class GiftCardPurchaseService {
       ...quote,
       shippingFee,
       total: quote.subtotal + shippingFee,
-      currency: business.settings?.currency?.toString?.() ?? 'USD',
+      currency: getBusinessDefaultCurrency(
+        business.settings as Record<string, unknown> | undefined,
+      ),
     };
   }
 

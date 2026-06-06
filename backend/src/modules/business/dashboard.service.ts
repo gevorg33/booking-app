@@ -13,6 +13,13 @@ import {
   SchedulingSlot,
   SlotStatus,
 } from '../schedule/entities/scheduling-slot.entity.js';
+import { Business } from './entities/business.entity.js';
+import { getBusinessDefaultCurrency } from '../../common/utils/business-currency.util.js';
+import {
+  resolveBookingPaidGrossAmount,
+  resolveBookingTaxCollected,
+  resolveBookingNetRevenue,
+} from '../../common/utils/booking-receipt-tax.util.js';
 
 export interface DashboardOverview {
   todaysBookings: number;
@@ -21,6 +28,9 @@ export interface DashboardOverview {
   totalCustomers: number;
   utilizationPercent: number;
   revenueThisMonth: number;
+  taxCollectedThisMonth: number;
+  netRevenueThisMonth: number;
+  currency: string;
   bookingsThisMonth: number;
   noShowCount: number;
   noShowRatePercent: number;
@@ -31,6 +41,7 @@ export interface DashboardOverview {
 export class DashboardService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
@@ -39,6 +50,12 @@ export class DashboardService {
   ) {}
 
   async getOverview(businessId: string): Promise<DashboardOverview> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const currency = getBusinessDefaultCurrency(
+      business?.settings as Record<string, unknown> | undefined,
+    );
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date();
@@ -87,6 +104,7 @@ export class DashboardService {
       services,
       totalCustomers,
       utilizationPercent,
+      currency,
       ...monthStats,
     };
   }
@@ -116,15 +134,30 @@ export class DashboardService {
     const denom = completed.length + noShows.length;
 
     let revenueThisMonth = 0;
+    let taxCollectedThisMonth = 0;
+    let netRevenueThisMonth = 0;
     for (const b of nonCancelled) {
       if (b.paymentStatus === PaymentStatus.PAID && b.service) {
-        revenueThisMonth += Number(b.service.price);
+        revenueThisMonth += resolveBookingPaidGrossAmount({
+          service: b.service,
+          metadata: b.metadata as Record<string, unknown> | null,
+        });
+        taxCollectedThisMonth += resolveBookingTaxCollected({
+          service: b.service,
+          metadata: b.metadata as Record<string, unknown> | null,
+        });
+        netRevenueThisMonth += resolveBookingNetRevenue({
+          service: b.service,
+          metadata: b.metadata as Record<string, unknown> | null,
+        });
       }
     }
 
     return {
       bookingsThisMonth: nonCancelled.length,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
+      taxCollectedThisMonth: Math.round(taxCollectedThisMonth * 100) / 100,
+      netRevenueThisMonth: Math.round(netRevenueThisMonth * 100) / 100,
       noShowCount: noShows.length,
       noShowRatePercent:
         denom > 0 ? Math.round((noShows.length / denom) * 100) : 0,

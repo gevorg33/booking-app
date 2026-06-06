@@ -55,6 +55,19 @@ const COMMON_BOOKING_VARS: NotificationEmailTemplateVariable[] = [
     sampleValue: '14:00–14:30',
   },
   {
+    key: 'priceLineText',
+    label: 'Price line (plain text)',
+    description:
+      'Formatted service or paid amount with business currency symbol',
+    sampleValue: '\nPrice: $45',
+  },
+  {
+    key: 'priceLineHtml',
+    label: 'Price line (HTML)',
+    description: 'HTML price line with business currency symbol',
+    sampleValue: '<br/>Price: $45',
+  },
+  {
     key: 'manageLinkText',
     label: 'Manage link (plain text)',
     description: 'Reschedule/cancel line for text email',
@@ -81,9 +94,9 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
     description: 'Sent when a single appointment is confirmed.',
     subject: 'Confirmed: {{serviceName}} at {{businessName}}',
     bodyText:
-      'Hi {{customerName}},\n\nYour appointment at {{businessName}} is confirmed.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Hi {{customerName}},\n\nYour appointment at {{businessName}} is confirmed.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Hi {{customerName}},</p><p>Your appointment at {{businessName}} is confirmed.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Hi {{customerName}},</p><p>Your appointment at {{businessName}} is confirmed.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
     variables: COMMON_BOOKING_VARS,
   },
   {
@@ -146,9 +159,9 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
     description: 'Sent before an upcoming appointment.',
     subject: 'Reminder: appointment in {{reminderLabel}} — {{businessName}}',
     bodyText:
-      'Reminder: your appointment at {{businessName}} is in {{reminderLabel}}.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}',
+      'Reminder: your appointment at {{businessName}} is in {{reminderLabel}}.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}',
     bodyHtml:
-      '<p>Reminder: your appointment at {{businessName}} is in {{reminderLabel}}.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}</p>',
+      '<p>Reminder: your appointment at {{businessName}} is in {{reminderLabel}}.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}</p>',
     variables: [
       ...COMMON_BOOKING_VARS.filter(
         (v) =>
@@ -280,13 +293,13 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
         key: 'giftCardDetails',
         label: 'Gift details (text)',
         description: 'Balance or service credits',
-        sampleValue: 'Balance: USD 50.00',
+        sampleValue: 'Balance: $50',
       },
       {
         key: 'giftCardDetailsHtml',
         label: 'Gift details (HTML)',
         description: 'HTML list of gift value',
-        sampleValue: '<ul><li>Balance: USD 50</li></ul>',
+        sampleValue: '<ul><li>Balance: $50</li></ul>',
       },
       {
         key: 'redemptionInstructions',
@@ -309,9 +322,9 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
       'Sent to the buyer when the gift is delivered to someone else.',
     subject: 'Gift card sent — {{businessName}}',
     bodyText:
-      'Your gift card order from {{businessName}} was sent to {{recipientEmail}}.\n\n{{accountLinksText}}',
+      'Your gift card order from {{businessName}} was sent to {{recipientEmail}}.\n\n{{purchaseLineText}}{{accountLinksText}}',
     bodyHtml:
-      '<p>Your gift card order from <strong>{{businessName}}</strong> was sent to {{recipientEmail}}.</p>{{accountLinksHtml}}',
+      '<p>Your gift card order from <strong>{{businessName}}</strong> was sent to {{recipientEmail}}.</p>{{purchaseLineHtml}}{{accountLinksHtml}}',
     variables: [
       {
         key: 'businessName',
@@ -324,6 +337,18 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
         label: 'Recipient email',
         description: 'Where the gift was sent',
         sampleValue: 'friend@example.com',
+      },
+      {
+        key: 'purchaseLineText',
+        label: 'Purchase amount (text)',
+        description: 'Formatted purchase total with business currency symbol',
+        sampleValue: 'Amount paid: $50\n\n',
+      },
+      {
+        key: 'purchaseLineHtml',
+        label: 'Purchase amount (HTML)',
+        description: 'HTML purchase total with business currency symbol',
+        sampleValue: '<p>Amount paid: $50</p>',
       },
       {
         key: 'accountLinksText',
@@ -356,18 +381,34 @@ export function resolveEmailTemplate(
 ): ResolvedEmailTemplate {
   const def = getEmailTemplateDefinition(key);
   const localized = getLocalizedEmailTemplateContent(key, locale);
+  const localeOverride = override?.locales?.[locale];
   const enabled = override?.enabled !== false;
   const subject =
-    override?.subject?.trim() || localized?.subject || def.subject;
+    localeOverride?.subject?.trim() ||
+    override?.subject?.trim() ||
+    localized?.subject ||
+    def.subject;
   const bodyText =
-    override?.bodyText?.trim() || localized?.bodyText || def.bodyText;
+    localeOverride?.bodyText?.trim() ||
+    override?.bodyText?.trim() ||
+    localized?.bodyText ||
+    def.bodyText;
   const bodyHtml =
-    override?.bodyHtml?.trim() || localized?.bodyHtml || def.bodyHtml;
+    localeOverride?.bodyHtml?.trim() ||
+    override?.bodyHtml?.trim() ||
+    localized?.bodyHtml ||
+    def.bodyHtml;
   const isCustomized = Boolean(
     override &&
     (override.subject?.trim() ||
       override.bodyText?.trim() ||
       override.bodyHtml?.trim() ||
+      Object.values(override.locales ?? {}).some(
+        (entry) =>
+          entry?.subject?.trim() ||
+          entry?.bodyText?.trim() ||
+          entry?.bodyHtml?.trim(),
+      ) ||
       override.enabled === false),
   );
 

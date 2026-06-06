@@ -28,6 +28,12 @@ describe('ServicePackagesService', () => {
   const bookingRepo = {
     createQueryBuilder: jest.fn(),
   };
+  const businessRepo = {
+    findOne: jest.fn(async () => ({
+      id: 'biz-1',
+      settings: { currency: 'AMD' },
+    })),
+  };
 
   const service = new ServicePackagesService(
     packageRepo as any,
@@ -35,6 +41,7 @@ describe('ServicePackagesService', () => {
     purchaseRepo as any,
     serviceRepo as any,
     bookingRepo as any,
+    businessRepo as any,
   );
 
   const baseItems = [
@@ -77,11 +84,16 @@ describe('ServicePackagesService', () => {
     displayOrder: 0,
     isActive: true,
     expiresAt: null,
+    metadata: {},
     items: baseItems,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    businessRepo.findOne.mockImplementation(async () => ({
+      id: 'biz-1',
+      settings: { currency: 'AMD' },
+    }));
     packageRepo.create.mockImplementation((v) => v);
     packageRepo.save.mockImplementation(async (v) => ({ id: 'pkg-1', ...v }));
     itemRepo.create.mockImplementation((v) => v);
@@ -131,6 +143,111 @@ describe('ServicePackagesService', () => {
         discountType: 'percent',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('persists localizedNames on create and returns them from enrichPackage', async () => {
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        enabledLocales: ['en', 'hy'],
+        defaultLocale: 'en',
+      },
+    });
+    packageRepo.save.mockImplementationOnce(async (value) => ({
+      id: 'pkg-1',
+      ...value,
+    }));
+    packageRepo.findOne.mockResolvedValueOnce({
+      ...basePackage,
+      metadata: { localizedNames: { en: ['Spa EN'], hy: ['Սպա'] } },
+      items: [baseItems[0]],
+    });
+
+    const created = await service.createPackage('biz-1', {
+      name: 'Spa day',
+      localizedNames: { en: ['Spa EN'], hy: ['Սպա'] },
+      items: [{ serviceId: 'svc-1', quantity: 1 }],
+    });
+
+    expect(created.localizedNames).toEqual({ en: ['Spa EN'], hy: ['Սպա'] });
+    expect(packageRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          localizedNames: { en: ['Spa EN'], hy: ['Սպա'] },
+        },
+      }),
+    );
+  });
+
+  it('updates localizedNames and clears metadata when empty', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        enabledLocales: ['en'],
+        defaultLocale: 'en',
+      },
+    });
+    packageRepo.findOne.mockResolvedValue({
+      ...basePackage,
+      metadata: { localizedNames: { en: ['Old'] } },
+      items: baseItems,
+    });
+
+    await service.updatePackage('biz-1', 'pkg-1', {
+      localizedNames: { en: ['New label'] },
+    });
+    expect(packageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { localizedNames: { en: ['New label'] } },
+      }),
+    );
+
+    packageRepo.findOne.mockResolvedValue({
+      ...basePackage,
+      metadata: { localizedNames: { en: ['New label'] } },
+      items: baseItems,
+    });
+    await service.updatePackage('biz-1', 'pkg-1', { localizedNames: {} });
+    expect(packageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: {} }),
+    );
+  });
+
+  it('mapPublicPackage resolves localized display name by locale', () => {
+    const mapped = service.mapPublicPackage(
+      {
+        ...basePackage,
+        metadata: { localizedNames: { hy: ['Սպա օր'] } },
+      } as any,
+      { currency: 'AMD' },
+      'hy',
+    );
+    expect(mapped.name).toBe('Սպա օր');
+
+    const fallback = service.mapPublicPackage(basePackage as any);
+    expect(fallback.name).toBe('Spa day');
+  });
+
+  it('previewFromPackage and expectedLineServiceIds handle missing items', () => {
+    const preview = service.previewFromPackage({
+      ...basePackage,
+      items: undefined,
+    } as any);
+    expect(preview.pricing.regularTotal).toBe(0);
+    expect(
+      service.expectedLineServiceIds({
+        ...basePackage,
+        items: undefined,
+      } as any),
+    ).toEqual([]);
+  });
+
+  it('getPublicPackage uses default grace and display locale', async () => {
+    packageRepo.findOne.mockResolvedValue(basePackage);
+    const pkg = await service.getPublicPackage('biz-1', 'pkg-1');
+    expect(pkg.name).toBe('Spa day');
   });
 
   it('creates package with items and preview', async () => {
@@ -348,6 +465,22 @@ describe('ServicePackagesService', () => {
     const preview = await service.previewPackagePricing('biz-1', 'pkg-1');
     expect(preview.pricing.regularTotal).toBe(140);
     expect(preview.pricing.packagePrice).toBe(119);
+    expect(preview.currency).toBe('USD');
+  });
+
+  it('resolves package currency from business default when service currency is missing', async () => {
+    packageRepo.findOne.mockResolvedValue({
+      ...basePackage,
+      items: [
+        {
+          ...baseItems[0],
+          service: { ...baseItems[0].service, currency: null },
+        },
+      ],
+    });
+
+    const preview = await service.previewPackagePricing('biz-1', 'pkg-1');
+    expect(preview.currency).toBe('AMD');
   });
 
   it('throws when package is missing or has no items', async () => {

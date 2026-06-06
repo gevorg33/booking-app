@@ -110,3 +110,44 @@
   padding: 0.45rem 0.65rem;
   border-radius: 8px;
 }
+
+.date-picker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.date-picker-field__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-picker-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--ion-color-step-200, #d7d8da);
+  background: var(--ion-background-color, #fff);
+  font-size: 0.95rem;
+}
+
+.date-picker-trigger--icon {
+  width: auto;
+  min-width: 2.75rem;
+  justify-content: center;
+}
+
+.date-picker-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ion-color-medium, #92949c);
+}
+
+.date-picker-error {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ion-color-danger, #eb445a);
+}

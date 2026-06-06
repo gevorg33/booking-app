@@ -111,20 +111,24 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
       expenses: 200,
       commissions: 100,
       netProfit: 700,
+      currency: 'USD',
       period: { from: '2026-06-01', to: '2026-06-30' },
     })),
-    staffPerformance: jest.fn(async () => [
-      {
-        employeeId: 'e1',
-        employeeName: 'Alex',
-        bookings: 10,
-        completed: 8,
-        noShows: 1,
-        revenue: 800,
-        hoursBooked: 20,
-        utilizationPercent: 50,
-      },
-    ]),
+    staffPerformance: jest.fn(async () => ({
+      currency: 'USD',
+      rows: [
+        {
+          employeeId: 'e1',
+          employeeName: 'Alex',
+          bookings: 10,
+          completed: 8,
+          noShows: 1,
+          revenue: 800,
+          hoursBooked: 20,
+          utilizationPercent: 50,
+        },
+      ],
+    })),
   };
   const commissionsService = {
     list: jest.fn(async () => [

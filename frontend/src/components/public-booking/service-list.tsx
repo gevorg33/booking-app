@@ -1,6 +1,15 @@
 'use client';
 
+import {
+  formatInclusiveTaxBadge,
+  shouldShowInclusiveTaxBadge,
+  type PublicBusinessTaxSettings,
+} from '@/lib/business-tax';
+import { resolveTenantPriceCurrency } from '@/lib/business-currency';
 import { formatDuration, formatPrice, type PublicService } from '@/lib/public-api';
+import { formatClinicServiceTypeBadge, isPublicClinicService } from '@/lib/clinic-service';
+import { isPublicTourService } from '@/lib/tour-service';
+import { TourServiceCard } from '@/components/public-booking/tour-service-card';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import { useRouter } from 'next/navigation';
 import { bookPath } from '@/lib/tenant-host';
@@ -10,6 +19,7 @@ import { useI18n } from '@/i18n';
 interface ServiceListProps {
   slug: string;
   services: PublicService[];
+  tax?: PublicBusinessTaxSettings | null;
   primaryColor: string;
   selectedServiceId: string | null;
   onSelect: (serviceId: string) => void;
@@ -50,6 +60,8 @@ function groupServicesByCategory(services: PublicService[], uncategorizedLabel: 
 export function ServiceList({
   slug,
   services,
+  businessCurrency = 'USD',
+  tax,
   primaryColor,
   selectedServiceId,
   onSelect,
@@ -105,6 +117,18 @@ export function ServiceList({
             {group.services.map((service) => {
               const selected = selectedServiceId === service.id;
               const totalMin = service.durationMinutes + service.bufferMinutes;
+              if (isPublicTourService(service)) {
+                return (
+                  <TourServiceCard
+                    key={service.id}
+                    service={service}
+                    businessCurrency={businessCurrency}
+                    selected={selected}
+                    primaryColor={primaryColor}
+                    onSelect={() => onSelect(service.id)}
+                  />
+                );
+              }
               return (
                 <button
                   key={service.id}
@@ -116,6 +140,16 @@ export function ServiceList({
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">{service.name}</p>
+                    {isPublicClinicService(service) && service.clinicServiceType && (
+                      <span className="inline-block mt-1 text-xs font-medium text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">
+                        {formatClinicServiceTypeBadge(service.clinicServiceType, t)}
+                      </span>
+                    )}
+                    {service.requiresFasting && (
+                      <span className="inline-block mt-1 ml-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                        {t('clinic.fastingRequired')}
+                      </span>
+                    )}
                     {service.hasSubscriptionPlans && (
                       <span className="inline-block mt-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                         {t('public.subscribeAndSave')}
@@ -127,7 +161,15 @@ export function ServiceList({
                     <p className="text-sm text-gray-500 mt-1">{formatDuration(totalMin)}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-semibold text-gray-900">{formatPrice(service.price, service.currency)}</p>
+                    <p className="font-semibold text-gray-900">
+                      {formatPrice(
+                        service.price,
+                        resolveTenantPriceCurrency(service.currency, businessCurrency),
+                      )}
+                    </p>
+                    {tax && shouldShowInclusiveTaxBadge(tax) && (
+                      <p className="text-xs text-gray-500 mt-0.5">{formatInclusiveTaxBadge(tax)}</p>
+                    )}
                     <span
                       className="inline-block mt-2 w-5 h-5 rounded border-2"
                       style={{
@@ -154,7 +196,10 @@ export function ServiceList({
             )}
             <p className="text-sm text-gray-700 mt-2">
               {t('public.oneTimeVisit', {
-                price: formatPrice(selected.price, selected.currency),
+                price: formatPrice(
+                  selected.price,
+                  resolveTenantPriceCurrency(selected.currency, businessCurrency),
+                ),
               })}
             </p>
             {selected.hasSubscriptionPlans && (

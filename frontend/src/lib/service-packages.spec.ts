@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPackageItemsPayload,
+  defaultPackageFormState,
   formatPackageSavings,
   isPackageExpired,
+  packageLocalizedNamesPayload,
   packageToFormState,
   previewPackageFromForm,
   resolvePackageStatus,
@@ -90,5 +92,17 @@ describe('service-packages', () => {
 
   it('formats savings with invalid currency fallback', () => {
     expect(formatPackageSavings(10, 20, 'NOT-A-CURRENCY')).toContain('10.00');
+  });
+
+  it('builds payload when service quantity key is missing', () => {
+    expect(buildPackageItemsPayload(['svc-1'], {})).toEqual([
+      { serviceId: 'svc-1', quantity: 1 },
+    ]);
+  });
+
+  it('exposes package localized name helpers', () => {
+    const form = defaultPackageFormState();
+    form.localizedNames.en[0] = 'Spa EN';
+    expect(packageLocalizedNamesPayload(form)).toEqual({ en: ['Spa EN'] });
   });
 });

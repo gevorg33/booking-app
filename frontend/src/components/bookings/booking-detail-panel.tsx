@@ -540,6 +540,7 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                     loyaltyPoints: t('appointments.paymentLoyaltyPoints'),
                     retailTotal: t('retailPos.retailTotal'),
                     grandTotal: t('retailPos.grandTotal'),
+                    taxIncluded: t('public.taxIncluded'),
                   }}
                 />
               </div>

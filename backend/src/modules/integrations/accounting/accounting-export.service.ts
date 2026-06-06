@@ -32,13 +32,18 @@ export class AccountingExportService {
     generatedAt: string,
   ): AccountingExportResult {
     const header =
-      'Date,Type,IncomeSubType,Description,Amount,Currency,Reference,Customer,Employee';
+      'Date,Type,IncomeSubType,Description,Subtotal,TaxName,TaxRate,TaxAmount,Total,Amount,Currency,Reference,Customer,Employee';
     const lines = rows.map((r) =>
       [
         r.date,
         r.type,
         this.csvEscape(r.incomeSubType || ''),
         this.csvEscape(r.description),
+        (r.subtotal ?? r.amount).toFixed(2),
+        this.csvEscape(r.taxName || ''),
+        r.taxRate == null ? '' : r.taxRate.toFixed(2),
+        (r.taxAmount ?? 0).toFixed(2),
+        (r.total ?? r.amount).toFixed(2),
         r.amount.toFixed(2),
         r.currency,
         this.csvEscape(r.reference),
@@ -63,7 +68,7 @@ export class AccountingExportService {
   ): AccountingExportResult {
     const code = accountCode || '200';
     const header =
-      '*ContactName,*InvoiceNumber,*InvoiceDate,DueDate,InventoryItemCode,Description,*Quantity,*UnitAmount,*AccountCode,*TaxType,Reference';
+      '*ContactName,*InvoiceNumber,*InvoiceDate,DueDate,InventoryItemCode,Description,*Quantity,*UnitAmount,*AccountCode,*TaxType,Reference,TaxName,TaxRate,TaxAmount,Subtotal,Total';
     const lines = rows.map((r) =>
       [
         this.csvEscape(r.customerName || 'Walk-in'),
@@ -71,12 +76,17 @@ export class AccountingExportService {
         r.date,
         r.date,
         '',
-        this.csvEscape(r.description),
+        this.csvEscape(this.describeXeroLine(r)),
         '1',
-        r.amount.toFixed(2),
+        (r.subtotal ?? r.amount).toFixed(2),
         code,
-        'Tax Exempt',
+        this.resolveXeroTaxType(r),
         this.csvEscape(r.reference),
+        this.csvEscape(r.taxName || ''),
+        r.taxRate == null ? '' : r.taxRate.toFixed(2),
+        (r.taxAmount ?? 0).toFixed(2),
+        (r.subtotal ?? r.amount).toFixed(2),
+        (r.total ?? r.amount).toFixed(2),
       ].join(','),
     );
     return {
@@ -102,7 +112,11 @@ export class AccountingExportService {
     ];
     for (const r of rows) {
       const subLabel = r.incomeSubType ? ` [${r.incomeSubType}]` : '';
-      const memo = `${r.description}${subLabel} (${r.reference})`;
+      const taxMemo =
+        (r.taxAmount ?? 0) > 0
+          ? `; tax ${r.taxName || 'Tax'} ${r.taxRate ?? 0}% = ${(r.taxAmount ?? 0).toFixed(2)}`
+          : '';
+      const memo = `${r.description}${subLabel}${taxMemo} (${r.reference})`;
       lines.push(
         `TRNS\tGENERAL JOURNAL\t${r.date}\t${account}\t${r.customerName || ''}\t${r.amount.toFixed(2)}\t${memo}`,
       );
@@ -119,6 +133,18 @@ export class AccountingExportService {
       rowCount: rows.length,
       generatedAt,
     };
+  }
+
+  private resolveXeroTaxType(row: AccountingExportRow): string {
+    if (row.type !== 'income' || (row.taxAmount ?? 0) <= 0) {
+      return 'Tax Exempt';
+    }
+    return 'Tax on Sales';
+  }
+
+  private describeXeroLine(row: AccountingExportRow): string {
+    if ((row.taxAmount ?? 0) <= 0) return row.description;
+    return `${row.description} (incl. ${row.taxName || 'tax'} ${(row.taxAmount ?? 0).toFixed(2)})`;
   }
 
   private csvEscape(value: string): string {

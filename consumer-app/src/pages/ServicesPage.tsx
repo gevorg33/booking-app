@@ -13,15 +13,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useHistory } from 'react-router-dom';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { formatPublicMoney } from '../lib/business-currency.js';
+import {
+  formatInclusiveTaxBadge,
+  shouldShowInclusiveTaxBadge,
+} from '../lib/business-tax.js';
 import { fetchPublicServices } from '../services/public-api.js';
-
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
-  }
-}
 
 export default function ServicesPage({
   slug,
@@ -60,7 +57,11 @@ export default function ServicesPage({
                 <IonLabel>
                   <h2>{service.name}</h2>
                   <p>
-                    {service.durationMinutes} min · {formatPrice(service.price, service.currency)}
+                    {service.durationMinutes} min ·{' '}
+                    {formatPublicMoney(service.price, service.currency, profile.currency)}
+                    {shouldShowInclusiveTaxBadge(profile.tax) && profile.tax
+                      ? ` · ${formatInclusiveTaxBadge(profile.tax)}`
+                      : ''}
                   </p>
                   {service.description ? <p>{service.description}</p> : null}
                 </IonLabel>

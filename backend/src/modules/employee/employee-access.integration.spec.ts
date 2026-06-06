@@ -106,11 +106,9 @@ describe('Employee access integration', () => {
         MemberRole.STAFF,
       );
 
-      expect(tenantContactService.assertEmailAvailableInTenant).toHaveBeenCalledWith(
-        businessId,
-        'karo@test.com',
-        { employeeId },
-      );
+      expect(
+        tenantContactService.assertEmailAvailableInTenant,
+      ).toHaveBeenCalledWith(businessId, 'karo@test.com', { employeeId });
       expect(inviteRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'karo@test.com',
@@ -152,7 +150,10 @@ describe('Employee access integration', () => {
 
     it('throws when email provider fails', async () => {
       employeeRepo.findOne.mockResolvedValue(pendingEmployee);
-      emailService.send.mockResolvedValueOnce({ ok: false, error: 'SMTP down' });
+      emailService.send.mockResolvedValueOnce({
+        ok: false,
+        error: 'SMTP down',
+      });
 
       await expect(
         invitationsService.sendEmployeeAppAccess(
@@ -272,11 +273,7 @@ describe('Employee access integration', () => {
         employeeId,
       });
 
-      expect(spy).toHaveBeenCalledWith(
-        businessId,
-        employeeId,
-        ownerUserId,
-      );
+      expect(spy).toHaveBeenCalledWith(businessId, employeeId, ownerUserId);
       spy.mockRestore();
     });
   });

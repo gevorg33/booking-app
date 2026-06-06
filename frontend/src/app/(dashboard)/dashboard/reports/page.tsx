@@ -13,6 +13,7 @@ import { AiSuggestionsStack } from '@/components/ai-suggestion-collapsible';
 import { DashboardPageShell, DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import { AI_PAGE_SUGGESTIONS } from '@/lib/ai-orchestration';
 import { formatDateDisplay, formatWeekdayShortByDayIndex } from '@/lib/date-format';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 interface StaffRow {
   employeeId: string;
@@ -56,6 +57,7 @@ function unwrap<T>(res: unknown): T {
 export default function ReportsPage() {
   const { t, locale } = useI18n();
   const { business } = useAuthStore();
+  const { currency: tenantCurrency, formatMoney } = useBusinessCurrency();
   const [range, setRange] = useState(defaultDateRange);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
@@ -66,23 +68,27 @@ export default function ReportsPage() {
 
   const params = useMemo(() => ({ from: range.from, to: range.to }), [range]);
 
-  const { data: staff = [], isLoading: staffLoading } = useQuery({
+  const { data: staffReport, isLoading: staffLoading } = useQuery({
     queryKey: ['analytics-staff', business?.id, params],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/analytics/staff`, { params });
-      return unwrap<StaffRow[]>(data);
+      return unwrap<{ currency: string; rows: StaffRow[] }>(data);
     },
     enabled: !!business?.id,
   });
 
-  const { data: services = [], isLoading: servicesLoading } = useQuery({
+  const { data: servicesReport, isLoading: servicesLoading } = useQuery({
     queryKey: ['analytics-services', business?.id, params],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/analytics/services`, { params });
-      return unwrap<ServiceRow[]>(data);
+      return unwrap<{ currency: string; rows: ServiceRow[] }>(data);
     },
     enabled: !!business?.id,
   });
+
+  const reportCurrency = staffReport?.currency ?? servicesReport?.currency ?? tenantCurrency;
+  const staff = staffReport?.rows ?? [];
+  const services = servicesReport?.rows ?? [];
 
   const { data: heatmap = [], isLoading: heatmapLoading } = useQuery({
     queryKey: ['analytics-heatmap', business?.id, params],
@@ -236,7 +242,9 @@ export default function ReportsPage() {
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnBookings')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnCompleted')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnNoShows')}</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnRevenue')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">
+                      {t('reports.columnRevenueCurrency', { currency: reportCurrency })}
+                    </th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnHours')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnUtilization')}</th>
                   </tr>
@@ -255,7 +263,7 @@ export default function ReportsPage() {
                         <td className="px-4 py-3">{row.bookings}</td>
                         <td className="px-4 py-3">{row.completed}</td>
                         <td className="px-4 py-3 text-orange-400">{row.noShows}</td>
-                        <td className="px-4 py-3">${row.revenue.toFixed(2)}</td>
+                        <td className="px-4 py-3">{formatMoney(row.revenue)}</td>
                         <td className="px-4 py-3">{row.hoursBooked}h</td>
                         <td className="px-4 py-3">{row.utilizationPercent}%</td>
                       </tr>
@@ -274,7 +282,9 @@ export default function ReportsPage() {
                   <tr className="border-b border-gray-800 text-left">
                     <th className="px-4 py-3 font-medium text-gray-400">{t('bookings.service')}</th>
                     <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnBookings')}</th>
-                    <th className="px-4 py-3 font-medium text-gray-400">{t('reports.columnRevenue')}</th>
+                    <th className="px-4 py-3 font-medium text-gray-400">
+                      {t('reports.columnRevenueCurrency', { currency: reportCurrency })}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,7 +299,7 @@ export default function ReportsPage() {
                       <tr key={row.serviceId} className="border-b border-gray-800/80">
                         <td className="px-4 py-3 font-medium">{row.serviceName}</td>
                         <td className="px-4 py-3">{row.bookings}</td>
-                        <td className="px-4 py-3">${row.revenue.toFixed(2)}</td>
+                        <td className="px-4 py-3">{formatMoney(row.revenue)}</td>
                       </tr>
                     ))
                   )}

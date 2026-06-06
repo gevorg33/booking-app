@@ -25,8 +25,10 @@ export class InventoryService {
   async listProducts(
     businessId: string,
     locationId?: string,
+    includeInactive = false,
   ): Promise<Product[]> {
-    const where: Record<string, unknown> = { businessId, isActive: true };
+    const where: Record<string, unknown> = { businessId };
+    if (!includeInactive) where.isActive = true;
     if (locationId) where.locationId = locationId;
     return this.productRepo.find({
       where: where,
@@ -48,8 +50,44 @@ export class InventoryService {
         quantityOnHand: dto.quantityOnHand ?? 0,
         reorderLevel: dto.reorderLevel ?? 0,
         locationId: dto.locationId || undefined,
+        description: dto.description?.trim() || null,
+        imageUrl: dto.imageUrl?.trim() || null,
+        externalLink: dto.externalLink?.trim() || null,
+        isActive: dto.isActive ?? true,
       }),
     );
+  }
+
+  async updateProduct(
+    productId: string,
+    businessId: string,
+    dto: Partial<Product>,
+  ): Promise<Product> {
+    const product = await this.productRepo.findOne({
+      where: { id: productId, businessId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (dto.name !== undefined) product.name = dto.name;
+    if (dto.sku !== undefined) product.sku = dto.sku;
+    if (dto.unitCost !== undefined) product.unitCost = dto.unitCost;
+    if (dto.retailPrice !== undefined) product.retailPrice = dto.retailPrice;
+    if (dto.quantityOnHand !== undefined) {
+      product.quantityOnHand = dto.quantityOnHand;
+    }
+    if (dto.reorderLevel !== undefined) product.reorderLevel = dto.reorderLevel;
+    if (dto.isActive !== undefined) product.isActive = dto.isActive;
+    if (dto.description !== undefined) {
+      product.description = dto.description?.trim() || null;
+    }
+    if (dto.imageUrl !== undefined) {
+      product.imageUrl = dto.imageUrl?.trim() || null;
+    }
+    if (dto.externalLink !== undefined) {
+      product.externalLink = dto.externalLink?.trim() || null;
+    }
+
+    return this.productRepo.save(product);
   }
 
   async linkToService(

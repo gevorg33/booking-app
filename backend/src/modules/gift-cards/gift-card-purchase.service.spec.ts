@@ -105,6 +105,27 @@ describe('GiftCardPurchaseService', () => {
     expect(quote.subtotal).toBe(100);
     expect(quote.shippingFee).toBe(5);
     expect(quote.total).toBe(105);
+    expect(quote.currency).toBe('USD');
+  });
+
+  it('uses business default currency for gift card Stripe checkout quote', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        currency: 'AMD',
+        defaultCurrency: 'AMD',
+      },
+    });
+
+    const quote = await service.quotePurchase('biz-1', {
+      cardType: 'monetary',
+      amount: 50,
+      deliveryMethod: 'digital',
+      purchaserEmail: 'buyer@test.com',
+    });
+
+    expect(quote.currency).toBe('AMD');
   });
 
   it('fulfills digital monetary purchase and emits payment event', async () => {

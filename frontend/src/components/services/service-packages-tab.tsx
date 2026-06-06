@@ -11,11 +11,16 @@ import { CheckboxChoice } from '@/components/ui/radio-choice';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay } from '@/lib/date-format';
 import {
   buildPackageItemsPayload,
+  defaultPackageFormState,
+  packageLocalizedNamesPayload,
   packageToFormState,
   previewPackageFromForm,
   resolvePackageStatus,
   type ServicePackageRecord,
 } from '@/lib/service-packages';
+import { useBusinessCurrency } from '@/hooks/use-business-currency';
+import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
+import { LocalizedNamesFields } from '@/components/services/localized-names-fields';
 
 type PackageFilter = 'all' | 'active' | 'inactive' | 'expired';
 
@@ -23,27 +28,17 @@ function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
 }
 
-const defaultForm = () => ({
-  name: '',
-  description: '',
-  imageUrl: '',
-  discountType: 'percent' as 'percent' | 'fixed',
-  discountValue: '15',
-  displayOrder: '0',
-  expiresAtDay: '',
-  selectedServiceIds: [] as string[],
-  quantities: {} as Record<string, number>,
-});
-
 interface ServicePackagesTabProps {
   businessId: string;
 }
 
 export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
   const { t, locale } = useI18n();
+  const { formatMoney } = useBusinessCurrency();
+  const { enabledLocales } = useBusinessEnabledLocales();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<PackageFilter>('all');
-  const [form, setForm] = useState(defaultForm());
+  const [form, setForm] = useState(defaultPackageFormState());
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [graceHours, setGraceHours] = useState('0');
@@ -86,9 +81,9 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
     queryKey: ['services', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/services`);
-      return unwrap<Array<{ id: string; name: string; price: number; durationMinutes: number }>>(
-        data,
-      );
+      return unwrap<
+        Array<{ id: string; name: string; price: number; durationMinutes: number; currency?: string }>
+      >(data);
     },
   });
 
@@ -128,6 +123,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
         : null;
       const payload = {
         name: form.name,
+        localizedNames: packageLocalizedNamesPayload(form),
         description: form.description || undefined,
         imageUrl: form.imageUrl || undefined,
         discountType: form.discountType,
@@ -199,7 +195,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
   });
 
   const resetForm = () => {
-    setForm(defaultForm());
+    setForm(defaultPackageFormState());
     setEditingPackageId(null);
     setShowForm(false);
   };
@@ -312,6 +308,12 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
               required
             />
           </div>
+          <LocalizedNamesFields
+            value={form.localizedNames}
+            onChange={(localizedNames) => setForm({ ...form, localizedNames })}
+            enabledLocales={enabledLocales}
+            t={t}
+          />
           <div>
             <label className="label">{t('servicesPage.packagesDisplayOrder')}</label>
             <input
@@ -390,7 +392,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
                           onChange={(checked) => {
                             if (checked !== selected) toggleService(svc.id);
                           }}
-                          label={`${svc.name} ($${Number(svc.price).toFixed(2)})`}
+                          label={`${svc.name} (${formatMoney(svc.price, svc.currency)})`}
                           labelClassName="text-sm text-gray-200"
                         />
                         {selected && (
@@ -425,13 +427,13 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
               <p className="text-gray-400">{t('servicesPage.packagesPricingPreview')}</p>
               <div className="mt-2 flex flex-wrap gap-4">
                 <span>
-                  {t('servicesPage.packagesRegularTotal')}: ${preview.regularTotal.toFixed(2)}
+                  {t('servicesPage.packagesRegularTotal')}: {formatMoney(preview.regularTotal)}
                 </span>
                 <span className="text-emerald-400 font-medium">
-                  {t('servicesPage.packagesPrice')}: ${preview.packagePrice.toFixed(2)}
+                  {t('servicesPage.packagesPrice')}: {formatMoney(preview.packagePrice)}
                 </span>
                 <span className="text-blue-400">
-                  {t('servicesPage.packagesSavings')}: ${preview.savings.toFixed(2)} (
+                  {t('servicesPage.packagesSavings')}: {formatMoney(preview.savings)} (
                   {preview.savingsPercent.toFixed(0)}%)
                 </span>
               </div>
@@ -495,9 +497,9 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
                     </td>
                     <td className="px-4 py-3 text-gray-400 max-w-xs">{includes}</td>
                     <td className="px-4 py-3">
-                      <div>${Number(pricing?.packagePrice ?? 0).toFixed(2)}</div>
+                      <div>{formatMoney(pricing?.packagePrice ?? 0)}</div>
                       <div className="text-xs text-gray-500 line-through">
-                        ${Number(pricing?.regularTotal ?? 0).toFixed(2)}
+                        {formatMoney(pricing?.regularTotal ?? 0)}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-400">

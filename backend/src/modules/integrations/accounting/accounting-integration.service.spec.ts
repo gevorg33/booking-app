@@ -496,6 +496,63 @@ describe('AccountingIntegrationService', () => {
     );
   });
 
+  it('uses business default currency when row currencies are missing', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        integrations: { accounting: { enabled: true } },
+      },
+    });
+    customerSubscriptionRepo.find.mockResolvedValue([
+      {
+        id: 'sub-1',
+        createdAt: new Date('2026-05-02T10:00:00Z'),
+        pricePaid: 50,
+        currency: null,
+        plan: { name: 'Plan' },
+        customer: { name: 'Sam' },
+      },
+    ]);
+    commissionRepo.find.mockResolvedValue([
+      {
+        employeeId: 'e1',
+        serviceId: 's1',
+        type: 'percent',
+        value: 10,
+        isActive: true,
+      },
+    ]);
+    bookingRepo.find.mockResolvedValue([
+      {
+        id: 'b1',
+        employeeId: 'e1',
+        serviceId: 's1',
+        startTime: new Date('2026-05-01T10:00:00Z'),
+        status: BookingStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
+        service: { name: 'Cut', price: 100, currency: null },
+        customer: { name: 'Jane' },
+        employee: { name: 'Alex' },
+      },
+    ]);
+
+    await service.generateExport('biz-1');
+    const rows = exportService.buildExport.mock.calls[0][1] as {
+      currency: string;
+      type: string;
+      incomeSubType?: string;
+    }[];
+
+    expect(rows.find((r) => r.incomeSubType === 'service')?.currency).toBe(
+      'AMD',
+    );
+    expect(rows.find((r) => r.incomeSubType === 'subscription')?.currency).toBe(
+      'AMD',
+    );
+    expect(rows.find((r) => r.type === 'commission')?.currency).toBe('AMD');
+  });
+
   it('uses default currency and expense category fallbacks', async () => {
     bookingRepo.find.mockResolvedValue([
       {

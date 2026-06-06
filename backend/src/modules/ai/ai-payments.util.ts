@@ -61,10 +61,7 @@ export interface PaymentsCompoundStep {
 const PAYMENTS_COMPOUND_BOUNDARY =
   'summarize|validate|export|explain|list|configure|adjust|extend|refund|check|book|apply|buy|choose|pay|purchase|collect|who|which|available|nearest|soonest|earliest|find|get|reserve|schedule|free|open|gift|card|cash|stripe|receipt|subscription|accounting|commission|unpaid|balance|checkout|providers?';
 
-const PAYMENTS_VERB = new RegExp(
-  `\\b(${PAYMENTS_COMPOUND_BOUNDARY})\\b`,
-  'i',
-);
+const PAYMENTS_VERB = new RegExp(`\\b(${PAYMENTS_COMPOUND_BOUNDARY})\\b`, 'i');
 
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*|\\?\\s*(?=(?:book|find|get|reserve|schedule)\\b)|\\s*,\\s*(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+and\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+then\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)`,

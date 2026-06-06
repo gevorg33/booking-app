@@ -41,6 +41,7 @@ import { EnterpriseTrustModule } from './modules/enterprise-trust/enterprise-tru
 import { StrategyEvalModule } from './modules/strategy-eval/strategy-eval.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { ProviderMobileModule } from './modules/provider-mobile/provider-mobile.module.js';
+import { ComplianceModule } from './modules/compliance/compliance.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -100,6 +101,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     StrategyEvalModule,
     IntegrationsModule,
     ProviderMobileModule,
+    ComplianceModule,
 
     // Engine
     SchedulingEngineModule,

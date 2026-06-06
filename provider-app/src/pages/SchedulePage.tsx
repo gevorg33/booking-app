@@ -19,6 +19,7 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
+import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
@@ -28,6 +29,7 @@ import { useI18n } from '../i18n';
 export default function SchedulePage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
+  const { currency: businessCurrency } = useBusinessCurrency();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -136,7 +138,7 @@ export default function SchedulePage() {
                   <IonCardContent>
                     <p className="booking-meta">{formatDateDisplay(b.startTime)}</p>
                     <p>
-                      <strong>{formatBookingBlockHeadline(b, t)}</strong>
+                      <strong>{formatBookingBlockHeadline({ ...b, businessCurrency }, t)}</strong>
                     </p>
                     <p>{b.service?.name} — {b.customer?.name}</p>
                     {b.employee && isTeamView(upcoming?.viewMode) && (

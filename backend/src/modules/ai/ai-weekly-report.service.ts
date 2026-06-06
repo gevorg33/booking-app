@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not } from 'typeorm';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
+import { formatBusinessMoney } from '../../common/utils/business-currency.util.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { resolveDateRange } from './ai-orchestration.helpers.js';
@@ -11,6 +13,7 @@ import { resolveDateRange } from './ai-orchestration.helpers.js';
 export class AiWeeklyReportService {
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private schedulingEngine: SchedulingEngineService,
     private intelligence: AiIntelligenceService,
@@ -26,6 +29,13 @@ export class AiWeeklyReportService {
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(range.end);
     end.setUTCHours(23, 59, 59, 999);
+
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const businessSettings = business?.settings as
+      | Record<string, unknown>
+      | undefined;
 
     const [bookings, employees, conflicts] = await Promise.all([
       this.bookingRepo.find({
@@ -71,6 +81,8 @@ export class AiWeeklyReportService {
       snapshot,
     );
 
+    const revenueLabel = formatBusinessMoney(revenue, businessSettings);
+
     return {
       snapshot,
       ...(report ?? {
@@ -78,7 +90,7 @@ export class AiWeeklyReportService {
         sections: [
           {
             heading: 'Overview',
-            body: `${bookings.length} bookings, $${revenue.toFixed(0)} revenue, ${noShows} no-shows, ${conflicts.length} conflicts.`,
+            body: `${bookings.length} bookings, ${revenueLabel} revenue, ${noShows} no-shows, ${conflicts.length} conflicts.`,
           },
         ],
       }),

@@ -58,8 +58,8 @@ describe('CustomerAiCommandService', () => {
     const publicAssistant = {
       chat: jest.fn(async () => ({
         success: true,
-        action: 'list_providers',
-        summary: 'providers',
+        action: 'business_info',
+        summary: 'hours',
       })),
     };
 
@@ -146,15 +146,15 @@ describe('CustomerAiCommandService', () => {
     const mocks = createMocks();
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
     mocks.llm.completeJson = jest.fn(async () => ({
-      action: 'list_providers',
+      action: 'business_info',
       params: {},
-      reasoning: 'who works here',
+      reasoning: 'hours and location',
     }));
     const { service, publicAssistant } = createService(mocks);
 
     const result = await service.executeCommand(
       'biz-1',
-      'Who are your specialists?',
+      'What are your opening hours?',
       [],
       {
         slug: 'salon',
@@ -163,11 +163,11 @@ describe('CustomerAiCommandService', () => {
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
-      'Who are your specialists?',
+      'What are your opening hours?',
       expect.objectContaining({ locale: undefined }),
       { recordMetrics: false },
     );
-    expect(result.action).toBe('list_providers');
+    expect(result.action).toBe('business_info');
   });
 
   it('dispatches classified customer self-service intents', async () => {
@@ -794,14 +794,7 @@ describe('CustomerAiCommandService', () => {
   it('falls through to classification when compound handlers do not produce a result', async () => {
     const mocks = createMocks();
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
-    mocks.payments = { isPaymentsCompound: jest.fn(() => false) };
     mocks.marketingGrowth.isMarketingGrowthCompound = jest.fn(() => false);
-    mocks.pushNotifications = {
-      isPushNotificationsCompound: jest.fn(() => false),
-    };
-    mocks.giftFulfillment = {
-      isFulfillmentCompound: jest.fn(() => false),
-    };
     jest.spyOn(intentDecomposition, 'isCompoundPrompt').mockReturnValue(true);
     jest
       .spyOn(intentDecomposition, 'decomposeDeterministicForSurface')
