@@ -12,7 +12,7 @@ export const BUSINESS_COMPLIANCE_CLASSIFIER_RULES = `- configure_privacy_retenti
 - list_breach_incidents: READ — owner lists logged data breach incidents and GDPR 72-hour notification deadlines. Triggers: show/list breach incidents; what is our GDPR 72-hour deadline. NOT report_data_breach (mutate) and NOT explain_compliance_status (general checklist).
 - send_breach_notification: MUTATE — owner emails affected customers using the saved draft breach notice for a logged incident. Triggers: email/send + affected customers + breach/incident ref (BR-42, incident X, UUID prefix). NOT report_data_breach (create incident) and NOT list_breach_incidents (read list).
 - open_compliance_dashboard: READ — owner deep-links into Settings → Compliance panels (compliance-1.16 dedicated page deferred). Triggers: open/go to/take me to + compliance settings; breach log; HIPAA settings; PHI audit; sub-processors list. NOT explain_compliance_status (text overview) and NOT list_breach_incidents (AI lists incidents).
-- view_phi_access_audit: READ — owner views HIPAA PHI access audit log (who read/wrote patient notes, referral notes, symptoms). Triggers: who accessed patient notes; show HIPAA PHI audit log for last week. NOT explain_compliance_status and NOT explain_phi_encryption_status (encryption status).
+- view_phi_access_audit: READ — owner views HIPAA PHI access audit log (who read/wrote patient notes, referral notes, symptoms, lab result comments/measurements). Triggers: who accessed patient notes; who viewed lab result comments; show HIPAA PHI audit log for last week. NOT explain_compliance_status and NOT explain_phi_encryption_status (encryption status).
 - explain_phi_encryption_status: READ — clinic only: explain whether HIPAA PHI fields are encrypted at rest (per-business AES keys, phi:v1: prefix). Triggers: is HIPAA encryption on; are referral notes encrypted at rest. NOT explain_compliance_status (general HIPAA summary) and NOT enable_hipaa_mode (mutate).
 - explain_minimum_necessary_phi_access: READ — explain HIPAA minimum-necessary PHI access (owners/admins/managers vs staff on assigned bookings). Triggers: who can see patient notes; what PHI can staff access. NOT view_phi_access_audit (audit log of past access) and NOT explain_compliance_status.
 - explain_hipaa_session_timeout: READ — clinic only: explain configured HIPAA session timeout and when auto-logout applies after inactivity. Triggers: when will I be logged out; what is our HIPAA session timeout. NOT explain_compliance_status (general HIPAA summary) and NOT configure_hipaa_session_timeout (mutate).
@@ -47,6 +47,7 @@ export const BUSINESS_COMPLIANCE_CLASSIFIER_RULES = `- configure_privacy_retenti
   - "Open compliance settings" → open_compliance_dashboard, panel=overview
   - "Take me to breach log" → open_compliance_dashboard, panel=breach
   - "Who accessed patient notes?" → view_phi_access_audit
+  - "Who viewed lab result comments?" → view_phi_access_audit, fieldName=comment
   - "Show HIPAA PHI audit log for last week" → view_phi_access_audit, daysBack=7
   - "Is HIPAA encryption on?" → explain_phi_encryption_status
   - "Are referral notes encrypted at rest?" → explain_phi_encryption_status, fieldName=referralNotes
@@ -208,6 +209,21 @@ export const VIEW_PHI_ACCESS_AUDIT_PROMPTS = [
     id: 'who-viewed-referral-notes',
     prompt: 'Who viewed referral notes?',
     fieldName: 'referralNotes',
+  },
+  {
+    id: 'who-accessed-lab-result-comments',
+    prompt: 'Who viewed lab result comments?',
+    fieldName: 'comment',
+  },
+  {
+    id: 'who-read-lab-measurements',
+    prompt: 'Who read lab measurement values?',
+    fieldName: 'value',
+  },
+  {
+    id: 'lab-review-comment-audit',
+    prompt: 'Who accessed lab review comments?',
+    fieldName: 'reviewComment',
   },
 ] as const;
 
@@ -461,7 +477,8 @@ export const CONFIGURE_GRANULAR_CONSENT_PROMPTS = [
   },
   {
     id: 'enable-ai-and-integration-consent',
-    prompt: 'Require AI processing and third-party integration consent at checkout',
+    prompt:
+      'Require AI processing and third-party integration consent at checkout',
     requireAiProcessing: true,
     requireThirdPartyIntegrations: true,
   },

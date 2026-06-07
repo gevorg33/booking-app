@@ -56,7 +56,10 @@ describe('ai rescue pipeline coverage (ai-cmd-h4.2)', () => {
         const prompt = GOLDEN_COMPOUND_PROMPT_BY_ID[pattern.id];
         expect(prompt).toBeDefined();
         expect(pattern.matches(prompt)).toBe(true);
-        const result = decomposeDeterministicForSurface(pattern.surface, prompt);
+        const result = decomposeDeterministicForSurface(
+          pattern.surface,
+          prompt,
+        );
         expect(result?.source).toBe('golden');
         expect(result?.recipeId).toBe(pattern.recipeId);
         expect(result?.steps.length).toBeGreaterThanOrEqual(2);
@@ -66,7 +69,8 @@ describe('ai rescue pipeline coverage (ai-cmd-h4.2)', () => {
 
   describe('compound decomposition util families', () => {
     it('decomposes check-and-book via payments util', () => {
-      const prompt = GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_check_and_book_nearest;
+      const prompt =
+        GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_check_and_book_nearest;
       const steps = decomposePaymentsCompoundPrompt(prompt);
       expect(steps.map((s) => s.action)).toEqual(
         expect.arrayContaining([
@@ -79,7 +83,8 @@ describe('ai rescue pipeline coverage (ai-cmd-h4.2)', () => {
     });
 
     it('decomposes package checkout via dashboard util', () => {
-      const prompt = GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_package_line_checkout;
+      const prompt =
+        GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_package_line_checkout;
       const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
         prompt,
         employees,
@@ -146,7 +151,8 @@ describe('ai rescue pipeline coverage (ai-cmd-h4.2)', () => {
     });
 
     it('extracts package params from decomposed package checkout steps', () => {
-      const prompt = GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_package_line_checkout;
+      const prompt =
+        GOLDEN_COMPOUND_PROMPT_BY_ID.dashboard_package_line_checkout;
       const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
         prompt,
         employees,

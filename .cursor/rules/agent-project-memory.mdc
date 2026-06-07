@@ -1,0 +1,42 @@
+---
+description: Persistent agent memory — mandatory project rules index, AI skills map, and Sprint 54 clinic vertical decisions. Read at start of any feature or clinic work.
+alwaysApply: true
+---
+
+# Agent project memory (mandatory)
+
+## Always-on rules (never skip)
+
+| Rule | Enforces |
+|------|----------|
+| `feature-ai-prompt-coverage.mdc` | AI on **4 surfaces** (dashboard, provider, customer, public); fixtures, compounds, rescue, eval |
+| `feature-test-coverage.mdc` | Unit + integration; fixtures first; `it.each` per scenario `id`; no "done" without tests |
+
+**Not shippable** until both checklists pass for every user-visible feature.
+
+## Load when editing matching files
+
+| Skill | Use when |
+|-------|----------|
+| `ai-command-pipeline.mdc` | `backend/src/modules/ai/**`, AI command bar, assistants — gateway → classify → rescue → validate → execute → clarify |
+| `ai-multi-command-handling.mdc` | Compound prompts ("do X and Y"); `intent-decomposition.util.ts`, registry, eval |
+| `ai-accuracy-program.mdc` | `acc-*` tasks, eval expansion, AI ops dashboard (Sprints 38–43) |
+| `feature-clinic-vertical.mdc` | Clinic lab/EMR clone, `clinic-test-results/**`, clinic UI, `ai-cmd-clinic-*` |
+
+Index: `.cursor/rules/README.md`. Roadmap: `TODO.md`.
+
+## Sprint 54 — generic clinic vertical (not fertility)
+
+- **Product:** GP, polyclinic, dental, beauty clinic, outpatient lab — **not** IVF/cryo/plans/stim sheets.
+- **Reference:** `clinic-app/` (gitignored Pollin code) — **mine and strip**, not product spec.
+- **Spine:** Booking `Customer` + `Booking`; orders/results use `customerId` + `bookingId` + `businessId`. **No `patientPlanId`.**
+- **Clone:** `clinic-app/apps/clinic-test-results/src/` core only → `backend/src/modules/clinic-test-results/`. Skip `fertility-iq/`, `diagnostic-imaging/`, `genetic-tests/`, `sperm-cryo/`, IVF module imports.
+- **State machines:** `clinic-lab-state.util.ts` — order, result, specimen transitions (**TODO vert-clinic-2.0.12–2.0.16**).
+- **De-fertility CI gate:** grep fails on `patientPlan`, `FertilityIQ`, `HormoneType`, `cohort`, `OHSS`, `sperm-cryo` under `clinic-test-results/`.
+- **Already ported from clinic-app:** scheduling periods/slots, slot locking, `APPOINTMENT_CREATED`, PHI encryption, compliance — do not re-copy.
+
+## Agent habits
+
+- Deterministic-first for AI (rescue/normalization before new LLM prompts).
+- Do not mark `TODO.md` `[x]` without tests + AI coverage per applicable surfaces.
+- Minimize scope; match existing Booking conventions; only commit when user asks.

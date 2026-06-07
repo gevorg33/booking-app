@@ -53,10 +53,12 @@ describe('ai-business-languages.util (ai-cmd-lang-1)', () => {
   });
 
   it('does not classify currency configuration as language configuration', () => {
-    expect(isConfigureBusinessLanguagesPrompt('Set default currency to AMD')).toBe(
-      false,
-    );
-    expect(parseBusinessLanguagesFromPrompt('Set default currency to AMD')).toBeNull();
+    expect(
+      isConfigureBusinessLanguagesPrompt('Set default currency to AMD'),
+    ).toBe(false);
+    expect(
+      parseBusinessLanguagesFromPrompt('Set default currency to AMD'),
+    ).toBeNull();
   });
 
   it('does not rescue when action is already configure_business_languages', () => {
@@ -131,7 +133,9 @@ describe('ai-business-languages.util (ai-cmd-lang-1)', () => {
   );
 
   it('recognizes business languages intent ids', () => {
-    expect(isBusinessLanguagesIntent('configure_business_languages')).toBe(true);
+    expect(isBusinessLanguagesIntent('configure_business_languages')).toBe(
+      true,
+    );
     expect(isBusinessLanguagesIntent('explain_business_languages')).toBe(true);
     expect(
       isBusinessLanguagesIntent('bulk_strip_disabled_locale_translations'),

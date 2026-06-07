@@ -58,7 +58,13 @@ import {
 describe('ai-business-compliance.util', () => {
   it.each(CONFIGURE_PRIVACY_RETENTION_PROMPTS)(
     'detects configure_privacy_retention for $id',
-    ({ prompt, customerPiiDays, bookingHistoryDays, auditLogsDays, cookieBannerEnabled }) => {
+    ({
+      prompt,
+      customerPiiDays,
+      bookingHistoryDays,
+      auditLogsDays,
+      cookieBannerEnabled,
+    }) => {
       expect(isConfigurePrivacyRetentionPrompt(prompt)).toBe(true);
       expect(isConfigureGranularConsentPrompt(prompt)).toBe(false);
       const parsed = parseConfigurePrivacyRetentionFromPrompt(prompt);
@@ -98,7 +104,10 @@ describe('ai-business-compliance.util', () => {
 
   it('rescues privacy retention before granular consent', () => {
     expect(
-      rescueBusinessComplianceIntent('Keep customer data for 3 years', 'unknown'),
+      rescueBusinessComplianceIntent(
+        'Keep customer data for 3 years',
+        'unknown',
+      ),
     ).toEqual({
       action: 'configure_privacy_retention',
       rescueReason: 'configure_privacy_retention',
@@ -139,9 +148,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseConfigureHipaaSessionTimeoutFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.sessionTimeoutMinutes).toBe(sessionTimeoutMinutes);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('configure_hipaa_session_timeout');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'configure_hipaa_session_timeout',
+      );
     },
   );
 
@@ -153,9 +162,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseExplainHipaaSessionTimeoutFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.personalLogout).toBe(personalLogout);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('explain_hipaa_session_timeout');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'explain_hipaa_session_timeout',
+      );
     },
   );
 
@@ -169,9 +178,9 @@ describe('ai-business-compliance.util', () => {
       if (enableHipaa != null) {
         expect(parsed?.enableHipaa).toBe(enableHipaa);
       }
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('accept_hipaa_baa');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'accept_hipaa_baa',
+      );
     },
   );
 
@@ -209,9 +218,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseAdminDeleteCustomerDataFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.customerName).toBe(customerName);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('admin_delete_customer_data');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'admin_delete_customer_data',
+      );
     },
   );
 
@@ -234,9 +243,9 @@ describe('ai-business-compliance.util', () => {
       if (article28 != null) {
         expect(parsed?.article28).toBe(article28);
       }
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('list_sub_processors');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'list_sub_processors',
+      );
     },
   );
 
@@ -248,9 +257,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseExplainGdprChecklistFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.aspect).toBe(aspect);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('explain_gdpr_checklist');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'explain_gdpr_checklist',
+      );
     },
   );
 
@@ -273,9 +282,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseListBreachIncidentsFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.aspect).toBe(aspect);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('list_breach_incidents');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'list_breach_incidents',
+      );
     },
   );
 
@@ -291,9 +300,9 @@ describe('ai-business-compliance.util', () => {
       if (fieldName != null) {
         expect(parsed?.fieldName).toBe(fieldName);
       }
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('view_phi_access_audit');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'view_phi_access_audit',
+      );
     },
   );
 
@@ -306,9 +315,9 @@ describe('ai-business-compliance.util', () => {
       if (fieldName != null) {
         expect(parsed?.fieldName).toBe(fieldName);
       }
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('explain_phi_encryption_status');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'explain_phi_encryption_status',
+      );
     },
   );
 
@@ -320,9 +329,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseExplainMinimumNecessaryPhiAccessFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.aspect).toBe(aspect);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('explain_minimum_necessary_phi_access');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'explain_minimum_necessary_phi_access',
+      );
     },
   );
 
@@ -344,10 +353,8 @@ describe('ai-business-compliance.util', () => {
       )?.action,
     ).toBe('list_sub_processors');
     expect(
-      rescueBusinessComplianceIntent(
-        'Are we GDPR compliant?',
-        'unknown',
-      )?.action,
+      rescueBusinessComplianceIntent('Are we GDPR compliant?', 'unknown')
+        ?.action,
     ).toBe('explain_gdpr_checklist');
   });
 
@@ -372,9 +379,9 @@ describe('ai-business-compliance.util', () => {
       if (affectedCustomerCount != null) {
         expect(parsed?.affectedCustomerCount).toBe(affectedCustomerCount);
       }
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('report_data_breach');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'report_data_breach',
+      );
     },
   );
 
@@ -386,9 +393,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseSendBreachNotificationFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.incidentRef).toBe(incidentRef);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('send_breach_notification');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'send_breach_notification',
+      );
     },
   );
 
@@ -399,9 +406,9 @@ describe('ai-business-compliance.util', () => {
       const parsed = parseOpenComplianceDashboardFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       expect(parsed?.panel).toBe(panel);
-      expect(
-        rescueBusinessComplianceIntent(prompt, 'unknown')?.action,
-      ).toBe('open_compliance_dashboard');
+      expect(rescueBusinessComplianceIntent(prompt, 'unknown')?.action).toBe(
+        'open_compliance_dashboard',
+      );
     },
   );
 
@@ -427,7 +434,10 @@ describe('ai-business-compliance.util', () => {
       isConfigureGranularConsentPrompt('Explain our checkout consent settings'),
     ).toBe(false);
     expect(
-      rescueBusinessComplianceIntent('What is our GDPR retention period?', 'unknown'),
+      rescueBusinessComplianceIntent(
+        'What is our GDPR retention period?',
+        'unknown',
+      ),
     ).toEqual({
       action: 'explain_compliance_status',
       rescueReason: 'explain_compliance_status',

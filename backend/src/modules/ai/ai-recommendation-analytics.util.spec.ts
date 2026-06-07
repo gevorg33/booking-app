@@ -13,15 +13,15 @@ describe('ai-recommendation-analytics.util (ai-cmd-rec-8)', () => {
     'detects recommendation analytics prompt $id',
     ({ prompt, aspect }) => {
       expect(isExplainRecommendationAnalyticsPrompt(prompt)).toBe(true);
-      expect(parseExplainRecommendationAnalyticsFromPrompt(prompt)?.aspect).toBe(
-        aspect,
-      );
-      expect(rescueExplainRecommendationAnalyticsIntent(prompt, 'unknown')).toEqual(
-        {
-          action: 'explain_recommendation_analytics',
-          rescueReason: 'explain_recommendation_analytics',
-        },
-      );
+      expect(
+        parseExplainRecommendationAnalyticsFromPrompt(prompt)?.aspect,
+      ).toBe(aspect);
+      expect(
+        rescueExplainRecommendationAnalyticsIntent(prompt, 'unknown'),
+      ).toEqual({
+        action: 'explain_recommendation_analytics',
+        rescueReason: 'explain_recommendation_analytics',
+      });
     },
   );
 
@@ -71,7 +71,8 @@ describe('ai-recommendation-analytics.util (ai-cmd-rec-8)', () => {
   });
 
   it('does not steal recommendation setup explain prompts', () => {
-    const prompt = 'Which products are linked for post-checkout recommendations?';
+    const prompt =
+      'Which products are linked for post-checkout recommendations?';
     expect(isExplainRecommendationAnalyticsPrompt(prompt)).toBe(false);
     expect(isExplainRecommendationSetupPrompt(prompt)).toBe(true);
   });

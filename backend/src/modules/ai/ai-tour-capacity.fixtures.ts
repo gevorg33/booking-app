@@ -27,7 +27,8 @@ export const DIAGNOSE_TOUR_CAPACITY_PROMPTS = [
   },
   {
     id: 'only-2-spots-error',
-    prompt: 'Why does booking fail with "only 2 spots remaining" for Mountain Trek?',
+    prompt:
+      'Why does booking fail with "only 2 spots remaining" for Mountain Trek?',
     serviceName: 'Mountain Trek',
     aspect: 'insufficientSpots' as const,
   },
@@ -38,7 +39,8 @@ export const DIAGNOSE_TOUR_CAPACITY_PROMPTS = [
   },
   {
     id: 'pax-reduced-clamp',
-    prompt: 'Why was my pax count reduced at checkout for the 3-Day Mountain Trek?',
+    prompt:
+      'Why was my pax count reduced at checkout for the 3-Day Mountain Trek?',
     serviceName: '3-Day Mountain Trek',
     aspect: 'clampedPax' as const,
   },

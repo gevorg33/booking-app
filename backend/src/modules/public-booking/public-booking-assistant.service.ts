@@ -69,8 +69,19 @@ import { rescueTourBookingIntent } from '../ai/ai-tour-booking.util.js';
 import { rescueTourDaySlotsIntent } from '../ai/ai-tour-day-slots.util.js';
 import { rescueExplainCheckoutRecommendationsIntent } from '../ai/ai-checkout-recommendations.util.js';
 import { rescueExplainDataRightsIntent } from '../ai/ai-data-rights.util.js';
+import { rescueConsumerClinicTestResultsIntent } from '../ai/ai-consumer-clinic-test-results.util.js';
 import { DATA_RIGHTS_CLASSIFIER_RULES } from '../ai/ai-data-rights.fixtures.js';
+import { PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-v2-6.fixtures.js';
+import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from '../ai/ai-consumer-clinic-test-results.fixtures.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
+import { AiConsumerClinicTestResultsService } from '../ai/ai-consumer-clinic-test-results.service.js';
+import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
+import { PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-lab-booking.fixtures.js';
+import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-lab-booking.fixtures.js';
+import { rescueConsumerClinicLabBookingIntent } from '../ai/ai-clinic-lab-booking.util.js';
+import { rescueExplainClinicBookingIntent } from '../ai/ai-clinic-booking.util.js';
+import { CLINIC_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-booking.fixtures.js';
+import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
 import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
@@ -111,7 +122,7 @@ export function buildPublicClassifierSchema(): string {
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "unknown",
+  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "serviceName": "string or null — one exact or closest catalog service name",
@@ -176,6 +187,11 @@ ${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
 ${TOUR_CAPACITY_CLASSIFIER_RULES}
 ${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
 ${DATA_RIGHTS_CLASSIFIER_RULES}
+${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
+${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
+${CLINIC_BOOKING_CLASSIFIER_RULES}
+${PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
+${PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }
@@ -199,6 +215,9 @@ export class PublicBookingAssistantService {
     private tourService: AiTourServiceService,
     private recommendationProduct: AiRecommendationProductService,
     private businessCompliance: AiBusinessComplianceService,
+    private consumerClinicTestResults: AiConsumerClinicTestResultsService,
+    private clinicLabBooking: AiClinicLabBookingService,
+    private clinicBooking: AiClinicBookingService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -374,9 +393,36 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       parsed.action = bookingDateFormatRescue.action;
     }
 
-    const dataRightsRescue = rescueExplainDataRightsIntent(prompt, parsed.action);
+    const dataRightsRescue = rescueExplainDataRightsIntent(
+      prompt,
+      parsed.action,
+    );
     if (dataRightsRescue) {
       parsed.action = dataRightsRescue.action;
+    }
+
+    const consumerClinicResultsRescue = rescueConsumerClinicTestResultsIntent(
+      prompt,
+      parsed.action,
+    );
+    if (consumerClinicResultsRescue) {
+      parsed.action = consumerClinicResultsRescue.action;
+    }
+
+    const consumerClinicLabBookingRescue = rescueConsumerClinicLabBookingIntent(
+      prompt,
+      parsed.action,
+    );
+    if (consumerClinicLabBookingRescue) {
+      parsed.action = consumerClinicLabBookingRescue.action;
+    }
+
+    const clinicBookingRescue = rescueExplainClinicBookingIntent(
+      prompt,
+      parsed.action,
+    );
+    if (clinicBookingRescue) {
+      parsed.action = clinicBookingRescue.action;
     }
 
     const compoundDecomposition = isCompoundPrompt(prompt)
@@ -502,6 +548,62 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         break;
       case 'explain_data_rights':
         result = await this.handleExplainDataRights(business.id, prompt);
+        break;
+      case 'explain_clinic_booking':
+        result = await this.handleExplainClinicBooking(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'list_my_test_results':
+        result = await this.handleListMyTestResults(
+          business.id,
+          {
+            ...parsed.params,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+          },
+          prompt,
+        );
+        break;
+      case 'explain_result_status':
+        result = await this.handleExplainResultStatus(
+          business.id,
+          {
+            ...parsed.params,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'list_my_lab_booking_requests':
+        result = await this.handleListMyLabBookingRequests(
+          business.id,
+          {
+            ...parsed.params,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+          },
+          prompt,
+        );
+        break;
+      case 'book_lab_collection':
+        result = await this.handleBookLabCollection(
+          business.id,
+          {
+            ...parsed.params,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+          },
+          prompt,
+        );
         break;
       default:
         result = {
@@ -1150,6 +1252,79 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
+  private async handleListMyTestResults(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.consumerClinicTestResults.handleListMyTestResults(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'list_my_test_results',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainResultStatus(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.consumerClinicTestResults.handleExplainResultStatus(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_result_status',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleListMyLabBookingRequests(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.clinicLabBooking.handleListMyLabBookingRequests(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'list_my_lab_booking_requests',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleBookLabCollection(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.clinicLabBooking.handleBookLabCollection(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'book_lab_collection',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
   private async handleExplainStripeCheckoutCurrency(
     businessId: string,
   ): Promise<PublicAssistantResult> {
@@ -1212,6 +1387,24 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return {
       success: result.success,
       action: result.action ?? 'explain_tour_booking',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainClinicBooking(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.clinicBooking.handleExplainClinicBooking(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_clinic_booking',
       summary: result.summary,
       details: result.details,
     };

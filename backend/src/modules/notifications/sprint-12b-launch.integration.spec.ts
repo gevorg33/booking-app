@@ -60,6 +60,7 @@ describe('Sprint 12.b launch integration', () => {
       businessRepo as any,
       customerRepo as any,
       logRepo as any,
+      { findOne: jest.fn() } as any,
       emailService as any,
       { send: jest.fn() } as any,
       { send: jest.fn() } as any,
@@ -69,6 +70,7 @@ describe('Sprint 12.b launch integration', () => {
           key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
         ),
       } as any,
+      { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
     );
 
     const listener = new MarketingCustomerRegistrationListener(

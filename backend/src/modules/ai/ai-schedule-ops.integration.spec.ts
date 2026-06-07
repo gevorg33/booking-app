@@ -113,7 +113,11 @@ describe('ai schedule ops integration (ai-cmd-h3.2)', () => {
       dateFrom: '02/06/2026',
       dateTo: '08/06/2026',
     };
-    const merged = pipeline.mergeSessionContext(params, session, 'fill_unused_slots');
+    const merged = pipeline.mergeSessionContext(
+      params,
+      session,
+      'fill_unused_slots',
+    );
     inheritScheduleFollowUpContext(
       merged,
       session,

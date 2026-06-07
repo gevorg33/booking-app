@@ -16,8 +16,7 @@ describe('ai-recommendation-product-multilingual.util (ai-cmd-rec-4)', () => {
 
   it('rescues recommendation product intents through AiIntentRescueService', () => {
     const configureRescued = rescueService.rescue({
-      prompt:
-        'Ավելացրու շամպուն ապրանք checkout-ից հետո նկարի և հղման հետ',
+      prompt: 'Ավելացրու շամպուն ապրանք checkout-ից հետո նկարի և հղման հետ',
       action: 'unknown',
       params: {},
     });
@@ -48,12 +47,17 @@ describe('ai-recommendation-product-multilingual.util (ai-cmd-rec-4)', () => {
     'rescues multilingual recommendation product scenario $id',
     ({ prompt, expectedAction, paramsPartial }) => {
       if (expectedAction === 'configure_recommendation_product') {
-        expect(rescueConfigureRecommendationProductIntent(prompt, 'unknown')).toEqual({
+        expect(
+          rescueConfigureRecommendationProductIntent(prompt, 'unknown'),
+        ).toEqual({
           action: 'configure_recommendation_product',
           rescueReason: 'configure_recommendation_product',
         });
         expect(
-          parseConfigureRecommendationProductFromPrompt(prompt, paramsPartial ?? {}),
+          parseConfigureRecommendationProductFromPrompt(
+            prompt,
+            paramsPartial ?? {},
+          ),
         ).not.toBeNull();
         return;
       }
@@ -69,10 +73,12 @@ describe('ai-recommendation-product-multilingual.util (ai-cmd-rec-4)', () => {
         return;
       }
 
-      expect(rescueExplainRecommendationSetupIntent(prompt, 'unknown')).toEqual({
-        action: 'explain_recommendation_setup',
-        rescueReason: 'explain_recommendation_setup',
-      });
+      expect(rescueExplainRecommendationSetupIntent(prompt, 'unknown')).toEqual(
+        {
+          action: 'explain_recommendation_setup',
+          rescueReason: 'explain_recommendation_setup',
+        },
+      );
       expect(
         parseExplainRecommendationSetupFromPrompt(prompt, paramsPartial ?? {}),
       ).not.toBeNull();

@@ -16,9 +16,10 @@ import {
   IonToolbar,
 } from '@ionic/react';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
+import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import {
   createBooking,
   fetchPublicProviders,
@@ -36,12 +37,18 @@ import {
 import { buildSalonPath } from '../lib/deep-link.js';
 import { computeBookingSuccessEndTime } from '../lib/checkout-recommendations.js';
 import { formatBookingDateTimeRange } from '../lib/date-format.js';
-import { copy } from '../lib/copy.js';
+import { ConsumerCheckoutIntakeStep } from '../components/ConsumerCheckoutIntakeStep.js';
 import { ConsumerProductRecommendationCards } from '../components/ConsumerProductRecommendationCards.js';
 
 export default function BookPage() {
   const { serviceId } = useParams<{ slug: string; serviceId: string }>();
+  const location = useLocation();
+  const clinicOrderToken = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('clinicOrderToken');
+    return value?.trim() || undefined;
+  }, [location.search]);
   const { slug, profile, loading, error } = useTenantBootstrap();
+  const { copy, locale } = useConsumerCopy(slug, profile ?? { locale: 'en' });
   const queryClient = useQueryClient();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [employeeId, setEmployeeId] = useState('');
@@ -52,6 +59,7 @@ export default function BookPage() {
     bookingId: string;
     startTime: string;
     endTime: string;
+    quote: PublicCheckoutQuote | null;
   } | null>(null);
 
   const { data: services = [] } = useQuery({
@@ -73,8 +81,13 @@ export default function BookPage() {
     enabled: !!slug && !!serviceId && !!date,
   });
 
+  const [bookingPhase, setBookingPhase] = useState<'schedule' | 'intake'>('schedule');
+  const [preVisitIntakeId, setPreVisitIntakeId] = useState<string | undefined>();
+
   const profileStored = slug ? getStoredCustomerProfile(slug) : null;
   const authed = slug ? !!getCustomerToken(slug) : false;
+
+  const showIntakeStep = Boolean(service?.offersPreVisitIntake && authed);
 
   const minDate = useMemo(() => new Date().toISOString(), []);
 
@@ -112,7 +125,7 @@ export default function BookPage() {
     );
   }
 
-  const submit = async () => {
+  const submit = async (linkedIntakeId?: string) => {
     if (!slug || !slot) return;
     const customer = profileStored;
     if (!customer?.name) {
@@ -126,6 +139,10 @@ export default function BookPage() {
         serviceId: service.id,
         employeeId: employeeId || providers[0]?.id || '',
         startTime: slot,
+        ...(linkedIntakeId ?? preVisitIntakeId
+          ? { preVisitIntakeId: linkedIntakeId ?? preVisitIntakeId }
+          : {}),
+        ...(clinicOrderToken ? { clinicOrderToken } : {}),
         customer: {
           name: customer.name,
           email: customer.email ?? undefined,
@@ -137,6 +154,11 @@ export default function BookPage() {
         setCustomerSession(slug, token, result.customer);
       }
       void queryClient.invalidateQueries({ queryKey: ['bookings', slug] });
+      if (clinicOrderToken) {
+        void queryClient.invalidateQueries({
+          queryKey: ['clinic-lab-booking-requests', slug],
+        });
+      }
       setBookingSuccess({
         bookingId: result.booking.id,
         startTime: slot,
@@ -184,7 +206,7 @@ export default function BookPage() {
             {formatBookingDateTimeRange(
               bookingSuccess.startTime,
               bookingSuccess.endTime,
-              profile.locale,
+              locale,
             )}
           </p>
           <p style={{ color: '#6b7280', marginTop: 8, fontSize: '0.875rem', maxWidth: 320, marginInline: 'auto' }}>
@@ -209,6 +231,7 @@ export default function BookPage() {
             service={service}
             tenantCurrency={profile.currency}
             bookingId={bookingSuccess.bookingId}
+            copy={copy}
           />
           <IonButton
             expand="block"
@@ -227,6 +250,25 @@ export default function BookPage() {
           </IonButton>
         </IonContent>
       </IonPage>
+    );
+  }
+
+  if (bookingPhase === 'intake' && showIntakeStep) {
+    return (
+      <ConsumerCheckoutIntakeStep
+        slug={slug}
+        serviceId={service.id}
+        copy={copy}
+        onSkip={() => {
+          setBookingPhase('schedule');
+          void submit();
+        }}
+        onCompleted={(intakeId) => {
+          setPreVisitIntakeId(intakeId);
+          setBookingPhase('schedule');
+          void submit(intakeId);
+        }}
+      />
     );
   }
 
@@ -318,9 +360,19 @@ export default function BookPage() {
           expand="block"
           className="ion-margin-top"
           disabled={!slot || submitting || !profileStored}
-          onClick={() => void submit()}
+          onClick={() => {
+            if (showIntakeStep && bookingPhase === 'schedule') {
+              setBookingPhase('intake');
+              return;
+            }
+            void submit();
+          }}
         >
-          {submitting ? 'Booking…' : 'Confirm booking'}
+          {submitting
+            ? 'Booking…'
+            : showIntakeStep && bookingPhase === 'schedule'
+              ? copy.publicIntakeContinueToBooking
+              : 'Confirm booking'}
         </IonButton>
         {message ? <p className="ion-margin-top">{message}</p> : null}
       </IonContent>

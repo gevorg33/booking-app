@@ -1,44 +1,23 @@
-/** English UI copy aligned with web public booking (gap-2.7). */
-export const copy = {
-  cancelBooking: 'Cancel appointment',
-  cancelBookingConfirm: 'Cancel this appointment?',
-  cancelBookingFailed: 'Could not cancel appointment',
-  rescheduleBooking: 'Reschedule',
-  pickNewTime: 'Pick a new time',
-  loadingSlots: 'Loading times…',
-  noSlotsThisDay: 'No times available this day',
-  confirmReschedule: 'Confirm reschedule',
-  submitting: 'Saving…',
-  rescheduleBookingFailed: 'Could not reschedule',
-  rescheduleSummary: 'New time: {date} at {time}',
-  rescheduleSuccessDetail: 'Rescheduled from {from} to {to}.',
-  rescheduleCountHint: 'Rescheduled {count} of {max} times',
-  manageBookingTitle: 'Manage appointment',
-  manageBookingInvalidLink: 'This manage link is invalid or expired.',
-  manageBookingSignInHint: 'Sign in to manage from your account.',
-  signIn: 'Sign in',
-  cancelPackageVisit: 'Cancel package visit',
-  cancelPackageVisitConfirm: 'Cancel all appointments in this package visit?',
-  cancelPackageVisitFailed: 'Could not cancel package visit',
-  reschedulePackageVisit: 'Reschedule package visit',
-  reschedulePackageVisitSummary: 'New block: {date} at {time} ({count} services)',
-  reschedulePackageVisitSuccess: 'Package visit rescheduled from {from} to {to}.',
-  packageNoBlock: 'No package block available',
-  bookingStatusCancelled: 'Cancelled',
-  bookingStatusCompleted: 'Completed',
-  bookingStatusConfirmed: 'Confirmed',
-  packageVisitAppointmentCount: '{count} appointments',
-  bookingConfirmed: 'Booking confirmed!',
-  bookingConfirmedHint: 'You can manage this appointment from your account.',
-  youMightAlsoLike: 'You might also like',
-  dismissRecommendations: 'Dismiss recommendations',
-  learnMore: 'Learn more',
-  viewAppointments: 'View appointments',
-  bookAnotherService: 'Book another service',
-  checkoutSubtotal: 'Subtotal',
-  checkoutTotalDue: 'Due now',
-  taxIncluded: 'included',
-} as const;
+/** Localized consumer UI copy aligned with web public booking (gap-2.7). */
+export type { ConsumerCopy, ConsumerDocumentCategory } from './consumer-copy.types.js';
+export {
+  CONSUMER_COPY_EN,
+  CONSUMER_COPY_HY,
+  CONSUMER_COPY_RU,
+  CONSUMER_COPY_LOCALES,
+  getConsumerCopy,
+} from './consumer-copy-catalog.js';
+export { normalizeConsumerLocale, type ConsumerLocale } from './tenant-locale.js';
+
+import { getConsumerCopy, CONSUMER_COPY_EN } from './consumer-copy-catalog.js';
+import { normalizeConsumerLocale } from './tenant-locale.js';
+
+/** English fallback for legacy imports and tests. */
+export const copy = CONSUMER_COPY_EN;
+
+export function consumerCopyForLocale(locale?: string | null): ReturnType<typeof getConsumerCopy> {
+  return getConsumerCopy(normalizeConsumerLocale(locale) ?? 'en');
+}
 
 export function formatCopy(
   template: string,

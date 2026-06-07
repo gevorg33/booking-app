@@ -20,7 +20,8 @@ export const EXPLAIN_PROVIDER_DATE_DISPLAY_PROMPTS = [
   },
   {
     id: 'date-format-from-settings',
-    prompt: 'What date format does the provider app use from business settings?',
+    prompt:
+      'What date format does the provider app use from business settings?',
   },
   {
     id: 'booking-card-date-display',

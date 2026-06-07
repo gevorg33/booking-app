@@ -32,7 +32,9 @@ describe('ai-recommendation-analytics-multilingual.util (ai-cmd-rec-10)', () => 
       action: 'unknown',
       params: {},
     });
-    expect(performanceRescued?.action).toBe('summarize_recommendation_performance');
+    expect(performanceRescued?.action).toBe(
+      'summarize_recommendation_performance',
+    );
   });
 
   it('passes deterministic eval golden cases', () => {
@@ -46,10 +48,12 @@ describe('ai-recommendation-analytics-multilingual.util (ai-cmd-rec-10)', () => 
     ({ prompt, expectedAction, aspect }) => {
       if (expectedAction === 'explain_recommendation_analytics') {
         expect(isExplainRecommendationAnalyticsPrompt(prompt)).toBe(true);
-        expect(parseExplainRecommendationAnalyticsFromPrompt(prompt)?.aspect).toBe(
-          aspect,
-        );
-        expect(rescueExplainRecommendationAnalyticsIntent(prompt, 'unknown')).toEqual({
+        expect(
+          parseExplainRecommendationAnalyticsFromPrompt(prompt)?.aspect,
+        ).toBe(aspect);
+        expect(
+          rescueExplainRecommendationAnalyticsIntent(prompt, 'unknown'),
+        ).toEqual({
           action: 'explain_recommendation_analytics',
           rescueReason: 'explain_recommendation_analytics',
         });
@@ -57,9 +61,9 @@ describe('ai-recommendation-analytics-multilingual.util (ai-cmd-rec-10)', () => 
       }
 
       expect(isSummarizeRecommendationPerformancePrompt(prompt)).toBe(true);
-      expect(parseSummarizeRecommendationPerformanceFromPrompt(prompt)?.aspect).toBe(
-        aspect,
-      );
+      expect(
+        parseSummarizeRecommendationPerformanceFromPrompt(prompt)?.aspect,
+      ).toBe(aspect);
       expect(
         rescueSummarizeRecommendationPerformanceIntent(prompt, 'unknown'),
       ).toEqual({
@@ -72,8 +76,8 @@ describe('ai-recommendation-analytics-multilingual.util (ai-cmd-rec-10)', () => 
   it('maps EN analytics and performance prompts into multilingual eval set', () => {
     const english = buildEnglishRecommendationAnalyticsEvalScenarios();
     expect(english.length).toBe(24);
-    expect(AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.length).toBe(
-      40,
-    );
+    expect(
+      AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.length,
+    ).toBe(40);
   });
 });

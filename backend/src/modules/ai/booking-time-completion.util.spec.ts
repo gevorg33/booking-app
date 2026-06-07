@@ -19,9 +19,7 @@ describe('booking-time-completion.util (ai-cmd-h4.3)', () => {
       true,
     );
     expect(hasRequiredBookingStartTime({ timeSlot: '10:00' })).toBe(true);
-    expect(
-      hasRequiredBookingStartTime({ timeOfDay: 'evening' }),
-    ).toBe(false);
+    expect(hasRequiredBookingStartTime({ timeOfDay: 'evening' })).toBe(false);
   });
 
   it('hasRequiredBookingDate skips date when first-available', () => {

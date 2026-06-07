@@ -31,7 +31,9 @@ describe('ai-booking-date-format.util (ai-cmd-fmt-4)', () => {
       isExplainBookingDateFormatPrompt('What date format does our salon use?'),
     ).toBe(false);
     expect(
-      isExplainBookingDateFormatPrompt('Explain our date and time format settings'),
+      isExplainBookingDateFormatPrompt(
+        'Explain our date and time format settings',
+      ),
     ).toBe(false);
   });
 

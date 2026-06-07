@@ -90,11 +90,37 @@ import {
   BUSINESS_COMPLIANCE_INTENTS,
   BUSINESS_COMPLIANCE_MUTATE_INTENTS,
 } from './ai-business-compliance.util.js';
+import {
+  CLINIC_TEST_ORDER_INTENTS,
+  CLINIC_TEST_ORDER_MUTATE_INTENTS,
+} from './ai-clinic-test-order.util.js';
+import {
+  CLINIC_TEST_RESULT_INTENTS,
+  CLINIC_TEST_RESULT_MUTATE_INTENTS,
+} from './ai-clinic-test-result.util.js';
+import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
+import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
+import {
+  PROVIDER_CLINIC_COLLECTION_INTENTS,
+  PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS,
+} from './ai-provider-clinic-collection.util.js';
+import { CLINIC_BOOKING_INTENTS } from './ai-clinic-booking.util.js';
+import {
+  CONSUMER_CLINIC_LAB_BOOKING_INTENTS,
+  DASHBOARD_CLINIC_LAB_BOOKING_INTENTS,
+  DASHBOARD_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
+  PROVIDER_CLINIC_LAB_BOOKING_INTENTS,
+} from './ai-clinic-lab-booking.util.js';
+import { NOTIFICATION_DATE_FORMAT_MUTATE_INTENTS } from './ai-notification-date-format.util.js';
 import { DATA_RIGHTS_INTENTS } from './ai-data-rights.util.js';
 import {
   PACKAGE_LOCALIZED_NAMES_INTENTS,
   PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
 } from './ai-package-localized-names.util.js';
+import {
+  CLINIC_SERVICE_INTENTS,
+  CLINIC_SERVICE_MUTATE_INTENTS,
+} from './ai-clinic-service.util.js';
 import {
   TOUR_SERVICE_INTENTS,
   TOUR_SERVICE_MUTATE_INTENTS,
@@ -136,6 +162,8 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'explain_provider_date_display',
   'configure_provider_push_date_format',
   'explain_provider_session_timeout',
+  'list_my_collection_queue',
+  'mark_specimen_collected',
   'collect_cash_confirm',
   'gift_card_creation_queue',
   'start_card_preparation',
@@ -182,6 +210,7 @@ const PUBLIC_ANONYMOUS_INTENTS = [
   'explain_tour_day_slots',
   'diagnose_tour_capacity',
   'explain_checkout_recommendations',
+  'explain_clinic_booking',
   'explain_data_rights',
 ] as const;
 
@@ -269,6 +298,70 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: BUSINESS_COMPLIANCE_MUTATE_INTENTS,
   },
   {
+    intents: [...CLINIC_TEST_ORDER_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicTestOrderService',
+    sprint: 'clinicTestOrders',
+    mutateIntents: [...CLINIC_TEST_ORDER_MUTATE_INTENTS],
+  },
+  {
+    intents: [...CLINIC_TEST_RESULT_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicTestResultService',
+    sprint: 'clinicTestResults',
+    mutateIntents: [...CLINIC_TEST_RESULT_MUTATE_INTENTS],
+  },
+  {
+    intents: [...CLINIC_PATIENT_CHART_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'patient-clinical-profiles',
+    handler: 'AiClinicPatientChartService',
+    sprint: 'clinicPatientChart',
+    mutateIntents: [],
+  },
+  {
+    intents: [...CONSUMER_CLINIC_TEST_RESULTS_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiConsumerClinicTestResultsService',
+    sprint: 'consumerClinicTestResults',
+    mutateIntents: [],
+  },
+  {
+    intents: [...DASHBOARD_CLINIC_LAB_BOOKING_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicLabBookingService',
+    sprint: 'clinicLabBooking',
+    mutateIntents: [...DASHBOARD_CLINIC_LAB_BOOKING_MUTATE_INTENTS],
+  },
+  {
+    intents: [...CONSUMER_CLINIC_LAB_BOOKING_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicLabBookingService',
+    sprint: 'clinicLabBooking',
+    mutateIntents: [],
+  },
+  {
+    intents: [...CLINIC_BOOKING_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiClinicBookingService',
+    sprint: 'clinicBooking',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_CLINIC_LAB_BOOKING_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicLabBookingService',
+    sprint: 'clinicLabBooking',
+    mutateIntents: [],
+  },
+  {
     intents: BUSINESS_LANGUAGES_INTENTS,
     surfaces: ['dashboard'],
     apiModule: 'ai-command',
@@ -291,6 +384,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     handler: 'AiPackageLocalizedNamesService',
     sprint: 'packageLocalizedNames',
     mutateIntents: PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
+  },
+  {
+    intents: CLINIC_SERVICE_INTENTS,
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiClinicServiceService',
+    sprint: 'clinicService',
+    mutateIntents: CLINIC_SERVICE_MUTATE_INTENTS,
   },
   {
     intents: TOUR_SERVICE_INTENTS,
@@ -699,6 +800,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     handler: 'AiProviderBookingService',
     sprint: 'providerBooking',
     mutateIntents: PROVIDER_BOOKING_MUTATE_INTENTS,
+  },
+  {
+    intents: [...PROVIDER_CLINIC_COLLECTION_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiProviderClinicCollectionService',
+    sprint: 'providerClinicCollection',
+    mutateIntents: [...PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS],
   },
   {
     intents: PROVIDER_PAYMENTS_INTENTS,
@@ -1283,6 +1392,54 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Delivery queue and mark out for delivery',
       ],
       sprint: 'giftFulfillment',
+    },
+    {
+      id: 'dashboard_clinic_compound',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeDashboardClinicCompoundPrompt',
+      maxSteps: 4,
+      allowedStepIntentIds: [
+        ...CLINIC_TEST_ORDER_MUTATE_INTENTS,
+        ...NOTIFICATION_DATE_FORMAT_MUTATE_INTENTS,
+      ],
+      examplePrompts: [
+        "Order lipid panel for Maria's visit and notify her when results are ready",
+        'Place CBC for John and send result-ready email when available',
+      ],
+      sprint: 'clinicTestOrders',
+    },
+    {
+      id: 'customer_clinic_compound',
+      surfaces: ['customer'],
+      handler: 'CustomerAiCommandService.executeCommand',
+      decomposeUtil: 'decomposeCustomerClinicCompoundPrompt',
+      maxSteps: 4,
+      allowedStepIntentIds: [
+        'book_nearest_slot',
+        ...CONSUMER_CLINIC_TEST_RESULTS_INTENTS,
+      ],
+      examplePrompts: [
+        'Book lipid panel and notify me when results are ready',
+        'Schedule a CBC and explain when my results will be ready',
+      ],
+      sprint: 'clinicTestOrders',
+    },
+    {
+      id: 'public_clinic_compound',
+      surfaces: ['public'],
+      handler: 'PublicBookingAssistantService.executeCommand',
+      decomposeUtil: 'decomposePublicClinicCompoundPrompt',
+      maxSteps: 4,
+      allowedStepIntentIds: [
+        'book_appointment',
+        ...CONSUMER_CLINIC_TEST_RESULTS_INTENTS,
+      ],
+      examplePrompts: [
+        'Book lipid panel and tell me when results are ready on this page',
+        'Schedule a CBC and explain when results will be ready',
+      ],
+      sprint: 'clinicTestOrders',
     },
     {
       id: 'public_assistant_compound',

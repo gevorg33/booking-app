@@ -37,14 +37,15 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
-function resolvePeriodDays(parsed: ParsedExplainRecommendationAnalytics): number {
+function resolvePeriodDays(
+  parsed: ParsedExplainRecommendationAnalytics,
+): number {
   return parsed.daysAhead ?? DEFAULT_DAYS_AHEAD;
 }
 
-function attachProductNames<T extends { productId: string; productName?: string }>(
-  rows: T[],
-  productNameById: Map<string, string>,
-): T[] {
+function attachProductNames<
+  T extends { productId: string; productName?: string },
+>(rows: T[], productNameById: Map<string, string>): T[] {
   return rows.map((row) => ({
     ...row,
     productName: productNameById.get(row.productId) ?? row.productId,
@@ -97,8 +98,7 @@ function buildSurfacesSummary(
     return `No product_recommendation.shown or product_recommendation.clicked events were recorded in the last ${periodDays} days.`;
   }
   const lines = stats.bySurface.map(
-    (row) =>
-      `${row.label}: ${row.impressions} shown / ${row.clicks} clicked`,
+    (row) => `${row.label}: ${row.impressions} shown / ${row.clicks} clicked`,
   );
   return `Checkout recommendation surfaces in the last ${periodDays} days — ${lines.join('; ')}.`;
 }
@@ -173,7 +173,9 @@ export async function handleExplainRecommendationAnalyticsLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_recommendation_analytics', 'Business not found.');
   }
@@ -190,7 +192,11 @@ export async function handleExplainRecommendationAnalyticsLogic(
     limit: 10_000,
   });
 
-  const products = await deps.inventoryService.listProducts(businessId, undefined, true);
+  const products = await deps.inventoryService.listProducts(
+    businessId,
+    undefined,
+    true,
+  );
   const productNameById = new Map(
     products.map((product) => [product.id, product.name]),
   );

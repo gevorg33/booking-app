@@ -14,6 +14,7 @@ import {
   ArrayMinSize,
   ValidateIf,
   IsIn,
+  IsUUID,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -102,6 +103,17 @@ export class CreatePublicBookingDto {
   @IsString()
   @MaxLength(500)
   symptoms?: string;
+
+  /** Clinic vertical — optional pre-visit intake completed before checkout (lab tests). */
+  @IsOptional()
+  @IsUUID()
+  preVisitIntakeId?: string;
+
+  /** Clinic vertical — token from staff-pushed lab booking request. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  clinicOrderToken?: string;
 
   @ValidateNested()
   @Type(() => PublicCustomerDto)

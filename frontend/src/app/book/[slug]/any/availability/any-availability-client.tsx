@@ -22,11 +22,18 @@ interface AnyAvailabilityClientProps {
   tenant: PublicBusinessProfile;
   service: PublicService;
   backHref: string;
+  clinicOrderToken?: string;
 }
 
 const SCAN_DAYS = 14;
 
-export function AnyAvailabilityClient({ slug, tenant, service, backHref }: AnyAvailabilityClientProps) {
+export function AnyAvailabilityClient({
+  slug,
+  tenant,
+  service,
+  backHref,
+  clinicOrderToken,
+}: AnyAvailabilityClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tz = tenant.timezone || 'UTC';
@@ -74,8 +81,11 @@ export function AnyAvailabilityClient({ slug, tenant, service, backHref }: AnyAv
       startTime: selectedStartTime,
       autoAssign: '1',
     });
+    if (clinicOrderToken) {
+      q.set('clinicOrderToken', clinicOrderToken);
+    }
     return `${bookPath(slug, '/checkout')}?${q.toString()}`;
-  }, [slug, service.id, selectedStartTime]);
+  }, [slug, service.id, selectedStartTime, clinicOrderToken]);
 
   const onContinue = useCallback(() => {
     if (checkoutHref) router.push(checkoutHref);

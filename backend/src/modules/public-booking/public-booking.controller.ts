@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PublicBookingService } from './public-booking.service.js';
 import { BusinessService } from '../business/business.service.js';
@@ -51,6 +52,19 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { PublicCustomerRequestUser } from './public-customer-auth.decorator.js';
 import { CustomerPrivacyService } from '../customer/customer-privacy.service.js';
 import { normalizeMultiServiceIds } from '../../common/utils/multi-service-booking.util.js';
+import { ClinicTestResultsService } from '../clinic-test-results/clinic-test-results.service.js';
+import { ClinicTestOrderBookingRequestService } from '../clinic-test-results/order/clinic-test-order-booking-request.service.js';
+import { PatientDocumentsService } from '../patient-clinical-profiles/patient-documents.service.js';
+import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.js';
+import {
+  PublicPreVisitIntakeDraftDto,
+  PublicPreVisitIntakeQueryDto,
+} from './dto/public-pre-visit-intake.dto.js';
+import { SubmitClinicPreVisitIntakeAnswersDto } from '../clinic-pre-visit-intakes/dto/clinic-pre-visit-intake.dto.js';
+import { PatientClinicalAlertsService } from '../patient-clinical-profiles/patient-clinical-alerts.service.js';
+import type { ClinicPatientAlertType } from '../../common/utils/clinic-patient-alert.types.js';
+import { ConsumerPushTokenService } from '../notifications/consumer-push-token.service.js';
+import { RegisterConsumerNativePushDto } from '../notifications/dto/register-consumer-native-push.dto.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -63,6 +77,12 @@ export class PublicBookingController {
     private publicCustomerAuthService: PublicCustomerAuthService,
     private publicCustomerBookingService: PublicCustomerBookingService,
     private customerPrivacyService: CustomerPrivacyService,
+    private clinicTestResultsService: ClinicTestResultsService,
+    private clinicTestOrderBookingRequestService: ClinicTestOrderBookingRequestService,
+    private patientDocumentsService: PatientDocumentsService,
+    private publicPreVisitIntakeService: PublicPreVisitIntakeService,
+    private patientClinicalAlertsService: PatientClinicalAlertsService,
+    private consumerPushTokenService: ConsumerPushTokenService,
   ) {}
 
   @Get()
@@ -398,6 +418,75 @@ export class PublicBookingController {
     );
   }
 
+  @Get('checkout/pre-visit-intake/config')
+  getPreVisitIntakeConfig(
+    @Param('slug') slug: string,
+    @Query() query: PublicPreVisitIntakeQueryDto,
+  ) {
+    return this.publicPreVisitIntakeService.getCheckoutConfig(
+      slug,
+      query.serviceId,
+    );
+  }
+
+  @Post('me/pre-visit-intake/draft')
+  @UseGuards(PublicCustomerAuthGuard)
+  createPreVisitIntakeDraft(
+    @Param('slug') slug: string,
+    @Body() dto: PublicPreVisitIntakeDraftDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicPreVisitIntakeService.ensureCustomerDraft(
+      slug,
+      user.customerId,
+      dto,
+    );
+  }
+
+  @Get('me/pre-visit-intake/:intakeId')
+  @UseGuards(PublicCustomerAuthGuard)
+  getPreVisitIntakeFlow(
+    @Param('slug') slug: string,
+    @Param('intakeId') intakeId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicPreVisitIntakeService.getCustomerFlow(
+      slug,
+      user.customerId,
+      intakeId,
+    );
+  }
+
+  @Post('me/pre-visit-intake/:intakeId/start')
+  @UseGuards(PublicCustomerAuthGuard)
+  startPreVisitIntake(
+    @Param('slug') slug: string,
+    @Param('intakeId') intakeId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicPreVisitIntakeService.startCustomerIntake(
+      slug,
+      user.customerId,
+      intakeId,
+    );
+  }
+
+  @Post('me/pre-visit-intake/:intakeId/answers')
+  @UseGuards(PublicCustomerAuthGuard)
+  submitPreVisitIntakeAnswers(
+    @Param('slug') slug: string,
+    @Param('intakeId') intakeId: string,
+    @Body() dto: SubmitClinicPreVisitIntakeAnswersDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicPreVisitIntakeService.submitCustomerAnswers(
+      slug,
+      user.customerId,
+      intakeId,
+      dto,
+    );
+  }
+
   @Post('bookings/quote')
   @UseGuards(OptionalPublicCustomerAuthGuard)
   quoteBooking(
@@ -534,6 +623,136 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicCustomerAuthService.listBookings(slug, user.customerId);
+  }
+
+  @Get('me/clinic-lab-booking-requests')
+  @UseGuards(PublicCustomerAuthGuard)
+  async listMyClinicLabBookingRequests(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    const data =
+      await this.clinicTestOrderBookingRequestService.listPendingBookingRequestsForCustomer(
+        business.id,
+        user.customerId,
+      );
+    return { data };
+  }
+
+  @Get('me/clinic-test-results')
+  @UseGuards(PublicCustomerAuthGuard)
+  async listMyReleasedClinicResults(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    const data =
+      await this.clinicTestResultsService.listReleasedResultsForCustomer(
+        business.id,
+        user.customerId,
+      );
+    return { data };
+  }
+
+  @Get('me/clinic-documents')
+  @UseGuards(PublicCustomerAuthGuard)
+  async listMyReleasedClinicDocuments(
+    @Param('slug') slug: string,
+    @Query('category') category: string | undefined,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    const data =
+      await this.patientDocumentsService.listReleasedDocumentsForCustomerAccount(
+        business.id,
+        user.customerId,
+        user.customerId,
+        category,
+      );
+    return { data };
+  }
+
+  @Get('me/clinic-patient-alerts')
+  @UseGuards(PublicCustomerAuthGuard)
+  async listMyClinicPatientAlerts(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    return {
+      data: await this.patientClinicalAlertsService.listAlertsForCustomerAccount(
+        business.id,
+        user.customerId,
+      ),
+    };
+  }
+
+  @Post('me/clinic-patient-alerts/:alertType/:sourceId/dismiss')
+  @UseGuards(PublicCustomerAuthGuard)
+  async dismissMyClinicPatientAlert(
+    @Param('slug') slug: string,
+    @Param('alertType') alertType: ClinicPatientAlertType,
+    @Param('sourceId') sourceId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    return {
+      data: await this.patientClinicalAlertsService.dismissAlertForCustomerAccount(
+        business.id,
+        user.customerId,
+        alertType,
+        sourceId,
+      ),
+    };
+  }
+
+  @Get('me/clinic-documents/:documentId')
+  @UseGuards(PublicCustomerAuthGuard)
+  async getMyReleasedClinicDocument(
+    @Param('slug') slug: string,
+    @Param('documentId') documentId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    if (user.businessId !== business.id) {
+      throw new ForbiddenException(
+        'Customer session does not match this business',
+      );
+    }
+    return {
+      data: await this.patientDocumentsService.getReleasedDocumentForCustomerAccount(
+        business.id,
+        user.customerId,
+        documentId,
+        user.customerId,
+      ),
+    };
   }
 
   @Post('me/bookings/:bookingId/cancel')
@@ -711,6 +930,32 @@ export class PublicBookingController {
       slug,
       user.customerId,
       subscriptionId,
+    );
+  }
+
+  @Post('me/push/register-native')
+  @UseGuards(PublicCustomerAuthGuard)
+  registerConsumerNativePush(
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Body() dto: RegisterConsumerNativePushDto,
+  ) {
+    return this.consumerPushTokenService.registerToken(
+      user.customerId,
+      user.businessId,
+      dto,
+    );
+  }
+
+  @Get('me/push/native-status')
+  @UseGuards(PublicCustomerAuthGuard)
+  getConsumerNativePushStatus(
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Query('platform') platform?: 'ios' | 'android',
+  ) {
+    return this.consumerPushTokenService.getNativePushStatus(
+      user.customerId,
+      user.businessId,
+      platform,
     );
   }
 

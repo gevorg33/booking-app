@@ -92,7 +92,9 @@ export async function handleConfigureBusinessTaxLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_business_tax', 'Business not found.');
   }
@@ -133,7 +135,8 @@ export async function handleConfigureBusinessTaxLogic(
   try {
     normalized = assertBusinessTaxSettings(next);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Invalid tax settings';
+    const message =
+      error instanceof Error ? error.message : 'Invalid tax settings';
     return failure('configure_business_tax', message, { clarify: true });
   }
 
@@ -154,10 +157,10 @@ export async function handleConfigureBusinessTaxLogic(
     );
   }
 
-  business.settings = mergeBusinessSettings(settings, mergeBusinessTaxSettings(
-    settings ?? {},
-    normalized,
-  ));
+  business.settings = mergeBusinessSettings(
+    settings,
+    mergeBusinessTaxSettings(settings ?? {}, normalized),
+  );
   await deps.businessRepo.save(business);
 
   const summary = normalized.enabled
@@ -224,7 +227,9 @@ export async function handleExplainBusinessTaxLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_business_tax', 'Business not found.');
   }
@@ -318,7 +323,9 @@ export async function handleSetServiceTaxRateLogic(
   prompt?: string,
   confirmed = false,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('set_service_tax_rate', 'Business not found.');
   }
@@ -338,10 +345,9 @@ export async function handleSetServiceTaxRateLogic(
     select: { id: true, name: true, metadata: true },
   });
 
-  const matched =
-    parsed.serviceIds?.length
-      ? services.filter((service) => parsed.serviceIds!.includes(service.id))
-      : matchServicesByQuery(services, parsed.serviceQuery);
+  const matched = parsed.serviceIds?.length
+    ? services.filter((service) => parsed.serviceIds!.includes(service.id))
+    : matchServicesByQuery(services, parsed.serviceQuery);
 
   if (!matched.length) {
     return failure(
@@ -388,7 +394,7 @@ export async function handleSetServiceTaxRateLogic(
   const updatedServiceIds: string[] = [];
   for (const service of needsUpdate) {
     const metadata = applyServiceTaxRateToMetadata(
-      ((service.metadata ?? {}) as Record<string, unknown>),
+      (service.metadata ?? {}) as Record<string, unknown>,
       parsed.taxRatePercent,
     );
     await deps.serviceRepo.save({
@@ -419,7 +425,9 @@ export async function handleExplainCheckoutTaxLogic(
   deps: BusinessTaxLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_checkout_tax', 'Business not found.');
   }
@@ -429,9 +437,7 @@ export async function handleExplainCheckoutTaxLogic(
   const publicTax = toPublicBusinessTaxSettings(tax);
   const samplePrice = 100;
   const example = formatTaxBreakdownExample(samplePrice, tax);
-  const inclusiveBadge = publicTax
-    ? formatInclusiveTaxBadge(publicTax)
-    : null;
+  const inclusiveBadge = publicTax ? formatInclusiveTaxBadge(publicTax) : null;
 
   if (!publicTax) {
     return success(
@@ -558,7 +564,9 @@ export async function handleExplainConsumerCheckoutTaxLogic(
       ? params.aspect
       : parsed?.aspect) ?? 'all';
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_consumer_checkout_tax', 'Business not found.');
   }
@@ -568,9 +576,7 @@ export async function handleExplainConsumerCheckoutTaxLogic(
   const publicTax = toPublicBusinessTaxSettings(tax);
   const samplePrice = 100;
   const example = formatTaxBreakdownExample(samplePrice, tax);
-  const inclusiveBadge = publicTax
-    ? formatInclusiveTaxBadge(publicTax)
-    : null;
+  const inclusiveBadge = publicTax ? formatInclusiveTaxBadge(publicTax) : null;
 
   if (!publicTax) {
     return success(
@@ -684,7 +690,9 @@ export async function handleConfigureStackedTaxRulesLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_stacked_tax_rules', 'Business not found.');
   }
@@ -832,7 +840,9 @@ export async function handleExplainStackedTaxLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_stacked_tax', 'Business not found.');
   }
@@ -910,7 +920,9 @@ function formatStripeTaxChargeSummary(
   const taxLineSummary =
     summary.taxLines && summary.taxLines.length > 1
       ? summary.taxLines
-          .map((line) => `${line.name} ${line.rate}% = ${currency} ${line.amount}`)
+          .map(
+            (line) => `${line.name} ${line.rate}% = ${currency} ${line.amount}`,
+          )
           .join('; ')
       : `${taxName} ${taxRate}% = ${currency} ${taxAmount}`;
 
@@ -921,7 +933,9 @@ function formatStripeTaxChargeSummary(
       ? `netAmount=${netAmount}`
       : null,
     `taxModel=${taxModel}`,
-    summary.taxLines && summary.taxLines.length > 1 ? 'taxRules[] present' : null,
+    summary.taxLines && summary.taxLines.length > 1
+      ? 'taxRules[] present'
+      : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -1027,14 +1041,14 @@ function formatLookupBookingTaxMetadataSummary(
     `amountPaid=${taxMetadata.amountPaid ?? 'n/a'}`,
   ];
   if (Array.isArray(taxMetadata.taxRules) && taxMetadata.taxRules.length > 0) {
-    lines.push(
-      `taxRules=${JSON.stringify(taxMetadata.taxRules)}`,
-    );
+    lines.push(`taxRules=${JSON.stringify(taxMetadata.taxRules)}`);
   }
   if (taxMetadata.stripeSessionId) {
     lines.push(`stripeSessionId=${taxMetadata.stripeSessionId}`);
   }
-  lines.push('Use these fields for receipts, disputes, and Stripe reconciliation.');
+  lines.push(
+    'Use these fields for receipts, disputes, and Stripe reconciliation.',
+  );
   return lines.join(' ');
 }
 
@@ -1057,12 +1071,9 @@ export async function handleLookupBookingTaxMetadataLogic(
     );
   }
 
-  const booking = await resolveBookingForTaxQuery(
-    deps,
-    businessId,
-    parsed,
-    { preferTaxPricing: false },
-  );
+  const booking = await resolveBookingForTaxQuery(deps, businessId, parsed, {
+    preferTaxPricing: false,
+  });
   if (!booking) {
     return failure(
       'lookup_booking_tax_metadata',
@@ -1090,7 +1101,8 @@ export async function handleLookupBookingTaxMetadataLogic(
     customerName: booking.customer?.name ?? null,
     serviceName: booking.service?.name ?? null,
     taxMetadata,
-    pricing: ((booking.metadata ?? {}) as Record<string, unknown>).pricing ?? null,
+    pricing:
+      ((booking.metadata ?? {}) as Record<string, unknown>).pricing ?? null,
   });
 }
 
@@ -1102,7 +1114,8 @@ function formatExplainAppointmentTaxSummary(
   const serviceLabel = booking.service?.name ?? 'the service';
   const currency = paymentSummary.currency;
   const taxAmount = paymentSummary.taxAmount ?? 0;
-  const collectedAmount = paymentSummary.grandTotal ?? paymentSummary.cashPaid ?? 0;
+  const collectedAmount =
+    paymentSummary.grandTotal ?? paymentSummary.cashPaid ?? 0;
   const taxModel = paymentSummary.taxModel ?? 'exclusive';
   const paidLabel =
     booking.paymentStatus === PaymentStatus.PAID
@@ -1240,7 +1253,9 @@ function formatStaffBookingTaxSourceExplanation(
     case 'service_override':
       return `Service override metadata.taxRatePercent=${serviceRatePercent}% replaces salon stacked rules and the default ${tax.name} rate for this booking preview.`;
     case 'stacked_rules': {
-      const ruleList = rules.map((rule) => `${rule.name} ${rule.rate}%`).join(' + ');
+      const ruleList = rules
+        .map((rule) => `${rule.name} ${rule.rate}%`)
+        .join(' + ');
       return `Salon stacked tax rules apply (${ruleList}) — no per-service override on this catalog item.`;
     }
     default:
@@ -1280,7 +1295,9 @@ export async function handleQuoteStaffBookingTaxLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('quote_staff_booking_tax', 'Business not found.');
   }
@@ -1378,7 +1395,10 @@ export async function handleSummarizeCustomerTaxPaidLogic(
   prompt?: string,
 ): Promise<CommandResult> {
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseSummarizeCustomerTaxPaidFromPrompt(effectivePrompt, params);
+  const parsed = parseSummarizeCustomerTaxPaidFromPrompt(
+    effectivePrompt,
+    params,
+  );
   if (!parsed) {
     return failure(
       'summarize_customer_tax_paid',
@@ -1414,7 +1434,8 @@ export async function handleSummarizeCustomerTaxPaidLogic(
   let totalTaxPaid = 0;
   let appointmentsWithTax = 0;
   let paidAppointmentsChecked = 0;
-  const customerLabel = customerBookings[0].customer?.name ?? parsed.customerName;
+  const customerLabel =
+    customerBookings[0].customer?.name ?? parsed.customerName;
 
   for (const booking of customerBookings) {
     if (booking.status === BookingStatus.CANCELLED) continue;

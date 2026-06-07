@@ -19,10 +19,12 @@ describe('ai-upcoming-tour-departures.util (ai-cmd-tour-8)', () => {
   it.each(LIST_UPCOMING_TOUR_DEPARTURES_PROMPTS)(
     'rescues unknown action to list_upcoming_tour_departures for $id',
     ({ prompt }) => {
-      expect(rescueListUpcomingTourDeparturesIntent(prompt, 'unknown')).toEqual({
-        action: 'list_upcoming_tour_departures',
-        rescueReason: 'list_upcoming_tour_departures',
-      });
+      expect(rescueListUpcomingTourDeparturesIntent(prompt, 'unknown')).toEqual(
+        {
+          action: 'list_upcoming_tour_departures',
+          rescueReason: 'list_upcoming_tour_departures',
+        },
+      );
     },
   );
 

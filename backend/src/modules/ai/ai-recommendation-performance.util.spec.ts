@@ -14,9 +14,9 @@ describe('ai-recommendation-performance.util (ai-cmd-rec-9)', () => {
     'detects recommendation performance prompt $id',
     ({ prompt, aspect }) => {
       expect(isSummarizeRecommendationPerformancePrompt(prompt)).toBe(true);
-      expect(parseSummarizeRecommendationPerformanceFromPrompt(prompt)?.aspect).toBe(
-        aspect,
-      );
+      expect(
+        parseSummarizeRecommendationPerformanceFromPrompt(prompt)?.aspect,
+      ).toBe(aspect);
       expect(
         rescueSummarizeRecommendationPerformanceIntent(prompt, 'unknown'),
       ).toEqual({

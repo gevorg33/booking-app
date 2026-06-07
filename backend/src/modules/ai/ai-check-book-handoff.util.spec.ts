@@ -9,7 +9,8 @@ describe('ai-check-book-handoff.util (ai-cmd-h2.2)', () => {
   const checkResult = {
     success: true,
     action: 'check_providers_for_service',
-    summary: '2 provider(s) available for massage on 07/06/2026:\n• Karo — 09:00',
+    summary:
+      '2 provider(s) available for massage on 07/06/2026:\n• Karo — 09:00',
     details: {
       serviceName: 'massage',
       serviceId: 's1',
@@ -48,7 +49,10 @@ describe('ai-check-book-handoff.util (ai-cmd-h2.2)', () => {
 
   it('attaches handoff onto book_nearest_slot details', () => {
     const handoff = buildCheckProvidersHandoffFromResult(checkResult);
-    const details = attachCheckProvidersHandoff({ slot: { startTime: '18:00' } }, handoff);
+    const details = attachCheckProvidersHandoff(
+      { slot: { startTime: '18:00' } },
+      handoff,
+    );
     expect(details.checkProvidersHandoff).toMatchObject({
       serviceName: 'massage',
     });

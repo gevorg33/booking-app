@@ -73,8 +73,7 @@ describe('ai stacked tax integration (ai-cmd-tax-6..7)', () => {
   it.each(
     CONFIGURE_STACKED_TAX_RULES_PROMPTS.filter(
       (entry) =>
-        !('clarify' in entry && entry.clarify) &&
-        entry.operation !== 'remove',
+        !('clarify' in entry && entry.clarify) && entry.operation !== 'remove',
     ),
   )('rescues and validates configure stacked tax $id', async ({ prompt }) => {
     const parsed = parseConfigureStackedTaxRulesFromPrompt(prompt);

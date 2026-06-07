@@ -15,7 +15,8 @@ export const BUSINESS_LANGUAGES_MUTATE_INTENTS = [
   'bulk_strip_disabled_locale_translations',
 ] as const;
 
-export type BusinessLanguagesIntent = (typeof BUSINESS_LANGUAGES_INTENTS)[number];
+export type BusinessLanguagesIntent =
+  (typeof BUSINESS_LANGUAGES_INTENTS)[number];
 
 export type BusinessLanguageOperation = 'enable' | 'disable' | 'set_default';
 
@@ -59,9 +60,7 @@ function containsCyrillicScript(text: string): boolean {
 function isCatalogBulkTranslationContext(prompt: string): boolean {
   return (
     /\b(services?|categories?|catalog|disabled\s+locales?)\b/i.test(prompt) ||
-    /(услуг|категор|пакетов|каталог|կատալոգ|ծառայություն|կատեգոր)/i.test(
-      prompt,
-    )
+    /(услуг|категор|пакетов|каталог|կատալոգ|ծառայություն|կատեգոր)/i.test(prompt)
   );
 }
 
@@ -160,9 +159,7 @@ function isCatalogTranslationCreationPrompt(prompt: string): boolean {
     /\b(category|categories|service|services|catalog|package|linked)\b/i.test(
       prompt,
     ) &&
-    /\b(translation|translations|localized|locali[sz]ed|names?)\b/i.test(
-      prompt,
-    )
+    /\b(translation|translations|localized|locali[sz]ed|names?)\b/i.test(prompt)
   );
 }
 
@@ -195,7 +192,11 @@ export function isConfigureBusinessLanguagesPrompt(prompt: string): boolean {
   if (isSinglePackageLocalizedNamePrompt(prompt)) return false;
   if (!hasLanguageSurface(prompt)) return false;
   if (isCatalogTranslationCreationPrompt(prompt)) return false;
-  if (/\b(currency|currencies|AMD|EUR|RUB|USD|dram|euro|ruble|դրամ|արժույթ|валют)\b/i.test(prompt)) {
+  if (
+    /\b(currency|currencies|AMD|EUR|RUB|USD|dram|euro|ruble|դրամ|արժույթ|валют)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
 
@@ -228,13 +229,14 @@ function matchLocaleToken(token: string): AppLocale | null {
 }
 
 function extractLocalesFromPrompt(prompt: string): AppLocale[] {
-  if (/\b(all|every)\b[\s\S]{0,30}\b(language|languages|locale|locales)\b/i.test(prompt)) {
+  if (
+    /\b(all|every)\b[\s\S]{0,30}\b(language|languages|locale|locales)\b/i.test(
+      prompt,
+    )
+  ) {
     return [...SUPPORTED_LOCALES];
   }
-  if (
-    /(բոլոր|ամբողջ)/i.test(prompt) &&
-    /(լեզու|լեզուներ)/i.test(prompt)
-  ) {
+  if (/(բոլոր|ամբողջ)/i.test(prompt) && /(լեզու|լեզուներ)/i.test(prompt)) {
     return [...SUPPORTED_LOCALES];
   }
   if (/\b(все|всех)\b[\s\S]{0,30}\b(язык|языки|локал)/i.test(prompt)) {
@@ -290,9 +292,9 @@ export function parseBusinessLanguagesFromPrompt(
           .map((item) => normalizeAppLocale(String(item)))
           .filter((item): item is AppLocale => item !== null)
       : operationFromParams === 'set_default'
-        ? [
-            normalizeAppLocale(String(defaultFromParams ?? '')),
-          ].filter((item): item is AppLocale => item !== null)
+        ? [normalizeAppLocale(String(defaultFromParams ?? ''))].filter(
+            (item): item is AppLocale => item !== null,
+          )
         : [];
 
     if (locales.length > 0) {
@@ -356,11 +358,17 @@ export function isExplainBusinessLanguagesPrompt(prompt: string): boolean {
   if (isCatalogTranslationCreationPrompt(prompt)) return false;
   if (!hasLanguageSurface(prompt)) return false;
   if (isBookingPageVisitorLanguageQuestion(prompt)) return false;
-  if (/\b(currency|currencies|AMD|EUR|RUB|USD|dram|euro|ruble|դրամ|արժույթ|валют)\b/i.test(prompt)) {
+  if (
+    /\b(currency|currencies|AMD|EUR|RUB|USD|dram|euro|ruble|դրամ|արժույթ|валют)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   if (
-    /\b(booking\s+page|public\s+booking|customer\s+app|visitor)\b/i.test(prompt) &&
+    /\b(booking\s+page|public\s+booking|customer\s+app|visitor)\b/i.test(
+      prompt,
+    ) &&
     !/\b(business|salon|tenant|settings?)\b/i.test(prompt)
   ) {
     return false;
@@ -369,7 +377,9 @@ export function isExplainBusinessLanguagesPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
 
   if (
-    /\b(explain|describe|show|tell me|what(?:'s|\s+is)|which)\b/i.test(prompt) &&
+    /\b(explain|describe|show|tell me|what(?:'s|\s+is)|which)\b/i.test(
+      prompt,
+    ) &&
     /\b(language|languages|locale|locales|localization)\b/i.test(prompt)
   ) {
     return true;

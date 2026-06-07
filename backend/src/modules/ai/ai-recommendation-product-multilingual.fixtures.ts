@@ -26,11 +26,14 @@ export const MULTILINGUAL_RECOMMENDATION_PRODUCT_EVAL_SCENARIOS: RecommendationP
     {
       id: 'hy-configure-shampoo-image-link',
       locale: 'hy',
-      prompt:
-        'Ավելացրու շամպուն ապրանք checkout-ից հետո նկարի և հղման հետ',
+      prompt: 'Ավելացրու շամպուն ապրանք checkout-ից հետո նկարի և հղման հետ',
       expectedAction: 'configure_recommendation_product',
       rescueReason: 'configure_recommendation_product',
-      paramsPartial: { productName: 'շամպուն', wantsImage: true, wantsLink: true },
+      paramsPartial: {
+        productName: 'շամպուն',
+        wantsImage: true,
+        wantsLink: true,
+      },
       needsMultilingual: true,
     },
     {
@@ -54,20 +57,28 @@ export const MULTILINGUAL_RECOMMENDATION_PRODUCT_EVAL_SCENARIOS: RecommendationP
     {
       id: 'hy-configure-update-shampoo-image',
       locale: 'hy',
-      prompt: 'Թարմացրու recommendation ապրանք Shampoo նկարը /uploads/shampoo.jpg',
+      prompt:
+        'Թարմացրու recommendation ապրանք Shampoo նկարը /uploads/shampoo.jpg',
       expectedAction: 'configure_recommendation_product',
       rescueReason: 'configure_recommendation_product',
-      paramsPartial: { productName: 'Shampoo', imageUrl: '/uploads/shampoo.jpg', isUpdate: true },
+      paramsPartial: {
+        productName: 'Shampoo',
+        imageUrl: '/uploads/shampoo.jpg',
+        isUpdate: true,
+      },
       needsMultilingual: true,
     },
     {
       id: 'ru-configure-shampoo-image-link',
       locale: 'ru',
-      prompt:
-        'Добавить шампунь товар для post-checkout с картинкой и ссылкой',
+      prompt: 'Добавить шампунь товар для post-checkout с картинкой и ссылкой',
       expectedAction: 'configure_recommendation_product',
       rescueReason: 'configure_recommendation_product',
-      paramsPartial: { productName: 'шампунь', wantsImage: true, wantsLink: true },
+      paramsPartial: {
+        productName: 'шампунь',
+        wantsImage: true,
+        wantsLink: true,
+      },
       needsMultilingual: true,
     },
     {
@@ -91,17 +102,21 @@ export const MULTILINGUAL_RECOMMENDATION_PRODUCT_EVAL_SCENARIOS: RecommendationP
     {
       id: 'ru-configure-update-shampoo',
       locale: 'ru',
-      prompt: 'Обновить recommendation product Shampoo image /uploads/shampoo.jpg',
+      prompt:
+        'Обновить recommendation product Shampoo image /uploads/shampoo.jpg',
       expectedAction: 'configure_recommendation_product',
       rescueReason: 'configure_recommendation_product',
-      paramsPartial: { productName: 'Shampoo', imageUrl: '/uploads/shampoo.jpg', isUpdate: true },
+      paramsPartial: {
+        productName: 'Shampoo',
+        imageUrl: '/uploads/shampoo.jpg',
+        isUpdate: true,
+      },
       needsMultilingual: true,
     },
     {
       id: 'hy-link-shampoo-conditioner-haircut',
       locale: 'hy',
-      prompt:
-        'Առաջարկիր շամպուն և կոնդիցիոներ haircut ծառայությունից հետո',
+      prompt: 'Առաջարկիր շամպուն և կոնդիցիոներ haircut ծառայությունից հետո',
       expectedAction: 'link_recommended_products',
       rescueReason: 'link_recommended_products',
       paramsPartial: { serviceName: 'haircut' },

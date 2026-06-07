@@ -88,9 +88,7 @@ export function isExplainProviderPaymentCurrencyPrompt(
   if (
     /\b(why|what|which)\b/i.test(prompt) &&
     hasCurrencyCueFlag &&
-    /\b(payment|breakdown|pos|total|retail|appointment|collect)\b/i.test(
-      prompt,
-    )
+    /\b(payment|breakdown|pos|total|retail|appointment|collect)\b/i.test(prompt)
   ) {
     return true;
   }

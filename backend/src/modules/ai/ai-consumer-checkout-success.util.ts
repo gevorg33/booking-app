@@ -31,8 +31,7 @@ function hasReadConsumerCheckoutSuccessCue(prompt: string): boolean {
   return (
     /\b(what|which|how|why|does|do|is|are|can|tell|explain|show|describe|mean|meaning|walk)\b/i.test(
       prompt,
-    ) ||
-    /\?\s*$/.test(prompt.trim())
+    ) || /\?\s*$/.test(prompt.trim())
   );
 }
 
@@ -178,7 +177,8 @@ function extractAspect(prompt: string): ConsumerCheckoutSuccessAspect {
     /\bdismiss(?:ing)?\b.+\b(?:product cards?|recommendations?)\b/i.test(
       prompt,
     ) ||
-    (/\brecommended products\b/i.test(prompt) && /\bdisappear\b/i.test(prompt)) ||
+    (/\brecommended products\b/i.test(prompt) &&
+      /\bdisappear\b/i.test(prompt)) ||
     (/\bwhen (?:is|does)\b/i.test(prompt) &&
       /\byou might also like\b/i.test(prompt) &&
       /\bhidden\b/i.test(prompt))
@@ -231,7 +231,9 @@ function extractAspect(prompt: string): ConsumerCheckoutSuccessAspect {
   return 'all';
 }
 
-export function isExplainConsumerCheckoutSuccessPrompt(prompt: string): boolean {
+export function isExplainConsumerCheckoutSuccessPrompt(
+  prompt: string,
+): boolean {
   if (!hasReadConsumerCheckoutSuccessCue(prompt)) return false;
   if (!hasConsumerAppContext(prompt)) return false;
   if (

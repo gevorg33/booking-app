@@ -107,7 +107,9 @@ export function isSuggestRescheduleFromPushPrompt(prompt: string): boolean {
   );
 }
 
-export function isSuggestRescheduleFromPushPromptLoose(prompt: string): boolean {
+export function isSuggestRescheduleFromPushPromptLoose(
+  prompt: string,
+): boolean {
   return (
     /\b(reschedule|help\s+me\s+reschedule)\b/i.test(prompt) &&
     /\b(from\s+(?:the\s+)?push|push\s+notification|notification|alert)\b/i.test(
@@ -292,12 +294,7 @@ export function applyProviderMobilePromptHints(
   prompt: string,
   context?: { session?: Record<string, any> },
 ): void {
-  inheritProviderPushFollowUpContext(
-    params,
-    context?.session,
-    action,
-    prompt,
-  );
+  inheritProviderPushFollowUpContext(params, context?.session, action, prompt);
 
   const pushActionId = resolveProviderPushActionIdFromPrompt(prompt);
   if (pushActionId && !params.pushActionId) {
@@ -344,12 +341,12 @@ function classifyProviderMobileSegment(
 
   const pushStep = classifyPushNotificationsSegment(text);
   if (pushStep) {
-    return pushStep as ProviderMobileCompoundStep;
+    return pushStep;
   }
 
   const bookingStep = classifyProviderBookingSegment(text);
   if (bookingStep) {
-    return bookingStep as ProviderMobileCompoundStep;
+    return bookingStep;
   }
 
   return null;
@@ -364,12 +361,12 @@ export function decomposeProviderMobileCompoundPrompt(
 
   const pushOnly = decomposePushNotificationsCompoundPrompt(trimmed);
   if (pushOnly.length >= 2) {
-    return pushOnly as ProviderMobileCompoundStep[];
+    return pushOnly;
   }
 
   const bookingOnly = decomposeProviderBookingCompoundPrompt(trimmed);
   if (bookingOnly.length >= 2) {
-    return bookingOnly as ProviderMobileCompoundStep[];
+    return bookingOnly;
   }
 
   const segments = trimmed.split(MOBILE_COMPOUND_SPLIT).map((s) => s.trim());

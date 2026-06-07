@@ -35,6 +35,10 @@ import { MultiServiceBookingsModule } from '../multi-service-bookings/multi-serv
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AiModule } from '../ai/ai.module.js';
 import { InventoryModule } from '../inventory/inventory.module.js';
+import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
+import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
+import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
+import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.js';
 
 @Module({
   imports: [
@@ -74,6 +78,9 @@ import { InventoryModule } from '../inventory/inventory.module.js';
     forwardRef(() => GiftCardsModule),
     forwardRef(() => AiModule),
     InventoryModule,
+    ClinicTestResultsModule,
+    PatientClinicalProfilesModule,
+    ClinicPreVisitIntakesModule,
   ],
   controllers: [PublicBookingController],
   providers: [
@@ -84,6 +91,7 @@ import { InventoryModule } from '../inventory/inventory.module.js';
     PublicCustomerJwtStrategy,
     PublicCustomerAuthGuard,
     OptionalPublicCustomerAuthGuard,
+    PublicPreVisitIntakeService,
   ],
   exports: [
     PublicBookingService,

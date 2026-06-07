@@ -546,7 +546,9 @@ describe('ai-payments.util', () => {
           'check who can take permanent lashes tomorrow evening',
         ),
       ).toBe('permanent lashes');
-      expect(extractServiceNameFromPrompt('who can take slot tomorrow')).toBeNull();
+      expect(
+        extractServiceNameFromPrompt('who can take slot tomorrow'),
+      ).toBeNull();
       expect(
         isCheckProvidersForServicePrompt(
           'who is available for spa packages tomorrow',

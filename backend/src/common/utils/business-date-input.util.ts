@@ -3,11 +3,12 @@ import {
   type BusinessDateFormat,
 } from './business-date-format.util.js';
 
-export const BUSINESS_DATE_FORMAT_EXAMPLES: Record<BusinessDateFormat, string> = {
-  'DD/MM/YYYY': '31/12/2026',
-  'MM/DD/YYYY': '12/31/2026',
-  'YYYY-MM-DD': '2026-12-31',
-};
+export const BUSINESS_DATE_FORMAT_EXAMPLES: Record<BusinessDateFormat, string> =
+  {
+    'DD/MM/YYYY': '31/12/2026',
+    'MM/DD/YYYY': '12/31/2026',
+    'YYYY-MM-DD': '2026-12-31',
+  };
 
 /** Placeholder for typed date inputs matching business format. */
 export function businessDateInputPlaceholder(

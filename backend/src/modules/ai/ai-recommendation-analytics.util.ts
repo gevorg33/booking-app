@@ -51,7 +51,9 @@ export interface ProductRecommendationAnalyticsSummary {
 export function isRecommendationAnalyticsIntent(
   action: string,
 ): action is RecommendationAnalyticsIntent {
-  return (RECOMMENDATION_ANALYTICS_INTENTS as readonly string[]).includes(action);
+  return (RECOMMENDATION_ANALYTICS_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 function hasExplainReadCue(prompt: string): boolean {
@@ -84,7 +86,8 @@ function hasRecommendationAnalyticsTopic(prompt: string): boolean {
     /\bconsumer\s+app\b.+\b(?:recommendation|click|impression)/i.test(prompt) ||
     (/\bconsumer\s+app\b/i.test(prompt) &&
       /\b(?:recommendation|click counts?)\b/i.test(prompt)) ||
-    (/\bweb\s+checkout\b/i.test(prompt) && /\bconsumer\s+app\b/i.test(prompt)) ||
+    (/\bweb\s+checkout\b/i.test(prompt) &&
+      /\bconsumer\s+app\b/i.test(prompt)) ||
     /\brecommendation\b.+\bclicks?\b/i.test(prompt) ||
     /\bshop[- ]?link clicks?\b/i.test(prompt) ||
     /\b(?:web_checkout|consumer_app)\b/i.test(prompt) ||
@@ -109,7 +112,8 @@ function isPerformanceSummaryPrompt(prompt: string): boolean {
     /\brecommendation\s+performance\b/i.test(prompt) ||
     /\bbookings?\s+with\s+recommendations?\s+shown\b/i.test(prompt) ||
     /ամփոփիր\s+recommendation\s+performance/i.test(prompt) ||
-    (/արդյունավետություն|ctr/i.test(prompt) && /recommendation|խորհուրդ/i.test(prompt)) ||
+    (/արդյունավետություն|ctr/i.test(prompt) &&
+      /recommendation|խորհուրդ/i.test(prompt)) ||
     (/booking/i.test(prompt) && /recommendations?\s+shown/i.test(prompt)) ||
     (/сводк/i.test(prompt) &&
       /рекомендац/i.test(prompt) &&
@@ -132,8 +136,7 @@ function extractAspect(prompt: string): RecommendationAnalyticsAspect {
   if (
     /\b(?:break down|split|vs|versus|by surface|surfaces)\b/i.test(prompt) ||
     /\bweb\b.+\bconsumer\s+app\b/i.test(prompt) ||
-    /разбей/i.test(prompt) &&
-      /(?:surface|клик|рекомендац)/i.test(prompt)
+    (/разбей/i.test(prompt) && /(?:surface|клик|рекомендац)/i.test(prompt))
   ) {
     return 'surfaces';
   }
@@ -285,8 +288,7 @@ export function aggregateProductRecommendationAnalyticsEvents(
     if (!productId) continue;
 
     const surface =
-      typeof event.payload?.surface === 'string' &&
-      event.payload.surface.trim()
+      typeof event.payload?.surface === 'string' && event.payload.surface.trim()
         ? event.payload.surface.trim()
         : 'unknown';
     const productRow = byProduct.get(productId) ?? {

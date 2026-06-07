@@ -24,8 +24,7 @@ export const MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS: TourCalendarEvalScenario
     {
       id: 'hy-span-multi-day',
       locale: 'hy',
-      prompt:
-        'Ինչու է տուրը մի քանի օր ցուցադրվում պրովայդերի օրացույցում',
+      prompt: 'Ինչու է տուրը մի քանի օր ցուցադրվում պրովայդերի օրացույցում',
       expectedAction: 'explain_tour_calendar_span',
       rescueReason: 'explain_tour_calendar_span',
       paramsPartial: { aspect: 'multiDaySpan' },
@@ -73,8 +72,7 @@ export const MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS: TourCalendarEvalScenario
     {
       id: 'hy-span-mountain-trek',
       locale: 'hy',
-      prompt:
-        'Բացատրիր 3-Day Mountain Trek-ի span-ը պրովայդերի օրացույցում',
+      prompt: 'Բացատրիր 3-Day Mountain Trek-ի span-ը պրովայդերի օրացույցում',
       expectedAction: 'explain_tour_calendar_span',
       rescueReason: 'explain_tour_calendar_span',
       paramsPartial: {
@@ -94,8 +92,7 @@ export const MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS: TourCalendarEvalScenario
     {
       id: 'hy-week-maria',
       locale: 'hy',
-      prompt:
-        'Ցուցադրիր Maria-ի օրացույցի այս շաբաթվա էքսկուրսիաները pax-ով',
+      prompt: 'Ցուցադրիր Maria-ի օրացույցի այս շաբաթվա էքսկուրսիաները pax-ով',
       expectedAction: 'list_tour_calendar_week',
       rescueReason: 'list_tour_calendar_week',
       paramsPartial: { employeeName: 'Maria' },
@@ -104,8 +101,7 @@ export const MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS: TourCalendarEvalScenario
     {
       id: 'hy-week-gevorg',
       locale: 'hy',
-      prompt:
-        'Gevorg-ի պրովայդերի օրացույցում այս շաբաթ որ էքսկուրսիաներ են',
+      prompt: 'Gevorg-ի պրովայդերի օրացույցում այս շաբաթ որ էքսկուրսիաներ են',
       expectedAction: 'list_tour_calendar_week',
       rescueReason: 'list_tour_calendar_week',
       paramsPartial: { employeeName: 'Gevorg' },
@@ -244,8 +240,7 @@ export const MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS: TourCalendarEvalScenario
     {
       id: 'ru-week-visible-tours',
       locale: 'ru',
-      prompt:
-        'Какие туры видны на календаре провайдера на этой неделе с pax',
+      prompt: 'Какие туры видны на календаре провайдера на этой неделе с pax',
       expectedAction: 'list_tour_calendar_week',
       rescueReason: 'list_tour_calendar_week',
       needsMultilingual: true,

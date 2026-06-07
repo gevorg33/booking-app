@@ -42,6 +42,14 @@ import { StrategyEvalModule } from './modules/strategy-eval/strategy-eval.module
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { ProviderMobileModule } from './modules/provider-mobile/provider-mobile.module.js';
 import { ComplianceModule } from './modules/compliance/compliance.module.js';
+import { ClinicTestResultsModule } from './modules/clinic-test-results/clinic-test-results.module.js';
+import { PatientClinicalProfilesModule } from './modules/patient-clinical-profiles/patient-clinical-profiles.module.js';
+import { ExternalDoctorsModule } from './modules/external-doctors/external-doctors.module.js';
+import { ClinicQuestionnairesModule } from './modules/clinic-questionnaires/clinic-questionnaires.module.js';
+import { ClinicPreVisitIntakesModule } from './modules/clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
+import { ClinicTasksModule } from './modules/clinic-tasks/clinic-tasks.module.js';
+import { ClinicDiagnosticCodesModule } from './modules/clinic-diagnostic-codes/clinic-diagnostic-codes.module.js';
+import { ClinicLisModule } from './modules/clinic-lis/clinic-lis.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -102,6 +110,14 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     IntegrationsModule,
     ProviderMobileModule,
     ComplianceModule,
+    ClinicTestResultsModule,
+    PatientClinicalProfilesModule,
+    ExternalDoctorsModule,
+    ClinicQuestionnairesModule,
+    ClinicPreVisitIntakesModule,
+    ClinicTasksModule,
+    ClinicDiagnosticCodesModule,
+    ClinicLisModule,
 
     // Engine
     SchedulingEngineModule,

@@ -51,8 +51,8 @@ describe('ai-provider-payment-currency.util (ai-cmd-curr-8)', () => {
     expect(
       isProviderPaymentCurrencyIntent('explain_provider_payment_currency'),
     ).toBe(true);
-    expect(
-      isProviderPaymentCurrencyIntent('explain_payment_status'),
-    ).toBe(false);
+    expect(isProviderPaymentCurrencyIntent('explain_payment_status')).toBe(
+      false,
+    );
   });
 });

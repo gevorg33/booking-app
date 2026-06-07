@@ -1,6 +1,4 @@
-import {
-  EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS,
-} from './ai-provider-session-timeout.fixtures.js';
+import { EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS } from './ai-provider-session-timeout.fixtures.js';
 import {
   isExplainProviderSessionTimeoutPrompt,
   rescueProviderSessionTimeoutIntent,
@@ -19,11 +17,14 @@ describe('ai-provider-session-timeout.util', () => {
   );
 
   it('does not steal dashboard logout questions', () => {
-    expect(isExplainProviderSessionTimeoutPrompt('When will I be logged out?')).toBe(
-      false,
-    );
     expect(
-      rescueProviderSessionTimeoutIntent('When will I be logged out?', 'unknown'),
+      isExplainProviderSessionTimeoutPrompt('When will I be logged out?'),
+    ).toBe(false);
+    expect(
+      rescueProviderSessionTimeoutIntent(
+        'When will I be logged out?',
+        'unknown',
+      ),
     ).toBeNull();
   });
 

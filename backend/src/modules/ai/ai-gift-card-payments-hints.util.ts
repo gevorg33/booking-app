@@ -77,7 +77,9 @@ export function isGiftCardPaymentsAction(
   return (GIFT_CARD_PAYMENTS_ACTIONS as readonly string[]).includes(action);
 }
 
-export function isPhysicalGiftCardHandoffCompoundPrompt(prompt?: string): boolean {
+export function isPhysicalGiftCardHandoffCompoundPrompt(
+  prompt?: string,
+): boolean {
   const text = prompt ?? '';
   return (
     (isBuyGiftCardPhysicalPrompt(text) ||
@@ -90,8 +92,7 @@ export function isPhysicalGiftCardHandoffCompoundPrompt(prompt?: string): boolea
 
 export function isGiftCardCheckoutCompoundPrompt(prompt?: string): boolean {
   const text = prompt ?? '';
-  const hasBook =
-    isBookNearestSlotPrompt(text) || /\bbook\b/i.test(text);
+  const hasBook = isBookNearestSlotPrompt(text) || /\bbook\b/i.test(text);
   const hasGift =
     isApplyGiftCardCodePrompt(text) ||
     (/\b(apply|use|redeem)\b/i.test(text) && /\bgift\s*card\b/i.test(text));
@@ -159,7 +160,10 @@ export function disambiguateGiftCardPaymentsAction(
     };
   }
 
-  if (isChoosePaymentMethodPrompt(prompt) && action !== 'choose_payment_method') {
+  if (
+    isChoosePaymentMethodPrompt(prompt) &&
+    action !== 'choose_payment_method'
+  ) {
     return {
       action: 'choose_payment_method',
       rescueReason: 'choose_payment_checkout',
@@ -195,11 +199,7 @@ export function inheritGiftCardPaymentsFollowUpContext(
     }
   }
 
-  if (
-    checkoutFollowUp &&
-    !params.giftCardCode &&
-    session.giftCardCode
-  ) {
+  if (checkoutFollowUp && !params.giftCardCode && session.giftCardCode) {
     params.giftCardCode = session.giftCardCode;
   }
 }
@@ -346,7 +346,10 @@ export function tryDecomposePhysicalGiftCardHandoff(
 ): GiftCardPaymentsCompoundStep[] | null {
   if (!isPhysicalGiftCardHandoffCompoundPrompt(prompt)) return null;
 
-  const segments = prompt.split(HANDOFF_SPLIT).map((s) => s.trim()).filter(Boolean);
+  const segments = prompt
+    .split(HANDOFF_SPLIT)
+    .map((s) => s.trim())
+    .filter(Boolean);
   const shared: Record<string, unknown> = {};
   const steps: GiftCardPaymentsCompoundStep[] = [];
 

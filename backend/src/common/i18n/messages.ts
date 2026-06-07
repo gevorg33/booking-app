@@ -99,6 +99,44 @@ const en: MessageTree = {
     taxRegistrationFooter: 'Tax registration: {number}',
     giftCardBalanceLine: 'Balance: {price}',
     giftCardPurchaseLine: 'Amount paid: {price}',
+    clinicResultReadySubject: 'Your test results are ready — {businessName}',
+    clinicResultReadyBody:
+      'Hi {customerName}, your {testName} results are ready (released {whenLabel}). {accountLine}',
+    clinicResultReadySms:
+      '{businessName}: Your {testName} results are ready ({whenLabel}). {accountLine}',
+    clinicResultReadyWhatsappLabel: 'Results ready ({whenLabel})',
+    clinicResultReadyAccountLink: 'View results: {url}',
+    clinicResultReadyPushTitle: '{businessName}: Results ready',
+    clinicResultReadyPushBody: 'Your {testName} results are ready to view.',
+    clinicResultReadyPushForegroundHint:
+      '{testName} results ready — tap to view',
+    clinicLabBookingRequestSubject:
+      'Please book your lab appointment — {businessName}',
+    clinicLabBookingRequestBody:
+      'Hi {customerName}, your clinic ordered {testNames}. Book your {collectionServiceName} visit: {bookUrl}',
+    clinicLabBookingRequestSms:
+      '{businessName}: Book your {collectionServiceName} for ordered labs ({testNames}): {bookUrl}',
+    clinicLabBookingRequestWhatsapp:
+      'Book {collectionServiceName} for ordered labs ({testNames})',
+    clinicLabBookingRequestPushTitle:
+      '{businessName}: Book lab collection',
+    clinicLabBookingRequestPushBody:
+      'Book your {collectionServiceName} for ordered labs ({testNames}).',
+    clinicLabBookingRequestPushForegroundHint:
+      '{collectionServiceName} — tap to book',
+  },
+  pdf: {
+    clinicAfterVisitSummary: {
+      title: 'After-Visit Summary',
+      patientLabel: 'Patient:',
+      visitLabel: 'Visit:',
+      serviceLabel: 'Service:',
+      providerLabel: 'Provider:',
+      summaryHeading: 'Summary',
+      defaultProvider: 'Provider',
+      defaultService: 'Consultation',
+      printButton: 'Print / Save as PDF',
+    },
   },
   providerSuggestions: {
     confirmPendingTitle: '{count} appointment(s) need confirmation',
@@ -113,6 +151,58 @@ const en: MessageTree = {
     emptyTodayTitle: 'No appointments today',
     emptyTodayPrompt: 'Summarize my schedule for {date}',
     defaultClient: 'client',
+  },
+  clinic: {
+    labState: {
+      gate: {
+        disabledReason:
+          'Lab orders, results, and specimens are only available for clinic vertical business types (clinic, polyclinic, beauty_clinic, dental).',
+      },
+      order: {
+        NotCollected: 'Not collected',
+        Collecting: 'Collecting',
+        AwaitingResults: 'Awaiting results',
+        Completed: 'Completed',
+        Cancelled: 'Cancelled',
+      },
+      result: {
+        NotReceived: 'Not received',
+        Pending: 'Pending',
+        WaitingCompletion: 'Waiting completion',
+        Completed: 'Completed',
+        Reviewed: 'Reviewed',
+        AutomaticallyReviewed: 'Automatically reviewed',
+        Released: 'Released',
+        Rejected: 'Rejected',
+      },
+      specimen: {
+        NotCollected: 'Not collected',
+        Collected: 'Collected',
+        ReadyForTransport: 'Ready for transport',
+        InTransit: 'In transit',
+        ReceivedInLab: 'Received in lab',
+        Completed: 'Completed',
+        RecollectRequired: 'Recollect required',
+        RetestRequired: 'Retest required',
+        Rejected: 'Rejected',
+      },
+      measurement: {
+        Normal: 'Normal',
+        Abnormal: 'Abnormal',
+        High: 'High',
+        Low: 'Low',
+        Inconclusive: 'Inconclusive',
+        Indeterminate: 'Indeterminate',
+        TestNotComplete: 'Test not completed',
+        NotApplicable: 'Not applicable',
+        SeeDetails: 'See details',
+      },
+      patientVisibility: {
+        New: 'New',
+        Pending: 'Pending',
+        Read: 'Read',
+      },
+    },
   },
 };
 
@@ -184,6 +274,46 @@ const hy: MessageTree = {
     taxRegistrationFooter: 'Հարկային գրանցում՝ {number}',
     giftCardBalanceLine: 'Մնացորդ՝ {price}',
     giftCardPurchaseLine: 'Վճարված է՝ {price}',
+    clinicResultReadySubject:
+      'Ձեր թեստ արդյունքները պատրաստ են — {businessName}',
+    clinicResultReadyBody:
+      'Ողջույն {customerName}, ձեր {testName} արդյունքները պատրաստ են ({whenLabel})։ {accountLine}',
+    clinicResultReadySms:
+      '{businessName}՝ {testName} արդյունքները պատրաստ են ({whenLabel})։ {accountLine}',
+    clinicResultReadyWhatsappLabel: 'Արդյունքները պատրաստ են ({whenLabel})',
+    clinicResultReadyAccountLink: 'Դիտել արդյունքները՝ {url}',
+    clinicResultReadyPushTitle: '{businessName}՝ արդյունքները պատրաստ են',
+    clinicResultReadyPushBody:
+      'Ձեր {testName} արդյունքները պատրաստ են դիտելու համար։',
+    clinicResultReadyPushForegroundHint:
+      '{testName} արդյունքները պատրաստ են — հպեք դիտելու',
+    clinicLabBookingRequestSubject:
+      'Խնդրում ենք ամրագրել լաբորատորիայի այցը — {businessName}',
+    clinicLabBookingRequestBody:
+      'Ողջույն {customerName}, կլինիկան պատվիրել է {testNames}։ Ամրագրեք {collectionServiceName} այցը՝ {bookUrl}',
+    clinicLabBookingRequestSms:
+      '{businessName}. Ամրագրեք {collectionServiceName} ({testNames})՝ {bookUrl}',
+    clinicLabBookingRequestWhatsapp:
+      'Ամրագրեք {collectionServiceName} պատվիրած թեստերի համար ({testNames})',
+    clinicLabBookingRequestPushTitle:
+      '{businessName}՝ ամրագրեք լաբորատորիայի այցը',
+    clinicLabBookingRequestPushBody:
+      'Ամրագրեք {collectionServiceName} պատվիրած թեստերի համար ({testNames})։',
+    clinicLabBookingRequestPushForegroundHint:
+      '{collectionServiceName} — հպեք ամրագրելու',
+  },
+  pdf: {
+    clinicAfterVisitSummary: {
+      title: 'Հետայցային ամփոփում',
+      patientLabel: 'Հիվանդ՝',
+      visitLabel: 'Այց՝',
+      serviceLabel: 'Ծառայություն՝',
+      providerLabel: 'Մասնագետ՝',
+      summaryHeading: 'Ամփոփում',
+      defaultProvider: 'Մասնագետ',
+      defaultService: 'Խորհրդատվություն',
+      printButton: 'Տպել / PDF',
+    },
   },
   providerSuggestions: {
     confirmPendingTitle: '{count} ամրագրում պետք է հաստատվի',
@@ -201,6 +331,58 @@ const hy: MessageTree = {
     emptyTodayTitle: 'Այսօր ամրագրումներ չկան',
     emptyTodayPrompt: 'Ամփոփիր իմ գրաֆիկը {date} ամսաթվի համար',
     defaultClient: 'հաճախորդ',
+  },
+  clinic: {
+    labState: {
+      gate: {
+        disabledReason:
+          'Լաբորատոր պատվերները, արդյունքները և նմուշները հասանելի են միայն կլինիկական բիզնես տեսակների համար (clinic, polyclinic, beauty_clinic, dental)։',
+      },
+      order: {
+        NotCollected: 'Չի հավաքվել',
+        Collecting: 'Հավաքում',
+        AwaitingResults: 'Սպասում է արդյունքներին',
+        Completed: 'Ավարտված',
+        Cancelled: 'Չեղարկված',
+      },
+      result: {
+        NotReceived: 'Չի ստացվել',
+        Pending: 'Սպասման մեջ',
+        WaitingCompletion: 'Սպասում է ավարտին',
+        Completed: 'Ավարտված',
+        Reviewed: 'Վերանայված',
+        AutomaticallyReviewed: 'Ավտոմատ վերանայված',
+        Released: 'Հրապարակված',
+        Rejected: 'Մերժված',
+      },
+      specimen: {
+        NotCollected: 'Չի հավաքվել',
+        Collected: 'Հավաքված',
+        ReadyForTransport: 'Պատրաստ է փոխադրման',
+        InTransit: 'Ճանապարհին',
+        ReceivedInLab: 'Ստացվել է լաբորատորիայում',
+        Completed: 'Ավարտված',
+        RecollectRequired: 'Պահանջվում է կրկին հավաք',
+        RetestRequired: 'Պահանջվում է կրկին թեստ',
+        Rejected: 'Մերժված',
+      },
+      measurement: {
+        Normal: 'Նորմալ',
+        Abnormal: 'Աննորմալ',
+        High: 'Բարձր',
+        Low: 'Ցածր',
+        Inconclusive: 'Անորոշելի',
+        Indeterminate: 'Անորոշ',
+        TestNotComplete: 'Թեստը ավարտված չէ',
+        NotApplicable: 'Կիրառելի չէ',
+        SeeDetails: 'Տես մանրամասները',
+      },
+      patientVisibility: {
+        New: 'Նոր',
+        Pending: 'Սպասման մեջ',
+        Read: 'Կարդացված',
+      },
+    },
   },
 };
 
@@ -271,6 +453,45 @@ const ru: MessageTree = {
     taxRegistrationFooter: 'Налоговый номер: {number}',
     giftCardBalanceLine: 'Баланс: {price}',
     giftCardPurchaseLine: 'Оплачено: {price}',
+    clinicResultReadySubject:
+      'Ваши результаты анализов готовы — {businessName}',
+    clinicResultReadyBody:
+      'Здравствуйте, {customerName}! Результаты {testName} готовы (выпущены {whenLabel}). {accountLine}',
+    clinicResultReadySms:
+      '{businessName}: результаты {testName} готовы ({whenLabel}). {accountLine}',
+    clinicResultReadyWhatsappLabel: 'Результаты готовы ({whenLabel})',
+    clinicResultReadyAccountLink: 'Смотреть результаты: {url}',
+    clinicResultReadyPushTitle: '{businessName}: результаты готовы',
+    clinicResultReadyPushBody: 'Результаты {testName} готовы к просмотру.',
+    clinicResultReadyPushForegroundHint:
+      'Результаты {testName} готовы — нажмите, чтобы открыть',
+    clinicLabBookingRequestSubject:
+      'Запишитесь на сдачу анализов — {businessName}',
+    clinicLabBookingRequestBody:
+      'Здравствуйте, {customerName}! Клиника назначила {testNames}. Запишитесь на {collectionServiceName}: {bookUrl}',
+    clinicLabBookingRequestSms:
+      '{businessName}: Запишитесь на {collectionServiceName} ({testNames}): {bookUrl}',
+    clinicLabBookingRequestWhatsapp:
+      'Запишитесь на {collectionServiceName} для назначенных анализов ({testNames})',
+    clinicLabBookingRequestPushTitle:
+      '{businessName}: запишитесь на сдачу анализов',
+    clinicLabBookingRequestPushBody:
+      'Запишитесь на {collectionServiceName} для назначенных анализов ({testNames}).',
+    clinicLabBookingRequestPushForegroundHint:
+      '{collectionServiceName} — нажмите, чтобы записаться',
+  },
+  pdf: {
+    clinicAfterVisitSummary: {
+      title: 'Сводка после визита',
+      patientLabel: 'Пациент:',
+      visitLabel: 'Визит:',
+      serviceLabel: 'Услуга:',
+      providerLabel: 'Специалист:',
+      summaryHeading: 'Сводка',
+      defaultProvider: 'Специалист',
+      defaultService: 'Консультация',
+      printButton: 'Печать / сохранить как PDF',
+    },
   },
   providerSuggestions: {
     confirmPendingTitle: '{count} записей ждут подтверждения',
@@ -287,6 +508,58 @@ const ru: MessageTree = {
     emptyTodayTitle: 'На сегодня записей нет',
     emptyTodayPrompt: 'Кратко опиши моё расписание на {date}',
     defaultClient: 'клиент',
+  },
+  clinic: {
+    labState: {
+      gate: {
+        disabledReason:
+          'Лабораторные заказы, результаты и образцы доступны только для типов бизнеса клинической вертикали (clinic, polyclinic, beauty_clinic, dental).',
+      },
+      order: {
+        NotCollected: 'Не собран',
+        Collecting: 'Сбор',
+        AwaitingResults: 'Ожидание результатов',
+        Completed: 'Завершён',
+        Cancelled: 'Отменён',
+      },
+      result: {
+        NotReceived: 'Не получен',
+        Pending: 'В ожидании',
+        WaitingCompletion: 'Ожидание завершения',
+        Completed: 'Завершён',
+        Reviewed: 'Проверен',
+        AutomaticallyReviewed: 'Проверен автоматически',
+        Released: 'Опубликован',
+        Rejected: 'Отклонён',
+      },
+      specimen: {
+        NotCollected: 'Не собран',
+        Collected: 'Собран',
+        ReadyForTransport: 'Готов к транспортировке',
+        InTransit: 'В пути',
+        ReceivedInLab: 'Получен в лаборатории',
+        Completed: 'Завершён',
+        RecollectRequired: 'Требуется повторный забор',
+        RetestRequired: 'Требуется повторный тест',
+        Rejected: 'Отклонён',
+      },
+      measurement: {
+        Normal: 'Норма',
+        Abnormal: 'Отклонение',
+        High: 'Выше нормы',
+        Low: 'Ниже нормы',
+        Inconclusive: 'Неоднозначно',
+        Indeterminate: 'Неопределённо',
+        TestNotComplete: 'Тест не завершён',
+        NotApplicable: 'Не применимо',
+        SeeDetails: 'Подробнее',
+      },
+      patientVisibility: {
+        New: 'Новый',
+        Pending: 'В ожидании',
+        Read: 'Прочитано',
+      },
+    },
   },
 };
 

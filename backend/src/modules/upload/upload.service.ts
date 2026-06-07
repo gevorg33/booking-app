@@ -8,13 +8,22 @@ const ALLOWED_MIME = new Set([
   'image/webp',
   'image/gif',
 ]);
+const ALLOWED_DOCUMENT_MIME = new Set(['application/pdf']);
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 
 export interface UploadedImage {
   url: string;
   publicId: string;
   width?: number;
   height?: number;
+}
+
+export interface UploadedDocument {
+  url: string;
+  publicId: string;
+  bytes: number;
+  mimeType: string;
 }
 
 @Injectable()
@@ -87,6 +96,57 @@ export class UploadService implements OnModuleInit {
     };
   }
 
+  async uploadPatientChartDocument(
+    file: Express.Multer.File,
+    businessId: string,
+    customerId: string,
+  ): Promise<UploadedDocument> {
+    this.validateDocumentFile(file);
+
+    const folder = `booking/${businessId}/patient-documents/${customerId}`;
+    const result = await this.uploadRawBuffer(
+      file.buffer,
+      folder,
+      file.originalname,
+    );
+
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      bytes: result.bytes,
+      mimeType: file.mimetype,
+    };
+  }
+
+  private uploadRawBuffer(
+    buffer: Buffer,
+    folder: string,
+    originalName: string,
+  ): Promise<UploadApiResponse> {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder,
+            resource_type: 'raw',
+            public_id: originalName.replace(/\.[^.]+$/, '').slice(0, 120),
+          },
+          (error, result) => {
+            if (error || !result) {
+              reject(
+                new BadRequestException(
+                  error?.message || 'Document upload failed',
+                ),
+              );
+              return;
+            }
+            resolve(result);
+          },
+        )
+        .end(buffer);
+    });
+  }
+
   private uploadBuffer(
     buffer: Buffer,
     folder: string,
@@ -125,6 +185,16 @@ export class UploadService implements OnModuleInit {
     }
     if (file.size > MAX_BYTES) {
       throw new BadRequestException('Image must be 5 MB or smaller');
+    }
+  }
+
+  private validateDocumentFile(file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    if (!ALLOWED_DOCUMENT_MIME.has(file.mimetype)) {
+      throw new BadRequestException('Only PDF documents are allowed');
+    }
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      throw new BadRequestException('Document must be 20 MB or smaller');
     }
   }
 }

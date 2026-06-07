@@ -17,6 +17,9 @@ export enum EventType {
   // Review events
   REVIEW_RECEIVED = 'review.received',
 
+  /** Clinic lab — patient-visible result released (vert-clinic-2.0.7 / 2.4.2). */
+  TEST_RESULT_RELEASED = 'test_result.released',
+
   // Schedule events
   SCHEDULE_UPDATED = 'schedule.updated',
   SCHEDULE_OVERRIDE_CREATED = 'schedule.override.created',

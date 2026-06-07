@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { PublicBusinessProfile } from '../lib/types.js';
 import {
   readEnabledLocales,
   resolveConsumerLocale,
@@ -13,7 +12,14 @@ const LOCALE_LABELS: Record<ConsumerLocale, string> = {
   ru: 'Русский',
 };
 
-export function useConsumerLocale(slug: string, profile: PublicBusinessProfile) {
+export function useConsumerLocale(
+  slug: string,
+  profile: {
+    locale?: string;
+    defaultLocale?: string;
+    enabledLocales?: string[];
+  },
+) {
   const enabledLocales = readEnabledLocales(profile);
   const [locale, setLocale] = useState<ConsumerLocale>(() =>
     resolveConsumerLocale(slug, profile),

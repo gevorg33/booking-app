@@ -30,9 +30,7 @@ function hasCheckoutRejectionCue(prompt: string): boolean {
     /\b(clamp(?:ed)?|reduced?)\b.{0,30}\b(pax|people|guests?|count)\b/i.test(
       prompt,
     ) ||
-    /\b(pax|people|guests?).{0,20}\b(reduced?|clamp(?:ed)?)\b/i.test(
-      prompt,
-    ) ||
+    /\b(pax|people|guests?).{0,20}\b(reduced?|clamp(?:ed)?)\b/i.test(prompt) ||
     /\b(diagnose|troubleshoot)\b.{0,40}\b(capacity|checkout|pax)\b/i.test(
       prompt,
     ) ||
@@ -85,9 +83,7 @@ function extractRequestedPax(prompt: string): number | undefined {
 function extendTourCatalogServiceName(name: string, prompt: string): string {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const catalogTour = prompt.match(
-    new RegExp(
-      `\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`,
-    ),
+    new RegExp(`\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`),
   );
   if (catalogTour?.[0]) return catalogTour[0].trim();
   const extended = prompt.match(
@@ -170,15 +166,15 @@ function resolveTourCapacityAspect(prompt: string): TourCapacityAspect {
   const insufficient =
     /\b(only\s+\d+\s+spots?\s+remaining|spots?\s+remaining|can'?t\s+book\s+\d+\s+pax)\b/i.test(
       prompt,
-    ) ||
-    /\breject(?:ed)?\s+\d+\s+(?:people|pax)\b/i.test(prompt);
+    ) || /\breject(?:ed)?\s+\d+\s+(?:people|pax)\b/i.test(prompt);
   const maxGroup =
     /\b(max\s+group|group\s+size\s+of)\b/i.test(prompt) ||
     (/\b(reject(?:ed)?|won'?t\s+accept)\b/i.test(prompt) &&
       /\b(group\s+size|capacity)\b/i.test(prompt));
 
-  const count = [clamped, fullyBooked, insufficient, maxGroup].filter(Boolean)
-    .length;
+  const count = [clamped, fullyBooked, insufficient, maxGroup].filter(
+    Boolean,
+  ).length;
   if (count >= 2) return 'all';
   if (fullyBooked) return 'fullyBooked';
   if (insufficient) return 'insufficientSpots';
@@ -187,7 +183,9 @@ function resolveTourCapacityAspect(prompt: string): TourCapacityAspect {
   return 'all';
 }
 
-export function isTourCapacityIntent(action: string): action is TourCapacityIntent {
+export function isTourCapacityIntent(
+  action: string,
+): action is TourCapacityIntent {
   return (TOUR_CAPACITY_INTENTS as readonly string[]).includes(action);
 }
 

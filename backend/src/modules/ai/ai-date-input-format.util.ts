@@ -83,7 +83,9 @@ export function isPreviewDateInputParsePrompt(prompt: string): boolean {
       prompt,
     ) ||
     (containsArmenianScript(prompt) &&
-      /(նախադիտ|որ\s+iso|ինչ\s+կլինի|վերլուծ|ցույց\s+տուր|iso\s+օր)/i.test(prompt)) ||
+      /(նախադիտ|որ\s+iso|ինչ\s+կլինի|վերլուծ|ցույց\s+տուր|iso\s+օր)/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
       /(предпросмотр|какой\s+iso|как\s+будет|разбира)/i.test(prompt));
   const parseWithLiteral =

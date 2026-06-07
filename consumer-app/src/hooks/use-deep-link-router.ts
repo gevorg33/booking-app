@@ -4,10 +4,14 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import {
   buildManageBookingPath,
+  buildResultsPath,
   buildSalonPath,
   consumeDeferredSlug,
+  parseLabBookingRequestRoute,
   parseManageBookingRoute,
+  parseResultReadyRoute,
   parseTenantSlugFromUrl,
+  resolveLabBookingRequestNavigationPath,
   saveDeferredSlug,
 } from '../lib/deep-link.js';
 
@@ -21,6 +25,16 @@ export function useDeepLinkRouter() {
         history.replace(
           buildManageBookingPath(manage.slug, manage.bookingId, manage.token),
         );
+        return;
+      }
+      const labBookingRequest = parseLabBookingRequestRoute(url);
+      if (labBookingRequest) {
+        history.replace(resolveLabBookingRequestNavigationPath(labBookingRequest));
+        return;
+      }
+      const resultReady = parseResultReadyRoute(url);
+      if (resultReady) {
+        history.replace(buildResultsPath(resultReady.slug));
         return;
       }
       const slug = parseTenantSlugFromUrl(url);

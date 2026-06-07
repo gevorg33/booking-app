@@ -68,7 +68,10 @@ describe('ai-stacked-tax.util (ai-cmd-tax-6..7)', () => {
 
   it('does not rescue when action already matches', () => {
     expect(
-      rescueStackedTaxIntent('Explain our stacked tax rules', 'explain_stacked_tax'),
+      rescueStackedTaxIntent(
+        'Explain our stacked tax rules',
+        'explain_stacked_tax',
+      ),
     ).toBeNull();
   });
 });

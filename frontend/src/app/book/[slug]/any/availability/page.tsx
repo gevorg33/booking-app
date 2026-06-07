@@ -10,10 +10,10 @@ export default async function AnyAvailabilityPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ serviceId?: string }>;
+  searchParams: Promise<{ serviceId?: string; clinicOrderToken?: string }>;
 }) {
   const { slug } = await params;
-  const { serviceId } = await searchParams;
+  const { serviceId, clinicOrderToken } = await searchParams;
 
   if (!serviceId) {
     redirect(bookPath(slug, '/any'));
@@ -34,6 +34,7 @@ export default async function AnyAvailabilityPage({
       tenant={tenant}
       service={service}
       backHref={bookPath(slug, '/any')}
+      clinicOrderToken={clinicOrderToken}
     />
   );
 }

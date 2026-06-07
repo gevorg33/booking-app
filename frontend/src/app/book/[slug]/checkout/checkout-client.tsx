@@ -12,6 +12,7 @@ interface CheckoutClientProps {
   backHref: string;
   autoAssign?: boolean;
   paymentSessionId?: string;
+  clinicOrderToken?: string;
 }
 
 export function CheckoutClient({
@@ -22,6 +23,7 @@ export function CheckoutClient({
   backHref,
   autoAssign,
   paymentSessionId,
+  clinicOrderToken,
 }: CheckoutClientProps) {
   return (
     <>
@@ -34,6 +36,7 @@ export function CheckoutClient({
           startTime={startTime}
           autoAssign={autoAssign}
           paymentSessionId={paymentSessionId}
+          clinicOrderToken={clinicOrderToken}
         />
       </main>
     </>

@@ -144,7 +144,9 @@ function extractServiceNameFromPrompt(prompt: string): string | null {
   return null;
 }
 
-function resolveTourBookingRecordAspect(prompt: string): TourBookingRecordAspect {
+function resolveTourBookingRecordAspect(
+  prompt: string,
+): TourBookingRecordAspect {
   const pax =
     /\b(pax\s+count|pax\b|how\s+many\s+pax|how\s+many\s+people)\b/i.test(
       prompt,
@@ -163,8 +165,7 @@ function resolveTourBookingRecordAspect(prompt: string): TourBookingRecordAspect
   const calendar =
     /\b(provider\s+calendar|calendar\s+span|multiple\s+days|span\b|across\s+days)\b/i.test(
       prompt,
-    ) ||
-    /(несколько\s+дней|календар\w*\s+провайдер)/i.test(prompt);
+    ) || /(несколько\s+дней|календар\w*\s+провайдер)/i.test(prompt);
 
   const count = [pax, dates, special, calendar].filter(Boolean).length;
   if (count >= 2) return 'all';
@@ -231,8 +232,8 @@ export function isExplainTourBookingRecordPrompt(prompt: string): boolean {
 
   return Boolean(
     extractTourBookingIdFromPrompt(prompt) ||
-      extractCustomerNameFromPrompt(prompt) ||
-      /\bbooking\s+record\b/i.test(prompt),
+    extractCustomerNameFromPrompt(prompt) ||
+    /\bbooking\s+record\b/i.test(prompt),
   );
 }
 
@@ -247,9 +248,7 @@ export function parseExplainTourBookingRecordFromPrompt(
   }
 
   const bookingId =
-    bookingIdFromParams ||
-    extractTourBookingIdFromPrompt(prompt) ||
-    undefined;
+    bookingIdFromParams || extractTourBookingIdFromPrompt(prompt) || undefined;
 
   const customerNameFromParams =
     typeof params.customerName === 'string'

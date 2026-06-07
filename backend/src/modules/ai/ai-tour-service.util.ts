@@ -183,7 +183,8 @@ export function isExplainTourServicesPrompt(prompt: string): boolean {
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (/\b(?:upcoming\s+)?tour\s+departures?\b/i.test(prompt)) return false;
-  if (/\bdepartures?\s+by\s+(?:departure\s+)?date\b/i.test(prompt)) return false;
+  if (/\bdepartures?\s+by\s+(?:departure\s+)?date\b/i.test(prompt))
+    return false;
   if (isConfigureTourServicePromptCore(prompt)) return false;
   if (isSingleTourBookingRecordExplainPrompt(prompt)) return false;
   if (isConsumerTourExplainPrompt(prompt)) return false;
@@ -330,8 +331,7 @@ function isMultiServiceSettingsPrompt(prompt: string): boolean {
   return (
     /\b(max\s+service|multi[-\s]?service|service\s+count|services?\s+per\s+visit|same\s+visit)\b/i.test(
       prompt,
-    ) ||
-    /\bmax(?:imum)?\s+\d+\s+services?\b/i.test(prompt)
+    ) || /\bmax(?:imum)?\s+\d+\s+services?\b/i.test(prompt)
   );
 }
 
@@ -357,7 +357,9 @@ export function isConfigureTourServicePrompt(prompt: string): boolean {
   );
 }
 
-function normalizeDifficulty(value: string | undefined): TourDifficulty | undefined {
+function normalizeDifficulty(
+  value: string | undefined,
+): TourDifficulty | undefined {
   if (!value) return undefined;
   const key = value.trim().toLowerCase();
   const mapped = DIFFICULTY_ALIASES[key];
@@ -449,9 +451,7 @@ function extractCoverImage(prompt: string): string | undefined {
     /\bcover\s+image\s+for\s+[^.]+\s+to\s+["']([^"']+)["']/i,
   );
   if (quoted?.[1]) return quoted[1].trim();
-  const bare = prompt.match(
-    /\bcover\s+image\s+for\s+[^.]+\s+to\s+(\S+)/i,
-  );
+  const bare = prompt.match(/\bcover\s+image\s+for\s+[^.]+\s+to\s+(\S+)/i);
   return bare?.[1]?.trim() || undefined;
 }
 

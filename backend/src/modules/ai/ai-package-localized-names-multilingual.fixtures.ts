@@ -42,8 +42,7 @@ export const MULTILINGUAL_PACKAGE_LOCALIZED_NAMES_EVAL_SCENARIOS: PackageLocaliz
     {
       id: 'hy-configure-set-ru-wellness',
       locale: 'hy',
-      prompt:
-        'Սահմանի՛ր ռուսերեն անվանում Wellness փաթեթի համար «Спа день»',
+      prompt: 'Սահմանի՛ր ռուսերեն անվանում Wellness փաթեթի համար «Спа день»',
       expectedAction: 'configure_package_localized_names',
       rescueReason: 'configure_package_localized_names',
       paramsPartial: { operation: 'set' },

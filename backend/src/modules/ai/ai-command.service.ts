@@ -47,6 +47,11 @@ import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
+import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
+import { DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
+import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
+import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
 import { BUSINESS_COMPLIANCE_CLASSIFIER_RULES } from './ai-business-compliance.fixtures.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
@@ -105,11 +110,17 @@ import { parseExplainTourBookingRecordFromPrompt } from './ai-tour-booking-recor
 import { parseExplainTourCalendarSpanFromPrompt } from './ai-tour-calendar-span.util.js';
 import { parseListTourCalendarWeekFromPrompt } from './ai-tour-calendar-week.util.js';
 import { TOUR_SERVICE_CLASSIFIER_RULES } from './ai-tour-service.fixtures.js';
+import { CLINIC_SERVICE_CLASSIFIER_RULES } from './ai-clinic-service.fixtures.js';
 import {
   parseConfigureTourServiceFromPrompt,
   parseExplainTourServicesFromPrompt,
 } from './ai-tour-service.util.js';
+import {
+  parseConfigureClinicServiceFromPrompt,
+  parseExplainClinicServicesFromPrompt,
+} from './ai-clinic-service.util.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
+import { AiClinicServiceService } from './ai-clinic-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import { RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES } from './ai-recommendation-analytics.fixtures.js';
 import { RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES } from './ai-recommendation-performance.fixtures.js';
@@ -233,6 +244,9 @@ import {
   isExecutionConfirmed,
 } from './ai-execution-confirm.util.js';
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
+import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtures.js';
+import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
+import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
 import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
 import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
@@ -382,6 +396,9 @@ Rules:
 - list_tour_calendar_week: READ-ONLY — summarize confirmed tour departures visible on a provider calendar week (dates, pax, service). Optional employeeName, serviceName, weekStartDate. NOT explain_tour_calendar_span, NOT list_upcoming_tour_departures, NOT show_appointments, NOT explain_tour_services.
 - list_upcoming_tour_departures: READ-ONLY — summarize confirmed tour bookings grouped by departure date with booked pax and remaining capacity (max group − booked pax). Optional serviceName and daysAhead. NOT explain_tour_services (catalog metadata or per-guest booking lines), NOT explain_tour_calendar_span, NOT list_tour_calendar_week, NOT list_bookings (all appointment types).
 - apply_tour_playbook: MUTATE — tour_operator shortcut to seed tour vertical playbook catalog (Day/Multi-Day/Private tours) and Tour operating hours 08:00–18:00 schedule. "Apply tour playbook" / "Set up tour operator starter catalog and schedule". NOT bulk_create_catalog or apply_schedule.
+- configure_clinic_service: MUTATE — set clinic metadata on one catalog service (serviceType=consultation|lab_test|procedure, requiresFasting, preparationNotes). "Mark CBC as a lab test requiring fasting" → serviceName, serviceType=lab_test, requiresFasting=true. NOT create_service, NOT create_test_order (patient lab order), NOT explain_clinic_services (read list).
+- explain_clinic_services: READ-ONLY — summarize clinic catalog: departments, consultation vs lab_test vs procedure counts, fasting requirements. Optional serviceName filter. NOT configure_clinic_service (mutate), NOT explain_clinic_booking (consumer checkout fields), NOT list_services (general catalog).
+- apply_clinic_playbook: MUTATE — clinic|polyclinic|beauty_clinic|dental shortcut to seed clinic vertical playbook catalog and clinic operating hours schedule. "Apply clinic playbook" / "Set up polyclinic starter catalog and schedule". NOT bulk_create_catalog or apply_schedule.
 - set_service_compatibility: block two services from same visit (incompatibleServiceNames).
 - deactivate_service: hide a service from public catalog (NOT deactivate_package).
 - list_packages / list_subscription_plans: READ-ONLY catalog monetization lists.
@@ -409,6 +426,14 @@ Rules:
 - explain_notification_date_format: READ — how confirmation/reminder/gift-card emails and WhatsApp format dates vs dashboard (same business dateFormat/timeFormat). NOT explain_notification_currency (amount symbol) and NOT explain_business_date_format (settings without notification channels).
 - preview_notification_datetime: READ — sample confirmation/reminder/gift-card email or WhatsApp line with current business date/time format. NOT preview_business_date_format (alternate format before saving).
 - notify_patient_result_ready: MUTATE — clinic result-ready email/WhatsApp (vert-clinic-1.7) using formatResultReadyNotificationWhen. NOT preview_notification_datetime (read-only sample).
+- create_test_order: MUTATE — clinic only: order catalog lab tests/panels for a patient visit. Requires customerName or bookingId and testNames. NOT create_booking and NOT list_test_orders.
+- create_catalog_test_order: alias of create_test_order — same params and handler.
+- list_test_orders: READ — clinic only: list lab test orders by patient, visit date, or status. Use awaitingPatientBooking=true when prompt asks for orders awaiting patient self-booking. NOT list_bookings and NOT create_test_order.
+- push_lab_booking_to_patient: MUTATE — clinic only: push lab collection self-booking link to patient for existing lab order. NOT create_booking and NOT staff_book_lab_collection.
+- staff_book_lab_collection: MUTATE — clinic only: staff books collection slot linked to lab order. NOT push_lab_booking_to_patient and NOT create_booking without lab order.
+- enter_test_result: MUTATE — clinic only: record manual lab measurement value on an order/result (WBC, glucose, etc.). Requires measurementCode, value, orderId or resultId. NOT create_test_order and NOT release_test_result.
+- release_test_result: MUTATE — clinic only: release reviewed lab results to the patient chart. Optional customerName, orderId, resultId. NOT notify_patient_result_ready (notification) and NOT enter_test_result.
+- explain_patient_chart: READ — clinic only: summarize patient chart — allergies, recent visits, pending lab results/orders. Requires customerName or customerId. NOT lookup_customer (CRM profile), NOT list_test_orders (lab queue), NOT list_bookings (all appointments).
 - explain_date_input_format: READ — how typed dashboard date fields parse slash input using business dateFormat vs calendar picker ISO selection. NOT preview_date_input_parse (sample parse) and NOT explain_business_date_format (display settings).
 - preview_date_input_parse: READ — preview typed date strings → ISO calendar day under current dateFormat (DD/MM vs MM/DD). Optional dateStrings. NOT explain_date_input_format (rules) and NOT preview_business_date_format (booking display).
 - configure_business_tax: MUTATE — set business.settings.tax enabled, name (VAT/GST), rate percent, and inclusive/exclusive pricing model. "Enable 20% VAT", "Switch to tax-inclusive pricing", "Set our GST rate to 5%". NOT explain_business_tax (read-only), NOT configure_stacked_tax_rules (parallel rules), and NOT set_service_tax_rate (per-service).
@@ -433,7 +458,7 @@ Rules:
 - list_breach_incidents: READ — owner lists logged breach incidents and GDPR 72-hour deadlines. "Show breach incidents", "What is our GDPR 72-hour deadline?". NOT report_data_breach (mutate) and NOT explain_compliance_status (general checklist).
 - send_breach_notification: MUTATE — owner emails affected customers using saved draft breach notice. "Email affected customers about breach BR-42", "Send draft breach notice for incident X". NOT report_data_breach and NOT list_breach_incidents.
 - open_compliance_dashboard: READ — owner deep-links into Settings → Compliance panels (compliance-1.16 dedicated page deferred). "Open compliance settings", "Take me to breach log". NOT explain_compliance_status (text overview) and NOT list_breach_incidents (AI lists incidents).
-- view_phi_access_audit: READ — owner views HIPAA PHI access audit log. "Who accessed patient notes?", "Show HIPAA PHI audit log for last week". NOT explain_minimum_necessary_phi_access (policy) and NOT explain_phi_encryption_status.
+- view_phi_access_audit: READ — owner views HIPAA PHI access audit log. "Who accessed patient notes?", "Who viewed lab result comments?", "Show HIPAA PHI audit log for last week". NOT explain_minimum_necessary_phi_access (policy) and NOT explain_phi_encryption_status.
 - explain_phi_encryption_status: READ — clinic only: HIPAA PHI encryption at rest. "Is HIPAA encryption on?", "Are referral notes encrypted at rest?". NOT explain_compliance_status and NOT enable_hipaa_mode.
 - explain_minimum_necessary_phi_access: READ — who can see PHI under minimum-necessary rules. "Who can see patient notes?", "What PHI can staff access?". NOT view_phi_access_audit (past audit log).
 - explain_hipaa_session_timeout: READ — clinic only: HIPAA session timeout and auto-logout after inactivity. "When will I be logged out?", "What is our HIPAA session timeout?". NOT explain_compliance_status and NOT configure_hipaa_session_timeout.
@@ -551,8 +576,13 @@ export class AiCommandService {
     private businessDateFormat: AiBusinessDateFormatService,
     private businessTax: AiBusinessTaxService,
     private businessCompliance: AiBusinessComplianceService,
+    private clinicTestOrder: AiClinicTestOrderService,
+    private clinicLabBooking: AiClinicLabBookingService,
+    private clinicTestResult: AiClinicTestResultService,
+    private clinicPatientChart: AiClinicPatientChartService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
     private tourService: AiTourServiceService,
+    private clinicService: AiClinicServiceService,
     private recommendationProduct: AiRecommendationProductService,
     private platform: AiPlatformService,
     private bookingDepth: AiBookingDepthService,
@@ -1492,12 +1522,20 @@ export class AiCommandService {
       'configure_business_date_format',
       'configure_package_localized_names',
       'configure_tour_service',
+      'configure_clinic_service',
+      'apply_clinic_playbook',
       'configure_recommendation_product',
       'link_recommended_products',
       'apply_tour_playbook',
       'bulk_strip_disabled_locale_translations',
       'migrate_dashboard_date_display',
       'notify_patient_result_ready',
+      'create_test_order',
+      'create_catalog_test_order',
+      'push_lab_booking_to_patient',
+      'staff_book_lab_collection',
+      'enter_test_result',
+      'release_test_result',
       'bulk_update_service_currency',
       'adjust_gift_card_balance',
       'extend_gift_card_expiry',
@@ -2573,27 +2611,28 @@ export class AiCommandService {
           effectivePrompt,
           params,
         );
-        result = await this.recommendationProduct.handleExplainRecommendationSetup(
-          businessId,
-          parsedExplainSetup
-            ? {
-                ...params,
-                ...(parsedExplainSetup.serviceId
-                  ? { serviceId: parsedExplainSetup.serviceId }
-                  : {}),
-                ...(parsedExplainSetup.serviceName
-                  ? { serviceName: parsedExplainSetup.serviceName }
-                  : {}),
-                ...(parsedExplainSetup.categoryId
-                  ? { categoryId: parsedExplainSetup.categoryId }
-                  : {}),
-                ...(parsedExplainSetup.categoryName
-                  ? { categoryName: parsedExplainSetup.categoryName }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
+        result =
+          await this.recommendationProduct.handleExplainRecommendationSetup(
+            businessId,
+            parsedExplainSetup
+              ? {
+                  ...params,
+                  ...(parsedExplainSetup.serviceId
+                    ? { serviceId: parsedExplainSetup.serviceId }
+                    : {}),
+                  ...(parsedExplainSetup.serviceName
+                    ? { serviceName: parsedExplainSetup.serviceName }
+                    : {}),
+                  ...(parsedExplainSetup.categoryId
+                    ? { categoryId: parsedExplainSetup.categoryId }
+                    : {}),
+                  ...(parsedExplainSetup.categoryName
+                    ? { categoryName: parsedExplainSetup.categoryName }
+                    : {}),
+                }
+              : params,
+            effectivePrompt,
+          );
         break;
       }
       case 'explain_recommendation_analytics': {
@@ -2601,27 +2640,28 @@ export class AiCommandService {
           effectivePrompt,
           params,
         );
-        result = await this.recommendationProduct.handleExplainRecommendationAnalytics(
-          businessId,
-          parsedAnalytics
-            ? {
-                ...params,
-                ...(parsedAnalytics.aspect
-                  ? { aspect: parsedAnalytics.aspect }
-                  : {}),
-                ...(parsedAnalytics.surface
-                  ? { surface: parsedAnalytics.surface }
-                  : {}),
-                ...(parsedAnalytics.productName
-                  ? { productName: parsedAnalytics.productName }
-                  : {}),
-                ...(parsedAnalytics.daysAhead
-                  ? { daysAhead: parsedAnalytics.daysAhead }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
+        result =
+          await this.recommendationProduct.handleExplainRecommendationAnalytics(
+            businessId,
+            parsedAnalytics
+              ? {
+                  ...params,
+                  ...(parsedAnalytics.aspect
+                    ? { aspect: parsedAnalytics.aspect }
+                    : {}),
+                  ...(parsedAnalytics.surface
+                    ? { surface: parsedAnalytics.surface }
+                    : {}),
+                  ...(parsedAnalytics.productName
+                    ? { productName: parsedAnalytics.productName }
+                    : {}),
+                  ...(parsedAnalytics.daysAhead
+                    ? { daysAhead: parsedAnalytics.daysAhead }
+                    : {}),
+                }
+              : params,
+            effectivePrompt,
+          );
         break;
       }
       case 'summarize_recommendation_performance': {
@@ -2658,47 +2698,49 @@ export class AiCommandService {
         break;
       }
       case 'configure_recommendation_product': {
-        const parsedRecommendation = parseConfigureRecommendationProductFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.recommendationProduct.handleConfigureRecommendationProduct(
-          businessId,
-          parsedRecommendation
-            ? {
-                ...params,
-                ...(parsedRecommendation.productId
-                  ? { productId: parsedRecommendation.productId }
-                  : {}),
-                ...(parsedRecommendation.productName
-                  ? {
-                      productName: parsedRecommendation.productName,
-                      name: parsedRecommendation.productName,
-                    }
-                  : {}),
-                ...(parsedRecommendation.description
-                  ? { description: parsedRecommendation.description }
-                  : {}),
-                ...(parsedRecommendation.imageUrl
-                  ? { imageUrl: parsedRecommendation.imageUrl }
-                  : {}),
-                ...(parsedRecommendation.externalLink
-                  ? { externalLink: parsedRecommendation.externalLink }
-                  : {}),
-                ...(parsedRecommendation.retailPrice !== undefined
-                  ? { retailPrice: parsedRecommendation.retailPrice }
-                  : {}),
-                ...(parsedRecommendation.wantsImage
-                  ? { wantsImage: true }
-                  : {}),
-                ...(parsedRecommendation.wantsLink ? { wantsLink: true } : {}),
-                ...(parsedRecommendation.isUpdate
-                  ? { isUpdate: true }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
+        const parsedRecommendation =
+          parseConfigureRecommendationProductFromPrompt(
+            effectivePrompt,
+            params,
+          );
+        result =
+          await this.recommendationProduct.handleConfigureRecommendationProduct(
+            businessId,
+            parsedRecommendation
+              ? {
+                  ...params,
+                  ...(parsedRecommendation.productId
+                    ? { productId: parsedRecommendation.productId }
+                    : {}),
+                  ...(parsedRecommendation.productName
+                    ? {
+                        productName: parsedRecommendation.productName,
+                        name: parsedRecommendation.productName,
+                      }
+                    : {}),
+                  ...(parsedRecommendation.description
+                    ? { description: parsedRecommendation.description }
+                    : {}),
+                  ...(parsedRecommendation.imageUrl
+                    ? { imageUrl: parsedRecommendation.imageUrl }
+                    : {}),
+                  ...(parsedRecommendation.externalLink
+                    ? { externalLink: parsedRecommendation.externalLink }
+                    : {}),
+                  ...(parsedRecommendation.retailPrice !== undefined
+                    ? { retailPrice: parsedRecommendation.retailPrice }
+                    : {}),
+                  ...(parsedRecommendation.wantsImage
+                    ? { wantsImage: true }
+                    : {}),
+                  ...(parsedRecommendation.wantsLink
+                    ? { wantsLink: true }
+                    : {}),
+                  ...(parsedRecommendation.isUpdate ? { isUpdate: true } : {}),
+                }
+              : params,
+            effectivePrompt,
+          );
         break;
       }
       case 'link_recommended_products': {
@@ -3146,7 +3188,9 @@ export class AiCommandService {
         const parsedTax = parseBusinessTaxFromPrompt(effectivePrompt, params);
         result = await this.businessTax.handleConfigureBusinessTax(
           businessId,
-          parsedTax ? { ...params, ...parsedTax, _prompt: effectivePrompt } : params,
+          parsedTax
+            ? { ...params, ...parsedTax, _prompt: effectivePrompt }
+            : params,
           effectivePrompt,
         );
         break;
@@ -3510,9 +3554,10 @@ export class AiCommandService {
         break;
       }
       case 'explain_business_languages':
-        result = await this.businessLanguages.handleExplainBusinessLanguages(
-          businessId,
-        );
+        result =
+          await this.businessLanguages.handleExplainBusinessLanguages(
+            businessId,
+          );
         break;
       case 'bulk_strip_disabled_locale_translations':
         result =
@@ -3546,9 +3591,10 @@ export class AiCommandService {
         break;
       }
       case 'explain_business_date_format':
-        result = await this.businessDateFormat.handleExplainBusinessDateFormat(
-          businessId,
-        );
+        result =
+          await this.businessDateFormat.handleExplainBusinessDateFormat(
+            businessId,
+          );
         break;
       case 'preview_business_date_format': {
         const parsedPreview = parseBusinessDateFormatFromPrompt(
@@ -3598,11 +3644,12 @@ export class AiCommandService {
           typeof params.messageKind === 'string'
             ? params.messageKind
             : undefined;
-        result = await this.businessDateFormat.handlePreviewNotificationDatetime(
-          businessId,
-          messageKind ? { ...params, messageKind } : params,
-          effectivePrompt,
-        );
+        result =
+          await this.businessDateFormat.handlePreviewNotificationDatetime(
+            businessId,
+            messageKind ? { ...params, messageKind } : params,
+            effectivePrompt,
+          );
         break;
       }
       case 'notify_patient_result_ready':
@@ -3613,10 +3660,76 @@ export class AiCommandService {
           isExecutionConfirmed(session),
         );
         break;
-      case 'explain_date_input_format':
-        result = await this.businessDateFormat.handleExplainDateInputFormat(
+      case 'create_test_order':
+      case 'create_catalog_test_order': {
+        result = await this.clinicTestOrder.handleCreateTestOrder(
           businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
         );
+        break;
+      }
+      case 'push_lab_booking_to_patient':
+        result = await this.clinicLabBooking.handlePushLabBookingToPatient(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      case 'staff_book_lab_collection':
+        result = await this.clinicLabBooking.handleStaffBookLabCollection(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      case 'list_test_orders':
+        result = await this.clinicTestOrder.handleListTestOrders(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+        );
+        break;
+      case 'enter_test_result': {
+        result = await this.clinicTestResult.handleEnterTestResult(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      }
+      case 'release_test_result': {
+        result = await this.clinicTestResult.handleReleaseTestResult(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+          isExecutionConfirmed(session),
+        );
+        break;
+      }
+      case 'explain_patient_chart':
+        result = await this.clinicPatientChart.handleExplainPatientChart(
+          businessId,
+          userId ?? '',
+          { ...params, _prompt: effectivePrompt },
+          effectivePrompt,
+        );
+        break;
+      case 'explain_date_input_format':
+        result =
+          await this.businessDateFormat.handleExplainDateInputFormat(
+            businessId,
+          );
         break;
       case 'preview_date_input_parse': {
         const dateStrings = parseDateStringsFromPrompt(effectivePrompt, params);
@@ -3632,21 +3745,22 @@ export class AiCommandService {
           effectivePrompt,
           params,
         );
-        result = await this.businessDateFormat.handleConfigureBusinessDateFormat(
-          businessId,
-          parsedDateFormat
-            ? {
-                ...params,
-                ...(parsedDateFormat.dateFormat
-                  ? { dateFormat: parsedDateFormat.dateFormat }
-                  : {}),
-                ...(parsedDateFormat.timeFormat
-                  ? { timeFormat: parsedDateFormat.timeFormat }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
+        result =
+          await this.businessDateFormat.handleConfigureBusinessDateFormat(
+            businessId,
+            parsedDateFormat
+              ? {
+                  ...params,
+                  ...(parsedDateFormat.dateFormat
+                    ? { dateFormat: parsedDateFormat.dateFormat }
+                    : {}),
+                  ...(parsedDateFormat.timeFormat
+                    ? { timeFormat: parsedDateFormat.timeFormat }
+                    : {}),
+                }
+              : params,
+            effectivePrompt,
+          );
         break;
       }
       case 'configure_package_localized_names': {
@@ -3683,7 +3797,9 @@ export class AiCommandService {
                 ...params,
                 serviceId: parsedTour.serviceId,
                 serviceName: parsedTour.serviceName,
-                ...(parsedTour.enableTour ? { enableTour: true, serviceType: 'tour' } : {}),
+                ...(parsedTour.enableTour
+                  ? { enableTour: true, serviceType: 'tour' }
+                  : {}),
                 ...(parsedTour.maxGroupSize !== undefined
                   ? { maxGroupSize: parsedTour.maxGroupSize }
                   : {}),
@@ -3815,47 +3931,101 @@ export class AiCommandService {
           effectivePrompt,
         );
         break;
+      case 'configure_clinic_service': {
+        const parsedClinic = parseConfigureClinicServiceFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.clinicService.handleConfigureClinicService(
+          businessId,
+          parsedClinic
+            ? {
+                ...params,
+                serviceId: parsedClinic.serviceId,
+                serviceName: parsedClinic.serviceName,
+                ...(parsedClinic.serviceType
+                  ? { serviceType: parsedClinic.serviceType }
+                  : {}),
+                ...(parsedClinic.requiresFasting !== undefined
+                  ? { requiresFasting: parsedClinic.requiresFasting }
+                  : {}),
+                ...(parsedClinic.preparationNotes
+                  ? { preparationNotes: parsedClinic.preparationNotes }
+                  : {}),
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'explain_clinic_services': {
+        const parsedExplainClinic = parseExplainClinicServicesFromPrompt(
+          effectivePrompt,
+          params,
+        );
+        result = await this.clinicService.handleExplainClinicServices(
+          businessId,
+          parsedExplainClinic
+            ? {
+                ...params,
+                serviceId: parsedExplainClinic.serviceId,
+                serviceName: parsedExplainClinic.serviceName,
+              }
+            : params,
+          effectivePrompt,
+        );
+        break;
+      }
+      case 'apply_clinic_playbook':
+        result = await this.clinicService.handleApplyClinicPlaybook(
+          businessId,
+          userId,
+          params,
+          effectivePrompt,
+        );
+        break;
       case 'explain_package_display_name': {
         const parsedDisplayName = parsePackageDisplayNameExplainFromPrompt(
           effectivePrompt,
           params,
         );
-        result = await this.packageLocalizedNames.handleExplainPackageDisplayName(
-          businessId,
-          parsedDisplayName
-            ? {
-                ...params,
-                packageId: parsedDisplayName.packageId,
-                packageName: parsedDisplayName.packageName,
-                locale: parsedDisplayName.queryLocale,
-              }
-            : params,
-          effectivePrompt,
-          typeof session?.context?.locale === 'string'
-            ? session.context.locale
-            : undefined,
-        );
+        result =
+          await this.packageLocalizedNames.handleExplainPackageDisplayName(
+            businessId,
+            parsedDisplayName
+              ? {
+                  ...params,
+                  packageId: parsedDisplayName.packageId,
+                  packageName: parsedDisplayName.packageName,
+                  locale: parsedDisplayName.queryLocale,
+                }
+              : params,
+            effectivePrompt,
+            typeof session?.context?.locale === 'string'
+              ? session.context.locale
+              : undefined,
+          );
         break;
       }
       case 'explain_business_currency':
-        result = await this.businessCurrency.handleExplainBusinessCurrency(
-          businessId,
-        );
+        result =
+          await this.businessCurrency.handleExplainBusinessCurrency(businessId);
         break;
       case 'explain_stripe_currency_warning':
-        result = await this.businessCurrency.handleExplainStripeCurrencyWarning(
-          businessId,
-        );
+        result =
+          await this.businessCurrency.handleExplainStripeCurrencyWarning(
+            businessId,
+          );
         break;
       case 'diagnose_stripe_checkout_failure':
-        result = await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
-          businessId,
-        );
+        result =
+          await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
+            businessId,
+          );
         break;
       case 'explain_reports_currency':
-        result = await this.businessCurrency.handleExplainReportsCurrency(
-          businessId,
-        );
+        result =
+          await this.businessCurrency.handleExplainReportsCurrency(businessId);
         break;
       case 'summarize_revenue_kpis':
         result = await this.businessCurrency.handleSummarizeRevenueKpis(
@@ -4767,7 +4937,7 @@ export class AiCommandService {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       {

@@ -379,10 +379,10 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           <p className="font-medium text-gray-900 mb-3">{pkg.name}</p>
           <div className="flex flex-wrap gap-3 text-sm mb-4">
             <span className="font-semibold text-gray-900">
-              {money(pkg.pricing.packagePrice, pkg.currency)}
+              {formatPublicMoney(pkg.pricing.packagePrice, pkg.currency)}
             </span>
             <span className="text-gray-400 line-through">
-              {money(pkg.pricing.regularTotal, pkg.currency)}
+              {formatPublicMoney(pkg.pricing.regularTotal, pkg.currency)}
             </span>
             <span className="text-emerald-700 font-medium">
               {t('public.packageSavePercent', { percent: pkg.pricing.savingsPercent.toFixed(0) })}
@@ -414,16 +414,16 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
                     {discountedUnit != null && (
                       <p className="text-sm mt-1">
                         <span className="font-medium text-gray-900">
-                          {money(discountedUnit, pkg.currency)}
+                          {formatPublicMoney(discountedUnit, pkg.currency)}
                         </span>
                         {savingsUnit != null && savingsUnit > 0 && (
                           <>
                             <span className="text-gray-400 line-through ml-2">
-                              {money(priced!.unitPrice, pkg.currency)}
+                              {formatPublicMoney(priced!.unitPrice, pkg.currency)}
                             </span>
                             <span className="text-emerald-700 font-medium ml-2">
                               {t('public.packageItemSave', {
-                                amount: money(savingsUnit, pkg.currency),
+                                amount: formatPublicMoney(savingsUnit, pkg.currency),
                               })}
                             </span>
                           </>
@@ -438,7 +438,7 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           <div className="flex justify-between mt-4 pt-4 border-t border-gray-50 text-sm">
             <span className="font-semibold text-gray-900">{t('public.total')}</span>
             <span className="font-semibold text-gray-900">
-              {formatDuration(totalDuration)} · {money(pkg.pricing.packagePrice, pkg.currency)}
+              {formatDuration(totalDuration)} · {formatPublicMoney(pkg.pricing.packagePrice, pkg.currency)}
             </span>
           </div>
         </section>

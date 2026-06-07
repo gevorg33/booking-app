@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { getPublicCustomerSubscriptionUsage, type PublicCustomerSubscription } from '@/lib/public-api';
+import {
+  getPublicCustomerSubscriptionUsage,
+  type PublicCustomerSubscription,
+  type PublicSubscriptionUsageRow,
+} from '@/lib/public-api';
 import { formatDateDisplay } from '@/lib/date-format';
 import { bookPath } from '@/lib/tenant-host';
 
@@ -19,7 +23,9 @@ export function PublicSubscriptionsSection({
   locale: string;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [usageById, setUsageById] = useState<Record<string, { loading: boolean; rows: unknown[] }>>({});
+  const [usageById, setUsageById] = useState<
+    Record<string, { loading: boolean; rows: PublicSubscriptionUsageRow[] }>
+  >({});
 
   async function toggleUsage(sub: PublicCustomerSubscription) {
     if (expandedId === sub.id) {

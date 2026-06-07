@@ -32,8 +32,21 @@ describe('ai-business-date-format.logic (ai-cmd-fmt-1..2)', () => {
     findOne: jest.fn(async () => ({ ...business })),
     save: jest.fn(async (b: Business) => b),
   };
+  const resultRepo = {
+    findOne: jest.fn(async () => ({ id: 'result-1' })),
+    find: jest.fn(async () => [{ id: 'result-1' }]),
+  };
+  const sendClinicResultReady = jest.fn(async () => ({
+    delivered: ['email', 'whatsapp'],
+    pushSkippedReason: 'consumer_push_tokens_not_available',
+  }));
 
-  const deps = () => ({ businessRepo });
+  const deps = () => ({
+    businessRepo,
+    resultRepo,
+    sendClinicResultReady,
+    frontendUrl: 'https://app.test',
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -226,7 +239,10 @@ describe('ai-business-date-format.logic (ai-cmd-fmt-1..2)', () => {
   });
 
   it('explains notification date format vs dashboard (ai-cmd-fmt-9)', async () => {
-    const result = await handleExplainNotificationDateFormatLogic(deps(), 'biz-1');
+    const result = await handleExplainNotificationDateFormatLogic(
+      deps(),
+      'biz-1',
+    );
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_notification_date_format');
     expect(result.summary).toContain('formatNotificationDateDisplay');
@@ -299,5 +315,45 @@ describe('ai-business-date-format.logic (ai-cmd-fmt-1..2)', () => {
     );
     expect(result.success).toBe(false);
     expect(result.details?.clinicOnly).toBe(true);
+  });
+
+  it('sends result-ready notification on confirmation (vert-clinic-2.4.7)', async () => {
+    business.settings = {
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
+      businessType: 'clinic',
+    };
+    businessRepo.findOne.mockResolvedValue({ ...business });
+
+    const result = await handleNotifyPatientResultReadyLogic(
+      deps(),
+      'biz-1',
+      { bookingId: 'booking-1' },
+      'Send result-ready email to the patient',
+      true,
+    );
+
+    expect(result.success).toBe(true);
+    expect(sendClinicResultReady).toHaveBeenCalledWith('result-1');
+    expect(result.details?.deliveredChannels).toEqual(['email', 'whatsapp']);
+    expect(result.summary).toContain('Delivered via email, whatsapp');
+  });
+
+  it('fails confirmation when no released result is found', async () => {
+    business.settings = { businessType: 'clinic' };
+    businessRepo.findOne.mockResolvedValue({ ...business });
+    resultRepo.find.mockResolvedValue([]);
+
+    const result = await handleNotifyPatientResultReadyLogic(
+      deps(),
+      'biz-1',
+      {},
+      'Notify patient their lab results are ready',
+      true,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details?.missingReleasedResult).toBe(true);
+    expect(sendClinicResultReady).not.toHaveBeenCalled();
   });
 });

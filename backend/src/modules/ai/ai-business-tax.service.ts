@@ -66,12 +66,7 @@ export class AiBusinessTaxService {
     params: Record<string, unknown> = {},
     prompt?: string,
   ): Promise<CommandResult> {
-    return handleExplainBusinessTaxLogic(
-      this.deps,
-      businessId,
-      params,
-      prompt,
-    );
+    return handleExplainBusinessTaxLogic(this.deps, businessId, params, prompt);
   }
 
   handleExplainCheckoutTax(businessId: string): Promise<CommandResult> {
@@ -109,12 +104,7 @@ export class AiBusinessTaxService {
     params: Record<string, unknown> = {},
     prompt?: string,
   ): Promise<CommandResult> {
-    return handleExplainStackedTaxLogic(
-      this.deps,
-      businessId,
-      params,
-      prompt,
-    );
+    return handleExplainStackedTaxLogic(this.deps, businessId, params, prompt);
   }
 
   handleExplainStripeTaxCharge(

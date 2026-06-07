@@ -310,10 +310,7 @@ export class CommandCompletionPipelineService {
     const p = resolved.enrichedParams;
     return {
       employeeName: p.employeeName ?? resolved.params.employeeName ?? null,
-      employeeNames:
-        p.employeeNames ??
-        resolved.params.employeeNames ??
-        null,
+      employeeNames: p.employeeNames ?? resolved.params.employeeNames ?? null,
       date: p.date ? formatDateDisplay(p.date) : null,
       dateFrom: p.dateFrom ? formatDateDisplay(p.dateFrom) : null,
       dateTo: p.dateTo ? formatDateDisplay(p.dateTo) : null,
@@ -328,7 +325,8 @@ export class CommandCompletionPipelineService {
       paymentMethod: p.paymentMethod ?? resolved.params.paymentMethod ?? null,
       giftCardOrderId:
         p.giftCardOrderId ?? resolved.params.giftCardOrderId ?? null,
-      deliveryMethod: p.deliveryMethod ?? resolved.params.deliveryMethod ?? null,
+      deliveryMethod:
+        p.deliveryMethod ?? resolved.params.deliveryMethod ?? null,
       amount: p.amount ?? resolved.params.amount ?? null,
       timeFrom: p.timeFrom ?? null,
       timeTo: p.timeTo ?? null,

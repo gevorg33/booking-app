@@ -28,6 +28,7 @@ export interface AuthResult {
     dateFormat?: string;
     timeFormat?: string;
     membershipRole?: TeamMemberRole;
+    settings?: Record<string, unknown>;
   } | null;
   employee: { id: string; name: string } | null;
   businesses: BusinessSummary[];

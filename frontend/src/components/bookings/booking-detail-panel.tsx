@@ -48,6 +48,9 @@ import { type BookingPaymentSummary } from '@/lib/booking-payment-summary';
 import { BookingPaymentBreakdown } from '@/components/bookings/booking-payment-breakdown';
 import { BookingRetailPosPanel } from '@/components/retail-pos/booking-retail-pos-panel';
 import { useI18n } from '@/i18n';
+import { BookingLabSection } from '@/components/clinic/booking-lab-section';
+import { BookingIntakeSection } from '@/components/clinic/booking-intake-section';
+import { shouldShowPatientResultsTab, isClinicVerticalBusinessType } from '@/lib/clinic-service';
 
 export interface BookingDetail {
   id: string;
@@ -99,6 +102,21 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
   const [rescheduleServiceId, setRescheduleServiceId] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [versionConflict, setVersionConflict] = useState(false);
+
+  const { data: business } = useQuery({
+    queryKey: ['business', businessId],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${businessId}`);
+      return data.data || data;
+    },
+    enabled: !!businessId,
+  });
+
+  const businessType =
+    (business?.settings?.businessType as string | undefined) ??
+    (business?.businessType as string | undefined);
+  const showLabResultsTab = shouldShowPatientResultsTab(businessType);
+  const showClinicIntake = isClinicVerticalBusinessType(businessType);
 
   const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['booking', businessId, bookingId],
@@ -544,6 +562,14 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
                   }}
                 />
               </div>
+            )}
+
+            {showLabResultsTab && bookingId && (
+              <BookingLabSection businessId={businessId} bookingId={bookingId} />
+            )}
+
+            {showClinicIntake && bookingId && (
+              <BookingIntakeSection businessId={businessId} bookingId={bookingId} />
             )}
 
             <div className="mb-5 p-3 rounded-lg bg-gray-800/60 border border-gray-700/80">

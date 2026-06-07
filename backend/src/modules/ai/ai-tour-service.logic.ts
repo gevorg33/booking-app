@@ -140,26 +140,19 @@ export async function handleConfigureTourServiceLogic(
     updateDto.durationDays = parsed.durationDays;
   }
 
-  const updated = await deps.serviceService.update(
-    service.id,
-    updateDto as Parameters<ServiceService['update']>[1],
-  );
+  const updated = await deps.serviceService.update(service.id, updateDto);
 
   const tourMeta = extractTourMetadata(
     (updated.metadata ?? {}) as Record<string, unknown>,
   );
 
-  return success(
-    'configure_tour_service',
-    buildSummary(service.name, parsed),
-    {
-      serviceId: service.id,
-      serviceName: service.name,
-      wasTour: Boolean(existingTour),
-      tour: tourMeta,
-      applied: parsed,
-    },
-  );
+  return success('configure_tour_service', buildSummary(service.name, parsed), {
+    serviceId: service.id,
+    serviceName: service.name,
+    wasTour: Boolean(existingTour),
+    tour: tourMeta,
+    applied: parsed,
+  });
 }
 
 const UPCOMING_TOUR_STATUSES = new Set<BookingStatus>([
@@ -198,7 +191,9 @@ function formatTourServiceLine(service: TourServiceSummary): string {
   return parts.join(' — ');
 }
 
-function formatUpcomingBookingLine(booking: UpcomingTourBookingSummary): string {
+function formatUpcomingBookingLine(
+  booking: UpcomingTourBookingSummary,
+): string {
   const pax = booking.paxCount ?? 1;
   const customer = booking.customerName ?? 'Guest';
   const range =
@@ -214,9 +209,7 @@ function buildExplainTourServicesSummary(
   upcomingBookings: UpcomingTourBookingSummary[],
 ): string {
   const parts: string[] = [];
-  const filterNote = parsed.serviceName
-    ? ` for "${parsed.serviceName}"`
-    : '';
+  const filterNote = parsed.serviceName ? ` for "${parsed.serviceName}"` : '';
 
   if (parsed.includeServices !== false) {
     if (tourServices.length === 0) {
@@ -267,9 +260,7 @@ function isUpcomingTourBooking(
     startTime: booking.startTime,
   });
   if (range) {
-    return (
-      range.tourEndDate >= rangeStart && range.tourStartDate <= rangeEnd
-    );
+    return range.tourEndDate >= rangeStart && range.tourStartDate <= rangeEnd;
   }
   const dayKey = booking.startTime.toISOString().slice(0, 10);
   return dayKey >= rangeStart && dayKey <= rangeEnd;
@@ -314,7 +305,9 @@ export async function handleExplainTourServicesLogic(
     });
 
   if (parsed.serviceId) {
-    tourServices = tourServices.filter((service) => service.id === parsed.serviceId);
+    tourServices = tourServices.filter(
+      (service) => service.id === parsed.serviceId,
+    );
   } else if (parsed.serviceName) {
     const match = resolveServiceByName(tourServices, parsed.serviceName);
     tourServices = match ? [match] : [];
@@ -355,14 +348,13 @@ export async function handleExplainTourServicesLogic(
     )
     .map((booking) => {
       const tourMeta = extractTourBookingMetadata(booking.metadata);
-      const range =
-        resolveTourBookingDateRange({
-          metadata: booking.metadata,
-          startTime: booking.startTime,
-        }) ?? {
-          tourStartDate: booking.startTime.toISOString().slice(0, 10),
-          tourEndDate: booking.endTime.toISOString().slice(0, 10),
-        };
+      const range = resolveTourBookingDateRange({
+        metadata: booking.metadata,
+        startTime: booking.startTime,
+      }) ?? {
+        tourStartDate: booking.startTime.toISOString().slice(0, 10),
+        tourEndDate: booking.endTime.toISOString().slice(0, 10),
+      };
       return {
         bookingId: booking.id,
         serviceId: booking.serviceId,
@@ -393,8 +385,7 @@ export async function handleExplainTourServicesLogic(
   return success('explain_tour_services', summary, {
     daysAhead,
     tourServices: parsed.includeServices !== false ? tourServices : [],
-    upcomingBookings:
-      parsed.includeBookings !== false ? upcomingBookings : [],
+    upcomingBookings: parsed.includeBookings !== false ? upcomingBookings : [],
     serviceName: parsed.serviceName ?? null,
     serviceId: parsed.serviceId ?? null,
   });
@@ -426,7 +417,9 @@ export async function handleApplyTourPlaybookLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('apply_tour_playbook', 'Business not found.');
   }

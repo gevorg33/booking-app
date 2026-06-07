@@ -39,7 +39,9 @@ describe('ai-stripe-checkout-currency.util (ai-cmd-curr-11)', () => {
 
   it('does not steal explain_why_stripe_required prompts', () => {
     expect(
-      isExplainStripeCheckoutCurrencyPrompt('Why is Stripe required for checkout?'),
+      isExplainStripeCheckoutCurrencyPrompt(
+        'Why is Stripe required for checkout?',
+      ),
     ).toBe(false);
   });
 

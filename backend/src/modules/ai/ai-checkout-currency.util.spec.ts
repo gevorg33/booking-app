@@ -61,10 +61,14 @@ describe('ai-checkout-currency.util (ai-cmd-curr-5)', () => {
 
   it('does not steal package or gift-card currency prompts', () => {
     expect(
-      isExplainCheckoutCurrencyPrompt('Why is the spa package total in dollars?'),
+      isExplainCheckoutCurrencyPrompt(
+        'Why is the spa package total in dollars?',
+      ),
     ).toBe(false);
     expect(
-      isExplainCheckoutCurrencyPrompt('Why does the gift card total show euros?'),
+      isExplainCheckoutCurrencyPrompt(
+        'Why does the gift card total show euros?',
+      ),
     ).toBe(false);
   });
 
@@ -76,7 +80,10 @@ describe('ai-checkout-currency.util (ai-cmd-curr-5)', () => {
       isExplainCheckoutCurrencyPrompt('What is our default currency?'),
     ).toBe(false);
     expect(
-      rescueCheckoutCurrencyIntent('Which currency does the salon use?', 'unknown'),
+      rescueCheckoutCurrencyIntent(
+        'Which currency does the salon use?',
+        'unknown',
+      ),
     ).toBeNull();
   });
 });

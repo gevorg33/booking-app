@@ -119,22 +119,33 @@ export function packageToFormState(pkg: ServicePackageRecord) {
   };
 }
 
-export function defaultPackageFormState() {
+export type PackageFormState = {
+  name: string;
+  localizedNames: LocalizedNamesFormState;
+  description: string;
+  imageUrl: string;
+  discountType: PackageDiscountType;
+  discountValue: string;
+  displayOrder: string;
+  expiresAtDay: string;
+  selectedServiceIds: string[];
+  quantities: Record<string, number>;
+};
+
+export function defaultPackageFormState(): PackageFormState {
   return {
     name: '',
     localizedNames: emptyLocalizedNamesForm(),
     description: '',
     imageUrl: '',
-    discountType: 'percent' as const,
+    discountType: 'percent',
     discountValue: '15',
     displayOrder: '0',
     expiresAtDay: '',
-    selectedServiceIds: [] as string[],
-    quantities: {} as Record<string, number>,
+    selectedServiceIds: [],
+    quantities: {},
   };
 }
-
-export type PackageFormState = ReturnType<typeof defaultPackageFormState>;
 
 export function packageLocalizedNamesPayload(
   form: Pick<PackageFormState, 'localizedNames'>,

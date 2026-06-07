@@ -1,0 +1,16 @@
+import {
+  CLINIC_LAB_OPS_ROLES,
+  type ClinicLabStaffContext,
+} from './clinic-lab-access.util.js';
+
+export function canManageExternalDoctorsRegistry(
+  ctx: Pick<ClinicLabStaffContext, 'membershipRole'>,
+): boolean {
+  return CLINIC_LAB_OPS_ROLES.has(String(ctx.membershipRole).toLowerCase());
+}
+
+export function canListExternalDoctorsRegistry(
+  _ctx: Pick<ClinicLabStaffContext, 'membershipRole' | 'employeeId'>,
+): boolean {
+  return true;
+}

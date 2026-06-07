@@ -109,7 +109,7 @@ export default function AiOpsPage() {
 
   useEffect(() => {
     if (tasksPage > totalTaskPages) {
-      setTasksPage(totalTaskPages);
+      queueMicrotask(() => setTasksPage(totalTaskPages));
     }
   }, [tasksPage, totalTaskPages]);
 

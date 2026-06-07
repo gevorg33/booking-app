@@ -53,7 +53,9 @@ function hasDataRightsTopic(prompt: string): boolean {
   ) {
     return true;
   }
-  if (/\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(prompt)) {
+  if (
+    /\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(prompt)
+  ) {
     return true;
   }
   if (containsArmenianScript(prompt)) {
@@ -89,7 +91,9 @@ export function isExplainDataRightsPrompt(prompt: string): boolean {
   if (isDirectPrivacyMutatePrompt(prompt)) return false;
 
   if (
-    /\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(prompt) &&
+    /\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(
+      prompt,
+    ) &&
     (hasReadCue(prompt) ||
       /\b(see|shown|showing|appear|displayed|this\s+page|here)\b/i.test(prompt))
   ) {
@@ -130,9 +134,8 @@ export function parseExplainDataRightsAspect(
   const hasDelete =
     /\b(delete|erase|remove|forget|erasure)\b/i.test(prompt) &&
     /\b(data|account|information|profile)\b/i.test(prompt);
-  const hasCookie = /\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(
-    lower,
-  );
+  const hasCookie =
+    /\b(cookie\s*(?:banner|consent|notice)|cookies?\s+policy)\b/i.test(lower);
 
   const aspects = [hasExport, hasDelete, hasCookie].filter(Boolean).length;
   if (aspects > 1) return 'all';

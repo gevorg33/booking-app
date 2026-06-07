@@ -52,6 +52,7 @@ import {
   parseReportDataBreachFromPrompt,
   parseSendBreachNotificationFromPrompt,
   parseViewPhiAccessAuditFromPrompt,
+  formatPhiAccessAuditFieldLabel,
   summarizeGranularConsentChange,
   summarizeHipaaChange,
   summarizePrivacyRetentionChange,
@@ -120,7 +121,9 @@ export async function handleConfigurePrivacyRetentionLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_privacy_retention', 'Business not found.');
   }
@@ -135,8 +138,7 @@ export async function handleConfigurePrivacyRetentionLogic(
     cookieBanner: parsed.cookieBanner
       ? {
           enabled: parsed.cookieBanner.enabled ?? current.cookieBanner.enabled,
-          message:
-            parsed.cookieBanner.message ?? current.cookieBanner.message,
+          message: parsed.cookieBanner.message ?? current.cookieBanner.message,
         }
       : current.cookieBanner,
     granularConsent: current.granularConsent,
@@ -197,7 +199,9 @@ export async function handleConfigureGranularConsentLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_granular_consent', 'Business not found.');
   }
@@ -272,7 +276,9 @@ export async function handleEnableHipaaModeLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('enable_hipaa_mode', 'Business not found.');
   }
@@ -334,7 +340,10 @@ export async function handleExplainComplianceStatusLogic(
   prompt?: string,
 ): Promise<CommandResult> {
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseExplainComplianceStatusFromPrompt(effectivePrompt, params);
+  const parsed = parseExplainComplianceStatusFromPrompt(
+    effectivePrompt,
+    params,
+  );
   if (!parsed) {
     return failure(
       'explain_compliance_status',
@@ -343,7 +352,9 @@ export async function handleExplainComplianceStatusLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_compliance_status', 'Business not found.');
   }
@@ -397,7 +408,9 @@ export async function handleListSubProcessorsLogic(
 
   await deps.businessService.ensureOwner(businessId, userId);
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('list_sub_processors', 'Business not found.');
   }
@@ -438,7 +451,9 @@ export async function handleExplainGdprChecklistLogic(
 
   await deps.businessService.ensureOwner(businessId, userId);
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_gdpr_checklist', 'Business not found.');
   }
@@ -464,7 +479,10 @@ export async function handleAdminDeleteCustomerDataLogic(
   prompt?: string,
 ): Promise<CommandResult> {
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseAdminDeleteCustomerDataFromPrompt(effectivePrompt, params);
+  const parsed = parseAdminDeleteCustomerDataFromPrompt(
+    effectivePrompt,
+    params,
+  );
   if (!parsed) {
     return failure(
       'admin_delete_customer_data',
@@ -563,7 +581,9 @@ export async function handleExplainDataRightsLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_data_rights', 'Business not found.');
   }
@@ -633,18 +653,16 @@ export async function handleReportDataBreachLogic(
   );
 }
 
-function formatBreachIncidentLine(
-  incident: {
-    id: string;
-    status: string;
-    reportedAt: Date;
-    gdprNotificationDeadlineAt: Date;
-    description: string;
-    affectedCustomerCount: number;
-    gdprDeadlineApproaching: boolean;
-    gdprDeadlineOverdue: boolean;
-  },
-): string {
+function formatBreachIncidentLine(incident: {
+  id: string;
+  status: string;
+  reportedAt: Date;
+  gdprNotificationDeadlineAt: Date;
+  description: string;
+  affectedCustomerCount: number;
+  gdprDeadlineApproaching: boolean;
+  gdprDeadlineOverdue: boolean;
+}): string {
   const deadlineStatus = incident.gdprDeadlineOverdue
     ? 'deadline overdue'
     : incident.gdprDeadlineApproaching
@@ -700,8 +718,16 @@ function filterPhiAccessAuditItems(
 
 function formatPhiAccessAuditLine(item: PhiAccessAuditLog): string {
   const who = item.userId ? `user ${item.userId.slice(0, 8)}…` : 'system';
-  const field = item.fieldName ? ` field ${item.fieldName}` : '';
-  return `${item.createdAt.toISOString()} — ${who} (${item.role}) ${item.action} ${item.resourceType}/${item.resourceId}${field}`;
+  const field = item.fieldName
+    ? ` ${formatPhiAccessAuditFieldLabel(item.fieldName)}`
+    : '';
+  const resource =
+    item.resourceType === 'clinic_test_result'
+      ? 'lab result'
+      : item.resourceType === 'clinic_test_result_measurement'
+        ? 'lab measurement'
+        : item.resourceType;
+  return `${item.createdAt.toISOString()} — ${who} (${item.role}) ${item.action} ${resource}/${item.resourceId}${field}`;
 }
 
 export async function handleSendBreachNotificationLogic(
@@ -720,10 +746,7 @@ export async function handleSendBreachNotificationLogic(
   }
 
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseSendBreachNotificationFromPrompt(
-    effectivePrompt,
-    params,
-  );
+  const parsed = parseSendBreachNotificationFromPrompt(effectivePrompt, params);
   if (!parsed) {
     return failure(
       'send_breach_notification',
@@ -869,7 +892,9 @@ export async function handleViewPhiAccessAuditLogic(
   if (filtered.length === 0) {
     const rangeLabel =
       parsed.daysBack != null ? ` in the last ${parsed.daysBack} day(s)` : '';
-    const fieldLabel = parsed.fieldName ? ` for ${parsed.fieldName}` : '';
+    const fieldLabel = parsed.fieldName
+      ? ` for ${formatPhiAccessAuditFieldLabel(parsed.fieldName)}`
+      : '';
     return success(
       'view_phi_access_audit',
       `No HIPAA PHI access audit entries found${rangeLabel}${fieldLabel}.`,
@@ -882,7 +907,7 @@ export async function handleViewPhiAccessAuditLogic(
     );
   }
 
-  const summary = `Showing ${filtered.length} PHI access audit entr${filtered.length === 1 ? 'y' : 'ies'}${parsed.daysBack != null ? ` from the last ${parsed.daysBack} day(s)` : ''}${parsed.fieldName ? ` for ${parsed.fieldName}` : ''}: ${filtered.slice(0, 10).map(formatPhiAccessAuditLine).join('; ')}${filtered.length > 10 ? `; …and ${filtered.length - 10} more` : ''}.`;
+  const summary = `Showing ${filtered.length} PHI access audit entr${filtered.length === 1 ? 'y' : 'ies'}${parsed.daysBack != null ? ` from the last ${parsed.daysBack} day(s)` : ''}${parsed.fieldName ? ` for ${formatPhiAccessAuditFieldLabel(parsed.fieldName)}` : ''}: ${filtered.slice(0, 10).map(formatPhiAccessAuditLine).join('; ')}${filtered.length > 10 ? `; …and ${filtered.length - 10} more` : ''}.`;
 
   return success('view_phi_access_audit', summary, {
     daysBack: parsed.daysBack,
@@ -893,15 +918,8 @@ export async function handleViewPhiAccessAuditLogic(
   });
 }
 
-const PHI_FIELD_LABELS: Record<string, string> = {
-  referralNotes: 'referral notes',
-  symptoms: 'symptoms',
-  notes: 'patient notes',
-  patient_test_results: 'patient test result notes',
-};
-
 function formatPhiFieldLabel(fieldName: string): string {
-  return PHI_FIELD_LABELS[fieldName] ?? fieldName;
+  return formatPhiAccessAuditFieldLabel(fieldName);
 }
 
 function formatPhiEncryptionFieldSummary(
@@ -936,7 +954,9 @@ function formatPhiEncryptionSummary(
     );
   }
 
-  const keyId = hipaa.phiEncryptionKeyId ? `key ${hipaa.phiEncryptionKeyId}` : 'no key';
+  const keyId = hipaa.phiEncryptionKeyId
+    ? `key ${hipaa.phiEncryptionKeyId}`
+    : 'no key';
   const state = status.hipaa.phiEncryptionConfigured
     ? `configured (${keyId})`
     : 'not configured';
@@ -992,7 +1012,9 @@ export async function handleExplainPhiEncryptionStatusLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_phi_encryption_status', 'Business not found.');
   }
@@ -1011,11 +1033,7 @@ export async function handleExplainPhiEncryptionStatusLogic(
 
   const hipaa = readBusinessHipaaSettings(settings);
   const status = buildComplianceStatusSummary(settings, businessType);
-  const summary = formatPhiEncryptionSummary(
-    status,
-    hipaa,
-    parsed.fieldName,
-  );
+  const summary = formatPhiEncryptionSummary(status, hipaa, parsed.fieldName);
 
   return success('explain_phi_encryption_status', summary, {
     fieldName: parsed.fieldName,
@@ -1045,7 +1063,9 @@ export async function handleExplainMinimumNecessaryPhiAccessLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure(
       'explain_minimum_necessary_phi_access',
@@ -1117,7 +1137,9 @@ export async function handleExplainHipaaSessionTimeoutLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_hipaa_session_timeout', 'Business not found.');
   }
@@ -1179,7 +1201,9 @@ export async function handleExplainProviderSessionTimeoutLogic(
   deps: BusinessComplianceLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_provider_session_timeout', 'Business not found.');
   }
@@ -1282,7 +1306,9 @@ export async function handleAcceptHipaaBaaLogic(
 
   await deps.businessService.ensureOwner(businessId, userId);
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('accept_hipaa_baa', 'Business not found.');
   }
@@ -1319,7 +1345,8 @@ export async function handleAcceptHipaaBaaLogic(
   }
 
   const baaNewlySigned = !current.baaAcceptedAt;
-  const hipaaEnabled = parsed.enableHipaa && !current.enabled && normalized.enabled;
+  const hipaaEnabled =
+    parsed.enableHipaa && !current.enabled && normalized.enabled;
 
   if (!baaNewlySigned && !hipaaEnabled) {
     return success(
@@ -1377,7 +1404,9 @@ export async function handleConfigureHipaaSessionTimeoutLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_hipaa_session_timeout', 'Business not found.');
   }

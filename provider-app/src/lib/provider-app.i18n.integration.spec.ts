@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { translate } from '@shared-i18n/translate';
 import type { AppLocale } from '@shared-i18n/types';
 import { getMessages } from '../i18n/catalog';
-import { allProviderAppI18nKeys } from './provider-app-i18n';
+import { listClinicLabStateI18nKeys } from '@booking-lib/clinic-i18n';
+import {
+  allProviderAppI18nKeys,
+  listProviderClinicTasksI18nKeys,
+  listProviderLabCollectionI18nKeys,
+  listProviderLabResultsI18nKeys,
+} from './provider-app-i18n';
 import { providerQuickChipI18nKeys } from './provider-ai-quick-chips';
 import { buildProviderAiExamples } from './provider-ai-examples';
 
@@ -41,6 +47,68 @@ describe('provider app i18n integration', () => {
       );
       expect(resolve(messages, 'appointments.markStatusConfirm', { status: 'Done' })).toContain('Done');
       expect(resolve(messages, 'appointments.paymentLoyaltyPoints', { points: '10.00' })).toContain('10');
+    }
+  });
+
+  it('resolves provider lab results tab keys in en, hy, and ru (i18n-clinic-v2-4)', () => {
+    const keys = listProviderLabResultsI18nKeys();
+    expect(keys).toContain('provider.labResultsTitle');
+    expect(keys).toContain('clinic.labState.result.Released');
+
+    for (const locale of LOCALES) {
+      const messages = getMessages(locale);
+      for (const key of keys) {
+        expectNonEmpty(resolve(messages, key), key, locale);
+      }
+    }
+  });
+
+  it('resolves provider lab collection queue keys in en, hy, and ru (i18n-clinic-v2-2)', () => {
+    const keys = listProviderLabCollectionI18nKeys();
+    expect(keys).toContain('provider.labCollectionTitle');
+    expect(keys).toContain('clinic.labState.order.NotCollected');
+
+    for (const locale of LOCALES) {
+      const messages = getMessages(locale);
+      for (const key of keys) {
+        expectNonEmpty(resolve(messages, key), key, locale);
+      }
+    }
+  });
+
+  it('resolves provider clinic task inbox keys in en, hy, and ru (i18n-clinic-v2-9)', () => {
+    const keys = listProviderClinicTasksI18nKeys();
+    expect(keys).toContain('provider.clinicTasksTypeResultReview');
+    expect(keys).toContain('provider.clinicTasksTypeSpecimenCollection');
+    expect(keys).toContain('provider.clinicTasksTypePatientCallback');
+
+    for (const locale of LOCALES) {
+      const messages = getMessages(locale);
+      for (const key of keys) {
+        expectNonEmpty(resolve(messages, key), key, locale);
+      }
+    }
+  });
+
+  it('localizes clinic task inbox types and actions in hy and ru (i18n-clinic-v2-9)', () => {
+    const hy = getMessages('hy');
+    const ru = getMessages('ru');
+    expect(resolve(hy, 'provider.clinicTasksTypeSpecimenCollection')).toContain('հավաքում');
+    expect(resolve(ru, 'provider.clinicTasksTypePatientCallback')).toContain('звонок');
+    expect(resolve(hy, 'provider.clinicTasksClaim')).toBe('Վերցնել');
+    expect(resolve(ru, 'provider.navClinicTasks')).toBe('Задачи');
+  });
+
+  it('resolves every clinic.labState badge and gate key in en, hy, and ru', () => {
+    const keys = listClinicLabStateI18nKeys();
+    expect(keys).toContain('clinic.labState.gate.disabledReason');
+    expect(keys).toContain('clinic.labState.result.Released');
+
+    for (const locale of LOCALES) {
+      const messages = getMessages(locale);
+      for (const key of keys) {
+        expectNonEmpty(resolve(messages, key), key, locale);
+      }
     }
   });
 

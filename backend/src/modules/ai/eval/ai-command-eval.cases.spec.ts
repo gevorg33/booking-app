@@ -1,3 +1,4 @@
+import { CLINIC_COMPOUND_RESCUE_SCENARIOS } from '../ai-clinic-compound.fixtures.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from '../intent-decomposition.fixtures.js';
 import {
   decomposeDeterministicForSurface,
@@ -75,6 +76,16 @@ import {
   AI_COMMAND_EVAL_EXPLAIN_COMPLIANCE_STATUS_CASES,
   AI_COMMAND_EVAL_ADMIN_DELETE_CUSTOMER_DATA_CASES,
   AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_V2_SURFACE_CASES,
+  AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES,
+  AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_SET_SERVICE_TAX_RATE_CASES,
   AI_COMMAND_EVAL_DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_EXPLAIN_PROVIDER_DATE_DISPLAY_CASES,
@@ -321,9 +332,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps business currency scenarios for EN/HY/RU (ai-cmd-curr-4)', () => {
-    expect(AI_COMMAND_EVAL_BUSINESS_CURRENCY_CASES.length).toBeGreaterThanOrEqual(
-      40,
-    );
+    expect(
+      AI_COMMAND_EVAL_BUSINESS_CURRENCY_CASES.length,
+    ).toBeGreaterThanOrEqual(40);
     const hyCases = AI_COMMAND_EVAL_BUSINESS_CURRENCY_CASES.filter(
       (entry) => entry.locale === 'hy',
     );
@@ -344,7 +355,8 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   it('maps business date format scenarios for EN/HY/RU (ai-cmd-fmt-1..3)', () => {
     expect(AI_COMMAND_EVAL_BUSINESS_DATE_FORMAT_CASES.length).toBe(28);
     const configureCases = AI_COMMAND_EVAL_BUSINESS_DATE_FORMAT_CASES.filter(
-      (entry) => entry.expect.rescuedAction === 'configure_business_date_format',
+      (entry) =>
+        entry.expect.rescuedAction === 'configure_business_date_format',
     );
     const explainCases = AI_COMMAND_EVAL_BUSINESS_DATE_FORMAT_CASES.filter(
       (entry) => entry.expect.rescuedAction === 'explain_business_date_format',
@@ -452,7 +464,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every explain notification date format eval case (ai-cmd-fmt-9)', () => {
-    expect(AI_COMMAND_EVAL_EXPLAIN_NOTIFICATION_DATE_FORMAT_CASES.length).toBe(6);
+    expect(AI_COMMAND_EVAL_EXPLAIN_NOTIFICATION_DATE_FORMAT_CASES.length).toBe(
+      6,
+    );
     for (const evalCase of AI_COMMAND_EVAL_EXPLAIN_NOTIFICATION_DATE_FORMAT_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
@@ -548,9 +562,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every configure provider push date format eval case (ai-cmd-fmt-16)', () => {
-    expect(AI_COMMAND_EVAL_CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_CASES.length).toBe(
-      6,
-    );
+    expect(
+      AI_COMMAND_EVAL_CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_CASES.length,
+    ).toBe(6);
     for (const evalCase of AI_COMMAND_EVAL_CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
@@ -636,10 +650,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
       AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
         (entry) => entry.expect.rescuedAction === 'set_service_tax_rate',
       );
-    const explainCases =
-      AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
-        (entry) => entry.expect.rescuedAction === 'explain_business_tax',
-      );
+    const explainCases = AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
+      (entry) => entry.expect.rescuedAction === 'explain_business_tax',
+    );
     const hyCases = AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
       (entry) => entry.locale === 'hy',
     );
@@ -800,15 +813,232 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
     expect(AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES.length).toBe(
       40,
     );
-    const hyCases = AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES.filter(
-      (entry) => entry.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES.filter(
-      (entry) => entry.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
     expect(hyCases.length).toBeGreaterThanOrEqual(7);
     expect(ruCases.length).toBeGreaterThanOrEqual(7);
     for (const evalCase of AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic test order multilingual eval case (i18n-clinic-v2-ai-1)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES.length).toBe(
+      24,
+    );
+    const hyCases = AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'hy',
+    );
+    const ruCases = AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'ru',
+    );
+    expect(hyCases.length).toBeGreaterThanOrEqual(10);
+    expect(ruCases.length).toBeGreaterThanOrEqual(10);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic test result multilingual eval case (i18n-clinic-v2-ai-2)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES.length).toBe(
+      24,
+    );
+    const hyCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    expect(hyCases.length).toBeGreaterThanOrEqual(10);
+    expect(ruCases.length).toBeGreaterThanOrEqual(10);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic patient chart multilingual eval case (i18n-clinic-v2-ai-3)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES.length).toBe(
+      24,
+    );
+    const hyCases =
+      AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    expect(hyCases.length).toBeGreaterThanOrEqual(10);
+    expect(ruCases.length).toBeGreaterThanOrEqual(10);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every provider clinic collection multilingual eval case (i18n-clinic-v2-ai-4)', () => {
+    expect(
+      AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES.length,
+    ).toBe(24);
+    const hyCases =
+      AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    expect(hyCases.length).toBeGreaterThanOrEqual(10);
+    expect(ruCases.length).toBeGreaterThanOrEqual(10);
+    for (const evalCase of AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic v2 multilingual eval case (i18n-clinic-v2-ai-6)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.length).toBe(
+      AI_COMMAND_EVAL_CLINIC_V2_SURFACE_CASES.length * 2,
+    );
+    const hyCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'hy',
+    );
+    const ruCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'ru',
+    );
+    const dashboardCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.surface === 'dashboard',
+    );
+    const providerCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.surface === 'provider',
+    );
+    const customerCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.surface === 'customer',
+    );
+    const publicCases = AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES.filter(
+      (entry) => entry.surface === 'public',
+    );
+    expect(hyCases.length).toBeGreaterThanOrEqual(40);
+    expect(ruCases.length).toBeGreaterThanOrEqual(40);
+    expect(dashboardCases.length).toBeGreaterThanOrEqual(20);
+    expect(providerCases.length).toBeGreaterThanOrEqual(20);
+    expect(customerCases.length).toBeGreaterThanOrEqual(40);
+    expect(publicCases.length).toBeGreaterThanOrEqual(40);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic compound multilingual eval case (i18n-clinic-v2-ai-7)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.length).toBe(72);
+    expect(
+      AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES.length,
+    ).toBe(CLINIC_COMPOUND_RESCUE_SCENARIOS.length * 2);
+    const hyCases = AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'hy',
+    );
+    const ruCases = AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.filter(
+      (entry) => entry.locale === 'ru',
+    );
+    const dashboardCases =
+      AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'dashboard',
+      );
+    const customerCases =
+      AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'customer',
+      );
+    const publicCases =
+      AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'public',
+      );
+    expect(hyCases.length).toBe(36);
+    expect(ruCases.length).toBe(36);
+    expect(dashboardCases.length).toBe(24);
+    expect(customerCases.length).toBe(24);
+    expect(publicCases.length).toBe(24);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic lab booking multilingual eval case (i18n-clinic-v2-ai-8)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.length).toBe(
+      136,
+    );
+    const hyCases =
+      AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    const dashboardCases =
+      AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'dashboard',
+      );
+    const customerCases =
+      AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'customer',
+      );
+    const providerCases =
+      AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'provider',
+      );
+    expect(hyCases.length).toBe(68);
+    expect(ruCases.length).toBe(68);
+    expect(dashboardCases.length).toBe(58);
+    expect(customerCases.length).toBe(54);
+    expect(providerCases.length).toBe(24);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every consumer clinic test results multilingual eval case (i18n-clinic-v2-ai-5)', () => {
+    expect(
+      AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES.length,
+    ).toBe(24);
+    const hyCases =
+      AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    const customerCases =
+      AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'customer',
+      );
+    const publicCases =
+      AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES.filter(
+        (entry) => entry.surface === 'public',
+      );
+    expect(hyCases.length).toBeGreaterThanOrEqual(10);
+    expect(ruCases.length).toBeGreaterThanOrEqual(10);
+    expect(customerCases.length).toBeGreaterThanOrEqual(10);
+    expect(publicCases.length).toBeGreaterThanOrEqual(10);
+    for (const evalCase of AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
     }
@@ -874,17 +1104,19 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
     expect(
       AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CONFIGURE_EXPLAIN_CASES.length,
     ).toBeGreaterThanOrEqual(37);
-    const hyCases = AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CONFIGURE_EXPLAIN_CASES.filter(
-      (entry) => entry.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CONFIGURE_EXPLAIN_CASES.filter(
-      (entry) => entry.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CONFIGURE_EXPLAIN_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CONFIGURE_EXPLAIN_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
     expect(hyCases.length).toBeGreaterThanOrEqual(8);
     expect(ruCases.length).toBeGreaterThanOrEqual(8);
-    expect(AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CASES.length).toBeGreaterThanOrEqual(
-      10,
-    );
+    expect(
+      AI_COMMAND_EVAL_BUSINESS_LANGUAGES_CASES.length,
+    ).toBeGreaterThanOrEqual(10);
     expect(
       AI_COMMAND_EVAL_EXPLAIN_BUSINESS_LANGUAGES_CASES.length,
     ).toBeGreaterThanOrEqual(10);
@@ -981,7 +1213,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps configure recommendation product prompts (ai-cmd-rec-1)', () => {
-    expect(AI_COMMAND_EVAL_CONFIGURE_RECOMMENDATION_PRODUCT_CASES.length).toBe(8);
+    expect(AI_COMMAND_EVAL_CONFIGURE_RECOMMENDATION_PRODUCT_CASES.length).toBe(
+      8,
+    );
   });
 
   it('passes every configure recommendation product eval case (ai-cmd-rec-1)', () => {
@@ -1040,15 +1274,17 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps recommendation analytics multilingual prompts for EN/HY/RU (ai-cmd-rec-10)', () => {
-    expect(AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.length).toBe(
-      40,
-    );
-    const hyCases = AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.filter(
-      (evalCase) => evalCase.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.filter(
-      (evalCase) => evalCase.locale === 'ru',
-    );
+    expect(
+      AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.length,
+    ).toBe(40);
+    const hyCases =
+      AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.filter(
+        (evalCase) => evalCase.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES.filter(
+        (evalCase) => evalCase.locale === 'ru',
+      );
     expect(hyCases.length).toBe(8);
     expect(ruCases.length).toBe(8);
   });
@@ -1061,15 +1297,17 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps recommendation product configure/link/explain scenarios for EN/HY/RU (ai-cmd-rec-4)', () => {
-    expect(AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.length).toBe(
-      50,
-    );
-    const hyCases = AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.filter(
-      (evalCase) => evalCase.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.filter(
-      (evalCase) => evalCase.locale === 'ru',
-    );
+    expect(
+      AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.length,
+    ).toBe(50);
+    const hyCases =
+      AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.filter(
+        (evalCase) => evalCase.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES.filter(
+        (evalCase) => evalCase.locale === 'ru',
+      );
     expect(hyCases.length).toBe(12);
     expect(ruCases.length).toBe(12);
   });
@@ -1095,9 +1333,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps consumer checkout success explain prompts (ai-cmd-rec-6)', () => {
-    expect(
-      AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES.length,
-    ).toBe(15);
+    expect(AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES.length).toBe(
+      15,
+    );
   });
 
   it('passes every consumer checkout success explain eval case (ai-cmd-rec-6)', () => {
@@ -1166,9 +1404,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every bulk strip disabled locale translations eval case (ai-cmd-lang-3)', () => {
-    expect(AI_COMMAND_EVAL_BULK_STRIP_DISABLED_LOCALE_TRANSLATIONS_CASES.length).toBe(
-      16,
-    );
+    expect(
+      AI_COMMAND_EVAL_BULK_STRIP_DISABLED_LOCALE_TRANSLATIONS_CASES.length,
+    ).toBe(16);
     for (const evalCase of AI_COMMAND_EVAL_BULK_STRIP_DISABLED_LOCALE_TRANSLATIONS_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
@@ -1197,10 +1435,7 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
       notBeforeTime: '17:00',
       timeOfDay: 'evening',
     };
-    const evalCase = multilingualCheckAndBookScenarioToEvalCase(
-      scenario,
-      'hy',
-    );
+    const evalCase = multilingualCheckAndBookScenarioToEvalCase(scenario, 'hy');
     expect(evalCase.id).toBe(
       'multilingual-check-book-dashboard-hy-free-book-nearest',
     );
@@ -1216,17 +1451,19 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('documents public disambiguation in LLM catalog', () => {
-    expect(AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES.length).toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(
+      AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES.length,
+    ).toBeGreaterThanOrEqual(3);
     expect(AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES[0]?.requiresLlm).toBe(true);
-    expect(AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES[0]?.expect.action).toBeDefined();
+    expect(
+      AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES[0]?.expect.action,
+    ).toBeDefined();
   });
 
   it('includes check+book LLM regression cases in the LLM catalog', () => {
-    expect(AI_COMMAND_EVAL_CHECK_AND_BOOK_LLM_CASES.length).toBeGreaterThanOrEqual(
-      9,
-    );
+    expect(
+      AI_COMMAND_EVAL_CHECK_AND_BOOK_LLM_CASES.length,
+    ).toBeGreaterThanOrEqual(9);
     expect(
       AI_COMMAND_EVAL_LLM_CASES.some(
         (entry) => entry.id === 'llm-en-public-check-book',

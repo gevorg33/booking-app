@@ -77,43 +77,44 @@ export const PACKAGE_CHECKOUT_PROMPTS: PackageCheckoutPromptFixture[] = [
   },
 ];
 
-export const SIMILAR_PACKAGE_CHECKOUT_PROMPTS: PackageCheckoutPromptFixture[] = [
-  {
-    id: 'check-lines-comma-book',
-    prompt:
-      'Check package line availability for Spa Day tomorrow, book for James at 2pm',
-    packageName: 'Spa Day',
-    customerName: 'James',
-    orderedActions: [
-      'check_package_line_availability',
-      'create_package_booking',
-    ],
-  },
-  {
-    id: 'package-availability-and-book',
-    prompt:
-      'Show package line availability for Spa Day tomorrow and book for Maria at 11am',
-    packageName: 'Spa Day',
-    customerName: 'Maria Lopez',
-    timeSlot: '11:00',
-    orderedActions: [
-      'check_package_line_availability',
-      'create_package_booking',
-    ],
-  },
-  {
-    id: 'find-package-slots-then-book',
-    prompt:
-      'Find package visit times for Spa Day Friday and book for James at 4pm',
-    packageName: 'Spa Day',
-    customerName: 'James',
-    timeSlot: '16:00',
-    orderedActions: [
-      'check_package_line_availability',
-      'create_package_booking',
-    ],
-  },
-];
+export const SIMILAR_PACKAGE_CHECKOUT_PROMPTS: PackageCheckoutPromptFixture[] =
+  [
+    {
+      id: 'check-lines-comma-book',
+      prompt:
+        'Check package line availability for Spa Day tomorrow, book for James at 2pm',
+      packageName: 'Spa Day',
+      customerName: 'James',
+      orderedActions: [
+        'check_package_line_availability',
+        'create_package_booking',
+      ],
+    },
+    {
+      id: 'package-availability-and-book',
+      prompt:
+        'Show package line availability for Spa Day tomorrow and book for Maria at 11am',
+      packageName: 'Spa Day',
+      customerName: 'Maria Lopez',
+      timeSlot: '11:00',
+      orderedActions: [
+        'check_package_line_availability',
+        'create_package_booking',
+      ],
+    },
+    {
+      id: 'find-package-slots-then-book',
+      prompt:
+        'Find package visit times for Spa Day Friday and book for James at 4pm',
+      packageName: 'Spa Day',
+      customerName: 'James',
+      timeSlot: '16:00',
+      orderedActions: [
+        'check_package_line_availability',
+        'create_package_booking',
+      ],
+    },
+  ];
 
 /** Natural-language variants for multi-service cart + check + book compounds (ai-cmd-h4.1). */
 export const MULTI_SERVICE_CHECKOUT_PROMPTS: MultiServiceCheckoutPromptFixture[] =

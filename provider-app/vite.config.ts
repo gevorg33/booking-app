@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, '../frontend/src'),
       '@shared-i18n': path.resolve(__dirname, '../frontend/src/i18n'),
+      '@booking-lib': path.resolve(__dirname, '../frontend/src/lib'),
     },
   },
   server: {

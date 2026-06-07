@@ -67,9 +67,7 @@ export function isSummarizeCustomerTaxPaidPrompt(prompt: string): boolean {
   if (!hasSummarizeCustomerTaxPaidContext(prompt)) return false;
 
   if (
-    /\b(?:payment\s+breakdown|we\s+collected|marked\s+paid)\b/i.test(
-      prompt,
-    ) &&
+    /\b(?:payment\s+breakdown|we\s+collected|marked\s+paid)\b/i.test(prompt) &&
     !/\b(?:across|history|profile|customer)\b/i.test(prompt)
   ) {
     return false;

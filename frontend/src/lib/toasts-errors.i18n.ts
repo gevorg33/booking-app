@@ -40,12 +40,44 @@ export const TOASTS_ERRORS_UI_I18N_KEYS = [
   'monetization.giftCardRefundFailed',
 ] as const;
 
+/** Clinic LIS inbound worker and sync API error toasts (tenant-facing only). */
+export const CLINIC_LIS_WORKER_ERROR_I18N_KEYS = [
+  'clinicLis.workerErrors.processFailed',
+  'clinicLis.workerErrors.parseFailed',
+  'clinicLis.workerErrors.webhookNotConfigured',
+  'clinicLis.workerErrors.invalidSignature',
+  'clinicLis.workerErrors.unknownSource',
+  'clinicLis.workerErrors.accessDenied',
+  'clinicLis.workerErrors.registryAccessDenied',
+  'clinicLis.workerErrors.manageDenied',
+  'clinicLis.workerErrors.labNotFound',
+  'clinicLis.workerErrors.specimenNotFound',
+  'clinicLis.workerErrors.observationNotFound',
+  'clinicLis.workerErrors.alreadyLinked',
+  'clinicLis.workerErrors.linkRequiresMeasurements',
+  'clinicLis.workerErrors.ingestDenied',
+  'clinicLis.workerErrors.linkDenied',
+  'clinicLis.workerErrors.invalidMachineName',
+  'clinicLis.workerErrors.invalidPayload',
+  'clinicLis.workerErrors.retryQueued',
+] as const;
+
+export const CLINIC_LIS_TOAST_I18N_KEYS = [
+  'clinicLis.toasts.labSaved',
+  'clinicLis.toasts.machineSaved',
+  'clinicLis.toasts.machineAssigned',
+  'clinicLis.toasts.machineCleared',
+  'clinicLis.toasts.syncProcessed',
+] as const;
+
 export function allToastsErrorsI18nKeys(): string[] {
   return [
     ...new Set([
       ...FEEDBACK_TOAST_I18N_KEYS,
       ...ERRORS_I18N_KEYS,
       ...TOASTS_ERRORS_UI_I18N_KEYS,
+      ...CLINIC_LIS_WORKER_ERROR_I18N_KEYS,
+      ...CLINIC_LIS_TOAST_I18N_KEYS,
     ]),
   ];
 }

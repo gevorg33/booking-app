@@ -138,7 +138,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: err?.message || t('common.errorGeneric'),
+          text: err instanceof Error ? err.message : t('common.errorGeneric'),
           success: false,
         },
       ]);

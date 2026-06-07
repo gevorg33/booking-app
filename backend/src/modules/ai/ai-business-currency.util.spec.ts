@@ -52,7 +52,10 @@ describe('ai-business-currency.util (ai-cmd-curr-1..3)', () => {
       rescueReason: 'configure_business_currency',
     });
     expect(
-      rescueBusinessCurrencyIntent('Set default currency to AMD', 'configure_business_currency'),
+      rescueBusinessCurrencyIntent(
+        'Set default currency to AMD',
+        'configure_business_currency',
+      ),
     ).toBeNull();
   });
 
@@ -101,7 +104,9 @@ describe('ai-business-currency.util (ai-cmd-curr-1..3)', () => {
       const rescued = rescueBusinessCurrencyIntent(prompt, 'unknown');
       expect(rescued?.action).toBe(expectedAction);
       if (paramsPartial?.currencyCode) {
-        expect(parseCurrencyFromPrompt(prompt)).toBe(paramsPartial.currencyCode);
+        expect(parseCurrencyFromPrompt(prompt)).toBe(
+          paramsPartial.currencyCode,
+        );
       }
     },
   );

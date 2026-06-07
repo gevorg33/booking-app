@@ -37,9 +37,9 @@ describe('ai-tenant-currency.util (ai-cmd-curr-6)', () => {
     expect(
       isExplainTenantCurrencyPrompt('Which currency does the salon use?'),
     ).toBe(false);
-    expect(
-      isExplainTenantCurrencyPrompt('What is our default currency?'),
-    ).toBe(false);
+    expect(isExplainTenantCurrencyPrompt('What is our default currency?')).toBe(
+      false,
+    );
   });
 
   it('rescues misclassified consumer app currency prompts', () => {

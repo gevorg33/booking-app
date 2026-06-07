@@ -238,7 +238,10 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
           fromRescue?.action === expected
             ? fromRescue
             : fromDisambiguate?.action === expected
-              ? { action: expected, rescueReason: fromDisambiguate.rescueReason }
+              ? {
+                  action: expected,
+                  rescueReason: fromDisambiguate.rescueReason,
+                }
               : fromRescue;
 
         expect(result?.action).toBe(expected);
@@ -295,9 +298,7 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
         expect(result.action).toBe('compound_intent');
         expect((result.details as any).steps).toEqual(
           expect.arrayContaining(
-            orderedActions.map((action) =>
-              expect.objectContaining({ action }),
-            ),
+            orderedActions.map((action) => expect.objectContaining({ action })),
           ),
         );
       },
@@ -336,7 +337,10 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
 
     it('decomposes physical handoff deterministically on customer surface', () => {
       const prompt = GIFT_CARD_PHYSICAL_HANDOFF_PROMPTS[0].prompt;
-      const deterministic = decomposeDeterministicForSurface('customer', prompt);
+      const deterministic = decomposeDeterministicForSurface(
+        'customer',
+        prompt,
+      );
       expect(deterministic?.recipeId).toBe(
         'customer_gift_card_payments_compound',
       );
@@ -373,7 +377,9 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
       const steps = decomposeGiftCardPaymentsCompoundPrompt(
         GIFT_CARD_CHECKOUT_PROMPTS[0].prompt,
       );
-      const chooseStep = steps.find((s) => s.action === 'choose_payment_method');
+      const chooseStep = steps.find(
+        (s) => s.action === 'choose_payment_method',
+      );
       expect(chooseStep?.params.giftCardCode).toBe('GCM-ABCD1234');
     });
 

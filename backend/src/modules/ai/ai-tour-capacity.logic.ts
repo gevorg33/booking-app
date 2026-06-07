@@ -136,7 +136,11 @@ function diagnoseCheckoutCapacity(input: {
       rejectionReason = 'insufficientSpots';
       checkoutMessage = `Only ${remainingSpots} spot${remainingSpots === 1 ? '' : 's'} remaining for this tour date`;
     }
-  } else if (requestedPax != null && maxGroupSize && requestedPax > maxGroupSize) {
+  } else if (
+    requestedPax != null &&
+    maxGroupSize &&
+    requestedPax > maxGroupSize
+  ) {
     rejectionReason = rejectionReason ?? 'maxGroup';
   }
 
@@ -158,7 +162,9 @@ function buildAspectSummary(
   diagnosis: CapacityDiagnosis,
 ): string {
   const label = serviceName ? `"${serviceName}"` : 'Tour checkout';
-  const day = dateKey ? formatDateDisplay(dateKey) : 'the selected departure date';
+  const day = dateKey
+    ? formatDateDisplay(dateKey)
+    : 'the selected departure date';
   const parts: string[] = [];
 
   if (aspect === 'all' || aspect === 'clampedPax' || aspect === 'maxGroup') {
@@ -175,7 +181,11 @@ function buildAspectSummary(
     }
   }
 
-  if (aspect === 'all' || aspect === 'fullyBooked' || aspect === 'insufficientSpots') {
+  if (
+    aspect === 'all' ||
+    aspect === 'fullyBooked' ||
+    aspect === 'insufficientSpots'
+  ) {
     if (diagnosis.bookedPax != null && diagnosis.maxGroupSize) {
       parts.push(
         `${diagnosis.bookedPax} pax already booked for ${day} (${diagnosis.remainingSpots ?? '?'} spots remaining of ${diagnosis.maxGroupSize})`,

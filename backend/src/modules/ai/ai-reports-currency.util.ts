@@ -68,7 +68,11 @@ export function hasReportsCurrencyContext(prompt: string): boolean {
 }
 
 function isRevenueNumericQueryPrompt(prompt: string): boolean {
-  if (/\b(why|explain|what\s+currency|which\s+currency|convert|conversion|fx)\b/i.test(prompt)) {
+  if (
+    /\b(why|explain|what\s+currency|which\s+currency|convert|conversion|fx)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
 

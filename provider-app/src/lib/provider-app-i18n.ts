@@ -1,9 +1,12 @@
+import { listClinicLabStateI18nKeys } from '@booking-lib/clinic-i18n';
+
 /** Provider mobile app keys under `provider.*` (Capacitor app). */
 export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.navToday',
   'provider.navSchedule',
   'provider.navProfile',
   'provider.navGiftCards',
+  'provider.navLabCollection',
   'provider.helloName',
   'provider.today',
   'provider.signInPageTitle',
@@ -105,6 +108,42 @@ export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.giftCardMarkReady',
   'provider.giftCardAcceptPickup',
   'provider.giftCardMarkDelivered',
+  'provider.labCollectionTitle',
+  'provider.labCollectionSubtitle',
+  'provider.labCollectionEmpty',
+  'provider.labCollectionTeamLabel',
+  'provider.labCollectionTapBooking',
+  'provider.navLabResults',
+  'provider.labResultsTitle',
+  'provider.labResultsSubtitle',
+  'provider.labResultsEmpty',
+  'provider.labResultsTeamLabel',
+  'provider.labResultsTapBooking',
+  'provider.navClinicTasks',
+  'provider.clinicTasksTitle',
+  'provider.clinicTasksSubtitle',
+  'provider.clinicTasksEmpty',
+  'provider.clinicTasksTeamLabel',
+  'provider.clinicTasksTypeResultReview',
+  'provider.clinicTasksTypeSpecimenCollection',
+  'provider.clinicTasksTypePatientCallback',
+  'provider.clinicTasksTypeUnknown',
+  'provider.clinicTasksPriorityHigh',
+  'provider.clinicTasksAutoManaged',
+  'provider.clinicTasksDue',
+  'provider.clinicTasksUnassigned',
+  'provider.clinicTasksClaim',
+  'provider.clinicTasksComplete',
+  'provider.navPatients',
+  'provider.patientLookupTitle',
+  'provider.patientLookupSubtitle',
+  'provider.patientLookupPlaceholder',
+  'provider.patientLookupMinChars',
+  'provider.patientLookupEmpty',
+  'provider.patientChartTitle',
+  'provider.patientChartLoadFailed',
+  'provider.patientChartTodaysOrders',
+  'provider.patientChartTodaysResults',
   'provider.inviteSetupTitle',
   'provider.inviteJoinBusiness',
   'provider.inviteSuccessRedirect',
@@ -167,6 +206,16 @@ export const PROVIDER_SHARED_I18N_KEYS = [
   'common.date',
   'common.note',
   'common.provider',
+  'clinic.patientChart.demographicsTitle',
+  'clinic.patientChart.clinicalProfileTitle',
+  'clinic.patientChart.phiMaskedNotice',
+  'clinic.patientChart.ordersEmpty',
+  'clinic.patientChart.resultsEmpty',
+  'clinic.patientChart.fields.allergies',
+  'clinic.patientChart.fields.chronicProblems',
+  'clinic.patientChart.fields.bloodType',
+  'clinic.patientChart.fields.emergencyContactName',
+  'clinic.patientChart.fields.emergencyContactPhone',
   'datePicker.selectDate',
   'datePicker.formatHint',
   'datePicker.invalidDate',
@@ -197,10 +246,86 @@ export const PROVIDER_SHARED_I18N_KEYS = [
   'feedback.purchaseCompleted',
 ] as const;
 
+/** Provider mobile lab collection queue (nav + page copy + shared order fallback). */
+export const PROVIDER_LAB_COLLECTION_I18N_KEYS = [
+  'provider.navLabCollection',
+  'provider.labCollectionTitle',
+  'provider.labCollectionSubtitle',
+  'provider.labCollectionEmpty',
+  'provider.labCollectionTeamLabel',
+  'provider.labCollectionTapBooking',
+  'clinic.labState.gate.disabledReason',
+  'clinic.labState.ordersTab.unnamedOrder',
+] as const;
+
 export type ProviderAppI18nKey =
   | (typeof PROVIDER_MOBILE_I18N_KEYS)[number]
   | (typeof PROVIDER_SHARED_I18N_KEYS)[number];
 
+/** Provider mobile patient results tab (nav + list copy + status badges). */
+export const PROVIDER_LAB_RESULTS_I18N_KEYS = [
+  'provider.navLabResults',
+  'provider.labResultsTitle',
+  'provider.labResultsSubtitle',
+  'provider.labResultsEmpty',
+  'provider.labResultsTeamLabel',
+  'provider.labResultsTapBooking',
+  'clinic.labState.resultsTab.unnamedResult',
+  'common.provider',
+] as const;
+
+export function listProviderLabResultsI18nKeys(): string[] {
+  return [
+    ...new Set([
+      ...PROVIDER_LAB_RESULTS_I18N_KEYS,
+      ...listClinicLabStateI18nKeys().filter(
+        (key) =>
+          key.startsWith('clinic.labState.order.') ||
+          key.startsWith('clinic.labState.result.') ||
+          key.startsWith('clinic.labState.measurement.'),
+      ),
+    ]),
+  ];
+}
+
+export function listProviderLabCollectionI18nKeys(): string[] {
+  return [
+    ...new Set([
+      ...PROVIDER_LAB_COLLECTION_I18N_KEYS,
+      ...listClinicLabStateI18nKeys().filter((key) => key.startsWith('clinic.labState.order.')),
+    ]),
+  ];
+}
+
+/** Provider mobile clinic task inbox — types, priority, claim/complete actions. */
+export const PROVIDER_CLINIC_TASKS_I18N_KEYS = [
+  'provider.navClinicTasks',
+  'provider.clinicTasksTitle',
+  'provider.clinicTasksSubtitle',
+  'provider.clinicTasksEmpty',
+  'provider.clinicTasksTeamLabel',
+  'provider.clinicTasksTypeResultReview',
+  'provider.clinicTasksTypeSpecimenCollection',
+  'provider.clinicTasksTypePatientCallback',
+  'provider.clinicTasksTypeUnknown',
+  'provider.clinicTasksPriorityHigh',
+  'provider.clinicTasksAutoManaged',
+  'provider.clinicTasksDue',
+  'provider.clinicTasksUnassigned',
+  'provider.clinicTasksClaim',
+  'provider.clinicTasksComplete',
+] as const;
+
+export function listProviderClinicTasksI18nKeys(): string[] {
+  return [...PROVIDER_CLINIC_TASKS_I18N_KEYS];
+}
+
 export function allProviderAppI18nKeys(): string[] {
-  return [...new Set([...PROVIDER_MOBILE_I18N_KEYS, ...PROVIDER_SHARED_I18N_KEYS])];
+  return [
+    ...new Set([
+      ...PROVIDER_MOBILE_I18N_KEYS,
+      ...PROVIDER_SHARED_I18N_KEYS,
+      ...listClinicLabStateI18nKeys(),
+    ]),
+  ];
 }

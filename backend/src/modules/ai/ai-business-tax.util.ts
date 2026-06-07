@@ -112,7 +112,9 @@ function extractServiceTaxRate(
   prompt: string,
   params: Record<string, unknown> = {},
 ): number | undefined {
-  const fromParams = normalizeTaxRatePercent(params.taxRatePercent ?? params.rate);
+  const fromParams = normalizeTaxRatePercent(
+    params.taxRatePercent ?? params.rate,
+  );
   if (fromParams != null) return fromParams;
 
   if (/\b(?:tax[- ]?exempt|no\s+tax|zero\s+tax)\b/i.test(prompt)) {
@@ -213,7 +215,10 @@ function extractTaxEnabled(prompt: string): boolean | undefined {
     return false;
   }
   if (containsArmenianScript(prompt)) {
-    if (/(միացնել|ակտիվացնել)/i.test(prompt) && /(հարկ|vat|gst)/i.test(prompt)) {
+    if (
+      /(միացնել|ակտիվացնել)/i.test(prompt) &&
+      /(հարկ|vat|gst)/i.test(prompt)
+    ) {
       return true;
     }
     if (/(անջատել|կասեցնել)/i.test(prompt) && /(հարկ|vat|gst)/i.test(prompt)) {
@@ -272,7 +277,11 @@ export function parseBusinessTaxFromPrompt(
   if (name !== undefined) parsed.name = name;
   if (model !== undefined) parsed.model = model;
 
-  if (rate !== undefined && enabled === undefined && enabledFromParams === undefined) {
+  if (
+    rate !== undefined &&
+    enabled === undefined &&
+    enabledFromParams === undefined
+  ) {
     parsed.enabled = true;
   }
 
@@ -291,7 +300,9 @@ export function parseSetServiceTaxRateFromPrompt(
   }
 
   const serviceIds = Array.isArray(params.serviceIds)
-    ? params.serviceIds.filter((value): value is string => typeof value === 'string')
+    ? params.serviceIds.filter(
+        (value): value is string => typeof value === 'string',
+      )
     : undefined;
 
   return {
@@ -331,7 +342,10 @@ export function isSetServiceTaxRatePrompt(prompt: string): boolean {
   if (/\b(?:apply|make|set|assign|use)\b/i.test(prompt)) return true;
 
   if (containsArmenianScript(prompt)) {
-    if (/(դարձնել|կիրառել|սահմանել)/i.test(prompt) && /(հարկ|ազատ)/i.test(prompt)) {
+    if (
+      /(դարձնել|կիրառել|սահմանել)/i.test(prompt) &&
+      /(հարկ|ազատ)/i.test(prompt)
+    ) {
       return true;
     }
   }
@@ -445,7 +459,10 @@ export function rescueBusinessTaxIntent(
     return null;
   }
 
-  if (isSetServiceTaxRatePrompt(prompt) && parseSetServiceTaxRateFromPrompt(prompt)) {
+  if (
+    isSetServiceTaxRatePrompt(prompt) &&
+    parseSetServiceTaxRateFromPrompt(prompt)
+  ) {
     return {
       action: 'set_service_tax_rate',
       rescueReason: 'set_service_tax_rate',

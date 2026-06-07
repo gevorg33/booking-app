@@ -24,13 +24,17 @@ describe('ai-stripe-currency-warning.util (ai-cmd-curr-10)', () => {
       isExplainStripeCurrencyWarningPrompt('What is our default currency?'),
     ).toBe(false);
     expect(
-      isExplainStripeCurrencyWarningPrompt('Is Stripe supported for our currency?'),
+      isExplainStripeCurrencyWarningPrompt(
+        'Is Stripe supported for our currency?',
+      ),
     ).toBe(false);
   });
 
   it('does not steal customer explain_why_stripe_required prompts', () => {
     expect(
-      isExplainStripeCurrencyWarningPrompt('Why is Stripe required for checkout?'),
+      isExplainStripeCurrencyWarningPrompt(
+        'Why is Stripe required for checkout?',
+      ),
     ).toBe(false);
   });
 
@@ -56,9 +60,11 @@ describe('ai-stripe-currency-warning.util (ai-cmd-curr-10)', () => {
   });
 
   it('recognizes stripe currency warning intent id', () => {
-    expect(isStripeCurrencyWarningIntent('explain_stripe_currency_warning')).toBe(
-      true,
+    expect(
+      isStripeCurrencyWarningIntent('explain_stripe_currency_warning'),
+    ).toBe(true);
+    expect(isStripeCurrencyWarningIntent('explain_business_currency')).toBe(
+      false,
     );
-    expect(isStripeCurrencyWarningIntent('explain_business_currency')).toBe(false);
   });
 });

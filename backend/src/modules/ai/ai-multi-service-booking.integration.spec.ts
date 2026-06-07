@@ -74,7 +74,13 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
   describe('prompt detection and decomposition', () => {
     it.each(ALL_MULTI_SERVICE_CHECKOUT_PROMPTS)(
       'detects multi-service checkout compound for $id',
-      ({ prompt, serviceNames, customerName, employeeName, orderedActions }) => {
+      ({
+        prompt,
+        serviceNames,
+        customerName,
+        employeeName,
+        orderedActions,
+      }) => {
         expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(true);
 
         const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
@@ -83,9 +89,7 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
           customers,
         );
         expect(steps.map((s) => s.action)).toEqual(orderedActions);
-        expect(steps[0]?.action).toBe(
-          'check_multi_service_block_availability',
-        );
+        expect(steps[0]?.action).toBe('check_multi_service_block_availability');
         expect(steps[0]?.params.serviceNames).toEqual(
           expect.arrayContaining(serviceNames),
         );
@@ -182,7 +186,9 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
 
       expect(result.success).toBe(true);
       expect((result.details as any).block?.employeeName).toBe('Anna Kim');
-      expect(deps.publicBookingService.suggestMultiServiceBlock).toHaveBeenCalled();
+      expect(
+        deps.publicBookingService.suggestMultiServiceBlock,
+      ).toHaveBeenCalled();
     });
 
     it('clarifies when services are missing', async () => {
@@ -257,14 +263,19 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
         {
           action: 'compound_intent',
           params: { employeeName: 'Anna Kim', customerName: 'Maria Lopez' },
-          enrichedParams: { employeeName: 'Anna Kim', customerName: 'Maria Lopez' },
+          enrichedParams: {
+            employeeName: 'Anna Kim',
+            customerName: 'Maria Lopez',
+          },
           reasoning: '',
           entities: {},
         } as any,
       );
 
       expect(attached.details?.sessionContext?.employeeName).toBe('Anna Kim');
-      expect(attached.details?.sessionContext?.customerName).toBe('Maria Lopez');
+      expect(attached.details?.sessionContext?.customerName).toBe(
+        'Maria Lopez',
+      );
     });
   });
 });

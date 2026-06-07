@@ -115,6 +115,34 @@ function createClinicPublicBookingHarness() {
     ),
   };
 
+  const publicPreVisitIntakeService = {
+    hasPublishedIntakeQuestionnaire: jest.fn().mockResolvedValue(true),
+    linkIntakeToBooking: jest.fn().mockResolvedValue({ id: 'intake-1' }),
+    serviceOffersPreVisitIntake: jest.fn(
+      (_metadata: unknown, hasQuestionnaire: boolean) => hasQuestionnaire,
+    ),
+  };
+
+  const checkoutPricingService = {
+    applyRedemptions: jest.fn(),
+  };
+
+  const subscriptionsService = {
+    serviceIdsWithActivePlans: jest.fn().mockResolvedValue([]),
+  };
+
+  const multiServiceBookingsService = {
+    resolveSettingsFromBusiness: jest
+      .fn()
+      .mockReturnValue({ enabled: false }),
+  };
+
+  const configService = {
+    get: jest.fn((key: string) =>
+      key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
+    ),
+  } as unknown as ConfigService;
+
   const service = new PublicBookingService(
     {
       findBySlug: jest.fn().mockResolvedValue(business),
@@ -126,19 +154,20 @@ function createClinicPublicBookingHarness() {
     { isConnectReady: jest.fn().mockReturnValue(false) } as any,
     {} as any,
     bookingPaymentService as any,
-    { applyRedemptions: jest.fn() } as any,
+    checkoutPricingService as any,
     {} as any,
-    { serviceIdsWithActivePlans: jest.fn().mockResolvedValue([]) } as any,
+    subscriptionsService as any,
     {} as any,
-    {} as any,
+    multiServiceBookingsService as any,
     { sendMultiAppointmentConfirmation: jest.fn() } as any,
     {} as any,
-    { get: jest.fn(() => 'https://app.test') } as unknown as ConfigService,
+    configService,
     { find: jest.fn() } as any,
     serviceRepo as any,
     { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
     { find: jest.fn() } as any,
     createClinicBookingRepo(storedBookings) as any,
+    publicPreVisitIntakeService as any,
   );
 
   return {
@@ -151,6 +180,7 @@ function createClinicPublicBookingHarness() {
     bookingPaymentService,
     serviceRepo,
     storedBookings,
+    publicPreVisitIntakeService,
   };
 }
 
@@ -194,6 +224,7 @@ describe('Public booking clinic integration', () => {
       requiresFasting: true,
       preparationNotes: 'Fast for 12 hours',
       acceptsPatientNotes: true,
+      offersPreVisitIntake: true,
     });
     expect(consult).toMatchObject({
       isClinic: true,
@@ -354,5 +385,37 @@ describe('Public booking clinic integration', () => {
         customer: { name: 'Sam', email: 'sam@example.com' },
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('links optional pre-visit intake when booking lab tests', async () => {
+    const harness = createClinicPublicBookingHarness();
+
+    await harness.service.createBooking('city-poly', {
+      employeeId: 'emp-1',
+      serviceId: 'svc-lab',
+      startTime,
+      preVisitIntakeId: 'intake-draft-1',
+      customer: { name: 'Sam', email: 'sam@example.com' },
+    });
+
+    const publicIntake = harness.publicPreVisitIntakeService;
+    expect(publicIntake.linkIntakeToBooking).toHaveBeenCalledWith(
+      harness.business.id,
+      'cust-1',
+      'intake-draft-1',
+      'book-clinic-1',
+    );
+  });
+
+  it('exposes businessType on public profile for clinic vertical gating', async () => {
+    const harness = createClinicPublicBookingHarness();
+    harness.business.settings = {
+      ...harness.business.settings,
+      businessType: 'polyclinic',
+    };
+
+    const profile = harness.service.toPublicProfile(harness.business);
+
+    expect(profile.businessType).toBe('polyclinic');
   });
 });

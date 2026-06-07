@@ -12,15 +12,21 @@ import {
   IonTabs,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { calendarOutline, giftOutline, personOutline, todayOutline } from 'ionicons/icons';
+import { calendarOutline, checklistOutline, documentTextOutline, flaskOutline, giftOutline, peopleOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
 import { useI18n } from './i18n';
+import { useProviderLabFeaturesEnabled } from './lib/use-provider-lab-features';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import TodayPage from './pages/TodayPage';
 import SchedulePage from './pages/SchedulePage';
 import ProfilePage from './pages/ProfilePage';
 import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
+import LabCollectionPage from './pages/LabCollectionPage';
+import LabResultsPage from './pages/LabResultsPage';
+import ClinicTasksPage from './pages/ClinicTasksPage';
+import PatientLookupPage from './pages/PatientLookupPage';
+import PatientChartSummaryPage from './pages/PatientChartSummaryPage';
 import { isFcmBuild, ensurePushRegistered } from './services/native-push';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderAiShell } from './components/ProviderAiShell';
@@ -31,6 +37,7 @@ import './components/operation-feedback.css';
 function AuthedTabs() {
   const { t } = useI18n();
   const business = useAuthStore((s) => s.business);
+  const showLabCollection = useProviderLabFeaturesEnabled();
 
   useEffect(() => {
     if (!business?.id || !Capacitor.isNativePlatform() || !isFcmBuild()) return;
@@ -55,6 +62,21 @@ function AuthedTabs() {
       <ProviderAiShell>
         <IonRouterOutlet>
           <Route exact path="/tabs/today" component={TodayPage} />
+          {showLabCollection && (
+            <Route exact path="/tabs/lab-collection" component={LabCollectionPage} />
+          )}
+          {showLabCollection && (
+            <Route exact path="/tabs/lab-results" component={LabResultsPage} />
+          )}
+          {showLabCollection && (
+            <Route exact path="/tabs/clinic-tasks" component={ClinicTasksPage} />
+          )}
+          {showLabCollection && (
+            <Route exact path="/tabs/patients" component={PatientLookupPage} />
+          )}
+          {showLabCollection && (
+            <Route exact path="/tabs/patients/:customerId" component={PatientChartSummaryPage} />
+          )}
           <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
           <Route exact path="/tabs/schedule" component={SchedulePage} />
           <Route exact path="/tabs/profile" component={ProfilePage} />
@@ -68,6 +90,30 @@ function AuthedTabs() {
           <IonIcon icon={todayOutline} />
           <IonLabel>{t('provider.navToday')}</IonLabel>
         </IonTabButton>
+        {showLabCollection && (
+          <IonTabButton tab="lab-collection" href="/tabs/lab-collection">
+            <IonIcon icon={flaskOutline} />
+            <IonLabel>{t('provider.navLabCollection')}</IonLabel>
+          </IonTabButton>
+        )}
+        {showLabCollection && (
+          <IonTabButton tab="lab-results" href="/tabs/lab-results">
+            <IonIcon icon={documentTextOutline} />
+            <IonLabel>{t('provider.navLabResults')}</IonLabel>
+          </IonTabButton>
+        )}
+        {showLabCollection && (
+          <IonTabButton tab="clinic-tasks" href="/tabs/clinic-tasks">
+            <IonIcon icon={checklistOutline} />
+            <IonLabel>{t('provider.navClinicTasks')}</IonLabel>
+          </IonTabButton>
+        )}
+        {showLabCollection && (
+          <IonTabButton tab="patients" href="/tabs/patients">
+            <IonIcon icon={peopleOutline} />
+            <IonLabel>{t('provider.navPatients')}</IonLabel>
+          </IonTabButton>
+        )}
         <IonTabButton tab="gift-cards" href="/tabs/gift-cards">
           <IonIcon icon={giftOutline} />
           <IonLabel>{t('provider.navGiftCards')}</IonLabel>

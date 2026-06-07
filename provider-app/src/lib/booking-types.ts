@@ -148,6 +148,7 @@ export interface BookingDetail {
   customer: { id: string; name: string; phone: string | null; email: string | null } | null;
   employee?: { id: string; name: string } | null;
   paymentSummary?: BookingPaymentSummary | null;
+  labFeaturesEnabled?: boolean;
 }
 
 export interface BookingSummary {

@@ -1,7 +1,7 @@
 import api from '@/lib/api';
 
 /** Unwrap Nest/API envelope `{ data: T }` or return payload as-is. */
-export function unwrapBusinessApiPayload<T extends Record<string, unknown>>(
+export function unwrapBusinessApiPayload<T>(
   response: unknown,
 ): T {
   if (!response || typeof response !== 'object') {

@@ -29,6 +29,12 @@ import {
   classifyGiftCardPaymentsSegment,
   decomposeGiftCardPaymentsCompoundPrompt,
 } from './ai-gift-card-payments-hints.util.js';
+import {
+  decomposeCustomerClinicCompoundPrompt,
+  decomposeDashboardClinicCompoundPrompt,
+  decomposePublicClinicCompoundPrompt,
+  isClinicCompoundPrompt,
+} from './ai-clinic-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -36,10 +42,10 @@ import type {
 } from './intent-decomposition.types.js';
 
 export const COMPOUND_PROMPT_MARKERS =
-  /\band\s+then\b|\bthen\b|\balso\b|\bafter\s+that\b|\bfollowed\s+by\b|;\s*|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download|tag|coordinate)\b)|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule|notify|promo))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify|promo))\b/i;
+  /\band\s+then\b|\bthen\b|\balso\b|\bafter\s+that\b|\bfollowed\s+by\b|;\s*|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download|tag|coordinate|send|tell|alert|message|when|order|place|schedule|reserve|release)\b)|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule|notify|promo))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify|promo))\b/i;
 
-const UNIVERSAL_COMPOUND_SPLIT =
-  /\s*;\s*|\s+and\s+then\s+|\s+then\s+|\s+and\s+also\s+|\s+also\s+|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download)\b)/i;
+export const UNIVERSAL_COMPOUND_SPLIT =
+  /\s*;\s*|\s+and\s+then\s+|\s+then\s+|\s+and\s+also\s+|\s+also\s+|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download|when|tell|send|alert|message|order|place|schedule|reserve|release)\b)/i;
 
 type RawCompoundStep = {
   action: string;
@@ -64,6 +70,9 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposePushNotificationsCompoundPrompt,
   decomposeDashboardPackageMultiServiceCompoundPrompt,
   decomposeGiftCardPaymentsCompoundPrompt,
+  decomposeDashboardClinicCompoundPrompt,
+  decomposeCustomerClinicCompoundPrompt,
+  decomposePublicClinicCompoundPrompt,
 };
 
 function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
@@ -254,6 +263,51 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
         action: step.action,
         params: step.params,
         reasoning: `Multi-service checkout compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_clinic_order_notify',
+    surface: 'dashboard',
+    recipeId: 'dashboard_clinic_compound',
+    matches: (prompt) => isClinicCompoundPrompt(prompt, 'dashboard'),
+    buildSteps: (prompt) => {
+      const raw = decomposeDashboardClinicCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Clinic order + notify compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'customer_clinic_book_explain_results',
+    surface: 'customer',
+    recipeId: 'customer_clinic_compound',
+    matches: (prompt) => isClinicCompoundPrompt(prompt, 'customer'),
+    buildSteps: (prompt) => {
+      const raw = decomposeCustomerClinicCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Clinic book + result FAQ compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'public_clinic_book_explain_results',
+    surface: 'public',
+    recipeId: 'public_clinic_compound',
+    matches: (prompt) => isClinicCompoundPrompt(prompt, 'public'),
+    buildSteps: (prompt) => {
+      const raw = decomposePublicClinicCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Public clinic book + result FAQ compound: ${step.action}`,
         segment: step.segment,
       }));
     },

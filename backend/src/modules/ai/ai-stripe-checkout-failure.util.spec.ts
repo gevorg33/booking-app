@@ -43,8 +43,8 @@ describe('ai-stripe-checkout-failure.util (ai-cmd-curr-12)', () => {
   });
 
   it('recognizes stripe checkout failure intent id', () => {
-    expect(isStripeCheckoutFailureIntent('diagnose_stripe_checkout_failure')).toBe(
-      true,
-    );
+    expect(
+      isStripeCheckoutFailureIntent('diagnose_stripe_checkout_failure'),
+    ).toBe(true);
   });
 });

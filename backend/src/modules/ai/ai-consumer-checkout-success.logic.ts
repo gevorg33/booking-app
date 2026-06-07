@@ -190,7 +190,9 @@ export async function handleExplainConsumerCheckoutSuccessLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_consumer_checkout_success', 'Business not found.');
   }
@@ -224,8 +226,7 @@ export async function handleExplainConsumerCheckoutSuccessLogic(
             service.categoryId,
           )
         : [];
-    products =
-      serviceProducts.length > 0 ? serviceProducts : categoryProducts;
+    products = serviceProducts.length > 0 ? serviceProducts : categoryProducts;
   }
 
   const recommendationsVisible = products.length > 0;

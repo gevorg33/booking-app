@@ -54,7 +54,12 @@ export class Product {
   @Column({ name: 'image_url', type: 'varchar', length: 2048, nullable: true })
   imageUrl: string | null;
 
-  @Column({ name: 'external_link', type: 'varchar', length: 2048, nullable: true })
+  @Column({
+    name: 'external_link',
+    type: 'varchar',
+    length: 2048,
+    nullable: true,
+  })
   externalLink: string | null;
 
   @CreateDateColumn()

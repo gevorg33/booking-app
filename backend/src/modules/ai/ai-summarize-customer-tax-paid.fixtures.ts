@@ -29,6 +29,6 @@ export const SUMMARIZE_CUSTOMER_TAX_PAID_PROMPTS = [
   },
   {
     id: 'how-much-gst-jane',
-    prompt: "How much GST has Jane paid on her paid appointments?",
+    prompt: 'How much GST has Jane paid on her paid appointments?',
   },
 ] as const;

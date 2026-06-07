@@ -42,8 +42,7 @@ export const MULTILINGUAL_CHECK_AND_BOOK_CORE_PROMPTS = [
   {
     id: 'hy-who-free-comma-book',
     locale: 'hy' as const,
-    prompt:
-      'Ով է ազատ վաղը ցերեկով massage-ի համար, ամրագրիր ամենամոտ slot-ը',
+    prompt: 'Ով է ազատ վաղը ցերեկով massage-ի համար, ամրագրիր ամենամոտ slot-ը',
     serviceName: 'massage',
     notBeforeTime: '12:00',
     timeOfDay: 'afternoon',
@@ -139,7 +138,8 @@ export const MULTILINGUAL_FLEXIBLE_BOOKING_EVAL_SCENARIOS: FlexibleBookingEvalSc
   MULTILINGUAL_FLEXIBLE_BOOKING_PROMPTS.map((entry) => ({
     id: entry.id,
     prompt: entry.prompt,
-    rescueFromAction: 'rescueFromAction' in entry ? entry.rescueFromAction : undefined,
+    rescueFromAction:
+      'rescueFromAction' in entry ? entry.rescueFromAction : undefined,
     rescuedAction: entry.rescuedAction,
     rescueReason: entry.rescueReason,
     paramsPartial: 'paramsPartial' in entry ? entry.paramsPartial : undefined,

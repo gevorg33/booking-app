@@ -627,7 +627,10 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
           query: { panel: 'compliance', section: panel },
         }),
       );
-      expect(businessService.ensureOwner).toHaveBeenCalledWith('biz-1', 'owner-1');
+      expect(businessService.ensureOwner).toHaveBeenCalledWith(
+        'biz-1',
+        'owner-1',
+      );
     },
   );
 
@@ -656,11 +659,9 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
         prompt,
       );
       expect(result.success).toBe(true);
-      expect(complianceBreachService.sendBreachNotification).toHaveBeenCalledWith(
-        'biz-1',
-        'owner-1',
-        incidentRef,
-      );
+      expect(
+        complianceBreachService.sendBreachNotification,
+      ).toHaveBeenCalledWith('biz-1', 'owner-1', incidentRef);
     },
   );
 
@@ -694,9 +695,7 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
         'owner-1',
         expect.objectContaining({
           description: expect.any(String),
-          ...(affectedCustomerCount != null
-            ? { affectedCustomerCount }
-            : {}),
+          ...(affectedCustomerCount != null ? { affectedCustomerCount } : {}),
         }),
       );
     },

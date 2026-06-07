@@ -15,6 +15,7 @@ import {
   assessPhiInAiContext,
   redactEmbeddedPhiFromPrompt,
 } from '../../../common/utils/phi-ai-guard.util.js';
+import { rescueClinicLabBookingSurfaceForEval } from '../ai-clinic-lab-booking-multilingual.util.js';
 import type {
   AiCommandEvalCase,
   AiEvalCaseResult,
@@ -38,13 +39,24 @@ const SAMPLE_EMPLOYEES = [
   { id: 'emp-3', name: 'Maria Lopez' },
 ];
 
+function valuesMatchPartial(actual: unknown, expected: unknown): boolean {
+  if (Array.isArray(expected)) {
+    return (
+      Array.isArray(actual) &&
+      expected.length === actual.length &&
+      expected.every((item, index) => item === actual[index])
+    );
+  }
+  return actual === expected;
+}
+
 function paramsMatchPartial(
   actual: Record<string, unknown>,
   expected: Record<string, unknown>,
 ): string[] {
   const errors: string[] = [];
   for (const [key, value] of Object.entries(expected)) {
-    if (actual[key] !== value) {
+    if (!valuesMatchPartial(actual[key], value)) {
       errors.push(
         `params.${key}: expected ${JSON.stringify(value)}, got ${JSON.stringify(actual[key])}`,
       );
@@ -111,21 +123,37 @@ export function evaluateDeterministicEvalCase(
   }
 
   if (expect.rescuedAction) {
-    const rescued = rescue.rescue({
-      prompt,
-      action: expect.rescueFromAction ?? 'unknown',
-      params: {},
-      employees: SAMPLE_EMPLOYEES,
-    });
+    const misclassifiedAction = expect.rescueFromAction ?? 'unknown';
+    const useSurfaceLabBookingRescue =
+      expect.useSurfaceLabBookingRescue === true && !!evalCase.surface;
+    const surfaceRescued = useSurfaceLabBookingRescue
+      ? rescueClinicLabBookingSurfaceForEval(
+          prompt,
+          misclassifiedAction,
+          evalCase.surface as 'dashboard' | 'customer' | 'provider',
+        )
+      : null;
+    const rescued = useSurfaceLabBookingRescue
+      ? surfaceRescued
+        ? {
+            action: surfaceRescued.action,
+            params: surfaceRescued.params,
+            rescued: true,
+            rescueReason: surfaceRescued.rescueReason,
+          }
+        : null
+      : rescue.rescue({
+          prompt,
+          action: misclassifiedAction,
+          params: {},
+          employees: SAMPLE_EMPLOYEES,
+        });
     if (!rescued?.rescued || rescued.action !== expect.rescuedAction) {
       errors.push(
         `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
       );
     }
-    if (
-      expect.rescueReason &&
-      rescued?.rescueReason !== expect.rescueReason
-    ) {
+    if (expect.rescueReason && rescued?.rescueReason !== expect.rescueReason) {
       errors.push(
         `rescueReason: expected ${expect.rescueReason}, got ${rescued?.rescueReason ?? 'none'}`,
       );
@@ -228,17 +256,18 @@ export function evaluateDeterministicEvalCase(
   }
 
   if (expect.phiGuard) {
-    const assessment = assessPhiInAiContext(
-      HIPAA_EVAL_SETTINGS,
-      'clinic',
-      { prompt },
-    );
+    const assessment = assessPhiInAiContext(HIPAA_EVAL_SETTINGS, 'clinic', {
+      prompt,
+    });
     if (assessment.blocked !== expect.phiGuard.blocked) {
       errors.push(
         `phiGuard.blocked: expected ${expect.phiGuard.blocked}, got ${assessment.blocked}`,
       );
     }
-    if (expect.phiGuard.reason && assessment.reason !== expect.phiGuard.reason) {
+    if (
+      expect.phiGuard.reason &&
+      assessment.reason !== expect.phiGuard.reason
+    ) {
       errors.push(
         `phiGuard.reason: expected ${expect.phiGuard.reason}, got ${assessment.reason ?? 'none'}`,
       );

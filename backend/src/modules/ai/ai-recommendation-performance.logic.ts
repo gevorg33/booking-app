@@ -177,7 +177,9 @@ export async function handleSummarizeRecommendationPerformanceLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure(
       'summarize_recommendation_performance',

@@ -333,7 +333,9 @@ describe('ai-prompt-i18n detection', () => {
     it('documents hy/ru check+book and flexible-slot phrasing', () => {
       expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/ամրագրիր մոտակա/i);
       expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/забронируй ближайший/i);
-      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/bookingFirstAvailable=true/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /bookingFirstAvailable=true/i,
+      );
     });
 
     it('documents hy/ru business compliance phrasing (ai-cmd-compliance-6)', () => {
@@ -354,10 +356,18 @@ describe('ai-prompt-i18n detection', () => {
     });
 
     it('documents hy/ru business currency phrasing (ai-cmd-curr-4)', () => {
-      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/configure_business_currency/i);
-      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/սահմանել լռելյա արժույթը AMD/i);
-      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/установить валюту по умолчанию AMD/i);
-      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(/bulk_update_service_currency/i);
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /configure_business_currency/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /սահմանել լռելյա արժույթը AMD/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /установить валюту по умолчанию AMD/i,
+      );
+      expect(CLASSIFIER_MULTILINGUAL_RULES).toMatch(
+        /bulk_update_service_currency/i,
+      );
     });
 
     it('documents hy/ru recommendation product phrasing (ai-cmd-rec-4)', () => {

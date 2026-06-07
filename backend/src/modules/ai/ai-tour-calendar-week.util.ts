@@ -2,11 +2,10 @@ import { extractSingleProviderNameFromPrompt } from './ai-dashboard-ops.util.js'
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
 
-export const TOUR_CALENDAR_WEEK_INTENTS = [
-  'list_tour_calendar_week',
-] as const;
+export const TOUR_CALENDAR_WEEK_INTENTS = ['list_tour_calendar_week'] as const;
 
-export type TourCalendarWeekIntent = (typeof TOUR_CALENDAR_WEEK_INTENTS)[number];
+export type TourCalendarWeekIntent =
+  (typeof TOUR_CALENDAR_WEEK_INTENTS)[number];
 
 export interface ParsedListTourCalendarWeek {
   employeeName?: string;
@@ -170,7 +169,9 @@ export function parseListTourCalendarWeekFromPrompt(
   params: Record<string, unknown> = {},
 ): ParsedListTourCalendarWeek | null {
   const employeeIdFromParams =
-    typeof params.employeeId === 'string' ? params.employeeId.trim() : undefined;
+    typeof params.employeeId === 'string'
+      ? params.employeeId.trim()
+      : undefined;
   const employeeNameFromParams =
     typeof params.employeeName === 'string'
       ? params.employeeName.trim()

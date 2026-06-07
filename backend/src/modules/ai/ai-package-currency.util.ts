@@ -53,8 +53,7 @@ function isPackageDisplayNameExplainPrompt(prompt: string): boolean {
   return (
     /\b(what|which|why|how|does|show|explain|title|titled|visitors?|called|named)\b/i.test(
       prompt,
-    ) ||
-    /(ինչ|բացատր|ցուցադր|անուն|почему|какой|называ)/i.test(prompt)
+    ) || /(ինչ|բացատր|ցուցադր|անուն|почему|какой|называ)/i.test(prompt)
   );
 }
 

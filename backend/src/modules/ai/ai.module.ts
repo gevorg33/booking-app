@@ -12,6 +12,10 @@ import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
+import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
+import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
+import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
@@ -29,6 +33,10 @@ import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
 import { AiProviderBookingService } from './ai-provider-booking.service.js';
+import { AiProviderClinicCollectionService } from './ai-provider-clinic-collection.service.js';
+import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
+import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { AiClinicServiceService } from './ai-clinic-service.service.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ServiceModule } from '../service/service.module.js';
 import { OnboardingModule } from '../onboarding/onboarding.module.js';
@@ -108,6 +116,11 @@ import { LoyaltyModule } from '../loyalty/loyalty.module.js';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
+import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import { ClinicTestType } from '../clinic-test-results/entities/clinic-test-type.entity.js';
+import { ClinicTestPanel } from '../clinic-test-results/entities/clinic-test-panel.entity.js';
+import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
+import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
 
 @Module({
@@ -134,6 +147,9 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
       ServiceRecommendedProduct,
       CategoryRecommendedProduct,
       NotificationLog,
+      ClinicTestResult,
+      ClinicTestType,
+      ClinicTestPanel,
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
@@ -162,6 +178,8 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     forwardRef(() => PromoCodesModule),
     NotificationsModule,
     ComplianceModule,
+    ClinicTestResultsModule,
+    PatientClinicalProfilesModule,
     forwardRef(() => PublicBookingModule),
     ServiceModule,
     OnboardingModule,
@@ -181,6 +199,10 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiBusinessDateFormatService,
     AiBusinessTaxService,
     AiBusinessComplianceService,
+    AiClinicTestOrderService,
+    AiClinicTestResultService,
+    AiClinicPatientChartService,
+    AiConsumerClinicTestResultsService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,
     AiRecommendationProductService,
@@ -198,6 +220,10 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiPushNotificationsService,
     AiSelfServiceBookingService,
     AiProviderBookingService,
+    AiProviderClinicCollectionService,
+    AiClinicLabBookingService,
+    AiClinicBookingService,
+    AiClinicServiceService,
     AiSuggestionsService,
     CommandCompletionPipelineService,
     AiEventsService,
@@ -228,6 +254,9 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiPlatformService,
     AiPushNotificationsService,
     AiProviderBookingService,
+    AiProviderClinicCollectionService,
+    AiClinicLabBookingService,
+    AiClinicBookingService,
     CommandCompletionPipelineService,
     AiEventsService,
     AiSuggestionsService,
@@ -242,6 +271,7 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiBusinessDateFormatService,
     AiBusinessTaxService,
     AiBusinessComplianceService,
+    AiConsumerClinicTestResultsService,
     AiRecommendationProductService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,

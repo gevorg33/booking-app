@@ -38,12 +38,14 @@ function success(
 }
 
 function isTourBooking(booking: Booking): boolean {
-  if (isTourService((booking.service?.metadata ?? {}) as Record<string, unknown>)) {
+  if (
+    isTourService((booking.service?.metadata ?? {}) as Record<string, unknown>)
+  ) {
     return true;
   }
   return Boolean(
     extractTourBookingMetadata(booking.metadata).tourStartDate ||
-      extractTourBookingMetadata(booking.metadata).paxCount,
+    extractTourBookingMetadata(booking.metadata).paxCount,
   );
 }
 
@@ -202,14 +204,13 @@ export async function handleExplainTourBookingRecordLogic(
   }
 
   const tourMeta = extractTourBookingMetadata(booking.metadata);
-  const range =
-    resolveTourBookingDateRange({
-      metadata: booking.metadata,
-      startTime: booking.startTime,
-    }) ?? {
-      tourStartDate: booking.startTime.toISOString().slice(0, 10),
-      tourEndDate: booking.endTime.toISOString().slice(0, 10),
-    };
+  const range = resolveTourBookingDateRange({
+    metadata: booking.metadata,
+    startTime: booking.startTime,
+  }) ?? {
+    tourStartDate: booking.startTime.toISOString().slice(0, 10),
+    tourEndDate: booking.endTime.toISOString().slice(0, 10),
+  };
 
   const tourServiceMeta = extractTourMetadata(
     (booking.service?.metadata ?? {}) as Record<string, unknown>,
@@ -246,7 +247,9 @@ export async function handleExplainTourBookingRecordLogic(
     specialRequirements: tourMeta.specialRequirements ?? null,
     calendarSpanDays,
     dayLevelBooking: tourServiceMeta
-      ? isTourService((booking.service?.metadata ?? {}) as Record<string, unknown>)
+      ? isTourService(
+          (booking.service?.metadata ?? {}) as Record<string, unknown>,
+        )
       : null,
     overlapsProviderCalendarWeek: tourBookingOverlapsDateRange(
       { metadata: booking.metadata, startTime: booking.startTime },

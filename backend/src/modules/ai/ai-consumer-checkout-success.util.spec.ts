@@ -64,17 +64,17 @@ describe('ai-consumer-checkout-success.util (ai-cmd-rec-6)', () => {
   });
 
   it('does not treat bare dismiss imperative as explain', () => {
-    expect(isExplainConsumerCheckoutSuccessPrompt('Dismiss recommendations')).toBe(
-      false,
-    );
+    expect(
+      isExplainConsumerCheckoutSuccessPrompt('Dismiss recommendations'),
+    ).toBe(false);
   });
 
   it('recognizes intent id', () => {
-    expect(isConsumerCheckoutSuccessIntent('explain_consumer_checkout_success')).toBe(
-      true,
-    );
-    expect(isConsumerCheckoutSuccessIntent('explain_checkout_recommendations')).toBe(
-      false,
-    );
+    expect(
+      isConsumerCheckoutSuccessIntent('explain_consumer_checkout_success'),
+    ).toBe(true);
+    expect(
+      isConsumerCheckoutSuccessIntent('explain_checkout_recommendations'),
+    ).toBe(false);
   });
 });

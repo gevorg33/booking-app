@@ -70,8 +70,8 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
         }
         if (startDate && endDate) {
           rows = rows.filter((row) => {
-            const start = row.metadata.tourStartDate as string;
-            const end = row.metadata.tourEndDate as string;
+            const start = row.metadata.tourStartDate;
+            const end = row.metadata.tourEndDate;
             return end >= startDate && start <= endDate;
           });
         }

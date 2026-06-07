@@ -6,7 +6,7 @@ import {
 
 describe('ai-compound-booking-hints.util (ai-cmd-h2.4)', () => {
   const compoundPrompt =
-    "check who is free tomorrow evening for permanent lashes, book the nearest slot";
+    'check who is free tomorrow evening for permanent lashes, book the nearest slot';
 
   it('recognizes booking compound sub-step actions', () => {
     expect(isBookingCompoundSubStepAction('check_providers_for_service')).toBe(

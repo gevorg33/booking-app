@@ -26,7 +26,8 @@ export const QUOTE_STAFF_BOOKING_TAX_PROMPTS = [
   },
   {
     id: 'estimate-facial-tax',
-    prompt: 'Estimate tax on classic facial before staff creates the appointment',
+    prompt:
+      'Estimate tax on classic facial before staff creates the appointment',
   },
   {
     id: 'tax-exempt-preview',

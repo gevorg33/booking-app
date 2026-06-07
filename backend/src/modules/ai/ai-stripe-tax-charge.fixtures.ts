@@ -25,7 +25,8 @@ export const EXPLAIN_STRIPE_TAX_CHARGE_PROMPTS = [
   },
   {
     id: 'stripe-amount-breakdown',
-    prompt: 'Break down why Stripe charged the amount on metadata.pricing for the last online payment',
+    prompt:
+      'Break down why Stripe charged the amount on metadata.pricing for the last online payment',
   },
   {
     id: 'stacked-tax-stripe-charge',

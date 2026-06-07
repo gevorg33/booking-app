@@ -18,6 +18,10 @@ import { CONSUMER_CHECKOUT_SUCCESS_EN_CLASSIFIER_RULES } from './ai-consumer-che
 import { CONSUMER_CHECKOUT_TAX_CLASSIFIER_RULES } from './ai-consumer-checkout-tax.fixtures.js';
 import { TAX_DISPLAY_EN_CLASSIFIER_RULES } from './ai-tax-display-en.fixtures.js';
 import { DATA_RIGHTS_CLASSIFIER_RULES } from './ai-data-rights.fixtures.js';
+import { CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from './ai-clinic-v2-6.fixtures.js';
+import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
+import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
+import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
 import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from './ai-tour-day-slots.fixtures.js';
 import { CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import {
@@ -154,6 +158,10 @@ ${CONSUMER_CHECKOUT_SUCCESS_EN_CLASSIFIER_RULES}
 ${CONSUMER_CHECKOUT_TAX_CLASSIFIER_RULES}
 ${TAX_DISPLAY_EN_CLASSIFIER_RULES}
 ${DATA_RIGHTS_CLASSIFIER_RULES}
+${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
+${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
+${CLINIC_BOOKING_CLASSIFIER_RULES}
+${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }

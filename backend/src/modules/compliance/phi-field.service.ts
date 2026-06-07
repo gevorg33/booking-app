@@ -105,6 +105,18 @@ export class PhiFieldService {
     );
   }
 
+  async resolveBusinessEncryptionKey(
+    business: Business,
+  ): Promise<string | null> {
+    if (!this.isHipaaActiveForBusiness(business)) return null;
+    const material = await this.ensureBusinessPhiKey(business);
+    return deriveBusinessPhiEncryptionKey(
+      business.id,
+      material,
+      this.masterKey(),
+    );
+  }
+
   async encryptBookingForStorage<T extends BookingPhiCarrier>(
     business: Business,
     booking: T,

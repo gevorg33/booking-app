@@ -14,7 +14,9 @@ export type StripeCurrencyWarningIntent =
 export function isStripeCurrencyWarningIntent(
   action: string,
 ): action is StripeCurrencyWarningIntent {
-  return (STRIPE_CURRENCY_WARNING_INTENTS as readonly string[]).includes(action);
+  return (STRIPE_CURRENCY_WARNING_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 function containsArmenianScript(text: string): boolean {
@@ -119,9 +121,7 @@ function hasStripeCheckoutFailureTroubleshootContext(prompt: string): boolean {
     (/\b(checkout\s+session|session\s+creation|online\s+payment\s+checkout)\b/i.test(
       prompt,
     ) &&
-      /\b(fail(?:ed|ure|s|ing)?|error|broken|keeps?\s+failing)\b/i.test(
-        prompt,
-      ))
+      /\b(fail(?:ed|ure|s|ing)?|error|broken|keeps?\s+failing)\b/i.test(prompt))
   ) {
     return true;
   }

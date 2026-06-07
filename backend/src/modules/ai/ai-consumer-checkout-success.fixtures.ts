@@ -19,14 +19,12 @@ export const EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS = [
   },
   {
     id: 'what-shown-confirmed',
-    prompt:
-      'What is shown on the booking confirmed screen in the salon app?',
+    prompt: 'What is shown on the booking confirmed screen in the salon app?',
     aspect: 'summary' as const,
   },
   {
     id: 'confirmation-summary',
-    prompt:
-      "What's on the confirmation summary after I book in the app?",
+    prompt: "What's on the confirmation summary after I book in the app?",
     aspect: 'summary' as const,
   },
   {
@@ -91,8 +89,7 @@ export const EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS = [
   },
   {
     id: 'success-screen-walkthrough',
-    prompt:
-      'Walk me through the consumer app screen after I finish booking',
+    prompt: 'Walk me through the consumer app screen after I finish booking',
     aspect: 'all' as const,
   },
   {

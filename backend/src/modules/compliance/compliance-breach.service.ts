@@ -113,7 +113,8 @@ export class ComplianceBreachService {
     });
     const recipients = customers.filter(
       (customer) =>
-        typeof customer.email === 'string' && customer.email.trim().includes('@'),
+        typeof customer.email === 'string' &&
+        customer.email.trim().includes('@'),
     );
     if (recipients.length === 0) {
       return { ok: false, reason: 'no_recipients' };

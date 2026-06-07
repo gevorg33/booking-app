@@ -22,8 +22,7 @@ export const LIST_TOUR_CALENDAR_WEEK_PROMPTS = [
   },
   {
     id: 'gevorg-provider-week',
-    prompt:
-      "What tour departures are on Gevorg's provider calendar this week?",
+    prompt: "What tour departures are on Gevorg's provider calendar this week?",
     employeeName: 'Gevorg',
   },
   {

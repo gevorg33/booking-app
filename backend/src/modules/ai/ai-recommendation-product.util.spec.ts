@@ -51,7 +51,8 @@ describe('ai-recommendation-product.util (ai-cmd-rec-1)', () => {
       if (imageUrl) expect(parsed?.imageUrl).toBe(imageUrl);
       if (externalLink) expect(parsed?.externalLink).toBe(externalLink);
       if (description) expect(parsed?.description).toBe(description);
-      if (retailPrice !== undefined) expect(parsed?.retailPrice).toBe(retailPrice);
+      if (retailPrice !== undefined)
+        expect(parsed?.retailPrice).toBe(retailPrice);
       if (wantsImage) expect(parsed?.wantsImage).toBe(true);
       if (wantsLink) expect(parsed?.wantsLink).toBe(true);
       if (isUpdate) expect(parsed?.isUpdate).toBe(true);
@@ -83,7 +84,9 @@ describe('ai-recommendation-product.util (ai-cmd-rec-1)', () => {
     const prompt = 'Create product Shampoo sku SH-01 retail 18';
     expect(isConfigureRecommendationProductPrompt(prompt)).toBe(false);
     expect(isCreateProductPrompt(prompt)).toBe(true);
-    expect(rescueConfigureRecommendationProductIntent(prompt, 'unknown')).toBeNull();
+    expect(
+      rescueConfigureRecommendationProductIntent(prompt, 'unknown'),
+    ).toBeNull();
   });
 
   it('cross-excludes post-checkout product prompts from create_product', () => {
@@ -96,7 +99,9 @@ describe('ai-recommendation-product.util (ai-cmd-rec-1)', () => {
   it('does not steal link_product_to_service prompts', () => {
     const prompt = 'Link shampoo to haircut service';
     expect(isConfigureRecommendationProductPrompt(prompt)).toBe(false);
-    expect(rescueConfigureRecommendationProductIntent(prompt, 'unknown')).toBeNull();
+    expect(
+      rescueConfigureRecommendationProductIntent(prompt, 'unknown'),
+    ).toBeNull();
   });
 });
 
@@ -142,9 +147,9 @@ describe('ai-recommendation-product link util (ai-cmd-rec-2)', () => {
   });
 
   it('cross-excludes retail POS link and upsell prompts', () => {
-    expect(isLinkProductToServicePrompt('Link shampoo to haircut service')).toBe(
-      true,
-    );
+    expect(
+      isLinkProductToServicePrompt('Link shampoo to haircut service'),
+    ).toBe(true);
     expect(
       isLinkRecommendedProductsPrompt('Link shampoo to haircut service'),
     ).toBe(false);
@@ -195,7 +200,10 @@ describe('ai-recommendation-product explain util (ai-cmd-rec-3)', () => {
 
   it('rescues unknown action to explain_recommendation_setup', () => {
     expect(
-      rescueExplainRecommendationSetupIntent('Explain recommendation setup', 'unknown'),
+      rescueExplainRecommendationSetupIntent(
+        'Explain recommendation setup',
+        'unknown',
+      ),
     ).toEqual({
       action: 'explain_recommendation_setup',
       rescueReason: 'explain_recommendation_setup',
@@ -206,6 +214,8 @@ describe('ai-recommendation-product explain util (ai-cmd-rec-3)', () => {
     const prompt = 'Recommend shampoo and conditioner after haircut service';
     expect(isExplainRecommendationSetupPrompt(prompt)).toBe(false);
     expect(isLinkRecommendedProductsPrompt(prompt)).toBe(true);
-    expect(rescueExplainRecommendationSetupIntent(prompt, 'unknown')).toBeNull();
+    expect(
+      rescueExplainRecommendationSetupIntent(prompt, 'unknown'),
+    ).toBeNull();
   });
 });

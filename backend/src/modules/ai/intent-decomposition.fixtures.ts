@@ -16,6 +16,8 @@ export type CompoundScenarioExpectation = {
   noLlm?: boolean;
   /** When true, decomposition should return empty. */
   expectEmpty?: boolean;
+  /** Expected compound recipe id when stable. */
+  compoundRecipeId?: string;
 };
 
 /** Documented compound scenarios for unit + integration coverage (ai-cmd-0.3). */
@@ -44,7 +46,10 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     id: 'customer_physical_gift_card_handoff',
     surface: 'customer',
     prompt: 'Buy physical gift card $100 and track my order',
-    orderedActions: ['buy_gift_card_physical', 'track_physical_gift_card_order'],
+    orderedActions: [
+      'buy_gift_card_physical',
+      'track_physical_gift_card_order',
+    ],
     noLlm: true,
   },
   {
@@ -235,6 +240,31 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     prompt: 'Summarize unpaid bookings then export accounting',
     minSteps: 2,
     actions: ['summarize_unpaid', 'export_accounting'],
+    noLlm: true,
+  },
+  {
+    id: 'dashboard_clinic_order_notify',
+    surface: 'dashboard',
+    prompt:
+      "Order lipid panel for Maria's visit and notify her when results are ready",
+    orderedActions: ['create_test_order', 'notify_patient_result_ready'],
+    compoundRecipeId: 'dashboard_clinic_compound',
+    noLlm: true,
+  },
+  {
+    id: 'customer_clinic_book_explain',
+    surface: 'customer',
+    prompt: 'Book lipid panel and notify me when results are ready',
+    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    compoundRecipeId: 'customer_clinic_compound',
+    noLlm: true,
+  },
+  {
+    id: 'public_clinic_book_explain',
+    surface: 'public',
+    prompt: 'Book lipid panel and tell me when results are ready on this page',
+    orderedActions: ['book_appointment', 'explain_result_status'],
+    compoundRecipeId: 'public_clinic_compound',
     noLlm: true,
   },
 ];

@@ -61,7 +61,9 @@ function hasDateTimeFormatCue(prompt: string): boolean {
     /\b(?:DD\/MM|MM\/DD|12[- ]?hour|24[- ]?hour|same\s+(?:as|way)|vs\s+(?:the\s+)?dashboard)\b/i.test(
       prompt,
     ) ||
-    /(?:ամսաթիվ|ամսաթվ|ժամ|ձևաչափ|օր\/ամիս|ամիս\/օր|ժամացույց|համեմատ)/i.test(prompt) ||
+    /(?:ամսաթիվ|ամսաթվ|ժամ|ձևաչափ|օր\/ամիս|ամիս\/օր|ժամացույց|համեմատ)/i.test(
+      prompt,
+    ) ||
     /(?:формат\s+дат|дат[аы]?|времени|дд\/мм|мм\/дд|часов)/i.test(prompt)
   );
 }
@@ -78,15 +80,18 @@ function hasPreviewCue(prompt: string): boolean {
 export function hasResultReadyContext(prompt: string): boolean {
   return (
     /\b(?:patient\s+)?results?\s+ready\b/i.test(prompt) ||
+    /\bresults?\s+(?:are\s+)?ready\b/i.test(prompt) ||
     /\bresult[- ]?ready\b/i.test(prompt) ||
-    /\b(?:lab|test)\s+results?\s+(?:are\s+)?(?:ready|available)\b/i.test(prompt) ||
+    /\b(?:lab|test)\s+results?\s+(?:are\s+)?(?:ready|available)\b/i.test(
+      prompt,
+    ) ||
     /\blab\s+results?\s+(?:ready|available)\b/i.test(prompt) ||
     /\btest\s+results?\s+(?:ready|available)\b/i.test(prompt) ||
     /\bresults?\s+(?:are\s+)?available\b/i.test(prompt) ||
     (/(արդյունք|պատրաստ)/i.test(prompt) &&
       /(հիվանդ|patient|լաբորատոր|թեստ)/i.test(prompt)) ||
-    /(?:готовност|готов)/i.test(prompt) &&
-      /(?:результат|анализ)/i.test(prompt) ||
+    (/(?:готовност|готов)/i.test(prompt) &&
+      /(?:результат|анализ)/i.test(prompt)) ||
     (/(результат|готов|анализ)/i.test(prompt) &&
       /(пациент|patient|лаборатор)/i.test(prompt))
   );
@@ -100,6 +105,7 @@ export function parsePatientResultReadyParams(
   params: Record<string, unknown> = {},
 ): Record<string, unknown> {
   const parsed: Record<string, unknown> = {};
+  if (typeof params.resultId === 'string') parsed.resultId = params.resultId;
   if (typeof params.bookingId === 'string') parsed.bookingId = params.bookingId;
   if (typeof params.customerName === 'string') {
     parsed.customerName = params.customerName;
@@ -122,6 +128,13 @@ export function parsePatientResultReadyParams(
 
 function isResultReadyMutatePrompt(prompt: string): boolean {
   if (!hasResultReadyContext(prompt)) return false;
+  if (/\b(notify|tell|remind|alert)\s+me\b/i.test(prompt)) return false;
+  if (
+    /\b(book|order|place|schedule|reserve)\b/i.test(prompt) &&
+    /\b(and|then|&)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     NOTIFY_RESULT_READY_VERBS.test(prompt) ||
     /\bnotification\b/i.test(prompt)
@@ -171,7 +184,10 @@ export function parseNotificationMessageKind(
 
 export function isExplainNotificationDateFormatPrompt(prompt: string): boolean {
   if (isResultReadyMutatePrompt(prompt)) return false;
-  if (isExplainNotificationCurrencyPrompt(prompt) && !hasDateTimeFormatCue(prompt)) {
+  if (
+    isExplainNotificationCurrencyPrompt(prompt) &&
+    !hasDateTimeFormatCue(prompt)
+  ) {
     return false;
   }
   if (!hasNotificationDateContext(prompt)) return false;
@@ -270,7 +286,9 @@ export function rescueNotificationDateFormatIntent(
   prompt: string,
   action: string,
 ): { action: NotificationDateFormatIntent; rescueReason: string } | null {
-  if ((NOTIFICATION_DATE_FORMAT_INTENTS as readonly string[]).includes(action)) {
+  if (
+    (NOTIFICATION_DATE_FORMAT_INTENTS as readonly string[]).includes(action)
+  ) {
     return null;
   }
   if (isNotifyPatientResultReadyPrompt(prompt)) {

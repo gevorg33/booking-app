@@ -11,8 +11,7 @@ export const BOOKING_DATE_FORMAT_CLASSIFIER_RULES = `- explain_booking_date_form
 export const EXPLAIN_BOOKING_DATE_FORMAT_PROMPTS = [
   {
     id: 'why-dd-mm-not-mm-dd',
-    prompt:
-      'Why do dates show as DD/MM instead of MM/DD on the booking page?',
+    prompt: 'Why do dates show as DD/MM instead of MM/DD on the booking page?',
   },
   {
     id: 'why-different-format',

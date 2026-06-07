@@ -12,8 +12,8 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
+import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { buildSalonPath } from '../lib/deep-link.js';
-import { copy } from '../lib/copy.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import type { PublicBookingManageContext, PublicCustomerBookingItem } from '../lib/types.js';
 import { fetchBookingManageContext } from '../services/public-api.js';
@@ -45,6 +45,7 @@ export default function ManageBookingPage() {
   } | null>(null);
 
   const effectiveSlug = slug || routeSlug || '';
+  const { copy, locale } = useConsumerCopy(effectiveSlug, profile ?? { locale: 'en' });
 
   useEffect(() => {
     if (!effectiveSlug || !bookingId || !token) {
@@ -69,7 +70,7 @@ export default function ManageBookingPage() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveSlug, bookingId, token]);
+  }, [effectiveSlug, bookingId, token, copy.manageBookingInvalidLink]);
 
   const reload = async () => {
     if (!effectiveSlug || !bookingId || !token) return;
@@ -125,8 +126,6 @@ export default function ManageBookingPage() {
     );
   }
 
-  const locale = profile.locale?.slice(0, 2) ?? 'en';
-
   return (
     <IonPage>
       <IonHeader>
@@ -175,6 +174,7 @@ export default function ManageBookingPage() {
             packageVisit={context.packageVisit}
             manageToken={token}
             authed={false}
+            copy={copy}
             onUpdated={() => void reload()}
             onRescheduled={(previous, next) => setRescheduleNotice({ previousStartTime: previous, newStartTime: next })}
           />
@@ -184,6 +184,7 @@ export default function ManageBookingPage() {
             slug={effectiveSlug}
             manageToken={token}
             authed={false}
+            copy={copy}
             onUpdated={() => void reload()}
             onRescheduled={(previous, next) => setRescheduleNotice({ previousStartTime: previous, newStartTime: next })}
           />

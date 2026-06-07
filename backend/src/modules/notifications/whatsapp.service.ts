@@ -274,6 +274,8 @@ export class WhatsAppService implements OnModuleInit {
 
     const isConfirmation = payload.kind === 'confirmation';
     const isCancellation = payload.kind === 'cancellation';
+    const isResultReady = payload.kind === 'result_ready';
+    const isLabBookingRequest = payload.kind === 'lab_booking_request';
     const templateName = isConfirmation
       ? config.templateConfirmation
       : isCancellation
@@ -292,11 +294,19 @@ export class WhatsAppService implements OnModuleInit {
         ]
       : isCancellation
         ? [payload.customerName, payload.businessName, cancellationDetail]
-        : [
-            payload.customerName,
-            payload.businessName,
-            payload.reminderLabel || 'soon',
-          ];
+        : isResultReady || isLabBookingRequest
+          ? [
+              payload.customerName,
+              payload.businessName,
+              payload.serviceName,
+              payload.reminderLabel ||
+                (isLabBookingRequest ? 'Book lab collection' : 'Results ready'),
+            ]
+          : [
+              payload.customerName,
+              payload.businessName,
+              payload.reminderLabel || 'soon',
+            ];
     const paramCount = isConfirmation
       ? config.templateBodyParamCount
       : isCancellation
@@ -313,7 +323,11 @@ export class WhatsAppService implements OnModuleInit {
       ? `[confirmation] ${payload.businessName}: ${payload.serviceName} on ${payload.dateLabel} ${payload.timeLabel}`
       : isCancellation
         ? `[cancellation] ${payload.businessName}: ${cancellationDetail}`
-        : `[reminder] ${payload.businessName}: ${payload.serviceName} in ${payload.reminderLabel}`;
+        : isResultReady
+          ? `[result_ready] ${payload.businessName}: ${payload.serviceName} — ${payload.reminderLabel}`
+          : isLabBookingRequest
+            ? `[lab_booking_request] ${payload.businessName}: ${payload.serviceName} — ${payload.reminderLabel}`
+            : `[reminder] ${payload.businessName}: ${payload.serviceName} in ${payload.reminderLabel}`;
 
     try {
       const resolved = await this.resolveTemplateSend(

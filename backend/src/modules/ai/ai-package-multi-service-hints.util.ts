@@ -82,14 +82,20 @@ export function isDashboardPackageMultiAction(
 
 export function isStaffCartBuildPrompt(prompt?: string): boolean {
   const lower = (prompt ?? '').toLowerCase();
-  return /\badd\b/.test(lower) && /\bcart\b/.test(lower) && !/\bmy\s+cart\b/.test(lower);
+  return (
+    /\badd\b/.test(lower) &&
+    /\bcart\b/.test(lower) &&
+    !/\bmy\s+cart\b/.test(lower)
+  );
 }
 
 export function isPackageMultiCheckoutFollowUpPrompt(prompt?: string): boolean {
   const lower = (prompt ?? '').toLowerCase();
   return (
     /\bbook\b/.test(lower) &&
-    (/\bfor\b/.test(lower) || /\bat\s+\d/i.test(lower) || /\b\d{1,2}:\d{2}\b/.test(lower))
+    (/\bfor\b/.test(lower) ||
+      /\bat\s+\d/i.test(lower) ||
+      /\b\d{1,2}:\d{2}\b/.test(lower))
   );
 }
 
@@ -125,7 +131,10 @@ export function disambiguateStaffPackageMultiBooking(
     return null;
   }
 
-  if (action === 'create_package_booking' || action === 'create_multi_service_booking') {
+  if (
+    action === 'create_package_booking' ||
+    action === 'create_multi_service_booking'
+  ) {
     return null;
   }
 
@@ -192,11 +201,7 @@ export function inheritPackageMultiServiceFollowUpContext(
     }
   }
 
-  if (
-    checkoutFollowUp &&
-    !params.customerName &&
-    session.customerName
-  ) {
+  if (checkoutFollowUp && !params.customerName && session.customerName) {
     params.customerName = session.customerName;
   }
 }
@@ -288,11 +293,7 @@ export function applyPackageMultiServicePromptHints(
     context.employees,
     context.customers ?? [],
   );
-  sanitizeProviderScopeFromPrompt(
-    prompt,
-    params,
-    context.employees as any,
-  );
+  sanitizeProviderScopeFromPrompt(prompt, params, context.employees as any);
 }
 
 export function enrichCompoundSubStepPackageMultiHints(

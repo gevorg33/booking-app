@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
+import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleAuditDashboardDateSurfacesLogic,
@@ -24,8 +27,20 @@ import {
 export class AiBusinessDateFormatService {
   private readonly deps: BusinessDateFormatLogicDeps;
 
-  constructor(@InjectRepository(Business) businessRepo: Repository<Business>) {
-    this.deps = { businessRepo };
+  constructor(
+    @InjectRepository(Business) businessRepo: Repository<Business>,
+    @InjectRepository(ClinicTestResult)
+    resultRepo: Repository<ClinicTestResult>,
+    notificationsService: NotificationsService,
+    configService: ConfigService,
+  ) {
+    this.deps = {
+      businessRepo,
+      resultRepo,
+      sendClinicResultReady: (resultId) =>
+        notificationsService.sendClinicResultReady(resultId),
+      frontendUrl: configService.get<string>('FRONTEND_URL') ?? null,
+    };
   }
 
   handleConfigureBusinessDateFormat(

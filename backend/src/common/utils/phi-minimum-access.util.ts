@@ -1,5 +1,9 @@
 import { MemberRole } from '../../modules/business/entities/business-member.entity.js';
 import type { BookingPhiCarrier } from './phi-encryption.util.js';
+import {
+  LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY,
+  maskLegacyPatientTestResultRows,
+} from './legacy-booking-patient-test-results-phi.util.js';
 
 export interface BookingPhiAccessTarget {
   employeeId: string;
@@ -35,15 +39,13 @@ export function maskBookingPhiFields<T extends BookingPhiCarrier>(
   const metadata = { ...next.metadata };
   delete metadata.referralNotes;
   delete metadata.symptoms;
-  if (Array.isArray(metadata.patient_test_results)) {
-    metadata.patient_test_results = metadata.patient_test_results.map(
-      (entry) => {
-        if (!entry || typeof entry !== 'object') return entry;
-        const row = { ...(entry as Record<string, unknown>) };
-        delete row.notes;
-        return row;
-      },
-    );
+  if (
+    metadata[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] !== undefined
+  ) {
+    metadata[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] =
+      maskLegacyPatientTestResultRows(
+        metadata[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY],
+      );
   }
   next.metadata = metadata;
   return next;

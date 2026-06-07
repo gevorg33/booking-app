@@ -100,9 +100,7 @@ function isAdminTourCatalogPrompt(prompt: string): boolean {
 function extendTourCatalogServiceName(name: string, prompt: string): string {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const catalogTour = prompt.match(
-    new RegExp(
-      `\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`,
-    ),
+    new RegExp(`\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`),
   );
   if (catalogTour?.[0]) return catalogTour[0].trim();
   const extended = prompt.match(
@@ -120,16 +118,11 @@ function normalizeServiceNameCandidate(
 ): string | null {
   let name = candidate.trim();
   for (let i = 0; i < 4; i += 1) {
-    const next = name
-      .replace(/^(?:the|a|an)\s+/i, '')
-      .trim();
+    const next = name.replace(/^(?:the|a|an)\s+/i, '').trim();
     if (next === name) break;
     name = next;
   }
-  name = name
-    .replace(/-ը$/i, '')
-    .replace(/-ի$/i, '')
-    .trim();
+  name = name.replace(/-ը$/i, '').replace(/-ի$/i, '').trim();
   if (/^(?:tour|trek|excursion|տուր|էքսկուրսիա|тур|экскурс)$/i.test(name)) {
     return null;
   }
@@ -226,7 +219,9 @@ function resolveTourBookingAspect(prompt: string): TourBookingAspect {
   return 'all';
 }
 
-export function isTourBookingIntent(action: string): action is TourBookingIntent {
+export function isTourBookingIntent(
+  action: string,
+): action is TourBookingIntent {
   return (TOUR_BOOKING_INTENTS as readonly string[]).includes(action);
 }
 
@@ -234,7 +229,10 @@ function isSingleTourBookingDetailPrompt(prompt: string): boolean {
   if (!hasTourBookingTopic(prompt) || !hasReadTourBookingCue(prompt)) {
     return false;
   }
-  if (isAdminTourCatalogPrompt(prompt) || isGenericCatalogListingPrompt(prompt)) {
+  if (
+    isAdminTourCatalogPrompt(prompt) ||
+    isGenericCatalogListingPrompt(prompt)
+  ) {
     return false;
   }
 
@@ -306,7 +304,8 @@ export function isExplainTourBookingPrompt(prompt: string): boolean {
       return true;
     }
     return (
-      Boolean(extractServiceNameFromPrompt(prompt)) && hasTourBookingTopic(prompt)
+      Boolean(extractServiceNameFromPrompt(prompt)) &&
+      hasTourBookingTopic(prompt)
     );
   }
 

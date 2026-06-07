@@ -13,6 +13,7 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
     businessRepo as any,
     customerRepo as any,
     logRepo as any,
+    { findOne: jest.fn() } as any,
     emailService as any,
     { send: jest.fn() } as any,
     { send: jest.fn() } as any,
@@ -22,6 +23,7 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
         key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
       ),
     } as any,
+    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
   );
 
   beforeEach(() => {

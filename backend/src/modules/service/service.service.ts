@@ -30,6 +30,14 @@ import {
   isClinicServiceType,
 } from '../../common/utils/clinic-service.util.js';
 import {
+  applyClinicDiagnosticCodeLinkToServiceMetadata,
+  mapClinicDiagnosticCodeLinkView,
+  readClinicDiagnosticCodeIdFromServiceMetadata,
+  validateClinicDiagnosticCodeKindMatch,
+  type ClinicDiagnosticCodeLinkView,
+} from '../../common/utils/clinic-diagnostic-code-link.util.js';
+import { ClinicDiagnosticCodesService } from '../clinic-diagnostic-codes/clinic-diagnostic-codes.service.js';
+import {
   applyServiceTaxRateToMetadata,
   readServiceTaxRatePercent,
 } from '../../common/utils/business-tax.util.js';
@@ -48,6 +56,7 @@ export class ServiceService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     private eventStore: EventStoreService,
     private stripeIntegrationService: StripeIntegrationService,
+    private clinicDiagnosticCodesService: ClinicDiagnosticCodesService,
   ) {}
 
   private resolveServiceCurrency(
@@ -99,9 +108,12 @@ export class ServiceService {
     if (!hasVerticalField) return metadata;
 
     if (dto.serviceType === '') {
-      return applyClinicMetadataToServiceMetadata(
-        applyTourMetadataToServiceMetadata(metadata, { serviceType: null }),
-        { serviceType: null },
+      return applyClinicDiagnosticCodeLinkToServiceMetadata(
+        applyClinicMetadataToServiceMetadata(
+          applyTourMetadataToServiceMetadata(metadata, { serviceType: null }),
+          { serviceType: null },
+        ),
+        null,
       );
     }
 
@@ -158,21 +170,73 @@ export class ServiceService {
     return metadata;
   }
 
-  private enrichService(service: Service): Service & {
-    localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
-    tour?: ReturnType<typeof extractTourMetadata>;
-    clinic?: ReturnType<typeof extractClinicMetadata>;
-    taxRatePercent?: number | null;
-  } {
+  private async applyDiagnosticCodeMetadataLink(
+    businessId: string,
+    metadata: Record<string, unknown>,
+    dto: CreateServiceDto | UpdateServiceDto,
+  ): Promise<Record<string, unknown>> {
+    if (dto.clinicDiagnosticCodeId === undefined) return metadata;
+
+    const clinic = extractClinicMetadata(metadata);
+    const serviceType =
+      clinic?.serviceType ??
+      (dto.serviceType && isClinicServiceType(dto.serviceType)
+        ? dto.serviceType
+        : null);
+
+    if (!dto.clinicDiagnosticCodeId) {
+      return applyClinicDiagnosticCodeLinkToServiceMetadata(metadata, null);
+    }
+
+    const summary =
+      await this.clinicDiagnosticCodesService.resolveActiveClinicDiagnosticCode(
+        businessId,
+        dto.clinicDiagnosticCodeId,
+      );
+    const kindError = validateClinicDiagnosticCodeKindMatch(
+      serviceType,
+      summary!.codeKind,
+    );
+    if (kindError) {
+      throw new BadRequestException(kindError);
+    }
+
+    return applyClinicDiagnosticCodeLinkToServiceMetadata(
+      metadata,
+      summary!.id,
+    );
+  }
+
+  private async enrichService(service: Service): Promise<
+    Service & {
+      localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
+      tour?: ReturnType<typeof extractTourMetadata>;
+      clinic?: ReturnType<typeof extractClinicMetadata>;
+      taxRatePercent?: number | null;
+      diagnosticCode?: ClinicDiagnosticCodeLinkView | null;
+    }
+  > {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
     const tour = extractTourMetadata(service.metadata);
     const clinic = extractClinicMetadata(service.metadata);
     const taxRatePercent = readServiceTaxRatePercent(service.metadata);
+    const diagnosticCodeId = readClinicDiagnosticCodeIdFromServiceMetadata(
+      service.metadata,
+    );
+    const diagnosticCodeSummary = diagnosticCodeId
+      ? await this.clinicDiagnosticCodesService.resolveActiveClinicDiagnosticCode(
+          service.businessId,
+          diagnosticCodeId,
+        )
+      : null;
     const enriched = Object.assign(service, {
       localizedNames,
       tour,
       clinic,
       taxRatePercent,
+      diagnosticCode: diagnosticCodeSummary
+        ? mapClinicDiagnosticCodeLinkView(diagnosticCodeSummary)
+        : null,
     });
     if (enriched.category) {
       Object.assign(enriched.category, {
@@ -226,6 +290,7 @@ export class ServiceService {
       requiresFasting: _requiresFasting,
       preparationNotes: _preparationNotes,
       taxRatePercent: _taxRatePercent,
+      clinicDiagnosticCodeId: _clinicDiagnosticCodeId,
       currency: _currencyInput,
       ...serviceData
     } = dto;
@@ -233,6 +298,11 @@ export class ServiceService {
       enabledLocales,
     });
     metadata = this.applyVerticalServiceMetadata(metadata, dto);
+    metadata = await this.applyDiagnosticCodeMetadataLink(
+      businessId,
+      metadata,
+      dto,
+    );
     if (dto.taxRatePercent !== undefined) {
       metadata = applyServiceTaxRateToMetadata(metadata, dto.taxRatePercent);
     }
@@ -264,7 +334,7 @@ export class ServiceService {
       relations: { category: true },
       order: { name: 'ASC' },
     });
-    return services.map((service) => this.enrichService(service));
+    return Promise.all(services.map((item) => this.enrichService(item)));
   }
 
   async findOne(id: string) {
@@ -310,6 +380,7 @@ export class ServiceService {
       requiresFasting: _requiresFasting,
       preparationNotes: _preparationNotes,
       taxRatePercent: _taxRatePercent,
+      clinicDiagnosticCodeId: _clinicDiagnosticCodeId,
       currency: _currency,
       ...rest
     } = dto;
@@ -321,6 +392,11 @@ export class ServiceService {
       );
     }
     service.metadata = this.applyVerticalServiceMetadata(
+      (service.metadata ?? {}) as Record<string, unknown>,
+      dto,
+    );
+    service.metadata = await this.applyDiagnosticCodeMetadataLink(
+      service.businessId,
       (service.metadata ?? {}) as Record<string, unknown>,
       dto,
     );

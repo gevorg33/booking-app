@@ -384,7 +384,9 @@ function formatLinkedProductNames(products: LinkedProductView[]): string {
   if (products.length === 0) return 'none';
   return products
     .map((product) =>
-      product.isActive ? product.productName : `${product.productName} (inactive)`,
+      product.isActive
+        ? product.productName
+        : `${product.productName} (inactive)`,
     )
     .join(', ');
 }
@@ -418,7 +420,8 @@ function buildExplainSummary(input: {
   const serviceLines = input.serviceGroups
     .filter((group) => group.products.length > 0)
     .map(
-      (group) => `${group.serviceName}: ${formatLinkedProductNames(group.products)}`,
+      (group) =>
+        `${group.serviceName}: ${formatLinkedProductNames(group.products)}`,
     );
   const categoryLines = input.categoryGroups
     .filter((group) => group.products.length > 0)
@@ -431,11 +434,7 @@ function buildExplainSummary(input: {
     return `${header} No service or category recommendation links configured yet.`;
   }
 
-  return [
-    header,
-    ...serviceLines,
-    ...categoryLines,
-  ].join(' ');
+  return [header, ...serviceLines, ...categoryLines].join(' ');
 }
 
 export async function handleExplainRecommendationSetupLogic(
@@ -455,7 +454,9 @@ export async function handleExplainRecommendationSetupLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_recommendation_setup', 'Business not found.');
   }
@@ -469,7 +470,9 @@ export async function handleExplainRecommendationSetupLogic(
     undefined,
     true,
   );
-  const productById = new Map(allProducts.map((product) => [product.id, product]));
+  const productById = new Map(
+    allProducts.map((product) => [product.id, product]),
+  );
 
   const services = await deps.serviceRepo.find({
     where: { businessId, isActive: true },
@@ -503,14 +506,16 @@ export async function handleExplainRecommendationSetupLogic(
     categories.map((category) => [category.id, category]),
   );
 
-  const serviceGroups: ServiceRecommendationGroup[] = services.map((service) => ({
-    serviceId: service.id,
-    serviceName: service.name,
-    products: mapLinkedProducts(
-      serviceLinks.filter((link) => link.serviceId === service.id),
-      productById,
-    ),
-  }));
+  const serviceGroups: ServiceRecommendationGroup[] = services.map(
+    (service) => ({
+      serviceId: service.id,
+      serviceName: service.name,
+      products: mapLinkedProducts(
+        serviceLinks.filter((link) => link.serviceId === service.id),
+        productById,
+      ),
+    }),
+  );
 
   const categoryGroups: CategoryRecommendationGroup[] = categories.map(
     (category) => ({

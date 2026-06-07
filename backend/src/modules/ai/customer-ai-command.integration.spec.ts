@@ -135,6 +135,22 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       } as any,
       sprintHandlers as any,
       sprintHandlers as any,
+      {
+        handleListMyTestResults: jest.fn(async () => ({
+          success: true,
+          action: 'list_my_test_results',
+          summary: 'ok',
+          details: {},
+        })),
+        handleExplainResultStatus: jest.fn(async () => ({
+          success: true,
+          action: 'explain_result_status',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
+      sprintHandlers as any,
+      sprintHandlers as any,
       { chat: jest.fn() } as any,
     );
 
@@ -278,6 +294,9 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       } as any,
       noop as any,
       noop as any,
+      {} as any,
+      {} as any,
+      {} as any,
       publicAssistant as any,
     );
 

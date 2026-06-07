@@ -32,13 +32,19 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
 
   const inventoryService = {
     listProducts: jest.fn(async () => [...products]),
-    createProduct: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
-      id: 'prod-new',
-      businessId: 'biz-1',
-      ...dto,
-    })),
+    createProduct: jest.fn(
+      async (_businessId: string, dto: Record<string, unknown>) => ({
+        id: 'prod-new',
+        businessId: 'biz-1',
+        ...dto,
+      }),
+    ),
     updateProduct: jest.fn(
-      async (_id: string, _businessId: string, dto: Record<string, unknown>) => ({
+      async (
+        _id: string,
+        _businessId: string,
+        dto: Record<string, unknown>,
+      ) => ({
         ...products[0],
         ...dto,
       }),
@@ -147,7 +153,12 @@ describe('ai recommendation link integration (ai-cmd-rec-2)', () => {
     { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
     { id: 'svc-keratin', name: 'keratin', businessId: 'biz-1', isActive: true },
     { id: 'svc-blowout', name: 'Blowout', businessId: 'biz-1', isActive: true },
-    { id: 'svc-highlights', name: 'highlights', businessId: 'biz-1', isActive: true },
+    {
+      id: 'svc-highlights',
+      name: 'highlights',
+      businessId: 'biz-1',
+      isActive: true,
+    },
   ];
 
   const categories = [{ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }];
@@ -159,18 +170,23 @@ describe('ai recommendation link integration (ai-cmd-rec-2)', () => {
   };
 
   const productRecommendationService = {
-    setServiceRecommendations: jest.fn(async (_biz, _svc, ids: string[]) => ids),
-    setCategoryRecommendations: jest.fn(async (_biz, _cat, ids: string[]) => ids),
+    setServiceRecommendations: jest.fn(
+      async (_biz, _svc, ids: string[]) => ids,
+    ),
+    setCategoryRecommendations: jest.fn(
+      async (_biz, _cat, ids: string[]) => ids,
+    ),
   };
 
   const serviceRepo = {
     find: jest.fn(async () => [...services]),
-    findOne: jest.fn(async ({ where }: { where: { id?: string } }) =>
-      services.find((item) => item.id === where.id) ??
-      services.find(
-        (item) =>
-          item.name.toLowerCase() === String(where.id ?? '').toLowerCase(),
-      ),
+    findOne: jest.fn(
+      async ({ where }: { where: { id?: string } }) =>
+        services.find((item) => item.id === where.id) ??
+        services.find(
+          (item) =>
+            item.name.toLowerCase() === String(where.id ?? '').toLowerCase(),
+        ),
     ),
   };
 

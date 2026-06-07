@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
   Inject,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
@@ -91,6 +92,9 @@ import {
   getDistributionIntegrations,
 } from '../integrations/distribution/distribution-integration.types.js';
 import { resolvePublicAssetUrl } from '../../common/utils/public-asset-url.util.js';
+import { readBusinessTypeFromSettings } from '../clinic-test-results/shared/clinic-test-results-gate.util.js';
+import { ClinicTestOrderBookingRequestService } from '../clinic-test-results/order/clinic-test-order-booking-request.service.js';
+import { buildClinicOrderBookingMetadata } from '../../common/utils/clinic-lab-booking-request.util.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { resolvePackageCheckoutGraceHours } from '../../common/utils/package-pricing.util.js';
@@ -115,12 +119,15 @@ import {
 } from '../notifications/appointment-reminder-settings.util.js';
 import {
   buildClinicBookingMetadata,
+  clinicLabTestOffersPreVisitIntake,
   clinicServiceAcceptsPatientNotes,
   extractClinicMetadata,
   formatClinicServiceTypeBadge,
   isClinicService,
 } from '../../common/utils/clinic-service.util.js';
 import { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
+import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.js';
+import { isClinicLabTestService } from '../../common/utils/clinic-public-pre-visit-intake.util.js';
 import {
   buildTourBookingMetadata,
   clampTourPaxCount,
@@ -246,6 +253,7 @@ export interface PublicBusinessProfile {
     optionsHours: number[];
     defaultHours: number | null;
   };
+  businessType?: string;
 }
 
 export interface ProviderSlotPreview {
@@ -339,6 +347,10 @@ export class PublicBookingService {
     @InjectRepository(SchedulingPeriod)
     private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @Optional()
+    private publicPreVisitIntakeService?: PublicPreVisitIntakeService,
+    @Optional()
+    private clinicTestOrderBookingRequestService?: ClinicTestOrderBookingRequestService,
   ) {}
 
   async resolveBusiness(slug: string): Promise<Business> {
@@ -502,6 +514,9 @@ export class PublicBookingService {
               buildPublicAppointmentReminderSettings(settings)!,
           }
         : {}),
+      businessType: readBusinessTypeFromSettings(
+        settings as Record<string, unknown>,
+      ),
     };
   }
 
@@ -545,6 +560,7 @@ export class PublicBookingService {
     onlinePaymentsEnabled: boolean,
     hasSubscriptionPlans = false,
     displayLocale: AppLocale = 'en',
+    hasIntakeQuestionnaire = false,
   ) {
     const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
     const serviceNames = extractLocalizedNamesFromMetadata(service.metadata);
@@ -607,6 +623,10 @@ export class PublicBookingService {
       requiresFasting: clinic?.requiresFasting,
       preparationNotes: clinic?.preparationNotes,
       acceptsPatientNotes: clinicServiceAcceptsPatientNotes(service.metadata),
+      offersPreVisitIntake: clinicLabTestOffersPreVisitIntake(
+        service.metadata,
+        hasIntakeQuestionnaire,
+      ),
     };
   }
 
@@ -1201,6 +1221,11 @@ export class PublicBookingService {
     const paymentsReady = this.stripeIntegrationService.isConnectReady(
       business.settings,
     );
+    const hasIntakeQuestionnaire = this.publicPreVisitIntakeService
+      ? await this.publicPreVisitIntakeService.hasPublishedIntakeQuestionnaire(
+          business.id,
+        )
+      : false;
 
     return {
       services: this.sortPublicServices(
@@ -1210,6 +1235,7 @@ export class PublicBookingService {
             paymentsReady,
             planSet.has(s.id),
             displayLocale,
+            hasIntakeQuestionnaire,
           ),
         ),
       ),
@@ -2773,6 +2799,28 @@ export class PublicBookingService {
         })
       : {};
 
+    if (dto.clinicOrderToken?.trim()) {
+      if (!this.clinicTestOrderBookingRequestService) {
+        throw new BadRequestException('Lab booking requests are not available');
+      }
+      const pending =
+        await this.clinicTestOrderBookingRequestService.resolveBookingRequestByToken(
+          business.id,
+          dto.clinicOrderToken.trim(),
+          customer.id,
+        );
+      if (!pending) {
+        throw new BadRequestException(
+          'Lab booking request is invalid or expired',
+        );
+      }
+      if (pending.collectionServiceId !== dto.serviceId) {
+        throw new BadRequestException(
+          'Selected service does not match the lab booking request',
+        );
+      }
+    }
+
     const booking = await this.bookingService.create(
       business.id,
       {
@@ -2791,6 +2839,9 @@ export class PublicBookingService {
           ...this.resolvePublicBookingReminderMetadata(business, dto.customer),
           ...tourBookingMeta,
           ...clinicBookingMeta,
+          ...(dto.clinicOrderToken?.trim()
+            ? buildClinicOrderBookingMetadata(dto.clinicOrderToken.trim())
+            : {}),
           ...(isTour
             ? { pricePerPerson: Number(service.price), paxCount }
             : {}),
@@ -2811,6 +2862,19 @@ export class PublicBookingService {
       this.bookingRepo,
       booking.id,
     );
+
+    if (
+      dto.preVisitIntakeId &&
+      isClinicLabTestService(service.metadata) &&
+      this.publicPreVisitIntakeService
+    ) {
+      await this.publicPreVisitIntakeService.linkIntakeToBooking(
+        business.id,
+        customer.id,
+        dto.preVisitIntakeId,
+        booking.id,
+      );
+    }
 
     return {
       booking,

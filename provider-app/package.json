@@ -22,7 +22,8 @@
     "test:sprint21": "vitest run --config vitest.sprint21.config.ts --coverage",
     "test:sprint28": "vitest run --config vitest.sprint28.config.ts --coverage",
     "test:sprint34": "vitest run --config vitest.sprint34.config.ts --coverage",
-    "test:sprint36": "vitest run --config vitest.sprint36.config.ts --coverage"
+    "test:sprint36": "vitest run --config vitest.sprint36.config.ts --coverage",
+    "test:sprint54": "vitest run --config vitest.sprint54.config.ts --coverage"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

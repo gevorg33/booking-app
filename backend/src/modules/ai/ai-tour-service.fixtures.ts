@@ -182,13 +182,15 @@ export const CONFIGURE_TOUR_SERVICE_PROMPTS = [
   },
   {
     id: 'included-items-city',
-    prompt: 'Set included items for Full Day City Tour to Transport, guide, lunch',
+    prompt:
+      'Set included items for Full Day City Tour to Transport, guide, lunch',
     serviceName: 'Full Day City Tour',
     includedItems: 'Transport, guide, lunch',
   },
   {
     id: 'cover-image-sunset',
-    prompt: 'Set cover image for Sunset Coastal Drive to /placeholders/tours/coastal.jpg',
+    prompt:
+      'Set cover image for Sunset Coastal Drive to /placeholders/tours/coastal.jpg',
     serviceName: 'Sunset Coastal Drive',
     coverImage: '/placeholders/tours/coastal.jpg',
   },

@@ -25,7 +25,11 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
     {
       id: 'svc-2',
       name: '3-Day Mountain Trek',
-      metadata: { serviceType: 'tour', difficulty: 'challenging', maxGroupSize: 8 },
+      metadata: {
+        serviceType: 'tour',
+        difficulty: 'challenging',
+        maxGroupSize: 8,
+      },
       durationMinutes: 4320,
     },
     {
@@ -64,7 +68,10 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
           tourStartDate,
           tourEndDate,
         },
-        service: { name: '3-Day Mountain Trek', metadata: { serviceType: 'tour' } },
+        service: {
+          name: '3-Day Mountain Trek',
+          metadata: { serviceType: 'tour' },
+        },
         customer: { name: 'John Doe' },
       },
     ]),

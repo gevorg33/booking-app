@@ -6,7 +6,8 @@ import {
 } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import type { PublicCustomerBookingItem } from '../lib/types.js';
-import { copy, formatCopy } from '../lib/copy.js';
+import type { ConsumerCopy } from '../lib/copy.js';
+import { formatCopy } from '../lib/copy.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import {
   cancelBookingWithToken,
@@ -22,6 +23,7 @@ export function ConsumerBookingActions({
   slug,
   manageToken,
   authed,
+  copy,
   onUpdated,
   onRescheduled,
 }: {
@@ -29,6 +31,7 @@ export function ConsumerBookingActions({
   slug: string;
   manageToken?: string;
   authed: boolean;
+  copy: ConsumerCopy;
   onUpdated: () => void;
   onRescheduled?: (previousStartTime: string, newStartTime: string) => void;
 }) {

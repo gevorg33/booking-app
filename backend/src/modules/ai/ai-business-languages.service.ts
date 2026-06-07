@@ -21,7 +21,8 @@ export class AiBusinessLanguagesService {
   constructor(
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Service) serviceRepo: Repository<Service>,
-    @InjectRepository(ServiceCategory) categoryRepo: Repository<ServiceCategory>,
+    @InjectRepository(ServiceCategory)
+    categoryRepo: Repository<ServiceCategory>,
     @InjectRepository(ServicePackage) packageRepo: Repository<ServicePackage>,
   ) {
     this.deps = { businessRepo, serviceRepo, categoryRepo, packageRepo };

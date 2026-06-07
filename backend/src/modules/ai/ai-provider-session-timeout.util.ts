@@ -52,9 +52,9 @@ export function isExplainProviderSessionTimeoutPrompt(prompt: string): boolean {
   if (hasProviderAppContext(prompt)) {
     if (
       /\b(?:when|what|how\s+long)\b/i.test(prompt) ||
-      (containsArmenianScript(prompt) &&
-        /(երբ|ինչ|որքան)/i.test(prompt)) ||
-      (containsCyrillicScript(prompt) && /(когда|что|как\s+долго)/i.test(prompt))
+      (containsArmenianScript(prompt) && /(երբ|ինչ|որքան)/i.test(prompt)) ||
+      (containsCyrillicScript(prompt) &&
+        /(когда|что|как\s+долго)/i.test(prompt))
     ) {
       return true;
     }
@@ -67,7 +67,9 @@ export function rescueProviderSessionTimeoutIntent(
   prompt: string,
   action: string,
 ): { action: ProviderSessionTimeoutIntent; rescueReason: string } | null {
-  if ((PROVIDER_SESSION_TIMEOUT_INTENTS as readonly string[]).includes(action)) {
+  if (
+    (PROVIDER_SESSION_TIMEOUT_INTENTS as readonly string[]).includes(action)
+  ) {
     return null;
   }
   if (isExplainProviderSessionTimeoutPrompt(prompt)) {

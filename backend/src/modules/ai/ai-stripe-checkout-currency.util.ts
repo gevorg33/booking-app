@@ -69,7 +69,8 @@ export function hasStripeCheckoutCurrencyContext(prompt: string): boolean {
       /\b(currency|€|֏|₽|\$|AMD|EUR|USD|RUB)\b/i.test(prompt)) ||
     (/\b(cash|pay-at-venue|pay\s+at\s+(?:the\s+)?venue)\b/i.test(prompt) &&
       /\b(stripe|online\s+card|online\s+checkout)\b/i.test(prompt)) ||
-    (/(?:stripe|առցանց)/i.test(prompt) && /(?:վճար|քարտ|գանձում)/i.test(prompt)) ||
+    (/(?:stripe|առցանց)/i.test(prompt) &&
+      /(?:վճար|քարտ|գանձում)/i.test(prompt)) ||
     (/(?:stripe|онлайн|списал)/i.test(prompt) &&
       /(?:оплат|карт|валют)/i.test(prompt))
   );
