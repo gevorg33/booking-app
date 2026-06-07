@@ -11,7 +11,9 @@ describe('ai-checkout-recommendations.util (ai-cmd-rec-5)', () => {
     'detects checkout success recommendation prompt $id',
     ({ prompt }) => {
       expect(isExplainCheckoutRecommendationsPrompt(prompt)).toBe(true);
-      expect(rescueExplainCheckoutRecommendationsIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueExplainCheckoutRecommendationsIntent(prompt, 'unknown'),
+      ).toEqual({
         action: 'explain_checkout_recommendations',
         rescueReason: 'explain_checkout_recommendations',
       });
@@ -38,8 +40,7 @@ describe('ai-checkout-recommendations.util (ai-cmd-rec-5)', () => {
   });
 
   it('does not steal dashboard recommendation analytics prompts', () => {
-    const analyticsPrompt =
-      'What are the top recommended products by clicks?';
+    const analyticsPrompt = 'What are the top recommended products by clicks?';
     expect(isExplainCheckoutRecommendationsPrompt(analyticsPrompt)).toBe(false);
   });
 

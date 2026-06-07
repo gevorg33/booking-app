@@ -13,7 +13,9 @@ export const REVENUE_KPIS_INTENTS = ['summarize_revenue_kpis'] as const;
 
 export type RevenueKpisIntent = (typeof REVENUE_KPIS_INTENTS)[number];
 
-export function isRevenueKpisIntent(action: string): action is RevenueKpisIntent {
+export function isRevenueKpisIntent(
+  action: string,
+): action is RevenueKpisIntent {
   return (REVENUE_KPIS_INTENTS as readonly string[]).includes(action);
 }
 
@@ -92,7 +94,10 @@ export function isSummarizeRevenueKpisPrompt(prompt: string): boolean {
   }
   if (isBulkUpdateServiceCurrencyPrompt(prompt)) return false;
 
-  if (isTopStaffRevenuePrompt(prompt) && !/\b(kpi|kpis|dashboard|reports?)\b/i.test(prompt)) {
+  if (
+    isTopStaffRevenuePrompt(prompt) &&
+    !/\b(kpi|kpis|dashboard|reports?)\b/i.test(prompt)
+  ) {
     return false;
   }
 

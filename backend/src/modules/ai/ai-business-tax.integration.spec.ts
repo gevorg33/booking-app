@@ -97,7 +97,9 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
       service.metadata = {};
     });
     businessRepo.findOne.mockResolvedValue({ ...business });
-    serviceRepo.find.mockResolvedValue(services.map((service) => ({ ...service })));
+    serviceRepo.find.mockResolvedValue(
+      services.map((service) => ({ ...service })),
+    );
     rescue = new AiIntentRescueService();
   });
 

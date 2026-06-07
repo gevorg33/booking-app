@@ -17,10 +17,18 @@ export default async function CheckoutPage({
     session_id?: string;
     paid?: string;
     autoAssign?: string;
+    clinicOrderToken?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { employeeId, startTime, serviceId, session_id: sessionId, autoAssign } = await searchParams;
+  const {
+    employeeId,
+    startTime,
+    serviceId,
+    session_id: sessionId,
+    autoAssign,
+    clinicOrderToken,
+  } = await searchParams;
   const isAutoAssign = autoAssign === '1';
 
   if (!startTime || !serviceId) {
@@ -51,6 +59,7 @@ export default async function CheckoutPage({
         backHref={backHref}
         autoAssign
         paymentSessionId={sessionId}
+        clinicOrderToken={clinicOrderToken}
       />
     );
   }
@@ -79,6 +88,7 @@ export default async function CheckoutPage({
       startTime={startTime}
       backHref={`${bookPath(slug, '/services')}?employeeId=${encodeURIComponent(employeeId!)}&startTime=${encodeURIComponent(startTime)}`}
       paymentSessionId={sessionId}
+      clinicOrderToken={clinicOrderToken}
     />
   );
 }

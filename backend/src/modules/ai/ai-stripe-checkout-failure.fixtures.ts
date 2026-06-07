@@ -43,7 +43,8 @@ export const DIAGNOSE_STRIPE_CHECKOUT_FAILURE_PROMPTS = [
   },
   {
     id: 'debug-stripe-checkout-currency',
-    prompt: 'Debug Stripe checkout currency mismatch when session creation fails',
+    prompt:
+      'Debug Stripe checkout currency mismatch when session creation fails',
   },
   {
     id: 'ru-session-not-created-currency',

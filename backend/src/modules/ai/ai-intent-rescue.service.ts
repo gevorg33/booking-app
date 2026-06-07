@@ -165,6 +165,17 @@ import {
   rescueExplainTourServicesIntent,
 } from './ai-tour-service.util.js';
 import {
+  parseConfigureClinicServiceFromPrompt,
+  parseExplainClinicServicesFromPrompt,
+  rescueApplyClinicPlaybookIntent,
+  rescueConfigureClinicServiceIntent,
+  rescueExplainClinicServicesIntent,
+} from './ai-clinic-service.util.js';
+import {
+  parseExplainClinicBookingFromPrompt,
+  rescueExplainClinicBookingIntent,
+} from './ai-clinic-booking.util.js';
+import {
   parseDiagnoseTourCapacityFromPrompt,
   rescueDiagnoseTourCapacityIntent,
 } from './ai-tour-capacity.util.js';
@@ -181,6 +192,40 @@ import {
 import { rescueProviderPaymentCurrencyIntent } from './ai-provider-payment-currency.util.js';
 import { rescueAppointmentTaxIntent } from './ai-appointment-tax.util.js';
 import { rescueBusinessComplianceIntent } from './ai-business-compliance.util.js';
+import {
+  parseCreateTestOrderFromPrompt,
+  parseListTestOrdersFromPrompt,
+  rescueClinicTestOrderIntent,
+} from './ai-clinic-test-order.util.js';
+import { rescueClinicCompoundIntent } from './ai-clinic-compound.util.js';
+import {
+  parseEnterTestResultFromPrompt,
+  parseReleaseTestResultFromPrompt,
+  rescueClinicTestResultIntent,
+} from './ai-clinic-test-result.util.js';
+import {
+  parseExplainPatientChartFromPrompt,
+  rescueClinicPatientChartIntent,
+} from './ai-clinic-patient-chart.util.js';
+import {
+  parseExplainResultStatusFromPrompt,
+  parseListMyTestResultsFromPrompt,
+  rescueConsumerClinicTestResultsIntent,
+} from './ai-consumer-clinic-test-results.util.js';
+import {
+  parseListMyCollectionQueueFromPrompt,
+  parseMarkSpecimenCollectedFromPrompt,
+  rescueProviderClinicCollectionIntent,
+} from './ai-provider-clinic-collection.util.js';
+import {
+  parseBookLabCollectionFromPrompt,
+  parseListMyLabBookingRequestsFromPrompt,
+  parsePushLabBookingFromPrompt,
+  parseStaffBookLabCollectionFromPrompt,
+  rescueConsumerClinicLabBookingIntent,
+  rescueDashboardClinicLabBookingIntent,
+  rescueProviderClinicLabBookingIntent,
+} from './ai-clinic-lab-booking.util.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
   parseConfigureGranularConsentFromPrompt,
@@ -366,6 +411,13 @@ export class AiIntentRescueService {
         timeZone,
       );
       if (disambiguated) return disambiguated;
+      const clinicCompoundEarly = this.tryRescueClinicCompound(prompt, action);
+      if (clinicCompoundEarly) return clinicCompoundEarly;
+      const explainClinicBookingEarly = this.tryRescueExplainClinicBooking(
+        prompt,
+        action,
+      );
+      if (explainClinicBookingEarly) return explainClinicBookingEarly;
       const scheduling = this.tryRescueScheduling(prompt, action, params);
       if (scheduling) return scheduling;
       const businessCurrencyEarly = this.tryRescueBusinessCurrency(
@@ -373,8 +425,45 @@ export class AiIntentRescueService {
         action,
       );
       if (businessCurrencyEarly) return businessCurrencyEarly;
-      const consumerCheckoutTaxEarly =
-        this.tryRescueConsumerCheckoutTax(prompt, action);
+      const clinicTestResultEarly = this.tryRescueClinicTestResult(
+        prompt,
+        action,
+      );
+      if (clinicTestResultEarly) return clinicTestResultEarly;
+      const notificationDateEarly = this.tryRescueNotificationDateFormat(
+        prompt,
+        action,
+      );
+      if (notificationDateEarly) return notificationDateEarly;
+      const clinicPatientChartEarly = this.tryRescueClinicPatientChart(
+        prompt,
+        action,
+      );
+      if (clinicPatientChartEarly) return clinicPatientChartEarly;
+      const providerClinicCollectionEarly =
+        this.tryRescueProviderClinicCollection(prompt, action);
+      if (providerClinicCollectionEarly) return providerClinicCollectionEarly;
+      const providerClinicLabBookingEarly =
+        this.tryRescueProviderClinicLabBooking(prompt, action);
+      if (providerClinicLabBookingEarly) return providerClinicLabBookingEarly;
+      const consumerClinicTestResultsEarly =
+        this.tryRescueConsumerClinicTestResults(prompt, action);
+      if (consumerClinicTestResultsEarly) return consumerClinicTestResultsEarly;
+      const consumerClinicLabBookingEarly =
+        this.tryRescueConsumerClinicLabBooking(prompt, action);
+      if (consumerClinicLabBookingEarly) return consumerClinicLabBookingEarly;
+      const dashboardClinicLabBookingEarly =
+        this.tryRescueDashboardClinicLabBooking(prompt, action);
+      if (dashboardClinicLabBookingEarly) return dashboardClinicLabBookingEarly;
+      const clinicTestOrderEarly = this.tryRescueClinicTestOrder(
+        prompt,
+        action,
+      );
+      if (clinicTestOrderEarly) return clinicTestOrderEarly;
+      const consumerCheckoutTaxEarly = this.tryRescueConsumerCheckoutTax(
+        prompt,
+        action,
+      );
       if (consumerCheckoutTaxEarly) return consumerCheckoutTaxEarly;
       const consumerCheckoutSuccessEarly =
         this.tryRescueConsumerCheckoutSuccess(prompt, action);
@@ -432,7 +521,10 @@ export class AiIntentRescueService {
       return null;
     }
 
-    const reportsCurrencyUnknown = this.tryRescueReportsCurrency(prompt, action);
+    const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
+      prompt,
+      action,
+    );
     if (reportsCurrencyUnknown) return reportsCurrencyUnknown;
 
     const revenueKpisUnknown = this.tryRescueRevenueKpis(prompt, action);
@@ -463,10 +555,8 @@ export class AiIntentRescueService {
       };
     }
 
-    const summarizeCustomerTaxPaidUnknown = rescueSummarizeCustomerTaxPaidIntent(
-      prompt,
-      action,
-    );
+    const summarizeCustomerTaxPaidUnknown =
+      rescueSummarizeCustomerTaxPaidIntent(prompt, action);
     if (summarizeCustomerTaxPaidUnknown) {
       return {
         action: summarizeCustomerTaxPaidUnknown.action,
@@ -476,6 +566,76 @@ export class AiIntentRescueService {
         rescueReason: summarizeCustomerTaxPaidUnknown.rescueReason,
       };
     }
+
+    const notificationDateBeforeClinic = this.tryRescueNotificationDateFormat(
+      prompt,
+      action,
+    );
+    if (notificationDateBeforeClinic) return notificationDateBeforeClinic;
+
+    const clinicCompoundUnknown = this.tryRescueClinicCompound(prompt, action);
+    if (clinicCompoundUnknown) return clinicCompoundUnknown;
+
+    const dashboardClinicLabBookingBeforeResults =
+      this.tryRescueDashboardClinicLabBooking(prompt, action);
+    if (dashboardClinicLabBookingBeforeResults) {
+      return dashboardClinicLabBookingBeforeResults;
+    }
+
+    const clinicTestResultUnknown = this.tryRescueClinicTestResult(
+      prompt,
+      action,
+    );
+    if (clinicTestResultUnknown) return clinicTestResultUnknown;
+
+    const clinicPatientChartUnknown = this.tryRescueClinicPatientChart(
+      prompt,
+      action,
+    );
+    if (clinicPatientChartUnknown) return clinicPatientChartUnknown;
+
+    const providerClinicCollectionUnknown =
+      this.tryRescueProviderClinicCollection(prompt, action);
+    if (providerClinicCollectionUnknown) return providerClinicCollectionUnknown;
+
+    const providerClinicLabBookingUnknown =
+      this.tryRescueProviderClinicLabBooking(prompt, action);
+    if (providerClinicLabBookingUnknown) return providerClinicLabBookingUnknown;
+
+    const consumerClinicTestResultsUnknown =
+      this.tryRescueConsumerClinicTestResults(prompt, action);
+    if (consumerClinicTestResultsUnknown)
+      return consumerClinicTestResultsUnknown;
+
+    const consumerClinicLabBookingUnknown =
+      this.tryRescueConsumerClinicLabBooking(prompt, action);
+    if (consumerClinicLabBookingUnknown) return consumerClinicLabBookingUnknown;
+
+    const dashboardClinicLabBookingUnknown =
+      this.tryRescueDashboardClinicLabBooking(prompt, action);
+    if (dashboardClinicLabBookingUnknown)
+      return dashboardClinicLabBookingUnknown;
+
+    const explainClinicBookingUnknown = this.tryRescueExplainClinicBooking(
+      prompt,
+      action,
+    );
+    if (explainClinicBookingUnknown) return explainClinicBookingUnknown;
+
+    const explainClinicServicesUnknown = this.tryRescueExplainClinicServices(
+      prompt,
+      action,
+    );
+    if (explainClinicServicesUnknown) return explainClinicServicesUnknown;
+
+    const clinicServiceUnknown = this.tryRescueClinicService(prompt, action);
+    if (clinicServiceUnknown) return clinicServiceUnknown;
+
+    const clinicTestOrderUnknown = this.tryRescueClinicTestOrder(
+      prompt,
+      action,
+    );
+    if (clinicTestOrderUnknown) return clinicTestOrderUnknown;
 
     const businessComplianceEarly = rescueBusinessComplianceIntent(
       prompt,
@@ -520,8 +680,10 @@ export class AiIntentRescueService {
     );
     if (applyTourPlaybookUnknown) return applyTourPlaybookUnknown;
 
-    const consumerCheckoutTaxUnknown =
-      this.tryRescueConsumerCheckoutTax(prompt, action);
+    const consumerCheckoutTaxUnknown = this.tryRescueConsumerCheckoutTax(
+      prompt,
+      action,
+    );
     if (consumerCheckoutTaxUnknown) return consumerCheckoutTaxUnknown;
 
     const consumerCheckoutSuccessUnknown =
@@ -541,8 +703,10 @@ export class AiIntentRescueService {
     const tourConsumerEarly = this.tryRescueTourConsumer(prompt, action);
     if (tourConsumerEarly) return tourConsumerEarly;
 
-    const explainTourRecordUnknown =
-      this.tryRescueExplainTourBookingRecord(prompt, action);
+    const explainTourRecordUnknown = this.tryRescueExplainTourBookingRecord(
+      prompt,
+      action,
+    );
     if (explainTourRecordUnknown) return explainTourRecordUnknown;
 
     const listDeparturesUnknown = this.tryRescueListUpcomingTourDepartures(
@@ -563,7 +727,10 @@ export class AiIntentRescueService {
     );
     if (listCalendarWeekUnknown) return listCalendarWeekUnknown;
 
-    const explainToursUnknown = this.tryRescueExplainTourServices(prompt, action);
+    const explainToursUnknown = this.tryRescueExplainTourServices(
+      prompt,
+      action,
+    );
     if (explainToursUnknown) return explainToursUnknown;
 
     if (isUpcomingAppointmentsPrompt(prompt)) {
@@ -755,8 +922,14 @@ export class AiIntentRescueService {
       };
     }
 
-    const availability = resolveAvailabilityIntentFromPrompt('dashboard', prompt);
-    if (availability && !/\b(book|schedule|reserve|create appointment)\b/i.test(prompt)) {
+    const availability = resolveAvailabilityIntentFromPrompt(
+      'dashboard',
+      prompt,
+    );
+    if (
+      availability &&
+      !/\b(book|schedule|reserve|create appointment)\b/i.test(prompt)
+    ) {
       return {
         action: availability.action,
         params: { ...params, ...availability.params },
@@ -767,8 +940,10 @@ export class AiIntentRescueService {
     }
 
     if (/\b(show|list|display|view).+(appointment|booking)/i.test(prompt)) {
-      const explainTourRecordListing =
-        this.tryRescueExplainTourBookingRecord(prompt, action);
+      const explainTourRecordListing = this.tryRescueExplainTourBookingRecord(
+        prompt,
+        action,
+      );
       if (explainTourRecordListing) return explainTourRecordListing;
 
       const explainToursListing = this.tryRescueExplainTourServices(
@@ -902,12 +1077,9 @@ export class AiIntentRescueService {
       isFillGapsFollowUpPrompt(prompt)
     ) {
       const rescuedParams = { ...params };
-      applyScheduleOpsPromptHints(
-        'fill_unused_slots',
-        rescuedParams,
-        prompt,
-        { employees },
-      );
+      applyScheduleOpsPromptHints('fill_unused_slots', rescuedParams, prompt, {
+        employees,
+      });
       return {
         action: 'fill_unused_slots',
         params: rescuedParams,
@@ -989,12 +1161,10 @@ export class AiIntentRescueService {
     const rescued = rescueBookingDepthIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     const rescuedParams: Record<string, any> = {};
-    applyPackageMultiServicePromptHints(
-      rescued.action,
-      rescuedParams,
-      prompt,
-      { employees, customers },
-    );
+    applyPackageMultiServicePromptHints(rescued.action, rescuedParams, prompt, {
+      employees,
+      customers,
+    });
     return {
       action: rescued.action,
       params: rescuedParams,
@@ -1159,7 +1329,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const explainRescued = rescueExplainRecommendationSetupIntent(prompt, action);
+    const explainRescued = rescueExplainRecommendationSetupIntent(
+      prompt,
+      action,
+    );
     if (explainRescued) {
       const parsed = parseExplainRecommendationSetupFromPrompt(prompt);
       const params: Record<string, unknown> = {};
@@ -1229,7 +1402,8 @@ export class AiIntentRescueService {
     if (parsed.description) params.description = parsed.description;
     if (parsed.imageUrl) params.imageUrl = parsed.imageUrl;
     if (parsed.externalLink) params.externalLink = parsed.externalLink;
-    if (parsed.retailPrice !== undefined) params.retailPrice = parsed.retailPrice;
+    if (parsed.retailPrice !== undefined)
+      params.retailPrice = parsed.retailPrice;
     if (parsed.wantsImage) params.wantsImage = true;
     if (parsed.wantsLink) params.wantsLink = true;
     if (parsed.isUpdate) params.isUpdate = true;
@@ -1348,7 +1522,10 @@ export class AiIntentRescueService {
     const packageDisplayName = this.tryRescuePackageDisplayName(prompt, action);
     if (packageDisplayName) return packageDisplayName;
 
-    const packageLocalized = this.tryRescuePackageLocalizedNames(prompt, action);
+    const packageLocalized = this.tryRescuePackageLocalizedNames(
+      prompt,
+      action,
+    );
     if (packageLocalized) return packageLocalized;
 
     const bookingLanguages = rescueBookingLanguagesIntent(prompt, action);
@@ -1454,23 +1631,8 @@ export class AiIntentRescueService {
       };
     }
 
-    const notificationDate = rescueNotificationDateFormatIntent(prompt, action);
-    if (notificationDate) {
-      const params: Record<string, unknown> = {};
-      if (notificationDate.action === 'preview_notification_datetime') {
-        params.messageKind = parseNotificationMessageKind(prompt);
-      }
-      if (notificationDate.action === 'notify_patient_result_ready') {
-        Object.assign(params, parsePatientResultReadyParams(prompt, params));
-      }
-      return {
-        action: notificationDate.action,
-        params,
-        reasoning: `Notification date format rescue → ${notificationDate.action}`,
-        rescued: true,
-        rescueReason: notificationDate.rescueReason,
-      };
-    }
+    const notificationDate = this.tryRescueNotificationDateFormat(prompt, action);
+    if (notificationDate) return notificationDate;
 
     const dateInput = rescueDateInputFormatIntent(prompt, action);
     if (dateInput) {
@@ -1577,7 +1739,9 @@ export class AiIntentRescueService {
           params.requireThirdPartyIntegrations =
             parsed.requireThirdPartyIntegrations;
         }
-      } else if (businessCompliance.action === 'configure_hipaa_session_timeout') {
+      } else if (
+        businessCompliance.action === 'configure_hipaa_session_timeout'
+      ) {
         const parsed = parseConfigureHipaaSessionTimeoutFromPrompt(prompt);
         if (parsed?.sessionTimeoutMinutes != null) {
           params.sessionTimeoutMinutes = parsed.sessionTimeoutMinutes;
@@ -1649,7 +1813,9 @@ export class AiIntentRescueService {
         if (parsed?.limit != null) {
           params.limit = parsed.limit;
         }
-      } else if (businessCompliance.action === 'explain_phi_encryption_status') {
+      } else if (
+        businessCompliance.action === 'explain_phi_encryption_status'
+      ) {
         const parsed = parseExplainPhiEncryptionStatusFromPrompt(prompt);
         if (parsed?.fieldName) {
           params.fieldName = parsed.fieldName;
@@ -1661,7 +1827,9 @@ export class AiIntentRescueService {
         if (parsed?.aspect) {
           params.aspect = parsed.aspect;
         }
-      } else if (businessCompliance.action === 'explain_hipaa_session_timeout') {
+      } else if (
+        businessCompliance.action === 'explain_hipaa_session_timeout'
+      ) {
         const parsed = parseExplainHipaaSessionTimeoutFromPrompt(prompt);
         if (parsed?.personalLogout != null) {
           params.personalLogout = parsed.personalLogout;
@@ -1676,7 +1844,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const quoteStaffBookingTax = rescueQuoteStaffBookingTaxIntent(prompt, action);
+    const quoteStaffBookingTax = rescueQuoteStaffBookingTaxIntent(
+      prompt,
+      action,
+    );
     if (quoteStaffBookingTax) {
       return {
         action: quoteStaffBookingTax.action,
@@ -1704,7 +1875,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const stripeCheckoutEarly = rescueStripeCheckoutCurrencyIntent(prompt, action);
+    const stripeCheckoutEarly = rescueStripeCheckoutCurrencyIntent(
+      prompt,
+      action,
+    );
     if (stripeCheckoutEarly) {
       return {
         action: stripeCheckoutEarly.action,
@@ -1726,7 +1900,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const lookupBookingTax = rescueLookupBookingTaxMetadataIntent(prompt, action);
+    const lookupBookingTax = rescueLookupBookingTaxMetadataIntent(
+      prompt,
+      action,
+    );
     if (lookupBookingTax) {
       return {
         action: lookupBookingTax.action,
@@ -1806,7 +1983,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const notificationCurrency = rescueNotificationCurrencyIntent(prompt, action);
+    const notificationCurrency = rescueNotificationCurrencyIntent(
+      prompt,
+      action,
+    );
     if (notificationCurrency) {
       return {
         action: notificationCurrency.action,
@@ -1953,11 +2133,7 @@ export class AiIntentRescueService {
     const rescued = rescuePaymentsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     const rescuedParams: Record<string, any> = {};
-    applyGiftCardPaymentsPromptHints(
-      rescued.action,
-      rescuedParams,
-      prompt,
-    );
+    applyGiftCardPaymentsPromptHints(rescued.action, rescuedParams, prompt);
     return {
       action: rescued.action,
       params: rescuedParams,
@@ -2018,6 +2194,22 @@ export class AiIntentRescueService {
       action: rescued.action,
       params,
       reasoning: `Package localized names rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueApplyClinicPlaybook(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueApplyClinicPlaybookIntent(prompt, action);
+    if (!rescued) return null;
+
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Clinic playbook rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -2212,6 +2404,79 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueExplainClinicBooking(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainClinicBookingIntent(prompt, action);
+    if (!rescued) return null;
+    const parsed = parseExplainClinicBookingFromPrompt(prompt);
+    if (!parsed) return null;
+
+    const params: Record<string, unknown> = { aspect: parsed.aspect };
+    if (parsed.serviceId) params.serviceId = parsed.serviceId;
+    if (parsed.serviceName) params.serviceName = parsed.serviceName;
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic booking explain rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueExplainClinicServices(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainClinicServicesIntent(prompt, action);
+    if (!rescued) return null;
+    const parsed = parseExplainClinicServicesFromPrompt(prompt);
+    if (!parsed) return null;
+
+    const params: Record<string, unknown> = {};
+    if (parsed.serviceId) params.serviceId = parsed.serviceId;
+    if (parsed.serviceName) params.serviceName = parsed.serviceName;
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic services explain rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueClinicService(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueConfigureClinicServiceIntent(prompt, action);
+    if (!rescued) return null;
+    const parsed = parseConfigureClinicServiceFromPrompt(prompt);
+    if (!parsed) return null;
+
+    const params: Record<string, unknown> = {};
+    if (parsed.serviceId) params.serviceId = parsed.serviceId;
+    if (parsed.serviceName) params.serviceName = parsed.serviceName;
+    if (parsed.serviceType) params.serviceType = parsed.serviceType;
+    if (parsed.requiresFasting !== undefined) {
+      params.requiresFasting = parsed.requiresFasting;
+    }
+    if (parsed.preparationNotes) {
+      params.preparationNotes = parsed.preparationNotes;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic service rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueExplainTourServices(
     prompt: string,
     action: string,
@@ -2275,6 +2540,12 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const applyClinicPlaybook = this.tryRescueApplyClinicPlaybook(
+      prompt,
+      action,
+    );
+    if (applyClinicPlaybook) return applyClinicPlaybook;
+
     const applyTourPlaybook = this.tryRescueApplyTourPlaybook(prompt, action);
     if (applyTourPlaybook) return applyTourPlaybook;
 
@@ -2302,10 +2573,19 @@ export class AiIntentRescueService {
     const explainTours = this.tryRescueExplainTourServices(prompt, action);
     if (explainTours) return explainTours;
 
+    const explainClinic = this.tryRescueExplainClinicServices(prompt, action);
+    if (explainClinic) return explainClinic;
+
     const tourService = this.tryRescueTourService(prompt, action);
     if (tourService) return tourService;
 
-    const packageLocalized = this.tryRescuePackageLocalizedNames(prompt, action);
+    const clinicService = this.tryRescueClinicService(prompt, action);
+    if (clinicService) return clinicService;
+
+    const packageLocalized = this.tryRescuePackageLocalizedNames(
+      prompt,
+      action,
+    );
     if (packageLocalized) return packageLocalized;
 
     const rescued = rescueCatalogIntent(prompt, action);
@@ -2355,7 +2635,10 @@ export class AiIntentRescueService {
       };
     }
 
-    const packageMultiFix = disambiguateStaffPackageMultiBooking(prompt, action);
+    const packageMultiFix = disambiguateStaffPackageMultiBooking(
+      prompt,
+      action,
+    );
     if (packageMultiFix) {
       const rescuedParams = { ...params };
       applyPackageMultiServicePromptHints(
@@ -2541,5 +2824,262 @@ export class AiIntentRescueService {
     }
 
     return null;
+  }
+
+  private tryRescueNotificationDateFormat(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const notificationDate = rescueNotificationDateFormatIntent(prompt, action);
+    if (!notificationDate) return null;
+
+    const params: Record<string, unknown> = {};
+    if (notificationDate.action === 'preview_notification_datetime') {
+      params.messageKind = parseNotificationMessageKind(prompt);
+    }
+    if (notificationDate.action === 'notify_patient_result_ready') {
+      Object.assign(params, parsePatientResultReadyParams(prompt, params));
+    }
+    return {
+      action: notificationDate.action,
+      params,
+      reasoning: `Notification date format rescue → ${notificationDate.action}`,
+      rescued: true,
+      rescueReason: notificationDate.rescueReason,
+    };
+  }
+
+  private tryRescueClinicTestResult(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueClinicTestResultIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'enter_test_result') {
+      const parsed = parseEnterTestResultFromPrompt(prompt);
+      if (parsed?.measurementCode)
+        params.measurementCode = parsed.measurementCode;
+      if (parsed?.value) params.value = parsed.value;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.resultId) params.resultId = parsed.resultId;
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+    } else {
+      const parsed = parseReleaseTestResultFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.resultId) params.resultId = parsed.resultId;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic test result rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueClinicPatientChart(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueClinicPatientChartIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    const parsed = parseExplainPatientChartFromPrompt(prompt);
+    if (parsed?.customerName) params.customerName = parsed.customerName;
+    if (parsed?.customerId) params.customerId = parsed.customerId;
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic patient chart rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueConsumerClinicTestResults(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueConsumerClinicTestResultsIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'explain_result_status') {
+      const parsed = parseExplainResultStatusFromPrompt(prompt);
+      if (parsed?.status) params.status = parsed.status;
+      if (parsed?.testName) params.testName = parsed.testName;
+      if (parsed?.resultId) params.resultId = parsed.resultId;
+    } else {
+      const parsed = parseListMyTestResultsFromPrompt(prompt);
+      if (parsed?.testName) params.testName = parsed.testName;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Consumer clinic test results rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderClinicCollection(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderClinicCollectionIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'mark_specimen_collected') {
+      const parsed = parseMarkSpecimenCollectedFromPrompt(prompt);
+      if (parsed?.specimenId) params.specimenId = parsed.specimenId;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+    } else {
+      const parsed = parseListMyCollectionQueueFromPrompt(prompt);
+      if (parsed?.date) params.date = parsed.date;
+      if (parsed?.dateFrom) params.dateFrom = parsed.dateFrom;
+      if (parsed?.dateTo) params.dateTo = parsed.dateTo;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider clinic collection rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueClinicCompound(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueClinicCompoundIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning:
+        'Clinic lab order + result notification compound — split into book/order then notify/explain.',
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueDashboardClinicLabBooking(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueDashboardClinicLabBookingIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'push_lab_booking_to_patient') {
+      const parsed = parsePushLabBookingFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.collectionServiceName) {
+        params.collectionServiceName = parsed.collectionServiceName;
+      }
+    } else {
+      const parsed = parseStaffBookLabCollectionFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.startTime) params.startTime = parsed.startTime;
+      if (parsed?.employeeId) params.employeeId = parsed.employeeId;
+      if (parsed?.employeeName) params.employeeName = parsed.employeeName;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Dashboard clinic lab booking rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueConsumerClinicLabBooking(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueConsumerClinicLabBookingIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'book_lab_collection') {
+      const parsed = parseBookLabCollectionFromPrompt(prompt);
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.testName) params.testName = parsed.testName;
+    } else {
+      const parsed = parseListMyLabBookingRequestsFromPrompt(prompt);
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Consumer clinic lab booking rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderClinicLabBooking(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderClinicLabBookingIntent(prompt, action);
+    if (!rescued) return null;
+
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider clinic lab booking rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueClinicTestOrder(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueClinicTestOrderIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'create_test_order') {
+      const parsed = parseCreateTestOrderFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.bookingId) params.bookingId = parsed.bookingId;
+      if (parsed?.testNames) params.testNames = parsed.testNames;
+      if (parsed?.date) params.date = parsed.date;
+    } else {
+      const parsed = parseListTestOrdersFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.bookingId) params.bookingId = parsed.bookingId;
+      if (parsed?.status) params.status = parsed.status;
+      if (parsed?.date) params.date = parsed.date;
+      if (parsed?.awaitingPatientBooking) {
+        params.awaitingPatientBooking = true;
+      }
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Clinic test order rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
   }
 }

@@ -55,8 +55,7 @@ export const MULTILINGUAL_NOTIFICATION_DATE_FORMAT_EVAL_SCENARIOS: NotificationD
     {
       id: 'hy-preview-reminder-whatsapp',
       locale: 'hy',
-      prompt:
-        'Ցույց տուր հիշեցման WhatsApp հաղորդագրությունը 12-ժամյա ժամով',
+      prompt: 'Ցույց տուր հիշեցման WhatsApp հաղորդագրությունը 12-ժամյա ժամով',
       expectedAction: 'preview_notification_datetime',
       rescueReason: 'preview_notification_datetime',
       paramsPartial: { messageKind: 'reminder' },

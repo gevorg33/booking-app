@@ -25,7 +25,9 @@ export function parseBookingTaxQueryFromPrompt(
   const bookingId =
     (typeof params.bookingId === 'string' && params.bookingId.trim()
       ? params.bookingId.trim()
-      : undefined) ?? bookingIdFromPrompt ?? undefined;
+      : undefined) ??
+    bookingIdFromPrompt ??
+    undefined;
   const possessiveCustomer = prompt.match(
     /\bfor\s+([A-Za-z][\w]+)(?:'s)?\s+booking\b/i,
   );

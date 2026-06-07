@@ -195,7 +195,8 @@ describe('intent-decomposition.util', () => {
       (pattern) => pattern.id === 'customer_book_package_apply_promo',
     )!;
     const buildSteps = promoPattern.buildSteps;
-    const spy = jest.spyOn(promoPattern, 'buildSteps')
+    const spy = jest
+      .spyOn(promoPattern, 'buildSteps')
       .mockReturnValueOnce([
         { action: 'book_package', params: {}, reasoning: 'only one' },
       ]);

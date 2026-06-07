@@ -43,12 +43,14 @@ function success(
 }
 
 function isTourBooking(booking: Booking): boolean {
-  if (isTourService((booking.service?.metadata ?? {}) as Record<string, unknown>)) {
+  if (
+    isTourService((booking.service?.metadata ?? {}) as Record<string, unknown>)
+  ) {
     return true;
   }
   return Boolean(
     extractTourBookingMetadata(booking.metadata).tourStartDate ||
-      extractTourBookingMetadata(booking.metadata).paxCount,
+    extractTourBookingMetadata(booking.metadata).paxCount,
   );
 }
 
@@ -73,8 +75,8 @@ function resolveWeekAnchor(
 ): string {
   if (parsed.weekStartDate) return parsed.weekStartDate;
   const withRange = tourBookings
-    .map((booking) =>
-      extractTourBookingMetadata(booking.metadata).tourStartDate,
+    .map(
+      (booking) => extractTourBookingMetadata(booking.metadata).tourStartDate,
     )
     .filter((value): value is string => Boolean(value))
     .sort();

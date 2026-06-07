@@ -19,6 +19,8 @@ export interface BusinessSocialLinks {
   instagram?: string;
   facebook?: string;
   x?: string;
+  /** @deprecated Legacy API field — prefer `x`. */
+  twitter?: string;
   tiktok?: string;
   linkedin?: string;
   youtube?: string;
@@ -81,7 +83,11 @@ export function businessToProfileForm(business: BusinessProfileSource): Business
   const defaultLocale = resolveDefaultPublicLocale(business.settings?.locale);
 
   const publicProfileLocales = seedPublicProfileLocalesFromLegacy(
-    publicProfileLocalesFromApi(business.settings?.publicProfileLocales),
+    publicProfileLocalesFromApi(
+      business.settings?.publicProfileLocales as Parameters<
+        typeof publicProfileLocalesFromApi
+      >[0],
+    ),
     {
       defaultLocale,
       name: business.name,

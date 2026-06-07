@@ -41,7 +41,8 @@ export const CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS = [
   },
   {
     id: 'update-en-spa-day',
-    prompt: 'Update English display name for "Spa Day" package to Spa Day Bundle',
+    prompt:
+      'Update English display name for "Spa Day" package to Spa Day Bundle',
     operation: 'set' as const,
     packageName: 'Spa Day',
     locale: 'en' as const,

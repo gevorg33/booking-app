@@ -116,8 +116,7 @@ export function computeWeekColumnSpan(
     return null;
   }
 
-  const visibleStart =
-    tourStartDate < weekStart ? weekStart : tourStartDate;
+  const visibleStart = tourStartDate < weekStart ? weekStart : tourStartDate;
   const visibleEnd = tourEndDate > weekEnd ? weekEnd : tourEndDate;
 
   const colStart = weekDateKeys.indexOf(visibleStart);

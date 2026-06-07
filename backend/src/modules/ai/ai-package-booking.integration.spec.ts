@@ -79,8 +79,7 @@ describe('ai package booking checkout integration (ai-cmd-h4.1)', () => {
     );
 
     it('decomposes package check-only prompts', () => {
-      const prompt =
-        'Check package line availability for Spa Day tomorrow';
+      const prompt = 'Check package line availability for Spa Day tomorrow';
       expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(false);
 
       const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
@@ -154,7 +153,10 @@ describe('ai package booking checkout integration (ai-cmd-h4.1)', () => {
           fromRescue?.action === expected
             ? fromRescue
             : fromDisambiguate?.action === expected
-              ? { action: expected, rescueReason: fromDisambiguate.rescueReason }
+              ? {
+                  action: expected,
+                  rescueReason: fromDisambiguate.rescueReason,
+                }
               : fromRescue;
 
         expect(result?.action).toBe(expected);
@@ -176,10 +178,9 @@ describe('ai package booking checkout integration (ai-cmd-h4.1)', () => {
 
       expect(result.success).toBe(true);
       expect((result.details as any).lines?.lines).toHaveLength(2);
-      expect(deps.publicBookingService.suggestPackageLineSlots).toHaveBeenCalledWith(
-        'salon',
-        'pkg-spa-day',
-      );
+      expect(
+        deps.publicBookingService.suggestPackageLineSlots,
+      ).toHaveBeenCalledWith('salon', 'pkg-spa-day');
     });
 
     it('clarifies when packageId is missing', async () => {

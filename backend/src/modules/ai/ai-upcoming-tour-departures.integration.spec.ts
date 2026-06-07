@@ -22,7 +22,9 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
-        endTime: new Date(`${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`),
+        endTime: new Date(
+          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+        ),
         metadata: { paxCount: 6, tourStartDate: departureDate },
         service: mountainTrek,
         customer: { name: 'John Doe' },
@@ -46,7 +48,9 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
-        endTime: new Date(`${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`),
+        endTime: new Date(
+          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+        ),
         metadata: { paxCount: 6, tourStartDate: departureDate },
         service: mountainTrek,
         customer: { name: 'John Doe' },

@@ -46,7 +46,9 @@ describe('ai-tour-consumer-multilingual.util (ai-cmd-tour-10)', () => {
           action: 'explain_tour_day_slots',
           rescueReason: 'explain_tour_day_slots',
         });
-        expect(parseExplainTourDaySlotsFromPrompt(prompt, paramsPartial ?? {})).not.toBeNull();
+        expect(
+          parseExplainTourDaySlotsFromPrompt(prompt, paramsPartial ?? {}),
+        ).not.toBeNull();
         return;
       }
 
@@ -55,7 +57,9 @@ describe('ai-tour-consumer-multilingual.util (ai-cmd-tour-10)', () => {
           action: 'explain_tour_booking',
           rescueReason: 'explain_tour_booking',
         });
-        expect(parseExplainTourBookingFromPrompt(prompt, paramsPartial ?? {})).not.toBeNull();
+        expect(
+          parseExplainTourBookingFromPrompt(prompt, paramsPartial ?? {}),
+        ).not.toBeNull();
         return;
       }
 
@@ -64,7 +68,9 @@ describe('ai-tour-consumer-multilingual.util (ai-cmd-tour-10)', () => {
           action: 'diagnose_tour_capacity',
           rescueReason: 'diagnose_tour_capacity',
         });
-        expect(parseDiagnoseTourCapacityFromPrompt(prompt, paramsPartial ?? {})).not.toBeNull();
+        expect(
+          parseDiagnoseTourCapacityFromPrompt(prompt, paramsPartial ?? {}),
+        ).not.toBeNull();
         return;
       }
 

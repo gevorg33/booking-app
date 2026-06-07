@@ -37,7 +37,8 @@ describe('ai-tour-day-slots.util', () => {
   });
 
   it('does not steal tour booking catalog prompts', () => {
-    const prompt = 'What is the max group size for City Tour on this booking page?';
+    const prompt =
+      'What is the max group size for City Tour on this booking page?';
     expect(isExplainTourDaySlotsPrompt(prompt)).toBe(false);
     expect(rescueTourDaySlotsIntent(prompt, 'unknown')).toBeNull();
   });

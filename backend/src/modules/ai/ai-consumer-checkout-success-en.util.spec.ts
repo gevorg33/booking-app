@@ -12,22 +12,22 @@ describe('ai-consumer-checkout-success-en (ai-cmd-rec-7)', () => {
     'detects EN consumer success/dismiss prompt $id',
     ({ prompt, aspect }) => {
       expect(isExplainConsumerCheckoutSuccessPrompt(prompt)).toBe(true);
-      expect(parseExplainConsumerCheckoutSuccessFromPrompt(prompt)?.aspect).toBe(
-        aspect,
-      );
-      expect(rescueExplainConsumerCheckoutSuccessIntent(prompt, 'unknown')).toEqual(
-        {
-          action: 'explain_consumer_checkout_success',
-          rescueReason: 'explain_consumer_checkout_success',
-        },
-      );
+      expect(
+        parseExplainConsumerCheckoutSuccessFromPrompt(prompt)?.aspect,
+      ).toBe(aspect);
+      expect(
+        rescueExplainConsumerCheckoutSuccessIntent(prompt, 'unknown'),
+      ).toEqual({
+        action: 'explain_consumer_checkout_success',
+        rescueReason: 'explain_consumer_checkout_success',
+      });
     },
   );
 
   it('does not treat bare dismiss imperative as explain', () => {
-    expect(isExplainConsumerCheckoutSuccessPrompt('Dismiss recommendations')).toBe(
-      false,
-    );
+    expect(
+      isExplainConsumerCheckoutSuccessPrompt('Dismiss recommendations'),
+    ).toBe(false);
   });
 
   it('passes deterministic EN eval golden cases', () => {

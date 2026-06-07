@@ -58,7 +58,7 @@ function hasRecommendationProductSurface(prompt: string): boolean {
     /рекомендац/i.test(prompt) ||
     /խորհուրդ/i.test(prompt) ||
     (/\brecommendation\b/i.test(prompt) &&
-      (/(?:ապրանք|товар|продукт)/i.test(prompt)))
+      /(?:ապրանք|товар|продукт)/i.test(prompt))
   );
 }
 
@@ -100,7 +100,9 @@ function mentionsRecommendationLink(prompt: string): boolean {
   );
 }
 
-export function isConfigureRecommendationProductPrompt(prompt: string): boolean {
+export function isConfigureRecommendationProductPrompt(
+  prompt: string,
+): boolean {
   if (isLinkProductToServicePrompt(prompt)) return false;
   if (!mentionsProductWord(prompt)) return false;
   if (!isMutateRecommendationProductPrompt(prompt)) return false;
@@ -119,7 +121,8 @@ export function isConfigureRecommendationProductPrompt(prompt: string): boolean 
 
 function isLikelyImageValue(value: string): boolean {
   const trimmed = value.trim().toLowerCase();
-  if (!trimmed || ['and', 'link', 'with', 'image'].includes(trimmed)) return false;
+  if (!trimmed || ['and', 'link', 'with', 'image'].includes(trimmed))
+    return false;
   return (
     /^https?:\/\//i.test(trimmed) ||
     trimmed.startsWith('/') ||
@@ -144,7 +147,10 @@ function extractProductName(prompt: string): string | undefined {
   const addNamed = prompt.match(
     /\b(?:add|create)\s+(?:a\s+)?([A-Za-z][\w\s'-]+?)\s+(?:recommendation\s+)?product\b/i,
   );
-  if (addNamed?.[1] && !/^(?:post[- ]?checkout|checkout)$/i.test(addNamed[1].trim())) {
+  if (
+    addNamed?.[1] &&
+    !/^(?:post[- ]?checkout|checkout)$/i.test(addNamed[1].trim())
+  ) {
     return addNamed[1].trim();
   }
 
@@ -194,9 +200,7 @@ function extractProductName(prompt: string): string | undefined {
   );
   if (ruCheckoutProduct?.[1]) return ruCheckoutProduct[1].trim();
 
-  const ruAfterPayment = prompt.match(
-    /после\s+оплаты\s+([A-Za-z][\w\s'-]+)/i,
-  );
+  const ruAfterPayment = prompt.match(/после\s+оплаты\s+([A-Za-z][\w\s'-]+)/i);
   if (ruAfterPayment?.[1]) return ruAfterPayment[1].trim();
 
   const ruAddNamed = prompt.match(
@@ -481,7 +485,8 @@ function extractRecommendationTarget(prompt: string): {
   const ruCheckoutService = prompt.match(
     /checkout\s+recommendations?\s+для\s+([A-Za-z][\w\s'-]+)/i,
   );
-  if (ruCheckoutService?.[1]) return { serviceName: ruCheckoutService[1].trim() };
+  if (ruCheckoutService?.[1])
+    return { serviceName: ruCheckoutService[1].trim() };
 
   const ruSetupService = prompt.match(
     /для\s+услуги\s+([A-Za-z\u0400-\u04FF][\w\u0400-\u04FF'-]+)/i,
@@ -556,7 +561,11 @@ export function isExplainRecommendationSetupPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  if (/\b(list|create|add|set|update|link|attach)\s+(?:retail\s+)?products?\b/i.test(prompt)) {
+  if (
+    /\b(list|create|add|set|update|link|attach)\s+(?:retail\s+)?products?\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   const hasAdminSetupVoice =
@@ -673,7 +682,9 @@ export function parseLinkRecommendedProductsFromPrompt(
   const serviceId =
     typeof params.serviceId === 'string' ? params.serviceId.trim() : undefined;
   const categoryId =
-    typeof params.categoryId === 'string' ? params.categoryId.trim() : undefined;
+    typeof params.categoryId === 'string'
+      ? params.categoryId.trim()
+      : undefined;
 
   return {
     productNames,
@@ -738,7 +749,9 @@ export function parseExplainRecommendationSetupFromPrompt(
   const serviceId =
     typeof params.serviceId === 'string' ? params.serviceId.trim() : undefined;
   const categoryId =
-    typeof params.categoryId === 'string' ? params.categoryId.trim() : undefined;
+    typeof params.categoryId === 'string'
+      ? params.categoryId.trim()
+      : undefined;
 
   return {
     serviceId,

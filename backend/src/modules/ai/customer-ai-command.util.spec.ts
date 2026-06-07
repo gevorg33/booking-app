@@ -93,7 +93,9 @@ describe('customer-ai-command.util', () => {
       "who's free tomorrow evening for permanent lashes",
     );
     expect(schema).not.toContain('pick the FIRST actionable intent');
-    expect(schema).toContain('Availability vs booking (customer / consumer app)');
+    expect(schema).toContain(
+      'Availability vs booking (customer / consumer app)',
+    );
     expect(schema).toContain('Do NOT use lookup_service_assignment');
     expect(schema).toContain('Armenian/Russian/transliteration check+book');
     expect(schema).toContain('ամրագրիր մոտակա');
@@ -101,8 +103,12 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('explain_notification_currency');
     expect(schema).toContain('explain_stripe_checkout_currency');
     expect(schema).toContain('Why was I charged in euros on Stripe checkout?');
-    expect(schema).toContain('Why does the salon app show prices in euros after I log in?');
-    expect(schema).toContain('Why does my booking confirmation email show euros (€)?');
+    expect(schema).toContain(
+      'Why does the salon app show prices in euros after I log in?',
+    );
+    expect(schema).toContain(
+      'Why does my booking confirmation email show euros (€)?',
+    );
     expect(schema).toContain('explain_booking_languages');
     expect(schema).toContain('explain_booking_date_format');
     expect(schema).toContain(

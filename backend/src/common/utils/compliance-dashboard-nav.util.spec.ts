@@ -19,9 +19,9 @@ describe('compliance-dashboard-nav.util', () => {
     expect(parseComplianceDashboardPanel('Take me to breach log')).toBe(
       'breach',
     );
-    expect(parseComplianceDashboardPanel('Open HIPAA compliance settings')).toBe(
-      'hipaa',
-    );
+    expect(
+      parseComplianceDashboardPanel('Open HIPAA compliance settings'),
+    ).toBe('hipaa');
     expect(parseComplianceDashboardPanel('Show PHI access audit')).toBe(
       'phi_audit',
     );

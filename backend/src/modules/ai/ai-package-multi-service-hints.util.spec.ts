@@ -15,9 +15,9 @@ describe('ai-package-multi-service-hints.util', () => {
   const customers = [{ id: 'c1', name: 'Maria Lopez' }];
 
   it('detects staff cart build prompts', () => {
-    expect(
-      isStaffCartBuildPrompt('Add haircut and beard trim to cart'),
-    ).toBe(true);
+    expect(isStaffCartBuildPrompt('Add haircut and beard trim to cart')).toBe(
+      true,
+    );
     expect(isStaffCartBuildPrompt('Add massage to my cart')).toBe(false);
   });
 

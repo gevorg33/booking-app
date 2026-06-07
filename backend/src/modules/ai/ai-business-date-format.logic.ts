@@ -48,9 +48,18 @@ import {
   parsePatientResultReadyParams,
   type NotificationMessageKind,
 } from './ai-notification-date-format.util.js';
+import { buildClinicResultReadyLinks } from '../../common/utils/clinic-result-ready-link.util.js';
+import { resolveReleasedResultIdForNotify } from '../../common/utils/clinic-result-ready-notify.util.js';
+import type { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import type { ResultReadyDeliverySummary } from '../notifications/notifications.service.js';
 
 export interface BusinessDateFormatLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
+  resultRepo?: Pick<Repository<ClinicTestResult>, 'findOne' | 'find'>;
+  sendClinicResultReady?: (
+    resultId: string,
+  ) => Promise<ResultReadyDeliverySummary>;
+  frontendUrl?: string | null;
 }
 
 const SAMPLE_TIME_ISO = '14:30:00.000Z';
@@ -71,7 +80,9 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
-function buildFormatExamples(todayKey: string): Record<BusinessDateFormat, string> {
+function buildFormatExamples(
+  todayKey: string,
+): Record<BusinessDateFormat, string> {
   return {
     'DD/MM/YYYY': formatDateKeyWithFormat(todayKey, 'DD/MM/YYYY'),
     'MM/DD/YYYY': formatDateKeyWithFormat(todayKey, 'MM/DD/YYYY'),
@@ -85,7 +96,9 @@ export async function handleConfigureBusinessDateFormatLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_business_date_format', 'Business not found.');
   }
@@ -161,7 +174,9 @@ export async function handleExplainBusinessDateFormatLogic(
   deps: BusinessDateFormatLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_business_date_format', 'Business not found.');
   }
@@ -200,7 +215,9 @@ export async function handleExplainBookingDateFormatLogic(
   deps: BusinessDateFormatLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_booking_date_format', 'Business not found.');
   }
@@ -275,7 +292,9 @@ export async function handlePreviewBusinessDateFormatLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('preview_business_date_format', 'Business not found.');
   }
@@ -369,8 +388,7 @@ export async function handleAuditDashboardDateSurfacesLogic(
   );
 
   const deferredLines = DASHBOARD_DATE_SURFACE_DEFERRED.map(
-    (entry) =>
-      `${entry.page} / ${entry.component} (${entry.mechanism})`,
+    (entry) => `${entry.page} / ${entry.component} (${entry.mechanism})`,
   ).join('; ');
 
   const summary = [
@@ -526,7 +544,9 @@ export async function handleExplainNotificationDateFormatLogic(
   deps: BusinessDateFormatLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_notification_date_format', 'Business not found.');
   }
@@ -583,7 +603,9 @@ export async function handlePreviewNotificationDatetimeLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('preview_notification_datetime', 'Business not found.');
   }
@@ -636,7 +658,9 @@ export async function handleNotifyPatientResultReadyLogic(
   prompt?: string,
   confirmed = false,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('notify_patient_result_ready', 'Business not found.');
   }
@@ -671,15 +695,25 @@ export async function handleNotifyPatientResultReadyLogic(
       : 'the patient';
   const emailLine = `Your test results are ready (completed ${whenLabel}).`;
   const whatsappLine = `Results ready — completed ${whenLabel}.`;
+  const resultLinks = buildClinicResultReadyLinks(
+    business.slug,
+    deps.frontendUrl ?? null,
+  );
+  const resultsLinkLine = resultLinks
+    ? `View results — ${resultLinks.webResultsUrl} (app deep link: ${resultLinks.consumerAppUrl}).`
+    : '';
 
   if (!confirmed) {
     const summary = [
-      `Ready to notify ${patientLabel} that results are ready (vert-clinic-1.7).`,
+      `Ready to notify ${patientLabel} that results are ready (vert-clinic-1.11).`,
       `Email — ${emailLine}`,
       `WhatsApp — ${whatsappLine}`,
+      resultsLinkLine,
       `Date label uses formatResultReadyNotificationWhen (${dateFormatLabel(dateFormat)}, ${timeFormatLabel(timeFormat)}).`,
       'Confirm below to send the result-ready notification.',
-    ].join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return success('notify_patient_result_ready', summary, {
       requiresExecutionConfirmation: true,
@@ -690,23 +724,67 @@ export async function handleNotifyPatientResultReadyLogic(
       whenLabel,
       emailSample: emailLine,
       whatsappSample: whatsappLine,
+      resultsUrl: resultLinks?.webResultsUrl ?? null,
+      consumerAppUrl: resultLinks?.consumerAppUrl ?? null,
       ...parsedParams,
     });
   }
 
+  if (!deps.sendClinicResultReady || !deps.resultRepo) {
+    return failure(
+      'notify_patient_result_ready',
+      'Result-ready delivery is not configured for this environment.',
+    );
+  }
+
+  const resultId = await resolveReleasedResultIdForNotify(
+    deps.resultRepo,
+    businessId,
+    {
+      resultId:
+        typeof parsedParams.resultId === 'string'
+          ? parsedParams.resultId
+          : undefined,
+      bookingId:
+        typeof parsedParams.bookingId === 'string'
+          ? parsedParams.bookingId
+          : undefined,
+    },
+  );
+
+  if (!resultId) {
+    return failure(
+      'notify_patient_result_ready',
+      'No released lab result found. Release a result first, or provide bookingId or resultId.',
+      { missingReleasedResult: true, ...parsedParams },
+    );
+  }
+
+  const delivery = await deps.sendClinicResultReady(resultId);
+  const channelSummary =
+    delivery.delivered.length > 0
+      ? `Delivered via ${delivery.delivered.join(', ')}.`
+      : 'No channels delivered (notifications may already have been sent or are disabled).';
+
   const summary = [
-    `Result-ready notification acknowledged for ${patientLabel}.`,
-    `Email — ${emailLine}`,
-    `WhatsApp — ${whatsappLine}`,
-    'Delivery hooks via vert-clinic-1.7 Results tab will send through the standard notification service.',
-  ].join(' ');
+    `Result-ready notification processed for ${patientLabel}.`,
+    channelSummary,
+    resultsLinkLine,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return success('notify_patient_result_ready', summary, {
-    notificationSent: true,
+    notificationSent: delivery.delivered.length > 0,
+    resultId,
+    deliveredChannels: delivery.delivered,
+    pushSkippedReason: delivery.pushSkippedReason ?? null,
     completedAt: completedAt.toISOString(),
     whenLabel,
     emailSample: emailLine,
     whatsappSample: whatsappLine,
+    resultsUrl: resultLinks?.webResultsUrl ?? null,
+    consumerAppUrl: resultLinks?.consumerAppUrl ?? null,
     dateFormat,
     timeFormat,
     ...parsedParams,
@@ -717,7 +795,9 @@ export async function handleExplainDateInputFormatLogic(
   deps: BusinessDateFormatLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_date_input_format', 'Business not found.');
   }
@@ -759,7 +839,9 @@ export async function handlePreviewDateInputParseLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('preview_date_input_parse', 'Business not found.');
   }
@@ -803,7 +885,9 @@ export async function handleExplainProviderDateDisplayLogic(
   deps: BusinessDateFormatLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_provider_date_display', 'Business not found.');
   }
@@ -849,9 +933,14 @@ export async function handleConfigureProviderPushDateFormatLogic(
   prompt?: string,
   confirmed = false,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
-    return failure('configure_provider_push_date_format', 'Business not found.');
+    return failure(
+      'configure_provider_push_date_format',
+      'Business not found.',
+    );
   }
 
   const timeZone = business.timezone ?? 'UTC';

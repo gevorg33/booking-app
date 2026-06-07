@@ -144,7 +144,8 @@ export const MULTILINGUAL_BUSINESS_CURRENCY_EVAL_SCENARIOS: BusinessCurrencyEval
     {
       id: 'hy-bulk-sync-catalog',
       locale: 'hy',
-      prompt: 'Կատալոգի ծառայությունների արժույթը սինք անել բիզնեսի default-ի հետ',
+      prompt:
+        'Կատալոգի ծառայությունների արժույթը սինք անել բիզնեսի default-ի հետ',
       expectedAction: 'bulk_update_service_currency',
       rescueReason: 'bulk_update_service_currency',
       needsMultilingual: true,

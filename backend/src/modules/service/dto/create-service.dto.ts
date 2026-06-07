@@ -90,6 +90,10 @@ export class CreateServiceDto extends LocalizedNamesDto {
   preparationNotes?: string;
 
   @IsOptional()
+  @IsUUID()
+  clinicDiagnosticCodeId?: string | null;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -178,6 +182,10 @@ export class UpdateServiceDto extends LocalizedNamesDto {
   @IsOptional()
   @IsString()
   preparationNotes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  clinicDiagnosticCodeId?: string | null;
 
   @IsOptional()
   @IsNumber()

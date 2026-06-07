@@ -31,7 +31,9 @@ export interface ParsedExplainCheckoutRecommendations {
 export function isCheckoutRecommendationsIntent(
   action: string,
 ): action is CheckoutRecommendationsIntent {
-  return (CHECKOUT_RECOMMENDATIONS_INTENTS as readonly string[]).includes(action);
+  return (CHECKOUT_RECOMMENDATIONS_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 export function hasCheckoutSuccessVisitorContext(prompt: string): boolean {
@@ -58,8 +60,7 @@ function hasReadCheckoutRecommendationsCue(prompt: string): boolean {
   return (
     /\b(what|which|why|how|explain|show|describe|mean|does|do|are|can)\b/i.test(
       prompt,
-    ) ||
-    /\?\s*$/.test(prompt.trim())
+    ) || /\?\s*$/.test(prompt.trim())
   );
 }
 
@@ -144,7 +145,9 @@ function extractServiceName(prompt: string): string | undefined {
   return undefined;
 }
 
-export function isExplainCheckoutRecommendationsPrompt(prompt: string): boolean {
+export function isExplainCheckoutRecommendationsPrompt(
+  prompt: string,
+): boolean {
   if (isExplainTenantCurrencyPrompt(prompt)) return false;
   if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
   if (isExplainConsumerCheckoutSuccessPrompt(prompt)) return false;

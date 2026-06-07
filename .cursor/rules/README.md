@@ -4,8 +4,10 @@ These `.mdc` files are **Cursor skills** — domain knowledge Cursor loads to ex
 
 | Skill | When it fires | What it gives the agent |
 |-------|---------------|--------------------------|
+| `agent-project-memory.mdc` | always | Index of all mandatory rules, AI skills map, Sprint 54 clinic decisions — read at start of feature/clinic work. |
 | `feature-ai-prompt-coverage.mdc` | always | Mandatory checklist: every feature gets AI prompts on all 4 surfaces (dashboard, provider mobile, customer mobile, public booking), 99% UX phrasings, compounds, rescue, eval. |
 | `feature-test-coverage.mdc` | always | Mandatory unit + integration test checklist (100% scenario coverage from fixtures). |
+| `feature-clinic-vertical.mdc` | clinic-test-results, clinic UI, ai-cmd-clinic | Generic clinic only: de-fertility clone, lab state machines, no patientPlanId — Sprint 54. |
 | `ai-command-pipeline.mdc` | editing `backend/src/modules/ai/**`, provider/public assistants, AI command bar | Architecture map: `AiGatewayService.execute()` → classify → rescue → resolve → validate → plan → execute → clarify; registry, normalization, analytics, eval harness, conventions. **Read this first for any AI prompt task.** |
 | `ai-multi-command-handling.mdc` | editing decomposition / registry / check-and-book / eval | How to handle "do X and Y" compounds: detect → decompose (deterministic/golden), shared context across steps, per-step params, compound eval cases, false-compound guards. |
 | `ai-accuracy-program.mdc` | acc-* tasks, editing AI module / eval / AI-ops dashboard | Sprints 38–43 playbook (acc-1…acc-6) to reach 99% accurate executions: telemetry (`ai_command_trace`), eval expansion + `test:ai-accuracy` CI gate, classification engine, smart clarification, execution verification/rollback, continuous-learning loop. |
@@ -14,6 +16,7 @@ These `.mdc` files are **Cursor skills** — domain knowledge Cursor loads to ex
 
 - **AI Accuracy Program — 99% accurate executions (Sprints 38–43)** → `ai-accuracy-program.mdc` (per-sprint hook points), backed by `ai-command-pipeline.mdc`.
 - **AI product commands — 99% scenario coverage incl. multi commands** (`ai-cmd-*`, Phase H1–H4) → `feature-ai-prompt-coverage.mdc` + `ai-multi-command-handling.mdc` + `feature-test-coverage.mdc`.
+- **Clinic vertical v2 — Sprint 54** (`vert-clinic-2.*`) → `feature-clinic-vertical.mdc` + `agent-project-memory.mdc` + `TODO.md` Sprint 54.
 
 ## Editing guidance
 

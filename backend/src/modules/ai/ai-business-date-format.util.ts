@@ -212,7 +212,8 @@ export function extractMigrationSurfaceId(prompt: string): string | null {
   if (/\bai-audit-log\b/i.test(prompt)) return 'ai-audit-log';
   if (/\bai-autopilot\b/i.test(prompt)) return 'ai-autopilot-settings';
   if (/\bagent-workspaces\b/i.test(prompt)) return 'ai-agent-workspaces';
-  if (/\bcompliance-settings\b/i.test(prompt)) return 'business-compliance-settings';
+  if (/\bcompliance-settings\b/i.test(prompt))
+    return 'business-compliance-settings';
   return null;
 }
 

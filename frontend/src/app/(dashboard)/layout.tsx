@@ -25,8 +25,11 @@ import {
   Star,
   BookOpen,
   Plug,
+  FlaskConical,
+  TestTube2,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
+import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
 import { AiCommandBar } from '@/components/ai-command-bar';
 import { AiNotificationCenter } from '@/components/ai-notification-center';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -57,13 +60,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     enabled: !!business?.id && !!token && mounted,
   });
 
+  const { data: businessProfile } = useQuery({
+    queryKey: ['business-profile', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}`);
+      return ((data as { data?: Record<string, unknown> })?.data ?? data) as Record<
+        string,
+        unknown
+      >;
+    },
+    enabled: !!business?.id && !!token && mounted,
+  });
+
+  const businessType =
+    ((businessProfile?.settings as { businessType?: string } | undefined)?.businessType ??
+      (businessProfile?.businessType as string | undefined)) ??
+    undefined;
+  const showLabQueueNav = isClinicVerticalBusinessType(businessType);
+
   const navItems = useMemo(
-    () => [
+    () => {
+      const items = [
       { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
       { href: '/dashboard/bookings', label: t('nav.bookings'), icon: Calendar },
       { href: '/dashboard/schedule', label: t('nav.schedule'), icon: Clock },
       { href: '/dashboard/appointments', label: t('nav.appointments'), icon: ClipboardList },
       { href: '/dashboard/services', label: t('nav.services'), icon: Briefcase },
+      ...(showLabQueueNav
+        ? [
+            { href: '/dashboard/lab-queue', label: t('nav.labQueue'), icon: FlaskConical },
+            {
+              href: '/dashboard/lab-specimens/collection',
+              label: t('nav.labSpecimens'),
+              icon: TestTube2,
+            },
+          ]
+        : []),
       { href: '/dashboard/employees', label: t('nav.employees'), icon: Users },
       { href: '/dashboard/customers', label: t('nav.customers'), icon: UserCircle },
       { href: '/dashboard/reviews', label: t('nav.reviews'), icon: Star },
@@ -76,8 +108,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
       { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
       { href: '/dashboard/guide', label: t('nav.guide'), icon: BookOpen },
-    ],
-    [t],
+    ];
+      return items;
+    },
+    [t, showLabQueueNav],
   );
 
   useEffect(() => {

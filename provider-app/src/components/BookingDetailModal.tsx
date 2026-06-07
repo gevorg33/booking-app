@@ -40,6 +40,7 @@ import {
   STATUS_COLOR,
 } from '../lib/booking-types';
 import BookingPaymentBreakdown from './BookingPaymentBreakdown';
+import { BookingLabResultsSection } from './BookingLabResultsSection';
 import { useI18n } from '../i18n';
 
 interface BookingDetailModalProps {
@@ -503,6 +504,13 @@ export default function BookingDetailModal({
 
             {booking.paymentSummary && (
               <BookingPaymentBreakdown summary={booking.paymentSummary} />
+            )}
+
+            {booking.labFeaturesEnabled && bookingId && (
+              <BookingLabResultsSection
+                businessId={businessId}
+                bookingId={bookingId}
+              />
             )}
 
             {editable && (

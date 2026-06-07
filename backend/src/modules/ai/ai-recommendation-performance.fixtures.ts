@@ -71,7 +71,8 @@ export const SUMMARIZE_RECOMMENDATION_PERFORMANCE_PROMPTS = [
   },
   {
     id: 'overall-ctr-bookings',
-    prompt: 'Overall recommendation click-through and bookings with cards shown',
+    prompt:
+      'Overall recommendation click-through and bookings with cards shown',
     aspect: 'all' as const,
   },
 ] as const;

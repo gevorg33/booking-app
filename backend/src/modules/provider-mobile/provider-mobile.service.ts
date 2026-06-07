@@ -26,6 +26,37 @@ import {
   CancelProviderBookingDto,
   SuggestCancelNoteDto,
 } from './dto/provider-mobile.dto.js';
+import {
+  buildClinicProviderResultsQueueWindow,
+  CLINIC_PROVIDER_COLLECTION_QUEUE_STATUSES,
+  CLINIC_PROVIDER_RESULTS_LOOKBACK_DAYS,
+  CLINIC_PROVIDER_RESULTS_QUEUE_STATUSES,
+  isClinicLabFeaturesEnabled,
+} from '../../common/utils/clinic-lab-state.util.js';
+import { readBusinessTypeFromSettings } from '../clinic-test-results/shared/clinic-test-results-gate.util.js';
+import { ClinicTestOrderService } from '../clinic-test-results/order/clinic-test-order.service.js';
+import { ClinicTestResultService } from '../clinic-test-results/test-result/clinic-test-result.service.js';
+import { Customer } from '../customer/entities/customer.entity.js';
+import { PatientClinicalProfilesService } from '../patient-clinical-profiles/patient-clinical-profiles.service.js';
+import { PatientClinicalProfileAccessService } from '../patient-clinical-profiles/shared/patient-clinical-profile-access.service.js';
+import {
+  buildProviderPatientChartTodayWindow,
+  customerIdsAssignedToProvider,
+  mapProviderPatientChartOrder,
+  mapProviderPatientChartResult,
+  PROVIDER_PATIENT_SEARCH_LIMIT,
+  PROVIDER_PATIENT_SEARCH_MIN_LENGTH,
+} from './provider-mobile-patient-chart.util.js';
+import { ClinicTasksService } from '../clinic-tasks/clinic-tasks.service.js';
+import {
+  buildProviderClinicTaskNameLookups,
+  CLINIC_PROVIDER_TASK_INBOX_PAGE_SIZE,
+  CLINIC_PROVIDER_TASK_INBOX_STATUSES,
+  mapProviderClinicTaskInboxItems,
+  mergeClinicTaskInboxItems,
+  type ProviderClinicTaskInbox,
+} from './provider-mobile-clinic-tasks.util.js';
+import type { CompleteClinicTaskDto } from '../clinic-tasks/dto/clinic-task.dto.js';
 
 const ACTIVE_STATUSES = [
   BookingStatus.PENDING,
@@ -46,10 +77,18 @@ export class ProviderMobileService {
     private bookingService: BookingService,
     private retailPosService: RetailPosService,
     private llm: LlmService,
+    private clinicTestOrderService: ClinicTestOrderService,
+    private clinicTestResultService: ClinicTestResultService,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    private patientClinicalProfilesService: PatientClinicalProfilesService,
+    private patientClinicalProfileAccessService: PatientClinicalProfileAccessService,
+    private clinicTasksService: ClinicTasksService,
   ) {}
 
   async getContext(businessId: string, userId: string) {
     const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
 
     return {
       membershipRole: access.membershipRole,
@@ -63,6 +102,342 @@ export class ProviderMobileService {
           }
         : null,
       canUseProviderApp: true,
+      labFeaturesEnabled: isClinicLabFeaturesEnabled(
+        readBusinessTypeFromSettings(settings),
+      ),
+    };
+  }
+
+  async getTodayLabCollectionQueue(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const labFeaturesEnabled = isClinicLabFeaturesEnabled(
+      readBusinessTypeFromSettings(settings),
+    );
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(today);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const orders = labFeaturesEnabled
+      ? await this.clinicTestOrderService.listLabQueue(businessId, {
+          from: today.toISOString(),
+          to: dayEnd.toISOString(),
+          statuses: [...CLINIC_PROVIDER_COLLECTION_QUEUE_STATUSES],
+          employeeId:
+            access.viewMode === 'provider' ? access.employee!.id : undefined,
+          sort: 'bookingTimeAsc',
+        })
+      : [];
+
+    return {
+      date: today.toISOString().slice(0, 10),
+      viewMode: access.viewMode,
+      labFeaturesEnabled,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
+      orders,
+    };
+  }
+
+  async getProviderLabResultsQueue(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const labFeaturesEnabled = isClinicLabFeaturesEnabled(
+      readBusinessTypeFromSettings(settings),
+    );
+    const { from, to } = buildClinicProviderResultsQueueWindow();
+
+    const results = labFeaturesEnabled
+      ? await this.clinicTestResultService.listResultQueue(businessId, {
+          from,
+          to,
+          statuses: [...CLINIC_PROVIDER_RESULTS_QUEUE_STATUSES],
+          employeeId:
+            access.viewMode === 'provider' ? access.employee!.id : undefined,
+        })
+      : [];
+
+    return {
+      lookbackDays: CLINIC_PROVIDER_RESULTS_LOOKBACK_DAYS,
+      viewMode: access.viewMode,
+      labFeaturesEnabled,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
+      results,
+    };
+  }
+
+  async getProviderClinicTaskInbox(
+    businessId: string,
+    userId: string,
+  ): Promise<ProviderClinicTaskInbox> {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const labFeaturesEnabled = isClinicLabFeaturesEnabled(
+      readBusinessTypeFromSettings(settings),
+    );
+
+    if (!labFeaturesEnabled) {
+      return {
+        viewMode: access.viewMode,
+        labFeaturesEnabled: false,
+        employee: access.employee
+          ? { id: access.employee.id, name: access.employee.name }
+          : null,
+        tasks: [],
+      };
+    }
+
+    const inboxLists = await Promise.all(
+      CLINIC_PROVIDER_TASK_INBOX_STATUSES.map((status) =>
+        this.clinicTasksService.listClinicTasks(businessId, userId, {
+          status,
+          pageSize: CLINIC_PROVIDER_TASK_INBOX_PAGE_SIZE,
+        }),
+      ),
+    );
+    const mergedTasks = mergeClinicTaskInboxItems(
+      ...inboxLists.map((list) => list.items),
+    );
+
+    const customerIds = [
+      ...new Set(
+        mergedTasks
+          .map((task) => task.customerId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const assigneeIds = [
+      ...new Set(
+        mergedTasks
+          .map((task) => task.assigneeEmployeeId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const [customers, employees] = await Promise.all([
+      customerIds.length
+        ? this.customerRepo.find({
+            where: { businessId, id: In(customerIds) },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      assigneeIds.length
+        ? this.employeeRepo.find({
+            where: { businessId, id: In(assigneeIds) },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      userId,
+    );
+    const staffCtx = {
+      userId,
+      membershipRole: membership.role,
+      employeeId: access.employee?.id ?? null,
+    };
+    const lookups = buildProviderClinicTaskNameLookups(customers, employees);
+
+    return {
+      viewMode: access.viewMode,
+      labFeaturesEnabled: true,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
+      tasks: mapProviderClinicTaskInboxItems(mergedTasks, staffCtx, lookups),
+    };
+  }
+
+  async claimProviderClinicTask(
+    businessId: string,
+    userId: string,
+    taskId: string,
+  ) {
+    await this.resolveMobileAccess(businessId, userId);
+    return this.clinicTasksService.claimClinicTask(businessId, userId, taskId);
+  }
+
+  async completeProviderClinicTask(
+    businessId: string,
+    userId: string,
+    taskId: string,
+    dto: CompleteClinicTaskDto = {},
+  ) {
+    await this.resolveMobileAccess(businessId, userId);
+    return this.clinicTasksService.completeClinicTask(
+      businessId,
+      userId,
+      taskId,
+      dto,
+    );
+  }
+
+  async searchProviderPatients(
+    businessId: string,
+    userId: string,
+    query: string,
+  ) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const labFeaturesEnabled = isClinicLabFeaturesEnabled(
+      readBusinessTypeFromSettings(settings),
+    );
+    const trimmed = query?.trim() ?? '';
+
+    if (!labFeaturesEnabled) {
+      return {
+        labFeaturesEnabled: false,
+        viewMode: access.viewMode,
+        query: trimmed,
+        patients: [],
+      };
+    }
+
+    if (trimmed.length < PROVIDER_PATIENT_SEARCH_MIN_LENGTH) {
+      return {
+        labFeaturesEnabled: true,
+        viewMode: access.viewMode,
+        query: trimmed,
+        patients: [],
+      };
+    }
+
+    let scopedCustomerIds: string[] | null = null;
+    if (access.viewMode === 'provider' && access.employee) {
+      const bookings = await this.bookingRepo.find({
+        where: { businessId },
+        select: { customerId: true, employeeId: true, linkedEmployeeIds: true },
+      });
+      scopedCustomerIds = customerIdsAssignedToProvider(
+        bookings,
+        access.employee.id,
+      );
+      if (scopedCustomerIds.length === 0) {
+        return {
+          labFeaturesEnabled: true,
+          viewMode: access.viewMode,
+          query: trimmed,
+          patients: [],
+        };
+      }
+    }
+
+    const qb = this.customerRepo
+      .createQueryBuilder('customer')
+      .where('customer.businessId = :businessId', { businessId })
+      .andWhere('customer.isActive = :isActive', { isActive: true })
+      .andWhere(
+        '(LOWER(customer.name) LIKE LOWER(:term) OR LOWER(customer.email) LIKE LOWER(:term) OR customer.phone LIKE :term)',
+        { term: `%${trimmed}%` },
+      )
+      .orderBy('LOWER(customer.name)', 'ASC')
+      .take(PROVIDER_PATIENT_SEARCH_LIMIT);
+
+    if (scopedCustomerIds) {
+      qb.andWhere('customer.id IN (:...scopedCustomerIds)', {
+        scopedCustomerIds,
+      });
+    }
+
+    const customers = await qb.getMany();
+
+    return {
+      labFeaturesEnabled: true,
+      viewMode: access.viewMode,
+      query: trimmed,
+      patients: customers.map((customer) => ({
+        id: customer.id,
+        name: customer.name,
+        email: customer.email ?? null,
+        phone: customer.phone ?? null,
+      })),
+    };
+  }
+
+  async getProviderPatientChartSummary(
+    businessId: string,
+    userId: string,
+    customerId: string,
+  ) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const business = await this.businessService.findOne(businessId);
+    const settings = business?.settings as Record<string, unknown> | undefined;
+    const labFeaturesEnabled = isClinicLabFeaturesEnabled(
+      readBusinessTypeFromSettings(settings),
+    );
+    const { date, from, to } = buildProviderPatientChartTodayWindow();
+
+    if (!labFeaturesEnabled) {
+      return {
+        labFeaturesEnabled: false,
+        viewMode: access.viewMode,
+        date,
+        canAccessChart: false,
+        customer: null,
+        clinicalProfile: null,
+        todaysOrders: [],
+        todaysResults: [],
+      };
+    }
+
+    const accessContext =
+      await this.patientClinicalProfileAccessService.assertCustomerClinicalProfileAccess(
+        businessId,
+        userId,
+        customerId,
+      );
+
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const [clinicalProfile, orders, results] = await Promise.all([
+      this.patientClinicalProfilesService.getProfileForCustomer(
+        businessId,
+        customerId,
+        accessContext,
+      ),
+      this.clinicTestOrderService.listLabQueue(businessId, {
+        from,
+        to,
+        customerId,
+        sort: 'bookingTimeAsc',
+      }),
+      this.clinicTestResultService.listResultQueue(businessId, {
+        from,
+        to,
+        customerId,
+      }),
+    ]);
+
+    return {
+      labFeaturesEnabled: true,
+      viewMode: access.viewMode,
+      date,
+      canAccessChart: true,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email ?? null,
+        phone: customer.phone ?? null,
+      },
+      clinicalProfile,
+      todaysOrders: orders.map(mapProviderPatientChartOrder),
+      todaysResults: results.map(mapProviderPatientChartResult),
     };
   }
 
@@ -384,6 +759,9 @@ Write a cancellation note the provider can save.`,
       paymentStatus: booking.paymentStatus,
       description: booking.description,
       cancellationReason: booking.cancellationReason,
+      labFeaturesEnabled: isClinicLabFeaturesEnabled(
+        readBusinessTypeFromSettings(settings),
+      ),
       paymentSummary: resolveBookingPaymentSummary(
         booking,
         retailLines,

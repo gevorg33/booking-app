@@ -50,6 +50,7 @@ import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.uti
 import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
 import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
 import { parseExplainTourBookingFromPrompt } from './ai-tour-booking.util.js';
+import { parseExplainClinicBookingFromPrompt } from './ai-clinic-booking.util.js';
 import { parseExplainTourDaySlotsFromPrompt } from './ai-tour-day-slots.util.js';
 import { parseExplainCheckoutRecommendationsFromPrompt } from './ai-checkout-recommendations.util.js';
 import { parseExplainConsumerCheckoutSuccessFromPrompt } from './ai-consumer-checkout-success.util.js';
@@ -66,6 +67,11 @@ import {
   isExplainTourServicesPrompt,
   parseConfigureTourServiceFromPrompt,
 } from './ai-tour-service.util.js';
+import {
+  isApplyClinicPlaybookPrompt,
+  isExplainClinicServicesPrompt,
+  parseConfigureClinicServiceFromPrompt,
+} from './ai-clinic-service.util.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -870,8 +876,7 @@ const ACTION_RULES: Record<string, Rule> = {
           {
             field: 'retention',
             label: 'Privacy retention',
-            message:
-              'Specify retention period or cookie banner change',
+            message: 'Specify retention period or cookie banner change',
             example: 'Keep customer data for 3 years',
           },
         ],
@@ -996,8 +1001,7 @@ const ACTION_RULES: Record<string, Rule> = {
           {
             field: 'aspect',
             label: 'Breach incidents',
-            message:
-              'Ask to show breach incidents or GDPR 72-hour deadlines',
+            message: 'Ask to show breach incidents or GDPR 72-hour deadlines',
             example: 'Show breach incidents',
           },
         ],
@@ -1042,7 +1046,10 @@ const ACTION_RULES: Record<string, Rule> = {
         ],
 
   explain_minimum_necessary_phi_access: (cmd) =>
-    parseExplainMinimumNecessaryPhiAccessFromPrompt(cmd.prompt ?? '', cmd.params)
+    parseExplainMinimumNecessaryPhiAccessFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    )
       ? []
       : [
           {
@@ -1074,8 +1081,7 @@ const ACTION_RULES: Record<string, Rule> = {
           {
             field: 'sessionTimeoutMinutes',
             label: 'HIPAA session timeout',
-            message:
-              'Specify a HIPAA session timeout in minutes (5–60)',
+            message: 'Specify a HIPAA session timeout in minutes (5–60)',
             example: 'Set HIPAA timeout to 10 minutes',
           },
         ],
@@ -1202,7 +1208,8 @@ const ACTION_RULES: Record<string, Rule> = {
           {
             field: 'locales',
             label: 'Languages',
-            message: 'Specify which languages to enable, disable, or set as default',
+            message:
+              'Specify which languages to enable, disable, or set as default',
             example: 'Enable Armenian and Russian',
           },
         ],
@@ -1285,8 +1292,7 @@ const ACTION_RULES: Record<string, Rule> = {
             label: 'Tour calendar week',
             message:
               'Ask to list tour departures on the provider calendar week',
-            example:
-              'List tour departures on the provider calendar this week',
+            example: 'List tour departures on the provider calendar this week',
           },
         ],
 
@@ -1305,15 +1311,46 @@ const ACTION_RULES: Record<string, Rule> = {
         ],
 
   apply_tour_playbook: (cmd) =>
-    isApplyTourPlaybookPrompt(cmd.prompt ?? '') ? [] : [
-      {
-        field: 'prompt',
-        label: 'Tour playbook',
-        message:
-          'Ask to apply the tour vertical playbook (catalog + 08:00–18:00 schedule)',
-        example: 'Apply tour playbook',
-      },
-    ],
+    isApplyTourPlaybookPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour playbook',
+            message:
+              'Ask to apply the tour vertical playbook (catalog + 08:00–18:00 schedule)',
+            example: 'Apply tour playbook',
+          },
+        ],
+
+  configure_clinic_service: (cmd) =>
+    parseConfigureClinicServiceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'serviceName',
+            label: 'Service',
+            message:
+              'Specify the service and clinic settings to update (service type, fasting, prep instructions)',
+            example: 'Mark CBC as a lab test requiring fasting',
+          },
+        ],
+
+  explain_clinic_services: (cmd) =>
+    isExplainClinicServicesPrompt(cmd.prompt ?? '') ? [] : [],
+
+  apply_clinic_playbook: (cmd) =>
+    isApplyClinicPlaybookPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Clinic playbook',
+            message:
+              'Ask to apply the clinic vertical playbook (catalog + clinic operating hours schedule)',
+            example: 'Apply clinic playbook',
+          },
+        ],
 
   explain_package_display_name: (cmd) =>
     parsePackageDisplayNameExplainFromPrompt(cmd.prompt ?? '', cmd.params)
@@ -1322,8 +1359,7 @@ const ACTION_RULES: Record<string, Rule> = {
           {
             field: 'packageName',
             label: 'Package',
-            message:
-              'Specify which package to explain for the visitor locale',
+            message: 'Specify which package to explain for the visitor locale',
             example:
               'What Armenian name shows for Spa Day package on public booking?',
           },
@@ -1343,6 +1379,19 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  explain_clinic_booking: (cmd) =>
+    parseExplainClinicBookingFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Clinic checkout field',
+            message:
+              'Ask about symptoms, referral notes, lab prep/fasting, or pre-visit intake on checkout',
+            example: 'What should I put in the symptoms field on checkout?',
+          },
+        ],
+
   explain_tour_day_slots: (cmd) =>
     parseExplainTourDaySlotsFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1352,8 +1401,7 @@ const ACTION_RULES: Record<string, Rule> = {
             label: 'Tour day slots',
             message:
               'Ask about one departure per day, remainingSpots, or a fully booked tour date',
-            example:
-              'Why does Mountain Trek show only one departure per day?',
+            example: 'Why does Mountain Trek show only one departure per day?',
           },
         ],
 
@@ -1394,8 +1442,7 @@ const ACTION_RULES: Record<string, Rule> = {
             label: 'Consumer checkout tax',
             message:
               'Ask about tax display in the consumer app: incl. badge on services, checkout tax lines, or confirmation breakdown',
-            example:
-              'What does incl. VAT mean on services in the salon app?',
+            example: 'What does incl. VAT mean on services in the salon app?',
           },
         ],
 
@@ -1413,7 +1460,10 @@ const ACTION_RULES: Record<string, Rule> = {
         ],
 
   summarize_recommendation_performance: (cmd) =>
-    parseSummarizeRecommendationPerformanceFromPrompt(cmd.prompt ?? '', cmd.params)
+    parseSummarizeRecommendationPerformanceFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    )
       ? []
       : [
           {
@@ -1434,8 +1484,7 @@ const ACTION_RULES: Record<string, Rule> = {
             label: 'Tour capacity diagnosis',
             message:
               'Ask why checkout rejected a pax count or tour date (max group, fully booked, clamped pax)',
-            example:
-              'Why did checkout reject 4 people for the mountain trek?',
+            example: 'Why did checkout reject 4 people for the mountain trek?',
           },
         ],
 };

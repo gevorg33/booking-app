@@ -5,7 +5,9 @@ export const CHECKOUT_TAX_INTENTS = ['explain_checkout_tax'] as const;
 
 export type CheckoutTaxIntent = (typeof CHECKOUT_TAX_INTENTS)[number];
 
-export function isCheckoutTaxIntent(action: string): action is CheckoutTaxIntent {
+export function isCheckoutTaxIntent(
+  action: string,
+): action is CheckoutTaxIntent {
   return (CHECKOUT_TAX_INTENTS as readonly string[]).includes(action);
 }
 

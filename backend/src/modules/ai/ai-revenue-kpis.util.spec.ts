@@ -22,13 +22,15 @@ describe('ai-revenue-kpis.util (ai-cmd-curr-14)', () => {
   );
 
   it('does not classify single total earnings as revenue KPI summary', () => {
-    expect(isSummarizeRevenueKpisPrompt('Calculate total earnings for today')).toBe(
-      false,
-    );
+    expect(
+      isSummarizeRevenueKpisPrompt('Calculate total earnings for today'),
+    ).toBe(false);
     expect(
       isSummarizeRevenueKpisPrompt('Top 3 specialists by revenue last week'),
     ).toBe(false);
-    expect(isSummarizeRevenueKpisPrompt('Summarize P&L this month')).toBe(false);
+    expect(isSummarizeRevenueKpisPrompt('Summarize P&L this month')).toBe(
+      false,
+    );
   });
 
   it('does not rescue when action is already summarize_revenue_kpis', () => {

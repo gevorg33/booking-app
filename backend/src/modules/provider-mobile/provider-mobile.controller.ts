@@ -30,6 +30,7 @@ import { AiGatewayService } from '../ai/ai-gateway.service.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
+import { CompleteClinicTaskDto } from '../clinic-tasks/dto/clinic-task.dto.js';
 
 @Controller('businesses/:businessId/provider')
 @UseGuards(JwtAuthGuard)
@@ -106,6 +107,84 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
   ) {
     return this.providerService.getTodayBookings(businessId, user.id);
+  }
+
+  @Get('lab-collection/today')
+  getTodayLabCollection(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getTodayLabCollectionQueue(businessId, user.id);
+  }
+
+  @Get('lab-results')
+  getAssignedLabResults(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getProviderLabResultsQueue(businessId, user.id);
+  }
+
+  @Get('clinic-tasks')
+  getClinicTaskInbox(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getProviderClinicTaskInbox(businessId, user.id);
+  }
+
+  @Post('clinic-tasks/:taskId/claim')
+  claimClinicTask(
+    @Param('businessId') businessId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.claimProviderClinicTask(
+      businessId,
+      user.id,
+      taskId,
+    );
+  }
+
+  @Post('clinic-tasks/:taskId/complete')
+  completeClinicTask(
+    @Param('businessId') businessId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: CompleteClinicTaskDto,
+  ) {
+    return this.providerService.completeProviderClinicTask(
+      businessId,
+      user.id,
+      taskId,
+      dto,
+    );
+  }
+
+  @Get('patients/search')
+  searchPatients(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Query('q') query?: string,
+  ) {
+    return this.providerService.searchProviderPatients(
+      businessId,
+      user.id,
+      query ?? '',
+    );
+  }
+
+  @Get('patients/:customerId/chart-summary')
+  getPatientChartSummary(
+    @Param('businessId') businessId: string,
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getProviderPatientChartSummary(
+      businessId,
+      user.id,
+      customerId,
+    );
   }
 
   @Get('bookings/upcoming')

@@ -13,7 +13,8 @@ export const TOUR_CALENDAR_SPAN_CLASSIFIER_RULES = `- explain_tour_calendar_span
 export const EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS = [
   {
     id: 'multi-day-span-general',
-    prompt: 'Why do tours appear across multiple days on the provider calendar?',
+    prompt:
+      'Why do tours appear across multiple days on the provider calendar?',
     aspect: 'multiDaySpan' as const,
   },
   {
@@ -51,14 +52,12 @@ export const EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS = [
   },
   {
     id: 'week-clipping-long-tour',
-    prompt:
-      'Why does a 7-day tour only show the visible week on the calendar?',
+    prompt: 'Why does a 7-day tour only show the visible week on the calendar?',
     aspect: 'clippedWeek' as const,
   },
   {
     id: 'same-day-stack',
-    prompt:
-      'Why do two tours departing the same day stack on separate lanes?',
+    prompt: 'Why do two tours departing the same day stack on separate lanes?',
     aspect: 'stackedDepartures' as const,
   },
   {

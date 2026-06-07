@@ -9,12 +9,14 @@ import { ServiceCategoryService } from './service-category.service.js';
 import { ServiceCategoryController } from './service-category.controller.js';
 import { EventStoreModule } from '../../events/store/event-store.module.js';
 import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
+import { ClinicDiagnosticCodesModule } from '../clinic-diagnostic-codes/clinic-diagnostic-codes.module.js';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Service, ServiceCategory, Business]),
     EventStoreModule,
     StripeIntegrationModule,
+    ClinicDiagnosticCodesModule,
   ],
   controllers: [ServiceController, ServiceCategoryController],
   providers: [ServiceService, ServiceCategoryService],

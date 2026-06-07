@@ -166,7 +166,10 @@ describe('ai-business-languages.logic (ai-cmd-lang-1)', () => {
     expect(result.details?.categoriesWithDisabledLocaleTranslations).toBe(1);
     expect(result.details?.packagesWithDisabledLocaleTranslations).toBe(0);
     expect(result.details?.servicesByDisabledLocale).toEqual({ ru: 1 });
-    expect(result.details?.categoriesByDisabledLocale).toEqual({ hy: 1, ru: 1 });
+    expect(result.details?.categoriesByDisabledLocale).toEqual({
+      hy: 1,
+      ru: 1,
+    });
     expect(result.summary).toContain('Enabled languages');
     expect(result.summary).toContain('Default language');
     expect(result.summary).toContain('disabled locales');

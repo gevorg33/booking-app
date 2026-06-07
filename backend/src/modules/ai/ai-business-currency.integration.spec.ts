@@ -66,7 +66,14 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
   const analyticsService = {
     staffPerformance: jest.fn(async () => ({
       currency: 'USD',
-      rows: [{ employeeName: 'Alex', bookings: 5, revenue: 3000, utilizationPercent: 60 }],
+      rows: [
+        {
+          employeeName: 'Alex',
+          bookings: 5,
+          revenue: 3000,
+          utilizationPercent: 60,
+        },
+      ],
     })),
     servicePopularity: jest.fn(async () => ({
       currency: 'USD',
@@ -144,10 +151,7 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(validation.ok).toBe(true);
 
-      const result = await handleExplainBusinessCurrencyLogic(
-        deps(),
-        'biz-1',
-      );
+      const result = await handleExplainBusinessCurrencyLogic(deps(), 'biz-1');
       expect(result.success).toBe(true);
       expect(result.action).toBe('explain_business_currency');
       expect(result.details?.defaultCurrency).toBe('USD');

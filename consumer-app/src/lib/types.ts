@@ -27,6 +27,7 @@ export interface PublicBusinessProfile {
   branding: PublicBranding;
   publicBookingEnabled: boolean;
   tax?: PublicBusinessTaxSettings;
+  businessType?: string;
 }
 
 export interface PublicCheckoutQuote {
@@ -63,6 +64,11 @@ export interface PublicService {
   price: number;
   currency?: string | null;
   category?: PublicServiceCategory | null;
+  isClinic?: boolean;
+  clinicServiceType?: 'consultation' | 'lab_test' | 'procedure';
+  acceptsPatientNotes?: boolean;
+  offersPreVisitIntake?: boolean;
+  preparationNotes?: string;
 }
 
 export interface PublicRecommendationProduct {

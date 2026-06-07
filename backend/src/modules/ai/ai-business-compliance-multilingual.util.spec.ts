@@ -16,10 +16,7 @@ describe('ai-business-compliance multilingual (ai-cmd-compliance-6)', () => {
       expect(rescued?.action).toBe(expectedAction);
       expect(rescued?.rescueReason).toBe(rescueReason);
 
-      if (
-        expectedAction === 'configure_privacy_retention' &&
-        paramsPartial
-      ) {
+      if (expectedAction === 'configure_privacy_retention' && paramsPartial) {
         const parsed = parseConfigurePrivacyRetentionFromPrompt(prompt);
         expect(parsed).not.toBeNull();
         if ('customerPiiDays' in paramsPartial) {

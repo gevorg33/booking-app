@@ -49,8 +49,7 @@ export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS = [
   },
   {
     id: 'public-no-slots-date',
-    prompt:
-      'Why are there no departure times for Mountain Trek on 15/08/2026?',
+    prompt: 'Why are there no departure times for Mountain Trek on 15/08/2026?',
     serviceName: '3-Day Mountain Trek',
     date: '2026-08-15',
     aspect: 'fullyBooked' as const,
@@ -136,8 +135,7 @@ export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS = [
   },
   {
     id: 'customer-ru-one-departure',
-    prompt:
-      'Почему многодневный Mountain Trek показывает одно время в день?',
+    prompt: 'Почему многодневный Mountain Trek показывает одно время в день?',
     serviceName: '3-Day Mountain Trek',
     aspect: 'oneDeparture' as const,
     surface: 'customer' as const,
@@ -152,15 +150,15 @@ export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS = [
   },
   {
     id: 'customer-hy-one-departure',
-    prompt:
-      'Ինչու է Mountain Trek-ը մեկ մեկնում ցույց տալիս օրական',
+    prompt: 'Ինչու է Mountain Trek-ը մեկ մեկնում ցույց տալիս օրական',
     serviceName: '3-Day Mountain Trek',
     aspect: 'oneDeparture' as const,
     surface: 'customer' as const,
   },
   {
     id: 'customer-hy-fully-booked',
-    prompt: 'Ինչու է 15/08/2026-ը ամբողջությամբ ամրագրված Mountain Trek-ի համար',
+    prompt:
+      'Ինչու է 15/08/2026-ը ամբողջությամբ ամրագրված Mountain Trek-ի համար',
     serviceName: '3-Day Mountain Trek',
     date: '2026-08-15',
     aspect: 'fullyBooked' as const,

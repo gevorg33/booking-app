@@ -67,7 +67,11 @@ describe('ai-tour-capacity.logic (ai-cmd-tour-9)', () => {
     const result = await handleDiagnoseTourCapacityLogic(
       deps(),
       'biz-1',
-      { serviceName: '3-Day Mountain Trek', date: '2026-08-15', requestedPax: 1 },
+      {
+        serviceName: '3-Day Mountain Trek',
+        date: '2026-08-15',
+        requestedPax: 1,
+      },
       "This tour date is fully booked — why can't I checkout?",
     );
 

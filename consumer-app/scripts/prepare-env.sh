@@ -71,5 +71,21 @@ if [ -f "$PLIST" ]; then
   [ -n "$PROJECT_ID" ] && set_var VITE_FIREBASE_AUTH_DOMAIN "${PROJECT_ID}.firebaseapp.com"
 fi
 
+FCM_READY=false
+if [ -f "$ROOT/android/app/google-services.json" ] || [ -f "$ROOT/ios/App/App/GoogleService-Info.plist" ]; then
+  FCM_READY=true
+fi
+
+if grep -q '^VITE_FCM_CONFIGURED=' "$ENV_LAN"; then
+  sed -i '' "s/^VITE_FCM_CONFIGURED=.*/VITE_FCM_CONFIGURED=${FCM_READY}/" "$ENV_LAN"
+else
+  echo "VITE_FCM_CONFIGURED=${FCM_READY}" >> "$ENV_LAN"
+fi
+
 cp "$ENV_LAN" "$ENV_FILE"
 echo "✓ consumer-app .env ready"
+if [ "$FCM_READY" = true ]; then
+  echo "✓ Firebase native config found — push enabled in build"
+else
+  echo "⚠ Missing google-services.json / GoogleService-Info.plist — push disabled"
+fi

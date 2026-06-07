@@ -55,8 +55,7 @@ export const EXPLAIN_TOUR_BOOKING_PROMPTS = [
   },
   {
     id: 'public-ru-max-group-city-tour',
-    prompt:
-      'Какой максимальный размер группы у City Tour на странице записи?',
+    prompt: 'Какой максимальный размер группы у City Tour на странице записи?',
     serviceName: 'City Tour',
     aspect: 'groupSize' as const,
     surface: 'public' as const,
@@ -112,7 +111,8 @@ export const EXPLAIN_TOUR_BOOKING_PROMPTS = [
   },
   {
     id: 'customer-duration-and-cap-sunset',
-    prompt: 'Tell me the duration and group cap for Sunset Hike on online booking',
+    prompt:
+      'Tell me the duration and group cap for Sunset Hike on online booking',
     serviceName: 'Sunset Hike',
     aspect: 'all' as const,
     surface: 'customer' as const,
@@ -126,8 +126,7 @@ export const EXPLAIN_TOUR_BOOKING_PROMPTS = [
   },
   {
     id: 'customer-ru-per-person-city-tour',
-    prompt:
-      'Почему цена City Tour указана за человека на странице записи?',
+    prompt: 'Почему цена City Tour указана за человека на странице записи?',
     serviceName: 'City Tour',
     aspect: 'pricing' as const,
     surface: 'customer' as const,

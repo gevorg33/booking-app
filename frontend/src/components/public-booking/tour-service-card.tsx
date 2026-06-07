@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n';
 
 interface TourServiceCardProps {
   service: PublicService;
+  businessCurrency?: string;
   selected: boolean;
   primaryColor: string;
   onSelect: () => void;

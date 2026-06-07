@@ -1,6 +1,4 @@
-import {
-  EXPLAIN_TOUR_BOOKING_PROMPTS,
-} from './ai-tour-booking.fixtures.js';
+import { EXPLAIN_TOUR_BOOKING_PROMPTS } from './ai-tour-booking.fixtures.js';
 import {
   isExplainTourBookingPrompt,
   isTourBookingIntent,

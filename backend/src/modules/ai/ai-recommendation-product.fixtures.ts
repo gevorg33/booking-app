@@ -38,7 +38,8 @@ export const CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS = [
   },
   {
     id: 'update-shampoo-image',
-    prompt: 'Update recommendation product Shampoo image to /uploads/shampoo.jpg',
+    prompt:
+      'Update recommendation product Shampoo image to /uploads/shampoo.jpg',
     productName: 'Shampoo',
     imageUrl: '/uploads/shampoo.jpg',
     isUpdate: true,
@@ -120,8 +121,7 @@ export const LINK_RECOMMENDED_PRODUCTS_PROMPTS = [
   },
   {
     id: 'recommend-three-products',
-    prompt:
-      'Recommend shampoo, conditioner, and mask after highlights service',
+    prompt: 'Recommend shampoo, conditioner, and mask after highlights service',
     productNames: ['shampoo', 'conditioner', 'mask'],
     serviceName: 'highlights',
   },

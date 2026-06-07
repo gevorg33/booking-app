@@ -92,7 +92,9 @@ export function rescueLookupBookingTaxMetadataIntent(
   prompt: string,
   action: string,
 ): { action: LookupBookingTaxMetadataIntent; rescueReason: string } | null {
-  if ((LOOKUP_BOOKING_TAX_METADATA_INTENTS as readonly string[]).includes(action)) {
+  if (
+    (LOOKUP_BOOKING_TAX_METADATA_INTENTS as readonly string[]).includes(action)
+  ) {
     return null;
   }
 

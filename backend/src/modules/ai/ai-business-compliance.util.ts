@@ -172,10 +172,7 @@ function isCustomerSelfServicePrivacyPrompt(prompt: string): boolean {
 export function isAdminDeleteCustomerDataPrompt(prompt: string): boolean {
   if (isCustomerSelfServicePrivacyPrompt(prompt)) return false;
 
-  if (
-    /\bforget\b/i.test(prompt) &&
-    /\b(?:this\s+)?customer\b/i.test(prompt)
-  ) {
+  if (/\bforget\b/i.test(prompt) && /\b(?:this\s+)?customer\b/i.test(prompt)) {
     return true;
   }
   if (
@@ -523,6 +520,36 @@ export function isListBreachIncidentsPrompt(prompt: string): boolean {
 function mapPhiFieldFromPrompt(prompt: string): string | undefined {
   if (/\breferral\s+notes?\b/i.test(prompt)) return 'referralNotes';
   if (/\bsymptoms?\b/i.test(prompt)) return 'symptoms';
+  if (
+    /\b(?:lab\s+)?review\s+comments?\b/i.test(prompt) &&
+    /\b(?:lab|result|test)\b/i.test(prompt)
+  ) {
+    return 'reviewComment';
+  }
+  if (/\b(?:lab\s+)?release\s+comments?\b/i.test(prompt)) {
+    return 'releaseComment';
+  }
+  if (
+    /\b(?:lab\s+result|result\s+entry|result)\s+comments?\b/i.test(prompt) ||
+    /\blab\s+result\s+notes?\b/i.test(prompt)
+  ) {
+    return 'comment';
+  }
+  if (
+    /\b(?:lab\s+)?measurement\s+comments?\b/i.test(prompt) ||
+    (/\blab\s+comments?\b/i.test(prompt) && /\bmeasurement\b/i.test(prompt))
+  ) {
+    return 'labComment';
+  }
+  if (
+    /\b(?:lab\s+)?measurement\s+values?\b/i.test(prompt) ||
+    /\bresult\s+measurements?\b/i.test(prompt)
+  ) {
+    return 'value';
+  }
+  if (/\b(?:lab\s+)?status\s+history\s+notes?\b/i.test(prompt)) {
+    return 'statusHistoryNote';
+  }
   if (/\bpatient\s+test\s+results?\b/i.test(prompt)) {
     return 'patient_test_results';
   }
@@ -530,6 +557,23 @@ function mapPhiFieldFromPrompt(prompt: string): string | undefined {
     return 'notes';
   }
   return undefined;
+}
+
+export const PHI_ACCESS_AUDIT_FIELD_LABELS: Record<string, string> = {
+  referralNotes: 'referral notes',
+  symptoms: 'symptoms',
+  notes: 'patient notes',
+  patient_test_results: 'legacy patient test result notes (booking metadata)',
+  comment: 'lab result comments',
+  reviewComment: 'lab review comments',
+  releaseComment: 'lab release comments',
+  value: 'lab measurement values',
+  labComment: 'lab measurement comments',
+  statusHistoryNote: 'lab status history notes',
+};
+
+export function formatPhiAccessAuditFieldLabel(fieldName: string): string {
+  return PHI_ACCESS_AUDIT_FIELD_LABELS[fieldName] ?? fieldName;
 }
 
 function parsePhiAccessAuditDaysBack(
@@ -632,7 +676,9 @@ export function isExplainHipaaSessionTimeoutPrompt(prompt: string): boolean {
   );
 }
 
-export function isExplainMinimumNecessaryPhiAccessPrompt(prompt: string): boolean {
+export function isExplainMinimumNecessaryPhiAccessPrompt(
+  prompt: string,
+): boolean {
   if (/\bminimum\s+necessary\b/i.test(prompt)) {
     return true;
   }
@@ -672,7 +718,9 @@ export function isViewPhiAccessAuditPrompt(prompt: string): boolean {
 
   if (
     /\b(who\s+accessed|who\s+viewed|who\s+read)\b/i.test(prompt) &&
-    /\b(patient\s+notes?|phi|referral\s+notes?|symptoms)\b/i.test(prompt)
+    /\b(patient\s+notes?|phi|referral\s+notes?|symptoms|lab\s+result|result\s+comments?|review\s+comments?|release\s+comments?|measurements?|lab\s+comments?)\b/i.test(
+      prompt,
+    )
   ) {
     return true;
   }
@@ -750,7 +798,9 @@ export function isListSubProcessorsPrompt(prompt: string): boolean {
     return false;
   }
 
-  if (/\bwho\s+are\s+(?:our\s+)?(?:data\s+)?sub[- ]?processors?\b/i.test(prompt)) {
+  if (
+    /\bwho\s+are\s+(?:our\s+)?(?:data\s+)?sub[- ]?processors?\b/i.test(prompt)
+  ) {
     return true;
   }
 
@@ -909,13 +959,17 @@ export function isConfigureGranularConsentPrompt(prompt: string): boolean {
   if (isReadOnlyComplianceStatusPrompt(prompt)) return false;
 
   if (
-    /\b(explain|describe|what|which|why|how|show\s+me|status)\b/i.test(prompt) &&
+    /\b(explain|describe|what|which|why|how|show\s+me|status)\b/i.test(
+      prompt,
+    ) &&
     !MUTATE_COMPLIANCE_VERBS.test(prompt)
   ) {
     return false;
   }
 
-  if (/\b(cookie\s+banner|retention|keep\s+customer|hipaa|baa)\b/i.test(prompt)) {
+  if (
+    /\b(cookie\s+banner|retention|keep\s+customer|hipaa|baa)\b/i.test(prompt)
+  ) {
     return false;
   }
 
@@ -1031,7 +1085,9 @@ export function parseEnableHipaaModeFromPrompt(
 export function parseExplainComplianceStatusAspect(
   prompt: string,
 ): ParsedExplainComplianceStatus['aspect'] {
-  if (/\b(?:sub[- ]?processors?|data\s+processors?|article\s+28)\b/i.test(prompt)) {
+  if (
+    /\b(?:sub[- ]?processors?|data\s+processors?|article\s+28)\b/i.test(prompt)
+  ) {
     return 'sub_processors';
   }
   if (
@@ -1092,7 +1148,11 @@ export function parseExplainGdprChecklistFromPrompt(
   if (/\bare\s+we\s+gdpr\s+compliant\b/i.test(prompt)) {
     return { aspect: 'compliance' };
   }
-  if (/\bwhat\s+privacy\s+items?\s+(?:are\s+)?(?:still\s+)?missing\b/i.test(prompt)) {
+  if (
+    /\bwhat\s+privacy\s+items?\s+(?:are\s+)?(?:still\s+)?missing\b/i.test(
+      prompt,
+    )
+  ) {
     return { aspect: 'missing' };
   }
   return { aspect: 'checklist' };
@@ -1291,8 +1351,7 @@ export function parseExplainMinimumNecessaryPhiAccessFromPrompt(
   const aspectFromParams =
     typeof params.aspect === 'string' ? params.aspect.trim() : undefined;
   const aspect =
-    aspectFromParams &&
-    ['all', 'roles', 'fields'].includes(aspectFromParams)
+    aspectFromParams && ['all', 'roles', 'fields'].includes(aspectFromParams)
       ? (aspectFromParams as ParsedExplainMinimumNecessaryPhiAccess['aspect'])
       : /\bwho\s+can\s+see\b/i.test(prompt)
         ? 'roles'
@@ -1631,10 +1690,7 @@ export function collectGdprMissingItems(
       'granular consent at checkout (AI processing and/or third-party integrations)',
     );
   }
-  if (
-    privacy.cookieBanner.enabled &&
-    !privacy.cookieBanner.message.trim()
-  ) {
+  if (privacy.cookieBanner.enabled && !privacy.cookieBanner.message.trim()) {
     missing.push('cookie banner message text');
   }
 

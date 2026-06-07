@@ -130,7 +130,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['gift-cards', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/gift-cards`);
-      return unwrap<unknown[]>(data);
+      return unwrap<GiftCardRow[]>(data);
     },
   });
 

@@ -31,21 +31,23 @@ describe('ai-package-localized-names.logic (ai-cmd-lang-6)', () => {
         metadata: {},
       },
     ]),
-    updatePackage: jest.fn(async (_businessId: string, packageId: string, dto) => {
-      const pkg =
-        packageId === 'pkg-1'
-          ? {
-              id: 'pkg-1',
-              name: 'Spa Day',
-              metadata: { localizedNames: dto.localizedNames ?? {} },
-            }
-          : {
-              id: 'pkg-2',
-              name: 'Wellness',
-              metadata: { localizedNames: dto.localizedNames ?? {} },
-            };
-      return pkg;
-    }),
+    updatePackage: jest.fn(
+      async (_businessId: string, packageId: string, dto) => {
+        const pkg =
+          packageId === 'pkg-1'
+            ? {
+                id: 'pkg-1',
+                name: 'Spa Day',
+                metadata: { localizedNames: dto.localizedNames ?? {} },
+              }
+            : {
+                id: 'pkg-2',
+                name: 'Wellness',
+                metadata: { localizedNames: dto.localizedNames ?? {} },
+              };
+        return pkg;
+      },
+    ),
   };
 
   const deps = () => ({ businessRepo, packagesService });

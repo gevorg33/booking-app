@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    environmentMatchGlobs: [
+      ['src/components/**', 'happy-dom'],
+      ['src/pages/**', 'happy-dom'],
+    ],
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',

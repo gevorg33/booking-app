@@ -106,10 +106,7 @@ function normalizePackageNameCandidate(candidate: string): string | null {
   let name = candidate.trim();
   for (let i = 0; i < 3; i += 1) {
     const next = name
-      .replace(
-        /^(?:does|do|what|which|show|explain|the|a|an|for|on)\s+/i,
-        '',
-      )
+      .replace(/^(?:does|do|what|which|show|explain|the|a|an|for|on)\s+/i, '')
       .trim();
     if (next === name) break;
     name = next;

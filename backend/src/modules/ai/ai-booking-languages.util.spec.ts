@@ -44,7 +44,9 @@ describe('ai-booking-languages.util (ai-cmd-lang-5)', () => {
 
   it('does not steal dashboard language settings prompts', () => {
     expect(
-      isExplainBookingLanguagesPrompt('What languages are enabled for our salon?'),
+      isExplainBookingLanguagesPrompt(
+        'What languages are enabled for our salon?',
+      ),
     ).toBe(false);
     expect(
       isExplainBookingLanguagesPrompt('Explain our language settings'),

@@ -29,11 +29,13 @@ describe('Marketing automation + notifications integration', () => {
     businessRepo as any,
     customerRepo as any,
     notificationLogRepo as any,
+    { findOne: jest.fn() } as any,
     emailService as any,
     smsService as any,
     whatsAppService as any,
     whatsappIntegrationService as any,
     configService as any,
+    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
   );
 
   const booking = {

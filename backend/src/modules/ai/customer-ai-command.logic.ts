@@ -14,6 +14,9 @@ import type { AiBusinessTaxService } from './ai-business-tax.service.js';
 import type { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import type { AiTourServiceService } from './ai-tour-service.service.js';
 import type { AiRecommendationProductService } from './ai-recommendation-product.service.js';
+import type { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
+import type { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
+import type { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
 import { mergeCustomerCompoundContext } from './customer-ai-command.util.js';
@@ -36,6 +39,9 @@ export interface CustomerAiCommandLogicDeps {
   businessCompliance: AiBusinessComplianceService;
   tourService: AiTourServiceService;
   recommendationProduct: AiRecommendationProductService;
+  consumerClinicTestResults: AiConsumerClinicTestResultsService;
+  clinicLabBooking: AiClinicLabBookingService;
+  clinicBooking: AiClinicBookingService;
 }
 
 export interface CustomerIntentSession {
@@ -230,12 +236,46 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'list_my_test_results':
+      return deps.consumerClinicTestResults.handleListMyTestResults(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_result_status':
+      return deps.consumerClinicTestResults.handleExplainResultStatus(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'list_my_lab_booking_requests':
+      return deps.clinicLabBooking.handleListMyLabBookingRequests(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'book_lab_collection':
+      return deps.clinicLabBooking.handleBookLabCollection(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_clinic_booking':
+      return deps.clinicBooking.handleExplainClinicBooking(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_stripe_checkout_currency':
-      return deps.businessCurrency.handleExplainStripeCheckoutCurrency(businessId);
+      return deps.businessCurrency.handleExplainStripeCheckoutCurrency(
+        businessId,
+      );
     case 'explain_tenant_currency':
       return deps.businessCurrency.handleExplainTenantCurrency(businessId);
     case 'explain_notification_currency':
-      return deps.businessCurrency.handleExplainNotificationCurrency(businessId);
+      return deps.businessCurrency.handleExplainNotificationCurrency(
+        businessId,
+      );
     case 'explain_why_stripe_required':
       return deps.payments.handleExplainWhyStripeRequired(businessId);
     case 'receipt_status':

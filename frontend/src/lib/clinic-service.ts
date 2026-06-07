@@ -20,6 +20,7 @@ export interface PublicClinicServiceFields {
   requiresFasting?: boolean;
   preparationNotes?: string;
   acceptsPatientNotes?: boolean;
+  offersPreVisitIntake?: boolean;
 }
 
 export function isPublicClinicService(

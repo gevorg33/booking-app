@@ -1,7 +1,8 @@
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
 import type { ConsumerCheckoutSuccessAspect } from './ai-consumer-checkout-success.util.js';
 
-export type ConsumerCheckoutSuccessEvalAction = 'explain_consumer_checkout_success';
+export type ConsumerCheckoutSuccessEvalAction =
+  'explain_consumer_checkout_success';
 
 export interface ConsumerCheckoutSuccessEvalScenario {
   id: string;
@@ -65,8 +66,7 @@ export const EN_CONSUMER_CHECKOUT_SUCCESS_EVAL_SCENARIOS: ConsumerCheckoutSucces
     {
       id: 'en-dismiss-button-meaning',
       locale: 'en',
-      prompt:
-        'What does Dismiss recommendations do on the app success screen?',
+      prompt: 'What does Dismiss recommendations do on the app success screen?',
       expectedAction: 'explain_consumer_checkout_success',
       rescueReason: 'explain_consumer_checkout_success',
       aspect: 'dismiss',

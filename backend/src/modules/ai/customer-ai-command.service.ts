@@ -20,6 +20,7 @@ import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import { rescueCheckoutTaxIntent } from './ai-checkout-tax.util.js';
 import { rescueExplainDataRightsIntent } from './ai-data-rights.util.js';
+import { rescueConsumerClinicTestResultsIntent } from './ai-consumer-clinic-test-results.util.js';
 import { rescueBookingLanguagesIntent } from './ai-booking-languages.util.js';
 import { rescueBookingDateFormatIntent } from './ai-booking-date-format.util.js';
 import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
@@ -40,6 +41,11 @@ import { rescueTourBookingIntent } from './ai-tour-booking.util.js';
 import { rescueTourDaySlotsIntent } from './ai-tour-day-slots.util.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
+import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
+import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
+import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { rescueConsumerClinicLabBookingIntent } from './ai-clinic-lab-booking.util.js';
+import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
 import { rescueExplainCheckoutRecommendationsIntent } from './ai-checkout-recommendations.util.js';
 import { rescueExplainConsumerCheckoutSuccessIntent } from './ai-consumer-checkout-success.util.js';
 import { rescueExplainConsumerCheckoutTaxIntent } from './ai-consumer-checkout-tax.util.js';
@@ -87,6 +93,9 @@ export class CustomerAiCommandService {
     private readonly businessCompliance: AiBusinessComplianceService,
     private readonly tourService: AiTourServiceService,
     private readonly recommendationProduct: AiRecommendationProductService,
+    private readonly consumerClinicTestResults: AiConsumerClinicTestResultsService,
+    private readonly clinicLabBooking: AiClinicLabBookingService,
+    private readonly clinicBooking: AiClinicBookingService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
   ) {
@@ -106,6 +115,9 @@ export class CustomerAiCommandService {
       businessCompliance: this.businessCompliance,
       tourService: this.tourService,
       recommendationProduct: this.recommendationProduct,
+      consumerClinicTestResults: this.consumerClinicTestResults,
+      clinicLabBooking: this.clinicLabBooking,
+      clinicBooking: this.clinicBooking,
     };
   }
 
@@ -343,6 +355,9 @@ export class CustomerAiCommandService {
       rescueTourDaySlotsIntent(prompt, action) ??
       rescueTourBookingIntent(prompt, action) ??
       rescueExplainDataRightsIntent(prompt, action) ??
+      rescueConsumerClinicTestResultsIntent(prompt, action) ??
+      rescueConsumerClinicLabBookingIntent(prompt, action) ??
+      rescueExplainClinicBookingIntent(prompt, action) ??
       rescueCheckoutTaxIntent(prompt, action) ??
       rescueCheckoutCurrencyIntent(prompt, action) ??
       rescueBookingLanguagesIntent(prompt, action) ??

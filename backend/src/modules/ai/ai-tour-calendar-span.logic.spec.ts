@@ -64,12 +64,7 @@ describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
   };
 
   const bookingService = {
-    findAll: jest.fn(async () => [
-      trekBooking,
-      sameDayA,
-      sameDayB,
-      longTour,
-    ]),
+    findAll: jest.fn(async () => [trekBooking, sameDayA, sameDayB, longTour]),
   };
 
   beforeEach(() => {

@@ -21,7 +21,8 @@ export const LOOKUP_BOOKING_TAX_METADATA_PROMPTS = [
   },
   {
     id: 'get-frozen-vat-stripe',
-    prompt: 'Get frozen VAT breakdown after Stripe payment for booking bk-tax-001',
+    prompt:
+      'Get frozen VAT breakdown after Stripe payment for booking bk-tax-001',
   },
   {
     id: 'support-tax-metadata',
@@ -29,6 +30,7 @@ export const LOOKUP_BOOKING_TAX_METADATA_PROMPTS = [
   },
   {
     id: 'stripe-checkout-tax-snapshot',
-    prompt: 'What tax snapshot is stored on metadata.pricing for the Stripe checkout booking?',
+    prompt:
+      'What tax snapshot is stored on metadata.pricing for the Stripe checkout booking?',
   },
 ] as const;

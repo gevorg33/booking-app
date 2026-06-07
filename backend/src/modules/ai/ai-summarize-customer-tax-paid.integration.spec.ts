@@ -76,7 +76,9 @@ describe('ai summarize customer tax paid integration (ai-cmd-tax-13)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    bookingRepo.find.mockResolvedValue(bookings.map((booking) => ({ ...booking })));
+    bookingRepo.find.mockResolvedValue(
+      bookings.map((booking) => ({ ...booking })),
+    );
     rescue = new AiIntentRescueService();
   });
 

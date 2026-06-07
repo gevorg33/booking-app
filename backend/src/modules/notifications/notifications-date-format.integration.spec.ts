@@ -45,11 +45,13 @@ function createHarness() {
     { findOne: jest.fn() } as any,
     { findOne: jest.fn() } as any,
     logRepo as any,
+    { findOne: jest.fn() } as any,
     emailService as any,
     smsService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
+    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
   );
 
   return { service, bookingRepo, emailService, smsService, whatsappService };

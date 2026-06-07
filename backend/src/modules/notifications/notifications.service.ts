@@ -54,6 +54,23 @@ import {
   resolveEmailFooterNote,
 } from '../../common/utils/notification-currency.util.js';
 import { readBusinessTaxSettings } from '../../common/utils/business-tax.util.js';
+import { isClinicVerticalBusinessType } from '../../common/utils/clinic-service.util.js';
+import { formatResultReadyNotificationWhen } from '../../common/utils/notification-date-format.util.js';
+import { buildClinicLabBookingRequestLinks } from '../../common/utils/clinic-lab-booking-request-link.util.js';
+import { buildClinicResultReadyLinks } from '../../common/utils/clinic-result-ready-link.util.js';
+import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import { ConsumerPushDispatchService } from './consumer-push-dispatch.service.js';
+import {
+  buildConsumerLabBookingRequestPushPayload,
+  buildConsumerResultReadyPushPayload,
+} from './consumer-transactional-push.util.js';
+
+export type ResultReadyDeliveryChannel = NotificationChannel | 'push';
+
+export interface ResultReadyDeliverySummary {
+  delivered: ResultReadyDeliveryChannel[];
+  pushSkippedReason?: string;
+}
 
 interface BookingNotificationContext {
   booking: Booking;
@@ -71,11 +88,14 @@ export class NotificationsService {
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(NotificationLog)
     private logRepo: Repository<NotificationLog>,
+    @InjectRepository(ClinicTestResult)
+    private resultRepo: Repository<ClinicTestResult>,
     private emailService: EmailService,
     private smsService: SmsService,
     private whatsappService: WhatsAppService,
     private whatsappIntegrationService: WhatsAppIntegrationService,
     private configService: ConfigService,
+    private consumerPushDispatch: ConsumerPushDispatchService,
   ) {}
 
   async getBusinessSettings(
@@ -456,6 +476,303 @@ export class NotificationsService {
     if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
       await this.dispatch(ctx, 'review_request', 'sms', customer.phone, () =>
         this.buildReviewRequestSms(ctx, reviewUrl),
+      );
+    }
+  }
+
+  /** Clinic vertical — notify patient when a lab result is released (vert-clinic-2.4.2 / 2.4.7). */
+  async sendClinicResultReady(
+    resultId: string,
+  ): Promise<ResultReadyDeliverySummary> {
+    const delivered: ResultReadyDeliveryChannel[] = [];
+    let pushSkippedReason: string | undefined;
+
+    const result = await this.resultRepo.findOne({
+      where: { id: resultId },
+      relations: {
+        customer: true,
+        order: true,
+        testType: true,
+        business: true,
+      },
+    });
+    if (!result || result.status !== 'Released') {
+      return { delivered };
+    }
+    if (!result.customer || !result.business) {
+      return { delivered };
+    }
+
+    const businessSettingsRaw = result.business.settings as
+      | Record<string, unknown>
+      | undefined;
+    const businessType =
+      typeof businessSettingsRaw?.businessType === 'string'
+        ? businessSettingsRaw.businessType
+        : undefined;
+    if (!isClinicVerticalBusinessType(businessType)) {
+      return { delivered };
+    }
+
+    const businessSettings = mergeBusinessNotificationSettings(
+      businessSettingsRaw?.notifications as Record<string, unknown> | undefined,
+    );
+    const prefs = getCustomerNotificationPreferences(result.customer.metadata);
+    const locale = this.businessLocale(businessSettingsRaw);
+    const whenLabel = formatResultReadyNotificationWhen(
+      result.releasedAt ?? new Date(),
+      businessSettingsRaw,
+      locale,
+    );
+    const testName =
+      result.testType?.title ??
+      result.order?.displayNames ??
+      t(locale, 'email.defaultServiceName');
+    const resultLinks = buildClinicResultReadyLinks(
+      result.business.slug,
+      this.configService.get<string>('FRONTEND_URL'),
+    );
+    const accountLine = resultLinks
+      ? t(locale, 'email.clinicResultReadyAccountLink', {
+          url: resultLinks.webResultsUrl,
+        })
+      : '';
+
+    const logBookingId = result.bookingId ?? result.id;
+    const ctx = result.bookingId
+      ? await this.loadContext(result.bookingId)
+      : null;
+
+    if (
+      businessSettings.sendResultReadyEmail &&
+      businessSettings.emailEnabled &&
+      prefs.emailReminders &&
+      result.customer.email
+    ) {
+      const sent = await this.dispatchResultReady(
+        logBookingId,
+        result.businessId,
+        ctx,
+        'result_ready',
+        'email',
+        result.customer.email,
+        () =>
+          this.buildClinicResultReadyEmail(
+            result.business.name,
+            result.customer.name,
+            testName,
+            whenLabel,
+            accountLine,
+            locale,
+          ),
+      );
+      if (sent) delivered.push('email');
+    }
+
+    if (
+      businessSettings.smsEnabled &&
+      prefs.smsReminders &&
+      result.customer.phone
+    ) {
+      const sent = await this.dispatchResultReady(
+        logBookingId,
+        result.businessId,
+        ctx,
+        'result_ready',
+        'sms',
+        result.customer.phone,
+        () =>
+          this.buildClinicResultReadySms(
+            result.business.name,
+            testName,
+            whenLabel,
+            accountLine,
+            locale,
+          ),
+      );
+      if (sent) delivered.push('sms');
+    }
+
+    if (
+      businessSettings.whatsappEnabled &&
+      businessSettings.sendResultReadyWhatsapp &&
+      prefs.whatsappReminders &&
+      result.customer.phone &&
+      ctx
+    ) {
+      const sent = await this.dispatchResultReadyWhatsApp(
+        ctx,
+        'result_ready',
+        result.customer.phone,
+        whenLabel,
+        testName,
+        locale,
+      );
+      if (sent) delivered.push('whatsapp');
+    }
+
+    if (
+      businessSettings.sendResultReadyPush &&
+      prefs.pushReminders &&
+      resultLinks
+    ) {
+      const pushResult = await this.consumerPushDispatch.sendResultReady(
+        buildConsumerResultReadyPushPayload({
+          url: resultLinks.consumerAppUrl,
+          businessId: result.businessId,
+          customerId: result.customer.id,
+          bookingId: result.bookingId,
+          resultId: result.id,
+          businessName: result.business.name,
+          testName,
+          locale,
+        }),
+      );
+      if (pushResult.ok) {
+        delivered.push('push');
+      } else if (pushResult.skipped) {
+        pushSkippedReason = pushResult.reason;
+      }
+    }
+
+    return { delivered, pushSkippedReason };
+  }
+
+  /** Clinic vertical — notify patient to book lab collection after staff pushes an order. */
+  async sendClinicLabBookingRequest(input: {
+    orderId: string;
+    businessId: string;
+    customerId: string;
+    testNames: string | null | undefined;
+    collectionServiceName: string;
+    collectionServiceId?: string | null;
+    clinicOrderToken?: string | null;
+    bookUrl: string;
+    accountUrl: string;
+  }): Promise<void> {
+    const [business, customer] = await Promise.all([
+      this.businessRepo.findOne({ where: { id: input.businessId } }),
+      this.customerRepo.findOne({ where: { id: input.customerId } }),
+    ]);
+    if (!business || !customer) return;
+
+    const businessSettings = mergeBusinessNotificationSettings(
+      (business.settings as Record<string, unknown> | undefined)
+        ?.notifications as Record<string, unknown> | undefined,
+    );
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    const locale = this.businessLocale(
+      business.settings as Record<string, unknown> | undefined,
+    );
+    const testNames =
+      input.testNames?.trim() || t(locale, 'email.defaultServiceName');
+    const customerName =
+      customer.name?.trim() || t(locale, 'email.defaultCustomerName');
+
+    if (
+      businessSettings.emailEnabled &&
+      prefs.emailReminders &&
+      customer.email
+    ) {
+      await this.dispatch(
+        {
+          booking: {
+            id: input.orderId,
+            businessId: input.businessId,
+          } as Booking,
+          business,
+          businessSettings,
+        },
+        'lab_booking_request',
+        'email',
+        customer.email,
+        () => ({
+          subject: t(locale, 'email.clinicLabBookingRequestSubject', {
+            businessName: business.name,
+          }),
+          text: t(locale, 'email.clinicLabBookingRequestBody', {
+            customerName,
+            testNames,
+            collectionServiceName: input.collectionServiceName,
+            bookUrl: input.bookUrl,
+          }),
+          html: `<p>${t(locale, 'email.clinicLabBookingRequestBody', {
+            customerName,
+            testNames,
+            collectionServiceName: input.collectionServiceName,
+            bookUrl: input.bookUrl,
+          })}</p>`,
+        }),
+      );
+    }
+
+    if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
+      await this.dispatch(
+        {
+          booking: {
+            id: input.orderId,
+            businessId: input.businessId,
+          } as Booking,
+          business,
+          businessSettings,
+        },
+        'lab_booking_request',
+        'sms',
+        customer.phone,
+        () => ({
+          text: t(locale, 'email.clinicLabBookingRequestSms', {
+            businessName: business.name,
+            collectionServiceName: input.collectionServiceName,
+            testNames,
+            bookUrl: input.bookUrl,
+          }),
+        }),
+      );
+    }
+
+    if (
+      businessSettings.whatsappEnabled &&
+      prefs.whatsappReminders &&
+      customer.phone
+    ) {
+      await this.dispatchLabBookingRequestWhatsApp({
+        orderId: input.orderId,
+        businessId: input.businessId,
+        business,
+        customerName,
+        collectionServiceName: input.collectionServiceName,
+        testNames,
+        phone: customer.phone,
+        locale,
+      });
+    }
+
+    const labRequestLinks = buildClinicLabBookingRequestLinks(
+      business.slug,
+      this.configService.get<string>('FRONTEND_URL'),
+      {
+        collectionServiceId: input.collectionServiceId,
+        clinicOrderToken: input.clinicOrderToken,
+      },
+    );
+    if (
+      businessSettings.sendLabBookingRequestPush &&
+      prefs.pushReminders &&
+      labRequestLinks
+    ) {
+      await this.consumerPushDispatch.sendLabBookingRequest(
+        buildConsumerLabBookingRequestPushPayload({
+          url: labRequestLinks.consumerAppUrl,
+          businessId: input.businessId,
+          customerId: input.customerId,
+          orderId: input.orderId,
+          businessName: business.name,
+          collectionServiceName: input.collectionServiceName,
+          testNames,
+          collectionServiceId: input.collectionServiceId,
+          clinicOrderToken: input.clinicOrderToken,
+          locale,
+        }),
       );
     }
   }
@@ -1427,5 +1744,258 @@ export class NotificationsService {
     return {
       text: `${business.name}: Thanks for visiting! Leave a review: ${reviewUrl}`,
     };
+  }
+
+  private buildClinicResultReadyEmail(
+    businessName: string,
+    customerName: string | null | undefined,
+    testName: string,
+    whenLabel: string,
+    accountLine: string,
+    locale: AppLocale,
+  ) {
+    const name = customerName?.trim() || t(locale, 'email.defaultCustomerName');
+    const text = t(locale, 'email.clinicResultReadyBody', {
+      customerName: name,
+      testName,
+      whenLabel,
+      accountLine,
+    });
+    return {
+      subject: t(locale, 'email.clinicResultReadySubject', { businessName }),
+      text,
+      html: `<p>${text.replace(/\n/g, '<br/>')}</p>`,
+    };
+  }
+
+  private buildClinicResultReadySms(
+    businessName: string,
+    testName: string,
+    whenLabel: string,
+    accountLine: string,
+    locale: AppLocale,
+  ) {
+    return {
+      text: t(locale, 'email.clinicResultReadySms', {
+        businessName,
+        testName,
+        whenLabel,
+        accountLine,
+      }).trim(),
+    };
+  }
+
+  private async dispatchResultReady(
+    logBookingId: string,
+    businessId: string,
+    _ctx: BookingNotificationContext | null,
+    kind: NotificationKind,
+    channel: NotificationChannel,
+    recipient: string,
+    build: () => { subject?: string; html?: string; text: string } | null,
+  ): Promise<boolean> {
+    const existing = await this.logRepo.findOne({
+      where: {
+        bookingId: logBookingId,
+        kind,
+        channel,
+      },
+    });
+    if (existing) return false;
+
+    const content = build();
+    if (!content) return false;
+    let ok = false;
+    let error: string | undefined;
+
+    if (channel === 'email') {
+      const result = await this.emailService.send({
+        to: recipient,
+        subject: content.subject || 'Test results ready',
+        html: content.html || `<p>${content.text}</p>`,
+        text: content.text,
+      });
+      ok = result.ok;
+      error = result.error;
+    } else {
+      const result = await this.smsService.send(recipient, content.text);
+      ok = result.ok;
+      error = result.error;
+    }
+
+    await this.logRepo.save(
+      this.logRepo.create({
+        businessId,
+        bookingId: logBookingId,
+        channel,
+        kind,
+        recipient,
+        status: ok ? 'sent' : 'failed',
+        error: error ?? null,
+      }),
+    );
+
+    if (!ok) {
+      this.logger.warn(
+        `Failed ${kind} ${channel} for clinic result booking ${logBookingId}: ${error}`,
+      );
+    }
+
+    return ok;
+  }
+
+  private async dispatchLabBookingRequestWhatsApp(input: {
+    orderId: string;
+    businessId: string;
+    business: Business;
+    customerName: string;
+    collectionServiceName: string;
+    testNames: string;
+    phone: string;
+    locale: AppLocale;
+  }): Promise<boolean> {
+    const existing = await this.logRepo.findOne({
+      where: {
+        bookingId: input.orderId,
+        kind: 'lab_booking_request',
+        channel: 'whatsapp',
+      },
+    });
+    if (existing) return false;
+
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(
+      input.business.settings,
+    );
+    if (!config) {
+      this.logger.warn(
+        `WhatsApp not configured for business ${input.businessId}`,
+      );
+      return false;
+    }
+
+    const reminderLabel = t(
+      input.locale,
+      'email.clinicLabBookingRequestWhatsapp',
+      {
+        collectionServiceName: input.collectionServiceName,
+        testNames: input.testNames,
+      },
+    );
+
+    const result = await this.whatsappService.sendBookingMessage(
+      {
+        kind: 'lab_booking_request',
+        toPhone: input.phone,
+        customerName: input.customerName,
+        businessName: input.business.name,
+        serviceName: input.collectionServiceName,
+        providerName: t(input.locale, 'email.defaultProviderName'),
+        dateLabel: '—',
+        timeLabel: '—',
+        reminderLabel,
+      },
+      config,
+    );
+
+    await this.logRepo.save(
+      this.logRepo.create({
+        businessId: input.businessId,
+        bookingId: input.orderId,
+        channel: 'whatsapp',
+        kind: 'lab_booking_request',
+        recipient: input.phone,
+        status: result.ok ? 'sent' : 'failed',
+        error: result.error ?? null,
+      }),
+    );
+
+    if (!result.ok) {
+      this.logger.warn(
+        `Failed lab_booking_request whatsapp for order ${input.orderId}: ${result.error}`,
+      );
+    }
+
+    return result.ok;
+  }
+
+  private async dispatchResultReadyWhatsApp(
+    ctx: BookingNotificationContext,
+    kind: NotificationKind,
+    phone: string,
+    whenLabel: string,
+    testName: string,
+    locale: AppLocale,
+  ): Promise<boolean> {
+    const existing = await this.logRepo.findOne({
+      where: {
+        bookingId: ctx.booking.id,
+        kind,
+        channel: 'whatsapp',
+      },
+    });
+    if (existing) return false;
+
+    const config = this.whatsappIntegrationService.resolveRuntimeConfig(
+      ctx.business.settings,
+    );
+    if (!config) {
+      this.logger.warn(
+        `WhatsApp not configured for business ${ctx.business.id}`,
+      );
+      return false;
+    }
+
+    const { booking, business } = ctx;
+    const dateLabel = formatNotificationDateDisplay(
+      booking.startTime,
+      business.settings,
+      locale,
+    );
+    const timeLabel = formatNotificationTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      business.settings,
+      locale,
+    );
+    const reminderLabel = t(locale, 'email.clinicResultReadyWhatsappLabel', {
+      whenLabel,
+    });
+
+    const result = await this.whatsappService.sendBookingMessage(
+      {
+        kind,
+        toPhone: phone,
+        customerName:
+          booking.customer?.name ?? t(locale, 'email.defaultCustomerName'),
+        businessName: business.name,
+        serviceName: testName,
+        providerName:
+          booking.employee?.name ?? t(locale, 'email.defaultProviderName'),
+        dateLabel,
+        timeLabel,
+        reminderLabel,
+      },
+      config,
+    );
+
+    await this.logRepo.save(
+      this.logRepo.create({
+        businessId: booking.businessId,
+        bookingId: booking.id,
+        channel: 'whatsapp',
+        kind,
+        recipient: phone,
+        status: result.ok ? 'sent' : 'failed',
+        error: result.error ?? null,
+      }),
+    );
+
+    if (!result.ok) {
+      this.logger.warn(
+        `Failed ${kind} whatsapp for booking ${booking.id}: ${result.error}`,
+      );
+    }
+
+    return result.ok;
   }
 }

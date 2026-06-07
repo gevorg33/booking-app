@@ -27,7 +27,9 @@ export const STACKED_TAX_INTENTS = [
   'explain_stacked_tax',
 ] as const;
 
-export const STACKED_TAX_MUTATE_INTENTS = ['configure_stacked_tax_rules'] as const;
+export const STACKED_TAX_MUTATE_INTENTS = [
+  'configure_stacked_tax_rules',
+] as const;
 
 export type StackedTaxIntent = (typeof STACKED_TAX_INTENTS)[number];
 
@@ -78,9 +80,7 @@ function normalizeStackedTaxName(raw: string): string {
 }
 
 function hasStackedTaxContext(prompt: string): boolean {
-  if (
-    /\b(stack(?:ed)?|multiple\s+tax\s+rules?|tax\s+rules?)\b/i.test(prompt)
-  ) {
+  if (/\b(stack(?:ed)?|multiple\s+tax\s+rules?|tax\s+rules?)\b/i.test(prompt)) {
     return true;
   }
   if (
@@ -301,7 +301,10 @@ export function isConfigureStackedTaxRulesPrompt(prompt: string): boolean {
     /\b(explain|describe|what|which|why|how|list|show)\b/i.test(prompt) &&
     !/\b(?:add|stack|remove|delete|drop)\b/i.test(prompt) &&
     !(containsArmenianScript(prompt) && /(ավելացնել|հեռացնել)/i.test(prompt)) &&
-    !(containsCyrillicScript(prompt) && /(добавить|удалить|убрать|настроить)/i.test(prompt))
+    !(
+      containsCyrillicScript(prompt) &&
+      /(добавить|удалить|убрать|настроить)/i.test(prompt)
+    )
   ) {
     return false;
   }
@@ -316,7 +319,8 @@ export function isConfigureStackedTaxRulesPrompt(prompt: string): boolean {
   if (
     /\b(?:add|stack|set up)\b/i.test(prompt) ||
     (containsArmenianScript(prompt) && /(ավելացնել|կուտակել)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(добавить|настроить|stack)/i.test(prompt))
+    (containsCyrillicScript(prompt) &&
+      /(добавить|настроить|stack)/i.test(prompt))
   ) {
     return true;
   }

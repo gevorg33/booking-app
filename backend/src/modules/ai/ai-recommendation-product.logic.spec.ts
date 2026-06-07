@@ -25,13 +25,19 @@ describe('ai-recommendation-product.logic (ai-cmd-rec-1)', () => {
 
   const inventoryService = {
     listProducts: jest.fn(async () => [...products]),
-    createProduct: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
-      id: 'prod-new',
-      businessId: 'biz-1',
-      ...dto,
-    })),
+    createProduct: jest.fn(
+      async (_businessId: string, dto: Record<string, unknown>) => ({
+        id: 'prod-new',
+        businessId: 'biz-1',
+        ...dto,
+      }),
+    ),
     updateProduct: jest.fn(
-      async (_id: string, _businessId: string, dto: Record<string, unknown>) => ({
+      async (
+        _id: string,
+        _businessId: string,
+        dto: Record<string, unknown>,
+      ) => ({
         ...products[0],
         ...dto,
       }),
@@ -164,11 +170,12 @@ describe('ai-recommendation-product link logic (ai-cmd-rec-2)', () => {
       entry.prompt,
     );
     expect(result.success).toBe(true);
-    expect(productRecommendationService.setServiceRecommendations).toHaveBeenCalledWith(
-      'biz-1',
-      'svc-haircut',
-      ['prod-shampoo', 'prod-conditioner'],
-    );
+    expect(
+      productRecommendationService.setServiceRecommendations,
+    ).toHaveBeenCalledWith('biz-1', 'svc-haircut', [
+      'prod-shampoo',
+      'prod-conditioner',
+    ]);
   });
 
   it('links products to a category', async () => {
@@ -226,8 +233,11 @@ describe('ai-recommendation-product explain logic (ai-cmd-rec-3)', () => {
     findOne: jest.fn(async () => business),
   };
   const inventoryService = {
-    listProducts: jest.fn(async (_biz: string, _loc?: string, includeInactive?: boolean) =>
-      includeInactive ? [...products] : products.filter((item) => item.isActive),
+    listProducts: jest.fn(
+      async (_biz: string, _loc?: string, includeInactive?: boolean) =>
+        includeInactive
+          ? [...products]
+          : products.filter((item) => item.isActive),
     ),
   };
   const serviceRepo = {

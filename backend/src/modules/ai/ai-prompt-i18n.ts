@@ -12,6 +12,15 @@ import { PACKAGE_LOCALIZED_NAMES_MULTILINGUAL_CLASSIFIER_RULES } from './ai-pack
 import { TOUR_CALENDAR_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-calendar-multilingual.fixtures.js';
 import { RECOMMENDATION_PRODUCT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recommendation-product-multilingual.fixtures.js';
 import { RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recommendation-analytics-multilingual.fixtures.js';
+import { CLINIC_TEST_ORDER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-test-order-multilingual.fixtures.js';
+import { CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-test-result-multilingual.fixtures.js';
+import { CLINIC_PATIENT_CHART_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-patient-chart-multilingual.fixtures.js';
+import { PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-clinic-collection-multilingual.fixtures.js';
+import { CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results-multilingual.fixtures.js';
+import { CLINIC_V2_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-v2-6-multilingual.fixtures.js';
+import { CLINIC_COMPOUND_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-compound-multilingual.fixtures.js';
+import { CLINIC_SERVICE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-service-multilingual.fixtures.js';
+import { CLINIC_LAB_BOOKING_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-lab-booking-multilingual.fixtures.js';
 import { TOUR_CONSUMER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-consumer-multilingual.fixtures.js';
 import { TOUR_SERVICE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-service-multilingual.fixtures.js';
 
@@ -154,7 +163,25 @@ ${TOUR_CALENDAR_MULTILINGUAL_CLASSIFIER_RULES}
 
 ${RECOMMENDATION_PRODUCT_MULTILINGUAL_CLASSIFIER_RULES}
 
-${RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES}`;
+${RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_SERVICE_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_TEST_ORDER_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_PATIENT_CHART_MULTILINGUAL_CLASSIFIER_RULES}
+
+${PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_V2_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_COMPOUND_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_LAB_BOOKING_MULTILINGUAL_CLASSIFIER_RULES}`;
 
 /** Context block for classify_intent when the prompt is non-English. */
 export function buildMultilingualClassifierContext(

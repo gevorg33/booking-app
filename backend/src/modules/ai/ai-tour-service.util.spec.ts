@@ -165,7 +165,9 @@ describe('ai-tour-service apply playbook util (ai-cmd-tour-3)', () => {
       }
 
       if (expectedAction === 'list_upcoming_tour_departures') {
-        expect(rescueListUpcomingTourDeparturesIntent(prompt, 'unknown')).toEqual({
+        expect(
+          rescueListUpcomingTourDeparturesIntent(prompt, 'unknown'),
+        ).toEqual({
           action: 'list_upcoming_tour_departures',
           rescueReason: 'list_upcoming_tour_departures',
         });

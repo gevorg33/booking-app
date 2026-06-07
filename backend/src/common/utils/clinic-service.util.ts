@@ -171,3 +171,8 @@ export function clinicServiceAcceptsPatientNotes(
 ): boolean {
   return isClinicService(metadata);
 }
+
+export {
+  isClinicLabTestService,
+  clinicLabTestOffersPreVisitIntake,
+} from './clinic-public-pre-visit-intake.util.js';

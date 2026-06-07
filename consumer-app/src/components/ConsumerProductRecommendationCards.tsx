@@ -13,7 +13,7 @@ import {
 } from '../lib/product-recommendation.js';
 import { resolvePublicImageUrl } from '../lib/resolve-public-image-url.js';
 import { formatConsumerPrice, resolveTenantPriceCurrency } from '../lib/business-currency.js';
-import { copy } from '../lib/copy.js';
+import type { ConsumerCopy } from '../lib/copy.js';
 import {
   trackProductRecommendationEvent,
   trackProductRecommendationImpressions,
@@ -25,11 +25,13 @@ export function ConsumerProductRecommendationCards({
   service,
   tenantCurrency,
   bookingId,
+  copy,
 }: {
   slug: string;
   service: PublicService;
   tenantCurrency: string;
   bookingId?: string;
+  copy: ConsumerCopy;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const impressionSeen = useRef(new Set<string>());

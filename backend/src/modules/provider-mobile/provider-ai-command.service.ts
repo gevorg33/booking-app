@@ -96,6 +96,13 @@ import {
   rescueProviderDateFormatIntent,
 } from '../ai/ai-provider-date-format.util.js';
 import { rescueProviderSessionTimeoutIntent } from '../ai/ai-provider-session-timeout.util.js';
+import {
+  parseListMyCollectionQueueFromPrompt,
+  parseMarkSpecimenCollectedFromPrompt,
+  rescueProviderClinicCollectionIntent,
+} from '../ai/ai-provider-clinic-collection.util.js';
+import { AiProviderClinicCollectionService } from '../ai/ai-provider-clinic-collection.service.js';
+import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { PROVIDER_MOBILE_CLASSIFIER_RULES } from '../ai/ai-provider-mobile.fixtures.js';
 import {
   applyProviderMobilePromptHints,
@@ -127,7 +134,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -175,6 +182,8 @@ Rules:
 - explain_provider_date_display: READ — how provider schedule/booking cards format dates and times from auth business dateFormat/timeFormat (fmt-1.8). NOT explain_provider_payment_currency (currency) and NOT explain_last_push (push actions).
 - configure_provider_push_date_format: MUTATE — wire FCM push booking times to business timeFormat when fmt-1.8 push bodies ship (confirmation required). NOT explain_provider_date_display (read-only).
 - explain_provider_session_timeout: READ — clinic only: when provider mobile app auto-logs out after HIPAA inactivity timeout (compliance-1.13 provider deferred). NOT explain_provider_date_display (date formatting) and NOT dashboard explain_hipaa_session_timeout.
+- list_my_collection_queue: READ — clinic only: own specimen collection worklist (draws/recollects) for today or a date. NOT list_bookings (appointments) and NOT dashboard list_test_orders.
+- mark_specimen_collected: MUTATE — clinic only: mark a specimen Collected for an assigned visit. Requires customerName or specimenId or orderId. NOT mark_paid (payment) and NOT enter_test_result (dashboard).
 - confirm_booking_from_push: confirm one booking — same as Confirm on a new-booking push. Requires bookingId (inherit from lastPush).
 - suggest_reschedule_from_push: open AI to reschedule — same as Reschedule on a new-booking push (guidance only, no slot move).
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
@@ -214,6 +223,10 @@ export class ProviderAiCommandService {
     private pushNotifications: AiPushNotificationsService,
     @Inject(forwardRef(() => AiProviderBookingService))
     private providerBooking: AiProviderBookingService,
+    @Inject(forwardRef(() => AiProviderClinicCollectionService))
+    private providerClinicCollection: AiProviderClinicCollectionService,
+    @Inject(forwardRef(() => AiClinicLabBookingService))
+    private clinicLabBooking: AiClinicLabBookingService,
     private businessCurrency: AiBusinessCurrencyService,
     private businessDateFormat: AiBusinessDateFormatService,
     private businessTax: AiBusinessTaxService,
@@ -335,9 +348,14 @@ export class ProviderAiCommandService {
       context,
     ) as Record<string, unknown>;
     parsed.params = applyProviderEntityMemory(parsed.params, prompt, context);
-    applyProviderMobilePromptHints(parsed.action, parsed.params as Record<string, any>, prompt, {
-      session: context,
-    });
+    applyProviderMobilePromptHints(
+      parsed.action,
+      parsed.params as Record<string, any>,
+      prompt,
+      {
+        session: context,
+      },
+    );
     this.completionPipeline.normalizeDateParams(
       parsed.params as Record<string, any>,
     );
@@ -382,6 +400,27 @@ export class ProviderAiCommandService {
     if (providerSessionTimeoutRescue) {
       parsed.action = providerSessionTimeoutRescue.action;
       rescueReason = providerSessionTimeoutRescue.rescueReason;
+    }
+
+    const providerClinicCollectionRescue = rescueProviderClinicCollectionIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerClinicCollectionRescue) {
+      parsed.action = providerClinicCollectionRescue.action;
+      rescueReason = providerClinicCollectionRescue.rescueReason;
+      if (providerClinicCollectionRescue.action === 'mark_specimen_collected') {
+        const markParsed = parseMarkSpecimenCollectedFromPrompt(prompt);
+        if (markParsed?.customerName) {
+          parsed.params.customerName = markParsed.customerName;
+        }
+        if (markParsed?.specimenId)
+          parsed.params.specimenId = markParsed.specimenId;
+        if (markParsed?.orderId) parsed.params.orderId = markParsed.orderId;
+      } else {
+        const listParsed = parseListMyCollectionQueueFromPrompt(prompt);
+        if (listParsed?.date) parsed.params.date = listParsed.date;
+      }
     }
 
     const providerDateFormatRescue = rescueProviderDateFormatIntent(
@@ -434,9 +473,14 @@ export class ProviderAiCommandService {
       rescueReason,
       compoundStepCount: 1,
     });
-    applyProviderMobilePromptHints(parsed.action, parsed.params as Record<string, any>, prompt, {
-      session: context,
-    });
+    applyProviderMobilePromptHints(
+      parsed.action,
+      parsed.params as Record<string, any>,
+      prompt,
+      {
+        session: context,
+      },
+    );
 
     if (shouldValidateProviderAction(parsed.action)) {
       const validation = validateProviderCommand(parsed.action, parsed.params);
@@ -752,6 +796,42 @@ export class ProviderAiCommandService {
             businessId,
           );
         break;
+      case 'list_my_collection_queue':
+        result =
+          await this.providerClinicCollection.handleListMyCollectionQueue(
+            businessId,
+            {
+              ...parsed.params,
+              sessionEmployeeId: scopedEmployeeId ?? undefined,
+              _prompt: prompt,
+            },
+            prompt,
+          );
+        break;
+      case 'mark_specimen_collected':
+        result =
+          await this.providerClinicCollection.handleMarkSpecimenCollected(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              sessionEmployeeId: scopedEmployeeId ?? undefined,
+              _prompt: prompt,
+            },
+            prompt,
+          );
+        break;
+      case 'list_patient_pending_lab_requests':
+        result =
+          await this.clinicLabBooking.handleListPatientPendingLabRequests(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              sessionEmployeeId: scopedEmployeeId ?? undefined,
+            },
+          );
+        break;
       default:
         result = {
           success: false,
@@ -803,9 +883,14 @@ export class ProviderAiCommandService {
         ...step.params,
         _prompt: step.segment,
       };
-      applyProviderMobilePromptHints(step.action, stepParams as Record<string, any>, step.segment, {
-        session: compoundContext,
-      });
+      applyProviderMobilePromptHints(
+        step.action,
+        stepParams as Record<string, any>,
+        step.segment,
+        {
+          session: compoundContext,
+        },
+      );
 
       let stepResult: ProviderCommandResult;
       switch (step.action) {
@@ -868,7 +953,10 @@ export class ProviderAiCommandService {
             success: false,
             action: step.action,
             summary: `Unsupported provider mobile compound step: ${step.action}.`,
-            details: { failedStep: step.action, completedSteps: results.length },
+            details: {
+              failedStep: step.action,
+              completedSteps: results.length,
+            },
           };
       }
 

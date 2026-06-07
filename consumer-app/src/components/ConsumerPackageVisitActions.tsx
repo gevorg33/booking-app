@@ -1,7 +1,8 @@
 import { IonButton, IonDatetime, IonSpinner } from '@ionic/react';
 import { useCallback, useEffect, useState } from 'react';
 import type { PublicBusinessProfile, PublicPackageVisitSummary } from '../lib/types.js';
-import { copy, formatCopy } from '../lib/copy.js';
+import type { ConsumerCopy } from '../lib/copy.js';
+import { formatCopy } from '../lib/copy.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import {
   buildPackageLinesFromBlockStart,
@@ -27,6 +28,7 @@ export function ConsumerPackageVisitActions({
   packageVisit,
   manageToken,
   authed,
+  copy,
   onUpdated,
   onRescheduled,
 }: {
@@ -36,6 +38,7 @@ export function ConsumerPackageVisitActions({
   packageVisit: PublicPackageVisitSummary;
   manageToken?: string;
   authed: boolean;
+  copy: ConsumerCopy;
   onUpdated: () => void;
   onRescheduled?: (previousStartTime: string, newStartTime: string) => void;
 }) {

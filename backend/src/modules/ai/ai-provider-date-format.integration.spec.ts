@@ -45,7 +45,10 @@ describe('ai provider date format integration (ai-cmd-fmt-15..16)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_provider_date_display');
 
-      const result = await handleExplainProviderDateDisplayLogic(deps(), 'biz-1');
+      const result = await handleExplainProviderDateDisplayLogic(
+        deps(),
+        'biz-1',
+      );
       expect(result.success).toBe(true);
       expect(result.summary).toContain('fmt-1.8');
       expect(result.details?.usesAuthBusinessSettings).toBe(true);

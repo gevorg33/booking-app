@@ -36,8 +36,7 @@ export const EXPLAIN_CONSUMER_CHECKOUT_TAX_PROMPTS = [
   },
   {
     id: 'stacked-tax-lines-checkout-app',
-    prompt:
-      'Why do I see GST and PST tax lines when paying in the salon app?',
+    prompt: 'Why do I see GST and PST tax lines when paying in the salon app?',
     aspect: 'checkout' as const,
   },
 ] as const;

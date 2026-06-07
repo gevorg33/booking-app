@@ -6,6 +6,7 @@ import {
   handleExplainComplianceStatusLogic,
   handleExplainGdprChecklistLogic,
   handleListSubProcessorsLogic,
+  handleViewPhiAccessAuditLogic,
 } from './ai-business-compliance.logic.js';
 import type { Business } from '../business/entities/business.entity.js';
 
@@ -253,5 +254,51 @@ describe('ai-business-compliance.logic', () => {
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
     expect(result.details?.missing).toContain('customerName');
+  });
+
+  it('filters PHI audit log entries for lab result comments', async () => {
+    const createdAt = new Date('2026-06-01T12:00:00.000Z');
+    const phiAccessAuditService = {
+      listForOwner: jest.fn(async () => ({
+        total: 2,
+        items: [
+          {
+            id: 'log-1',
+            businessId: 'biz-1',
+            userId: 'user-manager',
+            role: 'manager',
+            action: 'read',
+            resourceType: 'clinic_test_result',
+            resourceId: 'result-1',
+            fieldName: 'comment',
+            createdAt,
+          },
+          {
+            id: 'log-2',
+            businessId: 'biz-1',
+            userId: 'user-manager',
+            role: 'manager',
+            action: 'read',
+            resourceType: 'booking',
+            resourceId: 'booking-1',
+            fieldName: 'notes',
+            createdAt,
+          },
+        ],
+      })),
+    };
+
+    const result = await handleViewPhiAccessAuditLogic(
+      { ...deps(), phiAccessAuditService },
+      'biz-1',
+      'owner-1',
+      {},
+      'Who viewed lab result comments?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('lab result comments');
+    expect(result.summary).toContain('lab result/result-1');
+    expect(result.details?.itemCount).toBe(1);
   });
 });

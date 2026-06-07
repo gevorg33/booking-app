@@ -13,7 +13,8 @@ export const DATE_INPUT_FORMAT_CLASSIFIER_RULES = `- explain_date_input_format: 
 export const EXPLAIN_DATE_INPUT_FORMAT_PROMPTS = [
   {
     id: 'how-typed-fields-parse',
-    prompt: 'How do typed date fields parse input with our current date format?',
+    prompt:
+      'How do typed date fields parse input with our current date format?',
   },
   {
     id: 'date-input-vs-calendar-picker',

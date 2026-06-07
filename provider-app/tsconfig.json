@@ -17,7 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@shared-i18n/*": ["../frontend/src/i18n/*"]
+      "@shared-i18n/*": ["../frontend/src/i18n/*"],
+      "@booking-lib/*": ["../frontend/src/lib/*"]
     }
   },
   "include": ["src"]

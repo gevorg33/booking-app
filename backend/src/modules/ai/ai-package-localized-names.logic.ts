@@ -22,7 +22,10 @@ import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-n
 
 export interface PackageLocalizedNamesLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne'>;
-  packagesService: Pick<ServicePackagesService, 'listPackages' | 'updatePackage'>;
+  packagesService: Pick<
+    ServicePackagesService,
+    'listPackages' | 'updatePackage'
+  >;
 }
 
 function failure(
@@ -91,7 +94,9 @@ export async function handleConfigurePackageLocalizedNamesLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_package_localized_names', 'Business not found.');
   }
@@ -108,7 +113,11 @@ export async function handleConfigurePackageLocalizedNamesLogic(
     );
   }
 
-  const packages = await deps.packagesService.listPackages(businessId, 'all', true);
+  const packages = await deps.packagesService.listPackages(
+    businessId,
+    'all',
+    true,
+  );
   const pkg = parsed.packageId
     ? packages.find((item) => item.id === parsed.packageId)
     : parsed.packageName
@@ -123,9 +132,7 @@ export async function handleConfigurePackageLocalizedNamesLogic(
     );
   }
 
-  const existing = extractLocalizedNamesFromMetadata(
-    (pkg.metadata ?? {}) as Record<string, unknown>,
-  );
+  const existing = extractLocalizedNamesFromMetadata(pkg.metadata ?? {});
   const patch = buildLocalizedNamesPatch(existing, parsed);
 
   const updated = await deps.packagesService.updatePackage(businessId, pkg.id, {
@@ -133,7 +140,7 @@ export async function handleConfigurePackageLocalizedNamesLogic(
   });
 
   const updatedNames = extractLocalizedNamesFromMetadata(
-    (updated.metadata ?? {}) as Record<string, unknown>,
+    updated.metadata ?? {},
   );
 
   if (parsed.operation === 'set' && parsed.locale && parsed.displayName) {
@@ -207,7 +214,9 @@ export async function handleExplainPackageDisplayNameLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_package_display_name', 'Business not found.');
   }
@@ -228,7 +237,11 @@ export async function handleExplainPackageDisplayNameLogic(
     settings,
   );
 
-  const packages = await deps.packagesService.listPackages(businessId, 'all', true);
+  const packages = await deps.packagesService.listPackages(
+    businessId,
+    'all',
+    true,
+  );
   const pkg = parsed.packageId
     ? packages.find((item) => item.id === parsed.packageId)
     : parsed.packageName
@@ -243,9 +256,7 @@ export async function handleExplainPackageDisplayNameLogic(
     );
   }
 
-  const localizedNames = extractLocalizedNamesFromMetadata(
-    (pkg.metadata ?? {}) as Record<string, unknown>,
-  );
+  const localizedNames = extractLocalizedNamesFromMetadata(pkg.metadata ?? {});
   const primaryName = pkg.name;
   const displayedName = resolveLocalizedDisplayName(
     primaryName,

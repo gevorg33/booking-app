@@ -173,7 +173,9 @@ export async function handleExplainCheckoutRecommendationsLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_checkout_recommendations', 'Business not found.');
   }
@@ -215,7 +217,8 @@ export async function handleExplainCheckoutRecommendationsLogic(
         )
       : [];
 
-  const products = serviceProducts.length > 0 ? serviceProducts : categoryProducts;
+  const products =
+    serviceProducts.length > 0 ? serviceProducts : categoryProducts;
   const source: 'service' | 'category' | 'none' =
     serviceProducts.length > 0
       ? 'service'

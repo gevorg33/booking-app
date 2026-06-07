@@ -51,6 +51,7 @@ import { defaultCountryFromCallingCode, formatPhoneForApi, isValidPhone } from '
 import { RadioCard, ToggleChoice } from '@/components/ui/radio-choice';
 import { isPublicClinicService } from '@/lib/clinic-service';
 import { isPublicTourService } from '@/lib/tour-service';
+import { PublicCheckoutIntakeStep } from '@/components/public-booking/public-checkout-intake-step';
 
 interface CheckoutFormProps {
   tenant: PublicBusinessProfile;
@@ -59,6 +60,7 @@ interface CheckoutFormProps {
   startTime: string;
   autoAssign?: boolean;
   paymentSessionId?: string;
+  clinicOrderToken?: string;
 }
 
 export function CheckoutForm({
@@ -68,6 +70,7 @@ export function CheckoutForm({
   startTime,
   autoAssign,
   paymentSessionId,
+  clinicOrderToken,
 }: CheckoutFormProps) {
   const { t, locale } = useI18n();
   const { customer, loading: authLoading } = usePublicCustomerAuth();
@@ -122,6 +125,11 @@ export function CheckoutForm({
   const [paxCount, setPaxCount] = useState(1);
   const [referralNotes, setReferralNotes] = useState('');
   const [symptoms, setSymptoms] = useState('');
+  const showIntakeStep = service.offersPreVisitIntake === true && !!customer;
+  const [checkoutStep, setCheckoutStep] = useState<'intake' | 'details'>(() =>
+    showIntakeStep ? 'intake' : 'details',
+  );
+  const [preVisitIntakeId, setPreVisitIntakeId] = useState<string | undefined>();
 
   const resolvedEmployee =
     specialistChoice.type === 'provider'
@@ -283,6 +291,8 @@ export function CheckoutForm({
           symptoms: symptoms.trim() || undefined,
         }
       : {}),
+    ...(preVisitIntakeId ? { preVisitIntakeId } : {}),
+    ...(clinicOrderToken ? { clinicOrderToken } : {}),
     customer: {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
@@ -497,6 +507,20 @@ export function CheckoutForm({
 
   const showProviderPicker = autoAssign;
 
+  if (checkoutStep === 'intake' && showIntakeStep) {
+    return (
+      <PublicCheckoutIntakeStep
+        slug={tenant.slug}
+        serviceId={service.id}
+        onSkip={() => setCheckoutStep('details')}
+        onCompleted={(intakeId) => {
+          setPreVisitIntakeId(intakeId);
+          setCheckoutStep('details');
+        }}
+      />
+    );
+  }
+
   return (
     <>
     <form onSubmit={handleSubmit} className="pb-44">
@@ -574,6 +598,14 @@ export function CheckoutForm({
           </a>
         </div>
       </section>
+
+      {service.offersPreVisitIntake && !customer ? (
+        <section className="border-b border-gray-100 pb-4 mb-4">
+          <p className="text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+            {t('clinic.publicIntake.signInPrompt')}
+          </p>
+        </section>
+      ) : null}
 
       {isClinic && service.acceptsPatientNotes && (
         <section className="border-b border-gray-100 pb-4 mb-4 space-y-4">

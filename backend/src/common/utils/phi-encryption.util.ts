@@ -1,6 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { decryptSecret, encryptSecret } from './secret.util.js';
 import type { PhiFieldName } from './business-compliance.util.js';
+import {
+  decryptLegacyPatientTestResultRows,
+  encryptLegacyPatientTestResultRows,
+  LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY,
+  legacyPatientTestResultsMetadataChanged,
+  legacyPatientTestResultsMetadataHasContent,
+} from './legacy-booking-patient-test-results-phi.util.js';
 
 export const PHI_ENCRYPTED_PREFIX = 'phi:v1:';
 
@@ -61,30 +68,14 @@ function encryptPatientTestResultNotes(
   value: unknown,
   businessKey: string,
 ): unknown {
-  if (!Array.isArray(value)) return value;
-  return value.map((entry) => {
-    if (!entry || typeof entry !== 'object') return entry;
-    const row = { ...(entry as Record<string, unknown>) };
-    if (typeof row.notes === 'string' && row.notes.trim()) {
-      row.notes = encryptPhiValue(row.notes, businessKey);
-    }
-    return row;
-  });
+  return encryptLegacyPatientTestResultRows(value, businessKey);
 }
 
 function decryptPatientTestResultNotes(
   value: unknown,
   businessKey: string,
 ): unknown {
-  if (!Array.isArray(value)) return value;
-  return value.map((entry) => {
-    if (!entry || typeof entry !== 'object') return entry;
-    const row = { ...(entry as Record<string, unknown>) };
-    if (typeof row.notes === 'string' && isPhiEncryptedValue(row.notes)) {
-      row.notes = decryptPhiValue(row.notes, businessKey);
-    }
-    return row;
-  });
+  return decryptLegacyPatientTestResultRows(value, businessKey);
 }
 
 export function encryptPhiMetadata(
@@ -100,11 +91,12 @@ export function encryptPhiMetadata(
       next[field] = encryptPhiValue(value, businessKey);
     }
   }
-  if (next.patient_test_results !== undefined) {
-    next.patient_test_results = encryptPatientTestResultNotes(
-      next.patient_test_results,
-      businessKey,
-    );
+  if (next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] !== undefined) {
+    next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] =
+      encryptPatientTestResultNotes(
+        next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY],
+        businessKey,
+      );
   }
   return next;
 }
@@ -122,11 +114,12 @@ export function decryptPhiMetadata(
       next[field] = decryptPhiValue(value, businessKey);
     }
   }
-  if (next.patient_test_results !== undefined) {
-    next.patient_test_results = decryptPatientTestResultNotes(
-      next.patient_test_results,
-      businessKey,
-    );
+  if (next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] !== undefined) {
+    next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY] =
+      decryptPatientTestResultNotes(
+        next[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY],
+        businessKey,
+      );
   }
   return next;
 }
@@ -189,11 +182,13 @@ export function listPhiFieldsTouched(
       touched.add(field);
     }
   }
-  const prevResults = before?.metadata?.patient_test_results;
-  const nextResults = after.metadata?.patient_test_results;
+  const prevResults =
+    before?.metadata?.[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY];
+  const nextResults =
+    after.metadata?.[LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY];
   if (
     nextResults !== undefined &&
-    JSON.stringify(nextResults) !== JSON.stringify(prevResults)
+    legacyPatientTestResultsMetadataChanged(prevResults, nextResults)
   ) {
     touched.add('patient_test_results');
   }
@@ -218,10 +213,7 @@ export function listPhiFieldsRead(booking: BookingPhiCarrier): PhiFieldName[] {
   ) {
     read.push('symptoms');
   }
-  if (
-    Array.isArray(metadata.patient_test_results) &&
-    metadata.patient_test_results.length > 0
-  ) {
+  if (legacyPatientTestResultsMetadataHasContent(metadata)) {
     read.push('patient_test_results');
   }
   return read;

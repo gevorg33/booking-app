@@ -21,11 +21,7 @@ describe('ai-nearest-slot-resolver.util (ai-cmd-h2.3)', () => {
   });
 
   it('prefers named employee over params.employeeId when not allProviders', () => {
-    const query = buildNearestBookableSlotQuery(
-      { employeeId: 'e1' },
-      '',
-      'e2',
-    );
+    const query = buildNearestBookableSlotQuery({ employeeId: 'e1' }, '', 'e2');
     expect(query.employeeId).toBe('e2');
   });
 

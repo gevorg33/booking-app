@@ -3,9 +3,7 @@ import { hasStripeCheckoutCurrencyContext } from './ai-stripe-checkout-currency.
 import { hasReportsCurrencyContext } from './ai-reports-currency.util.js';
 import { isExplainCheckoutTotalPrompt } from './ai-payments.util.js';
 
-export const CHECKOUT_CURRENCY_INTENTS = [
-  'explain_checkout_currency',
-] as const;
+export const CHECKOUT_CURRENCY_INTENTS = ['explain_checkout_currency'] as const;
 
 export type CheckoutCurrencyIntent = (typeof CHECKOUT_CURRENCY_INTENTS)[number];
 

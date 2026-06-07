@@ -60,8 +60,7 @@ export const MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS: DateInputPr
     {
       id: 'hy-explain-provider-cards',
       locale: 'hy',
-      prompt:
-        'Ինչպես է provider հավելվածը ցույց տալիս ամսաթվերը քարտերում',
+      prompt: 'Ինչպես է provider հավելվածը ցույց տալիս ամսաթվերը քարտերում',
       expectedAction: 'explain_provider_date_display',
       rescueReason: 'explain_provider_date_display',
       needsMultilingual: true,
@@ -77,8 +76,7 @@ export const MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS: DateInputPr
     {
       id: 'hy-configure-push-time',
       locale: 'hy',
-      prompt:
-        'Կարգավորել push ծանուցումները օգտագործելու salon ժամի ձևաչափը',
+      prompt: 'Կարգավորել push ծանուցումները օգտագործելու salon ժամի ձևաչափը',
       expectedAction: 'configure_provider_push_date_format',
       rescueReason: 'configure_provider_push_date_format',
       needsMultilingual: true,
@@ -142,8 +140,7 @@ export const MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS: DateInputPr
     {
       id: 'ru-configure-push-time',
       locale: 'ru',
-      prompt:
-        'Настроить push уведомления использовать формат времени салона',
+      prompt: 'Настроить push уведомления использовать формат времени салона',
       expectedAction: 'configure_provider_push_date_format',
       rescueReason: 'configure_provider_push_date_format',
       needsMultilingual: true,

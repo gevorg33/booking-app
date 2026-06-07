@@ -7,7 +7,7 @@ import { formatBusinessMoney, readBusinessCurrency } from '@/lib/business-curren
 export function useBusinessCurrency() {
   const business = useAuthStore((s) => s.business);
   const currency = useMemo(
-    () => readBusinessCurrency(business?.settings as Record<string, unknown> | undefined),
+    () => readBusinessCurrency(business?.settings),
     [business?.settings],
   );
 

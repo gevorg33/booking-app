@@ -18,7 +18,9 @@ export type StripeCheckoutFailureIntent =
 export function isStripeCheckoutFailureIntent(
   action: string,
 ): action is StripeCheckoutFailureIntent {
-  return (STRIPE_CHECKOUT_FAILURE_INTENTS as readonly string[]).includes(action);
+  return (STRIPE_CHECKOUT_FAILURE_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 function containsArmenianScript(text: string): boolean {
@@ -94,7 +96,10 @@ export function hasStripeCheckoutFailureContext(prompt: string): boolean {
 export function isDiagnoseStripeCheckoutFailurePrompt(prompt: string): boolean {
   if (isConfigureBusinessCurrencyPrompt(prompt)) return false;
   if (isBulkUpdateServiceCurrencyPrompt(prompt)) return false;
-  if (isExplainBusinessCurrencyPrompt(prompt) && !hasStripeCheckoutFailureContext(prompt)) {
+  if (
+    isExplainBusinessCurrencyPrompt(prompt) &&
+    !hasStripeCheckoutFailureContext(prompt)
+  ) {
     return false;
   }
   if (

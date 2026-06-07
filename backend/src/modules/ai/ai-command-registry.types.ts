@@ -31,7 +31,9 @@ export type CommandApiModule =
   | 'marketing-growth'
   | 'push-notifications'
   | 'public-booking'
-  | 'provider-mobile';
+  | 'provider-mobile'
+  | 'clinic-test-results'
+  | 'patient-clinical-profiles';
 
 export interface CommandRegistryEntry {
   /** Stable intent id (classifier action). */

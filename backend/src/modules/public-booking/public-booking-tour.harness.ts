@@ -103,6 +103,7 @@ export function createTourPublicBookingHarness(options?: {
     { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
     { find: jest.fn() } as never,
     bookingRepo as never,
+    undefined,
   );
 
   return {

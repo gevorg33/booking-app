@@ -23,13 +23,15 @@ describe('ai-data-rights.util', () => {
   it('does not steal direct privacy export/delete mutate prompts', () => {
     expect(isExplainDataRightsPrompt('Export my personal data')).toBe(false);
     expect(isExplainDataRightsPrompt('Delete my account data')).toBe(false);
-    expect(rescueExplainDataRightsIntent('Export my personal data', 'unknown')).toBeNull();
+    expect(
+      rescueExplainDataRightsIntent('Export my personal data', 'unknown'),
+    ).toBeNull();
   });
 
   it('distinguishes read vs mutate for export phrasing', () => {
-    expect(isExplainDataRightsPrompt('How can I export my personal data?')).toBe(
-      true,
-    );
+    expect(
+      isExplainDataRightsPrompt('How can I export my personal data?'),
+    ).toBe(true);
     expect(
       parseExplainDataRightsFromPrompt('How can I export my personal data?')
         ?.aspect,

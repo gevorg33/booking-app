@@ -28,6 +28,9 @@ import { ProviderEndOfDayPushScheduler } from './provider-end-of-day-push.schedu
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
+import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
+import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
+import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
     SchedulingEngineModule,
     forwardRef(() => AiModule),
     RetailPosModule,
+    ClinicTestResultsModule,
+    PatientClinicalProfilesModule,
+    ClinicTasksModule,
   ],
   controllers: [ProviderMobileController],
   providers: [

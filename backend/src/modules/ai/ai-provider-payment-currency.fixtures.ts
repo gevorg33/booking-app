@@ -26,11 +26,13 @@ export const EXPLAIN_PROVIDER_PAYMENT_CURRENCY_PROMPTS = [
   },
   {
     id: 'why-retail-pos-dollars',
-    prompt: 'Why does the POS total use dollar amounts for service plus retail?',
+    prompt:
+      'Why does the POS total use dollar amounts for service plus retail?',
   },
   {
     id: 'why-collect-cash-currency',
-    prompt: 'What currency should I collect cash in for this booking breakdown?',
+    prompt:
+      'What currency should I collect cash in for this booking breakdown?',
   },
   {
     id: 'ru-why-payment-ruble',

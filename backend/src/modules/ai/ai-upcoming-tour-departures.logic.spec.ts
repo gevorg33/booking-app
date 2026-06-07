@@ -26,7 +26,9 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
-        endTime: new Date(`${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`),
+        endTime: new Date(
+          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+        ),
         metadata: { paxCount: 3, tourStartDate: departureDate },
         service: mountainTrek,
         customer: { name: 'Alice' },
@@ -36,7 +38,9 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
-        endTime: new Date(`${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`),
+        endTime: new Date(
+          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+        ),
         metadata: { paxCount: 2, tourStartDate: departureDate },
         service: mountainTrek,
         customer: { name: 'Bob' },
@@ -131,7 +135,10 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
     );
 
     const cityDeparture = (
-      result.details?.departures as Array<{ serviceName: string; bookedPax: number }>
+      result.details?.departures as Array<{
+        serviceName: string;
+        bookedPax: number;
+      }>
     )?.find((item) => item.serviceName === 'City Tour');
     expect(cityDeparture?.bookedPax).toBe(4);
   });

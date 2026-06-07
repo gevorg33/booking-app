@@ -52,8 +52,7 @@ export function enrichCompoundSubStepBookingHints(
     }
   }
 
-  const hintAction =
-    action === 'book_nearest_slot' ? 'create_booking' : action;
+  const hintAction = action === 'book_nearest_slot' ? 'create_booking' : action;
   enrichBookingTimeHintsFromPrompt(hintAction, params, prompt);
 
   if (action === 'book_nearest_slot') {

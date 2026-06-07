@@ -6,6 +6,9 @@ import { Loader2, LogOut, Star } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import {
   getPublicCustomerBookings,
+  getPublicCustomerClinicTestResults,
+  getPublicCustomerClinicLabBookingRequests,
+  getPublicCustomerClinicDocuments,
   getPublicCustomerGiftCards,
   getPublicCustomerLoyalty,
   getPublicCustomerSubscriptions,
@@ -16,6 +19,8 @@ import {
   type PublicBusinessProfile,
   type PublicCustomerBookingItem,
   type PublicCustomerLoyalty,
+  type PublicCustomerReleasedClinicResult,
+  type PublicCustomerReleasedClinicDocument,
   type PublicCustomerSubscription,
   type PublicGiftCardOrder,
   type PublicGiftCardRedeemed,
@@ -24,6 +29,12 @@ import { PublicSubscriptionsSection } from '@/components/public-booking/public-s
 import { PublicGiftCardsSection } from '@/components/public-booking/public-gift-cards-section';
 import { PublicGiftCardsRedeemedSection } from '@/components/public-booking/public-gift-cards-redeemed-section';
 import { PublicGiftCardClaimSection } from '@/components/public-booking/public-gift-card-claim-section';
+import { PublicMyResultsSection } from '@/components/public-booking/public-my-results-section';
+import { PublicMyLabBookingRequestsSection } from '@/components/public-booking/public-my-lab-booking-requests-section';
+import { unwrapPublicClinicLabBookingRequests } from '@/lib/clinic-lab-booking-request';
+import type { PublicClinicLabBookingRequest } from '@/lib/clinic-lab-booking-request';
+import { PublicMyDocumentsSection } from '@/components/public-booking/public-my-documents-section';
+import { PublicPatientAlertsBanner } from '@/components/public-booking/public-patient-alerts-banner';
 import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
 import { PublicCustomerPackageVisitActions } from '@/components/public-booking/public-customer-package-visit-actions';
 import { groupBookingsForAccount } from '@/lib/group-package-bookings';
@@ -31,6 +42,7 @@ import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
 import { bookPath } from '@/lib/tenant-host';
 import { formatBookingDateTimeRange } from '@/lib/date-format';
+import { shouldShowPatientResultsTab } from '@/lib/clinic-service';
 import { useI18n } from '@/i18n';
 import { confirmDialog } from '@/lib/app-dialog';
 
@@ -168,6 +180,24 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
   const [subscriptions, setSubscriptions] = useState<PublicCustomerSubscription[]>([]);
   const [giftCardOrders, setGiftCardOrders] = useState<PublicGiftCardOrder[]>([]);
   const [redeemedGiftCards, setRedeemedGiftCards] = useState<PublicGiftCardRedeemed[]>([]);
+  const [clinicResults, setClinicResults] = useState<PublicCustomerReleasedClinicResult[]>([]);
+  const [clinicResultsError, setClinicResultsError] = useState<string | null>(null);
+  const [labBookingRequests, setLabBookingRequests] = useState<PublicClinicLabBookingRequest[]>([]);
+  const [labBookingRequestsError, setLabBookingRequestsError] = useState<string | null>(null);
+  const [clinicDocuments, setClinicDocuments] = useState<PublicCustomerReleasedClinicDocument[]>([]);
+  const [clinicDocumentsError, setClinicDocumentsError] = useState<string | null>(null);
+  const showMyResultsTab = shouldShowPatientResultsTab(tenant.businessType);
+
+  useEffect(() => {
+    if (!showMyResultsTab || typeof window === 'undefined') return;
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section === 'results') {
+      document.getElementById('my-results')?.scrollIntoView({ behavior: 'smooth' });
+    }
+    if (section === 'lab-requests') {
+      document.getElementById('my-lab-requests')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [showMyResultsTab, customer]);
 
   function reloadGiftCardAccount() {
     return getPublicCustomerGiftCards(tenant.slug)
@@ -200,6 +230,12 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
         setSubscriptions([]);
         setGiftCardOrders([]);
         setRedeemedGiftCards([]);
+        setClinicResults([]);
+        setClinicResultsError(null);
+        setLabBookingRequests([]);
+        setLabBookingRequestsError(null);
+        setClinicDocuments([]);
+        setClinicDocumentsError(null);
       });
       return;
     }
@@ -215,14 +251,51 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
       getPublicCustomerLoyalty(tenant.slug).catch(() => null),
       getPublicCustomerSubscriptions(tenant.slug).catch(() => []),
       getPublicCustomerGiftCards(tenant.slug).catch(() => ({ orders: [], redeemed: [] })),
+      showMyResultsTab
+        ? getPublicCustomerClinicTestResults(tenant.slug).catch((err) => {
+            if (!cancelled) {
+              setClinicResultsError(
+                err instanceof Error ? err.message : t('public.myResults.loadFailed'),
+              );
+            }
+            return [];
+          })
+        : Promise.resolve([]),
+      showMyResultsTab
+        ? getPublicCustomerClinicDocuments(tenant.slug).catch((err) => {
+            if (!cancelled) {
+              setClinicDocumentsError(
+                err instanceof Error ? err.message : t('public.myDocuments.loadFailed'),
+              );
+            }
+            return [];
+          })
+        : Promise.resolve([]),
+      showMyResultsTab
+        ? getPublicCustomerClinicLabBookingRequests(tenant.slug)
+            .then((res) => unwrapPublicClinicLabBookingRequests(res))
+            .catch((err) => {
+              if (!cancelled) {
+                setLabBookingRequestsError(
+                  err instanceof Error ? err.message : t('public.myLabRequests.loadFailed'),
+                );
+              }
+              return [];
+            })
+        : Promise.resolve([]),
     ])
-      .then(([bookingsRes, loyaltyRes, subsRes, giftCardsRes]) => {
+      .then(([bookingsRes, loyaltyRes, subsRes, giftCardsRes, resultsRes, documentsRes, labRequestsRes]) => {
         if (!cancelled) {
           setBookings(bookingsRes.bookings);
           setLoyalty(loyaltyRes);
           setSubscriptions(subsRes);
           setGiftCardOrders(giftCardsRes.orders);
           setRedeemedGiftCards(giftCardsRes.redeemed);
+          setClinicResults(resultsRes);
+          setLabBookingRequests(labRequestsRes);
+          setClinicResultsError(null);
+          setClinicDocuments(documentsRes);
+          setClinicDocumentsError(null);
         }
       })
       .catch((err) => {
@@ -237,7 +310,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
     return () => {
       cancelled = true;
     };
-  }, [customer, tenant.slug, t]);
+  }, [customer, tenant.slug, t, showMyResultsTab]);
 
   async function handleSignIn() {
     setSigningIn(true);
@@ -371,6 +444,62 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               </div>
             )}
 
+            {showMyResultsTab ? (
+              <>
+                <div id="my-intake" />
+                <PublicPatientAlertsBanner
+                  slug={tenant.slug}
+                  onViewAlert={(_alert, anchorId) => {
+                    document
+                      .getElementById(anchorId)
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                />
+              </>
+            ) : null}
+
+            {showMyResultsTab ? (
+              <div id="my-lab-requests">
+                <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">
+                  {t('public.myLabRequests.title')}
+                </h2>
+                <PublicMyLabBookingRequestsSection
+                  requests={labBookingRequests}
+                  loading={bookingsLoading}
+                  error={labBookingRequestsError}
+                  locale={locale}
+                />
+              </div>
+            ) : null}
+
+            {showMyResultsTab ? (
+              <div id="my-results">
+                <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">
+                  {t('public.myResults.title')}
+                </h2>
+                <PublicMyResultsSection
+                  results={clinicResults}
+                  loading={bookingsLoading}
+                  error={clinicResultsError}
+                  locale={locale}
+                />
+              </div>
+            ) : null}
+
+            {showMyResultsTab ? (
+              <div id="my-documents">
+                <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">
+                  {t('public.myDocuments.title')}
+                </h2>
+                <PublicMyDocumentsSection
+                  documents={clinicDocuments}
+                  loading={bookingsLoading}
+                  error={clinicDocumentsError}
+                  locale={locale}
+                />
+              </div>
+            ) : null}
+
             <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">My subscriptions</h2>
             <PublicSubscriptionsSection
               slug={tenant.slug}
@@ -409,6 +538,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               }
             />
 
+            <div id="my-bookings">
             <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t('public.myBookings')}</h2>
 
             {bookingsLoading ? (
@@ -462,6 +592,7 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
                 })()}
               </div>
             )}
+            </div>
           </>
         )}
       </main>

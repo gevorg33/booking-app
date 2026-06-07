@@ -127,8 +127,7 @@ function hasCalendarSpanTopic(prompt: string): boolean {
 }
 
 function extractServiceNameFromPrompt(prompt: string): string | null {
-  const forbidden =
-    /^(explain|show|what|how|why|tell|list|summarize)\b/i;
+  const forbidden = /^(explain|show|what|how|why|tell|list|summarize)\b/i;
   const patterns = [
     /\bfor\s+(?:the\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek)\s+spans?\b/i,
     /\b([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek)\s+spans?\b/i,
@@ -182,8 +181,12 @@ function resolveCalendarSpanAspect(prompt: string): TourCalendarSpanAspect {
     /\b(service\s+colou?rs?|color\s+(?:per|for)\s+service|different\s+color)\b/i.test(
       prompt,
     ) ||
-    /(տարբեր\s+գույն|օրացույց[ա-ֆ]*\s+գույն|գույն[ա-ֆ]*\s+օրացույց)/i.test(prompt) ||
-    /(свой\s+цвет|цвет[а-яё]*\s+на\s+календар|календар[а-яё]*\s+цвет)/i.test(prompt);
+    /(տարբեր\s+գույն|օրացույց[ա-ֆ]*\s+գույն|գույն[ա-ֆ]*\s+օրացույց)/i.test(
+      prompt,
+    ) ||
+    /(свой\s+цвет|цвет[а-яё]*\s+на\s+календар|календар[а-яё]*\s+цвет)/i.test(
+      prompt,
+    );
   const clipped =
     /\b(clipped?\s+(?:week|boundary)|week\s+boundar(?:y|ies)|visible\s+week|only\s+show\s+the\s+visible\s+week|7-day\s+tour)\b/i.test(
       prompt,

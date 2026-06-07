@@ -176,7 +176,8 @@ export function buildEnglishRecommendationAnalyticsEvalScenarios(): Recommendati
   const analytics = EXPLAIN_RECOMMENDATION_ANALYTICS_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
     if ('aspect' in entry && entry.aspect) paramsPartial.aspect = entry.aspect;
-    if ('surface' in entry && entry.surface) paramsPartial.surface = entry.surface;
+    if ('surface' in entry && entry.surface)
+      paramsPartial.surface = entry.surface;
     if ('daysAhead' in entry && entry.daysAhead) {
       paramsPartial.daysAhead = entry.daysAhead;
     }
@@ -191,23 +192,27 @@ export function buildEnglishRecommendationAnalyticsEvalScenarios(): Recommendati
     };
   });
 
-  const performance = SUMMARIZE_RECOMMENDATION_PERFORMANCE_PROMPTS.map((entry) => {
-    const paramsPartial: Record<string, unknown> = {};
-    if ('aspect' in entry && entry.aspect) paramsPartial.aspect = entry.aspect;
-    if ('surface' in entry && entry.surface) paramsPartial.surface = entry.surface;
-    if ('daysAhead' in entry && entry.daysAhead) {
-      paramsPartial.daysAhead = entry.daysAhead;
-    }
-    return {
-      id: `en-performance-${entry.id}`,
-      locale: 'en' as const,
-      prompt: entry.prompt,
-      expectedAction: 'summarize_recommendation_performance' as const,
-      rescueReason: 'summarize_recommendation_performance',
-      aspect: entry.aspect,
-      ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
-    };
-  });
+  const performance = SUMMARIZE_RECOMMENDATION_PERFORMANCE_PROMPTS.map(
+    (entry) => {
+      const paramsPartial: Record<string, unknown> = {};
+      if ('aspect' in entry && entry.aspect)
+        paramsPartial.aspect = entry.aspect;
+      if ('surface' in entry && entry.surface)
+        paramsPartial.surface = entry.surface;
+      if ('daysAhead' in entry && entry.daysAhead) {
+        paramsPartial.daysAhead = entry.daysAhead;
+      }
+      return {
+        id: `en-performance-${entry.id}`,
+        locale: 'en' as const,
+        prompt: entry.prompt,
+        expectedAction: 'summarize_recommendation_performance' as const,
+        rescueReason: 'summarize_recommendation_performance',
+        aspect: entry.aspect,
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      };
+    },
+  );
 
   return [...analytics, ...performance];
 }

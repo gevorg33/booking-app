@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Save, X } from 'lucide-react';
+import Link from 'next/link';
+import { FileHeart, Loader2, Save, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateDisplay, formatTimeRangeDisplay } from '@/lib/date-format';
 import { type BookingStatus } from '@/lib/booking-types';
 import { BOOKING_STATUS_I18N_KEYS } from '@/lib/booking-detail-panel.util';
+import { buildPatientChartPath } from '@/lib/patient-chart';
+import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { useAuthStore } from '@/lib/store';
 import {
   CUSTOMER_TAGS,
   customerTagLabelKey,
@@ -172,8 +176,12 @@ interface CustomerDetailPanelProps {
 
 export function CustomerDetailPanel({ businessId, customerId, onClose }: CustomerDetailPanelProps) {
   const { t } = useI18n();
+  const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedTag, setSelectedTag] = useState<CustomerTag | ''>('');
+  const businessType =
+    (business?.settings?.businessType as string | undefined) ?? undefined;
+  const showPatientChart = isClinicVerticalBusinessType(businessType);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['customer-detail', businessId, customerId],
@@ -245,6 +253,15 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
                   {data.customer.segment.replace(/_/g, ' ')}
                 </span>
               )}
+              {showPatientChart ? (
+                <Link
+                  href={buildPatientChartPath(customerId)}
+                  className="mt-3 inline-flex items-center gap-2 text-sm text-blue-400 hover:underline"
+                >
+                  <FileHeart className="h-4 w-4" />
+                  {t('clinic.patientChart.openChart')}
+                </Link>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">

@@ -135,12 +135,17 @@ export function isConfigureBusinessCurrencyPrompt(prompt: string): boolean {
 }
 
 export function isBulkUpdateServiceCurrencyPrompt(prompt: string): boolean {
-  if (isConfigureBusinessCurrencyPrompt(prompt) && parseCurrencyFromPrompt(prompt)) {
+  if (
+    isConfigureBusinessCurrencyPrompt(prompt) &&
+    parseCurrencyFromPrompt(prompt)
+  ) {
     return false;
   }
   if (
     /\b(explain|what(?:'s|\s+is)|which|how many|tell me)\b/i.test(prompt) &&
-    !/\b(align|migrate|sync|convert|update|fix|standardize|match)\b/i.test(prompt)
+    !/\b(align|migrate|sync|convert|update|fix|standardize|match)\b/i.test(
+      prompt,
+    )
   ) {
     return false;
   }
@@ -160,7 +165,11 @@ export function isBulkUpdateServiceCurrencyPrompt(prompt: string): boolean {
   ) {
     return true;
   }
-  if (/\bbulk\b/i.test(prompt) && /\bservice\b/i.test(prompt) && /\bcurrency\b/i.test(prompt)) {
+  if (
+    /\bbulk\b/i.test(prompt) &&
+    /\bservice\b/i.test(prompt) &&
+    /\bcurrency\b/i.test(prompt)
+  ) {
     return true;
   }
   if (containsArmenianScript(prompt)) {
@@ -174,7 +183,9 @@ export function isBulkUpdateServiceCurrencyPrompt(prompt: string): boolean {
   }
   if (containsCyrillicScript(prompt)) {
     if (
-      /(синхронизировать|привести|обновить|мигрировать|выровнять)/i.test(prompt) &&
+      /(синхронизировать|привести|обновить|мигрировать|выровнять)/i.test(
+        prompt,
+      ) &&
       /(услуг|каталог)/i.test(prompt) &&
       /(валют|default)/i.test(prompt)
     ) {
@@ -186,7 +197,10 @@ export function isBulkUpdateServiceCurrencyPrompt(prompt: string): boolean {
 
 export function isExplainBusinessCurrencyPrompt(prompt: string): boolean {
   if (isBulkUpdateServiceCurrencyPrompt(prompt)) return false;
-  if (isConfigureBusinessCurrencyPrompt(prompt) && parseCurrencyFromPrompt(prompt)) {
+  if (
+    isConfigureBusinessCurrencyPrompt(prompt) &&
+    parseCurrencyFromPrompt(prompt)
+  ) {
     return false;
   }
   if (
@@ -203,7 +217,9 @@ export function isExplainBusinessCurrencyPrompt(prompt: string): boolean {
   if (MUTATE_CURRENCY_VERBS.test(prompt)) return false;
 
   if (
-    /\b(explain|describe|show|tell me|what(?:'s|\s+is)|which)\b/i.test(prompt) &&
+    /\b(explain|describe|show|tell me|what(?:'s|\s+is)|which)\b/i.test(
+      prompt,
+    ) &&
     /\b(currency|currencies)\b/i.test(prompt)
   ) {
     return true;
@@ -253,10 +269,17 @@ export function isExplainBusinessCurrencyPrompt(prompt: string): boolean {
     return true;
   }
   if (containsArmenianScript(prompt)) {
-    if (/(ինչ|որն|որը|բացատր|ցույց տուր)/i.test(prompt) && /արժույթ/i.test(prompt)) {
+    if (
+      /(ինչ|որն|որը|բացատր|ցույց տուր)/i.test(prompt) &&
+      /արժույթ/i.test(prompt)
+    ) {
       return true;
     }
-    if (/քանի/i.test(prompt) && /ծառայություն/i.test(prompt) && /արժույթ/i.test(prompt)) {
+    if (
+      /քանի/i.test(prompt) &&
+      /ծառայություն/i.test(prompt) &&
+      /արժույթ/i.test(prompt)
+    ) {
       return true;
     }
     if (/stripe/i.test(prompt) && /(արժույթ|վճար)/i.test(prompt)) {
@@ -264,13 +287,24 @@ export function isExplainBusinessCurrencyPrompt(prompt: string): boolean {
     }
   }
   if (containsCyrillicScript(prompt)) {
-    if (/(какая|объясни|покажи|расскажи)/i.test(prompt) && /валют/i.test(prompt)) {
+    if (
+      /(какая|объясни|покажи|расскажи)/i.test(prompt) &&
+      /валют/i.test(prompt)
+    ) {
       return true;
     }
-    if (/сколько/i.test(prompt) && /услуг/i.test(prompt) && /валют/i.test(prompt)) {
+    if (
+      /сколько/i.test(prompt) &&
+      /услуг/i.test(prompt) &&
+      /валют/i.test(prompt)
+    ) {
       return true;
     }
-    if (/поддерживает/i.test(prompt) && /stripe/i.test(prompt) && /валют/i.test(prompt)) {
+    if (
+      /поддерживает/i.test(prompt) &&
+      /stripe/i.test(prompt) &&
+      /валют/i.test(prompt)
+    ) {
       return true;
     }
   }
@@ -299,10 +333,12 @@ export function parseCurrencyFromPrompt(
 
   const promptLower = prompt.toLowerCase();
   for (const [word, code] of Object.entries(HY_CURRENCY_WORD_ALIASES)) {
-    if (prompt.includes(word) || promptLower.includes(word.toLowerCase())) return code;
+    if (prompt.includes(word) || promptLower.includes(word.toLowerCase()))
+      return code;
   }
   for (const [word, code] of Object.entries(RU_CURRENCY_WORD_ALIASES)) {
-    if (prompt.includes(word) || promptLower.includes(word.toLowerCase())) return code;
+    if (prompt.includes(word) || promptLower.includes(word.toLowerCase()))
+      return code;
   }
 
   return null;
@@ -315,7 +351,10 @@ export function rescueBusinessCurrencyIntent(
 ): { action: BusinessCurrencyIntent; rescueReason: string } | null {
   if (isBusinessCurrencyIntent(action)) return null;
 
-  if (isConfigureBusinessCurrencyPrompt(prompt) && parseCurrencyFromPrompt(prompt)) {
+  if (
+    isConfigureBusinessCurrencyPrompt(prompt) &&
+    parseCurrencyFromPrompt(prompt)
+  ) {
     return {
       action: 'configure_business_currency',
       rescueReason: 'configure_business_currency',

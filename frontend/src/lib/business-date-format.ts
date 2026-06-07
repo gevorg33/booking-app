@@ -109,8 +109,8 @@ export function formatTimeWithFormat(
 }
 
 export interface BusinessDateFormatPreference {
-  dateFormat?: BusinessDateFormat;
-  timeFormat?: BusinessTimeFormat;
+  dateFormat?: BusinessDateFormat | string;
+  timeFormat?: BusinessTimeFormat | string;
 }
 
 export function tenantDateFormatPreference(

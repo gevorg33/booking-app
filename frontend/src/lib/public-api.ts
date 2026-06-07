@@ -2,6 +2,11 @@ import { getApiBaseUrl, getServerApiBaseUrl } from '@/lib/api-base';
 import { formatPublicMoney, formatPublicPrice } from '@/lib/public-currency';
 import { runWithOperationFeedback, type PublicFetchInit } from '@/lib/operation-feedback';
 import { readClientLocaleForPublicApi } from '@/lib/public-locale-cookie';
+import type { PublicCustomerReleasedClinicResult } from '@/lib/public-clinic-results';
+import type { PublicCustomerReleasedClinicDocument } from '@/lib/public-clinic-documents';
+
+export type { PublicCustomerReleasedClinicResult } from '@/lib/public-clinic-results';
+export type { PublicCustomerReleasedClinicDocument } from '@/lib/public-clinic-documents';
 
 function getPublicApiBaseUrl(): string {
   if (typeof window !== 'undefined') return getApiBaseUrl();
@@ -213,6 +218,7 @@ export interface PublicBusinessProfile {
     incompatiblePairs: Array<[string, string]>;
     incompatibleCategoryPairs: Array<[string, string]>;
   };
+  businessType?: string;
 }
 
 export interface PublicProviderReview {
@@ -271,6 +277,7 @@ export interface PublicService {
   requiresFasting?: boolean;
   preparationNotes?: string;
   acceptsPatientNotes?: boolean;
+  offersPreVisitIntake?: boolean;
 }
 
 export function prepaymentDue(service: PublicService): number {
@@ -728,6 +735,10 @@ export type CreatePublicBookingBody = {
   purchasePlanId?: string;
   useSubscriptionCreditOnPurchase?: boolean;
   paymentMethod?: 'online' | 'cash';
+  referralNotes?: string;
+  symptoms?: string;
+  preVisitIntakeId?: string;
+  clinicOrderToken?: string;
   customer: {
     name: string;
     email?: string;
@@ -819,6 +830,46 @@ export function createPublicBooking(slug: string, body: CreatePublicBookingBody)
     paymentMethod?: 'online' | 'cash';
     amountDue?: number;
   }>(`/public/${slug}/bookings`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function getPublicPreVisitIntakeConfig(slug: string, serviceId: string) {
+  return publicFetch<import('./public-pre-visit-intake.js').PublicPreVisitIntakeConfig>(
+    `/public/${slug}/checkout/pre-visit-intake/config?serviceId=${encodeURIComponent(serviceId)}`,
+  );
+}
+
+export function createPublicPreVisitIntakeDraft(
+  slug: string,
+  body: { serviceId: string; questionnaireId?: string },
+) {
+  return publicFetch<import('./clinic-pre-visit-intake.js').PreVisitIntakeSummary>(
+    `/public/${slug}/me/pre-visit-intake/draft`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function getPublicPreVisitIntakeFlow(slug: string, intakeId: string) {
+  return publicFetch<import('./clinic-pre-visit-intake.js').PreVisitIntakeFlowView>(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}`,
+  );
+}
+
+export function startPublicPreVisitIntake(slug: string, intakeId: string) {
+  return publicFetch<import('./clinic-pre-visit-intake.js').PreVisitIntakeFlowView>(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}/start`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+}
+
+export function submitPublicPreVisitIntakeAnswer(
+  slug: string,
+  intakeId: string,
+  body: { questionId?: string; values: string[] },
+) {
+  return publicFetch<import('./clinic-pre-visit-intake.js').PreVisitIntakeFlowView>(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}/answers`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
 }
 
 export function createPublicBookingCheckout(slug: string, body: CreatePublicBookingBody) {
@@ -1190,6 +1241,41 @@ export function getPublicCustomerMe(slug: string) {
 
 export function getPublicCustomerBookings(slug: string) {
   return publicFetch<{ bookings: PublicCustomerBookingItem[] }>(`/public/${slug}/me/bookings`);
+}
+
+export function getPublicCustomerClinicTestResults(slug: string) {
+  return publicFetch<PublicCustomerReleasedClinicResult[]>(
+    `/public/${slug}/me/clinic-test-results`,
+  );
+}
+
+export function getPublicCustomerClinicLabBookingRequests(slug: string) {
+  return publicFetch<import('./clinic-lab-booking-request.js').PublicClinicLabBookingRequest[]>(
+    `/public/${slug}/me/clinic-lab-booking-requests`,
+  );
+}
+
+export function getPublicCustomerClinicDocuments(slug: string) {
+  return publicFetch<PublicCustomerReleasedClinicDocument[]>(
+    `/public/${slug}/me/clinic-documents`,
+  );
+}
+
+export function getPublicCustomerClinicPatientAlerts(slug: string) {
+  return publicFetch<import('./clinic-patient-alerts.js').ClinicPatientAlertListView>(
+    `/public/${slug}/me/clinic-patient-alerts`,
+  );
+}
+
+export function dismissPublicCustomerClinicPatientAlert(
+  slug: string,
+  alertType: import('./clinic-patient-alerts.js').ClinicPatientAlertType,
+  sourceId: string,
+) {
+  return publicFetch<{ dismissed: boolean; id: string }>(
+    `/public/${slug}/me/clinic-patient-alerts/${alertType}/${sourceId}/dismiss`,
+    { method: 'POST' },
+  );
 }
 
 export function cancelPublicCustomerBooking(slug: string, bookingId: string) {

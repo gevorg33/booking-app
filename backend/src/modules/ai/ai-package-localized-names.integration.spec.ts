@@ -39,17 +39,19 @@ describe('ai package localized names integration (ai-cmd-lang-6)', () => {
         metadata: { localizedNames: { ru: ['Свадьба'] } },
       },
     ]),
-    updatePackage: jest.fn(async (_businessId: string, packageId: string, dto) => {
-      const base = [
-        { id: 'pkg-1', name: 'Spa Day' },
-        { id: 'pkg-2', name: 'Wellness' },
-        { id: 'pkg-3', name: 'Bridal' },
-      ].find((item) => item.id === packageId);
-      return {
-        ...base,
-        metadata: { localizedNames: dto.localizedNames ?? {} },
-      };
-    }),
+    updatePackage: jest.fn(
+      async (_businessId: string, packageId: string, dto) => {
+        const base = [
+          { id: 'pkg-1', name: 'Spa Day' },
+          { id: 'pkg-2', name: 'Wellness' },
+          { id: 'pkg-3', name: 'Bridal' },
+        ].find((item) => item.id === packageId);
+        return {
+          ...base,
+          metadata: { localizedNames: dto.localizedNames ?? {} },
+        };
+      },
+    ),
   };
 
   const deps = () => ({ businessRepo, packagesService });

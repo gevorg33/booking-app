@@ -20,6 +20,7 @@ const labTest: PublicService = {
   requiresFasting: true,
   preparationNotes: 'Fast for 12 hours before sample collection',
   acceptsPatientNotes: true,
+  offersPreVisitIntake: true,
 };
 
 const consultation: PublicService = {
@@ -130,6 +131,11 @@ describe('Sprint 31 — clinic booking scenario matrix', () => {
     expect(trim('  Dr Lee  ')).toBe('Dr Lee');
     expect(trim('   ')).toBeUndefined();
     expect(trim(undefined)).toBeUndefined();
+  });
+
+  it('exposes optional pre-visit intake for lab test checkout', () => {
+    expect(labTest.offersPreVisitIntake).toBe(true);
+    expect(consultation.offersPreVisitIntake).toBeUndefined();
   });
 
   it('exposes clinic card fields required by public booking UI', () => {

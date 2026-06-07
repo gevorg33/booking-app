@@ -56,7 +56,9 @@ function hasTourDaySlotsTopic(prompt: string): boolean {
       prompt,
     ) ||
     /\b(multi[-\s]?day\s+tours?).{0,60}\b(one|single)\b/i.test(prompt) ||
-    /\b(one|single)\s+(?:time\s+)?slot.{0,40}\bmulti[-\s]?day\b/i.test(prompt) ||
+    /\b(one|single)\s+(?:time\s+)?slot.{0,40}\bmulti[-\s]?day\b/i.test(
+      prompt,
+    ) ||
     /\b(why|how\s+many).{0,40}\b(spots?|seats?|places?)\b/i.test(prompt) ||
     /(մեկ\s+մեկնում|մնաց|տեղ|ամբողջությամբ\s+ամրագրված|օրական)/i.test(prompt) ||
     /(одно\s+время|осталось|мест|недоступен|полностью\s+забронирован)/i.test(
@@ -77,8 +79,7 @@ function isAvailabilityListingPrompt(prompt: string): boolean {
   return (
     /\b(who\s+is\s+free|check\s+availability|open\s+times?|free\s+slots?)\b/i.test(
       prompt,
-    ) ||
-    /(ով\s+է\s+ազատ|кто\s+свободен)/i.test(prompt)
+    ) || /(ով\s+է\s+ազատ|кто\s+свободен)/i.test(prompt)
   );
 }
 
@@ -97,9 +98,7 @@ function isPlausibleTourServiceName(name: string): boolean {
 function extendTourCatalogServiceName(name: string, prompt: string): string {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const catalogTour = prompt.match(
-    new RegExp(
-      `\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`,
-    ),
+    new RegExp(`\\b${escaped}(?:\\s+[A-Za-z0-9][\\w'&-]+)*\\s+Tour\\b`),
   );
   if (catalogTour?.[0]) return catalogTour[0].trim();
   const extended = prompt.match(
@@ -131,10 +130,7 @@ function normalizeServiceNameCandidate(
     if (next === name) break;
     name = next;
   }
-  name = name
-    .replace(/-ը$/i, '')
-    .replace(/-ի$/i, '')
-    .trim();
+  name = name.replace(/-ը$/i, '').replace(/-ի$/i, '').trim();
   if (/^(?:tour|trek|excursion|տուր|էքսկուրսիա|тур|экскурс)$/i.test(name)) {
     return null;
   }
@@ -187,9 +183,7 @@ function extractDateFromPrompt(prompt: string): string | undefined {
     if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return normalized;
   }
 
-  const monthDay = prompt.match(
-    /\b(?:on\s+)?(\d{1,2})\/(\d{1,2})\/(\d{4})\b/i,
-  );
+  const monthDay = prompt.match(/\b(?:on\s+)?(\d{1,2})\/(\d{1,2})\/(\d{4})\b/i);
   if (monthDay) {
     const normalized = toIsoDay(
       `${monthDay[1]}/${monthDay[2]}/${monthDay[3]}`,
@@ -220,11 +214,11 @@ function resolveTourDaySlotsAspect(prompt: string): TourDaySlotsAspect {
   const fullyBooked =
     /\b(fully\s+booked|sold\s+out|no\s+(?:departure\s+)?times?|no\s+slots?|unavailable)\b/i.test(
       prompt,
-    ) ||
-    /(недоступен|ամբողջությամբ\s+ամրագրված)/i.test(prompt);
+    ) || /(недоступен|ամբողջությամբ\s+ամրագրված)/i.test(prompt);
 
-  const count = [oneDeparture, remainingSpots, fullyBooked].filter(Boolean)
-    .length;
+  const count = [oneDeparture, remainingSpots, fullyBooked].filter(
+    Boolean,
+  ).length;
   if (count >= 2) return 'all';
   if (oneDeparture) return 'oneDeparture';
   if (remainingSpots) return 'remainingSpots';
@@ -246,10 +240,7 @@ function isSingleTourDaySlotsPrompt(prompt: string): boolean {
 
   const serviceName = extractServiceNameFromPrompt(prompt);
   const dateKey = extractDateFromPrompt(prompt);
-  if (
-    (serviceName && isPlausibleTourServiceName(serviceName)) ||
-    dateKey
-  ) {
+  if ((serviceName && isPlausibleTourServiceName(serviceName)) || dateKey) {
     return true;
   }
   if (hasBookingVisitorContext(prompt) && hasTourDaySlotsTopic(prompt)) {
@@ -275,7 +266,9 @@ export function isExplainTourDaySlotsPrompt(prompt: string): boolean {
 
   if (
     hasBookingVisitorContext(prompt) &&
-    Boolean(extractServiceNameFromPrompt(prompt) || extractDateFromPrompt(prompt))
+    Boolean(
+      extractServiceNameFromPrompt(prompt) || extractDateFromPrompt(prompt),
+    )
   ) {
     return true;
   }

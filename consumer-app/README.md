@@ -7,6 +7,7 @@ Native customer booking app (`com.optischedule.consumer`), separate from `provid
 - Capacitor + Ionic React: book services, Google sign-in, account (bookings + subscriptions)
 - Per-tenant context: routes under `/s/{slug}`, auth tokens keyed by slug
 - Deep links: `https://your-domain/book/{slug}`, `optischedule://book/{slug}`, deferred slug after store install
+- Clinic lab booking: `optischedule://book/{slug}/lab-requests?serviceId={id}&clinicOrderToken={token}` opens collection booking with token prefill; without query params opens the **Lab to book** tab (`/s/{slug}/lab-to-book`). Native push (clinic tenants): FCM/APNs via `@capacitor/push-notifications` + `/public/:slug/me/push/register-native`.
 - Recent salons on welcome when no deep link
 - **Customer self-service (gap-2.7):** cancel/reschedule on Account; manage link (`/book/{slug}/manage?bookingId=&token=`); confirmation card shows previous vs new time
 - **iOS** Universal Links + **Android** App Links (same web paths)

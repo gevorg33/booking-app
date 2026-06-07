@@ -3,9 +3,7 @@ import {
   isExplainBusinessLanguagesPrompt,
 } from './ai-business-languages.util.js';
 
-export const BOOKING_LANGUAGES_INTENTS = [
-  'explain_booking_languages',
-] as const;
+export const BOOKING_LANGUAGES_INTENTS = ['explain_booking_languages'] as const;
 
 export type BookingLanguagesIntent = (typeof BOOKING_LANGUAGES_INTENTS)[number];
 

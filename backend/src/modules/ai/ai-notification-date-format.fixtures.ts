@@ -75,7 +75,8 @@ export const PREVIEW_NOTIFICATION_DATETIME_PROMPTS = [
   },
   {
     id: 'preview-reminder-whatsapp',
-    prompt: 'Show how a reminder WhatsApp message would display appointment time',
+    prompt:
+      'Show how a reminder WhatsApp message would display appointment time',
     messageKind: 'reminder' as const,
   },
   {
@@ -95,7 +96,8 @@ export const PREVIEW_NOTIFICATION_DATETIME_PROMPTS = [
   },
   {
     id: 'preview-whatsapp-confirmation',
-    prompt: 'What would a WhatsApp booking confirmation look like with our date format?',
+    prompt:
+      'What would a WhatsApp booking confirmation look like with our date format?',
     messageKind: 'confirmation' as const,
   },
 ] as const;

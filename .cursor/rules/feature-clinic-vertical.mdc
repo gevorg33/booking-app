@@ -1,0 +1,44 @@
+---
+description: Generic clinic vertical only — de-fertility clone rules, lab state machines, Booking integration. Mandatory for Sprint 54 clinic-test-results, clinic EMR, and ai-cmd-clinic work.
+globs: backend/src/modules/clinic-test-results/**/*.ts,backend/src/common/utils/clinic-*.ts,backend/src/modules/**/public-booking-clinic*.ts,frontend/src/lib/clinic-*.ts,frontend/src/**/*clinic*,consumer-app/**/*clinic*,provider-app/**/*clinic*,backend/src/modules/ai/ai-cmd-clinic*.ts,backend/src/modules/ai/ai-*clinic*.ts
+alwaysApply: false
+---
+
+# Generic clinic vertical (mandatory — zero fertility logic)
+
+## Design principle
+
+Booking clinic = **any outpatient clinic** (GP, lab, dental, polyclinic). Pollin `clinic-app/` is reference code to **clone and strip** — never ship fertility product logic.
+
+## Never ship / reject in PR
+
+`patientPlanId` · `PatientPlan` · `HormoneType` · `fertilityIQImageURL` · FertilityIQ · IVF/cryo modules · stim sheets · partner cycles · OB/OHSS ultrasound entities · `OrderViewStateService` milestone wizard · sex-split fertility profiles
+
+## Clone scope (`vert-clinic-2.0`)
+
+**Copy:** `order/` (crud, list, actions — not view-state wizard), `test-result/`, `shared/`, `specimen/`, `transport/`, `labs/`, trimmed entities with `businessId`.
+
+**Skip folders:** `fertility-iq/`, `diagnostic-imaging/`, `genetic-tests/`, `sperm-cryo/`.
+
+**Adapt:** `patientId`→`customerId`, `appointmentId`→`bookingId`, `Staff`→`Employee`, Firestore history→Postgres, PubSub→Booking `events/`.
+
+## Lab state machines (`clinic-lab-state.util.ts`)
+
+| Machine | Generic states |
+|---------|----------------|
+| Order | `NotCollected`→`Collecting`→`AwaitingResults`→`Completed`/`Cancelled` |
+| Result | `NotReceived`→`Completed`→`Reviewed`→`Released` (+ `Rejected`) |
+| Specimen | `NotCollected`→`Collected`→…→`ReceivedInLab`→`Completed` |
+
+Port guards: `canTransition*`, `isResultEditable`, status history on every transition. Unit spec: `it.each` allowed + forbidden transitions.
+
+## Shippable checklist (with feature-ai + feature-test rules)
+
+- [ ] De-fertility grep clean under `clinic-test-results/`
+- [ ] State machine util + spec (**2.0.12–2.0.13**)
+- [ ] PHI encryption on result/chart fields; minimum-necessary access
+- [ ] AI: `ai-cmd-clinic-v2-*` per applicable surface + eval cases
+- [ ] i18n: `i18n-clinic-v2-*` UI + `i18n-clinic-v2-ai-*` multilingual fixtures per feature (**TODO.md** Sprint 54)
+- [ ] Tests: `test:sprint54` (add script when module lands)
+
+Full plan: `TODO.md` Sprint 54 (`vert-clinic-2.*`).

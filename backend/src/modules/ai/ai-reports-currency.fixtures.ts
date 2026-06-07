@@ -35,7 +35,8 @@ export const EXPLAIN_REPORTS_CURRENCY_PROMPTS = [
   },
   {
     id: 'why-service-revenue-currency',
-    prompt: 'Why does the service popularity revenue column use our salon currency?',
+    prompt:
+      'Why does the service popularity revenue column use our salon currency?',
   },
   {
     id: 'operations-pl-currency-code',

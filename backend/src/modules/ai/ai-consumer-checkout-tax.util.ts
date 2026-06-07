@@ -94,9 +94,7 @@ export function parseExplainConsumerCheckoutTaxAspect(
     /\b(?:confirmation|confirmed|success)\b.+\b(?:tax|payment\s+summary)\b/i.test(
       prompt,
     ) ||
-    /\b(?:tax|payment\s+summary)\b.+\b(?:confirmation|success)\b/i.test(
-      prompt,
-    )
+    /\b(?:tax|payment\s+summary)\b.+\b(?:confirmation|success)\b/i.test(prompt)
   ) {
     return 'confirmation';
   }

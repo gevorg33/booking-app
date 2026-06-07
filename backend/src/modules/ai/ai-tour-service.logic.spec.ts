@@ -28,7 +28,11 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
     {
       id: 'svc-2',
       name: '3-Day Mountain Trek',
-      metadata: { serviceType: 'tour', difficulty: 'challenging', maxGroupSize: 8 },
+      metadata: {
+        serviceType: 'tour',
+        difficulty: 'challenging',
+        maxGroupSize: 8,
+      },
       durationMinutes: 4320,
     },
     {
@@ -163,7 +167,12 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
   });
 
   it('returns clarify when prompt cannot be parsed', async () => {
-    const result = await handleConfigureTourServiceLogic(deps(), 'biz-1', {}, '');
+    const result = await handleConfigureTourServiceLogic(
+      deps(),
+      'biz-1',
+      {},
+      '',
+    );
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
   });
@@ -231,7 +240,10 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
     expect(result.action).toBe('explain_tour_services');
     expect(result.details?.tourServices).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: '3-Day Mountain Trek', maxGroupSize: 8 }),
+        expect.objectContaining({
+          name: '3-Day Mountain Trek',
+          maxGroupSize: 8,
+        }),
       ]),
     );
     expect(result.details?.upcomingBookings).toEqual(

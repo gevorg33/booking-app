@@ -75,27 +75,22 @@ describe('ai-business-tax.util (ai-cmd-tax-1..3)', () => {
   });
 
   it('rescues configure, service override, and explain prompts', () => {
-    expect(
-      rescueBusinessTaxIntent('Enable 20% VAT', 'unknown'),
-    ).toEqual({
+    expect(rescueBusinessTaxIntent('Enable 20% VAT', 'unknown')).toEqual({
       action: 'configure_business_tax',
       rescueReason: 'configure_business_tax',
     });
     expect(
-      rescueBusinessTaxIntent(
-        'Make massage services tax-exempt',
-        'unknown',
-      ),
+      rescueBusinessTaxIntent('Make massage services tax-exempt', 'unknown'),
     ).toEqual({
       action: 'set_service_tax_rate',
       rescueReason: 'set_service_tax_rate',
     });
-    expect(
-      rescueBusinessTaxIntent('What is our VAT rate?', 'unknown'),
-    ).toEqual({
-      action: 'explain_business_tax',
-      rescueReason: 'explain_business_tax',
-    });
+    expect(rescueBusinessTaxIntent('What is our VAT rate?', 'unknown')).toEqual(
+      {
+        action: 'explain_business_tax',
+        rescueReason: 'explain_business_tax',
+      },
+    );
     expect(
       rescueBusinessTaxIntent('Enable 20% VAT', 'configure_business_tax'),
     ).toBeNull();

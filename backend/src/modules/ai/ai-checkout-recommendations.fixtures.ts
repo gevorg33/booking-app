@@ -44,8 +44,7 @@ export const EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS = [
   },
   {
     id: 'public-confirmed-appointment-products',
-    prompt:
-      'What are the products shown after my appointment is confirmed?',
+    prompt: 'What are the products shown after my appointment is confirmed?',
     aspect: 'products' as const,
     surface: 'public' as const,
   },
@@ -83,8 +82,7 @@ export const EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS = [
   },
   {
     id: 'customer-app-after-booking',
-    prompt:
-      'Why am I seeing product recommendations after booking in the app?',
+    prompt: 'Why am I seeing product recommendations after booking in the app?',
     aspect: 'whyShown' as const,
     surface: 'customer' as const,
   },

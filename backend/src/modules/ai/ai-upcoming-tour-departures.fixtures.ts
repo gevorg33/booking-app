@@ -33,8 +33,7 @@ export const LIST_UPCOMING_TOUR_DEPARTURES_PROMPTS = [
   },
   {
     id: 'pax-and-seats-left',
-    prompt:
-      'Upcoming tour departures — how many pax booked and seats left?',
+    prompt: 'Upcoming tour departures — how many pax booked and seats left?',
   },
   {
     id: 'mountain-trek-departures',

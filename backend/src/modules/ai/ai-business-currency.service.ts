@@ -94,7 +94,9 @@ export class AiBusinessCurrencyService {
     return handleExplainProviderPaymentCurrencyLogic(this.deps, businessId);
   }
 
-  handleExplainNotificationCurrency(businessId: string): Promise<CommandResult> {
+  handleExplainNotificationCurrency(
+    businessId: string,
+  ): Promise<CommandResult> {
     return handleExplainNotificationCurrencyLogic(this.deps, businessId);
   }
 

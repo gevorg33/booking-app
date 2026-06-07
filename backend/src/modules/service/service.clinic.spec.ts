@@ -37,6 +37,9 @@ describe('ServiceService clinic metadata', () => {
     } as any,
     { publish: jest.fn() } as any,
     { isConnectReady: jest.fn().mockReturnValue(true) } as any,
+    {
+      resolveActiveClinicDiagnosticCode: jest.fn(async () => null),
+    } as any,
   );
 
   beforeEach(() => {

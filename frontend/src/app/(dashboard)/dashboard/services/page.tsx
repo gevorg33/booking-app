@@ -25,11 +25,14 @@ import {
   type LocalizedNamesMap,
 } from '@/lib/localized-names';
 import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { ClinicTestCatalogTab } from '@/components/clinic/clinic-test-catalog-tab';
+import { ExternalDoctorsTab } from '@/components/clinic/external-doctors-tab';
+import { ClinicQuestionnairesTab } from '@/components/clinic/clinic-questionnaires-tab';
 import { isTourVerticalBusinessType } from '@/lib/tour-service';
 import { unwrapBusinessApiPayload } from '@/lib/business-query';
 import { readSettingsFromAuthBusiness } from '@/hooks/use-business-enabled-locales';
 
-type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService';
+type ServicesTab = 'categories' | 'types' | 'packages' | 'multiService' | 'labCatalog' | 'referringDoctors' | 'questionnaires';
 
 interface ServiceCategoryRecord {
   id: string;
@@ -1078,13 +1081,6 @@ export default function ServicesPage() {
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>(defaultCategoryForm());
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
-  const tabs: { id: ServicesTab; label: string }[] = [
-    { id: 'types', label: t('servicesPage.tabServiceTypes') },
-    { id: 'categories', label: t('servicesPage.tabCategories') },
-    { id: 'packages', label: t('servicesPage.tabPackages') },
-    { id: 'multiService', label: t('servicesPage.tabMultiService') },
-  ];
-
   const { data: businessData } = useQuery({
     queryKey: ['business', business?.id],
     queryFn: async () => {
@@ -1101,6 +1097,20 @@ export default function ServicesPage() {
     )?.businessType as string | undefined);
   const showTourVertical = isTourVerticalBusinessType(businessType);
   const showClinicVertical = isClinicVerticalBusinessType(businessType);
+
+  const tabs: { id: ServicesTab; label: string }[] = [
+    { id: 'types', label: t('servicesPage.tabServiceTypes') },
+    { id: 'categories', label: t('servicesPage.tabCategories') },
+    ...(showClinicVertical
+      ? [
+          { id: 'labCatalog' as const, label: t('clinicTestCatalog.tabLabel') },
+          { id: 'referringDoctors' as const, label: t('externalDoctors.tabLabel') },
+          { id: 'questionnaires' as const, label: t('clinicQuestionnaires.tabLabel') },
+        ]
+      : []),
+    { id: 'packages', label: t('servicesPage.tabPackages') },
+    { id: 'multiService', label: t('servicesPage.tabMultiService') },
+  ];
 
   const { data: stripeConnect } = useQuery({
     queryKey: ['stripe-connect', business?.id],
@@ -1269,6 +1279,21 @@ export default function ServicesPage() {
     );
   }, [services, categories, t]);
 
+  const labServices = useMemo(
+    () =>
+      (services ?? [])
+        .filter((svc) => {
+          const serviceType = (svc.metadata as { serviceType?: string } | undefined)?.serviceType;
+          return serviceType === 'lab_test' || serviceType === 'procedure';
+        })
+        .map((svc) => ({
+          id: svc.id,
+          name: svc.name,
+          serviceType: (svc.metadata as { serviceType?: string } | undefined)?.serviceType,
+        })),
+    [services],
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <DashboardPageShell
@@ -1333,6 +1358,18 @@ export default function ServicesPage() {
           services={(services ?? []).map((svc) => ({ id: svc.id, name: svc.name }))}
           categories={categories.map((cat) => ({ id: cat.id, name: cat.name }))}
         />
+      )}
+
+      {tab === 'labCatalog' && business?.id && showClinicVertical && (
+        <ClinicTestCatalogTab businessId={business.id} labServices={labServices} />
+      )}
+
+      {tab === 'referringDoctors' && business?.id && showClinicVertical && (
+        <ExternalDoctorsTab businessId={business.id} />
+      )}
+
+      {tab === 'questionnaires' && business?.id && showClinicVertical && (
+        <ClinicQuestionnairesTab businessId={business.id} />
       )}
 
       {tab === 'types' && (

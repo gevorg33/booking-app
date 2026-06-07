@@ -16,6 +16,7 @@ import {
   packageToFormState,
   previewPackageFromForm,
   resolvePackageStatus,
+  type PackageFormState,
   type ServicePackageRecord,
 } from '@/lib/service-packages';
 import { useBusinessCurrency } from '@/hooks/use-business-currency';
@@ -38,7 +39,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
   const { enabledLocales } = useBusinessEnabledLocales();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<PackageFilter>('all');
-  const [form, setForm] = useState(defaultPackageFormState());
+  const [form, setForm] = useState<PackageFormState>(defaultPackageFormState());
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [graceHours, setGraceHours] = useState('0');

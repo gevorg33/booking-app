@@ -15,6 +15,8 @@ import { buildSalonPath } from '../lib/deep-link.js';
 import { setCustomerSession } from '../lib/customer-auth.js';
 import { loginWithGoogle } from '../services/public-api.js';
 import { getGoogleIdToken, isGoogleSignInAvailable } from '../services/google-auth.js';
+import { enableConsumerNativePush } from '../services/native-push.js';
+import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 
 export default function LoginPage() {
   const history = useHistory();
@@ -30,6 +32,9 @@ export default function LoginPage() {
       const idToken = await getGoogleIdToken();
       const { token, customer } = await loginWithGoogle(slug, idToken);
       setCustomerSession(slug, token, customer);
+      if (profile && shouldShowPatientResultsTab(profile.businessType)) {
+        void enableConsumerNativePush(slug);
+      }
       history.replace(buildSalonPath(slug, '/account'));
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : 'Sign-in failed');

@@ -56,7 +56,8 @@ export class AiRecommendationProductService {
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(Service) serviceRepo: Repository<Service>,
-    @InjectRepository(ServiceCategory) categoryRepo: Repository<ServiceCategory>,
+    @InjectRepository(ServiceCategory)
+    categoryRepo: Repository<ServiceCategory>,
     @InjectRepository(ServiceRecommendedProduct)
     serviceLinkRepo: Repository<ServiceRecommendedProduct>,
     @InjectRepository(CategoryRecommendedProduct)

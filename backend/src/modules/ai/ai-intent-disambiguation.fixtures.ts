@@ -27,7 +27,8 @@ export const AVAILABILITY_INTENT_MATRIX = [
     ],
   },
   {
-    userGoal: 'Staff catalog / schedule assignment (who performs or is scheduled)',
+    userGoal:
+      'Staff catalog / schedule assignment (who performs or is scheduled)',
     namedProvider: false,
     bookVerb: false,
     dashboard: 'lookup_service_assignment',

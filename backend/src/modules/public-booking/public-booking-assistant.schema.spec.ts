@@ -11,9 +11,7 @@ describe('buildPublicClassifierSchema', () => {
       "who's free tomorrow evening for permanent lashes",
     );
     expect(schema).toContain('multi-step flows automatically');
-    expect(schema).not.toMatch(
-      /"action":\s*"[^"]*check_providers_for_service/,
-    );
+    expect(schema).not.toMatch(/"action":\s*"[^"]*check_providers_for_service/);
     expect(schema).not.toMatch(/"action":\s*"[^"]*book_nearest_slot/);
     expect(schema).toContain('Availability vs booking (public booking page)');
     expect(schema).toContain('Do NOT use check_providers_for_service');
@@ -60,5 +58,10 @@ describe('buildPublicClassifierSchema', () => {
       'Why did checkout reject 4 people for the mountain trek',
     );
     expect(schema).toContain('NOT explain_tour_day_slots');
+    expect(schema).toContain('list_my_test_results');
+    expect(schema).toContain('explain_result_status');
+    expect(schema).toContain('list_my_lab_booking_requests');
+    expect(schema).toContain('book_lab_collection');
+    expect(schema).toContain('booking page');
   });
 });

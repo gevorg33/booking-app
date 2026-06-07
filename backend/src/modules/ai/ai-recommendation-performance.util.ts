@@ -74,7 +74,8 @@ function hasSummarizeReadCue(prompt: string): boolean {
       /\b(?:recommendations?|checkout recommendations?|post[- ]?checkout)\b/i.test(
         prompt,
       )) ||
-    (/ctr/i.test(prompt) && /(?:recommendation|խորհուրդ|рекомендац)/i.test(prompt)) ||
+    (/ctr/i.test(prompt) &&
+      /(?:recommendation|խորհուրդ|рекомендац)/i.test(prompt)) ||
     /\bbookings?\s+with\b.+\b(?:recommendation|shown|cards?)\b/i.test(prompt) ||
     (/booking/i.test(prompt) && /recommendations?\s+shown/i.test(prompt)) ||
     (/бронирован/i.test(prompt) && /рекомендац/i.test(prompt)) ||
@@ -93,7 +94,9 @@ function hasRecommendationPerformanceTopic(prompt: string): boolean {
     /\bctr\b.+\b(?:recommendations?|checkout|post[- ]?checkout|product|service)\b/i.test(
       prompt,
     ) ||
-    /\b(?:recommendations?|checkout recommendations?)\b.+\bctr\b/i.test(prompt) ||
+    /\b(?:recommendations?|checkout recommendations?)\b.+\bctr\b/i.test(
+      prompt,
+    ) ||
     /\bclick[- ]?through\b.+\b(?:recommendations?|checkout|product|service)\b/i.test(
       prompt,
     ) ||
@@ -114,12 +117,17 @@ function hasRecommendationPerformanceTopic(prompt: string): boolean {
       /\b(?:recommendations?|checkout recommendations?|post[- ]?checkout)\b/i.test(
         prompt,
       )) ||
-    (/արդյունավետություն/i.test(prompt) && /recommendation|խորհուրդ/i.test(prompt)) ||
+    (/արդյունավետություն/i.test(prompt) &&
+      /recommendation|խորհուրդ/i.test(prompt)) ||
     (/эффективност/i.test(prompt) && /рекомендац/i.test(prompt)) ||
-    (/после\s+оплаты/i.test(prompt) && /рекомендац/i.test(prompt) && /ctr/i.test(prompt)) ||
+    (/после\s+оплаты/i.test(prompt) &&
+      /рекомендац/i.test(prompt) &&
+      /ctr/i.test(prompt)) ||
     (/booking/i.test(prompt) && /recommendations?\s+shown/i.test(prompt)) ||
     (/ունեցավ/i.test(prompt) && /recommendations?\s+shown/i.test(prompt)) ||
-    (/бронирован/i.test(prompt) && /рекомендац/i.test(prompt) && /показан/i.test(prompt)) ||
+    (/бронирован/i.test(prompt) &&
+      /рекомендац/i.test(prompt) &&
+      /показан/i.test(prompt)) ||
     (/сколько/i.test(prompt) &&
       /бронирован/i.test(prompt) &&
       /рекомендац/i.test(prompt))
@@ -142,7 +150,9 @@ function extractAspect(prompt: string): RecommendationPerformanceAspect {
       prompt,
     ) ||
     (/booking/i.test(prompt) && /recommendations?\s+shown/i.test(prompt)) ||
-    (/бронирован/i.test(prompt) && /рекомендац/i.test(prompt) && /показан/i.test(prompt))
+    (/бронирован/i.test(prompt) &&
+      /рекомендац/i.test(prompt) &&
+      /показан/i.test(prompt))
   ) {
     return 'bookings';
   }

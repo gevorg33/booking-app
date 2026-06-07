@@ -60,7 +60,9 @@ export function buildNoSlotSuggestions(
     ];
   }
 
-  const alts = ALTERNATE_WINDOWS[window].map((part) => TIME_OF_DAY_LABELS[part]);
+  const alts = ALTERNATE_WINDOWS[window].map(
+    (part) => TIME_OF_DAY_LABELS[part],
+  );
   return [
     `Try ${alts[0]} or ${alts[1]} the same day.`,
     'Or pick another date.',
@@ -80,9 +82,7 @@ export function buildNoProvidersAvailableMessage(
     normalizeTimeOfDay(input.timeOfDay),
     input.notBeforeTime,
   );
-  const suggestions = joinSuggestions(
-    buildNoSlotSuggestions(input.timeOfDay),
-  );
+  const suggestions = joinSuggestions(buildNoSlotSuggestions(input.timeOfDay));
 
   if (window) {
     return `No providers are free for ${input.serviceName} on ${day} during ${window}. ${suggestions}`;
@@ -99,9 +99,7 @@ export function buildNoNearestSlotMessage(
     normalizeTimeOfDay(input.timeOfDay),
     input.notBeforeTime,
   );
-  const suggestions = joinSuggestions(
-    buildNoSlotSuggestions(input.timeOfDay),
-  );
+  const suggestions = joinSuggestions(buildNoSlotSuggestions(input.timeOfDay));
 
   if (window) {
     return `No bookable slot for ${input.serviceName} on ${day} during ${window}. ${suggestions}`;
@@ -109,7 +107,9 @@ export function buildNoNearestSlotMessage(
   return `No bookable slot for ${input.serviceName} on ${day}. ${suggestions}`;
 }
 
-export function buildNoSlotAvailabilityMessage(input: NoSlotMessageInput): string {
+export function buildNoSlotAvailabilityMessage(
+  input: NoSlotMessageInput,
+): string {
   if (input.scenario === 'no_providers') {
     return buildNoProvidersAvailableMessage(input);
   }

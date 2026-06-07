@@ -88,7 +88,10 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
         success: true,
         action: 'open_booking_from_push',
         summary: 'Open Sam',
-        details: { bookingId, deepLink: `/provider/today?bookingId=${bookingId}` },
+        details: {
+          bookingId,
+          deepLink: `/provider/today?bookingId=${bookingId}`,
+        },
       })),
       handleExplainLastPush: jest.fn(() => ({
         success: true,
@@ -126,6 +129,8 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
       } as any,
       pushNotifications as any,
       providerBooking as any,
+      {} as any,
+      {} as any,
       {
         handleExplainProviderPaymentCurrency: jest.fn(async () => ({
           success: true,
@@ -260,6 +265,8 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
       'Show my package appointments today',
     );
     expect(result.action).toBe('list_package_appointments_today');
-    expect(providerBooking.handleListPackageAppointmentsToday).toHaveBeenCalled();
+    expect(
+      providerBooking.handleListPackageAppointmentsToday,
+    ).toHaveBeenCalled();
   });
 });

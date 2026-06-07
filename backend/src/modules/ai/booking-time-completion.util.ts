@@ -9,11 +9,7 @@ export function isBookingFirstAvailable(
 export function hasFlexibleTimeWindow(
   params: Record<string, unknown>,
 ): boolean {
-  return !!(
-    params.timeOfDay ||
-    params.notBeforeTime ||
-    params.timeFrom
-  );
+  return !!(params.timeOfDay || params.notBeforeTime || params.timeFrom);
 }
 
 /** Fixed start time or nearest/first-available booking — skips timeSlot when flexible. */
@@ -31,9 +27,7 @@ export function hasRequiredBookingDate(
 }
 
 /** Reschedule target time: new date/slot, first-available move, or day-part constraint. */
-export function hasRescheduleNewTime(
-  params: Record<string, unknown>,
-): boolean {
+export function hasRescheduleNewTime(params: Record<string, unknown>): boolean {
   return (
     !!params.date ||
     !!params.timeSlot ||
@@ -43,12 +37,6 @@ export function hasRescheduleNewTime(
 }
 
 /** Availability / gap checks: any when hint (date, slot, or day-part window). */
-export function hasAvailabilityWhen(
-  params: Record<string, unknown>,
-): boolean {
-  return (
-    !!params.date ||
-    !!params.timeSlot ||
-    hasFlexibleTimeWindow(params)
-  );
+export function hasAvailabilityWhen(params: Record<string, unknown>): boolean {
+  return !!params.date || !!params.timeSlot || hasFlexibleTimeWindow(params);
 }

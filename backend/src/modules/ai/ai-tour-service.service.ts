@@ -147,12 +147,7 @@ export class AiTourServiceService {
     params: Record<string, unknown> = {},
     prompt?: string,
   ): Promise<CommandResult> {
-    return handleExplainTourBookingLogic(
-      this.deps,
-      businessId,
-      params,
-      prompt,
-    );
+    return handleExplainTourBookingLogic(this.deps, businessId, params, prompt);
   }
 
   handleExplainTourDaySlots(

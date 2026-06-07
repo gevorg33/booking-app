@@ -52,6 +52,143 @@ export function buildSalonPath(slug: string, subpath = ''): string {
   return `${base}${subpath.startsWith('/') ? subpath : `/${subpath}`}`;
 }
 
+export function buildResultsPath(slug: string): string {
+  return buildSalonPath(slug, '/results');
+}
+
+export function buildLabToBookPath(slug: string): string {
+  return buildSalonPath(slug, '/lab-to-book');
+}
+
+export function buildLabRequestsPath(
+  slug: string,
+  options?: { collectionServiceId?: string; clinicOrderToken?: string },
+): string {
+  const params = new URLSearchParams();
+  if (options?.collectionServiceId?.trim()) {
+    params.set('serviceId', options.collectionServiceId.trim());
+  }
+  if (options?.clinicOrderToken?.trim()) {
+    params.set('clinicOrderToken', options.clinicOrderToken.trim());
+  }
+  const query = params.toString();
+  return query
+    ? `${buildSalonPath(slug, '/lab-requests')}?${query}`
+    : buildSalonPath(slug, '/lab-requests');
+}
+
+export interface LabBookingRequestRoute {
+  slug: string;
+  collectionServiceId?: string;
+  clinicOrderToken?: string;
+}
+
+/** Parse lab-booking-request deep links (vert-clinic-2.2.13 / adopt-4.2). */
+export function parseLabBookingRequestRoute(raw: string): LabBookingRequestRoute | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const readParams = (url: URL): LabBookingRequestRoute | null => {
+    if (url.protocol === 'optischedule:' && url.hostname === 'book') {
+      const parts = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
+      if (parts.length >= 2 && parts[1] === 'lab-requests' && isValidSlug(parts[0])) {
+        return {
+          slug: parts[0].toLowerCase(),
+          collectionServiceId: url.searchParams.get('serviceId')?.trim() || undefined,
+          clinicOrderToken: url.searchParams.get('clinicOrderToken')?.trim() || undefined,
+        };
+      }
+    }
+
+    const consumerMatch = url.pathname.match(/\/s\/([a-z0-9-]+)\/lab-requests\/?$/i);
+    if (consumerMatch?.[1] && isValidSlug(consumerMatch[1])) {
+      return {
+        slug: consumerMatch[1].toLowerCase(),
+        collectionServiceId: url.searchParams.get('serviceId')?.trim() || undefined,
+        clinicOrderToken: url.searchParams.get('clinicOrderToken')?.trim() || undefined,
+      };
+    }
+
+    const accountMatch = url.pathname.match(/\/book\/([a-z0-9-]+)\/account\/?$/i);
+    if (
+      accountMatch?.[1] &&
+      isValidSlug(accountMatch[1]) &&
+      url.searchParams.get('section') === 'lab-requests'
+    ) {
+      return { slug: accountMatch[1].toLowerCase() };
+    }
+
+    return null;
+  };
+
+  try {
+    const url = trimmed.includes('://')
+      ? new URL(trimmed)
+      : new URL(trimmed, 'https://local.invalid');
+    const parsed = readParams(url);
+    if (parsed) return parsed;
+  } catch {
+    const inline = trimmed.match(
+      /(?:optischedule:\/\/book\/|\/s\/|book\/)([a-z0-9-]+)(?:\/lab-requests|\/account\?section=lab-requests)/i,
+    );
+    if (inline?.[1] && isValidSlug(inline[1])) {
+      return { slug: inline[1].toLowerCase() };
+    }
+  }
+
+  return null;
+}
+
+export function resolveLabBookingRequestNavigationPath(
+  route: LabBookingRequestRoute,
+): string {
+  if (route.collectionServiceId && route.clinicOrderToken) {
+    const params = new URLSearchParams({ clinicOrderToken: route.clinicOrderToken });
+    return `/s/${route.slug}/book/${route.collectionServiceId}?${params.toString()}`;
+  }
+  return buildLabToBookPath(route.slug);
+}
+
+/** Parse result-ready deep links (adopt-4.2 / vert-clinic-2.4.7). */
+export function parseResultReadyRoute(raw: string): { slug: string } | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = trimmed.includes('://') ? new URL(trimmed) : new URL(trimmed, 'https://local.invalid');
+
+    if (url.protocol === 'optischedule:' && url.hostname === 'book') {
+      const parts = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
+      if (parts.length >= 2 && parts[1] === 'results' && isValidSlug(parts[0])) {
+        return { slug: parts[0].toLowerCase() };
+      }
+    }
+
+    const consumerMatch = url.pathname.match(/\/s\/([a-z0-9-]+)\/results\/?$/i);
+    if (consumerMatch?.[1] && isValidSlug(consumerMatch[1])) {
+      return { slug: consumerMatch[1].toLowerCase() };
+    }
+
+    const accountMatch = url.pathname.match(/\/book\/([a-z0-9-]+)\/account\/?$/i);
+    if (
+      accountMatch?.[1] &&
+      isValidSlug(accountMatch[1]) &&
+      url.searchParams.get('section') === 'results'
+    ) {
+      return { slug: accountMatch[1].toLowerCase() };
+    }
+  } catch {
+    const inline = trimmed.match(
+      /(?:optischedule:\/\/book\/|\/s\/|book\/)([a-z0-9-]+)(?:\/results|\/account\?section=results)/i,
+    );
+    if (inline?.[1] && isValidSlug(inline[1])) {
+      return { slug: inline[1].toLowerCase() };
+    }
+  }
+
+  return null;
+}
+
 /** Web manage link: /book/{slug}/manage?bookingId=&token= */
 export function parseManageBookingRoute(
   raw: string,

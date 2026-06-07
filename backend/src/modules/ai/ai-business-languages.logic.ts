@@ -50,7 +50,9 @@ function countDisabledLocaleTranslations(
   let total = 0;
 
   for (const item of items) {
-    const localized = extractLocalizedNamesFromMetadata(item.metadata ?? undefined);
+    const localized = extractLocalizedNamesFromMetadata(
+      item.metadata ?? undefined,
+    );
     if (!localized) continue;
 
     let matched = false;
@@ -110,12 +112,19 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
-function localesEqual(a: readonly AppLocale[], b: readonly AppLocale[]): boolean {
-  return a.length === b.length && a.every((locale, index) => locale === b[index]);
+function localesEqual(
+  a: readonly AppLocale[],
+  b: readonly AppLocale[],
+): boolean {
+  return (
+    a.length === b.length && a.every((locale, index) => locale === b[index])
+  );
 }
 
 function formatLocaleList(locales: readonly AppLocale[]): string {
-  return locales.map((locale) => `${localeDisplayName(locale)} (${locale})`).join(', ');
+  return locales
+    .map((locale) => `${localeDisplayName(locale)} (${locale})`)
+    .join(', ');
 }
 
 function describeOperation(operation: BusinessLanguageOperation): string {
@@ -142,7 +151,9 @@ export async function handleConfigureBusinessLanguagesLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_business_languages', 'Business not found.');
   }
@@ -160,7 +171,9 @@ export async function handleConfigureBusinessLanguagesLogic(
         if (!nextEnabled.includes(locale)) nextEnabled.push(locale);
       }
     } else if (parsed.operation === 'disable') {
-      nextEnabled = nextEnabled.filter((locale) => !parsed.locales.includes(locale));
+      nextEnabled = nextEnabled.filter(
+        (locale) => !parsed.locales.includes(locale),
+      );
       if (nextEnabled.length === 0) {
         return failure(
           'configure_business_languages',
@@ -228,7 +241,9 @@ export async function handleConfigureBusinessLanguagesLogic(
     });
   } catch (err: unknown) {
     const message =
-      err instanceof Error ? err.message : 'Could not update language settings.';
+      err instanceof Error
+        ? err.message
+        : 'Could not update language settings.';
     return failure('configure_business_languages', message);
   }
 }
@@ -238,7 +253,9 @@ export async function handleExplainBookingLanguagesLogic(
   businessId: string,
   visitorLocale?: string | null,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_booking_languages', 'Business not found.');
   }
@@ -292,7 +309,9 @@ export async function handleExplainBusinessLanguagesLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_business_languages', 'Business not found.');
   }
@@ -319,12 +338,18 @@ export async function handleExplainBusinessLanguagesLogic(
     }),
   ]);
 
-  const serviceStats = countDisabledLocaleTranslations(services, enabledLocales);
+  const serviceStats = countDisabledLocaleTranslations(
+    services,
+    enabledLocales,
+  );
   const categoryStats = countDisabledLocaleTranslations(
     categories,
     enabledLocales,
   );
-  const packageStats = countDisabledLocaleTranslations(packages, enabledLocales);
+  const packageStats = countDisabledLocaleTranslations(
+    packages,
+    enabledLocales,
+  );
   const totalDisabledLocaleItems =
     serviceStats.total + categoryStats.total + packageStats.total;
 
@@ -433,9 +458,7 @@ function stripDisabledPublicProfileLocalesFromSettings(
     return { settings: next, changed: true };
   }
 
-  if (
-    JSON.stringify(next.publicProfileLocales) === JSON.stringify(stripped)
-  ) {
+  if (JSON.stringify(next.publicProfileLocales) === JSON.stringify(stripped)) {
     return { settings: next, changed: false };
   }
 
@@ -523,9 +546,14 @@ export async function handleBulkStripDisabledLocaleTranslationsLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
-    return failure('bulk_strip_disabled_locale_translations', 'Business not found.');
+    return failure(
+      'bulk_strip_disabled_locale_translations',
+      'Business not found.',
+    );
   }
 
   const settings = business.settings as Record<string, unknown> | undefined;
@@ -561,20 +589,25 @@ export async function handleBulkStripDisabledLocaleTranslationsLogic(
     }),
   ]);
 
-  const serviceStats = countDisabledLocaleTranslations(services, enabledLocales);
+  const serviceStats = countDisabledLocaleTranslations(
+    services,
+    enabledLocales,
+  );
   const categoryStats = countDisabledLocaleTranslations(
     categories,
     enabledLocales,
   );
-  const packageStats = countDisabledLocaleTranslations(packages, enabledLocales);
+  const packageStats = countDisabledLocaleTranslations(
+    packages,
+    enabledLocales,
+  );
   const publicProfileDisabledLocales = getDisabledPublicProfileLocales(
     settings,
     enabledLocales,
   );
   const catalogTotal =
     serviceStats.total + categoryStats.total + packageStats.total;
-  const hasWork =
-    catalogTotal > 0 || publicProfileDisabledLocales.length > 0;
+  const hasWork = catalogTotal > 0 || publicProfileDisabledLocales.length > 0;
 
   if (!hasWork) {
     return success(

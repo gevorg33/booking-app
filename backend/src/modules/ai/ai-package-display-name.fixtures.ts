@@ -27,14 +27,16 @@ export const EXPLAIN_PACKAGE_DISPLAY_NAME_PROMPTS = [
   },
   {
     id: 'dash-hy-wellness',
-    prompt: 'Which localized display name shows for Wellness package in Armenian?',
+    prompt:
+      'Which localized display name shows for Wellness package in Armenian?',
     packageName: 'Wellness',
     locale: 'hy' as const,
     surface: 'dashboard' as const,
   },
   {
     id: 'dash-en-bridal-fallback',
-    prompt: 'Does Bridal package use the primary English name on the booking page?',
+    prompt:
+      'Does Bridal package use the primary English name on the booking page?',
     packageName: 'Bridal',
     locale: 'en' as const,
     surface: 'dashboard' as const,

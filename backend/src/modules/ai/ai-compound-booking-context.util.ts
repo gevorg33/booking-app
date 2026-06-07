@@ -44,7 +44,8 @@ export const SHARED_BOOKING_CONTEXT_KEYS = [
   'timeFrom',
 ] as const;
 
-export type SharedBookingContextKey = (typeof SHARED_BOOKING_CONTEXT_KEYS)[number];
+export type SharedBookingContextKey =
+  (typeof SHARED_BOOKING_CONTEXT_KEYS)[number];
 
 const GENERIC_SERVICE_NAME =
   /^(the|a|an|slot|time|appointment|appointments|opening|openings)$/i;
@@ -123,7 +124,7 @@ export function mergeSharedBookingContext(
       if (!isConcreteServiceName(value)) continue;
       if (
         isConcreteServiceName(merged.serviceName) &&
-        (merged.serviceName as string).length > value.length
+        merged.serviceName.length > value.length
       ) {
         continue;
       }

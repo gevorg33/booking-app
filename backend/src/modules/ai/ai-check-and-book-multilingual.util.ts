@@ -113,9 +113,7 @@ export function isMultilingualFirstAvailableBookingPrompt(
 export function extractMultilingualServiceNameFromPrompt(
   prompt: string,
 ): string | null {
-  const hyFor = prompt.match(
-    /([A-Za-z][\w\s'-]{1,40}?)(?:-ի\s+համար|-ը\b)/u,
-  );
+  const hyFor = prompt.match(/([A-Za-z][\w\s'-]{1,40}?)(?:-ի\s+համար|-ը\b)/u);
   if (hyFor) return hyFor[1].trim();
   const ruFor = prompt.match(
     /для\s+([A-Za-z][\w\s'-]{1,40}?)(?=\s*(?:,|;|\?|запиши|забронируй|$))/iu,

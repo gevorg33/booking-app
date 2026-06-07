@@ -40,7 +40,9 @@ const SCHEDULE_SESSION_SLICE_KEYS = [
   'lastAction',
 ] as const;
 
-export function isScheduleOpsAction(action: string): action is ScheduleOpsAction {
+export function isScheduleOpsAction(
+  action: string,
+): action is ScheduleOpsAction {
   return (SCHEDULE_OPS_ACTIONS as readonly string[]).includes(action);
 }
 
@@ -167,7 +169,11 @@ export function pickScheduleOpsSessionSlice(
   const slice: Record<string, unknown> = {};
   for (const key of SCHEDULE_SESSION_SLICE_KEYS) {
     const value = params[key];
-    if (value != null && value !== '' && !(Array.isArray(value) && !value.length)) {
+    if (
+      value != null &&
+      value !== '' &&
+      !(Array.isArray(value) && !value.length)
+    ) {
       slice[key] = value;
     }
   }

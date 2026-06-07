@@ -7,6 +7,8 @@ export type NotificationKind =
   | 'reminder_24h'
   | 'reminder_1h'
   | 'review_request'
+  | 'result_ready'
+  | 'lab_booking_request'
   | 'business_booking_cancelled'
   | 'business_booking_rescheduled'
   | `reminder_${number}h`;
@@ -17,6 +19,14 @@ export interface BusinessNotificationSettings {
   whatsappEnabled: boolean;
   sendConfirmationEmail: boolean;
   sendConfirmationWhatsapp: boolean;
+  /** Clinic vertical — email when lab results are released to the patient. */
+  sendResultReadyEmail: boolean;
+  /** Clinic vertical — WhatsApp when lab results are released to the patient. */
+  sendResultReadyWhatsapp: boolean;
+  /** Clinic vertical — consumer app push when lab results are released (adopt-4.2). */
+  sendResultReadyPush: boolean;
+  /** Clinic vertical — consumer app push when staff pushes a lab collection booking request. */
+  sendLabBookingRequestPush: boolean;
   reminder24hEmail: boolean;
   reminder1hEmail: boolean;
   reminder24hSms: boolean;
@@ -47,6 +57,7 @@ export interface CustomerNotificationPreferences {
   emailReminders: boolean;
   smsReminders: boolean;
   whatsappReminders: boolean;
+  pushReminders: boolean;
 }
 
 export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSettings =
@@ -56,6 +67,10 @@ export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSetting
     whatsappEnabled: true,
     sendConfirmationEmail: true,
     sendConfirmationWhatsapp: true,
+    sendResultReadyEmail: true,
+    sendResultReadyWhatsapp: true,
+    sendResultReadyPush: true,
+    sendLabBookingRequestPush: true,
     reminder24hEmail: true,
     reminder1hEmail: true,
     reminder24hSms: false,
@@ -78,6 +93,7 @@ export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPref
     emailReminders: true,
     smsReminders: false,
     whatsappReminders: true,
+    pushReminders: true,
   };
 
 export { mergeBusinessNotificationSettings } from './merge-business-notification-settings.js';

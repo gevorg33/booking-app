@@ -28,6 +28,8 @@ export interface AiCommandEvalExpectation {
   rescueFromAction?: string;
   /** Expected rescueReason when stable. */
   rescueReason?: string;
+  /** Use surface-scoped clinic lab booking rescue (i18n-clinic-v2-ai-8). */
+  useSurfaceLabBookingRescue?: boolean;
   /** Compound decomposition surface (ai-cmd-0.4). */
   compoundSurface?: CommandSurface;
   /** Exact ordered sub-intent actions from deterministic/golden decomposition. */
@@ -57,6 +59,7 @@ export interface AiCommandEvalCase {
   id: string;
   prompt: string;
   locale?: AiEvalLocale;
+  surface?: CommandSurface;
   expect: AiCommandEvalExpectation;
   /** When true, case is documented for live LLM eval only (skipped in CI) */
   requiresLlm?: boolean;

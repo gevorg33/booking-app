@@ -28,8 +28,7 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
     {
       id: 'hy-day-one-departure',
       locale: 'hy',
-      prompt:
-        'Ինչու է Mountain Trek-ը մեկ մեկնում ցույց տալիս օրական',
+      prompt: 'Ինչու է Mountain Trek-ը մեկ մեկնում ցույց տալիս օրական',
       expectedAction: 'explain_tour_day_slots',
       rescueReason: 'explain_tour_day_slots',
       paramsPartial: { serviceName: 'Mountain Trek', aspect: 'oneDeparture' },
@@ -65,8 +64,7 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
     {
       id: 'hy-booking-max-group',
       locale: 'hy',
-      prompt:
-        'Քանի հոգի կարող է մասնակցել Garni Temple տուրին այս էջում',
+      prompt: 'Քանի հոգի կարող է մասնակցել Garni Temple տուրին այս էջում',
       expectedAction: 'explain_tour_booking',
       rescueReason: 'explain_tour_booking',
       paramsPartial: { serviceName: 'Garni Temple', aspect: 'groupSize' },
@@ -106,7 +104,10 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
         'Ինչու checkout-ը նվազեցրեց pax-ը 8-ի 3-Day Mountain Trek-ի համար',
       expectedAction: 'diagnose_tour_capacity',
       rescueReason: 'diagnose_tour_capacity',
-      paramsPartial: { serviceName: '3-Day Mountain Trek', aspect: 'clampedPax' },
+      paramsPartial: {
+        serviceName: '3-Day Mountain Trek',
+        aspect: 'clampedPax',
+      },
       needsMultilingual: true,
     },
     {
@@ -150,8 +151,7 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
     {
       id: 'ru-day-one-departure',
       locale: 'ru',
-      prompt:
-        'Почему многодневный Mountain Trek показывает одно время в день?',
+      prompt: 'Почему многодневный Mountain Trek показывает одно время в день?',
       expectedAction: 'explain_tour_day_slots',
       rescueReason: 'explain_tour_day_slots',
       paramsPartial: { serviceName: 'Mountain Trek', aspect: 'oneDeparture' },
@@ -205,8 +205,7 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
     {
       id: 'ru-booking-per-person',
       locale: 'ru',
-      prompt:
-        'Почему цена City Tour указана за человека на странице записи?',
+      prompt: 'Почему цена City Tour указана за человека на странице записи?',
       expectedAction: 'explain_tour_booking',
       rescueReason: 'explain_tour_booking',
       paramsPartial: { serviceName: 'City Tour', aspect: 'pricing' },
@@ -231,7 +230,10 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
       prompt: 'Почему checkout уменьшил pax до 8 для 3-Day Mountain Trek?',
       expectedAction: 'diagnose_tour_capacity',
       rescueReason: 'diagnose_tour_capacity',
-      paramsPartial: { serviceName: '3-Day Mountain Trek', aspect: 'clampedPax' },
+      paramsPartial: {
+        serviceName: '3-Day Mountain Trek',
+        aspect: 'clampedPax',
+      },
       needsMultilingual: true,
     },
     {
@@ -257,8 +259,7 @@ export const MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS: TourConsumerEvalScenario
     {
       id: 'ru-record-special-req',
       locale: 'ru',
-      prompt:
-        'Покажи особые требования бронирования City Tour для Maria',
+      prompt: 'Покажи особые требования бронирования City Tour для Maria',
       expectedAction: 'explain_tour_booking_record',
       rescueReason: 'explain_tour_booking_record',
       paramsPartial: { customerName: 'Maria', aspect: 'specialRequirements' },

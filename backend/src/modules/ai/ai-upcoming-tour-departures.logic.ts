@@ -78,7 +78,10 @@ function isConfirmedTourBooking(
     metadata?: Record<string, unknown> | null;
     startTime: Date;
     serviceId: string;
-    service?: { metadata?: Record<string, unknown> | null; name?: string } | null;
+    service?: {
+      metadata?: Record<string, unknown> | null;
+      name?: string;
+    } | null;
   },
   tourServiceIds: Set<string>,
   rangeStart: string,
@@ -96,9 +99,7 @@ function isConfirmedTourBooking(
     startTime: booking.startTime,
   });
   if (range) {
-    return (
-      range.tourEndDate >= rangeStart && range.tourStartDate <= rangeEnd
-    );
+    return range.tourEndDate >= rangeStart && range.tourStartDate <= rangeEnd;
   }
   const dayKey = booking.startTime.toISOString().slice(0, 10);
   return dayKey >= rangeStart && dayKey <= rangeEnd;
@@ -120,14 +121,13 @@ function aggregateDepartures(
 
   for (const booking of bookings) {
     const tourMeta = extractTourBookingMetadata(booking.metadata);
-    const range =
-      resolveTourBookingDateRange({
-        metadata: booking.metadata,
-        startTime: booking.startTime,
-      }) ?? {
-        tourStartDate: booking.startTime.toISOString().slice(0, 10),
-        tourEndDate: booking.endTime.toISOString().slice(0, 10),
-      };
+    const range = resolveTourBookingDateRange({
+      metadata: booking.metadata,
+      startTime: booking.startTime,
+    }) ?? {
+      tourStartDate: booking.startTime.toISOString().slice(0, 10),
+      tourEndDate: booking.endTime.toISOString().slice(0, 10),
+    };
     const departureDate = range.tourStartDate;
     const key = `${booking.serviceId}:${departureDate}`;
     const paxCount = tourMeta.paxCount ?? 1;
@@ -273,7 +273,10 @@ export async function handleListUpcomingTourDeparturesLogic(
     ),
   );
 
-  let departures = aggregateDepartures(confirmedTourBookings, maxGroupByServiceId);
+  let departures = aggregateDepartures(
+    confirmedTourBookings,
+    maxGroupByServiceId,
+  );
 
   if (parsed.serviceId || parsed.serviceName) {
     const allowedIds = new Set(scopedServices.map((service) => service.id));

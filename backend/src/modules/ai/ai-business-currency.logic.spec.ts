@@ -158,10 +158,7 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'AMD' },
     ] as Service[]);
 
-    const result = await handleExplainBusinessCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainBusinessCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_business_currency');
@@ -170,7 +167,9 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(0);
     expect(result.summary).toContain('Default business currency is AMD');
     expect(result.summary).toContain('Stripe supports online card payments');
-    expect(result.summary).toContain('All active services use the default currency');
+    expect(result.summary).toContain(
+      'All active services use the default currency',
+    );
   });
 
   it('counts services on a different currency and flags unsupported stripe codes', async () => {
@@ -183,17 +182,16 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's4', name: 'Trim', currency: 'USD' },
     ] as Service[]);
 
-    const result = await handleExplainBusinessCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainBusinessCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.details?.defaultCurrency).toBe('GEL');
     expect(result.details?.stripeCurrencySupported).toBe(true);
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(3);
     expect(result.details?.servicesByCurrency).toEqual({ USD: 2, EUR: 1 });
-    expect(result.summary).toContain('3 active services still use a different currency');
+    expect(result.summary).toContain(
+      '3 active services still use a different currency',
+    );
   });
 
   it('requests confirmation before bulk aligning service currencies', async () => {
@@ -273,10 +271,7 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'EUR' },
     ] as Service[]);
 
-    const result = await handleExplainCheckoutCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainCheckoutCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_checkout_currency');
@@ -284,7 +279,9 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     expect(result.details?.stripeCurrencySupported).toBe(true);
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(0);
     expect(result.summary).toContain('euros (€)');
-    expect(result.summary).toContain('All listed services use the same currency');
+    expect(result.summary).toContain(
+      'All listed services use the same currency',
+    );
   });
 
   it('notes legacy service currency mismatches on the booking page (ai-cmd-curr-5)', async () => {
@@ -296,10 +293,7 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's3', name: 'Blowout', currency: 'RUB' },
     ] as Service[]);
 
-    const result = await handleExplainCheckoutCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainCheckoutCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(2);
@@ -328,10 +322,7 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'AMD' },
     ] as Service[]);
 
-    const result = await handleExplainTenantCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainTenantCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_tenant_currency');
@@ -352,10 +343,7 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'USD' },
     ] as Service[]);
 
-    const result = await handleExplainTenantCurrencyLogic(
-      deps(),
-      'biz-1',
-    );
+    const result = await handleExplainTenantCurrencyLogic(deps(), 'biz-1');
 
     expect(result.success).toBe(true);
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(1);
@@ -389,7 +377,9 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     expect(result.details?.currencyCode).toBe('AMD');
     expect(result.details?.packagesOnDifferentCurrencyCount).toBe(0);
     expect(result.summary).toContain('Package and gift-card totals');
-    expect(result.summary).toContain('Monetary gift-card presets are always quoted in AMD');
+    expect(result.summary).toContain(
+      'Monetary gift-card presets are always quoted in AMD',
+    );
   });
 
   it('notes legacy package and gift-card product currencies (ai-cmd-curr-7)', async () => {
@@ -449,7 +439,9 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     expect(result.details?.currencyCode).toBe('EUR');
     expect(result.details?.retailUsesAppointmentCurrency).toBe(true);
     expect(result.summary).toContain('provider app');
-    expect(result.summary).toContain('Retail POS add-ons have no separate currency');
+    expect(result.summary).toContain(
+      'Retail POS add-ons have no separate currency',
+    );
   });
 
   it('explains notification email and WhatsApp currency (ai-cmd-curr-9)', async () => {
@@ -460,7 +452,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'EUR' },
     ] as Service[]);
 
-    const result = await handleExplainNotificationCurrencyLogic(deps(), 'biz-1');
+    const result = await handleExplainNotificationCurrencyLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_notification_currency');
@@ -479,7 +474,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'USD' },
     ] as Service[]);
 
-    const result = await handleExplainNotificationCurrencyLogic(deps(), 'biz-1');
+    const result = await handleExplainNotificationCurrencyLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.details?.servicesOnDifferentCurrencyCount).toBe(1);
@@ -537,7 +535,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     };
     businessRepo.findOne.mockResolvedValue({ ...business });
 
-    const result = await handleExplainStripeCurrencyWarningLogic(deps(), 'biz-1');
+    const result = await handleExplainStripeCurrencyWarningLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_stripe_currency_warning');
@@ -554,7 +555,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     business.settings = { currency: 'AMD' };
     businessRepo.findOne.mockResolvedValue({ ...business });
 
-    const result = await handleExplainStripeCurrencyWarningLogic(deps(), 'biz-1');
+    const result = await handleExplainStripeCurrencyWarningLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.details?.stripeConnectReady).toBe(false);
@@ -574,7 +578,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's2', name: 'Color', currency: 'USD' },
     ] as Service[]);
 
-    const result = await handleDiagnoseStripeCheckoutFailureLogic(deps(), 'biz-1');
+    const result = await handleDiagnoseStripeCheckoutFailureLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('diagnose_stripe_checkout_failure');
@@ -594,7 +601,10 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
       { id: 's1', name: 'Cut', currency: 'EUR' },
     ] as Service[]);
 
-    const result = await handleDiagnoseStripeCheckoutFailureLogic(deps(), 'biz-1');
+    const result = await handleDiagnoseStripeCheckoutFailureLogic(
+      deps(),
+      'biz-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.details?.stripeConnectReady).toBe(false);

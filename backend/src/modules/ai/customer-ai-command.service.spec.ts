@@ -224,6 +224,9 @@ describe('CustomerAiCommandService', () => {
       businessCompliance,
       tourService,
       recommendationProduct,
+      consumerClinicTestResults: noopSprint,
+      clinicLabBooking: noopSprint,
+      clinicBooking: noopSprint,
       publicAssistant,
     };
   }
@@ -249,6 +252,9 @@ describe('CustomerAiCommandService', () => {
       mocks.businessCompliance as any,
       mocks.tourService as any,
       mocks.recommendationProduct as any,
+      mocks.consumerClinicTestResults as any,
+      mocks.clinicLabBooking as any,
+      mocks.clinicBooking as any,
       mocks.publicAssistant as any,
     );
     return { service, ...mocks };
@@ -830,10 +836,9 @@ describe('CustomerAiCommandService', () => {
       { customerId: 'cust-1', locale: 'ru' },
     );
     expect(result.action).toBe('explain_booking_languages');
-    expect(businessLanguages.handleExplainBookingLanguages).toHaveBeenCalledWith(
-      'biz-1',
-      'ru',
-    );
+    expect(
+      businessLanguages.handleExplainBookingLanguages,
+    ).toHaveBeenCalledWith('biz-1', 'ru');
   });
 
   it('rescues explain_booking_date_format from booking-page date display questions', async () => {
@@ -852,9 +857,9 @@ describe('CustomerAiCommandService', () => {
       { customerId: 'cust-1' },
     );
     expect(result.action).toBe('explain_booking_date_format');
-    expect(businessDateFormat.handleExplainBookingDateFormat).toHaveBeenCalledWith(
-      'biz-1',
-    );
+    expect(
+      businessDateFormat.handleExplainBookingDateFormat,
+    ).toHaveBeenCalledWith('biz-1');
   });
 
   it('rescues explain_tour_day_slots from tour departure date questions', async () => {
@@ -896,7 +901,9 @@ describe('CustomerAiCommandService', () => {
       { customerId: 'cust-1', serviceId: 'svc-haircut', bookingId: 'bk-1' },
     );
     expect(result.action).toBe('explain_checkout_recommendations');
-    expect(recommendationProduct.handleExplainCheckoutRecommendations).toHaveBeenCalled();
+    expect(
+      recommendationProduct.handleExplainCheckoutRecommendations,
+    ).toHaveBeenCalled();
   });
 
   it('rescues explain_consumer_checkout_success from app success-screen overview questions', async () => {

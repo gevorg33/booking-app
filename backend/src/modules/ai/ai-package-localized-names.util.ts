@@ -71,9 +71,7 @@ function hasPackageKeyword(prompt: string): boolean {
 function isCatalogBulkTranslationContext(prompt: string): boolean {
   return (
     /\b(services?|categories?|catalog|disabled\s+locales?)\b/i.test(prompt) ||
-    /(услуг|категор|пакетов|каталог|կատալոգ|ծառայություն|կատեգոր)/i.test(
-      prompt,
-    )
+    /(услуг|категор|пакетов|каталог|կատալոգ|ծառայություն|կատեգոր)/i.test(prompt)
   );
 }
 
@@ -94,13 +92,23 @@ function isSetPackageLocalizedNamePrompt(prompt: string): boolean {
 
 function isClearPackageLocalizedNamePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
-  if (/\ball\b[\s\S]{0,20}\b(localized|locali[sz]ed|translation|names?)\b/i.test(prompt)) {
+  if (
+    /\ball\b[\s\S]{0,20}\b(localized|locali[sz]ed|translation|names?)\b/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
-  if (/(բոլոր|ամբողջ)/i.test(prompt) && /(թարգմանություն|անուն|լոկալ)/i.test(prompt)) {
+  if (
+    /(բոլոր|ամբողջ)/i.test(prompt) &&
+    /(թարգմանություն|անուն|լոկալ)/i.test(prompt)
+  ) {
     return true;
   }
-  if (/\b(все|всех)\b/i.test(lower) && /(перевод|назван|локализ)/i.test(lower)) {
+  if (
+    /\b(все|всех)\b/i.test(lower) &&
+    /(перевод|назван|локализ)/i.test(lower)
+  ) {
     return true;
   }
   return (
@@ -124,7 +132,9 @@ export function isSinglePackageLocalizedNameConfigurePrompt(
   return isSinglePackageLocalizedNamePrompt(prompt);
 }
 
-export function isConfigurePackageLocalizedNamesPrompt(prompt: string): boolean {
+export function isConfigurePackageLocalizedNamesPrompt(
+  prompt: string,
+): boolean {
   if (isConfigureBusinessLanguagesPrompt(prompt)) return false;
   if (isCatalogBulkTranslationPrompt(prompt)) return false;
   if (!isSinglePackageLocalizedNamePrompt(prompt)) return false;

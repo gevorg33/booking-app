@@ -13,6 +13,12 @@ import type {
   PublicCheckoutQuote,
   PublicSlot,
 } from '../lib/types.js';
+import type { PublicCustomerReleasedClinicResult } from '../lib/public-clinic-results.js';
+import { normalizePublicClinicResultsPayload } from '../lib/public-clinic-results.js';
+import type { PublicCustomerReleasedClinicDocument } from '../lib/public-clinic-documents.js';
+import { normalizePublicClinicDocumentsPayload } from '../lib/public-clinic-documents.js';
+import type { PublicClinicLabBookingRequest } from '../lib/public-clinic-lab-booking-requests.js';
+import { normalizePublicClinicLabBookingRequestsPayload } from '../lib/public-clinic-lab-booking-requests.js';
 import type { PublicServicePackage } from '../lib/package-booking.js';
 import { buildCheckoutRecommendationsPath } from '../lib/checkout-recommendations.js';
 import { getPublicApiBaseUrl } from './api-base.js';
@@ -84,6 +90,48 @@ export async function fetchMySubscriptions(slug: string): Promise<PublicCustomer
   const { data } = await http.get(`/public/${slug}/me/subscriptions`, publicConfig(slug));
   const body = unwrap<{ subscriptions: PublicCustomerSubscription[] }>(data);
   return body.subscriptions ?? [];
+}
+
+export async function fetchMyClinicTestResults(
+  slug: string,
+): Promise<PublicCustomerReleasedClinicResult[]> {
+  const { data } = await http.get(`/public/${slug}/me/clinic-test-results`, publicConfig(slug));
+  return normalizePublicClinicResultsPayload(data);
+}
+
+export async function fetchMyClinicDocuments(
+  slug: string,
+): Promise<PublicCustomerReleasedClinicDocument[]> {
+  const { data } = await http.get(`/public/${slug}/me/clinic-documents`, publicConfig(slug));
+  return normalizePublicClinicDocumentsPayload(data);
+}
+
+export async function fetchMyClinicLabBookingRequests(
+  slug: string,
+): Promise<PublicClinicLabBookingRequest[]> {
+  const { data } = await http.get(
+    `/public/${slug}/me/clinic-lab-booking-requests`,
+    publicConfig(slug),
+  );
+  return normalizePublicClinicLabBookingRequestsPayload(data);
+}
+
+export async function fetchMyClinicPatientAlerts(slug: string) {
+  const { data } = await http.get(`/public/${slug}/me/clinic-patient-alerts`, publicConfig(slug));
+  return data;
+}
+
+export async function dismissMyClinicPatientAlert(
+  slug: string,
+  alertType: import('../lib/clinic-patient-alerts.js').ClinicPatientAlertType,
+  sourceId: string,
+) {
+  const { data } = await http.post(
+    `/public/${slug}/me/clinic-patient-alerts/${alertType}/${sourceId}/dismiss`,
+    {},
+    publicConfig(slug),
+  );
+  return unwrap<{ dismissed: boolean; id: string }>(data);
 }
 
 export async function cancelCustomerBooking(
@@ -263,9 +311,89 @@ export async function createBooking(
     serviceId: string;
     employeeId: string;
     startTime: string;
+    preVisitIntakeId?: string;
+    referralNotes?: string;
+    symptoms?: string;
+    clinicOrderToken?: string;
     customer: { name: string; email?: string; phone?: string };
   },
 ): Promise<{ booking: { id: string }; customer: PublicCustomerProfile }> {
   const { data } = await http.post(`/public/${slug}/bookings`, body, publicConfig(slug));
   return unwrap(data);
+}
+
+export async function fetchPublicPreVisitIntakeConfig(
+  slug: string,
+  serviceId: string,
+) {
+  const { data } = await http.get(
+    `/public/${slug}/checkout/pre-visit-intake/config?serviceId=${encodeURIComponent(serviceId)}`,
+  );
+  return unwrap<import('../lib/public-pre-visit-intake.js').PublicPreVisitIntakeConfig>(data);
+}
+
+export async function createPublicPreVisitIntakeDraft(
+  slug: string,
+  body: { serviceId: string },
+) {
+  const { data } = await http.post(
+    `/public/${slug}/me/pre-visit-intake/draft`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap<import('../lib/public-pre-visit-intake.js').PreVisitIntakeSummary>(data);
+}
+
+export async function fetchPublicPreVisitIntakeFlow(slug: string, intakeId: string) {
+  const { data } = await http.get(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}`,
+    publicConfig(slug),
+  );
+  return unwrap<import('../lib/clinic-pre-visit-intake-types.js').PreVisitIntakeFlowView>(data);
+}
+
+export async function startPublicPreVisitIntake(slug: string, intakeId: string) {
+  const { data } = await http.post(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}/start`,
+    {},
+    publicConfig(slug),
+  );
+  return unwrap<import('../lib/clinic-pre-visit-intake-types.js').PreVisitIntakeFlowView>(data);
+}
+
+export async function submitPublicPreVisitIntakeAnswer(
+  slug: string,
+  intakeId: string,
+  body: { questionId?: string; values: string[] },
+) {
+  const { data } = await http.post(
+    `/public/${slug}/me/pre-visit-intake/${intakeId}/answers`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap<import('../lib/clinic-pre-visit-intake-types.js').PreVisitIntakeFlowView>(data);
+}
+
+export async function registerConsumerNativePush(
+  slug: string,
+  token: string,
+  platform: string,
+): Promise<{ registered: boolean; platform: 'ios' | 'android' }> {
+  const { data } = await http.post(
+    `/public/${slug}/me/push/register-native`,
+    { token, platform },
+    publicConfig(slug),
+  );
+  return unwrap<{ registered: boolean; platform: 'ios' | 'android' }>(data);
+}
+
+export async function fetchConsumerNativePushStatus(
+  slug: string,
+  platform: string,
+): Promise<{ registered: boolean; platform: 'ios' | 'android' | null }> {
+  const { data } = await http.get(`/public/${slug}/me/push/native-status`, {
+    ...publicConfig(slug),
+    params: { platform },
+  });
+  return unwrap<{ registered: boolean; platform: 'ios' | 'android' | null }>(data);
 }

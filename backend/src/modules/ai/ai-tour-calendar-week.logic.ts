@@ -166,7 +166,7 @@ export async function handleListTourCalendarWeekLogic(
 
   const tourServiceIds = new Set(
     (scopedServiceIds && scopedServiceIds.size > 0
-      ? tourServices.filter((service) => scopedServiceIds!.has(service.id))
+      ? tourServices.filter((service) => scopedServiceIds.has(service.id))
       : tourServices
     ).map((service) => service.id),
   );
@@ -203,14 +203,13 @@ export async function handleListTourCalendarWeekLogic(
     })
     .map((booking) => {
       const tourMeta = extractTourBookingMetadata(booking.metadata);
-      const range =
-        resolveTourBookingDateRange({
-          metadata: booking.metadata,
-          startTime: booking.startTime,
-        }) ?? {
-          tourStartDate: booking.startTime.toISOString().slice(0, 10),
-          tourEndDate: booking.endTime.toISOString().slice(0, 10),
-        };
+      const range = resolveTourBookingDateRange({
+        metadata: booking.metadata,
+        startTime: booking.startTime,
+      }) ?? {
+        tourStartDate: booking.startTime.toISOString().slice(0, 10),
+        tourEndDate: booking.endTime.toISOString().slice(0, 10),
+      };
       return {
         bookingId: booking.id,
         serviceId: booking.serviceId,

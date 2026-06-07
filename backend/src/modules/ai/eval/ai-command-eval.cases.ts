@@ -10,6 +10,73 @@ import {
   MULTILINGUAL_FLEXIBLE_BOOKING_PROMPTS,
 } from '../ai-check-and-book-multilingual.fixtures.js';
 import {
+  CREATE_TEST_ORDER_PROMPTS,
+  LIST_TEST_ORDERS_PROMPTS,
+} from '../ai-clinic-test-order.fixtures.js';
+import {
+  MULTILINGUAL_CLINIC_TEST_ORDER_EVAL_SCENARIOS,
+  type ClinicTestOrderEvalScenario,
+} from '../ai-clinic-test-order-multilingual.fixtures.js';
+import {
+  ENTER_TEST_RESULT_PROMPTS,
+  RELEASE_TEST_RESULT_PROMPTS,
+} from '../ai-clinic-test-result.fixtures.js';
+import {
+  MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS,
+  type ClinicTestResultEvalScenario,
+} from '../ai-clinic-test-result-multilingual.fixtures.js';
+import { EXPLAIN_PATIENT_CHART_PROMPTS } from '../ai-clinic-patient-chart.fixtures.js';
+import {
+  MULTILINGUAL_CLINIC_PATIENT_CHART_EVAL_SCENARIOS,
+  type ClinicPatientChartEvalScenario,
+} from '../ai-clinic-patient-chart-multilingual.fixtures.js';
+import {
+  LIST_MY_COLLECTION_QUEUE_PROMPTS,
+  MARK_SPECIMEN_COLLECTED_PROMPTS,
+} from '../ai-provider-clinic-collection.fixtures.js';
+import {
+  MULTILINGUAL_PROVIDER_CLINIC_COLLECTION_EVAL_SCENARIOS,
+  type ProviderClinicCollectionEvalScenario,
+} from '../ai-provider-clinic-collection-multilingual.fixtures.js';
+import {
+  EXPLAIN_RESULT_STATUS_PROMPTS,
+  LIST_MY_TEST_RESULTS_PROMPTS,
+} from '../ai-consumer-clinic-test-results.fixtures.js';
+import {
+  MULTILINGUAL_CONSUMER_CLINIC_TEST_RESULTS_EVAL_SCENARIOS,
+  type ConsumerClinicTestResultsEvalScenario,
+} from '../ai-consumer-clinic-test-results-multilingual.fixtures.js';
+import {
+  AWAITING_PATIENT_BOOKING_LIST_PROMPTS,
+  BOOK_LAB_COLLECTION_PROMPTS,
+  LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
+  LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS,
+  PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS,
+  STAFF_BOOK_LAB_COLLECTION_PROMPTS,
+} from '../ai-clinic-lab-booking.fixtures.js';
+import { MULTILINGUAL_CLINIC_LAB_BOOKING_EVAL_SCENARIOS } from '../ai-clinic-lab-booking-multilingual.fixtures.js';
+import { clinicLabBookingMultilingualScenarioToEvalCase } from '../ai-clinic-lab-booking-multilingual.util.js';
+import {
+  EXPLAIN_CLINIC_BOOKING_PROMPTS,
+} from '../ai-clinic-booking.fixtures.js';
+import { MULTILINGUAL_CLINIC_BOOKING_EVAL_SCENARIOS } from '../ai-clinic-booking-multilingual.fixtures.js';
+import { clinicBookingMultilingualScenarioToEvalCase } from '../ai-clinic-booking-multilingual.util.js';
+import {
+  CLINIC_V2_SURFACE_SCENARIOS,
+  type ClinicV2SurfaceScenario,
+} from '../ai-clinic-v2-6.fixtures.js';
+import { CLINIC_COMPOUND_RESCUE_SCENARIOS } from '../ai-clinic-compound.fixtures.js';
+import { MULTILINGUAL_CLINIC_COMPOUND_EVAL_SCENARIOS } from '../ai-clinic-compound-multilingual.fixtures.js';
+import {
+  clinicCompoundMultilingualRescueScenarioToEvalCase,
+  clinicCompoundMultilingualScenarioToEvalCase,
+} from '../ai-clinic-compound-multilingual.util.js';
+import { MULTILINGUAL_CLINIC_V2_EVAL_SCENARIOS } from '../ai-clinic-v2-6-multilingual.fixtures.js';
+import {
+  clinicV2MultilingualScenarioToEvalCase,
+  clinicV2ScenarioToEvalCase,
+} from '../ai-clinic-v2-6.util.js';
+import {
   AVAILABILITY_DISAMBIGUATION_SCENARIOS,
   type AvailabilityDisambiguationScenario,
 } from '../ai-intent-disambiguation.fixtures.js';
@@ -140,6 +207,15 @@ import {
 } from '../ai-business-languages.fixtures.js';
 import { EXPLAIN_BOOKING_LANGUAGES_PROMPTS } from '../ai-booking-languages.fixtures.js';
 import { CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS } from '../ai-package-localized-names.fixtures.js';
+import {
+  APPLY_CLINIC_PLAYBOOK_PROMPTS,
+  CONFIGURE_CLINIC_SERVICE_PROMPTS,
+  EXPLAIN_CLINIC_SERVICES_PROMPTS,
+} from '../ai-clinic-service.fixtures.js';
+import {
+  MULTILINGUAL_CLINIC_SERVICE_EVAL_SCENARIOS,
+  type ClinicServiceEvalScenario,
+} from '../ai-clinic-service-multilingual.fixtures.js';
 import {
   APPLY_TOUR_PLAYBOOK_PROMPTS,
   CONFIGURE_TOUR_SERVICE_PROMPTS,
@@ -279,7 +355,9 @@ export function businessCurrencyScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -333,7 +411,9 @@ export function businessDateFormatScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -423,7 +503,9 @@ function previewAuditDateFormatScenarioToEvalCase(
   const expect: AiCommandEvalCase['expect'] = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -550,13 +632,476 @@ export const AI_COMMAND_EVAL_NOTIFY_PATIENT_RESULT_READY_CASES: AiCommandEvalCas
     },
   }));
 
+export function clinicTestOrderScenarioToEvalCase(
+  scenario: ClinicTestOrderEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `clinic-test-order-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    expect,
+  };
+}
+
+/** Map clinic test order prompts (ai-cmd-clinic-v2-1) to eval golden cases. */
+export const AI_COMMAND_EVAL_CLINIC_TEST_ORDER_CASES: AiCommandEvalCase[] = [
+  ...CREATE_TEST_ORDER_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    if ('bookingId' in entry && entry.bookingId) {
+      paramsPartial.bookingId = entry.bookingId;
+    }
+    return {
+      id: `create-test-order-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'create_test_order',
+        rescueReason: 'create_test_order',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+  ...LIST_TEST_ORDERS_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    if ('status' in entry && entry.status) {
+      paramsPartial.status = entry.status;
+    }
+    if ('bookingId' in entry && entry.bookingId) {
+      paramsPartial.bookingId = entry.bookingId;
+    }
+    return {
+      id: `list-test-orders-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'list_test_orders',
+        rescueReason: 'list_test_orders',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+];
+
+/** Armenian/Russian clinic test order prompts (i18n-clinic-v2-ai-1). */
+export const AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_TEST_ORDER_EVAL_SCENARIOS.map(
+    clinicTestOrderScenarioToEvalCase,
+  );
+
+export function clinicTestResultScenarioToEvalCase(
+  scenario: ClinicTestResultEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `clinic-test-result-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    expect,
+  };
+}
+
+/** Map clinic test result prompts (ai-cmd-clinic-v2-2) to eval golden cases. */
+export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES: AiCommandEvalCase[] = [
+  ...ENTER_TEST_RESULT_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {
+      measurementCode: entry.measurementCode,
+      value: entry.value,
+    };
+    if ('orderId' in entry && entry.orderId) {
+      paramsPartial.orderId = entry.orderId;
+    }
+    if ('resultId' in entry && entry.resultId) {
+      paramsPartial.resultId = entry.resultId;
+    }
+    return {
+      id: `enter-test-result-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'enter_test_result',
+        rescueReason: 'enter_test_result',
+        paramsPartial,
+      },
+    };
+  }),
+  ...RELEASE_TEST_RESULT_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    if ('orderId' in entry && entry.orderId) {
+      paramsPartial.orderId = entry.orderId;
+    }
+    if ('resultId' in entry && entry.resultId) {
+      paramsPartial.resultId = entry.resultId;
+    }
+    return {
+      id: `release-test-result-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'release_test_result',
+        rescueReason: 'release_test_result',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+];
+
+/** Armenian/Russian clinic test result prompts (i18n-clinic-v2-ai-2). */
+export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS.map(
+    clinicTestResultScenarioToEvalCase,
+  );
+
+export function clinicPatientChartScenarioToEvalCase(
+  scenario: ClinicPatientChartEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `clinic-patient-chart-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    expect,
+  };
+}
+
+/** Map explain patient chart prompts (ai-cmd-clinic-v2-3) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_PATIENT_CHART_CASES: AiCommandEvalCase[] =
+  EXPLAIN_PATIENT_CHART_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    return {
+      id: `explain-patient-chart-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_patient_chart',
+        rescueReason: 'explain_patient_chart',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  });
+
+/** Armenian/Russian explain patient chart prompts (i18n-clinic-v2-ai-3). */
+export const AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_PATIENT_CHART_EVAL_SCENARIOS.map(
+    clinicPatientChartScenarioToEvalCase,
+  );
+
+export function providerClinicCollectionScenarioToEvalCase(
+  scenario: ProviderClinicCollectionEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `provider-clinic-collection-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    surface: 'provider',
+    expect,
+  };
+}
+
+/** Map provider clinic collection prompts (ai-cmd-clinic-v2-4) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_CASES: AiCommandEvalCase[] =
+  [
+    ...LIST_MY_COLLECTION_QUEUE_PROMPTS.map((entry) => ({
+      id: `list-my-collection-queue-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'list_my_collection_queue',
+        rescueReason: 'list_my_collection_queue',
+      },
+    })),
+    ...MARK_SPECIMEN_COLLECTED_PROMPTS.map((entry) => {
+      const paramsPartial: Record<string, unknown> = {};
+      if ('customerName' in entry && entry.customerName) {
+        paramsPartial.customerName = entry.customerName;
+      }
+      if ('specimenId' in entry && entry.specimenId) {
+        paramsPartial.specimenId = entry.specimenId;
+      }
+      if ('orderId' in entry && entry.orderId) {
+        paramsPartial.orderId = entry.orderId;
+      }
+      return {
+        id: `mark-specimen-collected-${entry.id}`,
+        prompt: entry.prompt,
+        locale: 'en' as const,
+        expect: {
+          rescuedAction: 'mark_specimen_collected',
+          rescueReason: 'mark_specimen_collected',
+          ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+        },
+      };
+    }),
+  ];
+
+/** Armenian/Russian provider clinic collection prompts (i18n-clinic-v2-ai-4). */
+export const AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_PROVIDER_CLINIC_COLLECTION_EVAL_SCENARIOS.map(
+    providerClinicCollectionScenarioToEvalCase,
+  );
+
+export function consumerClinicTestResultsScenarioToEvalCase(
+  scenario: ConsumerClinicTestResultsEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `consumer-clinic-test-results-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    surface: scenario.surface,
+    expect,
+  };
+}
+
+/** Armenian/Russian consumer/public clinic test results prompts (i18n-clinic-v2-ai-5). */
+export const AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CONSUMER_CLINIC_TEST_RESULTS_EVAL_SCENARIOS.map(
+    consumerClinicTestResultsScenarioToEvalCase,
+  );
+
+export const AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_CASES: AiCommandEvalCase[] =
+  [
+    ...LIST_MY_TEST_RESULTS_PROMPTS.map((entry) => ({
+      id: `list-my-test-results-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'list_my_test_results',
+        rescueReason: 'list_my_test_results',
+      },
+    })),
+    ...EXPLAIN_RESULT_STATUS_PROMPTS.map((entry) => {
+      const paramsPartial: Record<string, unknown> = {};
+      if ('status' in entry && entry.status) {
+        paramsPartial.status = entry.status;
+      }
+      if ('testName' in entry && entry.testName) {
+        paramsPartial.testName = entry.testName;
+      }
+      return {
+        id: `explain-result-status-${entry.id}`,
+        prompt: entry.prompt,
+        locale: 'en' as const,
+        expect: {
+          rescuedAction: 'explain_result_status',
+          rescueReason: 'explain_result_status',
+          ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+        },
+      };
+    }),
+  ];
+
+export const AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_CASES: AiCommandEvalCase[] = [
+  ...PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    if ('orderId' in entry && entry.orderId) {
+      paramsPartial.orderId = entry.orderId;
+    }
+    return {
+      id: `push-lab-booking-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      surface: 'dashboard' as const,
+      expect: {
+        rescuedAction: 'push_lab_booking_to_patient',
+        rescueReason: 'push_lab_booking_to_patient',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+  ...STAFF_BOOK_LAB_COLLECTION_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('customerName' in entry && entry.customerName) {
+      paramsPartial.customerName = entry.customerName;
+    }
+    if ('orderId' in entry && entry.orderId) {
+      paramsPartial.orderId = entry.orderId;
+    }
+    return {
+      id: `staff-book-lab-collection-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      surface: 'dashboard' as const,
+      expect: {
+        rescuedAction: 'staff_book_lab_collection',
+        rescueReason: 'staff_book_lab_collection',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+  ...AWAITING_PATIENT_BOOKING_LIST_PROMPTS.map((entry) => ({
+    id: `awaiting-patient-booking-${entry.id}`,
+    prompt: entry.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'list_test_orders',
+      rescueReason: 'list_test_orders',
+      paramsPartial: { awaitingPatientBooking: true },
+    },
+  })),
+  ...LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS.map((entry) => ({
+    id: `list-my-lab-booking-requests-${entry.id}`,
+    prompt: entry.prompt,
+    locale: 'en' as const,
+    surface: 'customer' as const,
+    expect: {
+      rescuedAction: 'list_my_lab_booking_requests',
+      rescueReason: 'list_my_lab_booking_requests',
+    },
+  })),
+  ...BOOK_LAB_COLLECTION_PROMPTS.map((entry) => ({
+    id: `book-lab-collection-${entry.id}`,
+    prompt: entry.prompt,
+    locale: 'en' as const,
+    surface: 'customer' as const,
+    expect: {
+      rescuedAction: 'book_lab_collection',
+      rescueReason: 'book_lab_collection',
+    },
+  })),
+  ...LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS.map((entry) => ({
+    id: `list-patient-pending-lab-${entry.id}`,
+    prompt: entry.prompt,
+    locale: 'en' as const,
+    surface: 'provider' as const,
+    expect: {
+      rescuedAction: 'list_patient_pending_lab_requests',
+      rescueReason: 'list_patient_pending_lab_requests',
+    },
+  })),
+];
+
+/** HY/RU clinic lab collection push/book (i18n-clinic-v2-ai-8). */
+export const AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_LAB_BOOKING_EVAL_SCENARIOS.map(
+    clinicLabBookingMultilingualScenarioToEvalCase,
+  );
+
+export const AI_COMMAND_EVAL_CLINIC_BOOKING_CASES: AiCommandEvalCase[] = [
+  ...EXPLAIN_CLINIC_BOOKING_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('aspect' in entry && entry.aspect) {
+      paramsPartial.aspect = entry.aspect;
+    }
+    if ('serviceName' in entry && entry.serviceName) {
+      paramsPartial.serviceName = entry.serviceName;
+    }
+    return {
+      id: `explain-clinic-booking-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en' as const,
+      surface: 'public' as const,
+      expect: {
+        rescuedAction: 'explain_clinic_booking',
+        rescueReason: 'explain_clinic_booking',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  }),
+];
+
+export const AI_COMMAND_EVAL_CLINIC_BOOKING_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_BOOKING_EVAL_SCENARIOS.map(
+    clinicBookingMultilingualScenarioToEvalCase,
+  );
+
+/** Surface-tagged clinic v2 NL scenarios (ai-cmd-clinic-v2-6). */
+export const AI_COMMAND_EVAL_CLINIC_V2_SURFACE_CASES: AiCommandEvalCase[] =
+  CLINIC_V2_SURFACE_SCENARIOS.map((scenario: ClinicV2SurfaceScenario) =>
+    clinicV2ScenarioToEvalCase(scenario),
+  );
+
+/** Armenian/Russian clinic v2 surface NL parity (i18n-clinic-v2-ai-6). */
+export const AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_V2_EVAL_SCENARIOS.map(
+    clinicV2MultilingualScenarioToEvalCase,
+  );
+
+/** Clinic lab order + result-notification compounds (ai-cmd-clinic-v2-7). */
+export const AI_COMMAND_EVAL_CLINIC_COMPOUND_CASES: AiCommandEvalCase[] =
+  CLINIC_COMPOUND_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `clinic-compound-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: scenario.surface,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'clinic_compound',
+    },
+  }));
+
+/** HY/RU clinic compound decomposition (i18n-clinic-v2-ai-7). */
+export const AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_COMPOUND_EVAL_SCENARIOS.map(
+    clinicCompoundMultilingualScenarioToEvalCase,
+  );
+
+/** HY/RU clinic compound rescue per locale (i18n-clinic-v2-ai-7). */
+export const AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_COMPOUND_EVAL_SCENARIOS.filter(
+    (scenario) => scenario.misclassifiedAction,
+  ).map(clinicCompoundMultilingualRescueScenarioToEvalCase);
+
 function notificationDateFormatScenarioToEvalCase(
   scenario: NotificationDateFormatEvalScenario,
 ): AiCommandEvalCase {
   const expect: AiCommandEvalCase['expect'] = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -672,7 +1217,9 @@ export function businessTaxScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -731,7 +1278,9 @@ export const AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES: AiCommandEvalCase[
         rescueReason: 'explain_business_tax',
       }),
     ),
-    ...MULTILINGUAL_BUSINESS_TAX_EVAL_SCENARIOS.map(businessTaxScenarioToEvalCase),
+    ...MULTILINGUAL_BUSINESS_TAX_EVAL_SCENARIOS.map(
+      businessTaxScenarioToEvalCase,
+    ),
   ];
 
 /** Map checkout tax explain prompts (ai-cmd-tax-5) to eval golden cases. */
@@ -739,8 +1288,11 @@ export const AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_TAX_CASES: AiCommandEvalCase[] =
   EXPLAIN_CHECKOUT_TAX_PROMPTS.map((entry) => ({
     id: `explain-checkout-tax-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_checkout_tax',
       rescueReason: 'explain_checkout_tax',
@@ -796,7 +1348,9 @@ export function stackedTaxScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -811,7 +1365,8 @@ export function stackedTaxScenarioToEvalCase(
 export const AI_COMMAND_EVAL_STACKED_TAX_MULTILINGUAL_CASES: AiCommandEvalCase[] =
   [
     ...CONFIGURE_STACKED_TAX_RULES_PROMPTS.filter(
-      (entry) => entry.id === 'add-gst-pst' || entry.id === 'stack-gst-at-rates',
+      (entry) =>
+        entry.id === 'add-gst-pst' || entry.id === 'stack-gst-at-rates',
     ).map((entry) => ({
       id: `stacked-tax-en-configure-${entry.id}`,
       prompt: entry.prompt,
@@ -835,7 +1390,9 @@ export const AI_COMMAND_EVAL_STACKED_TAX_MULTILINGUAL_CASES: AiCommandEvalCase[]
         rescueReason: 'explain_stacked_tax',
       },
     })),
-    ...MULTILINGUAL_STACKED_TAX_EVAL_SCENARIOS.map(stackedTaxScenarioToEvalCase),
+    ...MULTILINGUAL_STACKED_TAX_EVAL_SCENARIOS.map(
+      stackedTaxScenarioToEvalCase,
+    ),
   ];
 
 /** Map Stripe tax charge explain prompts (ai-cmd-tax-9) to eval golden cases. */
@@ -1210,8 +1767,13 @@ export const AI_COMMAND_EVAL_REPORT_DATA_BREACH_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: 'report_data_breach',
       rescueReason: 'report_data_breach',
-      ...('affectedCustomerCount' in entry && entry.affectedCustomerCount != null
-        ? { paramsPartial: { affectedCustomerCount: entry.affectedCustomerCount } }
+      ...('affectedCustomerCount' in entry &&
+      entry.affectedCustomerCount != null
+        ? {
+            paramsPartial: {
+              affectedCustomerCount: entry.affectedCustomerCount,
+            },
+          }
         : {}),
     },
   }));
@@ -1260,7 +1822,9 @@ export function complianceScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -1496,7 +2060,8 @@ export const AI_COMMAND_EVAL_SUMMARIZE_RECOMMENDATION_PERFORMANCE_CASES: AiComma
   SUMMARIZE_RECOMMENDATION_PERFORMANCE_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
     if ('aspect' in entry && entry.aspect) paramsPartial.aspect = entry.aspect;
-    if ('surface' in entry && entry.surface) paramsPartial.surface = entry.surface;
+    if ('surface' in entry && entry.surface)
+      paramsPartial.surface = entry.surface;
     if ('daysAhead' in entry && entry.daysAhead) {
       paramsPartial.daysAhead = entry.daysAhead;
     }
@@ -1517,7 +2082,8 @@ export const AI_COMMAND_EVAL_EXPLAIN_RECOMMENDATION_ANALYTICS_CASES: AiCommandEv
   EXPLAIN_RECOMMENDATION_ANALYTICS_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
     if ('aspect' in entry && entry.aspect) paramsPartial.aspect = entry.aspect;
-    if ('surface' in entry && entry.surface) paramsPartial.surface = entry.surface;
+    if ('surface' in entry && entry.surface)
+      paramsPartial.surface = entry.surface;
     if ('daysAhead' in entry && entry.daysAhead) {
       paramsPartial.daysAhead = entry.daysAhead;
     }
@@ -1583,7 +2149,9 @@ export function recommendationProductScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -1730,7 +2298,9 @@ export function packageLocalizedNamesScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -1758,7 +2328,8 @@ function buildEnglishPackageLocalizedNamesEvalScenarios(): PackageLocalizedNames
     ).map((entry) => {
       const paramsPartial: Record<string, unknown> = {};
       if (entry.packageName) paramsPartial.packageName = entry.packageName;
-      if ('locale' in entry && entry.locale) paramsPartial.locale = entry.locale;
+      if ('locale' in entry && entry.locale)
+        paramsPartial.locale = entry.locale;
       return {
         id: `en-${entry.id}`,
         locale: 'en' as const,
@@ -1788,7 +2359,9 @@ export function tourServiceScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -1804,8 +2377,8 @@ function buildEnglishTourServiceEvalScenarios(): TourServiceEvalScenario[] {
     ...CONFIGURE_TOUR_SERVICE_PROMPTS.map((entry) => {
       const paramsPartial: Record<string, unknown> = {};
       if ('serviceName' in entry && entry.serviceName) {
-      paramsPartial.serviceName = entry.serviceName;
-    }
+        paramsPartial.serviceName = entry.serviceName;
+      }
       if ('enableTour' in entry && entry.enableTour) {
         paramsPartial.enableTour = true;
       }
@@ -1847,7 +2420,9 @@ function buildEnglishTourServiceEvalScenarios(): TourServiceEvalScenario[] {
 /** Configure + explain tour service prompts for EN/HY/RU (ai-cmd-tour-4). */
 export const AI_COMMAND_EVAL_TOUR_SERVICE_CONFIGURE_EXPLAIN_CASES: AiCommandEvalCase[] =
   [
-    ...buildEnglishTourServiceEvalScenarios().map(tourServiceScenarioToEvalCase),
+    ...buildEnglishTourServiceEvalScenarios().map(
+      tourServiceScenarioToEvalCase,
+    ),
     ...MULTILINGUAL_TOUR_SERVICE_EVAL_SCENARIOS.map(
       tourServiceScenarioToEvalCase,
     ),
@@ -1915,13 +2490,144 @@ export const AI_COMMAND_EVAL_TOUR_SERVICE_CASES: AiCommandEvalCase[] =
     };
   });
 
+/** Configure + explain clinic catalog prompts for EN/HY/RU (ai-cmd-clinic-4). */
+export function clinicServiceScenarioToEvalCase(
+  scenario: ClinicServiceEvalScenario,
+): AiCommandEvalCase {
+  const expect: AiCommandEvalExpectation = {
+    rescuedAction: scenario.expectedAction,
+    ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
+    ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+  };
+  return {
+    id: `clinic-service-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    expect,
+  };
+}
+
+function buildEnglishClinicServiceEvalScenarios(): ClinicServiceEvalScenario[] {
+  return [
+    ...CONFIGURE_CLINIC_SERVICE_PROMPTS.map((entry) => {
+      const paramsPartial: Record<string, unknown> = {};
+      if ('serviceName' in entry && entry.serviceName) {
+        paramsPartial.serviceName = entry.serviceName;
+      }
+      if ('serviceType' in entry && entry.serviceType) {
+        paramsPartial.serviceType = entry.serviceType;
+      }
+      if ('requiresFasting' in entry && entry.requiresFasting !== undefined) {
+        paramsPartial.requiresFasting = entry.requiresFasting;
+      }
+      if ('preparationNotes' in entry && entry.preparationNotes) {
+        paramsPartial.preparationNotes = entry.preparationNotes;
+      }
+      return {
+        id: `en-configure-${entry.id}`,
+        locale: 'en' as const,
+        prompt: entry.prompt,
+        expectedAction: 'configure_clinic_service' as const,
+        rescueReason: 'configure_clinic_service',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      };
+    }),
+    ...EXPLAIN_CLINIC_SERVICES_PROMPTS.map((entry) => {
+      const paramsPartial: Record<string, unknown> = {};
+      if ('serviceName' in entry && entry.serviceName) {
+        paramsPartial.serviceName = entry.serviceName;
+      }
+      return {
+        id: `en-explain-${entry.id}`,
+        locale: 'en' as const,
+        prompt: entry.prompt,
+        expectedAction: 'explain_clinic_services' as const,
+        rescueReason: 'explain_clinic_services',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      };
+    }),
+  ];
+}
+
+export const AI_COMMAND_EVAL_CLINIC_SERVICE_CONFIGURE_EXPLAIN_CASES: AiCommandEvalCase[] =
+  [
+    ...buildEnglishClinicServiceEvalScenarios().map(
+      clinicServiceScenarioToEvalCase,
+    ),
+    ...MULTILINGUAL_CLINIC_SERVICE_EVAL_SCENARIOS.map(
+      clinicServiceScenarioToEvalCase,
+    ),
+  ];
+
+export const AI_COMMAND_EVAL_EXPLAIN_CLINIC_SERVICES_CASES: AiCommandEvalCase[] =
+  EXPLAIN_CLINIC_SERVICES_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('serviceName' in entry && entry.serviceName) {
+      paramsPartial.serviceName = entry.serviceName;
+    }
+    return {
+      id: `explain-clinic-services-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en',
+      expect: {
+        rescuedAction: 'explain_clinic_services',
+        rescueReason: 'explain_clinic_services',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  });
+
+export const AI_COMMAND_EVAL_APPLY_CLINIC_PLAYBOOK_CASES: AiCommandEvalCase[] =
+  APPLY_CLINIC_PLAYBOOK_PROMPTS.map((entry) => ({
+    id: `apply-clinic-playbook-${entry.id}`,
+    prompt: entry.prompt,
+    locale: 'en',
+    expect: {
+      rescuedAction: 'apply_clinic_playbook',
+      rescueReason: 'apply_clinic_playbook',
+    },
+  }));
+
+export const AI_COMMAND_EVAL_CLINIC_SERVICE_CASES: AiCommandEvalCase[] =
+  CONFIGURE_CLINIC_SERVICE_PROMPTS.map((entry) => {
+    const paramsPartial: Record<string, unknown> = {};
+    if ('serviceName' in entry && entry.serviceName) {
+      paramsPartial.serviceName = entry.serviceName;
+    }
+    if ('serviceType' in entry && entry.serviceType) {
+      paramsPartial.serviceType = entry.serviceType;
+    }
+    if ('requiresFasting' in entry && entry.requiresFasting !== undefined) {
+      paramsPartial.requiresFasting = entry.requiresFasting;
+    }
+    if ('preparationNotes' in entry && entry.preparationNotes) {
+      paramsPartial.preparationNotes = entry.preparationNotes;
+    }
+    return {
+      id: `clinic-service-${entry.id}`,
+      prompt: entry.prompt,
+      locale: 'en',
+      expect: {
+        rescuedAction: 'configure_clinic_service',
+        rescueReason: 'configure_clinic_service',
+        ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+      },
+    };
+  });
+
 /** Map package localized name configuration prompts (ai-cmd-lang-6) to eval golden cases. */
 export const AI_COMMAND_EVAL_PACKAGE_LOCALIZED_NAMES_CASES: AiCommandEvalCase[] =
   CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS.map((entry) => ({
     id: `package-localized-names-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'configure_package_localized_names',
       rescueReason: 'configure_package_localized_names',
@@ -1959,8 +2665,11 @@ export const AI_COMMAND_EVAL_BOOKING_LANGUAGES_CASES: AiCommandEvalCase[] =
   EXPLAIN_BOOKING_LANGUAGES_PROMPTS.map((entry) => ({
     id: `booking-languages-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_booking_languages',
       rescueReason: 'explain_booking_languages',
@@ -2005,12 +2714,11 @@ export const AI_COMMAND_EVAL_LIST_UPCOMING_TOUR_DEPARTURES_CASES: AiCommandEvalC
     return {
       id: `tour-departures-${entry.id}`,
       prompt: entry.prompt,
-      locale:
-        entry.id.startsWith('ru-')
-          ? 'ru'
-          : entry.id.startsWith('hy-')
-            ? 'hy'
-            : 'en',
+      locale: entry.id.startsWith('ru-')
+        ? 'ru'
+        : entry.id.startsWith('hy-')
+          ? 'hy'
+          : 'en',
       expect: {
         rescuedAction: 'list_upcoming_tour_departures',
         rescueReason: 'list_upcoming_tour_departures',
@@ -2030,12 +2738,11 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_CALENDAR_SPAN_CASES: AiCommandEvalCase
     return {
       id: `tour-calendar-span-${entry.id}`,
       prompt: entry.prompt,
-      locale:
-        entry.id.startsWith('ru-')
-          ? 'ru'
-          : entry.id.startsWith('hy-')
-            ? 'hy'
-            : 'en',
+      locale: entry.id.startsWith('ru-')
+        ? 'ru'
+        : entry.id.startsWith('hy-')
+          ? 'hy'
+          : 'en',
       expect: {
         rescuedAction: 'explain_tour_calendar_span',
         rescueReason: 'explain_tour_calendar_span',
@@ -2050,7 +2757,9 @@ export function tourCalendarScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -2079,10 +2788,12 @@ const ENGLISH_TOUR_CALENDAR_WEEK_EVAL_PROMPT_IDS = [
   'visible-tours-calendar-week',
 ] as const;
 
-const ENGLISH_TOUR_CALENDAR_WEEK_SERVICE_NAME_OVERRIDES: Record<string, string> =
-  {
-    'mountain-trek-this-week': 'Mountain trek',
-  };
+const ENGLISH_TOUR_CALENDAR_WEEK_SERVICE_NAME_OVERRIDES: Record<
+  string,
+  string
+> = {
+  'mountain-trek-this-week': 'Mountain trek',
+};
 
 function buildEnglishTourCalendarEvalScenarios(): TourCalendarEvalScenario[] {
   const scenarios: TourCalendarEvalScenario[] = [];
@@ -2140,8 +2851,12 @@ function buildEnglishTourCalendarEvalScenarios(): TourCalendarEvalScenario[] {
 /** Tour calendar span + week list phrasing for EN/HY/RU (ai-cmd-tour-13). */
 export const AI_COMMAND_EVAL_TOUR_CALENDAR_MULTILINGUAL_CASES: AiCommandEvalCase[] =
   [
-    ...buildEnglishTourCalendarEvalScenarios().map(tourCalendarScenarioToEvalCase),
-    ...MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS.map(tourCalendarScenarioToEvalCase),
+    ...buildEnglishTourCalendarEvalScenarios().map(
+      tourCalendarScenarioToEvalCase,
+    ),
+    ...MULTILINGUAL_TOUR_CALENDAR_EVAL_SCENARIOS.map(
+      tourCalendarScenarioToEvalCase,
+    ),
   ];
 
 /** Map tour calendar week list prompts (ai-cmd-tour-12) to eval golden cases. */
@@ -2160,12 +2875,11 @@ export const AI_COMMAND_EVAL_LIST_TOUR_CALENDAR_WEEK_CASES: AiCommandEvalCase[] 
     return {
       id: `tour-calendar-week-${entry.id}`,
       prompt: entry.prompt,
-      locale:
-        entry.id.startsWith('ru-')
-          ? 'ru'
-          : entry.id.startsWith('hy-')
-            ? 'hy'
-            : 'en',
+      locale: entry.id.startsWith('ru-')
+        ? 'ru'
+        : entry.id.startsWith('hy-')
+          ? 'hy'
+          : 'en',
       expect: {
         rescuedAction: 'list_tour_calendar_week',
         rescueReason: 'list_tour_calendar_week',
@@ -2188,12 +2902,11 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_RECORD_CASES: AiCommandEvalCas
     return {
       id: `tour-booking-record-${entry.id}`,
       prompt: entry.prompt,
-      locale:
-        entry.id.startsWith('ru-')
-          ? 'ru'
-          : entry.id.startsWith('hy-')
-            ? 'hy'
-            : 'en',
+      locale: entry.id.startsWith('ru-')
+        ? 'ru'
+        : entry.id.startsWith('hy-')
+          ? 'hy'
+          : 'en',
       expect: {
         rescuedAction: 'explain_tour_booking_record',
         rescueReason: 'explain_tour_booking_record',
@@ -2217,12 +2930,11 @@ export const AI_COMMAND_EVAL_DIAGNOSE_TOUR_CAPACITY_CASES: AiCommandEvalCase[] =
     return {
       id: `tour-capacity-${entry.id}`,
       prompt: entry.prompt,
-      locale:
-        entry.id.startsWith('ru-')
-          ? 'ru'
-          : entry.id.startsWith('hy-')
-            ? 'hy'
-            : 'en',
+      locale: entry.id.startsWith('ru-')
+        ? 'ru'
+        : entry.id.startsWith('hy-')
+          ? 'hy'
+          : 'en',
       expect: {
         rescuedAction: 'diagnose_tour_capacity',
         rescueReason: 'diagnose_tour_capacity',
@@ -2266,7 +2978,9 @@ function buildEnglishTourConsumerEvalScenarios(): TourConsumerEvalScenario[] {
   const scenarios: TourConsumerEvalScenario[] = [];
 
   for (const id of ENGLISH_TOUR_CONSUMER_EVAL_PROMPT_IDS) {
-    const daySlots = EXPLAIN_TOUR_DAY_SLOTS_PROMPTS.find((entry) => entry.id === id);
+    const daySlots = EXPLAIN_TOUR_DAY_SLOTS_PROMPTS.find(
+      (entry) => entry.id === id,
+    );
     if (daySlots) {
       scenarios.push({
         id: `en-day-slots-${id}`,
@@ -2278,7 +2992,9 @@ function buildEnglishTourConsumerEvalScenarios(): TourConsumerEvalScenario[] {
       continue;
     }
 
-    const tourBooking = EXPLAIN_TOUR_BOOKING_PROMPTS.find((entry) => entry.id === id);
+    const tourBooking = EXPLAIN_TOUR_BOOKING_PROMPTS.find(
+      (entry) => entry.id === id,
+    );
     if (tourBooking) {
       scenarios.push({
         id: `en-tour-booking-${id}`,
@@ -2290,7 +3006,9 @@ function buildEnglishTourConsumerEvalScenarios(): TourConsumerEvalScenario[] {
       continue;
     }
 
-    const capacity = DIAGNOSE_TOUR_CAPACITY_PROMPTS.find((entry) => entry.id === id);
+    const capacity = DIAGNOSE_TOUR_CAPACITY_PROMPTS.find(
+      (entry) => entry.id === id,
+    );
     if (capacity) {
       scenarios.push({
         id: `en-capacity-${id}`,
@@ -2322,7 +3040,9 @@ function buildEnglishTourConsumerEvalScenarios(): TourConsumerEvalScenario[] {
 /** Day slots, tour booking metadata, and capacity phrasing for EN/HY/RU (ai-cmd-tour-10). */
 export const AI_COMMAND_EVAL_TOUR_CONSUMER_MULTILINGUAL_CASES: AiCommandEvalCase[] =
   [
-    ...buildEnglishTourConsumerEvalScenarios().map(tourConsumerScenarioToEvalCase),
+    ...buildEnglishTourConsumerEvalScenarios().map(
+      tourConsumerScenarioToEvalCase,
+    ),
     ...MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS.map(
       tourConsumerScenarioToEvalCase,
     ),
@@ -2422,8 +3142,11 @@ export const AI_COMMAND_EVAL_CHECKOUT_CURRENCY_CASES: AiCommandEvalCase[] =
   EXPLAIN_CHECKOUT_CURRENCY_PROMPTS.map((entry) => ({
     id: `checkout-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_checkout_currency',
       rescueReason: 'explain_checkout_currency',
@@ -2435,8 +3158,11 @@ export const AI_COMMAND_EVAL_TENANT_CURRENCY_CASES: AiCommandEvalCase[] =
   EXPLAIN_TENANT_CURRENCY_PROMPTS.map((entry) => ({
     id: `tenant-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_tenant_currency',
       rescueReason: 'explain_tenant_currency',
@@ -2448,8 +3174,11 @@ export const AI_COMMAND_EVAL_PACKAGE_CURRENCY_CASES: AiCommandEvalCase[] =
   EXPLAIN_PACKAGE_CURRENCY_PROMPTS.map((entry) => ({
     id: `package-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_package_currency',
       rescueReason: 'explain_package_currency',
@@ -2485,8 +3214,11 @@ export const AI_COMMAND_EVAL_PROVIDER_PAYMENT_CURRENCY_CASES: AiCommandEvalCase[
   EXPLAIN_PROVIDER_PAYMENT_CURRENCY_PROMPTS.map((entry) => ({
     id: `provider-payment-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_provider_payment_currency',
       rescueReason: 'explain_provider_payment_currency',
@@ -2498,8 +3230,11 @@ export const AI_COMMAND_EVAL_NOTIFICATION_CURRENCY_CASES: AiCommandEvalCase[] =
   EXPLAIN_NOTIFICATION_CURRENCY_PROMPTS.map((entry) => ({
     id: `notification-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_notification_currency',
       rescueReason: 'explain_notification_currency',
@@ -2511,8 +3246,11 @@ export const AI_COMMAND_EVAL_STRIPE_CURRENCY_WARNING_CASES: AiCommandEvalCase[] 
   EXPLAIN_STRIPE_CURRENCY_WARNING_PROMPTS.map((entry) => ({
     id: `stripe-currency-warning-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_stripe_currency_warning',
       rescueReason: 'explain_stripe_currency_warning',
@@ -2524,8 +3262,11 @@ export const AI_COMMAND_EVAL_STRIPE_CHECKOUT_CURRENCY_CASES: AiCommandEvalCase[]
   EXPLAIN_STRIPE_CHECKOUT_CURRENCY_PROMPTS.map((entry) => ({
     id: `stripe-checkout-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_stripe_checkout_currency',
       rescueReason: 'explain_stripe_checkout_currency',
@@ -2537,8 +3278,11 @@ export const AI_COMMAND_EVAL_STRIPE_CHECKOUT_FAILURE_CASES: AiCommandEvalCase[] 
   DIAGNOSE_STRIPE_CHECKOUT_FAILURE_PROMPTS.map((entry) => ({
     id: `stripe-checkout-failure-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'diagnose_stripe_checkout_failure',
       rescueReason: 'diagnose_stripe_checkout_failure',
@@ -2550,8 +3294,11 @@ export const AI_COMMAND_EVAL_REPORTS_CURRENCY_CASES: AiCommandEvalCase[] =
   EXPLAIN_REPORTS_CURRENCY_PROMPTS.map((entry) => ({
     id: `reports-currency-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'explain_reports_currency',
       rescueReason: 'explain_reports_currency',
@@ -2563,8 +3310,11 @@ export const AI_COMMAND_EVAL_REVENUE_KPIS_CASES: AiCommandEvalCase[] =
   SUMMARIZE_REVENUE_KPIS_PROMPTS.map((entry) => ({
     id: `revenue-kpis-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'summarize_revenue_kpis',
       rescueReason: 'summarize_revenue_kpis',
@@ -2578,7 +3328,9 @@ export function businessLanguagesScenarioToEvalCase(
   const expect: AiCommandEvalExpectation = {
     rescuedAction: scenario.expectedAction,
     ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
-    ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    ...(scenario.paramsPartial
+      ? { paramsPartial: scenario.paramsPartial }
+      : {}),
     ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
   };
   return {
@@ -2641,8 +3393,11 @@ export const AI_COMMAND_EVAL_BULK_STRIP_DISABLED_LOCALE_TRANSLATIONS_CASES: AiCo
   BULK_STRIP_DISABLED_LOCALE_TRANSLATIONS_PROMPTS.map((entry) => ({
     id: `business-languages-bulk-strip-${entry.id}`,
     prompt: entry.prompt,
-    locale:
-      entry.id.startsWith('hy-') ? 'hy' : entry.id.startsWith('ru-') ? 'ru' : 'en',
+    locale: entry.id.startsWith('hy-')
+      ? 'hy'
+      : entry.id.startsWith('ru-')
+        ? 'ru'
+        : 'en',
     expect: {
       rescuedAction: 'bulk_strip_disabled_locale_translations',
       rescueReason: 'bulk_strip_disabled_locale_translations',
@@ -2721,12 +3476,13 @@ export function compoundScenarioToEvalCase(
       }
       expect.compoundStepParams = stepParams;
     }
-    if (scenario.id.includes('golden')) {
-      expect.compoundSource = 'golden';
+    if (scenario.id.includes('golden') || scenario.compoundRecipeId) {
+      expect.compoundSource = scenario.noLlm ? 'golden' : 'deterministic';
       expect.compoundRecipeId =
-        scenario.surface === 'customer'
+        scenario.compoundRecipeId ??
+        (scenario.surface === 'customer'
           ? 'customer_self_service_compound'
-          : 'dashboard_operational_compound';
+          : 'dashboard_operational_compound');
     }
   }
 
@@ -3103,6 +3859,27 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_EXPLAIN_NOTIFICATION_DATE_FORMAT_CASES,
   ...AI_COMMAND_EVAL_PREVIEW_NOTIFICATION_DATETIME_CASES,
   ...AI_COMMAND_EVAL_NOTIFY_PATIENT_RESULT_READY_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_ORDER_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_PATIENT_CHART_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_BOOKING_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_BOOKING_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_SERVICE_CONFIGURE_EXPLAIN_CASES,
+  ...AI_COMMAND_EVAL_APPLY_CLINIC_PLAYBOOK_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_V2_SURFACE_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_V2_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES,
   ...AI_COMMAND_EVAL_NOTIFICATION_DATE_FORMAT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_DATE_INPUT_FORMAT_CASES,

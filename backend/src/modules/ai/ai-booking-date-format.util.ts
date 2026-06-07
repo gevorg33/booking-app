@@ -8,7 +8,8 @@ export const BOOKING_DATE_FORMAT_INTENTS = [
   'explain_booking_date_format',
 ] as const;
 
-export type BookingDateFormatIntent = (typeof BOOKING_DATE_FORMAT_INTENTS)[number];
+export type BookingDateFormatIntent =
+  (typeof BOOKING_DATE_FORMAT_INTENTS)[number];
 
 export function isBookingDateFormatIntent(
   action: string,

@@ -80,6 +80,12 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
   customer_gift_card_checkout_compound: GIFT_CARD_CHECKOUT_PROMPTS[0].prompt,
   customer_physical_gift_card_handoff:
     'Buy physical gift card $100 and track my order',
+  dashboard_clinic_order_notify:
+    "Order lipid panel for Maria's visit and notify her when results are ready",
+  customer_clinic_book_explain_results:
+    'Book lipid panel and notify me when results are ready',
+  public_clinic_book_explain_results:
+    'Book lipid panel and tell me when results are ready on this page',
 };
 
 /** Enrichment scenarios: compound prompts that must set bookingFirstAvailable hints. */
@@ -100,4 +106,3 @@ export const COMPOUND_ENRICHMENT_SCENARIOS = [
     action: 'create_booking' as const,
   },
 ] as const;
-

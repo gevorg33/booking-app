@@ -98,7 +98,9 @@ describe('ai-business-tax.logic (ai-cmd-tax-1..3)', () => {
       service.metadata = {};
     });
     businessRepo.findOne.mockResolvedValue({ ...business });
-    serviceRepo.find.mockResolvedValue(services.map((service) => ({ ...service })));
+    serviceRepo.find.mockResolvedValue(
+      services.map((service) => ({ ...service })),
+    );
   });
 
   it('enables 20% VAT', async () => {

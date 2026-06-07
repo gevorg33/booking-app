@@ -4,6 +4,8 @@ import {
   PHI_FIELD_NAMES,
   type PhiFieldName,
 } from './business-compliance.util.js';
+import { redactLegacyPatientTestResultRows } from './legacy-booking-patient-test-results-phi.util.js';
+import { LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY } from './legacy-booking-patient-test-results-phi.util.js';
 
 export const PHI_AI_BLOCK_REASON = 'phi_in_context' as const;
 export const PHI_AI_PROMPT_BLOCK_REASON = 'phi_in_prompt' as const;
@@ -36,8 +38,7 @@ const PHI_PROMPT_KV_PATTERNS: Array<{
   },
   {
     fields: ['patient_test_results'],
-    pattern:
-      /\bpatient\s+test\s+results?\s*[:=]\s*["']?[^\s"',\n}]+/i,
+    pattern: /\bpatient\s+test\s+results?\s*[:=]\s*["']?[^\s"',\n}]+/i,
   },
 ];
 
@@ -162,13 +163,11 @@ export function redactPhiFromValue(value: unknown, depth = 0): unknown {
   for (const [key, nested] of Object.entries(
     value as Record<string, unknown>,
   )) {
-    if (key === 'patient_test_results' && Array.isArray(nested)) {
-      next[key] = nested.map((entry) => {
-        if (!entry || typeof entry !== 'object') return entry;
-        const row = { ...(entry as Record<string, unknown>) };
-        if ('notes' in row) row.notes = '[REDACTED_PHI]';
-        return row;
-      });
+    if (
+      key === LEGACY_BOOKING_PATIENT_TEST_RESULTS_METADATA_KEY &&
+      Array.isArray(nested)
+    ) {
+      next[key] = redactLegacyPatientTestResultRows(nested);
       continue;
     }
     if ((PHI_FIELD_NAMES as readonly string[]).includes(key)) {

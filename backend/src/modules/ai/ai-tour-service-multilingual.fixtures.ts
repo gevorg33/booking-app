@@ -25,8 +25,7 @@ export const MULTILINGUAL_TOUR_SERVICE_EVAL_SCENARIOS: TourServiceEvalScenario[]
     {
       id: 'hy-configure-city-tour-max-12',
       locale: 'hy',
-      prompt:
-        'Նշի՛ր City Tour-ը որպես էքսկուրսիա առավելագույնը 12 հոգու համար',
+      prompt: 'Նշի՛ր City Tour-ը որպես էքսկուրսիա առավելագույնը 12 հոգու համար',
       expectedAction: 'configure_tour_service',
       rescueReason: 'configure_tour_service',
       paramsPartial: {
@@ -58,8 +57,7 @@ export const MULTILINGUAL_TOUR_SERVICE_EVAL_SCENARIOS: TourServiceEvalScenario[]
     {
       id: 'hy-configure-heritage-enable',
       locale: 'hy',
-      prompt:
-        'Ակտիվացրու՛ էքսկուրսիայի ռեժիմը Weekend Heritage Tour-ի համար',
+      prompt: 'Ակտիվացրու՛ էքսկուրսիայի ռեժիմը Weekend Heritage Tour-ի համար',
       expectedAction: 'configure_tour_service',
       rescueReason: 'configure_tour_service',
       paramsPartial: { serviceName: 'Weekend Heritage Tour', enableTour: true },

@@ -21,7 +21,8 @@ export const DASHBOARD_DATE_SURFACE_MIGRATED: DashboardDateSurfaceEntry[] = [
     component: 'dashboard/calendar/page',
     path: 'frontend/src/app/(dashboard)/dashboard/calendar/page.tsx',
     status: 'business_format',
-    mechanism: 'formatDateDisplay / formatScheduleTime via business format cache',
+    mechanism:
+      'formatDateDisplay / formatScheduleTime via business format cache',
   },
   {
     id: 'bookings-page',
@@ -158,7 +159,8 @@ export const DASHBOARD_DATE_SURFACE_DEFERRED: DashboardDateSurfaceEntry[] = [
     path: 'frontend/src/lib/locale-date-format.ts',
     status: 'intl_helper',
     mechanism: 'Intl.DateTimeFormat(intlLocale) weekday/month labels',
-    notes: 'Calendar chrome labels still locale-driven (not business dateFormat)',
+    notes:
+      'Calendar chrome labels still locale-driven (not business dateFormat)',
   },
   {
     id: 'calendar-date-util',
@@ -167,7 +169,8 @@ export const DASHBOARD_DATE_SURFACE_DEFERRED: DashboardDateSurfaceEntry[] = [
     path: 'frontend/src/lib/calendar-date.util.ts',
     status: 'intl_helper',
     mechanism: 'Intl.DateTimeFormat en-CA for ISO day keys',
-    notes: 'Timezone day-key helper — internal, not user-facing booking display',
+    notes:
+      'Timezone day-key helper — internal, not user-facing booking display',
   },
   {
     id: 'date-picker-calendar-util',
@@ -181,10 +184,7 @@ export const DASHBOARD_DATE_SURFACE_DEFERRED: DashboardDateSurfaceEntry[] = [
 ] as const;
 
 export const DASHBOARD_DATE_SURFACE_AUDIT_CATALOG: DashboardDateSurfaceEntry[] =
-  [
-    ...DASHBOARD_DATE_SURFACE_MIGRATED,
-    ...DASHBOARD_DATE_SURFACE_DEFERRED,
-  ];
+  [...DASHBOARD_DATE_SURFACE_MIGRATED, ...DASHBOARD_DATE_SURFACE_DEFERRED];
 
 export const PREVIEW_BUSINESS_DATE_FORMAT_PROMPTS = [
   {
@@ -258,7 +258,8 @@ export const DASHBOARD_DATE_MIGRATION_STEPS: DashboardDateMigrationStep[] =
       ...base,
       replacement:
         'Keep internal Intl day-key helpers where non-user-facing; bind user-visible calendar chrome to businessDateFormatPattern / formatDateDisplay where labels are shown to staff.',
-      beforeExample: 'new Intl.DateTimeFormat(intlLocale, { weekday: "short" })',
+      beforeExample:
+        'new Intl.DateTimeFormat(intlLocale, { weekday: "short" })',
       afterExample:
         'formatDateDisplay(dateKey, intlLocale, { dateFormat, timeFormat, timeZone }) for visible labels',
     };

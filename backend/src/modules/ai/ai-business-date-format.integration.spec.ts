@@ -108,7 +108,10 @@ describe('ai business date format integration (ai-cmd-fmt-1..2)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_business_date_format');
 
-      const result = await handleExplainBusinessDateFormatLogic(deps(), 'biz-1');
+      const result = await handleExplainBusinessDateFormatLogic(
+        deps(),
+        'biz-1',
+      );
       expect(result.success).toBe(true);
       expect(result.summary).toContain('date format');
     },
@@ -141,7 +144,10 @@ describe('ai business date format integration (ai-cmd-fmt-1..2)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('audit_dashboard_date_surfaces');
 
-      const result = await handleAuditDashboardDateSurfacesLogic(deps(), 'biz-1');
+      const result = await handleAuditDashboardDateSurfacesLogic(
+        deps(),
+        'biz-1',
+      );
       expect(result.success).toBe(true);
       expect(result.summary).toContain('fmt-1.6');
     },

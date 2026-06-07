@@ -53,7 +53,9 @@ export async function handleConfigureBusinessCurrencyLogic(
   params: Record<string, unknown>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_business_currency', 'Business not found.');
   }
@@ -173,7 +175,9 @@ export async function handleExplainBusinessCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_business_currency', 'Business not found.');
   }
@@ -188,10 +192,8 @@ export async function handleExplainBusinessCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const stripePart = stripeCurrencySupported
     ? `Stripe supports online card payments in ${defaultCurrency}.`
@@ -248,7 +250,9 @@ export async function handleExplainCheckoutCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_checkout_currency', 'Business not found.');
   }
@@ -263,10 +267,8 @@ export async function handleExplainCheckoutCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const displayLabel = describeCheckoutCurrencyDisplay(defaultCurrency);
   const stripePart = stripeCurrencySupported
@@ -312,7 +314,9 @@ export async function handleExplainTenantCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_tenant_currency', 'Business not found.');
   }
@@ -327,10 +331,8 @@ export async function handleExplainTenantCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const displayLabel = describeCheckoutCurrencyDisplay(defaultCurrency);
   const stripePart = stripeCurrencySupported
@@ -412,7 +414,10 @@ function formatGiftCardCurrencyNote(
       );
     }
   }
-  if (giftSettings.purchasableServices.length > 0 && serviceGiftLegacyCount > 0) {
+  if (
+    giftSettings.purchasableServices.length > 0 &&
+    serviceGiftLegacyCount > 0
+  ) {
     parts.push(
       `${serviceGiftLegacyCount} service gift-card product(s) inherit legacy service currency codes.`,
     );
@@ -427,7 +432,9 @@ export async function handleExplainPackageCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_package_currency', 'Business not found.');
   }
@@ -463,8 +470,7 @@ export async function handleExplainPackageCurrencyLogic(
   let packageGiftLegacyCount = 0;
   for (const entry of giftSettings.purchasablePackages) {
     const resolved =
-      packageCurrencyById.get(entry.packageId) ??
-      defaultCurrency;
+      packageCurrencyById.get(entry.packageId) ?? defaultCurrency;
     if (resolved !== defaultCurrency) packageGiftLegacyCount += 1;
   }
 
@@ -543,7 +549,9 @@ export async function handleExplainProviderPaymentCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_provider_payment_currency', 'Business not found.');
   }
@@ -558,10 +566,8 @@ export async function handleExplainProviderPaymentCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const displayLabel = describeCheckoutCurrencyDisplay(defaultCurrency);
   const stripePart = stripeCurrencySupported
@@ -614,7 +620,9 @@ export async function handleExplainNotificationCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_notification_currency', 'Business not found.');
   }
@@ -627,16 +635,14 @@ export async function handleExplainNotificationCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const displayLabel = describeCheckoutCurrencyDisplay(defaultCurrency);
 
   const summary = [
     `Confirmation emails, appointment reminders, and WhatsApp/SMS messages format amounts in ${displayLabel} (${defaultCurrency}) when the booked service has no legacy ISO code.`,
-    'Each message resolves the currency symbol from that appointment\'s catalog service code (fallback to the salon business default).',
+    "Each message resolves the currency symbol from that appointment's catalog service code (fallback to the salon business default).",
     formatNotificationLegacyNote(mismatchCount, servicesByCurrency),
     'The number shown reflects what was charged or quoted when the message was sent — paid bookings use the recorded amount paid; otherwise the service price or checkout quote.',
     'Monetary gift-card preset emails always use the business default currency code.',
@@ -660,7 +666,7 @@ function formatSettingsStripeWarningNote(
   supportedList: string,
 ): string {
   if (!connectReady) {
-    return 'Stripe Connect is not linked yet — the Settings currency warning only appears after you connect a Stripe account and the business default is outside Stripe\'s supported charge list.';
+    return "Stripe Connect is not linked yet — the Settings currency warning only appears after you connect a Stripe account and the business default is outside Stripe's supported charge list.";
   }
 
   if (stripeCurrencySupported) {
@@ -717,7 +723,9 @@ export async function handleExplainStripeCheckoutCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_stripe_checkout_currency', 'Business not found.');
   }
@@ -737,10 +745,8 @@ export async function handleExplainStripeCheckoutCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const displayLabel = describeCheckoutCurrencyDisplay(defaultCurrency);
   const chargePart = stripeCurrencySupported
@@ -774,7 +780,9 @@ export async function handleExplainStripeCurrencyWarningLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_stripe_currency_warning', 'Business not found.');
   }
@@ -834,7 +842,9 @@ export async function handleDiagnoseStripeCheckoutFailureLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('diagnose_stripe_checkout_failure', 'Business not found.');
   }
@@ -856,19 +866,17 @@ export async function handleDiagnoseStripeCheckoutFailureLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
-  const unsupportedResolvedByCurrency = summarizeUnsupportedResolvedServiceCurrencies(
-    services,
-    defaultCurrency,
-    settings,
-  );
-  const unsupportedServiceCount = Object.values(unsupportedResolvedByCurrency).reduce(
-    (sum, count) => sum + count,
-    0,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
+  const unsupportedResolvedByCurrency =
+    summarizeUnsupportedResolvedServiceCurrencies(
+      services,
+      defaultCurrency,
+      settings,
+    );
+  const unsupportedServiceCount = Object.values(
+    unsupportedResolvedByCurrency,
+  ).reduce((sum, count) => sum + count, 0);
 
   const likelyCauses: string[] = [];
   const recommendedFixes: string[] = [];
@@ -952,7 +960,9 @@ export async function handleExplainReportsCurrencyLogic(
   deps: BusinessCurrencyLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_reports_currency', 'Business not found.');
   }
@@ -966,10 +976,8 @@ export async function handleExplainReportsCurrencyLogic(
     select: { id: true, name: true, currency: true },
   });
 
-  const { mismatchCount, servicesByCurrency } = countServicesOnDifferentCurrency(
-    services,
-    defaultCurrency,
-  );
+  const { mismatchCount, servicesByCurrency } =
+    countServicesOnDifferentCurrency(services, defaultCurrency);
 
   const legacyPart =
     mismatchCount === 0
@@ -1012,7 +1020,9 @@ function resolveRevenueKpiDateRange(
     return { from: String(params.from), to: String(params.to) };
   }
 
-  const range = extractDateRangeFromPrompt(String(prompt ?? params._prompt ?? ''));
+  const range = extractDateRangeFromPrompt(
+    String(prompt ?? params._prompt ?? ''),
+  );
   if (range) {
     return { from: range.start, to: range.end };
   }
@@ -1057,7 +1067,9 @@ export async function handleSummarizeRevenueKpisLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('summarize_revenue_kpis', 'Business not found.');
   }
@@ -1100,7 +1112,10 @@ export async function handleSummarizeRevenueKpisLogic(
       settings,
     );
     const staffTotalLabel = formatBusinessMoney(staffRevenueTotal, settings);
-    const serviceTotalLabel = formatBusinessMoney(serviceRevenueTotal, settings);
+    const serviceTotalLabel = formatBusinessMoney(
+      serviceRevenueTotal,
+      settings,
+    );
 
     const summary = [
       `Revenue KPI summary (${currency}) for ${from} to ${to}:`,
@@ -1138,9 +1153,7 @@ function buildBulkCurrencyConfirmationResult(
   const breakdown = Object.entries(servicesByCurrency)
     .map(([code, count]) => `${count} in ${code}`)
     .join(', ');
-  const filterNote = fromCurrency
-    ? ` (${fromCurrency} services only)`
-    : '';
+  const filterNote = fromCurrency ? ` (${fromCurrency} services only)` : '';
 
   return success(
     'bulk_update_service_currency',
@@ -1177,7 +1190,9 @@ export async function handleBulkUpdateServiceCurrencyLogic(
   prompt?: string,
   confirmed = false,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('bulk_update_service_currency', 'Business not found.');
   }
