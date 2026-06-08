@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { encryptSecret } from '../../common/utils/secret.util.js';
 import type { Business } from '../business/entities/business.entity.js';
@@ -21,26 +21,12 @@ describe('PublicBookingService growth profile fields', () => {
     })),
   };
 
-  const service = new PublicBookingService(
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    stripeIntegrationService as unknown as StripeIntegrationService,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    multiServiceBookingsService as any,
-    {} as any,
-    {} as any,
-    config as unknown as ConfigService,
-    {} as any,
-    {} as any,
-    {} as any,
-  );
+  const service = createPublicBookingServiceHarness({
+    stripeIntegrationService:
+      stripeIntegrationService as unknown as StripeIntegrationService,
+    configService: config as unknown as ConfigService,
+    multiServiceBookingsService: multiServiceBookingsService as any,
+  });
 
   const baseBusiness: Business = {
     id: 'biz-1',

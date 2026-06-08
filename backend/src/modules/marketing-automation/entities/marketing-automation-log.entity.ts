@@ -23,7 +23,10 @@ export class MarketingAutomationLog {
   kind: MarketingAutomationKind;
 
   @Column({ type: 'varchar', length: 16 })
-  channel: 'email' | 'sms';
+  channel: 'email' | 'sms' | 'push';
+
+  @Column({ name: 'service_id', type: 'uuid', nullable: true })
+  serviceId: string | null;
 
   @Column({ type: 'varchar', length: 255 })
   recipient: string;

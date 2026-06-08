@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { EventType } from '../../events/event-types.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
 
 function createAnalyticsHarness() {
@@ -24,32 +24,15 @@ function createAnalyticsHarness() {
     recordRecommendationEvent: jest.fn(),
   };
 
-  const publicBookingService = new PublicBookingService(
-    { findBySlug: jest.fn().mockResolvedValue(business) } as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    productRecommendationService as any,
-    {
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: { findBySlug: jest.fn().mockResolvedValue(business) } as any,
+    productRecommendationService: productRecommendationService as any,
+    configService: {
       get: jest.fn((key: string) =>
         key === 'PUBLIC_API_URL' ? 'https://app.test' : undefined,
       ),
     } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-  );
+  });
 
   return { publicBookingService, business, productRecommendationService };
 }

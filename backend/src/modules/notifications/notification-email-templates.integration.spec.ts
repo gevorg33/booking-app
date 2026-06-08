@@ -44,7 +44,10 @@ describe('Notification email templates integration', () => {
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
-    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
+    {
+      sendResultReady: jest.fn(async () => ({ delivered: [] })),
+      sendTransactionalPush: jest.fn().mockResolvedValue({ ok: false }),
+    } as any,
   );
 
   const giftCardRepo = { findOne: jest.fn(), save: jest.fn() };

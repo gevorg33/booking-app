@@ -23,7 +23,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
-import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
+import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { OpenAiModule } from '../integrations/openai/openai.module.js';
 import { FirebaseAdminModule } from '../../common/firebase/firebase-admin.module.js';
@@ -39,6 +39,10 @@ import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-resu
 import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
 import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.js';
+import { ReferralProgramModule } from '../referral-program/referral-program.module.js';
+import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
+import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
+import { PublicConsumerSupportService } from './public-consumer-support.service.js';
 
 @Module({
   imports: [
@@ -67,10 +71,12 @@ import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.j
     CustomerModule,
     SchedulingEngineModule,
     StripeIntegrationModule,
+    PlanEntitlementsModule,
     ReviewsModule,
     OpenAiModule,
     forwardRef(() => PromoCodesModule),
     LoyaltyModule,
+    ReferralProgramModule,
     ServiceSubscriptionsModule,
     ServicePackagesModule,
     MultiServiceBookingsModule,
@@ -81,6 +87,7 @@ import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.j
     ClinicTestResultsModule,
     PatientClinicalProfilesModule,
     ClinicPreVisitIntakesModule,
+    ZendeskModule,
   ],
   controllers: [PublicBookingController],
   providers: [
@@ -92,6 +99,7 @@ import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.j
     PublicCustomerAuthGuard,
     OptionalPublicCustomerAuthGuard,
     PublicPreVisitIntakeService,
+    PublicConsumerSupportService,
   ],
   exports: [
     PublicBookingService,

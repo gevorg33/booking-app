@@ -20,6 +20,7 @@ import { NotificationsController } from './notifications.controller.js';
 import { NotificationEmailTemplateService } from './notification-email-template.service.js';
 import { ConsumerPushTokenService } from './consumer-push-token.service.js';
 import { ConsumerPushDispatchService } from './consumer-push-dispatch.service.js';
+import { ConsumerPushDeliverabilityScheduler } from './consumer-push-deliverability.scheduler.js';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ConsumerPushDispatchService } from './consumer-push-dispatch.service.js
     NotificationEmailTemplateService,
     ConsumerPushTokenService,
     ConsumerPushDispatchService,
+    ConsumerPushDeliverabilityScheduler,
   ],
   exports: [
     NotificationsService,

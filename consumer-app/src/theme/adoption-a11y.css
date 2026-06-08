@@ -1,0 +1,49 @@
+/** adopt-5.6 — dynamic type, RTL-safe spacing, reduced motion, focus rings. */
+
+.adoption-a11y-root {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.adoption-a11y-root .salon-card,
+.adoption-a11y-root [role='dialog'],
+.adoption-a11y-root [role='status'],
+.adoption-a11y-root [role='alert'] {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.adoption-a11y-root [role='dialog'] {
+  padding-inline: 1.5rem;
+}
+
+.adoption-a11y-root ion-button,
+.adoption-a11y-root button {
+  min-height: 2.75rem;
+}
+
+.adoption-a11y-root button:focus-visible,
+.adoption-a11y-root a:focus-visible,
+.adoption-a11y-root ion-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adoption-a11y-root *,
+  .adoption-a11y-root *::before,
+  .adoption-a11y-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+[dir='rtl'] .consumer-ai-msg--user {
+  align-self: flex-start;
+}
+
+[dir='rtl'] .consumer-ai-msg--assistant {
+  align-self: flex-end;
+}

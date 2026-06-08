@@ -23,7 +23,10 @@ describe('NotificationsService.sendMarketingNewCustomerRegistration', () => {
         key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
       ),
     } as any,
-    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
+    {
+      sendResultReady: jest.fn(async () => ({ delivered: [] })),
+      sendTransactionalPush: jest.fn().mockResolvedValue({ ok: false }),
+    } as any,
   );
 
   beforeEach(() => {

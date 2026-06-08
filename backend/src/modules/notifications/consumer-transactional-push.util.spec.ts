@@ -1,8 +1,18 @@
 import { t } from '../../common/i18n/messages.js';
 import {
+  buildConsumerBookingCancelledPushPayload,
+  buildConsumerBookingConfirmedPushPayload,
+  buildConsumerBookingReminderPushPayload,
+  buildConsumerBookingRescheduledPushPayload,
+  buildConsumerGiftCardReceivedPushPayload,
+  buildConsumerActivationConciergePushPayload,
+  buildConsumerRebookingNudgePushPayload,
+  buildConsumerWinBackPushPayload,
   buildConsumerLabBookingRequestPushPayload,
   buildConsumerNativeFcmMessage,
   buildConsumerResultReadyPushPayload,
+  resolveConsumerPushAndroidChannelId,
+  isSalonBookingPushType,
   toConsumerPushDataFields,
 } from './consumer-transactional-push.util.js';
 
@@ -221,6 +231,171 @@ describe('consumer-transactional-push.util', () => {
     expect(buildConsumerNativeFcmMessage(payload)).toEqual({
       notification: { title: payload.title, body: payload.body },
       data: toConsumerPushDataFields(payload),
+    });
+  });
+
+  it('classifies salon booking push types', () => {
+    expect(isSalonBookingPushType('booking_confirmed')).toBe(true);
+    expect(isSalonBookingPushType('result_ready')).toBe(false);
+    expect(resolveConsumerPushAndroidChannelId('lab_booking_request')).toBe(
+      'clinic_alerts',
+    );
+    expect(resolveConsumerPushAndroidChannelId('rebooking_nudge')).toBe(
+      'marketing_offers',
+    );
+  });
+
+  it('builds salon booking confirmed push payload', () => {
+    const payload = buildConsumerBookingConfirmedPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Manicure',
+      scheduleLabel: 'Mon Jun 8 at 2:00 PM',
+      locale: 'en',
+    });
+
+    expect(payload.pushType).toBe('booking_confirmed');
+    expect(toConsumerPushDataFields(payload)).toMatchObject({
+      pushType: 'booking_confirmed',
+      bookingId: 'b-1',
+    });
+    expect(resolveConsumerPushAndroidChannelId(payload.pushType)).toBe(
+      'booking_alerts',
+    );
+  });
+
+  it('builds salon reminder push payload with minutesBefore', () => {
+    const payload = buildConsumerBookingReminderPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Manicure',
+      scheduleLabel: 'Mon Jun 8 at 2:00 PM',
+      minutesBefore: 1440,
+      locale: 'en',
+    });
+
+    expect(toConsumerPushDataFields(payload).reminderMinutesBefore).toBe('1440');
+  });
+
+  it('builds rescheduled and cancelled salon push payloads', () => {
+    const rescheduled = buildConsumerBookingRescheduledPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Manicure',
+      scheduleLabel: 'Tue Jun 9 at 3:00 PM',
+      locale: 'en',
+    });
+    const cancelled = buildConsumerBookingCancelledPushPayload({
+      url: 'optischedule://book/glow-nails',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Manicure',
+      scheduleLabel: 'Mon Jun 8 at 2:00 PM',
+      locale: 'en',
+    });
+
+    expect(rescheduled.pushType).toBe('booking_rescheduled');
+    expect(cancelled.pushType).toBe('booking_cancelled');
+    expect(cancelled.title).toBe(
+      t('en', 'email.bookingCancelledPushTitle', { businessName: 'Glow Nails' }),
+    );
+  });
+
+  it('localizes salon booking push copy', () => {
+    const payload = buildConsumerBookingConfirmedPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      serviceName: '   ',
+      scheduleLabel: 'Mon Jun 8 at 2:00 PM',
+      locale: 'hy',
+    });
+    expect(payload.body).toContain(t('hy', 'email.defaultServiceName'));
+  });
+
+  it('builds rebooking nudge push payload', () => {
+    const payload = buildConsumerRebookingNudgePushPayload({
+      url: 'optischedule://book/glow-nails/book/svc-1',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      serviceId: 'svc-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Haircut',
+      cadenceLabel: '4 weeks',
+      locale: 'en',
+    });
+
+    expect(payload.pushType).toBe('rebooking_nudge');
+    expect(toConsumerPushDataFields(payload)).toMatchObject({
+      pushType: 'rebooking_nudge',
+      serviceId: 'svc-1',
+    });
+  });
+
+  it('builds activation concierge push payload', () => {
+    const payload = buildConsumerActivationConciergePushPayload({
+      url: 'optischedule://book/glow-nails/book/svc-1?resume=1',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      businessName: 'Glow Nails',
+      serviceName: 'Haircut',
+      milestone: '24h',
+      serviceId: 'svc-1',
+      locale: 'en',
+    });
+
+    expect(payload.pushType).toBe('activation_concierge');
+    expect(toConsumerPushDataFields(payload)).toMatchObject({
+      pushType: 'activation_concierge',
+      serviceId: 'svc-1',
+      url: 'optischedule://book/glow-nails/book/svc-1?resume=1',
+    });
+  });
+
+  it('builds win-back push payload', () => {
+    const payload = buildConsumerWinBackPushPayload({
+      url: 'optischedule://book/glow-nails',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      businessName: 'Glow Nails',
+      promoCode: 'WINBACK10',
+      locale: 'en',
+    });
+
+    expect(payload.pushType).toBe('win_back');
+    expect(toConsumerPushDataFields(payload)).toMatchObject({
+      pushType: 'win_back',
+      promoCode: 'WINBACK10',
+    });
+  });
+
+  it('builds gift card received push payload', () => {
+    const payload = buildConsumerGiftCardReceivedPushPayload({
+      url: 'optischedule://book/glow-nails',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      giftCardId: 'gc-1',
+      businessName: 'Glow Nails',
+      senderName: 'Alex',
+      locale: 'en',
+    });
+
+    expect(payload.pushType).toBe('gift_card_received');
+    expect(toConsumerPushDataFields(payload)).toMatchObject({
+      giftCardId: 'gc-1',
     });
   });
 });

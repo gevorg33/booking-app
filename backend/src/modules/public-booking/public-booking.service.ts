@@ -8,6 +8,7 @@ import {
   forwardRef,
   Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
 import { BusinessService } from '../business/business.service.js';
@@ -36,7 +37,14 @@ import {
 } from './dto/public-booking.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
+import { PromoCodesService } from '../promo-codes/promo-codes.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
+import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
+import {
+  mapPublicPromotionViews,
+  type PublicLoyaltySummaryView,
+  type PublicPromotionView,
+} from './public-consumer-rewards.util.js';
 import { Business } from '../business/entities/business.entity.js';
 import {
   resolveCustomerSelfServiceSettings,
@@ -85,7 +93,7 @@ import {
 import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.util.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
-import { ConfigService } from '@nestjs/config';
+import { ReferralProgramService } from '../referral-program/referral-program.service.js';
 import { getBusinessZendeskIntegration } from '../integrations/zendesk/zendesk-integration.types.js';
 import {
   buildMessagingLinksForBusiness,
@@ -333,13 +341,16 @@ export class PublicBookingService {
     @Inject(forwardRef(() => BookingPaymentService))
     private bookingPaymentService: BookingPaymentService,
     private checkoutPricingService: CheckoutPricingService,
+    private promoCodesService: PromoCodesService,
     private loyaltyService: LoyaltyService,
+    private planEntitlementsService: PlanEntitlementsService,
     private subscriptionsService: ServiceSubscriptionsService,
     private packagesService: ServicePackagesService,
     private multiServiceBookingsService: MultiServiceBookingsService,
     private notificationsService: NotificationsService,
     private productRecommendationService: ProductRecommendationService,
     private configService: ConfigService,
+    private referralProgramService: ReferralProgramService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot)
@@ -1550,6 +1561,143 @@ export class PublicBookingService {
       customerId,
     );
     return this.loyaltyService.getPublicSummary(account, business.settings);
+  }
+
+  async getCustomerReferralProgram(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    return this.referralProgramService.getReferralProgramView(
+      business.id,
+      customerId,
+    );
+  }
+
+  async claimCustomerReferralCode(
+    slug: string,
+    customerId: string,
+    referralCode: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    return this.referralProgramService.claimReferralCode(
+      business.id,
+      customerId,
+      referralCode,
+    );
+  }
+
+  async getCustomerReviewSession(
+    slug: string,
+    customerId: string,
+    bookingId: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    await this.requireCustomerReviewableBooking(business.id, customerId, bookingId);
+    const token = await this.reviewsService.ensureReviewToken(bookingId);
+    const context = await this.reviewsService.getPublicContext(
+      slug,
+      bookingId,
+      token,
+    );
+    return { ...context, bookingId, token };
+  }
+
+  async submitCustomerReview(
+    slug: string,
+    customerId: string,
+    bookingId: string,
+    input: { rating: number; comment?: string },
+  ) {
+    const business = await this.resolveBusiness(slug);
+    const booking = await this.requireCustomerReviewableBooking(
+      business.id,
+      customerId,
+      bookingId,
+    );
+    const token = await this.reviewsService.ensureReviewToken(bookingId);
+    const review = await this.reviewsService.submitPublic(slug, {
+      bookingId,
+      token,
+      rating: input.rating,
+      comment: input.comment,
+      customerName: booking.customer?.name,
+    });
+    return { id: review.id, rating: review.rating };
+  }
+
+  private async requireCustomerReviewableBooking(
+    businessId: string,
+    customerId: string,
+    bookingId: string,
+  ): Promise<Booking> {
+    const booking = await this.bookingRepo.findOne({
+      where: { id: bookingId, businessId, customerId },
+      relations: { customer: true },
+    });
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Reviews are available after your visit is completed');
+    }
+    if (booking.metadata?.reviewSubmittedAt) {
+      throw new BadRequestException('A review was already submitted for this appointment');
+    }
+    if (await this.reviewsService.hasSubmittedReviewForBooking(businessId, bookingId)) {
+      throw new BadRequestException('A review was already submitted for this appointment');
+    }
+    return booking;
+  }
+
+  async getPublicPromotions(slug: string): Promise<{
+    promotions: PublicPromotionView[];
+  }> {
+    const business = await this.resolveBusiness(slug);
+    const entitlements = await this.planEntitlementsService.getEntitlements(
+      business.id,
+    );
+    if (!entitlements.flags.promoCodes) {
+      return { promotions: [] };
+    }
+    const currency = getBusinessDefaultCurrency(
+      business.settings as Record<string, unknown>,
+    );
+    const promos = await this.promoCodesService.listActiveForPublic(
+      business.id,
+    );
+    return {
+      promotions: mapPublicPromotionViews(promos, currency),
+    };
+  }
+
+  async getCustomerRewards(
+    slug: string,
+    customerId: string,
+  ): Promise<{
+    loyaltyEnabled: boolean;
+    loyalty: PublicLoyaltySummaryView | null;
+    promotions: PublicPromotionView[];
+  }> {
+    const business = await this.resolveBusiness(slug);
+    const entitlements = await this.planEntitlementsService.getEntitlements(
+      business.id,
+    );
+    const currency = getBusinessDefaultCurrency(
+      business.settings as Record<string, unknown>,
+    );
+    const promotions = entitlements.flags.promoCodes
+      ? mapPublicPromotionViews(
+          await this.promoCodesService.listActiveForPublic(business.id),
+          currency,
+        )
+      : [];
+    let loyalty: PublicLoyaltySummaryView | null = null;
+    if (entitlements.flags.loyalty) {
+      loyalty = await this.getCustomerLoyalty(slug, customerId);
+    }
+    return {
+      loyaltyEnabled: entitlements.flags.loyalty,
+      loyalty,
+      promotions,
+    };
   }
 
   async getCustomerSubscriptionUsage(

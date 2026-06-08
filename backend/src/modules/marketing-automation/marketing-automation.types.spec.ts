@@ -49,5 +49,40 @@ describe('marketing-automation.types', () => {
     ).toMatchObject({
       reEngagementPromoCode: null,
     });
+    expect(
+      mergeMarketingAutomationSettings({ rebookingNudgePromoCode: '  REBOOK  ' }),
+    ).toMatchObject({
+      rebookingNudgePromoCode: 'REBOOK',
+    });
+  });
+
+  it('clamps rebooking cadence settings', () => {
+    expect(
+      mergeMarketingAutomationSettings({
+        defaultRebookingCadenceDays: 3,
+        minDaysBetweenRebookingNudges: 2,
+      }),
+    ).toMatchObject({
+      defaultRebookingCadenceDays: 7,
+      minDaysBetweenRebookingNudges: 7,
+    });
+  });
+
+  it('normalizes win-back loyalty bonus points', () => {
+    expect(
+      mergeMarketingAutomationSettings({ reEngagementLoyaltyBonusPoints: 5.8 }),
+    ).toMatchObject({
+      reEngagementLoyaltyBonusPoints: 6,
+    });
+    expect(
+      mergeMarketingAutomationSettings({ reEngagementLoyaltyBonusPoints: 0 }),
+    ).toMatchObject({
+      reEngagementLoyaltyBonusPoints: null,
+    });
+    expect(
+      mergeMarketingAutomationSettings({ reEngagementLoyaltyBonusPoints: 900 }),
+    ).toMatchObject({
+      reEngagementLoyaltyBonusPoints: 500,
+    });
   });
 });

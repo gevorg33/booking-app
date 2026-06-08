@@ -32,6 +32,7 @@ describe('NotificationsService.sendClinicLabBookingRequest', () => {
   };
   const consumerPushDispatch = {
     sendResultReady: jest.fn(),
+    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: false }),
     sendLabBookingRequest: jest.fn(async () => ({
       ok: false,
       skipped: true,

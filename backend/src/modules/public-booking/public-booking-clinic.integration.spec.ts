@@ -2,7 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
 
 function createClinicPublicBookingHarness() {
@@ -143,32 +143,30 @@ function createClinicPublicBookingHarness() {
     ),
   } as unknown as ConfigService;
 
-  const service = new PublicBookingService(
-    {
+  const service = createPublicBookingServiceHarness({
+    businessService: {
       findBySlug: jest.fn().mockResolvedValue(business),
       findOne: jest.fn().mockResolvedValue(business),
     } as any,
-    bookingService as any,
-    customerService as any,
-    {} as any,
-    { isConnectReady: jest.fn().mockReturnValue(false) } as any,
-    {} as any,
-    bookingPaymentService as any,
-    checkoutPricingService as any,
-    {} as any,
-    subscriptionsService as any,
-    {} as any,
-    multiServiceBookingsService as any,
-    { sendMultiAppointmentConfirmation: jest.fn() } as any,
-    {} as any,
-    configService,
-    { find: jest.fn() } as any,
-    serviceRepo as any,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    createClinicBookingRepo(storedBookings) as any,
-    publicPreVisitIntakeService as any,
-  );
+    bookingService: bookingService as any,
+    customerService: customerService as any,
+    stripeIntegrationService: {
+      isConnectReady: jest.fn().mockReturnValue(false),
+    } as any,
+    bookingPaymentService: bookingPaymentService as any,
+    checkoutPricingService: checkoutPricingService as any,
+    subscriptionsService: subscriptionsService as any,
+    multiServiceBookingsService: multiServiceBookingsService as any,
+    notificationsService: {
+      sendMultiAppointmentConfirmation: jest.fn(),
+    } as any,
+    configService: configService,
+    serviceRepo: serviceRepo as any,
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
+    schedulingPeriodRepo: { find: jest.fn() } as any,
+    bookingRepo: createClinicBookingRepo(storedBookings) as any,
+    publicPreVisitIntakeService: publicPreVisitIntakeService as any,
+  });
 
   return {
     service,

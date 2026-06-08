@@ -48,8 +48,9 @@ import { ExternalDoctorsModule } from './modules/external-doctors/external-docto
 import { ClinicQuestionnairesModule } from './modules/clinic-questionnaires/clinic-questionnaires.module.js';
 import { ClinicPreVisitIntakesModule } from './modules/clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
 import { ClinicTasksModule } from './modules/clinic-tasks/clinic-tasks.module.js';
-import { ClinicDiagnosticCodesModule } from './modules/clinic-diagnostic-codes/clinic-diagnostic-codes.module.js';
 import { ClinicLisModule } from './modules/clinic-lis/clinic-lis.module.js';
+import { ClinicDiagnosticCodesModule } from './modules/clinic-diagnostic-codes/clinic-diagnostic-codes.module.js';
+import { MobileAppModule } from './modules/mobile-app/mobile-app.module.js';
 
 // Engine modules
 import { SchedulingEngineModule } from './engine/scheduling/scheduling-engine.module.js';
@@ -118,6 +119,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     ClinicTasksModule,
     ClinicDiagnosticCodesModule,
     ClinicLisModule,
+    MobileAppModule,
 
     // Engine
     SchedulingEngineModule,

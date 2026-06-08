@@ -18,8 +18,10 @@ interface MarketingAutomationSettings {
   inactiveDaysThreshold: number;
   reEngagementEmailEnabled: boolean;
   reEngagementSmsEnabled: boolean;
+  reEngagementPushEnabled: boolean;
   minDaysBetweenReEngagement: number;
   reEngagementPromoCode?: string | null;
+  reEngagementLoyaltyBonusPoints?: number | null;
 }
 
 interface MarketingSummary {
@@ -161,18 +163,47 @@ export function MarketingAutomationSettingsPanel() {
             label={t('marketingAutomation.channelSms')}
             labelClassName="text-sm text-gray-300"
           />
+          <StylishChoice
+            type="checkbox"
+            checked={form.reEngagementPushEnabled}
+            onChange={(reEngagementPushEnabled) =>
+              setForm({ ...form, reEngagementPushEnabled })
+            }
+            label={t('marketingAutomation.channelPush')}
+            labelClassName="text-sm text-gray-300"
+          />
         </div>
 
-        <div>
-          <label className="label">{t('marketingAutomation.promoCodeOptional')}</label>
-          <input
-            className="input uppercase"
-            placeholder="WINBACK10"
-            value={form.reEngagementPromoCode ?? ''}
-            onChange={(e) =>
-              setForm({ ...form, reEngagementPromoCode: e.target.value.toUpperCase() || null })
-            }
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">{t('marketingAutomation.promoCodeOptional')}</label>
+            <input
+              className="input uppercase"
+              placeholder="WINBACK10"
+              value={form.reEngagementPromoCode ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, reEngagementPromoCode: e.target.value.toUpperCase() || null })
+              }
+            />
+          </div>
+          <div>
+            <label className="label">{t('marketingAutomation.loyaltyBonusOptional')}</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              className="input"
+              placeholder="5"
+              value={form.reEngagementLoyaltyBonusPoints ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                setForm({
+                  ...form,
+                  reEngagementLoyaltyBonusPoints: raw ? parseInt(raw, 10) || null : null,
+                });
+              }}
+            />
+          </div>
         </div>
       </section>
 

@@ -99,6 +99,11 @@ const en: MessageTree = {
     taxRegistrationFooter: 'Tax registration: {number}',
     giftCardBalanceLine: 'Balance: {price}',
     giftCardPurchaseLine: 'Amount paid: {price}',
+    appInstallPromoHeading: 'Get the OptiSchedule app',
+    appInstallPromoLinkLabel: 'Install or open the app for this salon',
+    appInstallPromoText:
+      'Get the OptiSchedule app for easy rebooking and reminders: {url}',
+    appInstallQrAlt: 'QR code to install the OptiSchedule app for this salon',
     clinicResultReadySubject: 'Your test results are ready — {businessName}',
     clinicResultReadyBody:
       'Hi {customerName}, your {testName} results are ready (released {whenLabel}). {accountLine}',
@@ -124,6 +129,65 @@ const en: MessageTree = {
       'Book your {collectionServiceName} for ordered labs ({testNames}).',
     clinicLabBookingRequestPushForegroundHint:
       '{collectionServiceName} — tap to book',
+    bookingConfirmedPushTitle: '{businessName}: Booking confirmed',
+    bookingConfirmedPushBody:
+      '{serviceName} on {scheduleLabel} — tap to view details.',
+    bookingConfirmedPushForegroundHint:
+      'Confirmed: {serviceName} on {scheduleLabel}',
+    bookingReminderPushTitle: '{businessName}: Appointment reminder',
+    bookingReminderPushBody:
+      '{serviceName} on {scheduleLabel} — see you soon.',
+    bookingReminderPushForegroundHint:
+      'Reminder: {serviceName} on {scheduleLabel}',
+    bookingRescheduledPushTitle: '{businessName}: Appointment rescheduled',
+    bookingRescheduledPushBody:
+      '{serviceName} is now on {scheduleLabel}.',
+    bookingRescheduledPushForegroundHint:
+      'Rescheduled to {scheduleLabel} — tap to view',
+    bookingCancelledPushTitle: '{businessName}: Appointment cancelled',
+    bookingCancelledPushBody:
+      '{serviceName} on {scheduleLabel} was cancelled.',
+    bookingCancelledPushForegroundHint:
+      '{serviceName} cancelled — tap to rebook',
+    giftCardReceivedPushTitle: '{businessName}: Gift card received',
+    giftCardReceivedPushBody:
+      'You received a gift card from {senderName}.',
+    giftCardReceivedPushForegroundHint:
+      'Gift card from {senderName} — tap to view',
+    rebookingNudgePushTitle: '{businessName}: Time to rebook',
+    rebookingNudgePushBody:
+      'Your next {serviceName} is due ({cadenceLabel}). Tap to book.',
+    rebookingNudgePushForegroundHint:
+      'Time for {serviceName} — tap to book',
+    rebookingNudgeEmailSubject:
+      'Time for your next {serviceName} — {businessName}',
+    rebookingNudgeMessage:
+      'Hi {customerName}, it is time for your next {serviceName} at {businessName}. Book here: {bookUrl}.{promoLine}',
+    winBackEmailSubject: "We'd love to see you again — {businessName}",
+    winBackMessage:
+      'Hi {customerName}, we miss you at {businessName}! Book your next visit: {bookUrl}.{promoLine}{loyaltyLine}',
+    winBackPromoLine: ' Use code {promoCode} when you book.',
+    winBackLoyaltyLine: ' We added ${bonusAmount} in rewards to your account.',
+    winBackPushTitle: '{businessName}: We miss you',
+    winBackPushBody:
+      'It has been a while — book your next visit at {businessName}.{promoLine}',
+    winBackPushForegroundHint: 'Tap to book at {businessName}',
+    activationConcierge24hEmailSubject:
+      'Pick up where you left off — {businessName}',
+    activationConcierge24hMessage:
+      'Hi {customerName}, you started booking {serviceName} at {businessName}. Tap to finish in one step: {bookUrl}',
+    activationConcierge24hPushTitle: '{businessName}: Finish your booking',
+    activationConcierge24hPushBody:
+      'Your {serviceName} booking is waiting — tap to resume.',
+    activationConcierge24hPushForegroundHint: 'Tap to resume {serviceName}',
+    activationConcierge72hEmailSubject:
+      'Still want {serviceName}? — {businessName}',
+    activationConcierge72hMessage:
+      'Hi {customerName}, your {serviceName} booking at {businessName} is still saved. Continue here: {bookUrl}',
+    activationConcierge72hPushTitle: '{businessName}: Your booking is saved',
+    activationConcierge72hPushBody:
+      'Resume {serviceName} with one tap before the slot goes.',
+    activationConcierge72hPushForegroundHint: 'One tap to resume {serviceName}',
   },
   pdf: {
     clinicAfterVisitSummary: {
@@ -274,6 +338,11 @@ const hy: MessageTree = {
     taxRegistrationFooter: 'Հարկային գրանցում՝ {number}',
     giftCardBalanceLine: 'Մնացորդ՝ {price}',
     giftCardPurchaseLine: 'Վճարված է՝ {price}',
+    appInstallPromoHeading: 'Ներբեռնեք OptiSchedule հավելվածը',
+    appInstallPromoLinkLabel: 'Տեղադրեք կամ բացեք հավելվածը',
+    appInstallPromoText:
+      'OptiSchedule հավելվածը՝ հեշտ վերամրագրում և հիշեցումների համար՝ {url}',
+    appInstallQrAlt: 'QR կոդ OptiSchedule հավելվածը տեղադրելու համար',
     clinicResultReadySubject:
       'Ձեր թեստ արդյունքները պատրաստ են — {businessName}',
     clinicResultReadyBody:
@@ -301,6 +370,66 @@ const hy: MessageTree = {
       'Ամրագրեք {collectionServiceName} պատվիրած թեստերի համար ({testNames})։',
     clinicLabBookingRequestPushForegroundHint:
       '{collectionServiceName} — հպեք ամրագրելու',
+    bookingConfirmedPushTitle: '{businessName}՝ ամրագրումը հաստատված է',
+    bookingConfirmedPushBody:
+      '{serviceName}՝ {scheduleLabel} — հպեք մանրամասները դիտելու',
+    bookingConfirmedPushForegroundHint:
+      'Հաստատված՝ {serviceName} {scheduleLabel}',
+    bookingReminderPushTitle: '{businessName}՝ հիշեցում',
+    bookingReminderPushBody:
+      '{serviceName}՝ {scheduleLabel} — սպասում ենք ձեզ',
+    bookingReminderPushForegroundHint:
+      'Հիշեցում՝ {serviceName} {scheduleLabel}',
+    bookingRescheduledPushTitle: '{businessName}՝ ամրագրումը տեղափոխված է',
+    bookingRescheduledPushBody:
+      '{serviceName} այժմ {scheduleLabel} է',
+    bookingRescheduledPushForegroundHint:
+      'Տեղափոխված է {scheduleLabel} — հպեք դիտելու',
+    bookingCancelledPushTitle: '{businessName}՝ ամրագրումը չեղարկված է',
+    bookingCancelledPushBody:
+      '{serviceName} {scheduleLabel} չեղարկվել է',
+    bookingCancelledPushForegroundHint:
+      '{serviceName} չեղարկված է — հպեք վերամրագրելու',
+    giftCardReceivedPushTitle: '{businessName}՝ նվեր քարտ',
+    giftCardReceivedPushBody:
+      'Դուք նվեր քարտ եք ստացել {senderName}-ից',
+    giftCardReceivedPushForegroundHint:
+      'Նվեր քարտ {senderName}-ից — հպեք դիտելու',
+    rebookingNudgePushTitle: '{businessName}՝ վերամրագրման ժամանակն է',
+    rebookingNudgePushBody:
+      'Ձեր հաջորդ {serviceName}-ի ժամանակն է ({cadenceLabel})։ Հպեք ամրագրելու',
+    rebookingNudgePushForegroundHint:
+      '{serviceName} — հպեք ամրագրելու',
+    rebookingNudgeEmailSubject:
+      'Վերամրագրեք {serviceName} — {businessName}',
+    rebookingNudgeMessage:
+      'Ողջույն {customerName}, {businessName}-ում {serviceName} վերամրագրելու ժամանակն է։ {bookUrl}{promoLine}',
+    winBackEmailSubject: 'Ցանկանում ենք նորից տեսնել ձեզ — {businessName}',
+    winBackMessage:
+      'Ողջույն {customerName}, կարոտում ենք ձեզ {businessName}-ում։ {bookUrl}{promoLine}{loyaltyLine}',
+    winBackPromoLine: ' Օգտագործեք {promoCode} կոդը ամրագրելիս։',
+    winBackLoyaltyLine: ' Ձեր հաշվին ավելացրել ենք ${bonusAmount} պարգևներ։',
+    winBackPushTitle: '{businessName}՝ կարոտում ենք ձեզ',
+    winBackPushBody:
+      'Վաղուց չեք այցելել — ամրագրեք {businessName}-ում։{promoLine}',
+    winBackPushForegroundHint: 'Հպեք {businessName}-ում ամրագրելու',
+    activationConcierge24hEmailSubject:
+      'Շարունակեք այնտեղ, որտեղ կանգնեցիք — {businessName}',
+    activationConcierge24hMessage:
+      'Ողջույն {customerName}, դուք սկսել էիք {serviceName} ամրագրել {businessName}-ում։ Շարունակեք մեկ հպումով՝ {bookUrl}',
+    activationConcierge24hPushTitle: '{businessName}՝ ավարտեք ամրագրումը',
+    activationConcierge24hPushBody:
+      'Ձեր {serviceName} ամրագրումը սպասում է — հպեք շարունակելու',
+    activationConcierge24hPushForegroundHint: 'Հպեք {serviceName} շարունակելու',
+    activationConcierge72hEmailSubject:
+      'Դեռ ցանկանո՞ւմ եք {serviceName} — {businessName}',
+    activationConcierge72hMessage:
+      'Ողջույն {customerName}, ձեր {serviceName} ամրագրումը {businessName}-ում դեռ պահված է։ Շարունակեք այստեղ՝ {bookUrl}',
+    activationConcierge72hPushTitle: '{businessName}՝ ամրագրումը պահված է',
+    activationConcierge72hPushBody:
+      'Շարունակեք {serviceName} մեկ հպումով, մինչև ժամանակը լրանա',
+    activationConcierge72hPushForegroundHint:
+      'Մեկ հպումով շարունակել {serviceName}',
   },
   pdf: {
     clinicAfterVisitSummary: {
@@ -453,6 +582,11 @@ const ru: MessageTree = {
     taxRegistrationFooter: 'Налоговый номер: {number}',
     giftCardBalanceLine: 'Баланс: {price}',
     giftCardPurchaseLine: 'Оплачено: {price}',
+    appInstallPromoHeading: 'Скачайте приложение OptiSchedule',
+    appInstallPromoLinkLabel: 'Установить или открыть приложение для этого салона',
+    appInstallPromoText:
+      'Приложение OptiSchedule для быстрой повторной записи и напоминаний: {url}',
+    appInstallQrAlt: 'QR-код для установки приложения OptiSchedule для этого салона',
     clinicResultReadySubject:
       'Ваши результаты анализов готовы — {businessName}',
     clinicResultReadyBody:
@@ -479,6 +613,49 @@ const ru: MessageTree = {
       'Запишитесь на {collectionServiceName} для назначенных анализов ({testNames}).',
     clinicLabBookingRequestPushForegroundHint:
       '{collectionServiceName} — нажмите, чтобы записаться',
+    bookingConfirmedPushTitle: '{businessName}: Запись подтверждена',
+    bookingConfirmedPushBody:
+      '{serviceName} {scheduleLabel} — нажмите для деталей.',
+    bookingConfirmedPushForegroundHint:
+      'Подтверждено: {serviceName} {scheduleLabel}',
+    bookingReminderPushTitle: '{businessName}: Напоминание о записи',
+    bookingReminderPushBody:
+      '{serviceName} {scheduleLabel} — ждём вас.',
+    bookingReminderPushForegroundHint:
+      'Напоминание: {serviceName} {scheduleLabel}',
+    bookingRescheduledPushTitle: '{businessName}: Запись перенесена',
+    bookingRescheduledPushBody:
+      '{serviceName} теперь {scheduleLabel}.',
+    bookingRescheduledPushForegroundHint:
+      'Перенесено на {scheduleLabel} — нажмите для просмотра',
+    bookingCancelledPushTitle: '{businessName}: Запись отменена',
+    bookingCancelledPushBody:
+      '{serviceName} {scheduleLabel} отменена.',
+    bookingCancelledPushForegroundHint:
+      '{serviceName} отменена — нажмите, чтобы записаться снова',
+    giftCardReceivedPushTitle: '{businessName}: Подарочная карта',
+    giftCardReceivedPushBody:
+      'Вы получили подарочную карту от {senderName}.',
+    giftCardReceivedPushForegroundHint:
+      'Подарочная карта от {senderName} — нажмите для просмотра',
+    rebookingNudgePushTitle: '{businessName}: Пора записаться снова',
+    rebookingNudgePushBody:
+      'Пора записаться на {serviceName} ({cadenceLabel}). Нажмите, чтобы записаться.',
+    rebookingNudgePushForegroundHint:
+      'Пора на {serviceName} — нажмите, чтобы записаться',
+    rebookingNudgeEmailSubject:
+      'Пора записаться на {serviceName} — {businessName}',
+    rebookingNudgeMessage:
+      'Здравствуйте, {customerName}! Пора записаться на {serviceName} в {businessName}: {bookUrl}{promoLine}',
+    winBackEmailSubject: 'Мы скучаем по вам — {businessName}',
+    winBackMessage:
+      'Здравствуйте, {customerName}! Мы скучаем по вам в {businessName}. Запишитесь: {bookUrl}{promoLine}{loyaltyLine}',
+    winBackPromoLine: ' Используйте код {promoCode} при записи.',
+    winBackLoyaltyLine: ' Мы начислили ${bonusAmount} бонусов на ваш счёт.',
+    winBackPushTitle: '{businessName}: Мы скучаем по вам',
+    winBackPushBody:
+      'Давно не были — запишитесь в {businessName}.{promoLine}',
+    winBackPushForegroundHint: 'Нажмите, чтобы записаться в {businessName}',
   },
   pdf: {
     clinicAfterVisitSummary: {

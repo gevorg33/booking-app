@@ -81,6 +81,17 @@ export class ReviewsService {
     });
   }
 
+  async hasSubmittedReviewForBooking(
+    businessId: string,
+    bookingId: string,
+  ): Promise<boolean> {
+    const existing = await this.reviewRepo.findOne({
+      where: { businessId, bookingId },
+      select: { id: true },
+    });
+    return Boolean(existing);
+  }
+
   async getPublicReviewsByEmployees(
     businessId: string,
     employeeIds: string[],
