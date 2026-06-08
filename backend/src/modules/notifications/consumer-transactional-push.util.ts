@@ -539,9 +539,18 @@ export function toConsumerPushDataFields(
     return data;
   }
 
-  data.bookingId = payload.bookingId;
-  if (payload.reminderMinutesBefore != null) {
-    data.reminderMinutesBefore = String(payload.reminderMinutesBefore);
+  if (payload.pushType === 'catalog_announcement') {
+    return data;
+  }
+
+  if ('bookingId' in payload) {
+    data.bookingId = payload.bookingId;
+    if (
+      'reminderMinutesBefore' in payload &&
+      payload.reminderMinutesBefore != null
+    ) {
+      data.reminderMinutesBefore = String(payload.reminderMinutesBefore);
+    }
   }
   return data;
 }

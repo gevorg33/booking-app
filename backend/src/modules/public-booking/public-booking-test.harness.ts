@@ -24,6 +24,7 @@ export type PublicBookingHarnessDeps = {
   productRecommendationService?: unknown;
   configService?: ConfigService;
   referralProgramService?: unknown;
+  shareRewardService?: unknown;
   employeeRepo?: unknown;
   serviceRepo?: unknown;
   slotRepo?: unknown;
@@ -69,6 +70,7 @@ export function createPublicBookingServiceHarness(
     deps.productRecommendationService ?? EMPTY,
     config,
     deps.referralProgramService ?? EMPTY,
+    deps.shareRewardService ?? EMPTY,
     deps.employeeRepo ?? EMPTY,
     deps.serviceRepo ?? EMPTY,
     deps.slotRepo ?? EMPTY,

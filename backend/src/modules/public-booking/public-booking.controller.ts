@@ -72,6 +72,7 @@ import { PublicConsumerSupportTicketDto } from './dto/public-consumer-support-ti
 import { UpdatePublicConsumerNotificationPreferencesDto } from './dto/public-consumer-notification-preferences.dto.js';
 import { UpdatePublicCustomerPreferredLocaleDto } from './dto/public-customer-preferred-locale.dto.js';
 import { ClaimReferralCodeDto } from './dto/claim-referral.dto.js';
+import { ClaimShareRewardDto } from './dto/claim-share-reward.dto.js';
 import { SubmitCustomerReviewDto } from './dto/submit-customer-review.dto.js';
 
 @Controller('public/:slug')
@@ -996,6 +997,33 @@ export class PublicBookingController {
       slug,
       user.customerId,
       dto.referralCode,
+    );
+  }
+
+  @Get('me/share-rewards')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyShareRewards(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerShareRewards(
+      slug,
+      user.customerId,
+    );
+  }
+
+  @Post('me/share-rewards/claim')
+  @UseGuards(PublicCustomerAuthGuard)
+  claimShareReward(
+    @Param('slug') slug: string,
+    @Body() dto: ClaimShareRewardDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.claimCustomerShareReward(
+      slug,
+      user.customerId,
+      dto.channel,
+      dto.bookingId,
     );
   }
 

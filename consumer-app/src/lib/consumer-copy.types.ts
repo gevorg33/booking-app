@@ -287,6 +287,7 @@ export type ConsumerCopy = {
   growthReferAction: string;
   growthShareCopied: string;
   growthShareUnavailable: string;
+  growthShareRewardEarned: string;
   postBookingTenantReviewAction: string;
   giftCardNav: string;
   giftCardTitle: string;
@@ -480,6 +481,7 @@ export type ConsumerCopy = {
   assistantExampleReferral: string;
   assistantExampleNotifications: string;
   assistantExampleSavedSalons: string;
+  assistantExampleExportData: string;
   professionalsEntryCta: string;
   continueBooking: string;
   noServicesForSlot: string;

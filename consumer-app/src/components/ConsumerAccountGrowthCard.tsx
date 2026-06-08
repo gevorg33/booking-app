@@ -3,18 +3,22 @@ import { repeatOutline, shareOutline, peopleOutline } from 'ionicons/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import type { RefObject } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { formatCopy } from '../lib/copy.js';
 import { formatScheduleTime } from '../lib/date-format.js';
 import {
   resolveAccountRebookTarget,
   shareReferralInvite,
-  shareSalonLink,
   trackRebookTap,
 } from '../lib/consumer-growth-loops.util.js';
+import {
+  shareSalonLinkWithReward,
+  formatShareRewardToast,
+} from '../lib/consumer-share-flow.util.js';
 import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/types.js';
 import { getStoredCustomerProfile } from '../lib/customer-auth.js';
-import { fetchMyReferralProgram } from '../services/public-api.js';
+import { claimShareReward, fetchMyReferralProgram } from '../services/public-api.js';
 
 export function ConsumerAccountGrowthCard({
   slug,
@@ -22,12 +26,14 @@ export function ConsumerAccountGrowthCard({
   copy,
   bookings,
   loading,
+  sectionRef,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
   copy: ConsumerCopy;
   bookings: PublicCustomerBookingItem[];
   loading: boolean;
+  sectionRef?: RefObject<HTMLDivElement | null>;
 }) {
   const history = useHistory();
   const [presentToast] = useIonToast();
@@ -58,25 +64,41 @@ export function ConsumerAccountGrowthCard({
 
   const onRebook = useCallback(() => {
     if (!rebook) return;
-    trackRebookTap(rebook.booking.id, slug);
+    trackRebookTap(rebook.booking.id, slug, 'account');
     history.push(rebook.path);
   }, [history, rebook, slug]);
 
   const onShareSalon = useCallback(async () => {
     setBusy('share');
     try {
-      const result = await shareSalonLink({
+      const { status, reward } = await shareSalonLinkWithReward({
         slug,
         businessName: profile.name,
         serviceId: rebook?.booking.serviceId,
         serviceName: rebook?.booking.serviceName,
         employeeId: rebook?.booking.employeeId,
+        claimReward: customer?.id
+          ? () => claimShareReward(slug, 'salon')
+          : undefined,
       });
-      await toastShareResult(result);
+      const rewardMessage = formatShareRewardToast(reward, copy.growthShareRewardEarned);
+      if (rewardMessage) {
+        await presentToast({ message: rewardMessage, duration: 3000 });
+      } else {
+        await toastShareResult(status);
+      }
     } finally {
       setBusy(null);
     }
-  }, [profile.name, rebook, slug, toastShareResult]);
+  }, [
+    copy.growthShareRewardEarned,
+    customer?.id,
+    presentToast,
+    profile.name,
+    rebook,
+    slug,
+    toastShareResult,
+  ]);
 
   const onRefer = useCallback(async () => {
     if (!customer?.id) return;
@@ -116,8 +138,22 @@ export function ConsumerAccountGrowthCard({
   }
 
   return (
-    <div className="salon-card" style={{ marginTop: 16 }}>
+    <div className="salon-card" style={{ marginTop: 16 }} ref={sectionRef} id="account-growth">
       <h2 style={{ fontWeight: 600, marginBottom: 12 }}>{copy.growthSectionTitle}</h2>
+
+      {referralQuery.data?.enabled ? (
+        <div style={{ marginBottom: 16, fontSize: '0.875rem', color: '#4b5563' }}>
+          <p style={{ marginBottom: 6 }}>
+            {copy.growthReferTitle}: <strong>{referralQuery.data.referralCode}</strong>
+          </p>
+          <p style={{ margin: 0 }}>
+            {formatCopy(copy.growthReferSubtitle, { businessName: profile.name })}
+            {referralQuery.data.conversionsCount > 0
+              ? ` · ${referralQuery.data.conversionsCount} converted`
+              : ''}
+          </p>
+        </div>
+      ) : null}
 
       {rebook ? (
         <div style={{ marginBottom: 16 }}>

@@ -10,7 +10,7 @@ import {
   mergeDeferredInstallLink,
   resolveDeferredInstallNavigationPath,
 } from './deferred-install-resume.util.js';
-import { buildRebookBookServicePath } from './consumer-rebook.util.js';
+import { appendRebookQueryParams, buildRebookBookServicePath } from './consumer-rebook.util.js';
 import {
   buildBookServicePath,
   buildManageBookingPath,
@@ -34,6 +34,29 @@ function bookServiceLaunchPath(
   bookService: NonNullable<ReturnType<typeof parseBookServiceRoute>>,
   deferredLink?: DeferredInstallLink,
 ): string {
+  const isRebook =
+    bookService.rebookBookingId != null ||
+    bookService.rebookSource === 'widget' ||
+    bookService.rebookSource === 'account';
+
+  if (bookService.slot && isRebook && bookService.rebookBookingId) {
+    return buildRebookBookServicePath(
+      bookService.slug,
+      {
+        id: bookService.rebookBookingId,
+        serviceId: bookService.serviceId,
+        startTime: bookService.slot,
+        employeeId: bookService.employeeId ?? '',
+      },
+      {
+        source:
+          bookService.rebookSource === 'widget' || bookService.rebookSource === 'account'
+            ? bookService.rebookSource
+            : undefined,
+      },
+    );
+  }
+
   if (bookService.date && bookService.slot) {
     const link = mergeDeferredInstallLink(
       deferredLink ?? {
@@ -50,12 +73,20 @@ function bookServiceLaunchPath(
     return resolveDeferredInstallNavigationPath(link);
   }
 
-  if (bookService.rebookBookingId && bookService.slot) {
-    return buildRebookBookServicePath(bookService.slug, {
-      id: bookService.rebookBookingId,
-      serviceId: bookService.serviceId,
-      startTime: bookService.slot,
+  if (bookService.slot) {
+    const base = buildBookServicePath(bookService.slug, bookService.serviceId, {
       employeeId: bookService.employeeId,
+    });
+    return appendRebookQueryParams(base, {
+      date: (bookService.date ?? bookService.slot.slice(0, 10)).slice(0, 10),
+      slot: bookService.slot,
+      employeeId: bookService.employeeId,
+      rebookBookingId: bookService.rebookBookingId,
+      rebook: '1',
+      rebookSource:
+        bookService.rebookSource === 'widget' || bookService.rebookSource === 'account'
+          ? bookService.rebookSource
+          : undefined,
     });
   }
 

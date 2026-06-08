@@ -6,8 +6,10 @@ import {
   saveDeferredInstallLink,
   type DeferredInstallLink,
 } from './deferred-install-link.util.js';
+import type { ReferralClaimResponse } from './types.js';
 
 const PENDING_REFERRAL_PREFIX = 'consumer_pending_referral:';
+const REFEREE_PROMO_PREFIX = 'consumer_referee_promo:';
 
 export function pendingReferralStorageKey(slug: string): string {
   return `${PENDING_REFERRAL_PREFIX}${slug.trim().toLowerCase()}`;
@@ -70,4 +72,47 @@ export function captureReferralFromDeferredLink(link: DeferredInstallLink | null
 
 export function resolvePendingReferralForClaim(slug: string): string | null {
   return readPendingReferralCode(slug) ?? peekDeferredInstallLink()?.referralCode ?? null;
+}
+
+export function saveRefereePromoCode(slug: string, promoCode: string | null | undefined): void {
+  if (typeof sessionStorage === 'undefined') return;
+  const code = promoCode?.trim().toUpperCase();
+  const key = `${REFEREE_PROMO_PREFIX}${slug.trim().toLowerCase()}`;
+  if (!code) {
+    sessionStorage.removeItem(key);
+    return;
+  }
+  sessionStorage.setItem(key, code);
+}
+
+export function readRefereePromoCode(slug: string): string | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  const raw = sessionStorage.getItem(`${REFEREE_PROMO_PREFIX}${slug.trim().toLowerCase()}`);
+  return raw?.trim().toUpperCase() || null;
+}
+
+export function clearRefereePromoCode(slug: string): void {
+  saveRefereePromoCode(slug, null);
+}
+
+export async function claimPendingReferralAfterSignIn(
+  slug: string,
+  claim: (referralCode: string) => Promise<ReferralClaimResponse>,
+): Promise<ReferralClaimResponse | null> {
+  const referralCode = resolvePendingReferralForClaim(slug);
+  if (!referralCode) return null;
+
+  try {
+    const result = await claim(referralCode);
+    clearPendingReferralCode(slug);
+    if (result.attached) {
+      markReferralAttachedForConversion(slug);
+      if (result.refereePromoCode) {
+        saveRefereePromoCode(slug, result.refereePromoCode);
+      }
+    }
+    return result;
+  } catch {
+    return null;
+  }
 }

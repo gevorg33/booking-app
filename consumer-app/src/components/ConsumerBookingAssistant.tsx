@@ -67,6 +67,7 @@ const EXAMPLE_KEYS = [
   'assistantExampleReferral',
   'assistantExampleNotifications',
   'assistantExampleSavedSalons',
+  'assistantExampleExportData',
 ] as const;
 
 export function ConsumerBookingAssistant({

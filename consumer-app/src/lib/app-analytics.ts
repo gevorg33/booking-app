@@ -30,6 +30,7 @@ export type AppAnalyticsEvent =
   | 'referral_converted'
   | 'salon_shared'
   | 'booking_shared'
+  | 'share_reward_claimed'
   | 'review_prompt_shown'
   | 'tenant_review_submitted'
   | 'store_review_opened'

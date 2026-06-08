@@ -1,11 +1,20 @@
 import { IonContent, IonPage, IonSpinner } from '@ionic/react';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import SalonTabs from './SalonTabs.js';
 import { useConsumerNativePush } from '../hooks/use-consumer-native-push.js';
+import { captureReferralFromSearch } from '../lib/consumer-referral.util.js';
 
 export default function SalonTabShell() {
+  const location = useLocation();
   const { slug, profile, loading, error } = useTenantBootstrap();
   useConsumerNativePush(slug);
+
+  useEffect(() => {
+    if (!slug) return;
+    captureReferralFromSearch(location.search, slug);
+  }, [location.search, slug]);
 
   if (loading) {
     return (

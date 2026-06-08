@@ -766,6 +766,38 @@ export function quotePublicBooking(
   });
 }
 
+export interface PublicReferralProgram {
+  referralCode: string;
+  shareUrl: string;
+  enabled: boolean;
+  referrerRewardType?: 'loyalty_points' | 'gift_card';
+  referrerBonusPoints: number;
+  referrerGiftCardAmount?: number;
+  referrerRewardSummary?: string;
+  refereeBonusPoints: number;
+  refereePromoCode: string | null;
+  conversionsCount: number;
+}
+
+export interface PublicReferralClaimResponse {
+  attached: boolean;
+  referralCode?: string;
+  referrerCustomerId?: string;
+  refereePromoCode?: string | null;
+  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+}
+
+export function getPublicCustomerReferralProgram(slug: string) {
+  return publicFetch<PublicReferralProgram>(`/public/${slug}/me/referral`);
+}
+
+export function claimPublicReferralCode(slug: string, referralCode: string) {
+  return publicFetch<PublicReferralClaimResponse>(`/public/${slug}/me/referral/claim`, {
+    method: 'POST',
+    body: JSON.stringify({ referralCode }),
+  });
+}
+
 export function getPublicCustomerLoyalty(slug: string) {
   return publicFetch<PublicCustomerLoyalty>(`/public/${slug}/me/loyalty`);
 }

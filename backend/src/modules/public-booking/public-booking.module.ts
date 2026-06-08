@@ -40,6 +40,7 @@ import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/pati
 import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
 import { PublicPreVisitIntakeService } from './public-pre-visit-intake.service.js';
 import { ReferralProgramModule } from '../referral-program/referral-program.module.js';
+import { ShareRewardsModule } from '../share-rewards/share-reward.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
 import { PublicConsumerSupportService } from './public-consumer-support.service.js';
@@ -76,7 +77,8 @@ import { PublicConsumerSupportService } from './public-consumer-support.service.
     OpenAiModule,
     forwardRef(() => PromoCodesModule),
     LoyaltyModule,
-    ReferralProgramModule,
+    forwardRef(() => ReferralProgramModule),
+    forwardRef(() => ShareRewardsModule),
     ServiceSubscriptionsModule,
     ServicePackagesModule,
     MultiServiceBookingsModule,

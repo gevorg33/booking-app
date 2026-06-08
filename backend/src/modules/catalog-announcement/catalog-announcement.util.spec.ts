@@ -8,6 +8,7 @@ import {
   formatCatalogDiscountLabel,
   isCustomerEligibleForCatalogEmail,
   isCustomerEligibleForCatalogPush,
+  parseCatalogNotifyFromDto,
   parseCatalogNotifyRequest,
   readCatalogAnnouncementDefaults,
   renderCatalogAnnouncementTemplate,
@@ -61,6 +62,15 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
           { enabledLocales: ['en', 'hy'] },
         ),
       ).toThrow(BadRequestException);
+    });
+
+    it('parseCatalogNotifyFromDto accepts typed dto objects', () => {
+      expect(
+        parseCatalogNotifyFromDto({
+          name: 'Spa Day',
+          notifyCustomers: false,
+        }),
+      ).toBeNull();
     });
   });
 

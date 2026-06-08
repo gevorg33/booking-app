@@ -18,6 +18,7 @@ import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/li
 import { confirmDialog } from '@/lib/app-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DashboardGiftCardsTab } from '@/components/gift-cards/dashboard-gift-cards-tab';
+import { DashboardReferralProgramTab } from '@/components/monetization/dashboard-referral-program-tab';
 import { CheckboxChoice } from '@/components/ui/radio-choice';
 import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 import { usePlanEntitlements, canUseFeature } from '@/lib/use-plan-entitlements';
@@ -35,13 +36,14 @@ import {
   type CatalogNotifyPreviewContext,
 } from '@/lib/catalog-notify-customers.util';
 
-type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
+type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes' | 'referrals';
 
-const TAB_FEATURE: Record<Tab, PlanFeatureFlag> = {
+const TAB_FEATURE: Record<Tab, PlanFeatureFlag | null> = {
   'gift-cards': 'giftCards',
   memberships: 'memberships',
   loyalty: 'loyalty',
   'promo-codes': 'promoCodes',
+  referrals: null,
 };
 
 function unwrap<T>(res: unknown): T {
@@ -53,13 +55,14 @@ export default function MonetizationPage() {
   const { business } = useAuthStore();
   const [tab, setTab] = useState<Tab>('promo-codes');
   const { data: entitlements } = usePlanEntitlements(business?.id);
-  const tabAllowed = canUseFeature(entitlements, TAB_FEATURE[tab]);
+  const tabAllowed = TAB_FEATURE[tab] == null || canUseFeature(entitlements, TAB_FEATURE[tab]!);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'gift-cards', label: t('monetization.giftCards') },
     { id: 'memberships', label: t('monetization.memberships') },
     { id: 'loyalty', label: t('monetization.loyalty') },
     { id: 'promo-codes', label: t('monetization.promoCodes') },
+    { id: 'referrals', label: t('monetization.referrals') },
   ];
 
   return (
@@ -103,6 +106,9 @@ export default function MonetizationPage() {
       )}
       {tabAllowed && tab === 'promo-codes' && business?.id && (
         <PromoCodesTab businessId={business.id} />
+      )}
+      {tabAllowed && tab === 'referrals' && business?.id && (
+        <DashboardReferralProgramTab businessId={business.id} />
       )}
     </div>
   );

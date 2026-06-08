@@ -100,7 +100,11 @@ export function buildConsumerAssistantHref(
   }
 
   if (path === 'home') {
-    return buildSalonPath(slug, '/home');
+    return buildSalonPath(slug);
+  }
+
+  if (path === 'profile') {
+    return buildSalonPath(slug, '/profile');
   }
 
   if (path === 'multi/checkout') {

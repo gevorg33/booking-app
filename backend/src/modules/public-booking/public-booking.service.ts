@@ -94,6 +94,7 @@ import { inferDefaultPhoneCountryCode } from '../../common/utils/phone-country.u
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { ReferralProgramService } from '../referral-program/referral-program.service.js';
+import { ShareRewardService } from '../share-rewards/share-reward.service.js';
 import { getBusinessZendeskIntegration } from '../integrations/zendesk/zendesk-integration.types.js';
 import {
   buildMessagingLinksForBusiness,
@@ -351,6 +352,7 @@ export class PublicBookingService {
     private productRecommendationService: ProductRecommendationService,
     private configService: ConfigService,
     private referralProgramService: ReferralProgramService,
+    private shareRewardService: ShareRewardService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot)
@@ -1581,6 +1583,26 @@ export class PublicBookingService {
       business.id,
       customerId,
       referralCode,
+    );
+  }
+
+  async getCustomerShareRewards(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    return this.shareRewardService.getShareRewardsView(business.id, customerId);
+  }
+
+  async claimCustomerShareReward(
+    slug: string,
+    customerId: string,
+    channel: 'salon' | 'booking',
+    bookingId?: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    return this.shareRewardService.claimShareReward(
+      business.id,
+      customerId,
+      channel,
+      bookingId,
     );
   }
 

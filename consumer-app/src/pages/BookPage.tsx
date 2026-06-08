@@ -56,9 +56,10 @@ import {
 } from '../lib/customer-auth.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { track, getOrCreateAnonId } from '../lib/app-analytics.js';
-import { consumeReferralConversionFlag } from '../lib/consumer-referral.util.js';
-import { shareBookingLink } from '../lib/consumer-growth-loops.util.js';
-import { readRebookLaunchContext } from '../lib/consumer-rebook.util.js';
+import { readRefereePromoCode } from '../lib/consumer-referral.util.js';
+import { shareBookingLinkWithReward, formatShareRewardToast } from '../lib/consumer-share-flow.util.js';
+import { claimShareReward } from '../services/public-api.js';
+import { readRebookLaunchContext, normalizeRebookPrefill } from '../lib/consumer-rebook.util.js';
 import { rememberBookedSalon } from '../lib/recent-salons.js';
 import {
   incrementCompletedBookingCount,
@@ -233,9 +234,6 @@ function applyBookingSuccess(
     quote: checkoutQuote ?? null,
   });
   track('completed_booking', { bookingId, serviceId: service.id });
-  if (consumeReferralConversionFlag(slug)) {
-    track('referral_converted', { bookingId, serviceId: service.id, slug });
-  }
   bookingCompletedRef.current = true;
   clearBookingDraft();
   clearPendingCheckoutPayment();
@@ -271,11 +269,21 @@ export default function BookPage() {
     const resumeDate = resumeParams.get('date')?.slice(0, 10);
     const resumeSlot = resumeParams.get('slot') ?? '';
     const resumeEmployeeId = resumeParams.get('employeeId') ?? '';
+    const rebook = readRebookLaunchContext(location.search);
+    const normalized = rebook.isRebook
+      ? normalizeRebookPrefill({
+          date: resumeDate ?? new Date().toISOString().slice(0, 10),
+          slot: resumeSlot,
+        })
+      : {
+          date: resumeDate ?? new Date().toISOString().slice(0, 10),
+          slot: resumeSlot,
+        };
     return {
-      date: resumeDate ?? new Date().toISOString().slice(0, 10),
-      slot: resumeSlot,
+      date: normalized.date,
+      slot: normalized.slot,
       employeeId: resumeEmployeeId,
-      rebook: readRebookLaunchContext(location.search),
+      rebook,
     };
   }, [location.search, resumeParams]);
   const deferredResume = useMemo(
@@ -436,6 +444,7 @@ export default function BookPage() {
     loyalty: loyalty ?? null,
     fallbackSubtotal,
     quoteFailedMessage: copy.networkLoadFailed,
+    initialAppliedPromo: slug ? readRefereePromoCode(slug) : null,
     deps: [slug, serviceId, purchaseType, selectedPlanId, isTour ? paxCount : null],
   });
   const activationPathVariants = useMemo(
@@ -1222,7 +1231,7 @@ export default function BookPage() {
                 void (async () => {
                   setSharingBooking(true);
                   try {
-                    const result = await shareBookingLink({
+                    const { status, reward } = await shareBookingLinkWithReward({
                       slug,
                       businessName: profile.name,
                       booking: {
@@ -1231,10 +1240,18 @@ export default function BookPage() {
                         serviceName: service.name,
                         employeeId: employeeId || providers[0]?.id || '',
                       },
+                      claimReward: () =>
+                        claimShareReward(slug, 'booking', bookingSuccess.bookingId),
                     });
-                    if (result === 'copied') {
+                    const rewardMessage = formatShareRewardToast(
+                      reward,
+                      copy.growthShareRewardEarned,
+                    );
+                    if (rewardMessage) {
+                      await presentToast({ message: rewardMessage, duration: 3000 });
+                    } else if (status === 'copied') {
                       await presentToast({ message: copy.growthShareCopied, duration: 2000 });
-                    } else if (result === 'unavailable') {
+                    } else if (status === 'unavailable') {
                       await presentToast({
                         message: copy.growthShareUnavailable,
                         duration: 2500,

@@ -57,7 +57,9 @@ export function buildSalonSharePayload(input: {
     ? buildAttributedBookUrl(origin, {
         slug: input.slug,
         serviceId,
-        installSource: 'link',
+        installSource: 'share',
+        campaign: 'customer_share',
+        employeeId: input.employeeId ?? undefined,
       })
     : serviceId
       ? buildBookServicePath(input.slug, serviceId, { employeeId: input.employeeId })
@@ -186,10 +188,11 @@ export async function shareBookingLink(input: {
   return result;
 }
 
+/** Account/widget rebook navigation — analytics fire when BookPage opens with rebook=1. */
 export function trackRebookTap(
-  bookingId: string,
-  slug: string,
-  source: 'account' | 'widget' = 'account',
+  _bookingId: string,
+  _slug: string,
+  _source: 'account' | 'widget' = 'account',
 ): void {
-  track('rebooked', { bookingId, slug, source });
+  // no-op: BookPage emits `rebooked` once when the rebook flow loads
 }

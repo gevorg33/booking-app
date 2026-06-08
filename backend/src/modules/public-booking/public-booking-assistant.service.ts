@@ -106,7 +106,15 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export interface PublicAssistantNavigate {
-  path: 'professionals' | 'services' | 'checkout';
+  path:
+    | 'professionals'
+    | 'services'
+    | 'checkout'
+    | 'account'
+    | 'home'
+    | 'profile'
+    | 'packages'
+    | 'multi/checkout';
   query: Record<string, string>;
 }
 
@@ -1258,11 +1266,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       { _prompt: prompt },
       prompt,
     );
+    const aspect = result.details?.aspect;
+    const navigate =
+      aspect === 'export' || aspect === 'delete'
+        ? { path: 'account' as const, query: { section: 'privacy' } }
+        : undefined;
+
     return {
       success: result.success,
       action: result.action ?? 'explain_data_rights',
       summary: result.summary,
       details: result.details,
+      navigate,
     };
   }
 
@@ -1496,6 +1511,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       success: true,
       action: 'business_info',
       summary: parts.join('\n'),
+      navigate: { path: 'profile', query: {} },
     };
   }
 

@@ -5,6 +5,10 @@ import type {
   PublicBusinessProfile,
   PublicCustomerBookingItem,
   PublicCustomerProfile,
+  PublicReferralProgram,
+  PublicShareRewardsView,
+  ReferralClaimResponse,
+  ShareRewardClaimResponse,
   PublicCustomerSubscription,
   PackageVisitRescheduleLine,
   PublicProvider,
@@ -140,6 +144,41 @@ export async function loginWithGoogle(
     analyticsAnonId: options?.analyticsAnonId,
   });
   return unwrap<{ token: string; customer: PublicCustomerProfile }>(data);
+}
+
+export async function fetchMyReferralProgram(slug: string): Promise<PublicReferralProgram> {
+  const { data } = await http.get(`/public/${slug}/me/referral`, publicConfig(slug));
+  return unwrap<PublicReferralProgram>(data);
+}
+
+export async function claimReferralCode(
+  slug: string,
+  referralCode: string,
+): Promise<ReferralClaimResponse> {
+  const { data } = await http.post(
+    `/public/${slug}/me/referral/claim`,
+    { referralCode },
+    publicConfig(slug),
+  );
+  return unwrap<ReferralClaimResponse>(data);
+}
+
+export async function fetchMyShareRewards(slug: string): Promise<PublicShareRewardsView> {
+  const { data } = await http.get(`/public/${slug}/me/share-rewards`, publicConfig(slug));
+  return unwrap<PublicShareRewardsView>(data);
+}
+
+export async function claimShareReward(
+  slug: string,
+  channel: 'salon' | 'booking',
+  bookingId?: string,
+): Promise<ShareRewardClaimResponse> {
+  const { data } = await http.post(
+    `/public/${slug}/me/share-rewards/claim`,
+    { channel, bookingId },
+    publicConfig(slug),
+  );
+  return unwrap<ShareRewardClaimResponse>(data);
 }
 
 export async function fetchMyPreferredLocale(

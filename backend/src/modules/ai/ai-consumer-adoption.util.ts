@@ -7,6 +7,8 @@ export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
   'manage_notification_preferences',
   'refer_a_friend',
+  'share_salon_link',
+  'share_my_booking',
   'rebook_last_appointment',
   'find_my_saved_salons',
 ] as const;
@@ -18,7 +20,11 @@ const EXPLAIN_NOTIFICATIONS =
 const MANAGE_NOTIFICATIONS =
   /\b(turn|switch|enable|disable|stop|manage|change|update|set).{0,30}\b(notifications?|reminders?|push|sms|whatsapp|alerts?)\b|անջատ.{0,20}(ծանուց|հիշեց)|միաց.{0,20}ծանուց|отключ.{0,30}(напоминан|уведом)|выключ.{0,30}(напоминан|уведом)/i;
 const REFER_FRIEND =
-  /\b(refer|invite|share).{0,30}\b(friend|buddy|someone|referral)\b|\breferral (code|link|program)\b|\bhow do i refer\b|հրավիր.{0,20}ընկեր|ինչպես.{0,20}հրավիր|приглас.{0,20}друг|реферал/i;
+  /\b(refer|invite).{0,30}\b(friend|buddy|someone|referral)\b|\breferral (code|link|program)\b|\bhow do i refer\b|հրավիր.{0,20}ընկեր|ինչպես.{0,20}հրավիր|приглас.{0,20}друг|реферал/i;
+const SHARE_BOOKING =
+  /\b(share).{0,30}\b(booking|appointment|visit)\b|կիս.{0,20}ամրագր|подел.{0,20}(запис|визит)/i;
+const SHARE_SALON =
+  /\b(share).{0,30}\b(salon|business|place|link)\b|կիս.{0,20}(salon|սalon|բիզնես)|подел.{0,20}(салон|ссылк)/i;
 const REBOOK_LAST =
   /\b(rebook|book again|repeat|same as last|last appointment|last visit|last booking|book my last)\b|повторн.{0,20}запис|прошл.{0,15}визит|վերամրագր|նույն.{0,20}(այց|visit)/i;
 const SAVED_SALONS =
@@ -70,6 +76,12 @@ export function rescueConsumerAdoptionIntent(
   }
   if (REFER_FRIEND.test(text)) {
     return { action: 'refer_a_friend', rescueReason: 'refer_a_friend' };
+  }
+  if (SHARE_BOOKING.test(text)) {
+    return { action: 'share_my_booking', rescueReason: 'share_my_booking' };
+  }
+  if (SHARE_SALON.test(text)) {
+    return { action: 'share_salon_link', rescueReason: 'share_salon_link' };
   }
   if (REBOOK_LAST.test(text)) {
     return {

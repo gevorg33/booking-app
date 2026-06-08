@@ -73,7 +73,7 @@ export function assertSupportedBusinessCurrency(code: string): string {
 }
 
 export function getBusinessDefaultCurrency(
-  settings?: Record<string, unknown>,
+  settings?: Record<string, unknown> | null,
 ): string {
   const direct = normalizeBusinessCurrency(
     settings?.currency as string | undefined,
@@ -107,7 +107,7 @@ export function listStripeChargeCurrencyCodes(): string[] {
 
 export function resolvePriceCurrency(
   entityCurrency: string | null | undefined,
-  businessSettings?: Record<string, unknown>,
+  businessSettings?: Record<string, unknown> | null,
 ): string {
   const normalized = normalizeBusinessCurrency(entityCurrency ?? undefined);
   if (normalized && isSupportedBusinessCurrency(normalized)) return normalized;

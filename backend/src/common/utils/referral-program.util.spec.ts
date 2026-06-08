@@ -1,7 +1,9 @@
 import {
   REFERRAL_CODE_SCENARIOS,
   REFERRAL_RESOLVE_SCENARIOS,
+  REFERRAL_SETTINGS_MERGE_SCENARIOS,
   buildReferralAttributionMetadata,
+  buildReferrerRewardSummary,
   deriveReferralCodeFromCustomerId,
   mergeReferralProgramSettings,
   normalizeReferralCode,
@@ -20,15 +22,37 @@ describe('referral-program.util', () => {
     },
   );
 
-  it('merges referral settings from business metadata', () => {
-    const settings = mergeReferralProgramSettings({
-      referralProgram: {
-        referrerBonusPoints: 40,
-        refereePromoCode: 'welcome10',
-      },
-    });
-    expect(settings.referrerBonusPoints).toBe(40);
-    expect(settings.refereePromoCode).toBe('WELCOME10');
+  it.each(REFERRAL_SETTINGS_MERGE_SCENARIOS)(
+    '$id merges referral settings',
+    ({ input, expected }) => {
+      const settings = mergeReferralProgramSettings({ referralProgram: input });
+      for (const [key, value] of Object.entries(expected)) {
+        expect(settings[key as keyof typeof settings]).toBe(value);
+      }
+    },
+  );
+
+  it('builds referrer reward summary', () => {
+    expect(
+      buildReferrerRewardSummary(
+        {
+          referrerRewardType: 'loyalty_points',
+          referrerBonusPoints: 40,
+          referrerGiftCardAmount: 25,
+        },
+        { currency: 'USD' },
+      ),
+    ).toBe('40 loyalty points');
+    expect(
+      buildReferrerRewardSummary(
+        {
+          referrerRewardType: 'gift_card',
+          referrerBonusPoints: 40,
+          referrerGiftCardAmount: 50,
+        },
+        { currency: 'USD' },
+      ),
+    ).toBe('50 USD gift card');
   });
 
   it('builds referral attribution metadata', () => {

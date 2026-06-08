@@ -700,6 +700,39 @@ const en: MessageTree = {
     memberships: 'Subscriptions',
     loyalty: 'Loyalty',
     promoCodes: 'Promo codes',
+    referrals: 'Referrals',
+    referralProgramTitle: 'Referral program',
+    referralProgramSubtitle:
+      'Reward customers who refer friends. Rewards are issued when the friend completes their first visit.',
+    referralProgramEnabled: 'Enable referral program',
+    referralReferrerReward: 'Referrer reward (per successful friend)',
+    referralReferrerRewardHint:
+      'Paid to the customer who shared their invite link after the friend completes their first booking.',
+    referralRewardLoyalty: 'Loyalty bonus points',
+    referralRewardGiftCard: 'Gift card',
+    referralLoyaltyPoints: 'Loyalty points per referral',
+    referralGiftCardAmount: 'Gift card amount per referral',
+    referralGiftCardUpgradeHint: 'Upgrade your plan to issue gift card referral rewards.',
+    referralRefereeReward: 'Friend welcome reward',
+    referralRefereeRewardHint:
+      'Optional bonus for the invited friend on their first completed visit.',
+    referralRefereeBonusPoints: 'Welcome loyalty points',
+    referralRefereePromoCode: 'Checkout promo code (optional)',
+    referralNoPromoCode: 'No promo code',
+    referralRefereePromoHint:
+      'Auto-suggested at checkout when the friend signs in from your invite link.',
+    referralPreview:
+      'Preview: referrers earn {referrerReward}; friends receive {refereeBonus} welcome points.',
+    referralSaved: 'Referral settings saved.',
+    shareRewardsTitle: 'Share rewards',
+    shareRewardsSubtitle:
+      'Reward signed-in customers when they share your salon or a booking via the native share sheet.',
+    shareRewardsEnabled: 'Enable share rewards',
+    shareRewardsCooldown: 'Cooldown between rewards (hours)',
+    shareSalonRewardEnabled: 'Reward salon / business shares',
+    shareBookingRewardEnabled: 'Reward booking shares',
+    shareRewardsPreview:
+      'Preview: salon share → {salonReward}; booking share → {bookingReward} (per cooldown).',
     loyaltyEarnRate: 'Bonus earn rate',
     loyaltyEarnRateHint: 'Customers earn this percent of each paid booking as bonus credit (1 bonus = $1 off).',
     loyaltyEarnPercent: 'Earn percent (%)',
@@ -2029,11 +2062,20 @@ const en: MessageTree = {
   },
   marketingAutomation: {
     title: 'Marketing automation',
-    subtitle: 'Re-engage inactive customers and control post-visit review requests.',
+    subtitle:
+      'Re-engage inactive customers, send smart rebooking nudges, and control post-visit review requests.',
     eligibleInactive: 'Eligible inactive customers',
     sentLast30Days: 'Re-engagement messages (30 days)',
+    eligibleRebooking: 'Due for rebooking nudge',
+    rebookingSentLast30Days: 'Rebooking nudges sent (30 days)',
     postVisitTitle: 'Post-visit follow-up',
     postVisitReview: 'Send review request after completed visits',
+    rebookingTitle: 'Smart rebooking reminders',
+    rebookingHint:
+      'Learns each customer’s visit interval from history and nudges at the right time. Push respects their “Offers & rebook tips” preference.',
+    rebookingEnabled: 'Enable cadence-based rebooking nudges',
+    defaultCadenceDays: 'Default cadence when no history (days)',
+    minDaysBetweenRebooking: 'Min days between nudges (same service)',
     reEngagementTitle: 'Win-back campaigns',
     reEngagementHint: 'Only customers who opted in to marketing and have not visited recently.',
     reEngagementEnabled: 'Enable automatic re-engagement',
@@ -3544,6 +3586,15 @@ const en: MessageTree = {
     signOut: 'Sign out',
     accountTitle: 'My account',
     accountSignInPrompt: 'Sign in with Google to see your bookings and manage your profile.',
+    referralSectionTitle: 'Refer a friend',
+    referralSectionBody:
+      'Share your invite link. You earn {referrerBonus} loyalty points and your friend can earn {refereeBonus} bonus points after their first visit.',
+    referralSectionBodyDynamic:
+      'Share your invite link. You earn {referrerReward} per friend and they can receive {refereeBonus} welcome points after their first visit.',
+    referralYourCode: 'Your code',
+    referralConversions: '{count} friends converted',
+    referralShareText: 'Book at {businessName} with my invite link',
+    referralShareAction: 'Send invite',
     myBookings: 'My bookings',
     myResults: {
       title: 'My results',

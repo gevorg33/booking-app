@@ -721,6 +721,29 @@ const hy: MessageTree = {
     memberships: 'Բաժանորդագրություններ',
     loyalty: 'Loyalty բոնուսներ',
     promoCodes: 'Պրոմո կոդեր',
+    referrals: 'Ուղղորդումներ',
+    referralProgramTitle: 'Ուղղորդման ծրագիր',
+    referralProgramSubtitle:
+      'Պարգևատրեք հաճախորդներին, ովքեր ընկերներ են հրավիրում։ Պարգևները տրվում են, երբ ընկերը ավարտում է առաջին այցը։',
+    referralProgramEnabled: 'Միացնել ուղղորդման ծրագիրը',
+    referralReferrerReward: 'Ուղղորդողի պարգև (մեկ հաջող ընկերոջ համար)',
+    referralReferrerRewardHint:
+      'Տրվում է հրավերի հղումը կիսող հաճախորդին՝ ընկերի առաջին ամրագրումն ավարտելուց հետո։',
+    referralRewardLoyalty: 'Loyalty միավորներ',
+    referralRewardGiftCard: 'Նվեր քարտ',
+    referralLoyaltyPoints: 'Loyalty միավորներ մեկ ուղղորդման համար',
+    referralGiftCardAmount: 'Նվեր քարտի գումար մեկ ուղղորդման համար',
+    referralGiftCardUpgradeHint: 'Թարմացրեք պլանը՝ նվեր քարտով պարգևներ տալու համար։',
+    referralRefereeReward: 'Ընկeroի ողջույնի պարգև',
+    referralRefereeRewardHint: 'Ընտրովի բոնուս հրավիրված ընկeroի համար առաջին այցից հետո։',
+    referralRefereeBonusPoints: 'Ողջույնի loyalty միավորներ',
+    referralRefereePromoCode: 'Պրոմո կոդ checkout-ում (ընտրովի)',
+    referralNoPromoCode: 'Պրոմո կոդ չկա',
+    referralRefereePromoHint:
+      'Աuto-առաջարկվում է checkout-ում, երբ ընկeroը մուտք է գործում հրավerի հղումից։',
+    referralPreview:
+      'Նախադիտում՝ ուղղորդողները ստանում են {referrerReward}, ընկeroները՝ {refereeBonus} ողջույնի միավոր։',
+    referralSaved: 'Ուղղորդման կարգավորումները պահպանված են։',
   
     loyaltyEarnRate: 'Բոնուսների կուտակման տոկոս',
     loyaltyEarnRateHint:
@@ -2258,14 +2281,19 @@ const hy: MessageTree = {
   marketingAutomation: {
     title: 'Մարքեթինգային ավտոմատացում',
     subtitle:
-      'Վերակապեք ոչ ակտիվ հաճախորդներին և կառավարեք այցից հետո կարծիքների հարցումները',
-  
+      'Վերակապեք ոչ ակտիվ հաճախորդներին, ուղարկեք խելացի կրկին ամրագրում և կառավարեք այցից հետո կարծիքների հարցումները',
     eligibleInactive: 'Ոչ ակտիվ հաճախորդներ (իրավասու)',
     sentLast30Days: 'Վերակապման հաղորդագրություններ (30 օր)',
-  
+    eligibleRebooking: 'Կրկին ամրագրման հիշեցում է պետք',
+    rebookingSentLast30Days: 'Կրկին ամրագրման հիշեցումներ (30 օր)',
     postVisitTitle: 'Այցից հետո հետևում',
     postVisitReview: 'Ուղարկել կարծիք թողնելու հարցում այցի ավարտից հետո',
-  
+    rebookingTitle: 'Խելացի կրկին ամրագրման հիշեցումներ',
+    rebookingHint:
+      'Սովորում է յուրաքանչյուր հաճախորդի այցելության միջակայքը և հիշեցնում ճիշտ ժամանակին։ Push-ը հարգում է «Առաջարկներ և կրկին ամրագրում» կարգավորումը։',
+    rebookingEnabled: 'Միացնել կրկին ամրագրման հիշեցումները',
+    defaultCadenceDays: 'Լռելյայն միջակայք առանց պատմության (օր)',
+    minDaysBetweenRebooking: 'Նվազագույն օրեր նույն ծառայության հիշեցումների միջև',
     reEngagementTitle: 'Վերադարձման (win-back) արշավներ',
     reEngagementHint:
       'Միայն այն հաճախորդների համար, ովքեր տվել են մարքեթինգային համաձայնություն և վերջերս չեն այցելել',
@@ -4000,6 +4028,12 @@ signingIn: 'Մուտք է կատարվում…',
 signOut: 'Դուրս գալ',
 accountTitle: 'Իմ հաշիվը',
 accountSignInPrompt: 'Մուտք գործեք Google-ով՝ ձեր ամրագրումները տեսնելու և պրոֆիլը կառավարելու համար',
+referralSectionTitle: 'Ուղղորդել ընկերոջ',
+referralSectionBody: 'Կիսվեք հրավերի հղումով։ Դուք կստանաք {referrerBonus} loyalty միավոր, ընկերոջը՝ {refereeBonus} բոնուս առաջին այցից հետո։',
+referralYourCode: 'Ձեր կոդը',
+referralConversions: '{count} ընկեր վերածվեց',
+referralShareText: 'Ամրագրեք {businessName}-ում իմ հրավերով',
+referralShareAction: 'Ուղարկել հրավեր',
 myBookings: 'Իմ ամրագրումները',
 myResults: {
   title: 'Իմ արդյունքները',

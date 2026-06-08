@@ -9,7 +9,7 @@ import {
   IonToolbar,
   useIonToast,
 } from '@ionic/react';
-import { shareOutline } from 'ionicons/icons';
+import { repeatOutline, shareOutline } from 'ionicons/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -42,8 +42,13 @@ import { ConsumerAccountGrowthCard } from '../components/ConsumerAccountGrowthCa
 import { ConsumerSubscriptionsSection } from '../components/ConsumerSubscriptionsSection.js';
 import { ConsumerPrivacyDataSection } from '../components/ConsumerPrivacyDataSection.js';
 import { PostVisitReviewPrompt } from '../components/PostVisitReviewPrompt.js';
-import { shareBookingLink } from '../lib/consumer-growth-loops.util.js';
+import { shareBookingLinkWithReward, formatShareRewardToast } from '../lib/consumer-share-flow.util.js';
+import { claimShareReward } from '../services/public-api.js';
 import { resolvePostVisitReviewCandidate } from '../lib/store-review-prompt.util.js';
+import { buildRebookBookServicePath } from '../lib/consumer-rebook.util.js';
+import { canRebookBooking } from '../lib/home-screen-widget.util.js';
+import { trackRebookTap } from '../lib/consumer-growth-loops.util.js';
+import { useHomeScreenWidgetSync } from '../hooks/use-home-screen-widget-sync.js';
 
 function statusLabel(status: string, copy: ConsumerCopy): string {
   switch (status) {
@@ -68,6 +73,7 @@ function BookingCard({
   onUpdated,
   onRescheduled,
   onReview,
+  onRebook,
 }: {
   booking: PublicCustomerBookingItem;
   slug: string;
@@ -78,6 +84,7 @@ function BookingCard({
   onUpdated: () => void;
   onRescheduled: (previous: string, next: string) => void;
   onReview?: (booking: PublicCustomerBookingItem) => void;
+  onRebook?: (booking: PublicCustomerBookingItem) => void;
 }) {
   const [presentToast] = useIonToast();
   const [sharing, setSharing] = useState(false);
@@ -86,14 +93,19 @@ function BookingCard({
   const onShareBooking = async () => {
     setSharing(true);
     try {
-      const result = await shareBookingLink({
+      const { status, reward } = await shareBookingLinkWithReward({
         slug,
         businessName,
         booking,
+        claimReward: () =>
+          claimShareReward(slug, 'booking', booking.id),
       });
-      if (result === 'copied') {
+      const rewardMessage = formatShareRewardToast(reward, copy.growthShareRewardEarned);
+      if (rewardMessage) {
+        await presentToast({ message: rewardMessage, duration: 3000 });
+      } else if (status === 'copied') {
         await presentToast({ message: copy.growthShareCopied, duration: 2000 });
-      } else if (result === 'unavailable') {
+      } else if (status === 'unavailable') {
         await presentToast({ message: copy.growthShareUnavailable, duration: 2500 });
       }
     } finally {
@@ -123,6 +135,18 @@ function BookingCard({
           onClick={() => onReview(booking)}
         >
           {copy.postBookingTenantReviewAction}
+        </IonButton>
+      ) : null}
+      {canRebookBooking(booking) && onRebook ? (
+        <IonButton
+          expand="block"
+          fill="outline"
+          size="small"
+          style={{ marginTop: 8 }}
+          onClick={() => onRebook(booking)}
+        >
+          <IonIcon slot="start" icon={repeatOutline} />
+          {copy.growthRebookAction}
         </IonButton>
       ) : null}
       {canShare ? (
@@ -160,9 +184,13 @@ export default function AccountPage({
   const history = useHistory();
   const location = useLocation();
   const subscriptionsSectionRef = useRef<HTMLHeadingElement>(null);
+  const privacySectionRef = useRef<HTMLDivElement>(null);
+  const growthSectionRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-  const accountTab = new URLSearchParams(location.search).get('tab');
-  const subscriptionIdFromQuery = new URLSearchParams(location.search).get('subscriptionId');
+  const searchParams = new URLSearchParams(location.search);
+  const accountTab = searchParams.get('tab');
+  const accountSection = searchParams.get('section');
+  const subscriptionIdFromQuery = searchParams.get('subscriptionId');
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
@@ -192,6 +220,16 @@ export default function AccountPage({
     if (accountTab !== 'subscriptions' || !subsQuery.isSuccess) return;
     subscriptionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [accountTab, subsQuery.isSuccess]);
+
+  useEffect(() => {
+    if (accountSection !== 'privacy' || !authed) return;
+    privacySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accountSection, authed]);
+
+  useEffect(() => {
+    if (accountSection !== 'growth' || !authed) return;
+    growthSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accountSection, authed]);
 
   const giftCardsQuery = useQuery({
     queryKey: ['gift-cards-account', slug],
@@ -224,6 +262,23 @@ export default function AccountPage({
   const openReviewPrompt = useCallback((booking: PublicCustomerBookingItem) => {
     setReviewPromptBooking(booking);
   }, []);
+
+  const onRebookBooking = useCallback(
+    (booking: PublicCustomerBookingItem) => {
+      trackRebookTap(booking.id, slug, 'account');
+      history.push(buildRebookBookServicePath(slug, booking, { source: 'account' }));
+    },
+    [history, slug],
+  );
+
+  useHomeScreenWidgetSync({
+    slug,
+    profile,
+    authed,
+    bookings: bookingsQuery.data,
+    copy,
+    locale,
+  });
 
   const signOut = () => {
     clearCustomerSession(slug);
@@ -272,16 +327,27 @@ export default function AccountPage({
             </IonButton>
             <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
 
-            <ConsumerPrivacyDataSection
-              slug={slug}
-              businessName={profile.name}
-              copy={copy}
-              onDeleted={() => {
-                clearCustomerSession(slug);
-                history.replace(buildSalonPath(slug, '/account'));
-                window.location.reload();
-              }}
-            />
+            <IonButton
+              expand="block"
+              fill="outline"
+              className="ion-margin-top"
+              onClick={() => history.push(buildSalonPath(slug, '/profile'))}
+            >
+              {copy.profileViewDetails}
+            </IonButton>
+
+            <div ref={privacySectionRef}>
+              <ConsumerPrivacyDataSection
+                slug={slug}
+                businessName={profile.name}
+                copy={copy}
+                onDeleted={() => {
+                  clearCustomerSession(slug);
+                  history.replace(buildSalonPath(slug, '/account'));
+                  window.location.reload();
+                }}
+              />
+            </div>
 
             <ConsumerRewardsCard
               slug={slug}
@@ -299,6 +365,7 @@ export default function AccountPage({
               copy={copy}
               bookings={bookingsQuery.data ?? []}
               loading={bookingsQuery.isLoading}
+              sectionRef={growthSectionRef}
             />
 
             <ConsumerGiftCardClaimSection
@@ -415,6 +482,7 @@ export default function AccountPage({
                       setRescheduleNotice({ previousStartTime: previous, newStartTime: next })
                     }
                     onReview={openReviewPrompt}
+                    onRebook={onRebookBooking}
                   />
                 ))}
                 {grouped.standalone.length === 0 && grouped.packageGroups.length === 0 && (

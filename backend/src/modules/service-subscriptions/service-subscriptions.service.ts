@@ -24,7 +24,7 @@ import {
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { CatalogAnnouncementService } from '../catalog-announcement/catalog-announcement.service.js';
 import {
-  parseCatalogNotifyRequest,
+  parseCatalogNotifyFromDto,
   stripCatalogNotifyFields,
 } from '../catalog-announcement/catalog-announcement.util.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -142,13 +142,8 @@ export class ServiceSubscriptionsService {
   async createPlan(businessId: string, dto: CreateSubscriptionPlanDto) {
     await this.planEntitlements.assertFeature(businessId, 'memberships');
     const businessSettings = await this.loadBusinessSettings(businessId);
-    const notify = parseCatalogNotifyRequest(
-      dto as Record<string, unknown>,
-      businessSettings,
-    );
-    const payload = stripCatalogNotifyFields(
-      dto as Record<string, unknown>,
-    ) as CreateSubscriptionPlanDto;
+    const notify = parseCatalogNotifyFromDto(dto, businessSettings);
+    const payload = stripCatalogNotifyFields(dto);
     await this.assertService(businessId, payload.serviceId);
     if (payload.includedAppointments < 1) {
       throw new BadRequestException('includedAppointments must be at least 1');
@@ -184,13 +179,8 @@ export class ServiceSubscriptionsService {
     dto: Partial<CreateSubscriptionPlanDto & { isActive: boolean }>,
   ) {
     const businessSettings = await this.loadBusinessSettings(businessId);
-    const notify = parseCatalogNotifyRequest(
-      dto as Record<string, unknown>,
-      businessSettings,
-    );
-    const payload = stripCatalogNotifyFields(
-      dto as Record<string, unknown>,
-    ) as Partial<CreateSubscriptionPlanDto & { isActive: boolean }>;
+    const notify = parseCatalogNotifyFromDto(dto, businessSettings);
+    const payload = stripCatalogNotifyFields(dto);
     const plan = await this.planRepo.findOne({
       where: { id: planId, businessId },
     });

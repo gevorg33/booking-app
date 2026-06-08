@@ -139,6 +139,24 @@ describe('buildConsumerAssistantHref', () => {
     ).toBe('/s/glow-nails/account?tab=subscriptions');
     expect(
       buildConsumerAssistantHref('glow-nails', {
+        path: 'account',
+        query: { section: 'privacy' },
+      }),
+    ).toBe('/s/glow-nails/account?section=privacy');
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'profile',
+        query: {},
+      }),
+    ).toBe('/s/glow-nails/profile');
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'home',
+        query: {},
+      }),
+    ).toBe('/s/glow-nails');
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
         path: 'checkout',
         query: {
           serviceId: 'svc-1',

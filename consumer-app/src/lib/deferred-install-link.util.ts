@@ -4,7 +4,7 @@ import {
   resolveDeferredInstallNavigationPath,
 } from './deferred-install-resume.util.js';
 
-export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'unknown';
+export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'share' | 'unknown';
 
 export interface DeferredInstallLink {
   slug: string;
@@ -29,6 +29,7 @@ const INSTALL_SOURCES = new Set<InstallSource>([
   'referral',
   'ad',
   'link',
+  'share',
   'unknown',
 ]);
 

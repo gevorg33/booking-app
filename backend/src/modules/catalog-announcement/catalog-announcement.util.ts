@@ -21,14 +21,25 @@ import type {
 
 const CATALOG_NOTIFY_KEYS = ['notifyCustomers', 'notificationTemplate'] as const;
 
-export function stripCatalogNotifyFields<T extends Record<string, unknown>>(
+export function stripCatalogNotifyFields<T extends object>(
   dto: T,
 ): Omit<T, 'notifyCustomers' | 'notificationTemplate'> {
-  const next = { ...dto };
+  const next = { ...dto } as Record<string, unknown>;
   for (const key of CATALOG_NOTIFY_KEYS) {
     delete next[key];
   }
-  return next;
+  return next as Omit<T, 'notifyCustomers' | 'notificationTemplate'>;
+}
+
+/** Parse notify flags from a typed create/update DTO without unsafe casts at call sites. */
+export function parseCatalogNotifyFromDto(
+  dto: object,
+  businessSettings?: Record<string, unknown>,
+): CatalogNotifyRequest | null {
+  return parseCatalogNotifyRequest(
+    dto as Record<string, unknown>,
+    businessSettings,
+  );
 }
 
 export function parseCatalogNotifyRequest(

@@ -35,7 +35,7 @@ import {
 import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
 import { CatalogAnnouncementService } from '../catalog-announcement/catalog-announcement.service.js';
 import {
-  parseCatalogNotifyRequest,
+  parseCatalogNotifyFromDto,
   stripCatalogNotifyFields,
 } from '../catalog-announcement/catalog-announcement.util.js';
 
@@ -115,13 +115,8 @@ export class ServicePackagesService {
 
   async createPackage(businessId: string, dto: CreateServicePackageDto) {
     const businessSettings = await this.loadBusinessSettings(businessId);
-    const notify = parseCatalogNotifyRequest(
-      dto as Record<string, unknown>,
-      businessSettings,
-    );
-    const payload = stripCatalogNotifyFields(
-      dto as Record<string, unknown>,
-    ) as CreateServicePackageDto;
+    const notify = parseCatalogNotifyFromDto(dto, businessSettings);
+    const payload = stripCatalogNotifyFields(dto);
     await this.validateItems(businessId, payload.items);
     this.validateDiscount(payload.discountType, payload.discountValue);
     const enabledLocales = getBusinessEnabledLocales(businessSettings);
@@ -167,13 +162,8 @@ export class ServicePackagesService {
     dto: Partial<CreateServicePackageDto & { isActive: boolean }>,
   ) {
     const businessSettings = await this.loadBusinessSettings(businessId);
-    const notify = parseCatalogNotifyRequest(
-      dto as Record<string, unknown>,
-      businessSettings,
-    );
-    const payload = stripCatalogNotifyFields(
-      dto as Record<string, unknown>,
-    ) as Partial<CreateServicePackageDto & { isActive: boolean }>;
+    const notify = parseCatalogNotifyFromDto(dto, businessSettings);
+    const payload = stripCatalogNotifyFields(dto);
     const pkg = await this.findPackageOrThrow(businessId, packageId);
     if (payload.items) {
       await this.validateItems(businessId, payload.items);
