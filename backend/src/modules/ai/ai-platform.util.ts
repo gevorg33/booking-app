@@ -1,3 +1,4 @@
+import type { AiEvalLabelQueueSource } from './entities/ai-eval-label-queue.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import type {
   AiAbExperiment,
@@ -44,6 +45,254 @@ export interface AiCommandMetricEvent {
   timestamp: string;
 }
 
+export interface AiConfusionMatrixEntry {
+  from: string;
+  to: string;
+  count: number;
+  share: number;
+  retryCount: number;
+  undoCount: number;
+}
+
+export interface AiConfusionMatrixExport {
+  periodDays: number;
+  totalCorrections: number;
+  pairs: AiConfusionMatrixEntry[];
+}
+
+/** acc-1.10 — anonymized failing / low-confidence prompt cluster for triage. */
+export interface AiWorstPromptFailureSignals {
+  suspected_miss: number;
+  wrong_execution: number;
+  clarify_abandoned: number;
+  thumbs_down: number;
+  failed_outcome: number;
+  low_confidence: number;
+  /** acc-6.7 — human handoff / request_human_help traces. */
+  human_escalation: number;
+}
+
+export interface AiWorstPromptEntry {
+  rank: number;
+  promptHash: string;
+  promptSnippet: string;
+  action: string;
+  surface: string;
+  locale: string;
+  failureCount: number;
+  avgConfidence: number | null;
+  failureSignals: AiWorstPromptFailureSignals;
+  correctedAction: string | null;
+  lastSeenAt: string;
+  /** acc-4.8 — distinguish bad clarifies queued for labeling. */
+  harvestSource?: 'harvest' | 'clarify_quality' | 'escalation';
+  clarifyKind?: string | null;
+  nextTurnOutcome?: string;
+}
+
+/** acc-4.8 — clarify turns that failed to resolve on the next user message. */
+export interface AiWorstClarifyEntry {
+  rank: number;
+  promptHash: string;
+  promptSnippet: string;
+  action: string;
+  surface: string;
+  locale: string;
+  clarifyKind: string | null;
+  failureCount: number;
+  nextTurnOutcome: string;
+  lastSeenAt: string;
+}
+
+export interface AiWorstPromptsExport {
+  periodDays: number;
+  totalFailures: number;
+  prompts: AiWorstPromptEntry[];
+}
+
+/** Draft eval cases for acc-2 labeling queue (acc-1.10 → acc-2.1). */
+export interface AiWorstPromptEvalDraft {
+  id: string;
+  prompt: string;
+  locale: 'en' | 'hy' | 'ru' | 'translit';
+  surface: 'dashboard' | 'provider' | 'customer' | 'public';
+  expect: {
+    action?: string;
+    rescuedAction?: string;
+  };
+  source: 'acc-1.10';
+  promptHash: string;
+  triageRank: number;
+  note: string;
+}
+
+export interface AiWorstPromptsEvalExport {
+  periodDays: number;
+  generatedAt: string;
+  businessId: string;
+  drafts: AiWorstPromptEvalDraft[];
+}
+
+/** acc-2.1/2.2 — production prompt labeling queue. */
+export type AiEvalLabelQueueStatus =
+  | 'pending'
+  | 'labeled'
+  | 'dismissed'
+  | 'exported';
+
+export type AiEvalLabelOutcome = 'execution' | 'clarify';
+
+export interface AiEvalLabelQueueItem {
+  id: string;
+  promptHash: string;
+  promptSnippet: string;
+  locale: string;
+  surface: string;
+  classifiedAction: string;
+  correctedAction: string | null;
+  confidence: number | null;
+  failureCount: number;
+  failureSignals: AiWorstPromptFailureSignals | null;
+  status: AiEvalLabelQueueStatus;
+  labelOutcome: AiEvalLabelOutcome;
+  expectedAction: string | null;
+  expectedRescuedAction: string | null;
+  rescueFromAction: string | null;
+  expectedParams: Record<string, unknown> | null;
+  expectedClarifyFields: string[] | null;
+  evalCaseId: string | null;
+  source: AiEvalLabelQueueSource;
+  fixType?: string | null;
+  fixStatus?: string | null;
+  fixRef?: string | null;
+  closureSummary?: string | null;
+  closureAppliedAt?: string | null;
+  createdAt: string;
+  labeledAt: string | null;
+}
+
+export interface AiEvalLabelQueueExport {
+  businessId: string;
+  status: AiEvalLabelQueueStatus;
+  total: number;
+  items: AiEvalLabelQueueItem[];
+}
+
+export interface AiEvalLabelQueueUpdate {
+  labelOutcome?: AiEvalLabelOutcome | null;
+  expectedAction?: string | null;
+  expectedRescuedAction?: string | null;
+  rescueFromAction?: string | null;
+  expectedParams?: Record<string, unknown> | null;
+  expectedClarifyFields?: string[] | null;
+}
+
+export interface AiEvalLabeledCaseExport {
+  businessId: string;
+  itemId: string;
+  evalCase: Record<string, unknown>;
+  fixtureSnippet: string;
+  appendedToFixtures: boolean;
+  fixturesPath?: string;
+  appendReason?: string;
+  harvestedCaseCount?: number;
+  closurePlan?: Record<string, unknown>;
+}
+
+export interface AiEvalFixturesModuleExport {
+  businessId: string;
+  generatedAt: string;
+  caseCount: number;
+  moduleSource: string;
+  cases: Record<string, unknown>[];
+}
+
+/** acc-2.1 — weekly production prompt harvest summary. */
+export interface AiEvalHarvestResult {
+  periodDays: number;
+  candidates: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+}
+
+/** acc-1.11 — rolling 7-day accuracy SLO vs 99% target. */
+export const ACCURACY_SLO_TARGET = 0.99;
+export const ACCURACY_SLO_WEEKLY_ALERT_DELTA = -0.02;
+/** acc-4.8 — clarify → success on next turn target. */
+export const CLARIFY_NEXT_TURN_SUCCESS_TARGET = 0.9;
+export { CLARIFY_NEAR_99_TARGET } from './ai-n99-clarify-success.fixtures.js';
+
+export interface AiAccuracySloTrendPoint {
+  date: string;
+  accuracy: number;
+  total: number;
+}
+
+export interface AiAccuracySloExport {
+  periodDays: number;
+  target: number;
+  rolling7DayAccuracy: number;
+  previous7DayAccuracy: number;
+  weeklyDelta: number;
+  gapToTarget: number;
+  meetsTarget: boolean;
+  alert: boolean;
+  rolling7CommandCount: number;
+  trend: AiAccuracySloTrendPoint[];
+}
+
+export interface AiAccuracyAnalyticsSummary {
+  periodDays: number;
+  totalCommands: number;
+  noClarifyCompletionRate: number;
+  clarifyRate: number;
+  /** acc-4.8 — clarify → executed same intent on immediate next turn */
+  clarifySuccessRate: number;
+  clarifyQualityTarget: number;
+  clarifyQualityMeetsTarget: boolean;
+  clarifyNextTurnSampleSize: number;
+  clarifyNextTurnSuccessCount: number;
+  clarifyAbandonRate: number;
+  /** n99-1 — stretch target and rolling gate. */
+  clarifyNear99Target?: number;
+  clarifyNear99MeetsTarget?: boolean;
+  clarifyNear99Gate?: import('./ai-n99-clarify-success.util.js').ClarifyNear99ExitGateResult;
+  /** n99-2 — stretch target and rolling no-clarify gate. */
+  noClarifyNear99Target?: number;
+  noClarifyNear99MeetsTarget?: boolean;
+  noClarifyNear99Gate?: import('./ai-n99-no-clarify-completion.util.js').NoClarifyNear99ExitGateResult;
+  clarifyQualityByIntent?: Record<
+    string,
+    import('./ai-n99-clarify-success.util.js').ClarifyQualitySegmentStats
+  >;
+  clarifyQualityByLocale?: Record<
+    string,
+    import('./ai-n99-clarify-success.util.js').ClarifyQualitySegmentStats
+  >;
+  misclassificationRate: number;
+  explicitNegativeRate: number;
+  byIntent: Record<
+    string,
+    { total: number; accurate: number; clarify: number; failures: number }
+  >;
+  byLocale: Record<string, { total: number; accurate: number }>;
+  bySurface: Record<string, { total: number; accurate: number }>;
+  confusionMatrix: AiConfusionMatrixEntry[];
+  worstPrompts: AiWorstPromptEntry[];
+  worstClarifies: AiWorstClarifyEntry[];
+  accuracySlo: AiAccuracySloExport;
+  /** acc-6.7 — human handoff rate from trace rows. */
+  escalation?: {
+    escalationCount: number;
+    escalationRate: number;
+    targetRate: number;
+    meetsTarget: boolean;
+  };
+  /** acc-6.8 — rolling 30-day 99% program exit gate. */
+  exitGate?: import('./ai-accuracy-exit-gate.util.js').AccuracyExitGateResult;
+}
+
 export interface AiCommandMetricsSummary {
   periodDays: number;
   totalCommands: number;
@@ -62,6 +311,8 @@ export interface AiCommandMetricsSummary {
     autoExecuteRate: number;
     approvalExecuteRate: number;
   };
+  /** acc-1.8 — populated when ai_command_trace data exists */
+  accuracy?: AiAccuracyAnalyticsSummary;
 }
 
 /** Union of anonymous public + logged-in customer intents (legacy orchestration; see ai-cmd-0.5). */
@@ -294,6 +545,19 @@ export function pickActiveAbExperiment(
   return (
     experiments?.find(
       (e) => e.enabled && (e.suggestionVariants?.length ?? 0) > 1,
+    ) ?? null
+  );
+}
+
+/** acc-3.10 — active classifier appendix A/B experiment (ai-e5). */
+export function pickActiveClassificationAbExperiment(
+  experiments?: AiAbExperiment[],
+): AiAbExperiment | null {
+  return (
+    experiments?.find(
+      (experiment) =>
+        experiment.enabled &&
+        (experiment.classificationVariants?.length ?? 0) > 1,
     ) ?? null
   );
 }

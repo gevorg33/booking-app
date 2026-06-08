@@ -36,6 +36,8 @@ import {
   type AiRoleProfile,
   type BranchScope,
 } from './ai-platform.util.js';
+import type { AiAccuracyAnalyticsSummary } from './ai-platform.util.js';
+import type { AiCommandTraceService } from './ai-command-trace.service.js';
 import {
   buildHitlEscalationPlanMeta,
   buildHitlEscalationPlanSteps,
@@ -47,6 +49,10 @@ export interface PlatformLogicDeps {
   businessRepo: Repository<Business>;
   agentTaskRepo: Repository<AgentTask>;
   aiEvents: AiEventsService;
+  commandTrace?: Pick<
+    AiCommandTraceService,
+    'getAccuracyAnalytics' | 'loadTraceAnalyticsRowsForEval'
+  >;
 }
 
 export async function applyBranchScopeToCatalogLogic(
@@ -174,7 +180,20 @@ export async function getCommandAnalyticsLogic(
   const metrics: AiCommandMetricEvent[] = events.map(
     (e) => e.payload as AiCommandMetricEvent,
   );
-  return aggregateCommandMetrics(metrics, periodDays);
+  const summary = aggregateCommandMetrics(metrics, periodDays);
+
+  if (deps.commandTrace) {
+    try {
+      summary.accuracy = await deps.commandTrace.getAccuracyAnalytics(
+        businessId,
+        periodDays,
+      );
+    } catch {
+      // Trace table may be unavailable during rollout — keep legacy metrics.
+    }
+  }
+
+  return summary;
 }
 
 export function gatePublicAssistantActionLogic(

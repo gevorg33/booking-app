@@ -4,7 +4,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import OpenAI from 'openai';
 import { Business } from '../../business/entities/business.entity.js';
-import { AiCallContext, DEFAULT_OPENAI_MODEL } from './openai.types.js';
+import {
+  AiCallContext,
+  DEFAULT_EMBEDDING_MODEL,
+  DEFAULT_OPENAI_MODEL,
+} from './openai.types.js';
 import { OpenAiIntegrationService } from './openai-integration.service.js';
 import { AiUsageService } from './ai-usage.service.js';
 
@@ -120,13 +124,53 @@ export class OpenAiGatewayService {
     }
   }
 
+  async createEmbeddings(
+    context: AiCallContext,
+    texts: string[],
+    model = DEFAULT_EMBEDDING_MODEL,
+  ): Promise<number[][] | null> {
+    const trimmed = texts.map((t) => t.trim()).filter(Boolean);
+    if (!trimmed.length) return [];
+
+    const resolved = await this.getClient(context.businessId);
+    if (!resolved) return null;
+
+    try {
+      const response = await resolved.client.embeddings.create({
+        model,
+        input: trimmed,
+      });
+
+      const usage = response.usage;
+      if (usage) {
+        await this.usageService.recordUsage({
+          context,
+          model,
+          promptTokens: usage.prompt_tokens ?? usage.total_tokens ?? 0,
+          completionTokens: 0,
+          keySource: resolved.source,
+        });
+      }
+
+      return response.data
+        .sort((a, b) => a.index - b.index)
+        .map((row) => row.embedding);
+    } catch (err: any) {
+      this.logger.warn(
+        `OpenAI embeddings failed [${context.surface}/${context.operation}] business=${context.businessId}: ${err.message}`,
+      );
+      return null;
+    }
+  }
+
   async completeJson<T>(
     context: AiCallContext,
     systemPrompt: string,
     userPrompt: string,
-    options: { temperature?: number; maxTokens?: number } = {},
+    options: { temperature?: number; maxTokens?: number; model?: string } = {},
   ): Promise<T | null> {
     const response = await this.chatCompletion(context, {
+      model: options.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

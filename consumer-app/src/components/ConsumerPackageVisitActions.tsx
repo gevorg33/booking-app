@@ -18,6 +18,7 @@ import {
   suggestPackageBlock,
 } from '../services/public-api.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
 
 const ACTIVE = new Set(['confirmed', 'pending']);
 
@@ -45,6 +46,7 @@ export function ConsumerPackageVisitActions({
   const turnover = 5;
   const [busy, setBusy] = useState<'cancel' | 'reschedule' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [dateKey, setDateKey] = useState('');
   const [slots, setSlots] = useState<
@@ -130,13 +132,19 @@ export function ConsumerPackageVisitActions({
     if (!window.confirm(copy.cancelPackageVisitConfirm)) return;
     setBusy('cancel');
     setError(null);
+    setQueuedNotice(null);
     try {
+      let result: unknown;
       if (canActWithToken && manageToken) {
-        await cancelPackageVisitWithToken(slug, anchorBookingId, manageToken);
+        result = await cancelPackageVisitWithToken(slug, anchorBookingId, manageToken);
       } else if (canActWithAccount) {
-        await cancelCustomerPackageVisit(slug, anchorBookingId);
+        result = await cancelCustomerPackageVisit(slug, anchorBookingId);
       } else {
         throw new Error(copy.manageBookingSignInHint);
+      }
+      if (isOfflineQueuedPayload(result)) {
+        setQueuedNotice(copy.offlineMutationQueued);
+        return;
       }
       onUpdated();
     } catch (err: unknown) {
@@ -150,6 +158,7 @@ export function ConsumerPackageVisitActions({
     if (!selectedStart || !employeeId || !packageVisit.packageId) return;
     setBusy('reschedule');
     setError(null);
+    setQueuedNotice(null);
     try {
       const { package: pkg } = await fetchPublicPackage(slug, packageVisit.packageId);
       const expanded = expandPackageServiceItems(pkg);
@@ -165,20 +174,29 @@ export function ConsumerPackageVisitActions({
         startTime: blockLines[idx]?.startTime ?? selectedStart,
         employeeId,
       }));
+      let result: unknown;
       if (canActWithToken && manageToken) {
-        const result = await reschedulePackageVisitWithToken(
+        result = await reschedulePackageVisitWithToken(
           slug,
           anchorBookingId,
           manageToken,
           lines,
         );
-        onRescheduled?.(result.previousStartTime, result.bookings[0]?.startTime ?? selectedStart);
       } else if (canActWithAccount) {
-        const result = await rescheduleCustomerPackageVisit(slug, anchorBookingId, lines);
-        onRescheduled?.(result.previousStartTime, result.bookings[0]?.startTime ?? selectedStart);
+        result = await rescheduleCustomerPackageVisit(slug, anchorBookingId, lines);
       } else {
         throw new Error(copy.manageBookingSignInHint);
       }
+      if (isOfflineQueuedPayload(result)) {
+        setQueuedNotice(copy.offlineMutationQueued);
+        setRescheduleOpen(false);
+        return;
+      }
+      const typed = result as {
+        previousStartTime: string;
+        bookings: Array<{ startTime: string }>;
+      };
+      onRescheduled?.(typed.previousStartTime, typed.bookings[0]?.startTime ?? selectedStart);
       setRescheduleOpen(false);
       onUpdated();
     } catch (err: unknown) {
@@ -277,6 +295,7 @@ export function ConsumerPackageVisitActions({
         </div>
       )}
       {error ? <p style={{ color: '#dc2626', marginTop: 8 }}>{error}</p> : null}
+      {queuedNotice ? <p style={{ color: '#2563eb', marginTop: 8 }}>{queuedNotice}</p> : null}
     </div>
   );
 }

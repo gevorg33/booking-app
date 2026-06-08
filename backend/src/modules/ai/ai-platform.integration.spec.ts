@@ -75,7 +75,7 @@ describe('Sprint 15 AI platform integration', () => {
           },
       ),
     };
-    const { aiSettings, platform } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as any,
       { executeCommand: jest.fn() } as any,
@@ -96,6 +96,8 @@ describe('Sprint 15 AI platform integration', () => {
       planEntitlements,
       aiSettings as any,
       platform as any,
+      commandTrace as any,
+      createAiGatewayPlatformMocks().classificationEngine as any,
     );
     return { gateway, dashboardCommands, providerCommands };
   }

@@ -440,6 +440,22 @@ export function filterSlotsByTimeOfDay<
   );
 }
 
+export function filterIsoSlotsByTimeOfDay<
+  T extends { startTime: string; endTime?: string },
+>(
+  slots: T[],
+  window: TimeOfDayWindow,
+  toHHMM: (iso: string) => string,
+): T[] {
+  return slots.filter((slot) =>
+    slotOverlapsTimeWindow(
+      toHHMM(slot.startTime),
+      slot.endTime ? toHHMM(slot.endTime) : undefined,
+      window,
+    ),
+  );
+}
+
 export function formatTimeOfDayLabel(window: TimeOfDayWindow): string {
   if (window === 'morning') return 'morning (before 12:00)';
   if (window === 'afternoon') return 'afternoon (12:00–17:00)';

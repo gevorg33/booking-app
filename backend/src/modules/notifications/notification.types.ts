@@ -27,6 +27,18 @@ export interface BusinessNotificationSettings {
   sendResultReadyPush: boolean;
   /** Clinic vertical — consumer app push when staff pushes a lab collection booking request. */
   sendLabBookingRequestPush: boolean;
+  /** Salon — consumer app push on booking confirmation (adopt-4.2). */
+  sendConfirmationPush: boolean;
+  /** Salon — consumer app push on booking cancellation (adopt-4.2). */
+  sendCancellationPush: boolean;
+  /** Salon — consumer app push 24h before appointment (adopt-4.2). */
+  sendReminder24hPush: boolean;
+  /** Salon — consumer app push 1h before appointment (adopt-4.2). */
+  sendReminder1hPush: boolean;
+  /** Salon — consumer app push when appointment is rescheduled (adopt-4.2). */
+  sendReschedulePush: boolean;
+  /** Salon — consumer app push when a digital gift card is delivered (adopt-4.2). */
+  sendGiftCardReceivedPush: boolean;
   reminder24hEmail: boolean;
   reminder1hEmail: boolean;
   reminder24hSms: boolean;
@@ -57,7 +69,12 @@ export interface CustomerNotificationPreferences {
   emailReminders: boolean;
   smsReminders: boolean;
   whatsappReminders: boolean;
+  /** Transactional push — confirmations, reminders, clinic results (adopt-4.8). */
   pushReminders: boolean;
+  /** Marketing push — rebook nudges, win-back, gift cards (adopt-4.8). */
+  pushOffers: boolean;
+  /** Salon news and engagement push — reviews, announcements (adopt-4.8). */
+  pushNews: boolean;
 }
 
 export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSettings =
@@ -71,6 +88,12 @@ export const DEFAULT_BUSINESS_NOTIFICATION_SETTINGS: BusinessNotificationSetting
     sendResultReadyWhatsapp: true,
     sendResultReadyPush: true,
     sendLabBookingRequestPush: true,
+    sendConfirmationPush: true,
+    sendCancellationPush: true,
+    sendReminder24hPush: true,
+    sendReminder1hPush: true,
+    sendReschedulePush: true,
+    sendGiftCardReceivedPush: true,
     reminder24hEmail: true,
     reminder1hEmail: true,
     reminder24hSms: false,
@@ -94,6 +117,8 @@ export const DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES: CustomerNotificationPref
     smsReminders: false,
     whatsappReminders: true,
     pushReminders: true,
+    pushOffers: true,
+    pushNews: true,
   };
 
 export { mergeBusinessNotificationSettings } from './merge-business-notification-settings.js';

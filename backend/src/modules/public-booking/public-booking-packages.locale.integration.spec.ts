@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import type { PublicBookingService } from './public-booking.service.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 
 describe('Sprint 29 — public booking package locale integration', () => {
@@ -27,28 +28,15 @@ describe('Sprint 29 — public booking package locale integration', () => {
     ),
   };
 
-  const service = new PublicBookingService(
-    { findBySlug: jest.fn(async () => business) } as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {
-      isConnectReady: jest.fn().mockReturnValue(false),
-    } as unknown as StripeIntegrationService,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    packagesService as never,
-    {} as never,
-    {} as never,
-    config as unknown as ConfigService,
-    { find: jest.fn() } as never,
-    { findOne: jest.fn(), find: jest.fn() } as never,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
-    { find: jest.fn() } as never,
-  );
+  const service = createPublicBookingServiceHarness({
+    businessService: { findBySlug: jest.fn(async () => business) },
+    packagesService,
+    configService: config as unknown as ConfigService,
+    referralProgramService: { find: jest.fn() },
+    serviceRepo: { findOne: jest.fn(), find: jest.fn() },
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

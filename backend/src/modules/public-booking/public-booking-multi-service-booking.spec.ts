@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import type { PublicBookingService } from './public-booking.service.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import type { Business } from '../business/entities/business.entity.js';
 
@@ -38,31 +39,22 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     ),
   };
 
-  const service = new PublicBookingService(
-    {
-      findBySlug: jest.fn(),
-    } as any,
-    bookingService as any,
-    {
-      findOrCreatePublicCustomer: jest.fn(),
-    } as any,
-    {} as any,
-    stripeIntegrationService as unknown as StripeIntegrationService,
-    {} as any,
-    bookingPaymentService as any,
-    checkoutPricingService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    multiServiceBookingsService as any,
-    notificationsService as any,
-    {} as any,
-    config as unknown as ConfigService,
-    { find: jest.fn() } as any,
-    { findOne: jest.fn(), find: jest.fn() } as any,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
-    { find: jest.fn() } as any,
-  );
+  const service = createPublicBookingServiceHarness({
+    businessService: { findBySlug: jest.fn() },
+    bookingService,
+    customerService: { findOrCreatePublicCustomer: jest.fn() },
+    stripeIntegrationService:
+      stripeIntegrationService as unknown as StripeIntegrationService,
+    bookingPaymentService,
+    checkoutPricingService,
+    multiServiceBookingsService,
+    notificationsService,
+    configService: config as unknown as ConfigService,
+    referralProgramService: { find: jest.fn() },
+    serviceRepo: { findOne: jest.fn(), find: jest.fn() },
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+  });
 
   const business: Business = {
     id: 'biz-1',

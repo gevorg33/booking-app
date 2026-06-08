@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
+  CONSUMER_LOCALE_LABELS,
   readEnabledLocales,
   resolveConsumerLocale,
   writeStoredConsumerLocale,
   type ConsumerLocale,
 } from '../lib/tenant-locale.js';
-
-const LOCALE_LABELS: Record<ConsumerLocale, string> = {
-  en: 'English',
-  hy: 'Հայերեն',
-  ru: 'Русский',
-};
 
 export function useConsumerLocale(
   slug: string,
@@ -39,6 +34,6 @@ export function useConsumerLocale(
     locale,
     setConsumerLocale,
     enabledLocales,
-    localeLabels: LOCALE_LABELS,
+    localeLabels: CONSUMER_LOCALE_LABELS,
   };
 }

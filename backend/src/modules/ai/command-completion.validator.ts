@@ -15,6 +15,10 @@ import {
   hasRescheduleNewTime,
   isBookingFirstAvailable,
 } from './booking-time-completion.util.js';
+import {
+  applyOverAskSafeDefaults,
+  hasOverAskSafeDate,
+} from './ai-n99-over-ask.util.js';
 import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
 import {
   parseBusinessTaxFromPrompt,
@@ -167,7 +171,8 @@ const ACTION_RULES: Record<string, Rule> = {
       !!cmd.params.employeeName ||
       cmd.params.allProviders ||
       (cmd.params.serviceNames?.length ?? 0) > 0 ||
-      !!cmd.params.serviceName;
+      !!cmd.params.serviceName ||
+      !!cmd.params.bookingId;
     return hasFilter
       ? []
       : [
@@ -327,25 +332,25 @@ const ACTION_RULES: Record<string, Rule> = {
       needs(
         'date',
         'Date',
-        hasAvailabilityWhen(cmd.params),
+        hasOverAskSafeDate(cmd),
         'tomorrow or 29/05/2026',
       ),
     ].filter(Boolean) as ValidationIssue[],
 
   show_appointments: (cmd) =>
-    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
-      Boolean,
-    ) as ValidationIssue[],
+    [
+      needs('date', 'Date', hasOverAskSafeDate(cmd), 'tomorrow or 29/05/2026'),
+    ].filter(Boolean) as ValidationIssue[],
 
   list_bookings: (cmd) =>
-    [needs('date', 'Date', !!cmd.params.date, 'tomorrow or 29/05/2026')].filter(
-      Boolean,
-    ) as ValidationIssue[],
+    [
+      needs('date', 'Date', hasOverAskSafeDate(cmd), 'tomorrow or 29/05/2026'),
+    ].filter(Boolean) as ValidationIssue[],
 
   summarize_day: (cmd) =>
-    [needs('date', 'Date', !!cmd.params.date, 'today or 29/05/2026')].filter(
-      Boolean,
-    ) as ValidationIssue[],
+    [
+      needs('date', 'Date', hasOverAskSafeDate(cmd), 'today or 29/05/2026'),
+    ].filter(Boolean) as ValidationIssue[],
 
   fill_unused_slots: (cmd) => {
     const hasProviders =
@@ -354,7 +359,10 @@ const ACTION_RULES: Record<string, Rule> = {
       (cmd.params.employeeNames?.length ?? 0) > 0 ||
       cmd.entities.employees.length > 0;
     const hasWhen =
-      !!cmd.params.date || !!cmd.params.dateFrom || !!cmd.entities.dateRange;
+      !!cmd.params.date ||
+      !!cmd.params.dateFrom ||
+      !!cmd.entities.dateRange ||
+      hasOverAskSafeDate(cmd);
     return [
       ...(hasProviders
         ? []
@@ -761,7 +769,7 @@ const ACTION_RULES: Record<string, Rule> = {
       needs(
         'date',
         'Date',
-        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        hasOverAskSafeDate(cmd),
         'today or yesterday',
       ),
     ].filter(Boolean) as ValidationIssue[],
@@ -773,7 +781,7 @@ const ACTION_RULES: Record<string, Rule> = {
       needs(
         'date',
         'Date',
-        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        hasOverAskSafeDate(cmd),
         'today or tomorrow',
       ),
     ].filter(Boolean) as ValidationIssue[],
@@ -783,7 +791,7 @@ const ACTION_RULES: Record<string, Rule> = {
       needs(
         'date',
         'Date',
-        !!(cmd.params.date || (cmd.params.dateFrom && cmd.params.dateTo)),
+        hasOverAskSafeDate(cmd),
         'today or yesterday',
       ),
     ].filter(Boolean) as ValidationIssue[],
@@ -1578,10 +1586,19 @@ export function validateEntityResolution(
 }
 
 export function validateCommand(cmd: ResolvedCommand): ValidationResult {
-  const rule = ACTION_RULES[cmd.action];
-  const fieldIssues = rule ? rule(cmd) : [];
-  const aiCmdEntityIssues = validateAiCmdEntityFields(cmd);
-  const entityIssues = validateEntityResolution(cmd);
+  const paramContext =
+    cmd.params.context && typeof cmd.params.context === 'object'
+      ? (cmd.params.context as Record<string, unknown>)
+      : {};
+  const normalized = applyOverAskSafeDefaults(cmd, {
+    prompt: cmd.prompt,
+    sessionContext: paramContext,
+    screenContext: paramContext,
+  });
+  const rule = ACTION_RULES[normalized.action];
+  const fieldIssues = rule ? rule(normalized) : [];
+  const aiCmdEntityIssues = validateAiCmdEntityFields(normalized);
+  const entityIssues = validateEntityResolution(normalized);
   const issues = [...fieldIssues, ...aiCmdEntityIssues, ...entityIssues];
 
   return { ok: issues.length === 0, issues };

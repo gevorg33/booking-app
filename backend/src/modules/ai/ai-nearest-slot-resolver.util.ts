@@ -2,7 +2,10 @@ import {
   parseMultilingualTimeOfDayWindow,
   promptMentionsMultilingualTomorrow,
 } from './ai-check-and-book-multilingual.util.js';
-import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import {
+  parseTimeOfDayWindow,
+  type TimeOfDayWindow,
+} from './ai-operations.util.js';
 import {
   notBeforeTimeFromWindow,
   resolveTomorrowDateKey,
@@ -58,6 +61,24 @@ export function resolveNearestBookableSlotTimeOfDay(
     parseMultilingualTimeOfDayWindow(prompt, params) ??
     null
   );
+}
+
+/** Time-of-day filter for public check_availability / recommend_specialists. */
+export function buildPublicAvailabilityTimeFilter(
+  params: Record<string, unknown>,
+  prompt = '',
+): { timeOfDay: TimeOfDayWindow | null; notBeforeTime: string | null } {
+  const rawTimeOfDay = resolveNearestBookableSlotTimeOfDay(params, prompt);
+  const timeOfDay =
+    rawTimeOfDay === 'morning' ||
+    rawTimeOfDay === 'afternoon' ||
+    rawTimeOfDay === 'evening'
+      ? rawTimeOfDay
+      : null;
+  return {
+    timeOfDay,
+    notBeforeTime: resolveNearestBookableSlotNotBeforeTime(params, prompt),
+  };
 }
 
 /** Same slot resolver inputs as customer book_nearest_slot / dashboard payments handler. */

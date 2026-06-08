@@ -14,6 +14,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { MarketingAutomationSettingsPanel } from '@/components/integrations/marketing-automation-settings';
+import { TenantAppInstallQrPanel } from '@/components/integrations/tenant-app-install-qr-panel';
 import { CheckboxChoice, ToggleChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
@@ -616,6 +617,17 @@ export function GrowthDistributionTab() {
                 label="Public booking URL"
               />
             </div>
+          )}
+
+          {business?.slug && (
+            <TenantAppInstallQrPanel
+              slug={business.slug}
+              publicOrigin={
+                typeof window !== 'undefined'
+                  ? window.location.origin
+                  : process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || ''
+              }
+            />
           )}
         </div>
       </div>

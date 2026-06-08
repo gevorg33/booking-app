@@ -17,7 +17,41 @@ import { WorkflowExecutorService } from '../workflow/executor/workflow-executor.
 import { WorkflowStatus } from '../workflow/interfaces/workflow.interfaces.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
+import {
+  assertPostExecutionIntent,
+  buildPostExecFailureSummary,
+  buildPostExecRollbackDetails,
+  extractExecutionPayload,
+} from '../../modules/ai/ai-post-exec-assertion.util.js';
+import { mergeAutoRollbackIntoResult } from '../../modules/ai/ai-post-exec-auto-rollback.util.js';
+import { AgentTaskUndoService } from './agent-task-undo.service.js';
+import {
+  buildPlanMismatchSummary,
+  verifyPlanMatchesPrompt,
+} from '../../modules/ai/ai-plan-vs-prompt-check.util.js';
+import {
+  buildPlanDiffFromAgentPlan,
+  formatMutationStepDescription,
+} from '../../modules/ai/ai-plan-diff.util.js';
 import { ContextBuilderService } from './context-builder.service.js';
+import {
+  buildExecuteRevalidationSummary,
+  revalidatePlanBeforeExecute,
+} from '../../modules/ai/ai-execute-idempotency.util.js';
+import {
+  isBlastRadiusConfirmed,
+  validateBlastRadiusAtExecute,
+} from '../../modules/ai/ai-blast-radius-cap.util.js';
+import {
+  buildIntentGraduationStatus,
+  readIntentTrafficFromContext,
+  resolveGraduationThresholdsFromContext,
+  validateIntentGraduationAtExecute,
+} from '../../modules/ai/ai-intent-graduation.util.js';
+import { BookingSlotResolverService } from '../../modules/booking/booking-slot-resolver.service.js';
+import { Booking } from '../../modules/booking/entities/booking.entity.js';
+import { Employee } from '../../modules/employee/entities/employee.entity.js';
+import { Service } from '../../modules/service/entities/service.entity.js';
 
 const READONLY_PREVIEW_ACTIONS = new Set([
   'fetch_current_schedule',
@@ -47,6 +81,14 @@ export class AgentOrchestratorService {
     private workflowExecutor: WorkflowExecutorService,
     private eventStore: EventStoreService,
     private contextBuilder: ContextBuilderService,
+    private agentTaskUndo: AgentTaskUndoService,
+    private slotResolver: BookingSlotResolverService,
+    @InjectRepository(Booking)
+    private bookingRepo: Repository<Booking>,
+    @InjectRepository(Employee)
+    private employeeRepo: Repository<Employee>,
+    @InjectRepository(Service)
+    private serviceRepo: Repository<Service>,
   ) {}
 
   async processIntent(params: {
@@ -106,6 +148,9 @@ export class AgentOrchestratorService {
     businessId: string;
     userId?: string;
     autoExecute?: boolean;
+    executionConfirmed?: boolean;
+    intentTraffic?: Record<string, { samples: number; accurateRate: number }>;
+    confidenceHigh?: number;
   }): Promise<AgentTask> {
     const task = this.taskRepo.create({
       agentType: params.plan.agentType,
@@ -113,7 +158,16 @@ export class AgentOrchestratorService {
       intent: params.plan.intent,
       status: PlanStatus.DRAFT,
       plan: params.plan,
-      context: { businessId: params.businessId } as any,
+      context: {
+        businessId: params.businessId,
+        ...(params.intentTraffic ? { _intentTraffic: params.intentTraffic } : {}),
+        ...(params.confidenceHigh != null
+          ? { _confidenceHigh: params.confidenceHigh }
+          : {}),
+        ...(params.executionConfirmed
+          ? { confirmed: true, blastRadiusConfirmed: true }
+          : {}),
+      } as any,
       userId: params.userId,
     });
     await this.taskRepo.save(task);
@@ -154,12 +208,25 @@ export class AgentOrchestratorService {
       userId: params.userId,
     });
 
-    const primaryAction = plan.steps[0]?.action ?? `agent:${plan.agentType}`;
+    const planCheck = verifyPlanMatchesPrompt(task.intent, plan);
+    if (!planCheck.ok) {
+      task.status = PlanStatus.REJECTED;
+      task.error = buildPlanMismatchSummary(planCheck.mismatches);
+      task.result = {
+        ...(task.result ?? {}),
+        planMismatch: planCheck.mismatches,
+        planVsPromptFailed: true,
+      } as any;
+      await this.taskRepo.save(task);
+      return task;
+    }
+
+    const policyAction = plan.steps[0]?.action ?? `agent:${plan.agentType}`;
     const enrichedContext = (task.context ?? {}) as AgentContext;
     const policyResult = await this.policyEngine.evaluate({
       userId: params.userId,
       businessId: params.businessId,
-      action: primaryAction,
+      action: policyAction,
       resource: 'schedule',
       params: {
         affectedBookingsCount: this.countAffectedBookings(plan),
@@ -216,6 +283,27 @@ export class AgentOrchestratorService {
     } else {
       task.status = PlanStatus.VALIDATED;
     }
+
+    const graduationStatus = buildIntentGraduationStatus({
+      action: task.intent,
+      traffic: readIntentTrafficFromContext(
+        task.context as Record<string, unknown>,
+        task.intent,
+      ),
+      thresholds: resolveGraduationThresholdsFromContext(
+        task.context as Record<string, unknown>,
+      ),
+    });
+    if (graduationStatus.proposeOnly) {
+      task.status = PlanStatus.REQUIRES_APPROVAL;
+      task.result = {
+        ...(task.result ?? {}),
+        graduationStatus,
+        proposeOnly: true,
+        dryRun: true,
+      } as any;
+    }
+
     await this.taskRepo.save(task);
 
     await this.eventStore.publish({
@@ -249,7 +337,8 @@ export class AgentOrchestratorService {
     const canAutoExecute =
       params.autoExecute &&
       policyResult.decision === PolicyDecision.ALLOW &&
-      executionMode === 'autonomous';
+      executionMode === 'autonomous' &&
+      !graduationStatus.proposeOnly;
 
     if (canAutoExecute) {
       return this.executeTask(task);
@@ -274,6 +363,94 @@ export class AgentOrchestratorService {
   async executeTask(task: AgentTask): Promise<AgentTask> {
     if (!task.plan) {
       throw new BadRequestException('Task has no plan to execute');
+    }
+
+    const revalidation = await revalidatePlanBeforeExecute(
+      {
+        slotResolver: this.slotResolver,
+        bookingRepo: this.bookingRepo,
+        employeeRepo: this.employeeRepo,
+        serviceRepo: this.serviceRepo,
+      },
+      {
+        businessId: task.businessId,
+        plan: task.plan,
+        task,
+        timeZone:
+          typeof task.context?.timeZone === 'string'
+            ? task.context.timeZone
+            : undefined,
+      },
+    );
+    if (!revalidation.ok) {
+      task.status = PlanStatus.FAILED;
+      task.error = buildExecuteRevalidationSummary(revalidation.issues);
+      task.result = {
+        ...(task.result ?? {}),
+        executeRevalidationFailed: true,
+        executeRevalidationIssues: revalidation.issues,
+        stalePlan: revalidation.issues.some((issue) => issue.kind === 'stale_plan'),
+      } as any;
+      await this.taskRepo.save(task);
+      throw new BadRequestException(task.error);
+    }
+
+    const primaryStep = task.plan.steps[0];
+    const blastRadius = validateBlastRadiusAtExecute({
+      action: primaryStep?.action ?? task.intent,
+      params: (primaryStep?.params ?? {}) as Record<string, unknown>,
+      plan: task.plan,
+      confirmed: isBlastRadiusConfirmed(task.context as Record<string, unknown>),
+    });
+    if (!blastRadius.ok) {
+      task.status = PlanStatus.FAILED;
+      task.error = blastRadius.summary;
+      task.result = {
+        ...(task.result ?? {}),
+        blastRadiusFailed: true,
+        blastRadius: blastRadius.assessment,
+        requiresExecutionConfirmation: blastRadius.requiresConfirm,
+      } as any;
+      await this.taskRepo.save(task);
+      throw new BadRequestException(task.error);
+    }
+
+    const graduationCheck = validateIntentGraduationAtExecute({
+      action: task.intent,
+      traffic: readIntentTrafficFromContext(
+        task.context as Record<string, unknown>,
+        task.intent,
+      ),
+      thresholds: resolveGraduationThresholdsFromContext(
+        task.context as Record<string, unknown>,
+      ),
+      planApproved: (task.context as Record<string, unknown>)?.confirmed === true,
+      autoExecutePath: (task.context as Record<string, unknown>)?.confirmed !== true,
+    });
+    if (!graduationCheck.ok) {
+      task.status = PlanStatus.FAILED;
+      task.error = graduationCheck.summary;
+      task.result = {
+        ...(task.result ?? {}),
+        graduationStatus: graduationCheck.status,
+        proposeOnly: true,
+        dryRun: true,
+      } as any;
+      await this.taskRepo.save(task);
+      throw new BadRequestException(task.error);
+    }
+
+    const planCheck = verifyPlanMatchesPrompt(task.intent, task.plan);
+    if (!planCheck.ok) {
+      task.status = PlanStatus.REJECTED;
+      task.error = buildPlanMismatchSummary(planCheck.mismatches);
+      task.result = {
+        ...(task.result ?? {}),
+        planMismatch: planCheck.mismatches,
+        planVsPromptFailed: true,
+      } as any;
+      await this.taskRepo.save(task);
+      throw new BadRequestException(task.error);
     }
 
     task.status = PlanStatus.EXECUTING;
@@ -302,6 +479,35 @@ export class AgentOrchestratorService {
         const stepError = executionResult.steps.find((s) => s.error)?.error;
         task.status = PlanStatus.FAILED;
         task.error = stepError || 'Workflow execution failed';
+        await this.taskRepo.save(task);
+        return task;
+      }
+
+      const primaryStep = task.plan.steps[0];
+      const assertion = assertPostExecutionIntent(
+        primaryStep?.action ?? task.intent,
+        primaryStep?.params ?? {},
+        extractExecutionPayload(executionResult as unknown as Record<string, unknown>),
+      );
+      if (!assertion.ok) {
+        task.status = PlanStatus.COMPLETED;
+        task.result = {
+          ...(executionResult as any),
+          ...buildPostExecRollbackDetails(task.id, assertion),
+        } as any;
+
+        const rollback = await this.agentTaskUndo.attemptAutoRollbackForAssertionFailure(
+          task,
+          task.userId ?? 'system',
+        );
+        task.result = mergeAutoRollbackIntoResult(
+          task.result as Record<string, unknown>,
+          rollback,
+        ) as typeof task.result;
+        task.error = buildPostExecFailureSummary({
+          result: task.result as Record<string, unknown>,
+          error: assertion.message,
+        });
         await this.taskRepo.save(task);
         return task;
       }
@@ -346,7 +552,21 @@ export class AgentOrchestratorService {
       );
     }
 
+    if (task.plan) {
+      const planCheck = verifyPlanMatchesPrompt(task.intent, task.plan);
+      if (!planCheck.ok) {
+        throw new BadRequestException(buildPlanMismatchSummary(planCheck.mismatches));
+      }
+    }
+
     const planDiff = task.plan ? this.buildPlanDiff(task.plan) : [];
+
+    task.context = {
+      ...(task.context ?? {}),
+      confirmed: true,
+      blastRadiusConfirmed: true,
+    } as any;
+    await this.taskRepo.save(task);
 
     await this.eventStore.publish({
       eventType: EventType.AGENT_PLAN_APPROVED,
@@ -544,13 +764,9 @@ export class AgentOrchestratorService {
   }
 
   buildPlanDiff(plan: AgentPlan) {
-    return plan.steps.map((step) => ({
-      id: step.id,
-      action: step.action,
-      description: this.formatPlanStepDescription(step),
-      impact: this.describeStepImpact(step),
-      estimatedImpact: step.estimatedImpact,
-    }));
+    return buildPlanDiffFromAgentPlan(plan, (step) =>
+      formatMutationStepDescription(step.action, step.params ?? {}, step.description),
+    );
   }
 
   private formatPlanStepDescription(step: AgentPlan['steps'][number]): string {

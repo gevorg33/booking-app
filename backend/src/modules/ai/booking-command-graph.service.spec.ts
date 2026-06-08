@@ -15,9 +15,13 @@ describe('BookingCommandGraphService', () => {
 
   const decomposition = {
     isCompoundPrompt: (p: string) => /\band then\b/i.test(p),
+    isGoalExecutionPrompt: (p: string) =>
+      /set up my new stylist/i.test(p),
+    decomposeGoal: jest.fn(async () => []),
+    decomposeGoalWithCapabilities: jest.fn(async () => []),
     decompose: jest.fn(async () => [
-      { action: 'cancel_bookings', params: {} },
-      { action: 'clear_schedule', params: {} },
+      { action: 'cancel_bookings', params: {}, reasoning: 'cancel' },
+      { action: 'clear_schedule', params: {}, reasoning: 'clear' },
     ]),
   } as unknown as IntentDecompositionService;
 
@@ -95,5 +99,37 @@ describe('BookingCommandGraphService', () => {
     });
 
     expect(baseInput.delegates.executeLegacyCompound).toHaveBeenCalled();
+  });
+
+  it('parity-3.2 — routes goal prompts through compound execution path', async () => {
+    (decomposition.decomposeGoalWithCapabilities as jest.Mock).mockResolvedValueOnce([
+      {
+        action: 'assign_employee_services',
+        params: { employeeName: 'Anna' },
+        reasoning: 'goal step 1',
+      },
+      {
+        action: 'apply_schedule',
+        params: { employeeName: 'Anna' },
+        reasoning: 'goal step 2',
+      },
+    ]);
+
+    await graph.run({
+      ...baseInput,
+      effectivePrompt: 'Set up my new stylist Anna end-to-end',
+      prompt: 'Set up my new stylist Anna end-to-end',
+      session: {
+        context: {
+          _accessTier: 'owner',
+          _planTierId: 'business',
+        },
+      },
+      complexityRoute: { tier: 'simple_mutate', useDecomposition: false },
+    });
+
+    expect(decomposition.decomposeGoalWithCapabilities).toHaveBeenCalled();
+    expect(baseInput.delegates.executeLegacyCompound).toHaveBeenCalled();
+    expect(baseInput.delegates.executeSingleIntent).not.toHaveBeenCalled();
   });
 });

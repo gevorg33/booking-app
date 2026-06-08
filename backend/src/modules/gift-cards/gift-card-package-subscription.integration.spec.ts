@@ -131,10 +131,12 @@ describe('Gift card package & subscription integration', () => {
   };
   const deliveryService = new GiftCardDeliveryService(
     giftCardRepo as any,
+    { findOne: jest.fn().mockResolvedValue(null) } as any,
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
+    { sendGiftCardReceivedPush: jest.fn().mockResolvedValue(undefined) } as any,
   );
 
   const pkgEntity = {

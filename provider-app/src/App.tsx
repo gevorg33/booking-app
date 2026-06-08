@@ -1,5 +1,5 @@
 import { Redirect, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import {
@@ -7,6 +7,7 @@ import {
   IonIcon,
   IonLabel,
   IonRouterOutlet,
+  IonSpinner,
   IonTabBar,
   IonTabButton,
   IonTabs,
@@ -16,23 +17,36 @@ import { calendarOutline, checklistOutline, documentTextOutline, flaskOutline, g
 import { useAuthStore } from './services/auth-store';
 import { useI18n } from './i18n';
 import { useProviderLabFeaturesEnabled } from './lib/use-provider-lab-features';
-import LoginPage from './pages/LoginPage';
-import AcceptInvitePage from './pages/AcceptInvitePage';
-import TodayPage from './pages/TodayPage';
-import SchedulePage from './pages/SchedulePage';
-import ProfilePage from './pages/ProfilePage';
-import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
-import LabCollectionPage from './pages/LabCollectionPage';
-import LabResultsPage from './pages/LabResultsPage';
-import ClinicTasksPage from './pages/ClinicTasksPage';
-import PatientLookupPage from './pages/PatientLookupPage';
-import PatientChartSummaryPage from './pages/PatientChartSummaryPage';
 import { isFcmBuild, ensurePushRegistered } from './services/native-push';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderAiShell } from './components/ProviderAiShell';
 import { ProviderPushBridge } from './components/ProviderPushBridge';
 import { BusinessDateFormatBootstrap } from './components/BusinessDateFormatBootstrap';
+import { AccessibilityBootstrap } from './components/AccessibilityBootstrap';
+import { AppAnalyticsBootstrap } from './components/AppAnalyticsBootstrap';
+import { AppStartupBridge } from './components/AppStartupBridge';
+import { AppVersionGate } from './components/AppVersionGate';
 import './components/operation-feedback.css';
+
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'));
+const TodayPage = lazy(() => import('./pages/TodayPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const SchedulePage = lazy(() => import('./pages/SchedulePage'));
+const GiftCardQueuesPage = lazy(() => import('./pages/GiftCardQueuesPage'));
+const LabCollectionPage = lazy(() => import('./pages/LabCollectionPage'));
+const LabResultsPage = lazy(() => import('./pages/LabResultsPage'));
+const ClinicTasksPage = lazy(() => import('./pages/ClinicTasksPage'));
+const PatientLookupPage = lazy(() => import('./pages/PatientLookupPage'));
+const PatientChartSummaryPage = lazy(() => import('./pages/PatientChartSummaryPage'));
+
+function RouteFallback() {
+  return (
+    <div className="ion-padding ion-text-center">
+      <IonSpinner name="crescent" />
+    </div>
+  );
+}
 
 function AuthedTabs() {
   const { t } = useI18n();
@@ -60,30 +74,32 @@ function AuthedTabs() {
     <IonTabs>
       <ProviderPushBridge />
       <ProviderAiShell>
-        <IonRouterOutlet>
-          <Route exact path="/tabs/today" component={TodayPage} />
-          {showLabCollection && (
-            <Route exact path="/tabs/lab-collection" component={LabCollectionPage} />
-          )}
-          {showLabCollection && (
-            <Route exact path="/tabs/lab-results" component={LabResultsPage} />
-          )}
-          {showLabCollection && (
-            <Route exact path="/tabs/clinic-tasks" component={ClinicTasksPage} />
-          )}
-          {showLabCollection && (
-            <Route exact path="/tabs/patients" component={PatientLookupPage} />
-          )}
-          {showLabCollection && (
-            <Route exact path="/tabs/patients/:customerId" component={PatientChartSummaryPage} />
-          )}
-          <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
-          <Route exact path="/tabs/schedule" component={SchedulePage} />
-          <Route exact path="/tabs/profile" component={ProfilePage} />
-          <Route exact path="/tabs">
-            <Redirect to="/tabs/today" />
-          </Route>
-        </IonRouterOutlet>
+        <Suspense fallback={<RouteFallback />}>
+          <IonRouterOutlet>
+            <Route exact path="/tabs/today" component={TodayPage} />
+            {showLabCollection && (
+              <Route exact path="/tabs/lab-collection" component={LabCollectionPage} />
+            )}
+            {showLabCollection && (
+              <Route exact path="/tabs/lab-results" component={LabResultsPage} />
+            )}
+            {showLabCollection && (
+              <Route exact path="/tabs/clinic-tasks" component={ClinicTasksPage} />
+            )}
+            {showLabCollection && (
+              <Route exact path="/tabs/patients" component={PatientLookupPage} />
+            )}
+            {showLabCollection && (
+              <Route exact path="/tabs/patients/:customerId" component={PatientChartSummaryPage} />
+            )}
+            <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
+            <Route exact path="/tabs/schedule" component={SchedulePage} />
+            <Route exact path="/tabs/profile" component={ProfilePage} />
+            <Route exact path="/tabs">
+              <Redirect to="/tabs/today" />
+            </Route>
+          </IonRouterOutlet>
+        </Suspense>
       </ProviderAiShell>
       <IonTabBar slot="bottom">
         <IonTabButton tab="today" href="/tabs/today">
@@ -136,18 +152,25 @@ export default function App() {
 
   return (
     <IonApp>
-      <BusinessDateFormatBootstrap />
-      <OperationFeedbackHost />
-      <IonReactRouter>
-        <IonRouterOutlet>
-          <Route exact path="/login" component={LoginPage} />
-          <Route exact path="/accept-invite" component={AcceptInvitePage} />
-          <Route path="/tabs" render={() => (isAuthenticated ? <AuthedTabs /> : <Redirect to="/login" />)} />
-          <Route exact path="/">
-            <Redirect to={isAuthenticated ? '/tabs/today' : '/login'} />
-          </Route>
-        </IonRouterOutlet>
-      </IonReactRouter>
+      <AppVersionGate>
+        <AccessibilityBootstrap />
+        <AppAnalyticsBootstrap />
+        <AppStartupBridge />
+        <BusinessDateFormatBootstrap />
+        <OperationFeedbackHost />
+        <IonReactRouter>
+          <Suspense fallback={<RouteFallback />}>
+            <IonRouterOutlet>
+              <Route exact path="/login" component={LoginPage} />
+              <Route exact path="/accept-invite" component={AcceptInvitePage} />
+              <Route path="/tabs" render={() => (isAuthenticated ? <AuthedTabs /> : <Redirect to="/login" />)} />
+              <Route exact path="/">
+                <Redirect to={isAuthenticated ? '/tabs/today' : '/login'} />
+              </Route>
+            </IonRouterOutlet>
+          </Suspense>
+        </IonReactRouter>
+      </AppVersionGate>
     </IonApp>
   );
 }

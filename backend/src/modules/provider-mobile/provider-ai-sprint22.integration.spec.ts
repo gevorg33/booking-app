@@ -2,6 +2,7 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
+import * as smartClarify from '../ai/ai-smart-clarify.util.js';
 
 describe('Sprint 22 provider AI intelligence integration', () => {
   const businessId = 'biz-s22';
@@ -33,6 +34,7 @@ describe('Sprint 22 provider AI intelligence integration', () => {
   };
 
   beforeEach(() => {
+    jest.spyOn(smartClarify, 'resolveSmartClarify').mockReturnValue(null);
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
       completeJson: jest.fn(),
@@ -48,6 +50,9 @@ describe('Sprint 22 provider AI intelligence integration', () => {
       ]),
     };
     customerRepo = {
+      find: jest.fn(async () => [
+        { id: 'cust-john', name: 'John Smith', tags: ['waitlist'] },
+      ]),
       createQueryBuilder: jest.fn(() => ({
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
@@ -75,14 +80,15 @@ describe('Sprint 22 provider AI intelligence integration', () => {
       mergeProviderSessionContext: jest.fn((params) => params),
       normalizeDateParams: jest.fn(),
       buildProviderSessionContext: jest.fn(() => ({})),
+      trace: jest.fn((_stage, action) => ({ stage: 'classify', action, at: new Date().toISOString() })),
     };
 
     service = new ProviderAiCommandService(
       bookingRepo as any,
       employeeRepo as any,
-      { find: jest.fn() } as any,
+      { find: jest.fn(async () => []) } as any,
       customerRepo as any,
-      { find: jest.fn() } as any,
+      { find: jest.fn(async () => []) } as any,
       bookingService as any,
       {} as any,
       llm as any,
@@ -103,11 +109,14 @@ describe('Sprint 22 provider AI intelligence integration', () => {
         handlePushNotificationsCompound: jest.fn(),
         rescuePushNotificationsIntent: jest.fn(() => null),
       } as any,
+      { rescueProviderIntent: jest.fn(() => null) } as any,
       {
         isProviderBookingCompound: jest.fn(() => false),
         handleProviderBookingCompound: jest.fn(),
         rescueProviderBookingIntent: jest.fn(() => null),
       } as any,
+      {} as any,
+      {} as any,
       {
         handleExplainProviderPaymentCurrency: jest.fn(async () => ({
           success: true,
@@ -147,6 +156,14 @@ describe('Sprint 22 provider AI intelligence integration', () => {
         })),
       } as any,
       { handleAction: jest.fn() } as any,
+      {
+        enrichClassification: jest.fn(async (input: { intent: { action: string } }) => ({
+          intent: input.intent,
+          verification: { ok: true, confidence: 0.9, fieldConfidence: {}, reasons: [] },
+          consensus: { needsEscalation: false, llmAction: input.intent.action },
+        })),
+      } as any,
+      { shouldExecute: jest.fn(() => false), execute: jest.fn() } as any,
     );
   });
 

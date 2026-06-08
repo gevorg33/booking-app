@@ -2,6 +2,10 @@ import {
   isExplainCheckoutTotalPrompt,
   isExplainPaymentStatusPrompt,
 } from './ai-payments.util.js';
+import {
+  isExplainMyNotificationsPrompt,
+  isManageNotificationPreferencesPrompt,
+} from './ai-adopt-6-growth-loops.util.js';
 
 export const NOTIFICATION_CURRENCY_INTENTS = [
   'explain_notification_currency',
@@ -126,6 +130,12 @@ export function rescueNotificationCurrencyIntent(
   action: string,
 ): { action: NotificationCurrencyIntent; rescueReason: string } | null {
   if (isNotificationCurrencyIntent(action)) return null;
+  if (
+    isExplainMyNotificationsPrompt(prompt) ||
+    isManageNotificationPreferencesPrompt(prompt)
+  ) {
+    return null;
+  }
   if (!isExplainNotificationCurrencyPrompt(prompt)) return null;
   return {
     action: 'explain_notification_currency',

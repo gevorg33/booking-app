@@ -184,7 +184,11 @@ describe('ai-command-bar.util', () => {
         route: '/new',
         availableProviders: ['B'],
       };
-      expect(mergeSessionContext(prev, next)).toEqual(next);
+      expect(mergeSessionContext(prev, next)).toEqual({
+        ...next,
+        _clarifyContext: undefined,
+        _clarifyMemory: {},
+      });
     });
   });
 

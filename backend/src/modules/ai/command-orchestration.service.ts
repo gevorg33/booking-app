@@ -14,12 +14,31 @@ import {
   formatBookingSnapshotLine,
   type BookingSnapshot,
 } from './ai-result-format.util.js';
+import {
+  buildPlanMismatchSummary,
+  verifyPlanMatchesPrompt,
+} from './ai-plan-vs-prompt-check.util.js';
+import type { IntentGraduationStatus } from './ai-intent-graduation.util.js';
+import {
+  buildPostExecFailureSummary,
+  buildPostExecRollbackDetails,
+} from './ai-post-exec-assertion.util.js';
+import { extractAutoRollbackDetails } from './ai-post-exec-auto-rollback.util.js';
 import { AiEventsService } from './ai-events.service.js';
 import {
   buildApprovalAlertPayload,
   buildPendingApprovalDetails,
   mapExecutionTimeline,
 } from './orchestration-result.util.js';
+import {
+  findOutOfScopePlanStepActions,
+  type CapabilityPlannerBounds,
+  resolvePlannerAllowedIntents,
+} from './ai-capability-bounded-planner.util.js';
+import {
+  buildPerStepPermissionDeniedSummary,
+  findFirstDeniedStepAtExecute,
+} from './ai-per-step-permission-recheck.util.js';
 
 export interface OrchestrationResult {
   success: boolean;
@@ -74,12 +93,69 @@ export class CommandOrchestrationService {
     businessId: string;
     userId?: string;
     autoExecute?: boolean;
+    executionConfirmed?: boolean;
+    intentTraffic?: Record<string, { samples: number; accurateRate: number }>;
+    confidenceHigh?: number;
+    /** parity-3.1 — reject plans whose steps fall outside role-effective intents. */
+    plannerBounds?: CapabilityPlannerBounds;
   }): Promise<OrchestrationResult> {
+    if (params.plannerBounds) {
+      const allowed = resolvePlannerAllowedIntents(params.plannerBounds);
+      const denied = findFirstDeniedStepAtExecute(
+        params.plan.steps,
+        params.plannerBounds,
+      );
+      if (denied) {
+        const outOfScope = findOutOfScopePlanStepActions(params.plan, allowed);
+        return {
+          success: false,
+          action: params.plan.intent,
+          summary: buildPerStepPermissionDeniedSummary(
+            denied.action,
+            denied.stepIndex,
+            params.plan.steps.length,
+          ),
+          details: {
+            capabilityBoundedPlannerFailed: true,
+            perStepPermissionRecheckFailed: true,
+            privilegeEscalationBlocked: true,
+            deniedStepIndex: denied.stepIndex,
+            deniedAction: denied.action,
+            outOfScopeActions: outOfScope,
+            plannerBounds: params.plannerBounds,
+            allowedIntentCount: allowed.length,
+            plan: params.plan,
+            requiresApproval: false,
+            pipelineStage: 'execute',
+          },
+        };
+      }
+    }
+
+    const planCheck = verifyPlanMatchesPrompt(params.plan.intent, params.plan);
+    if (!planCheck.ok) {
+      return {
+        success: false,
+        action: params.plan.intent,
+        summary: buildPlanMismatchSummary(planCheck.mismatches),
+        details: {
+          planMismatch: planCheck.mismatches,
+          planVsPromptFailed: true,
+          plan: params.plan,
+          requiresApproval: false,
+          pipelineStage: 'plan',
+        },
+      };
+    }
+
     const task = await this.orchestrator.processPlan({
       plan: params.plan,
       businessId: params.businessId,
       userId: params.userId,
       autoExecute: params.autoExecute ?? true,
+      executionConfirmed: params.executionConfirmed,
+      intentTraffic: params.intentTraffic,
+      confidenceHigh: params.confidenceHigh,
     });
 
     return this.taskToResult(task, params.plan.intent);
@@ -114,20 +190,34 @@ export class CommandOrchestrationService {
       task.status === PlanStatus.VALIDATED;
 
     if (task.status === PlanStatus.REJECTED) {
+      const planMismatch = task.result?.planMismatch as string[] | undefined;
+      const policyViolations = (task.result?.policyResult?.violations ?? []) as string[];
       return {
         success: false,
         action,
-        summary: `Plan rejected by policy: ${(task.result?.policyResult?.violations ?? []).join('; ') || 'Policy violation'}`,
-        details: { taskId: task.id, status: task.status, plan: task.plan },
+        summary:
+          task.error ??
+          (planMismatch?.length
+            ? buildPlanMismatchSummary(planMismatch)
+            : `Plan rejected by policy: ${policyViolations.join('; ') || 'Policy violation'}`),
+        details: {
+          taskId: task.id,
+          status: task.status,
+          plan: task.plan,
+          planMismatch,
+          planVsPromptFailed: task.result?.planVsPromptFailed === true,
+          result: task.result,
+        },
         taskId: task.id,
       };
     }
 
     if (task.status === PlanStatus.FAILED) {
+      const taskResult = (task.result ?? {}) as Record<string, unknown>;
       return {
         success: false,
         action,
-        summary: this.summarizeExecutionFailure(task),
+        summary: task.error ?? this.summarizeExecutionFailure(task),
         details: {
           taskId: task.id,
           status: task.status,
@@ -135,12 +225,43 @@ export class CommandOrchestrationService {
           result: task.result,
           error: task.error,
           executionTimeline: mapExecutionTimeline(task),
+          executeRevalidationFailed: taskResult.executeRevalidationFailed === true,
+          executeRevalidationIssues: taskResult.executeRevalidationIssues,
+          stalePlan: taskResult.stalePlan === true,
+          blastRadiusFailed: taskResult.blastRadiusFailed === true,
+          blastRadius: taskResult.blastRadius,
+          requiresExecutionConfirmation:
+            taskResult.requiresExecutionConfirmation === true,
         },
         taskId: task.id,
       };
     }
 
     if (task.status === PlanStatus.COMPLETED) {
+      if (task.result?.postExecAssertionFailed === true) {
+        const taskResult = task.result as Record<string, unknown>;
+        return {
+          success: false,
+          action,
+          summary: buildPostExecFailureSummary(task),
+          details: {
+            taskId: task.id,
+            status: task.status,
+            plan: task.plan,
+            result: task.result,
+            executionTimeline: mapExecutionTimeline(task),
+            ...buildPostExecRollbackDetails(task.id, {
+              ok: false,
+              message: taskResult.assertionMessage as string | undefined,
+              field: taskResult.assertionField as string | undefined,
+            }),
+            ...extractAutoRollbackDetails(taskResult),
+            rollbackOffered: taskResult.rollbackOffered === true,
+          },
+          taskId: task.id,
+        };
+      }
+
       return {
         success: true,
         action,
@@ -160,6 +281,9 @@ export class CommandOrchestrationService {
       task.plan && requiresApproval
         ? this.orchestrator.buildPlanDiff(task.plan)
         : undefined;
+    const graduationStatus = task.result?.graduationStatus as
+      | IntentGraduationStatus
+      | undefined;
     const employeeCount =
       task.context?.employees?.length ??
       task.context?.policyMetrics?.employeeCount ??
@@ -178,7 +302,9 @@ export class CommandOrchestrationService {
       success: true,
       action,
       summary: [
-        `Plan generated (${task.plan?.steps?.length ?? 0} step(s)).`,
+        graduationStatus?.proposeOnly
+          ? `Propose-only mode — review plan before executing (${graduationStatus.samples}/${graduationStatus.minSamples} samples, ${Math.round(graduationStatus.accurateRate * 100)}% accurate).`
+          : `Plan generated (${task.plan?.steps?.length ?? 0} step(s)).`,
         task.plan?.reasoning ?? '',
         requiresApproval
           ? 'Review and approve in AI Ops or reply with approval to execute.'
@@ -186,7 +312,8 @@ export class CommandOrchestrationService {
       ]
         .filter(Boolean)
         .join('\n'),
-      details: buildPendingApprovalDetails({
+      details: {
+        ...buildPendingApprovalDetails({
         action,
         taskId: task.id,
         status: task.status,
@@ -196,6 +323,10 @@ export class CommandOrchestrationService {
         employeeCount,
         daySpan: 7,
       }),
+        proposeOnly: graduationStatus?.proposeOnly === true,
+        dryRun: graduationStatus?.proposeOnly === true,
+        graduationStatus,
+      },
       taskId: task.id,
       requiresApproval,
     };

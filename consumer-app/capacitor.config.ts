@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
       providers: ['google.com'],
     },
     SplashScreen: {
-      launchAutoHide: true,
+      launchAutoHide: false,
       backgroundColor: '#f5f5f7',
       showSpinner: false,
     },

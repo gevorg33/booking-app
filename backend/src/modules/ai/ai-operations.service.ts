@@ -61,7 +61,7 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildNoShowRecoveryFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    return executeOperationsPlan(this.deps, plan, businessId, userId, params);
   }
 
   prepareNoShowRecoveryPlan(
@@ -98,7 +98,7 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildSickDayReplanFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    return executeOperationsPlan(this.deps, plan, businessId, userId, params);
   }
 
   prepareSickDayReplanPlan(
@@ -133,7 +133,7 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildImportServicesFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    return executeOperationsPlan(this.deps, plan, businessId, userId, params);
   }
 
   prepareImportServicesFromMenuPlan(
@@ -166,7 +166,7 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildUpdateServicePricesFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    return executeOperationsPlan(this.deps, plan, businessId, userId, params);
   }
 
   prepareUpdateServicePricesPlan(
@@ -203,7 +203,7 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildStaffServiceMatrixFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    return executeOperationsPlan(this.deps, plan, businessId, userId, params);
   }
 
   prepareStaffServiceMatrixPlan(

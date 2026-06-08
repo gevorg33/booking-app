@@ -14,6 +14,7 @@ import { applyCustomerSelfServiceToBusinessSettings } from '../../common/utils/c
 
 describe('Public customer auth integration', () => {
   const futureStart = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  const futureEnd = new Date(futureStart.getTime() + 60 * 60 * 1000);
   const business = {
     id: 'biz-1',
     slug: 'salon',
@@ -53,6 +54,33 @@ describe('Public customer auth integration', () => {
 
   const bookingRepo = {
     find: jest.fn(async () => bookings),
+    createQueryBuilder: jest.fn(() => {
+      let targetCustomerId: string | null = null;
+      let duplicateIds: string[] = [];
+      const chain = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn((values: { customerId?: string }) => {
+          targetCustomerId = values.customerId ?? null;
+          return chain;
+        }),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn((_sql: string, params?: Record<string, unknown>) => {
+          if (params?.duplicateIds) {
+            duplicateIds = params.duplicateIds as string[];
+          }
+          return chain;
+        }),
+        execute: jest.fn(async () => {
+          if (!targetCustomerId) return;
+          for (const booking of bookings) {
+            if (duplicateIds.includes(String(booking.customerId))) {
+              booking.customerId = targetCustomerId;
+            }
+          }
+        }),
+      };
+      return chain;
+    }),
   };
 
   const reviewRepo = {
@@ -81,26 +109,62 @@ describe('Public customer auth integration', () => {
     }),
     createQueryBuilder: jest.fn(() => {
       let emailFilter: string | undefined;
+      let phoneFilter: string | undefined;
+      let excludedCustomerId: string | undefined;
       const chain = {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn((_sql: string, params?: Record<string, unknown>) => {
           if (params?.email) emailFilter = String(params.email);
+          if (params?.phone) phoneFilter = String(params.phone);
+          if (params?.customerId) excludedCustomerId = String(params.customerId);
           return chain;
         }),
         getOne: jest.fn(async () => {
           for (const customer of customers.values()) {
+            if (customer.businessId !== business.id || customer.isActive !== true) continue;
+            if (phoneFilter && customer.phone === phoneFilter) {
+              return { ...customer };
+            }
             if (
-              customer.businessId === business.id &&
-              customer.isActive === true &&
-              String(customer.email).toLowerCase() === emailFilter
+              emailFilter &&
+              String(customer.email ?? '').toLowerCase() === emailFilter.toLowerCase()
             ) {
               return { ...customer };
             }
           }
           return null;
         }),
+        getMany: jest.fn(async () => {
+          const matches: Array<Record<string, unknown>> = [];
+          for (const customer of customers.values()) {
+            if (customer.businessId !== business.id || customer.isActive !== true) continue;
+            if (excludedCustomerId && customer.id === excludedCustomerId) continue;
+            const emailMatches =
+              emailFilter &&
+              String(customer.email ?? '').toLowerCase() === emailFilter.toLowerCase();
+            const phoneMatches = phoneFilter && customer.phone === phoneFilter;
+            if (emailMatches || phoneMatches) {
+              matches.push({ ...customer });
+            }
+          }
+          return matches;
+        }),
       };
       return chain;
+    }),
+    update: jest.fn(async (criteria: { id: unknown }, values: Record<string, unknown>) => {
+      const raw = criteria.id as { _value?: string[] } | string | string[];
+      const ids = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'string'
+          ? [raw]
+          : Array.isArray(raw?._value)
+            ? raw._value
+            : [];
+      for (const id of ids) {
+        const existing = customers.get(id);
+        if (existing) customers.set(id, { ...existing, ...values });
+      }
     }),
   };
 
@@ -388,6 +452,80 @@ describe('Public customer auth integration', () => {
       googleSub: 'google-sub-legacy',
       authProvider: 'google',
     });
+  });
+
+  it('links guest bookings to the signed-in customer by email', async () => {
+    customers.set('cust-auth', {
+      id: 'cust-auth',
+      businessId: business.id,
+      name: 'Auth User',
+      email: 'guest@example.com',
+      phone: '+15550001111',
+      isActive: true,
+    });
+    customers.set('cust-guest', {
+      id: 'cust-guest',
+      businessId: business.id,
+      name: 'Guest User',
+      email: null,
+      phone: '+15550001111',
+      isActive: true,
+    });
+    bookings.push({
+      id: 'book-guest',
+      businessId: business.id,
+      customerId: 'cust-guest',
+      employeeId: 'emp-1',
+      serviceId: 'svc-1',
+      status: BookingStatus.CONFIRMED,
+      paymentStatus: PaymentStatus.UNPAID,
+      startTime: futureStart,
+      endTime: futureEnd,
+      employee: { id: 'emp-1', name: 'Alex' },
+      service: { id: 'svc-1', name: 'Cut' },
+    } as any);
+
+    firebase.verifyIdToken.mockResolvedValue({
+      email: 'guest@example.com',
+      name: 'Auth User',
+      uid: 'google-sub-guest',
+    });
+
+    await service.loginWithGoogle('salon', 'google-id-token');
+    expect(bookings[0]?.customerId).toBe('cust-auth');
+    expect(customers.get('cust-guest')?.isActive).toBe(false);
+  });
+
+  it('creates a phone session and merges guest bookings by phone', async () => {
+    customers.set('cust-guest', {
+      id: 'cust-guest',
+      businessId: business.id,
+      name: 'Guest User',
+      email: null,
+      phone: '+15550001111',
+      isActive: true,
+    });
+    bookings.push({
+      id: 'book-phone-guest',
+      businessId: business.id,
+      customerId: 'cust-guest',
+      employeeId: 'emp-1',
+      serviceId: 'svc-1',
+      status: BookingStatus.CONFIRMED,
+      paymentStatus: PaymentStatus.UNPAID,
+      startTime: futureStart,
+      endTime: futureEnd,
+    } as any);
+
+    firebase.verifyIdToken.mockResolvedValue({
+      phone_number: '+15550001111',
+      uid: 'phone-sub-1',
+    });
+
+    const result = await service.loginWithPhone('salon', 'phone-id-token');
+    expect(result.customer.phone).toBe('+15550001111');
+    expect(bookings[0]?.customerId).toBe(result.customer.id);
+    expect(customers.get('cust-guest')?.isActive).toBe(true);
   });
 
   it('ignores reviews without booking ids when listing bookings', async () => {

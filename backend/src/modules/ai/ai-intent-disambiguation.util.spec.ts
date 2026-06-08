@@ -6,6 +6,7 @@ import {
   disambiguateMisclassifiedAvailabilityIntent,
   isLookupServiceAssignmentPrompt,
   resolveAvailabilityIntentFromPrompt,
+  shouldDelegatePublicBookingAssistant,
 } from './ai-intent-disambiguation.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { availabilityDisambiguationScenarioToEvalCase } from './eval/ai-command-eval.cases.js';
@@ -50,6 +51,36 @@ describe('ai-intent-disambiguation.util (ai-cmd-h1.4)', () => {
     );
     expect(result?.action).toBe('check_availability');
     expect(result?.params?.allProviders).toBe(true);
+  });
+
+  it('rescues unknown public availability prompts before clarify guardrails', () => {
+    const result = disambiguateMisclassifiedAvailabilityIntent(
+      'public',
+      'who is available for permanent lashes nearest slot?',
+      'unknown',
+      {},
+    );
+    expect(result?.action).toBe('check_availability');
+    expect(result?.rescueReason).toBe('public_availability');
+  });
+
+  it('rescues unknown public book prompts to book_appointment', () => {
+    const result = disambiguateMisclassifiedAvailabilityIntent(
+      'public',
+      'I want to book an appointment for permanent lashes',
+      'unknown',
+      {},
+    );
+    expect(result?.action).toBe('book_appointment');
+    expect(result?.rescueReason).toBe('public_book_request_unknown');
+  });
+
+  it('delegates booking-page availability prompts before customer guardrails', () => {
+    expect(
+      shouldDelegatePublicBookingAssistant(
+        'who is available for permanent lashes tomorrow evening ?',
+      ),
+    ).toBe(true);
   });
 
   it('disambiguates create_booking mislabels to check_providers_for_service', () => {

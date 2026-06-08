@@ -8,6 +8,8 @@ import { Booking } from '../entities/booking.entity.js';
 import { InventoryService } from '../../inventory/inventory.service.js';
 import { ReviewsService } from '../../reviews/reviews.service.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
+import { ReferralProgramService } from '../../referral-program/referral-program.service.js';
+import { CustomerRebookingCadenceService } from '../../customer/customer-rebooking-cadence.service.js';
 
 @Injectable()
 export class BookingCompletedListener {
@@ -18,6 +20,8 @@ export class BookingCompletedListener {
     private inventoryService: InventoryService,
     private reviewsService: ReviewsService,
     private notificationsService: NotificationsService,
+    private referralProgramService: ReferralProgramService,
+    private customerRebookingCadenceService: CustomerRebookingCadenceService,
   ) {}
 
   @OnEvent(EventType.BOOKING_COMPLETED)
@@ -32,6 +36,10 @@ export class BookingCompletedListener {
       await this.inventoryService.deductForService(booking.serviceId);
       await this.reviewsService.ensureReviewToken(booking.id);
       await this.notificationsService.sendReviewRequest(booking.id);
+      await this.referralProgramService.processBookingCompleted(booking.id);
+      await this.customerRebookingCadenceService.persistLearnedCadenceForCompletedBooking(
+        booking.id,
+      );
       this.logger.log(`Post-completion hooks ran for booking ${booking.id}`);
     } catch (err) {
       this.logger.warn(

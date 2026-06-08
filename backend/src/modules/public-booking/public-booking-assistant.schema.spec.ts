@@ -1,4 +1,5 @@
 import { buildPublicClassifierSchema } from './public-booking-assistant.service.js';
+import { PUBLIC_SELF_SERVICE_CLASSIFIER_RULES } from '../ai/ai-customer-public-self-service.fixtures.js';
 
 describe('buildPublicClassifierSchema', () => {
   it('includes check-and-book rules and public booking params', () => {
@@ -63,5 +64,23 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('list_my_lab_booking_requests');
     expect(schema).toContain('book_lab_collection');
     expect(schema).toContain('booking page');
+    expect(schema).toContain('buy_gift_card');
+    expect(schema).toContain('my_subscriptions');
+    expect(schema).toContain('booking_help');
+    expect(schema).toContain(PUBLIC_SELF_SERVICE_CLASSIFIER_RULES.slice(0, 40));
+  });
+
+  it('acc-3.3 — narrows action enum when shortlist is provided', () => {
+    const schema = buildPublicClassifierSchema([
+      'unknown',
+      'check_availability',
+      'book_appointment',
+    ]);
+    expect(schema).toMatch(
+      /"action":\s*check_availability \| book_appointment \| unknown/,
+    );
+    expect(schema).not.toMatch(
+      /"action":\s*[^"]*explain_tour_booking/,
+    );
   });
 });

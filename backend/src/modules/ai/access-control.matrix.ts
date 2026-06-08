@@ -159,6 +159,8 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'staff_service_matrix',
     'check_schedule_compliance',
     'revenue_forecast',
+    'list_reviews',
+    'update_team_member_role',
   ]),
   staff: new Set([
     'list_employees',
@@ -179,7 +181,6 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'payment_sweep',
     'mark_no_shows',
     'no_show_recovery',
-    'update_bookings',
     'import_services_from_menu',
     'update_service_prices',
     'staff_service_matrix',
@@ -218,8 +219,53 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'migrate_dashboard_date_display',
     'notify_patient_result_ready',
     'bulk_update_service_currency',
+    'list_reviews',
+    // Manager/owner-only UI catalog actions (parity-4.1 allow/deny alignment)
+    'onboard_provider_schedule',
+    'cancel_bookings',
+    'reschedule_booking',
+    'export_customer_data',
+    'apply_schedule',
+    'fill_unused_slots',
+    'summarize_automation_performance',
+    'explain_plan_limits',
+    'toggle_annual_billing',
+    'suggest_upgrade',
+    'explain_business_currency',
+    'explain_business_languages',
+    'explain_business_tax',
+    'list_integration_health',
+    'configure_zendesk',
+    'list_products',
+    'adjust_inventory',
+    'revenue_forecast',
+    'list_services',
+    'summarize_new_registrations',
+    'configure_push_recipients',
+    'toggle_business_email_on_customer_change',
+    'update_team_member_role',
   ]),
-  manager: new Set(['optimize_schedule']),
+  manager: new Set([
+    'optimize_schedule',
+    'update_team_member_role',
+    // Owner-only UI catalog routes (parity-4.1 allow/deny alignment)
+    'summarize_new_registrations',
+    'explain_plan_limits',
+    'toggle_annual_billing',
+    'suggest_upgrade',
+    'explain_business_currency',
+    'configure_business_currency',
+    'explain_business_languages',
+    'configure_business_languages',
+    'explain_business_tax',
+    'list_integration_health',
+    'configure_zendesk',
+    'apply_clinic_playbook',
+    'apply_tour_playbook',
+    'accept_hipaa_baa',
+    'configure_push_recipients',
+    'toggle_business_email_on_customer_change',
+  ]),
   owner: new Set(),
 };
 
@@ -260,6 +306,7 @@ export function isDashboardIntentAllowed(
     action === 'security_blocked'
   )
     return true;
+  if (tier === 'client') return false;
   return !DASHBOARD_DENIED_BY_TIER[tier].has(action);
 }
 
@@ -273,11 +320,26 @@ export function isProviderIntentAllowed(
     action === 'security_blocked'
   )
     return true;
+  if (tier === 'client') return false;
   return !PROVIDER_DENIED_BY_TIER[tier].has(action);
 }
 
 /** Logged-in customer self-service — client tier only (ai-cmd-0.2). */
 export function isCustomerIntentAllowed(
+  tier: AccessTier,
+  action: string,
+): boolean {
+  if (
+    action === 'unknown' ||
+    action === 'error' ||
+    action === 'security_blocked'
+  )
+    return true;
+  return tier === 'client';
+}
+
+/** Anonymous public booking assistant — client tier only (parity-2.5). */
+export function isPublicIntentAllowed(
   tier: AccessTier,
   action: string,
 ): boolean {
@@ -334,4 +396,7 @@ export const STAFF_SCOPED_INTENTS = new Set([
   'block_schedule',
   'fill_unused_slots',
   'check_availability',
+  'update_bookings',
+  'mark_paid',
+  'mark_no_shows',
 ]);

@@ -17,6 +17,7 @@ import {
   type NotificationChannel,
   type NotificationKind,
 } from './notification.types.js';
+import { shouldSendConsumerPush } from './consumer-notification-preferences.util.js';
 import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
 import {
   resolveLocale,
@@ -38,6 +39,7 @@ import {
   resolveBookingManageLinkLabel,
   resolveCustomerSelfServiceSettings,
 } from '../../common/utils/customer-self-service.util.js';
+import { buildTenantAppInstallEmailBlocks } from '../../common/utils/tenant-app-install-link.util.js';
 import { renderBusinessEmailTemplate } from './notification-email-template.util.js';
 import {
   reminderNotificationKind,
@@ -58,12 +60,25 @@ import { isClinicVerticalBusinessType } from '../../common/utils/clinic-service.
 import { formatResultReadyNotificationWhen } from '../../common/utils/notification-date-format.util.js';
 import { buildClinicLabBookingRequestLinks } from '../../common/utils/clinic-lab-booking-request-link.util.js';
 import { buildClinicResultReadyLinks } from '../../common/utils/clinic-result-ready-link.util.js';
+import {
+  buildConsumerBookingManagePushUrl,
+  buildConsumerGiftCardPushUrl,
+  buildConsumerSalonHomePushUrl,
+} from '../../common/utils/consumer-booking-push-link.util.js';
 import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
 import { ConsumerPushDispatchService } from './consumer-push-dispatch.service.js';
 import {
+  buildConsumerBookingCancelledPushPayload,
+  buildConsumerBookingConfirmedPushPayload,
+  buildConsumerBookingReminderPushPayload,
+  buildConsumerBookingRescheduledPushPayload,
+  buildConsumerGiftCardReceivedPushPayload,
   buildConsumerLabBookingRequestPushPayload,
   buildConsumerResultReadyPushPayload,
+  type ConsumerSalonBookingPushPayload,
 } from './consumer-transactional-push.util.js';
+import type { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
+import { resolveGiftCardSenderName } from '../gift-cards/gift-card-delivery-content.util.js';
 
 export type ResultReadyDeliveryChannel = NotificationChannel | 'push';
 
@@ -166,7 +181,7 @@ export class NotificationsService {
       prefs.emailReminders &&
       customer.email
     ) {
-      await this.dispatch(ctx, 'confirmation', 'email', customer.email, () =>
+      await this.dispatch(ctx, 'confirmation', 'email', customer.email, async () =>
         this.buildGroupedConfirmationEmail(ctx, lines, groupLabel),
       );
     }
@@ -212,7 +227,7 @@ export class NotificationsService {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
 
-    const { booking, businessSettings } = ctx;
+    const { booking, business, businessSettings } = ctx;
     if (booking.status === BookingStatus.CANCELLED) return;
 
     const customer = booking.customer;
@@ -228,7 +243,7 @@ export class NotificationsService {
       prefs.emailReminders &&
       customer.email
     ) {
-      await this.dispatch(ctx, 'confirmation', 'email', customer.email, () =>
+      await this.dispatch(ctx, 'confirmation', 'email', customer.email, async () =>
         this.buildConfirmationEmail(ctx, manageLink),
       );
     }
@@ -257,6 +272,21 @@ export class NotificationsService {
     ) {
       await this.dispatchWhatsApp(ctx, 'reminder_immediate', customer.phone);
     }
+
+    if (businessSettings.sendConfirmationPush && prefs.pushReminders) {
+      await this.trySendConsumerSalonBookingPush(ctx, (url, locale) =>
+        buildConsumerBookingConfirmedPushPayload({
+          url,
+          businessId: business.id,
+          customerId: customer.id,
+          bookingId: booking.id,
+          businessName: business.name,
+          serviceName: booking.service?.name ?? '',
+          scheduleLabel: this.buildBookingScheduleLabel(ctx, locale),
+          locale,
+        }),
+      );
+    }
   }
 
   async sendBookingCancellation(
@@ -266,7 +296,7 @@ export class NotificationsService {
     const ctx = await this.loadContext(bookingId);
     if (!ctx) return;
 
-    const { booking, businessSettings } = ctx;
+    const { booking, business, businessSettings } = ctx;
     if (booking.status !== BookingStatus.CANCELLED) return;
 
     const customer = booking.customer;
@@ -304,6 +334,61 @@ export class NotificationsService {
         cancelReason,
       );
     }
+
+    if (businessSettings.sendCancellationPush && prefs.pushReminders) {
+      await this.trySendConsumerSalonBookingPush(ctx, (url, locale) =>
+        buildConsumerBookingCancelledPushPayload({
+          url,
+          businessId: business.id,
+          customerId: customer.id,
+          bookingId: booking.id,
+          businessName: business.name,
+          serviceName: booking.service?.name ?? '',
+          scheduleLabel: this.buildBookingScheduleLabel(ctx, locale),
+          locale,
+        }),
+      );
+    }
+  }
+
+  async sendBookingRescheduleToCustomer(
+    bookingId: string,
+    details?: { previousStartTime?: string; newStartTime?: string },
+  ): Promise<void> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return;
+
+    const { booking, business, businessSettings } = ctx;
+    if (booking.status === BookingStatus.CANCELLED) return;
+
+    const customer = booking.customer;
+    if (!customer) return;
+
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    if (!businessSettings.sendReschedulePush || !prefs.pushReminders) return;
+
+    const locale = this.businessLocale(business.settings);
+    const scheduleLabel = details?.newStartTime
+      ? this.formatBookingScheduleFromStart(
+          new Date(details.newStartTime),
+          booking.endTime,
+          business.settings,
+          locale,
+        )
+      : this.buildBookingScheduleLabel(ctx, locale);
+
+    await this.trySendConsumerSalonBookingPush(ctx, (url, pushLocale) =>
+      buildConsumerBookingRescheduledPushPayload({
+        url,
+        businessId: business.id,
+        customerId: customer.id,
+        bookingId: booking.id,
+        businessName: business.name,
+        serviceName: booking.service?.name ?? '',
+        scheduleLabel,
+        locale: pushLocale,
+      }),
+    );
   }
 
   async sendBusinessCustomerBookingChange(
@@ -884,6 +969,29 @@ export class NotificationsService {
         );
         if (ok) sent++;
       }
+
+      const pushEnabled =
+        leadHours >= 12
+          ? businessSettings.sendReminder24hPush
+          : businessSettings.sendReminder1hPush;
+      if (pushEnabled && prefs.pushReminders) {
+        const ok = await this.trySendConsumerSalonBookingPush(
+          ctx,
+          (url, locale) =>
+            buildConsumerBookingReminderPushPayload({
+              url,
+              businessId: booking.business.id,
+              customerId: customer.id,
+              bookingId: booking.id,
+              businessName: booking.business.name,
+              serviceName: booking.service?.name ?? '',
+              scheduleLabel: this.buildBookingScheduleLabel(ctx, locale),
+              minutesBefore,
+              locale,
+            }),
+        );
+        if (ok) sent++;
+      }
     }
 
     return sent;
@@ -977,6 +1085,29 @@ export class NotificationsService {
         );
         if (ok) sent++;
       }
+
+      const pushEnabled =
+        kind === 'reminder_24h'
+          ? businessSettings.sendReminder24hPush
+          : businessSettings.sendReminder1hPush;
+      if (pushEnabled && prefs.pushReminders) {
+        const ok = await this.trySendConsumerSalonBookingPush(
+          ctx,
+          (url, locale) =>
+            buildConsumerBookingReminderPushPayload({
+              url,
+              businessId: booking.business!.id,
+              customerId: customer.id,
+              bookingId: booking.id,
+              businessName: booking.business!.name,
+              serviceName: booking.service?.name ?? '',
+              scheduleLabel: this.buildBookingScheduleLabel(ctx, locale),
+              minutesBefore,
+              locale,
+            }),
+        );
+        if (ok) sent++;
+      }
     }
 
     return sent;
@@ -1010,7 +1141,9 @@ export class NotificationsService {
     kind: NotificationKind,
     channel: NotificationChannel,
     recipient: string,
-    build: () => { subject?: string; html?: string; text: string } | null,
+    build:
+      | (() => { subject?: string; html?: string; text: string } | null)
+      | (() => Promise<{ subject?: string; html?: string; text: string } | null>),
   ): Promise<boolean> {
     const existing = await this.logRepo.findOne({
       where: {
@@ -1021,7 +1154,7 @@ export class NotificationsService {
     });
     if (existing) return false;
 
-    const content = build();
+    const content = await Promise.resolve(build());
     if (!content) return false;
     let ok = false;
     let error: string | undefined;
@@ -1324,7 +1457,7 @@ export class NotificationsService {
     );
   }
 
-  private buildGroupedConfirmationEmail(
+  private async buildGroupedConfirmationEmail(
     ctx: BookingNotificationContext,
     lines: Array<{
       serviceName: string;
@@ -1361,6 +1494,13 @@ export class NotificationsService {
       })
       .join('');
 
+    const appInstall = await this.resolveAppInstallEmailBlocks(
+      business.slug,
+      booking.serviceId ?? undefined,
+      locale,
+      'confirmation_qr',
+    );
+
     return renderBusinessEmailTemplate(
       business.settings,
       'booking_confirmation_grouped',
@@ -1373,6 +1513,7 @@ export class NotificationsService {
         groupLabelSuffix: groupLabel ? ` (${groupLabel})` : '',
         appointmentsListText: detailLines.join('\n\n'),
         appointmentsListHtml: `<ul>${htmlLines}</ul>`,
+        ...appInstall,
         footerNote: this.resolveReceiptFooter(
           locale,
           business.settings as Record<string, unknown>,
@@ -1484,7 +1625,7 @@ export class NotificationsService {
     );
   }
 
-  private buildConfirmationEmail(
+  private async buildConfirmationEmail(
     ctx: BookingNotificationContext,
     manageLink: { label: string; url: string } | null,
   ) {
@@ -1517,6 +1658,16 @@ export class NotificationsService {
       locale,
     );
 
+    const hasReceiptAmount =
+      Boolean(priceLines.priceLineText?.trim()) ||
+      Boolean(priceLines.priceLineHtml?.trim());
+    const appInstall = await this.resolveAppInstallEmailBlocks(
+      business.slug,
+      booking.serviceId ?? undefined,
+      locale,
+      hasReceiptAmount ? 'receipt_qr' : 'confirmation_qr',
+    );
+
     return renderBusinessEmailTemplate(
       business.settings,
       'booking_confirmation',
@@ -1532,6 +1683,7 @@ export class NotificationsService {
         priceLineHtml: priceLines.priceLineHtml,
         manageLinkText,
         manageLinkHtml,
+        ...appInstall,
         footerNote: this.resolveReceiptFooter(
           locale,
           business.settings as Record<string, unknown>,
@@ -1539,6 +1691,23 @@ export class NotificationsService {
         ),
       },
     );
+  }
+
+  private async resolveAppInstallEmailBlocks(
+    slug: string,
+    serviceId: string | undefined,
+    locale: AppLocale,
+    campaign: 'confirmation_qr' | 'receipt_qr',
+  ) {
+    return buildTenantAppInstallEmailBlocks({
+      frontendUrl:
+        this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000',
+      slug,
+      serviceId,
+      campaign,
+      locale,
+      includeQr: true,
+    });
   }
 
   private async resolveManageLinkForBooking(
@@ -1996,6 +2165,104 @@ export class NotificationsService {
       );
     }
 
+    return result.ok;
+  }
+
+  async sendGiftCardReceivedPush(
+    card: GiftCard,
+    customerId: string,
+  ): Promise<void> {
+    const business = card.business;
+    if (!business?.slug?.trim()) return;
+
+    const businessSettings = mergeBusinessNotificationSettings(
+      business.settings?.notifications,
+    );
+    if (!businessSettings.sendGiftCardReceivedPush) return;
+
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId: business.id },
+    });
+    if (!customer) return;
+
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    if (!shouldSendConsumerPush(prefs, 'offers')) return;
+
+    const locale = this.businessLocale(business.settings);
+    const payload = buildConsumerGiftCardReceivedPushPayload({
+      url: buildConsumerGiftCardPushUrl(business.slug),
+      businessId: business.id,
+      customerId,
+      giftCardId: card.id,
+      businessName: business.name,
+      senderName: resolveGiftCardSenderName(card),
+      locale,
+    });
+    await this.consumerPushDispatch.sendTransactionalPush(payload);
+  }
+
+  private buildBookingScheduleLabel(
+    ctx: BookingNotificationContext,
+    locale: AppLocale,
+  ): string {
+    return this.formatBookingScheduleFromStart(
+      ctx.booking.startTime,
+      ctx.booking.endTime,
+      ctx.business.settings,
+      locale,
+    );
+  }
+
+  private formatBookingScheduleFromStart(
+    startTime: Date,
+    endTime: Date,
+    businessSettings: Business['settings'],
+    locale: AppLocale,
+  ): string {
+    const when = formatNotificationDateDisplay(
+      startTime,
+      businessSettings,
+      locale,
+    );
+    const time = formatNotificationTimeRangeDisplay(
+      startTime,
+      endTime,
+      businessSettings,
+      locale,
+    );
+    return `${when} at ${time}`;
+  }
+
+  private async resolveConsumerBookingPushUrl(
+    ctx: BookingNotificationContext,
+  ): Promise<string> {
+    const { booking, business } = ctx;
+    const selfService = resolveCustomerSelfServiceSettings(business.settings);
+    if (canCustomerManageBookingOnline(booking, selfService)) {
+      const token = await ensureBookingManageToken(this.bookingRepo, booking.id);
+      return buildConsumerBookingManagePushUrl(
+        business.slug,
+        booking.id,
+        token,
+      );
+    }
+    return buildConsumerSalonHomePushUrl(business.slug);
+  }
+
+  private async trySendConsumerSalonBookingPush(
+    ctx: BookingNotificationContext,
+    buildPayload: (
+      url: string,
+      locale: AppLocale,
+    ) => ConsumerSalonBookingPushPayload,
+  ): Promise<boolean> {
+    const customer = ctx.booking.customer;
+    if (!customer) return false;
+
+    const locale = this.businessLocale(ctx.business.settings);
+    const url = await this.resolveConsumerBookingPushUrl(ctx);
+    const payload = buildPayload(url, locale);
+    const result = await this.consumerPushDispatch.sendTransactionalPush(payload);
     return result.ok;
   }
 }

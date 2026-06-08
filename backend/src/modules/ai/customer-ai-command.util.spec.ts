@@ -36,13 +36,22 @@ describe('customer-ai-command.util', () => {
       bookingId: 'book-1',
     });
     expect(command.details?.sessionContext).toEqual({ serviceName: 'Massage' });
-    expect(commandResultToPublicAssistantResult(command)).toEqual({
+    expect(
+      commandResultToPublicAssistantResult({
+        ...command,
+        details: {
+          ...command.details,
+          traceId: 'trace-abc',
+        },
+      }),
+    ).toEqual({
       success: true,
       action: 'check_availability',
       summary: 'slots',
       sessionContext: { serviceName: 'Massage' },
       navigate: { path: 'checkout', query: { serviceId: 's1' } },
       bookingId: 'book-1',
+      traceId: 'trace-abc',
     });
   });
 
@@ -136,6 +145,12 @@ describe('customer-ai-command.util', () => {
       'Why does Mountain Trek show only one departure time per day when I book?',
     );
     expect(schema).toContain('NOT explain_tour_booking');
+    expect(schema).toContain('explain_my_notifications');
+    expect(schema).toContain('manage_notification_preferences');
+    expect(schema).toContain('refer_a_friend');
+    expect(schema).toContain('rebook_last_appointment');
+    expect(schema).toContain('find_my_saved_salons');
+    expect(schema).toContain('refer a friend');
   });
 
   it('merges shared booking context between compound steps', () => {

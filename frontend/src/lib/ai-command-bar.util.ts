@@ -8,6 +8,9 @@ export interface AiCommandSessionContext extends Partial<AiPageContext> {
   lastAction?: string | null;
   lastMetric?: string | null;
   availableProviders?: string[];
+  _clarifyContext?: Record<string, unknown>;
+  _clarifyMemory?: Record<string, string>;
+  _selectedIntentAction?: string;
 }
 
 export interface AiCommandMessageLike {
@@ -87,6 +90,9 @@ export function extractSessionContext(result: {
     details?.bookingMetric ??
     details?.metric;
   if (metric) ctx.lastMetric = String(metric);
+  const sessionCtx = result.details?.sessionContext as AiCommandSessionContext | undefined;
+  if (sessionCtx?._clarifyContext) ctx._clarifyContext = sessionCtx._clarifyContext;
+  if (sessionCtx?._clarifyMemory) ctx._clarifyMemory = sessionCtx._clarifyMemory;
   return ctx;
 }
 
@@ -113,6 +119,8 @@ export function mergeSessionContext(
     bookingMetric: next.bookingMetric ?? prev.bookingMetric,
     route: next.route ?? prev.route,
     availableProviders: next.availableProviders ?? prev.availableProviders,
+    _clarifyContext: next._clarifyContext ?? prev._clarifyContext,
+    _clarifyMemory: { ...(prev._clarifyMemory ?? {}), ...(next._clarifyMemory ?? {}) },
   };
 }
 

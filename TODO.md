@@ -96,7 +96,7 @@ Today isolation is app-layer only: `ensureMember()` + explicit `business_id` in 
 
 #### Store launch (consumer)
 
-- [ ] **gap-2.5.10** — Consumer app App Store / Play Store listing (separate from provider app **gap-1.5**)
+- [ ] **gap-2.5.10** — Consumer app App Store / Play Store listing (separate from provider app **gap-1.5**) — copy + export in `consumer-app/store-listings/`; run `npm run store-listings:export`
 
 *(Integrates **sub-1** subscriptions — one-time vs plan picker, My subscriptions profile.)*
 
@@ -776,24 +776,24 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Capture every prompt, classification, and outcome in production so real accuracy is measurable and failures are discoverable. **Nothing else in this program works without this.**
 
-- [ ] **acc-1** — AI accuracy telemetry & measurement foundation
+- [x] **acc-1** — AI accuracy telemetry & measurement foundation
 
 ### acc-1.1 — Prompt + outcome logging
-- [ ] **acc-1.1** — `ai_command_trace` table — per command: `businessId`, `surface`, `userId`, `role`, raw `prompt`, normalized prompt, detected `locale`, classified `action`, `confidence`, `params` (redacted), routing tier, deterministic-vs-LLM source, `outcome` (executed / clarified / approval / failed / security_blocked), latency, model used, token cost; migration + indexes
-- [ ] **acc-1.2** — Hook into `AiGatewayService` — write trace on every command across dashboard / provider / customer surfaces; PII-redact params before storage (reuse compliance redaction); respect HIPAA AI guard (**compliance-1.15**)
-- [ ] **acc-1.3** — Correlation id — thread a `traceId` through classify → resolve → validate → execute so each pipeline stage's contribution is attributable
+- [x] **acc-1.1** — `ai_command_trace` table — per command: `businessId`, `surface`, `userId`, `role`, raw `prompt`, normalized prompt, detected `locale`, classified `action`, `confidence`, `params` (redacted), routing tier, deterministic-vs-LLM source, `outcome` (executed / clarified / approval / failed / security_blocked), latency, model used, token cost; migration + indexes
+- [x] **acc-1.2** — Hook into `AiGatewayService` — write trace on every command across dashboard / provider / customer surfaces; PII-redact params before storage (reuse compliance redaction); respect HIPAA AI guard (**compliance-1.15**)
+- [x] **acc-1.3** — Correlation id — thread a `traceId` through classify → resolve → validate → execute so each pipeline stage's contribution is attributable
 
 ### acc-1.2 — Failure signal capture (implicit + explicit)
-- [ ] **acc-1.4** — **Retry/rephrase detection** — same user, same surface, similar prompt (embedding similarity > 0.8) within 2 min after a clarify/fail → flag prior command as `suspected_miss`
-- [ ] **acc-1.5** — **Abandon detection** — clarify shown but user never answered / closed assistant → flag as `clarify_abandoned`
-- [ ] **acc-1.6** — **Undo/rollback as failure signal** — user hit Undo (ai-d7) within 1 min of execution → flag as `wrong_execution`
-- [ ] **acc-1.7** — **Explicit thumbs up/down** — tiny 👍/👎 on each AI result (dashboard + provider + customer); 👎 opens optional "what went wrong" one-tap reasons (wrong action / wrong date / wrong person / wrong service / didn't understand)
+- [x] **acc-1.4** — **Retry/rephrase detection** — same user, same surface, similar prompt (embedding similarity > 0.8) within 2 min after a clarify/fail → flag prior command as `suspected_miss`
+- [x] **acc-1.5** — **Abandon detection** — clarify shown but user never answered / closed assistant → flag as `clarify_abandoned`
+- [x] **acc-1.6** — **Undo/rollback as failure signal** — user hit Undo (ai-d7) within 1 min of execution → flag as `wrong_execution`
+- [x] **acc-1.7** — **Explicit thumbs up/down** — tiny 👍/👎 on each AI result (dashboard + provider + customer); 👎 opens optional "what went wrong" one-tap reasons (wrong action / wrong date / wrong person / wrong service / didn't understand)
 
 ### acc-1.3 — Accuracy dashboard (owner/admin analytics)
-- [ ] **acc-1.8** — Extend **ai-e6** analytics — real metrics from `ai_command_trace`: no-clarify completion rate, clarify rate, misclassification rate (from retry/undo/👎), per-intent accuracy, per-locale accuracy, per-surface accuracy
-- [ ] **acc-1.9** — **Confusion matrix** — which intent was classified vs corrected-to (from retry/undo signals); surfaces the top intent pairs that get confused
-- [ ] **acc-1.10** — **Worst-prompts feed** — ranked list of failing/low-confidence prompts (anonymized) for triage; export to eval pipeline (**acc-2**)
-- [ ] **acc-1.11** — **Accuracy SLO widget** — current rolling 7-day accuracy vs 99% target; trend line; alert when weekly accuracy drops > 2 points
+- [x] **acc-1.8** — Extend **ai-e6** analytics — real metrics from `ai_command_trace`: no-clarify completion rate, clarify rate, misclassification rate (from retry/undo/👎), per-intent accuracy, per-locale accuracy, per-surface accuracy
+- [x] **acc-1.9** — **Confusion matrix** — which intent was classified vs corrected-to (from retry/undo signals); surfaces the top intent pairs that get confused
+- [x] **acc-1.10** — **Worst-prompts feed** — ranked list of failing/low-confidence prompts (anonymized) for triage; export to eval pipeline (**acc-2**)
+- [x] **acc-1.11** — **Accuracy SLO widget** — current rolling 7-day accuracy vs 99% target; trend line; alert when weekly accuracy drops > 2 points
 
 ---
 
@@ -801,24 +801,24 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Grow the golden eval set from hundreds to **thousands** of real, labeled prompts across all surfaces and locales; make accuracy a hard CI gate so no change can regress it.
 
-- [ ] **acc-2** — Eval set expansion & regression gate
+- [x] **acc-2** — Eval set expansion & regression gate
 
 ### acc-2.1 — Mine real prompts into eval cases
-- [ ] **acc-2.1** — **Production prompt harvester** — weekly job pulls anonymized prompts from `ai_command_trace` (esp. `suspected_miss` / low-confidence / 👎) into a labeling queue
-- [ ] **acc-2.2** — **Labeling tool** — internal admin UI: review harvested prompt → confirm/correct expected `action` + key params + expected clarify; one click adds it to the golden eval fixtures (extends `ai-command-eval.cases.ts`)
-- [ ] **acc-2.3** — **Target: 2,000+ labeled cases** — balanced across booking / catalog / schedule / payments / gift cards / CRM / integrations; tagged by surface, locale, difficulty
+- [x] **acc-2.1** — **Production prompt harvester** — weekly job pulls anonymized prompts from `ai_command_trace` (esp. `suspected_miss` / low-confidence / 👎) into a labeling queue
+- [x] **acc-2.2** — **Labeling tool** — internal admin UI: review harvested prompt → confirm/correct expected `action` + key params + expected clarify; one click adds it to the golden eval fixtures (extends `ai-command-eval.cases.ts`)
+- [x] **acc-2.3** — **Target: 2,000+ labeled cases** — balanced across booking / catalog / schedule / payments / gift cards / CRM / integrations; tagged by surface, locale, difficulty
 
 ### acc-2.2 — Coverage parity & adversarial cases
-- [ ] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents (translate + transliterate variants, incl. Armenian/Russian mixed-script and Latin transliteration)
-- [ ] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts
-- [ ] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution
-- [ ] **acc-2.7** — **Adversarial corpus** — prompt-injection, scope-escalation, out-of-policy requests with expected `security_blocked` (extends existing preflight tests)
+- [x] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents (translate + transliterate variants, incl. Armenian/Russian mixed-script and Latin transliteration)
+- [x] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts
+- [x] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution
+- [x] **acc-2.7** — **Adversarial corpus** — prompt-injection, scope-escalation, out-of-policy requests with expected `security_blocked` (extends existing preflight tests)
 
 ### acc-2.3 — CI regression gate
-- [ ] **acc-2.8** — **`npm run test:ai-accuracy`** — runs full deterministic eval suite; reports accuracy %, per-intent breakdown, and diff vs last baseline
-- [ ] **acc-2.9** — **Accuracy floor gate** — CI fails if deterministic accuracy drops below committed floor (start at current %, ratchet up each sprint); blocks merge on regression
-- [ ] **acc-2.10** — **Nightly LLM eval** — cases marked `requiresLlm` run nightly against the real model (cost-bounded); track LLM-path accuracy separately from deterministic; alert on drift
-- [ ] **acc-2.11** — **Per-intent scorecards** — eval report shows each intent's precision/recall so weak intents are obvious before they ship
+- [x] **acc-2.8** — **`npm run test:ai-accuracy`** — runs full deterministic eval suite; reports accuracy %, per-intent breakdown, and diff vs last baseline
+- [x] **acc-2.9** — **Accuracy floor gate** — CI fails if deterministic accuracy drops below committed floor (start at current %, ratchet up each sprint); blocks merge on regression
+- [x] **acc-2.10** — **Nightly LLM eval** — cases marked `requiresLlm` run nightly against the real model (cost-bounded); track LLM-path accuracy separately from deterministic; alert on drift
+- [x] **acc-2.11** — **Per-intent scorecards** — eval report shows each intent's precision/recall so weak intents are obvious before they ship
 
 ---
 
@@ -826,34 +826,34 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Make the core classify step dramatically more accurate via few-shot retrieval, self-verification, and layered fallback — measured against the **acc-2** eval set every step.
 
-- [ ] **acc-3** — Classification accuracy engine
+- [x] **acc-3** — Classification accuracy engine
 
 ### acc-3.1 — Retrieval-augmented classification
-- [ ] **acc-3.1** — **Few-shot retriever** — embed the incoming prompt, retrieve top-K most-similar labeled eval cases (from **acc-2**) as in-context examples for `classify_intent`; per-business + global corpus
-- [ ] **acc-3.2** — **Per-business phrasing memory** — learn each business's recurring phrasings (build on entity memory ai-i2): "the usual", staff nicknames, service shorthand → bias classification
-- [ ] **acc-3.3** — **Dynamic intent shortlist** — pre-filter the ~270-intent registry to the most plausible 10–15 for the prompt before the LLM call (cheaper + more accurate than offering all intents)
+- [x] **acc-3.1** — **Few-shot retriever** — embed the incoming prompt, retrieve top-K most-similar labeled eval cases (from **acc-2**) as in-context examples for `classify_intent`; per-business + global corpus (`AiClassificationFewShotService` + acc-2 deterministic/harvested pools; lexical fallback when embeddings unavailable)
+- [x] **acc-3.2** — **Per-business phrasing memory** — learn each business's recurring phrasings (build on entity memory ai-i2): "the usual", staff nicknames, service shorthand → bias classification (`ai-classification-phrasing.util.ts`, deterministic learn in `AiEntityMemoryService`, classify appendix + shortlist + enrich bias)
+- [x] **acc-3.3** — **Dynamic intent shortlist** — pre-filter the ~270-intent registry to the most plausible 10–15 for the prompt before the LLM call (cheaper + more accurate than offering all intents)
 
 ### acc-3.2 — Self-verification & consensus
-- [ ] **acc-3.4** — **Self-check pass** — after classify, a cheap second LLM/rule pass verifies "does action + params actually satisfy this prompt?"; on mismatch → lower confidence → clarify
-- [ ] **acc-3.5** — **Disagreement → escalate model** — when deterministic router and LLM classify disagree on a mutating intent, run a stronger model (e.g. escalate to a higher-tier model) as tie-breaker before acting
-- [ ] **acc-3.6** — **Field-level confidence** — structured output returns confidence per param (action, date, provider, service); low-confidence *fields* (not whole command) drive targeted clarify (**acc-4**)
+- [x] **acc-3.4** — **Self-check pass** — after classify, a cheap second LLM/rule pass verifies "does action + params actually satisfy this prompt?"; on mismatch → lower confidence → clarify
+- [x] **acc-3.5** — **Disagreement → escalate model** — when deterministic router and LLM classify disagree on a mutating intent, run a stronger model (e.g. escalate to a higher-tier model) as tie-breaker before acting
+- [x] **acc-3.6** — **Field-level confidence** — structured output returns confidence per param (action, date, provider, service); low-confidence *fields* (not whole command) drive targeted clarify (**acc-4**)
 
 ### acc-3.3 — Robustness (typos, mixed language, long tail)
-- [ ] **acc-3.7** — **Normalization upgrade** — extend `AiPromptNormalizationService`: spell-correction, abbreviation expansion, number/date word normalization, mixed-script splitting before classify
-- [ ] **acc-3.8** — **Rescue rule expansion** — convert top recurring `suspected_miss` patterns from telemetry into deterministic rescues (no LLM cost), regression-tested in eval
-- [ ] **acc-3.9** — **Multi-intent precision** — improve compound detection so "do X and Y" reliably decomposes; reduce false-compound on single-intent prompts (measured on ambiguity corpus)
-- [ ] **acc-3.10** — **A/B prompt harness** — test system-prompt / few-shot variants against the eval set; promote the variant with best accuracy (ties into ai-e5 A/B infra)
+- [x] **acc-3.7** — **Normalization upgrade** — extend `AiPromptNormalizationService`: spell-correction, abbreviation expansion, number/date word normalization, mixed-script splitting before classify
+- [x] **acc-3.8** — **Rescue rule expansion** — convert top recurring `suspected_miss` patterns from telemetry into deterministic rescues (no LLM cost), regression-tested in eval
+- [x] **acc-3.9** — **Multi-intent precision** — improve compound detection so "do X and Y" reliably decomposes; reduce false-compound on single-intent prompts (measured on ambiguity corpus)
+- [x] **acc-3.10** — **A/B prompt harness** — test system-prompt / few-shot variants against the eval set; promote the variant with best accuracy (ties into ai-e5 A/B infra) *(harness in `ai-classification-ab-harness.util.ts`; gateway uses `resolveClassificationAppendixVariantId`; promotion via `applyClassificationAbPromotionToSettings`)*
 
 ### acc-3.4 — Semantic intent matching (replace brittle regex heuristics)
 
 **Problem:** Context/paraphrase failures — when a user phrases a request with different words that convey the same meaning (e.g. "whoever has a gap soonest" vs "first available"), the deterministic rescue layer (`ai-intent-heuristics.ts`, `ai-intent-rescue.service.ts`) misses it because every phrasing must be anticipated by a hardcoded regex. Today this is handled by literal keyword/pattern heuristics; the better approach is matching by *meaning* instead.
 
-- [ ] **acc-3.11** — **Embedding-based intent matcher** — new `AiSemanticIntentService`: embed the incoming prompt and cosine-match against a curated bank of canonical phrasings per intent (seeded from `ai-command-eval.cases.ts`); above a confidence threshold, resolve the intent without a regex match — runs as a rescue tier *before* falling back to `unknown` (reuse `AiRagService` index)
-- [ ] **acc-3.12** — **Canonical phrasing bank** — per-intent example utterances (EN/HY/RU) stored + embedded once (reuse `AiRagService` + `AiPromptNormalizationService`); eval pipeline can add new paraphrases without code changes
-- [ ] **acc-3.13** — **Per-business paraphrase learning** — feed confirmed corrections and recurring phrasings into the matcher via `AiEntityMemoryService` (build on **acc-3.2**) so a business's own shorthand resolves on the first try
-- [ ] **acc-3.14** — **Heuristic → semantic migration** — incrementally replace the most paraphrase-sensitive regex resolvers (`isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers in `ai-intent-heuristics.ts`) with semantic matches; keep regex only for structured extraction (dates, times, numbers), not for intent meaning
-- [ ] **acc-3.15** — **Confidence + clarify fallback** — low semantic-match confidence routes to smart clarification (**acc-4**) instead of a wrong guess; wrong-execution guardrail stays < 1%
-- [ ] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-command-eval.cases.ts`: each intent gets 5+ lexically-distinct equivalents (EN/HY/RU); CI asserts the semantic matcher resolves them (extends `npm run test:ai-accuracy` / **acc-2.8**)
+- [x] **acc-3.11** — **Embedding-based intent matcher** — `AiSemanticIntentService` embeds prompts and cosine-matches the canonical + eval paraphrase bank; lexical fallback when embeddings unavailable; wired into `enrichClassifiedIntent` via `AiClassificationEngineService` and exposed on `AiRagService.matchSemanticIntent`
+- [x] **acc-3.12** — **Canonical phrasing bank** — EN/HY/RU utterances in `ai-semantic-phrasing-bank.json`; eval rows auto-merge via `corpus: semantic_paraphrase` / `semanticParaphrase: true` / `sem-*` ids; embedded once through `AiSemanticPhrasingBankService` + `AiPromptNormalizationService`; exposed on `AiRagService.warmSemanticPhrasingIndex`
+- [x] **acc-3.13** — **Per-business paraphrase learning** — feed confirmed corrections and recurring phrasings into the matcher via `AiEntityMemoryService` (build on **acc-3.2**) so a business's own shorthand resolves on the first try
+- [x] **acc-3.14** — **Heuristic → semantic migration** — incrementally replace the most paraphrase-sensitive regex resolvers (`isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers in `ai-intent-heuristics.ts`) with semantic matches; keep regex only for structured extraction (dates, times, numbers), not for intent meaning
+- [x] **acc-3.15** — **Confidence + clarify fallback** — low semantic-match confidence routes to smart clarification (**acc-4**) instead of a wrong guess; wrong-execution guardrail stays < 1%
+- [x] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-command-eval.cases.ts`: each intent gets 5+ lexically-distinct equivalents (EN/HY/RU); CI asserts the semantic matcher resolves them (extends `npm run test:ai-accuracy` / **acc-2.8**)
 
 ---
 
@@ -861,21 +861,21 @@ cd frontend && npm run test:sprint54
 
 **Goal:** When uncertain, ask the **right** question instead of guessing wrong. A perfect clarify counts as an accurate outcome.
 
-- [ ] **acc-4** — Smart clarification & disambiguation
+- [x] **acc-4** — Smart clarification & disambiguation
 
 ### acc-4.1 — Targeted slot-filling
-- [ ] **acc-4.1** — **Ask only what's missing** — drive clarify from field-level confidence (**acc-3.6**) + completion validator; never re-ask known fields; render as form (extends ai-d4)
-- [ ] **acc-4.2** — **Top-2 intent disambiguation** — when two intents are close, show a 2-choice chip ("Did you mean *cancel booking* or *reschedule booking*?") instead of a generic "rephrase"
-- [ ] **acc-4.3** — **Entity disambiguation** — ambiguous person/service ("book with Anna" but 2 Annas; "massage" matches 3 services) → show specific options, not free-text re-ask
+- [x] **acc-4.1** — **Ask only what's missing** — drive clarify from field-level confidence (**acc-3.6**) + completion validator; never re-ask known fields; render as form (extends ai-d4)
+- [x] **acc-4.2** — **Top-2 intent disambiguation** — when two intents are close, show a 2-choice chip ("Did you mean *cancel booking* or *reschedule booking*?") instead of a generic "rephrase"
+- [x] **acc-4.3** — **Entity disambiguation** — ambiguous person/service ("book with Anna" but 2 Annas; "massage" matches 3 services) → show specific options, not free-text re-ask
 
 ### acc-4.2 — Context carry & memory
-- [ ] **acc-4.4** — **Answer reuse** — clarification answers persist for the session and feed entity memory (ai-i2) so the same question is never asked twice
-- [ ] **acc-4.5** — **Cross-turn slot merge** — merge clarify answers into the original intent without losing earlier params (extends session merge stage)
-- [ ] **acc-4.6** — **Proactive confirm on high-risk** — for bulk/destructive intents, always preview + confirm with a plain-language summary ("This cancels 12 bookings and notifies 12 customers — proceed?")
+- [x] **acc-4.4** — **Answer reuse** — clarification answers persist for the session and feed entity memory (ai-i2) so the same question is never asked twice
+- [x] **acc-4.5** — **Cross-turn slot merge** — merge clarify answers into the original intent without losing earlier params (extends session merge stage)
+- [x] **acc-4.6** — **Proactive confirm on high-risk** — for bulk/destructive intents, always preview + confirm with a plain-language summary ("This cancels 12 bookings and notifies 12 customers — proceed?")
 
 ### acc-4.3 — Honest failure
-- [ ] **acc-4.7** — **"I'm not sure" over wrong action** — when confidence stays low after one clarify, return an honest "I didn't fully understand — here's what I can do" with 2–3 suggested valid commands, rather than executing a guess
-- [ ] **acc-4.8** — **Clarify quality metric** — track clarify→success-on-next-turn rate (target >90%); bad clarifies (led to abandon) feed back into **acc-2** labeling
+- [x] **acc-4.7** — **"I'm not sure" over wrong action** — when confidence stays low after one clarify, return an honest "I didn't fully understand — here's what I can do" with 2–3 suggested valid commands, rather than executing a guess
+- [x] **acc-4.8** — **Clarify quality metric** — track clarify→success-on-next-turn rate (target >90%); bad clarifies (led to abandon) feed back into **acc-2** labeling
 
 ---
 
@@ -883,21 +883,21 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Correct intent ≠ correct result. Verify parameter resolution and execution, and auto-rollback when the result doesn't match the request.
 
-- [ ] **acc-5** — Execution verification & rollback
+- [x] **acc-5** — Execution verification & rollback
 
 ### acc-5.1 — Pre-execution correctness
-- [ ] **acc-5.1** — **Resolution accuracy guard** — verify fuzzy-resolved entities (name→employeeId, service text→serviceId, date phrase→ISO) cleared a confidence threshold; ambiguous resolution → clarify, never silently pick
-- [ ] **acc-5.2** — **Plan-vs-prompt check** — before executing a workflow plan, a verification pass confirms the plan's steps actually match the user's prompt (catches "right intent, wrong scope")
-- [ ] **acc-5.3** — **Preview diff for mutations** — show the calendar/catalog diff before commit on medium-risk ops (extends ai-d9 plan diff), not just high-risk
+- [x] **acc-5.1** — **Resolution accuracy guard** — verify fuzzy-resolved entities (name→employeeId, service text→serviceId, date phrase→ISO) cleared a confidence threshold; ambiguous resolution → clarify, never silently pick
+- [x] **acc-5.2** — **Plan-vs-prompt check** — before executing a workflow plan, a verification pass confirms the plan's steps actually match the user's prompt (catches "right intent, wrong scope")
+- [x] **acc-5.3** — **Preview diff for mutations** — show the calendar/catalog diff before commit on medium-risk ops (extends ai-d9 plan diff), not just high-risk
 
 ### acc-5.2 — Post-execution verification
-- [ ] **acc-5.4** — **Post-exec assertion** — after execution, assert the world matches intent (e.g. booking exists at requested time with requested provider); mismatch → auto-flag + offer rollback
-- [ ] **acc-5.5** — **Auto-rollback on assertion failure** — reuse undo/workflow execution log (ai-d7 / gap-3.7) to revert when post-exec assertion fails; surface clear error to user
-- [ ] **acc-5.6** — **Idempotency + conflict re-validation** — re-check schedule conflicts and duplicates at execute time (not just classify time); reject stale plans rather than double-book
+- [x] **acc-5.4** — **Post-exec assertion** — after execution, assert the world matches intent (e.g. booking exists at requested time with requested provider); mismatch → auto-flag + offer rollback
+- [x] **acc-5.5** — **Auto-rollback on assertion failure** — reuse undo/workflow execution log (ai-d7 / gap-3.7) to revert when post-exec assertion fails; surface clear error to user
+- [x] **acc-5.6** — **Idempotency + conflict re-validation** — re-check schedule conflicts and duplicates at execute time (not just classify time); reject stale plans rather than double-book
 
 ### acc-5.3 — Safety rails
-- [ ] **acc-5.7** — **Blast-radius cap** — hard limits on a single AI command (max N bookings cancelled, max N providers, max date range); over cap → force explicit confirm or split
-- [ ] **acc-5.8** — **Dry-run mode for new intents** — newly added intents ship in "propose-only" until they hit an accuracy bar on real traffic, then graduate to auto-execute (ties to ai-e5 thresholds)
+- [x] **acc-5.7** — **Blast-radius cap** — hard limits on a single AI command (max N bookings cancelled, max N providers, max date range); over cap → force explicit confirm or split
+- [x] **acc-5.8** — **Dry-run mode for new intents** — newly added intents ship in "propose-only" until they hit an accuracy bar on real traffic, then graduate to auto-execute (ties to ai-e5 thresholds)
 
 ---
 
@@ -905,21 +905,21 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Close the loop so the system keeps improving toward 99% automatically, and the last 1% escalates gracefully to a human instead of acting wrongly.
 
-- [ ] **acc-6** — Continuous learning loop & escalation
+- [x] **acc-6** — Continuous learning loop & escalation
 
 ### acc-6.1 — Learning loop
-- [ ] **acc-6.1** — **Weekly accuracy review job** — auto-compile: new failures, regressions, top confused intents, locales below target → posted to an internal review (email / dashboard)
-- [ ] **acc-6.2** — **Failure → eval → fix pipeline** — every triaged failure becomes (a) a new eval case (**acc-2**) and (b) either a rescue rule (**acc-3.8**), a few-shot example (**acc-3.1**), or a prompt fix — tracked to closure
-- [ ] **acc-6.3** — **Auto-alias suggestions** — recurring entity corrections become suggested aliases for admin one-click approval into entity memory (ai-i2)
-- [ ] **acc-6.4** — **Accuracy ratchet** — each release raises the CI accuracy floor (**acc-2.9**) toward 99%; dashboard tracks progress on the accuracy ladder
+- [x] **acc-6.1** — **Weekly accuracy review job** — auto-compile: new failures, regressions, top confused intents, locales below target → posted to an internal review (email / dashboard)
+- [x] **acc-6.2** — **Failure → eval → fix pipeline** — every triaged failure becomes (a) a new eval case (**acc-2**) and (b) either a rescue rule (**acc-3.8**), a few-shot example (**acc-3.1**), or a prompt fix — tracked to closure
+- [x] **acc-6.3** — **Auto-alias suggestions** — recurring entity corrections become suggested aliases for admin one-click approval into entity memory (ai-i2)
+- [x] **acc-6.4** — **Accuracy ratchet** — each release raises the CI accuracy floor (**acc-2.9**) toward 99%; dashboard tracks progress on the accuracy ladder
 
 ### acc-6.2 — Graceful escalation (the last 1%)
-- [ ] **acc-6.5** — **Human handoff on repeated failure** — after 2 failed clarifies on the same task, offer "Get help" → routes to staff/owner (dashboard) or support ticket (customer, reuses Zendesk gap-4.2); ties to human-in-the-loop SLA (ai-e7)
-- [ ] **acc-6.6** — **Suggested-action fallback** — when classification truly fails, show the closest valid commands as one-tap chips so the user still completes the task
-- [ ] **acc-6.7** — **Escalation analytics** — track escalation rate as the inverse of accuracy; target < 1% of prompts escalate; review escalations weekly for new eval cases
+- [x] **acc-6.5** — **Human handoff on repeated failure** — after 2 failed clarifies on the same task, offer "Get help" → routes to staff/owner (dashboard) or support ticket (customer, reuses Zendesk gap-4.2); ties to human-in-the-loop SLA (ai-e7)
+- [x] **acc-6.6** — **Suggested-action fallback** — when classification truly fails, show the closest valid commands as one-tap chips so the user still completes the task
+- [x] **acc-6.7** — **Escalation analytics** — track escalation rate as the inverse of accuracy; target < 1% of prompts escalate; review escalations weekly for new eval cases
 
 ### acc-6.3 — Program exit criteria
-- [ ] **acc-6.8** — **99% gate met** — rolling 30-day: no-clarify completion ≥ 90%, (completion + good-clarify) ≥ 99%, wrong-execution rate < 1%, all three locales within 3 points of each other; documented in accuracy dashboard
+- [x] **acc-6.8** — **99% gate met** — rolling 30-day: no-clarify completion ≥ 90%, (completion + good-clarify) ≥ 99%, wrong-execution rate < 1%, all three locales within 3 points of each other; documented in accuracy dashboard
 
 ### AI accuracy success metrics (Sprints 38–43)
 
@@ -964,18 +964,18 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Instrument both mobile apps and the public booking web so the full adoption funnel — install → first open → sign-in → first booking → repeat booking → referral — is measurable per tenant, platform, and locale. **Nothing else in this program works without this.**
 
-- [ ] **adopt-1** — Adoption telemetry & funnel measurement foundation
+- [x] **adopt-1** — Adoption telemetry & funnel measurement foundation
 
 ### adopt-1.1 — Client event SDK (both apps + web)
-- [ ] **adopt-1.1** — Lightweight `analytics` client in consumer + provider apps (extend the existing `product-recommendation-analytics.ts` pattern): typed `track(event, props)` → batched `POST /events/app`; events: `app_installed`, `app_opened`, `signed_in`, `viewed_salon`, `started_booking`, `completed_booking`, `rebooked`, `referral_sent`. Consent-gated (GDPR **compliance-1**) — no PII, businessId + anonymous deviceId only
-- [ ] **adopt-1.2** — Session + device context — platform (iOS/Android/web), app version, locale, tenant slug, cold vs warm start, first-open vs returning; attach to every event
-- [ ] **adopt-1.3** — Backend `app_event` sink — table + ingest endpoint (reuse event-store / `ai_command_trace` migration pattern); indexes on `(businessId, event, createdAt)`, `(platform)`, `(anonId)`; redact + rate-limit
+- [x] **adopt-1.1** — Lightweight `analytics` client in consumer + provider apps (extend the existing `product-recommendation-analytics.ts` pattern): typed `track(event, props)` → batched `POST /events/app`; events: `app_installed`, `app_opened`, `signed_in`, `viewed_salon`, `started_booking`, `completed_booking`, `rebooked`, `referral_sent`. Consent-gated (GDPR **compliance-1**) — no PII, businessId + anonymous deviceId only
+- [x] **adopt-1.2** — Session + device context — platform (iOS/Android/web), app version, locale, tenant slug, cold vs warm start, first-open vs returning; attach to every event
+- [x] **adopt-1.3** — Backend `app_event` sink — table + ingest endpoint (reuse event-store / `ai_command_trace` migration pattern); indexes on `(businessId, event, createdAt)`, `(platform)`, `(anonId)`; redact + rate-limit
 
 ### adopt-1.2 — Funnel & cohort metrics
-- [ ] **adopt-1.4** — Funnel builder — install→open→sign-in→first-booking→repeat conversion per step; drop-off attribution per platform/locale/tenant
-- [ ] **adopt-1.5** — Retention cohorts — D1/D7/D30 return rate; "booked again within 30/60/90 days"; resurrection (win-back) cohort
-- [ ] **adopt-1.6** — Activation definition — "activated user" = installed + signed in + ≥1 completed in-app booking within 7 days; track activation rate as the north-star sub-metric
-- [ ] **adopt-1.7** — Adoption dashboard — extend backend `analytics` module + a dashboard page (mirror the AI-ops accuracy dashboard): funnel, cohorts, push opt-in rate, crash-free %, referral K-factor; alert when weekly activation drops > 2 pts
+- [x] **adopt-1.4** — Funnel builder — install→open→sign-in→first-booking→repeat conversion per step; drop-off attribution per platform/locale/tenant
+- [x] **adopt-1.5** — Retention cohorts — D1/D7/D30 return rate; "booked again within 30/60/90 days"; resurrection (win-back) cohort
+- [x] **adopt-1.6** — Activation definition — "activated user" = installed + signed in + ≥1 completed in-app booking within 7 days; track activation rate as the north-star sub-metric
+- [x] **adopt-1.7** — Adoption dashboard — extend backend `analytics` module + a dashboard page (mirror the AI-ops accuracy dashboard): funnel, cohorts, push opt-in rate, crash-free %, referral K-factor; alert when weekly activation drops > 2 pts
 
 ---
 
@@ -983,21 +983,21 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Turn intent into installs that attribute correctly, and make the web→app handoff seamless so customers land in the right salon on the first try.
 
-- [ ] **adopt-2** — Acquisition & install funnel
+- [x] **adopt-2** — Acquisition & install funnel
 
 ### adopt-2.1 — Store presence (ASO)
-- [ ] **adopt-2.1** — App Store / Play Store optimization — localized titles, keywords, screenshots, preview video per locale (EN/HY/RU); build on listings (**gap-1.5**, **gap-2.5.10**)
-- [ ] **adopt-2.2** — Ratings & reviews flow — in-app prompt at peak-happiness (after a completed booking); route happy → store review, unhappy → support (Zendesk **gap-4.2**); never prompt mid-task
+- [x] **adopt-2.1** — App Store / Play Store optimization — localized titles, keywords, screenshots, preview video per locale (EN/HY/RU); build on listings (**gap-1.5**, **gap-2.5.10**)
+- [x] **adopt-2.2** — Ratings & reviews flow — in-app prompt at peak-happiness (after a completed booking); route happy → store review, unhappy → support (Zendesk **gap-4.2**); never prompt mid-task
 
 ### adopt-2.2 — Web → app handoff & attribution
-- [ ] **adopt-2.3** — Smart app banner on public booking web — "Open in app" / "Get the app" carrying a deferred deep link to the same salon + service
-- [ ] **adopt-2.4** — Deferred deep links + install attribution — capture intended salon/service before install, restore on first open (extend consumer `deep-link.ts`); attribute install source (QR / link / referral / ad)
-- [ ] **adopt-2.5** — QR at venue / on receipts & confirmations — per-tenant QR → install or open app pre-scoped to that salon
-- [ ] **adopt-2.6** — Universal Links + Android App Links verification — https links open the app directly (no chooser), graceful web fallback
+- [x] **adopt-2.3** — Smart app banner on public booking web — "Open in app" / "Get the app" carrying a deferred deep link to the same salon + service
+- [x] **adopt-2.4** — Deferred deep links + install attribution — capture intended salon/service before install, restore on first open (extend consumer `deep-link.ts`); attribute install source (QR / link / referral / ad)
+- [x] **adopt-2.5** — QR at venue / on receipts & confirmations — per-tenant QR → install or open app pre-scoped to that salon
+- [x] **adopt-2.6** — Universal Links + Android App Links verification — https links open the app directly (no chooser), graceful web fallback
 
 ### adopt-2.3 — Multi-tenant discovery
-- [ ] **adopt-2.7** — Recent / saved salons home (extend `recent-salons.ts`) — one-tap return to previously-booked salons
-- [ ] **adopt-2.8** — Low-friction tenant switch — remembered tenants list, switch without re-login (build on `customer-auth.ts` + `tenant-locale.ts`)
+- [x] **adopt-2.7** — Recent / saved salons home (extend `recent-salons.ts`) — one-tap return to previously-booked salons
+- [x] **adopt-2.8** — Low-friction tenant switch — remembered tenants list, switch without re-login (build on `customer-auth.ts` + `tenant-locale.ts`)
 
 ---
 
@@ -1005,19 +1005,19 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Get a new install to its first completed booking in the fewest taps; remove sign-in friction; earn the push opt-in.
 
-- [ ] **adopt-3** — Activation & onboarding
+- [x] **adopt-3** — Activation & onboarding
 
 ### adopt-3.1 — Frictionless sign-in
-- [ ] **adopt-3.1** — One-tap social / passwordless — Apple + Google sign-in parity on both apps (build on Firebase auth + `google-auth.ts`); phone-OTP fallback; **guest → account merge** so a guest booking is never lost on sign-up
-- [ ] **adopt-3.2** — Prefill & autofill — name/email/phone autofill, SMS-OTP autofill, saved payment where available; minimize keyboard entry
+- [x] **adopt-3.1** — One-tap social / passwordless — Apple + Google sign-in parity on consumer + provider apps (`apple-auth.ts`, `/auth/apple`); phone-OTP fallback on consumer native (`phone-auth.ts`, `/auth/phone`); **guest → account merge** on all sign-in paths (`linkGuestBookingsToCustomer`)
+- [x] **adopt-3.2** — Prefill & autofill — remembered checkout contact per salon, HTML autocomplete on consumer + web checkout, SMS-OTP autofill on login, Stripe saved-payment checkout flow with cash-at-visit option
 
 ### adopt-3.2 — First-run value
-- [ ] **adopt-3.3** — First-run value screen — skip generic carousels; land on the intended salon (from deep link) or recent salons; show "book in 3 taps"
-- [ ] **adopt-3.4** — Time-to-first-booking guided flow — Welcome→Salon→Service→Slot→Confirm with nearest-available pre-selected and a progress indicator
-- [ ] **adopt-3.5** — Push opt-in priming — soft pre-prompt explaining value (reminders, "your slot is confirmed") before the OS dialog; ask only after the first booking; track opt-in rate (target ≥ 80%)
+- [x] **adopt-3.3** — First-run value screen — skip generic carousels; land on the intended salon (from deep link) or recent salons; show "book in 3 taps"
+- [x] **adopt-3.4** — Time-to-first-booking guided flow — Welcome→Salon→Service→Slot→Confirm with nearest-available pre-selected and a progress indicator
+- [x] **adopt-3.5** — Push opt-in priming — soft pre-prompt explaining value (reminders, "your slot is confirmed") before the OS dialog; ask only after the first booking; track opt-in rate (target ≥ 80%)
 
 ### adopt-3.3 — Activation instrumentation
-- [ ] **adopt-3.6** — Wire activation events into the funnel (**adopt-1**); A/B onboarding variants; abandonment recovery — resume an unfinished booking on next open
+- [x] **adopt-3.6** — Wire activation events into the funnel (**adopt-1**); A/B onboarding variants; abandonment recovery — resume an unfinished booking on next open
 
 ---
 
@@ -1030,17 +1030,17 @@ cd frontend && npm run test:sprint54
 ### adopt-4.1 — Consumer push (new — consumer app lacks push today)
 - [x] **adopt-4.1** — Add `@capacitor/push-notifications` to the consumer app + FCM/APNs registration; per-customer+tenant token API (`consumer_native_push_tokens`, `/public/:slug/me/push/register-native`)
 - [x] **adopt-4.1.clinic** — Clinic transactional push delivery — wire `ConsumerPushDispatchService` for `lab_booking_request` + `result_ready` once **adopt-4.1** tokens land (**vert-clinic-2.gap-1**, **vert-clinic-2.2.13**, **vert-clinic-2.4.7**; backend payload/deep links already built)
-- [ ] **adopt-4.2** — Transactional push — booking confirmed, reminder (24h / 2h), rescheduled/cancelled, result-ready (clinic), gift-card received; deep-link into the right screen (extend `deep-link.ts`)
-- [ ] **adopt-4.3** — Push deep-link + foreground handling parity with the provider app (`provider-push-deep-link.util.ts`, `provider-push-foreground.util.ts`)
+- [x] **adopt-4.2** — Transactional push — booking confirmed, reminder (24h / 2h), rescheduled/cancelled, result-ready (clinic), gift-card received; deep-link into the right screen (extend `deep-link.ts`)
+- [x] **adopt-4.3** — Push deep-link + foreground handling parity with the provider app (`provider-push-deep-link.util.ts`, `provider-push-foreground.util.ts`)
 
 ### adopt-4.2 — Lifecycle campaigns
-- [ ] **adopt-4.4** — Rebooking nudges — "time for your next appointment" based on service cadence; build on the marketing-automation module
-- [ ] **adopt-4.5** — Win-back — lapsed-customer campaign (no booking in N days) with optional incentive (loyalty / promo)
-- [ ] **adopt-4.6** — Loyalty + offers surfacing — show points/rewards and active promos in-app (loyalty + promo-codes modules) to create a reason to return
+- [x] **adopt-4.4** — Rebooking nudges — "time for your next appointment" based on service cadence; build on the marketing-automation module
+- [x] **adopt-4.5** — Win-back — lapsed-customer campaign (no booking in N days) with optional incentive (loyalty / promo)
+- [x] **adopt-4.6** — Loyalty + offers surfacing — show points/rewards and active promos in-app (loyalty + promo-codes modules) to create a reason to return
 
 ### adopt-4.3 — Home-screen presence
-- [ ] **adopt-4.7** — Home-screen widgets — next appointment + quick rebook (iOS WidgetKit / Android App Widget)
-- [ ] **adopt-4.8** — Notification preference center — per-category opt-in/out (reminders / offers / news) so users keep useful push instead of disabling all
+- [x] **adopt-4.7** — Home-screen widgets — next appointment + quick rebook (iOS WidgetKit / Android App Widget)
+- [x] **adopt-4.8** — Notification preference center — per-category opt-in/out (reminders / offers / news) so users keep useful push instead of disabling all
 
 ---
 
@@ -1048,20 +1048,20 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Make both apps fast, crash-free, and trustworthy so they are kept and used — technically-bounded rates **≥ 99%**.
 
-- [ ] **adopt-5** — Performance, reliability & trust
+- [x] **adopt-5** — Performance, reliability & trust
 
 ### adopt-5.1 — Stability
-- [ ] **adopt-5.1** — Crash + error reporting (e.g. Sentry) in both apps; release-health tracking; target crash-free sessions **≥ 99.5%**
-- [ ] **adopt-5.2** — Cold-start & TTI budget — splash→interactive under target; lazy-load + route-level code-split; measure on low-end Android
+- [x] **adopt-5.1** — Crash + error reporting (e.g. Sentry) in both apps; release-health tracking; target crash-free sessions **≥ 99.5%**
+- [x] **adopt-5.2** — Cold-start & TTI budget — splash→interactive under target; lazy-load + route-level code-split; measure on low-end Android
 
 ### adopt-5.2 — Resilience
-- [ ] **adopt-5.3** — Consumer offline resilience — cache recent salons/services, queue + retry booking mutations (mirror provider `offline-queue.ts` / `use-online-status.ts`); clear offline UX
-- [ ] **adopt-5.4** — Network-aware UX — optimistic UI, retry, friendly errors; no dead-ends on flaky networks
+- [x] **adopt-5.3** — Consumer offline resilience — cache recent salons/services, queue + retry booking mutations (mirror provider `offline-queue.ts` / `use-online-status.ts`); clear offline UX
+- [x] **adopt-5.4** — Network-aware UX — optimistic UI, retry, friendly errors; no dead-ends on flaky networks
 
 ### adopt-5.3 — Trust & freshness
-- [ ] **adopt-5.5** — Update nudges — min-supported-version gate with a friendly prompt; remote kill-switch for broken builds
-- [ ] **adopt-5.6** — Accessibility & localization QA — VoiceOver/TalkBack, dynamic type, RTL-safe, full EN/HY/RU coverage on every adoption surface
-- [ ] **adopt-5.7** — Performance/stability CI gates — bundle-size budget, crash-free SLO check, startup-time regression alarm
+- [x] **adopt-5.5** — Update nudges — min-supported-version gate with a friendly prompt; remote kill-switch for broken builds
+- [x] **adopt-5.6** — Accessibility & localization QA — VoiceOver/TalkBack, dynamic type, RTL-safe, full EN/HY/RU coverage on every adoption surface
+- [x] **adopt-5.7** — Performance/stability CI gates — bundle-size budget, crash-free SLO check, startup-time regression alarm
 
 ---
 
@@ -1069,23 +1069,23 @@ cd frontend && npm run test:sprint54
 
 **Goal:** Make adoption compound through referrals and habit, add AI command coverage for the new surfaces, and lock the program's exit gate.
 
-- [ ] **adopt-6** — Growth loops, habit & exit criteria
+- [x] **adopt-6** — Growth loops, habit & exit criteria
 
 ### adopt-6.1 — Referral & sharing
-- [ ] **adopt-6.1** — Referral program — shareable invite link/code (deferred deep link from **adopt-2.4**); reward both sides (loyalty / promo); track K-factor
-- [ ] **adopt-6.2** — Share a booking / salon — native share sheet with a deep link to the salon/service
-- [ ] **adopt-6.3** — Review solicitation loop — post-visit review prompt feeding tenant reputation; route to store review at peak-happiness (ties **adopt-2.2**)
+- [x] **adopt-6.1** — Referral program — shareable invite link/code (deferred deep link from **adopt-2.4**); reward both sides (loyalty / promo); track K-factor
+- [x] **adopt-6.2** — Share a booking / salon — native share sheet with a deep link to the salon/service
+- [x] **adopt-6.3** — Review solicitation loop — post-visit review prompt feeding tenant reputation; route to store review at peak-happiness (ties **adopt-2.2**)
 
 ### adopt-6.2 — Habit
-- [ ] **adopt-6.4** — One-tap rebook of last service/provider/time from Account + widget
-- [ ] **adopt-6.5** — Smart reminder cadence — learn each customer's rebooking interval; nudge at the right time (respect preference center **adopt-4.8**)
+- [x] **adopt-6.4** — One-tap rebook of last service/provider/time from Account + widget
+- [x] **adopt-6.5** — Smart reminder cadence — learn each customer's rebooking interval; nudge at the right time (respect preference center **adopt-4.8**)
 
 ### adopt-6.3 — AI command coverage (per `feature-ai-prompt-coverage`)
-- [ ] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface
-- [ ] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; depends on **ai-cmd-h1**
+- [x] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface
+- [x] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; depends on **ai-cmd-h1**
 
 ### adopt-6.4 — Program exit criteria
-- [ ] **adopt-6.8** — **Adoption gate met** — rolling 30-day: install→activation ≥ 60%, push opt-in ≥ 80%, crash-free sessions ≥ 99.5%, D30 retention and referral K-factor trending up, all three locales within 3 pts; documented on the adoption dashboard
+- [x] **adopt-6.8** — **Adoption gate met** — rolling 30-day: install→activation ≥ 60%, push opt-in ≥ 80%, crash-free sessions ≥ 99.5%, D30 retention and referral K-factor trending up, all three locales within 3 pts; documented on the adoption dashboard
 
 ### Apps adoption success metrics (Sprints 44–49)
 
@@ -1126,19 +1126,19 @@ cd frontend && npm run test:sprint54
 - [ ] **n99-1** — Clarify → success on next turn → near 99%
 
 ### n99-1.1 — Make the answer un-missable (tap, don't type)
-- [ ] **n99-1.1** — Structured clarify controls — render every clarify as the right input, not free text: date picker, provider chips, service chips, time-slot list (extend clarify-as-form `ai-command-wizard.tsx`, ai-d4); a tap resolves deterministically
-- [ ] **n99-1.2** — Pre-resolved option sets — for entity ambiguity (2 Annas, 3 "massage" services) show the concrete catalog candidates, never a "type the name again" re-ask (**acc-4.3**)
-- [ ] **n99-1.3** — Single-form multi-field clarify — collect *all* missing fields in one turn (driven by field-level confidence **acc-3.6** + `command-completion.validator.ts`); never serialize into 3 separate questions
+- [x] **n99-1.1** — Structured clarify controls — render every clarify as the right input, not free text: date picker, provider chips, service chips, time-slot list (extend clarify-as-form `ai-command-wizard.tsx`, ai-d4); a tap resolves deterministically
+- [x] **n99-1.2** — Pre-resolved option sets — for entity ambiguity (2 Annas, 3 "massage" services) show the concrete catalog candidates, never a "type the name again" re-ask (**acc-4.3**)
+- [x] **n99-1.3** — Single-form multi-field clarify — collect *all* missing fields in one turn (driven by field-level confidence **acc-3.6** + `command-completion.validator.ts`); never serialize into 3 separate questions
 
 ### n99-1.2 — Never lose context across the turn
-- [ ] **n99-1.4** — Lossless slot merge — merge the answer into the original intent keeping every earlier param (**acc-4.5**); the merged command is complete and executes immediately
-- [ ] **n99-1.5** — Inline answer validation — reject an answer that still doesn't resolve (e.g. ambiguous date) *before* re-running, with a corrective hint, so a turn is never wasted
-- [ ] **n99-1.6** — Localized + voice/typo-tolerant answers — parse EN/HY/RU and voice-to-text answers ("tomrw", "2pm", "Աննա" all resolve); extend normalization **acc-3.7**
+- [x] **n99-1.4** — Lossless slot merge — merge the answer into the original intent keeping every earlier param (**acc-4.5**); the merged command is complete and executes immediately
+- [x] **n99-1.5** — Inline answer validation — reject an answer that still doesn't resolve (e.g. ambiguous date) *before* re-running, with a corrective hint, so a turn is never wasted
+- [x] **n99-1.6** — Localized + voice/typo-tolerant answers — parse EN/HY/RU and voice-to-text answers ("tomrw", "2pm", "Աննա" all resolve); extend normalization **acc-3.7**
 
 ### n99-1.3 — Close the loop on the failures
-- [ ] **n99-1.7** — Per-intent / per-locale clarify→success metric (from `ai_command_trace`, **acc-1**) with a worst-clarifies feed; any clarify that led to abandon/second-clarify is auto-queued to eval labeling (**acc-2**)
-- [ ] **n99-1.8** — "Something else" escape that still routes — an explicit none-of-these option offers the 2–3 closest valid commands as chips (**acc-6.6**) instead of dead-ending
-- [ ] **n99-1.9** — Eval gate — `clarify_followup` cases in `ai-command-eval.cases.ts` assert second-turn success; CI floor ratchets toward 99% (EN/HY/RU)
+- [x] **n99-1.7** — Per-intent / per-locale clarify→success metric (from `ai_command_trace`, **acc-1**) with a worst-clarifies feed; any clarify that led to abandon/second-clarify is auto-queued to eval labeling (**acc-2**)
+- [x] **n99-1.8** — "Something else" escape that still routes — an explicit none-of-these option offers the 2–3 closest valid commands as chips (**acc-6.6**) instead of dead-ending
+- [x] **n99-1.9** — Eval gate — `clarify_followup` cases in `ai-command-eval.cases.ts` assert second-turn success; CI floor ratchets toward 99% (EN/HY/RU)
 
 ---
 
@@ -1146,22 +1146,22 @@ cd frontend && npm run test:sprint54
 
 **Lever thesis:** the best clarify is the one you didn't need — resolve correctly *without asking* by inferring high-confidence defaults, while **never** raising wrong-execution.
 
-- [ ] **n99-2** — No-clarify completion → near 99%
+- [x] **n99-2** — No-clarify completion → near 99%
 
 ### n99-2.1 — Infer instead of ask (confidence-gated)
-- [ ] **n99-2.1** — High-confidence auto-fill — when a missing param is strongly inferable (last provider, "the usual" service, business default duration, current-screen context), fill it and proceed instead of clarifying; gated by field confidence (**acc-3.6**) and risk tier
-- [ ] **n99-2.2** — Screen/context grounding — pass the current app context (the booking/customer/service on screen) into the command so "book this", "cancel it", "remind her" resolve without asking
-- [ ] **n99-2.3** — Per-business phrasing memory — aliases, nicknames, shorthand learned over time (**acc-3.2**, `ai-entity-memory.service.ts`) so recurring phrasings resolve first try
-- [ ] **n99-2.4** — Few-shot retrieval on by default — top-K similar labeled cases injected into classify (**acc-3.1**, extend `ai-rag.service.ts`) for rare phrasings
+- [x] **n99-2.1** — High-confidence auto-fill — when a missing param is strongly inferable (last provider, "the usual" service, business default duration, current-screen context), fill it and proceed instead of clarifying; gated by field confidence (**acc-3.6**) and risk tier
+- [x] **n99-2.2** — Screen/context grounding — pass the current app context (the booking/customer/service on screen) into the command so "book this", "cancel it", "remind her" resolve without asking
+- [x] **n99-2.3** — Per-business phrasing memory — aliases, nicknames, shorthand learned over time (**acc-3.2**, `ai-entity-memory.service.ts`) so recurring phrasings resolve first try
+- [x] **n99-2.4** — Few-shot retrieval on by default — top-K similar labeled cases injected into classify (**acc-3.1**, extend `ai-rag.service.ts`) for rare phrasings
 
 ### n99-2.2 — Resolve the long tail
-- [ ] **n99-2.5** — Deterministic rescue expansion — mine recurring `suspected_miss` patterns (**acc-1.4**) into no-LLM rescues (**acc-3.8**, `ai-intent-rescue.service.ts`); each one regression-tested
-- [ ] **n99-2.6** — Don't over-ask — audit `command-completion.validator.ts`: required-field lists that force needless clarifies are trimmed where a safe default exists
+- [x] **n99-2.5** — Deterministic rescue expansion — mine recurring `suspected_miss` patterns (**acc-1.4**) into no-LLM rescues (**acc-3.8**, `ai-intent-rescue.service.ts`); each one regression-tested
+- [x] **n99-2.6** — Don't over-ask — audit `command-completion.validator.ts`: required-field lists that force needless clarifies are trimmed where a safe default exists
 
 ### n99-2.3 — Keep it honest (the guardrail)
-- [ ] **n99-2.7** — Wrong-execution watchdog — auto-filled/auto-executed commands carry preview + one-tap undo (**acc-5**) and post-exec assertion (**acc-5.4**); if undo/👎 rate on auto-fill rises, the confidence gate auto-tightens
-- [ ] **n99-2.8** — Ambiguous/destructive still clarifies — pushing no-clarify up must never auto-guess a destructive or low-confidence action (those count toward **n99-1**, not as failures)
-- [ ] **n99-2.9** — Eval gate — completion-without-clarify measured on the **acc-2** set; CI floor ratchets toward 99% **while** wrong-execution stays < 1% (both gates must hold)
+- [x] **n99-2.7** — Wrong-execution watchdog — auto-filled/auto-executed commands carry preview + one-tap undo (**acc-5**) and post-exec assertion (**acc-5.4**); if undo/👎 rate on auto-fill rises, the confidence gate auto-tightens
+- [x] **n99-2.8** — Ambiguous/destructive still clarifies — pushing no-clarify up must never auto-guess a destructive or low-confidence action (those count toward **n99-1**, not as failures)
+- [x] **n99-2.9** — Eval gate — completion-without-clarify measured on the **acc-2** set; CI floor ratchets toward 99% **while** wrong-execution stays < 1% (both gates must hold)
 
 ---
 
@@ -1171,21 +1171,21 @@ cd frontend && npm run test:sprint54
 
 **Reality / denominator:** 99% is meaningful on **intent-qualified installs** (deferred deep link carrying a target salon/service, **adopt-2.4**). Cold / ad / curiosity installs get a separate, lower bar — don't average them into this number.
 
-- [ ] **n99-3** — Install → activation (intent-qualified, ≤ 7d) → near 99%
+- [x] **n99-3** — Install → activation (intent-qualified, ≤ 7d) → near 99%
 
 ### n99-3.1 — Restore intent, kill steps
-- [ ] **n99-3.1** — Deferred deep-link resume — after install, land directly on the intended salon→service→slot→**confirm** (extend `deep-link.ts` + **adopt-2.4**); no re-navigation, no re-search
-- [ ] **n99-3.2** — One-tap sign-in + guest→account merge — Apple/Google one-tap (**adopt-3.1**); a guest can complete the booking and the account merges after, so sign-in is never a wall before activation
-- [ ] **n99-3.3** — Pre-filled, payment-optional booking — slot pre-selected; pay-at-venue / pay-later fallback so a payment hiccup never blocks the first booking (activation ≠ payment)
+- [x] **n99-3.1** — Deferred deep-link resume — after install, land directly on the intended salon→service→slot→**confirm** (extend `deep-link.ts` + **adopt-2.4**); no re-navigation, no re-search
+- [x] **n99-3.2** — One-tap sign-in + guest→account merge — Apple/Google one-tap (**adopt-3.1**); a guest can complete the booking and the account merges after, so sign-in is never a wall before activation
+- [x] **n99-3.3** — Pre-filled, payment-optional booking — slot pre-selected; pay-at-venue / pay-later fallback so a payment hiccup never blocks the first booking (activation ≠ payment)
 
 ### n99-3.2 — Recover the stragglers
-- [ ] **n99-3.4** — Abandonment resume — reopen an unfinished booking exactly where it was left on next app open (**adopt-3.6**)
-- [ ] **n99-3.5** — Activation concierge nudges — if not activated within 24h / 72h, a single well-timed push/email with a one-tap resume link (consumer push **adopt-4.1** + marketing-automation module)
-- [ ] **n99-3.6** — Dead-end audit — instrument every step of the qualified-install funnel (**adopt-1.4**); any step with > 1% drop gets a fix ticket
+- [x] **n99-3.4** — Abandonment resume — reopen an unfinished booking exactly where it was left on next app open (**adopt-3.6**)
+- [x] **n99-3.5** — Activation concierge nudges — if not activated within 24h / 72h, a single well-timed push/email with a one-tap resume link (consumer push **adopt-4.1** + marketing-automation module)
+- [x] **n99-3.6** — Dead-end audit — instrument every step of the qualified-install funnel (**adopt-1.4**); any step with > 1% drop gets a fix ticket
 
 ### n99-3.3 — Measure it right
-- [ ] **n99-3.7** — Qualified-install cohort metric — activation tracked separately for intent-qualified vs cold installs; per-locale parity (< 3 pts EN/HY/RU)
-- [ ] **n99-3.8** — A/B the activation path relentlessly — sign-in placement, slot pre-selection, payment timing; promote the variant with the highest qualified activation
+- [x] **n99-3.7** — Qualified-install cohort metric — activation tracked separately for intent-qualified vs cold installs; per-locale parity (< 3 pts EN/HY/RU)
+- [x] **n99-3.8** — A/B the activation path relentlessly — sign-in placement, slot pre-selection, payment timing; promote the variant with the highest qualified activation
 
 ---
 
@@ -1195,21 +1195,21 @@ cd frontend && npm run test:sprint54
 
 **Reality / denominator:** track **two** numbers — **reachability** (iOS provisional + authorized + Android default-on), targeting **near 99%**; and **explicit full opt-in**, targeting ≥ 80% (**adopt-3.5**). The headline near-99% is reachability; never dark-pattern the explicit prompt.
 
-- [ ] **n99-4** — Push opt-in / reachability → near 99%
+- [x] **n99-4** — Push opt-in / reachability → near 99%
 
 ### n99-4.1 — Reach without the wall
-- [ ] **n99-4.1** — iOS provisional authorization — request `provisional` so transactional notifications (confirmations, reminders) deliver quietly to Notification Center with **no upfront prompt**; near-100% reachable from first open
-- [ ] **n99-4.2** — Android 13+ POST_NOTIFICATIONS timing — request the runtime permission right after the first booking success (not on launch); pre-13 default-on; consumer push plumbing from **adopt-4.1**
-- [ ] **n99-4.3** — Channel-level notifications — separate transactional (reminders) vs marketing channels so users keep the useful ones (preference center **adopt-4.8**); reachability counts transactional
+- [x] **n99-4.1** — iOS provisional authorization — request `provisional` so transactional notifications (confirmations, reminders) deliver quietly to Notification Center with **no upfront prompt**; near-100% reachable from first open
+- [x] **n99-4.2** — Android 13+ POST_NOTIFICATIONS timing — request the runtime permission right after the first booking success (not on launch); pre-13 default-on; consumer push plumbing from **adopt-4.1**
+- [x] **n99-4.3** — Channel-level notifications — separate transactional (reminders) vs marketing channels so users keep the useful ones (preference center **adopt-4.8**); reachability counts transactional
 
 ### n99-4.2 — Earn the full opt-in
-- [ ] **n99-4.4** — Value-first priming at peak-happiness — soft pre-prompt only after a completed booking, framed around "we'll remind you / confirm your slot"; only users who accept see the OS dialog (**adopt-3.5**)
-- [ ] **n99-4.5** — Upgrade provisional → full — after a user engages with a provisional notification, prompt to "keep these on" to convert to full authorization
-- [ ] **n99-4.6** — Re-ask flow for the denied — at a later high-value moment, deep-link to system settings with a one-line reason; never nag (max 1 re-ask)
+- [x] **n99-4.4** — Value-first priming at peak-happiness — soft pre-prompt only after a completed booking, framed around "we'll remind you / confirm your slot"; only users who accept see the OS dialog (**adopt-3.5**)
+- [x] **n99-4.5** — Upgrade provisional → full — after a user engages with a provisional notification, prompt to "keep these on" to convert to full authorization
+- [x] **n99-4.6** — Re-ask flow for the denied — at a later high-value moment, deep-link to system settings with a one-line reason; never nag (max 1 re-ask)
 
 ### n99-4.3 — Measure both numbers
-- [ ] **n99-4.7** — Reachability vs explicit opt-in dashboards (**adopt-1.7**) — track delivered/reachable rate and explicit-grant rate separately, per platform/locale; alert on drops
-- [ ] **n99-4.8** — Deliverability hardening — token refresh, APNs/FCM error handling, silent-failure detection so "reachable" actually delivers (≥ 99% of sends land)
+- [x] **n99-4.7** — Reachability vs explicit opt-in dashboards (**adopt-1.7**) — track delivered/reachable rate and explicit-grant rate separately, per platform/locale; alert on drops
+- [x] **n99-4.8** — Deliverability hardening — token refresh, APNs/FCM error handling, silent-failure detection so "reachable" actually delivers (≥ 99% of sends land)
 
 ### Near-99% success metrics (Sprints 50–53)
 
@@ -1255,17 +1255,17 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 
 **Goal:** Know exactly what every role can do in the UI, and which of those actions already have an AI intent — the gap list drives everything after. **Nothing else in this program works without this.**
 
-- [ ] **parity-1** — Per-role feature → intent coverage matrix
+- [x] **parity-1** — Per-role feature → intent coverage matrix
 
 ### parity-1.1 — Inventory every feature per surface/role
-- [ ] **parity-1.1** — **Feature catalog** — enumerate every user-visible action across dashboard, provider app, consumer/customer app, and public booking (buttons, menu items, forms, settings toggles, bulk actions); tag each with `surface`, minimum `role/tier`, `module`, and read-vs-mutate; store as `ai-feature-catalog.ts` fixture (single source of truth for the gate)
-- [ ] **parity-1.2** — **Role capability map** — for each role (owner / admin / manager / staff / contributor / client) list the catalog actions it can reach in the UI; reconcile against `access-control.matrix.ts` deny-lists + `STAFF_SCOPED_INTENTS` so UI-permission and AI-permission agree by construction
-- [ ] **parity-1.3** — **Semi-automated extraction** — derive candidate actions from route guards, nav config, and permission checks (dashboard + both apps) so no screen is missed; reviewer confirms each into the catalog
+- [x] **parity-1.1** — **Feature catalog** — enumerate every user-visible action across dashboard, provider app, consumer/customer app, and public booking (buttons, menu items, forms, settings toggles, bulk actions); tag each with `surface`, minimum `role/tier`, `module`, and read-vs-mutate; store as `ai-feature-catalog.ts` fixture (single source of truth for the gate)
+- [x] **parity-1.2** — **Role capability map** — for each role (owner / admin / manager / staff / contributor / client) list the catalog actions it can reach in the UI; reconcile against `access-control.matrix.ts` deny-lists + `STAFF_SCOPED_INTENTS` so UI-permission and AI-permission agree by construction
+- [x] **parity-1.3** — **Semi-automated extraction** — derive candidate actions from route guards, nav config, and permission checks (dashboard + both apps) so no screen is missed; reviewer confirms each into the catalog
 
 ### parity-1.2 — Map features to intents & find gaps
-- [ ] **parity-1.4** — **Feature → intent map** — link each catalog action to its registry intent(s) (`ai-command-registry.build.ts`); actions with no intent are **gaps**, actions with an intent the role can't trigger are **scope bugs**
-- [ ] **parity-1.5** — **Coverage report** — `npm run report:ai-parity` outputs per role/surface: covered %, uncovered actions ranked by usage (from `ai_command_trace` / app analytics when available), and the gap backlog feeding Sprint 56
-- [ ] **parity-1.6** — **Allow/deny parity check** — flag every divergence: an intent the AI exposes but the role can't do in the UI (over-grant) and a UI action the role can do but AI blocks (under-grant); both are defects, target zero
+- [x] **parity-1.4** — **Feature → intent map** — link each catalog action to its registry intent(s) (`ai-command-registry.build.ts`); actions with no intent are **gaps**, actions with an intent the role can't trigger are **scope bugs**
+- [x] **parity-1.5** — **Coverage report** — `npm run report:ai-parity` outputs per role/surface: covered %, uncovered actions ranked by usage (from `ai_command_trace` / app analytics when available), and the gap backlog feeding Sprint 56
+- [x] **parity-1.6** — **Allow/deny parity check** — flag every divergence: an intent the AI exposes but the role can't do in the UI (over-grant) and a UI action the role can do but AI blocks (under-grant); both are defects, target zero
 
 ---
 
@@ -1273,17 +1273,17 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 
 **Goal:** Implement the missing intents so every role reaches 100% feature coverage on every surface, shipped in module-sized slices.
 
-- [ ] **parity-2** — Implement missing intents to 100% per-role coverage
+- [x] **parity-2** — Implement missing intents to 100% per-role coverage
 
 ### parity-2.1 — Gap closure by module
-- [ ] **parity-2.1** — **Owner / manager dashboard gaps** — add intents for every uncovered owner/manager dashboard action (settings, integrations, billing, staff ops, reports, marketing, loyalty) with handlers, registry bindings, `tiers`, `surfaces`, and `mutating` / `executionMode` flags
-- [ ] **parity-2.2** — **Staff / provider gaps** — add uncovered provider-app + staff-scoped dashboard actions (own schedule, assigned bookings, check-in, notes, breaks), honoring `STAFF_SCOPED_INTENTS` so staff only act within their own scope
-- [ ] **parity-2.3** — **Customer / public gaps** — add uncovered self-service + public actions (manage/reschedule/cancel own bookings, profile, payment methods, packages/subscriptions, loyalty, notification preferences, gift cards)
+- [x] **parity-2.1** — **Owner / manager dashboard gaps** — settings/integrations/billing/staff ops/reports/marketing/loyalty intents with handlers, registry bindings, tiers, surfaces, mutating/executionMode flags; classifier rules + rescue + logic/integration specs; gate `npm run test:parity-2.1`
+- [x] **parity-2.2** — **Staff / provider gaps** — own schedule, assigned bookings, check-in, notes, breaks wired on provider + staff dashboard; `STAFF_SCOPED_INTENTS` expanded (`update_bookings`, `mark_paid`, `mark_no_shows`); staff dashboard `update_bookings` allowed when scoped; gate `npm run test:parity-2.2`
+- [x] **parity-2.3** — **Customer / public gaps** — manage/reschedule/cancel own bookings, profile, payment methods, packages/subscriptions, loyalty, notification preferences, gift cards; classifier rules + rescue on customer + public; catalog entries; gate `npm run test:parity-2.3`
 
 ### parity-2.2 — Quality bar per intent (per `feature-ai-prompt-coverage`)
-- [ ] **parity-2.4** — Each new intent ships classifier rules + **EN/HY/RU** eval cases in `eval/ai-command-eval.cases.ts`, tagged with `surface` + expected `tier`
-- [ ] **parity-2.5** — **Permission tests** — every intent asserts *allow* for in-role tiers and *refuse / `security_blocked`* for out-of-role tiers (extend capability-matrix + access-control specs); no intent may leak across surfaces or tiers
-- [ ] **parity-2.6** — **Read vs mutate correctness** — mutating intents get preview/confirm + undo (reuse ai-d7); destructive ones honor blast-radius caps (**acc-5.7**) and post-exec assertion (**acc-5.4**)
+- [x] **parity-2.4** — Each gap-closure intent (parity-2.1–2.3) ships classifier rules + **EN/HY/RU** eval cases in `eval/ai-command-eval.cases.ts`, tagged with `surface` + `accessTier`; gate `npm run test:parity-2.4`
+- [x] **parity-2.5** — **Permission tests** — every intent asserts *allow* for in-role tiers and *refuse / `security_blocked`* for out-of-role tiers (extend capability-matrix + access-control specs); no intent may leak across surfaces or tiers
+- [x] **parity-2.6** — **Read vs mutate correctness** — mutating intents get preview/confirm + undo (reuse ai-d7); destructive ones honor blast-radius caps (**acc-5.7**) and post-exec assertion (**acc-5.4**)
 
 ---
 
@@ -1294,17 +1294,17 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 - [ ] **parity-3** — Role-aware "do anything" agent
 
 ### parity-3.1 — Planning & orchestration
-- [ ] **parity-3.1** — **Capability-bounded planner** — extend `CommandOrchestrationService` / intent decomposition to plan over *only* the role's allowed-intent set (`getEffectiveAllowedIntents(surface, tier, plan)`); the planner may sequence any number of in-scope intents to satisfy a goal, and may never select an out-of-scope one
-- [ ] **parity-3.2** — **Goal → multi-step execution** — e.g. "set up my new stylist end-to-end" decomposes into `create employee → assign services → set schedule → enable online booking`, each a permission-checked intent under one preview/confirm
-- [ ] **parity-3.3** — **Mid-plan clarify** — missing/ambiguous params pause for targeted clarification (reuse **acc-4**) instead of guessing; answers merge back without losing earlier steps
+- [x] **parity-3.1** — **Capability-bounded planner** — extend `CommandOrchestrationService` / intent decomposition to plan over *only* the role's allowed-intent set (`getEffectiveAllowedIntents(surface, tier, plan)`); the planner may sequence any number of in-scope intents to satisfy a goal, and may never select an out-of-scope one
+- [x] **parity-3.2** — **Goal → multi-step execution** — e.g. "set up my new stylist end-to-end" decomposes into `create employee → assign services → set schedule → enable online booking`, each a permission-checked intent under one preview/confirm
+- [x] **parity-3.3** — **Mid-plan clarify** — missing/ambiguous params pause for targeted clarification (reuse **acc-4**) instead of guessing; answers merge back without losing earlier steps
 
 ### parity-3.2 — Guardrails
-- [ ] **parity-3.4** — **Per-step permission re-check** — every step re-validates tier + surface + plan at execute time; a plan can never escalate privilege by chaining in-scope steps
-- [ ] **parity-3.5** — **Plan preview + atomic rollback** — show the full step list before running; one-tap undo of the whole plan via the workflow execution log (reuse ai-d7 / gap-3.7)
-- [ ] **parity-3.6** — **Blast-radius & dry-run** — caps + propose-only for new or destructive multi-step plans (reuse **acc-5.7** / **acc-5.8**)
+- [x] **parity-3.4** — **Per-step permission re-check** — every step re-validates tier + surface + plan at execute time; a plan can never escalate privilege by chaining in-scope steps
+- [x] **parity-3.5** — **Plan preview + atomic rollback** — show the full step list before running; one-tap undo of the whole plan via the workflow execution log (reuse ai-d7 / gap-3.7)
+- [x] **parity-3.6** — **Blast-radius & dry-run** — caps + propose-only for new or destructive multi-step plans (reuse **acc-5.7** / **acc-5.8**)
 
 ### parity-3.3 — Discoverability
-- [ ] **parity-3.7** — **"What can you do?"** — role-aware capability listing: the assistant enumerates exactly the features it can perform for the current role/surface (reads the coverage matrix), so users discover the full surface instead of guessing
+- [x] **parity-3.7** — **"What can you do?"** — role-aware capability listing: the assistant enumerates exactly the features it can perform for the current role/surface (reads the coverage matrix), so users discover the full surface instead of guessing
 
 ---
 
@@ -1312,13 +1312,13 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 
 **Goal:** Keep coverage at 100% forever — a new feature cannot merge without its AI intent + eval, per role.
 
-- [ ] **parity-4** — Coverage parity CI gate & exit criteria
+- [x] **parity-4** — Coverage parity CI gate & exit criteria
 
-- [ ] **parity-4.1** — **`npm run test:ai-parity`** — fails CI if any catalog action for a role/surface has no mapped intent, or if AI allow/deny diverges from `access-control.matrix.ts` (over- or under-grant)
-- [ ] **parity-4.2** — **Catalog freshness check** — new route / nav / permission entries without a matching `ai-feature-catalog.ts` row fail the gate, forcing the inventory to stay current
-- [ ] **parity-4.3** — **Per-role eval floor** — extend `test:ai-accuracy` to report per-role coverage %; floor ratchets toward 100% and may not regress
-- [ ] **parity-4.4** — **Parity dashboard widget** — per role/surface coverage %, open gaps, allow/deny divergences, and trend (extend the AI-ops accuracy dashboard, **acc-1**)
-- [ ] **parity-4.5** — **Exit criteria** — 100% feature→intent coverage for every role on every surface; zero allow/deny divergences; agent completes a labeled set of multi-step role tasks ≥ 95%; CI gate green and enforced
+- [x] **parity-4.1** — **`npm run test:ai-parity`** — fails CI if any catalog action for a role/surface has no mapped intent, or if AI allow/deny diverges from `access-control.matrix.ts` (over- or under-grant)
+- [x] **parity-4.2** — **Catalog freshness check** — new route / nav / permission entries without a matching `ai-feature-catalog.ts` row fail the gate, forcing the inventory to stay current
+- [x] **parity-4.3** — **Per-role eval floor** — extend `test:ai-accuracy` to report per-role coverage %; floor ratchets toward 100% and may not regress
+- [x] **parity-4.4** — **Parity dashboard widget** — per role/surface coverage %, open gaps, allow/deny divergences, and trend (extend the AI-ops accuracy dashboard, **acc-1**)
+- [x] **parity-4.5** — **Exit criteria** — 100% feature→intent coverage for every role on every surface; zero allow/deny divergences; agent completes a labeled set of multi-step role tasks ≥ 95%; CI gate green and enforced
 
 ### AI feature parity success metrics (Sprints 55–58)
 

@@ -112,6 +112,14 @@ export class PromoCodesService {
     await this.promoRepo.increment({ id: promoId }, 'usedCount', 1);
   }
 
+  /** Active promos safe to show on public booking / consumer app (adopt-4.6). */
+  listActiveForPublic(businessId: string) {
+    return this.promoRepo.find({
+      where: { businessId, isActive: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   private assertDiscountValue(type: PromoDiscountType, value: number) {
     if (value <= 0)
       throw new BadRequestException('Discount value must be positive');

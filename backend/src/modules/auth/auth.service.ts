@@ -150,9 +150,21 @@ export class AuthService {
   }
 
   async loginWithGoogle(idToken: string, hint?: TenantHint) {
+    return this.loginWithOAuthIdToken(idToken, 'google', hint);
+  }
+
+  async loginWithApple(idToken: string, hint?: TenantHint) {
+    return this.loginWithOAuthIdToken(idToken, 'apple', hint);
+  }
+
+  private async loginWithOAuthIdToken(
+    idToken: string,
+    provider: 'google' | 'apple',
+    hint?: TenantHint,
+  ) {
     if (!this.firebase.isReady) {
       throw new BadRequestException(
-        'Google sign-in is not configured on the server',
+        `${provider === 'apple' ? 'Apple' : 'Google'} sign-in is not configured on the server`,
       );
     }
 
@@ -161,16 +173,16 @@ export class AuthService {
       decoded = await this.firebase.verifyIdToken(idToken);
     } catch {
       throw new UnauthorizedException({
-        message: 'Invalid Google sign-in token',
-        code: 'INVALID_GOOGLE_TOKEN',
+        message: `Invalid ${provider === 'apple' ? 'Apple' : 'Google'} sign-in token`,
+        code: provider === 'apple' ? 'INVALID_APPLE_TOKEN' : 'INVALID_GOOGLE_TOKEN',
       });
     }
 
     const email = decoded.email?.trim().toLowerCase();
     if (!email) {
       throw new UnauthorizedException({
-        message: 'Google account has no email',
-        code: 'GOOGLE_NO_EMAIL',
+        message: `${provider === 'apple' ? 'Apple' : 'Google'} account has no email`,
+        code: provider === 'apple' ? 'APPLE_NO_EMAIL' : 'GOOGLE_NO_EMAIL',
       });
     }
 
@@ -180,7 +192,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException({
         message:
-          'No provider account for this Google email. Ask your admin to send app access.',
+          'No provider account for this email. Ask your admin to send app access.',
         code: 'ACCOUNT_NOT_FOUND',
       });
     }

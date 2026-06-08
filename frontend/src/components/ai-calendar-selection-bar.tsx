@@ -30,6 +30,7 @@ export function AiCalendarSelectionBar({
     setAiPageContext({
       route: '/dashboard/calendar',
       employeeName,
+      employeeId,
       selectionDate: date,
       selectionTimeFrom: timeFrom,
       selectionTimeTo: timeTo,

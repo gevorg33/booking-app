@@ -6,6 +6,7 @@ import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { AgentTask } from '../../engine/agent/agent-task.entity.js';
 import { AiEventsService } from './ai-events.service.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
 import { DEFAULT_AI_SETTINGS } from './ai-settings.types.js';
 
 describe('ai-platform.integration', () => {
@@ -25,6 +26,31 @@ describe('ai-platform.integration', () => {
         {
           provide: AiEventsService,
           useValue: { emitAlert: jest.fn() },
+        },
+        {
+          provide: AiCommandTraceService,
+          useValue: {
+            getAccuracyAnalytics: jest.fn().mockResolvedValue({
+              periodDays: 30,
+              totalCommands: 0,
+              noClarifyCompletionRate: 0,
+              clarifyRate: 0,
+              misclassificationRate: 0,
+              explicitNegativeRate: 0,
+              byIntent: {},
+              byLocale: {},
+              bySurface: {},
+              confusionMatrix: [],
+              worstPrompts: [],
+              accuracySlo: {
+                target: 0.99,
+                rolling7DayAccuracy: 0,
+                weeklyDelta: 0,
+                alert: false,
+                trend: [],
+              },
+            }),
+          },
         },
         {
           provide: getRepositoryToken(Booking),
@@ -112,6 +138,8 @@ describe('ai-platform.integration', () => {
 
     const analytics = await service.getCommandAnalytics('biz-1', 30);
     expect(analytics.targets.completionRate).toBe(0.75);
+    expect(analytics.accuracy?.noClarifyCompletionRate).toBe(0);
+    expect(analytics.accuracy?.bySurface).toEqual({});
 
     await service.recordCommandOutcome({
       businessId: 'biz-1',

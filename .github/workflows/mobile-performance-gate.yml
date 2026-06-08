@@ -1,0 +1,82 @@
+name: Mobile performance gate
+
+on:
+  pull_request:
+    paths:
+      - 'consumer-app/**'
+      - 'provider-app/**'
+      - 'backend/src/modules/mobile-app/**'
+      - 'backend/src/common/utils/mobile-app-config.util.ts'
+      - 'backend/src/modules/analytics/entities/app-event.entity.ts'
+      - 'scripts/mobile-*.mjs'
+      - '.github/workflows/mobile-performance-gate.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'consumer-app/**'
+      - 'provider-app/**'
+      - 'backend/src/modules/mobile-app/**'
+      - 'scripts/mobile-*.mjs'
+      - '.github/workflows/mobile-performance-gate.yml'
+
+jobs:
+  mobile-performance:
+    name: adopt-5.7 performance & stability gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            consumer-app/package-lock.json
+            provider-app/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install consumer dependencies
+        working-directory: consumer-app
+        run: npm ci
+
+      - name: Install provider dependencies
+        working-directory: provider-app
+        run: npm ci
+
+      - name: Backend mobile config tests
+        working-directory: backend
+        run: npm run test:sprint48
+
+      - name: Consumer adopt-5 tests
+        working-directory: consumer-app
+        run: npm run test:sprint48
+
+      - name: Provider adopt-5 tests
+        working-directory: provider-app
+        run: npm run test:sprint48
+
+      - name: Build consumer app
+        working-directory: consumer-app
+        run: npm run build
+
+      - name: Build provider app
+        working-directory: provider-app
+        run: npm run build
+
+      - name: adopt-5.7 performance & stability gates
+        run: node scripts/mobile-performance-gate.mjs
+
+      - name: adopt-5 supporting gates
+        run: |
+          node scripts/mobile-consumer-offline-gate.mjs
+          node scripts/mobile-consumer-network-gate.mjs
+          node scripts/mobile-app-version-gate.mjs
+          node scripts/mobile-adoption-a11y-gate.mjs

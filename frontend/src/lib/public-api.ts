@@ -898,6 +898,8 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  traceId?: string;
+  details?: Record<string, unknown>;
 }
 
 export function sendPublicAssistantMessage(
@@ -913,6 +915,28 @@ export function sendPublicAssistantMessage(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function sendPublicAssistantFeedback(
+  slug: string,
+  traceId: string,
+  body: {
+    rating: 'up' | 'down';
+    reason?:
+      | 'wrong_action'
+      | 'wrong_date'
+      | 'wrong_person'
+      | 'wrong_service'
+      | 'did_not_understand';
+  },
+) {
+  return publicFetch<{ ok: true }>(
+    `/public/${slug}/assistant/trace/${traceId}/feedback`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export interface PublicRecommendationProduct {

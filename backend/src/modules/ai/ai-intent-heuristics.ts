@@ -21,16 +21,18 @@ import {
 } from './ai-orchestration.helpers.js';
 import {
   isMultilingualCheckProvidersPrompt,
-  isMultilingualFirstAvailableBookingPrompt,
   parseMultilingualTimeOfDayWindow,
 } from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import {
+  matchHeuristicSemanticBoolean,
+  matchHeuristicSemanticMetric,
+} from './ai-heuristic-semantic.util.js';
 import {
   BookingStatus,
   PaymentStatus,
 } from '../booking/entities/booking.entity.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
-import { STAFF_ROLE_WORDS } from './dashboard-revenue-analytics.util.js';
 
 export {
   isTopStaffRevenuePrompt,
@@ -683,30 +685,9 @@ export function isAnyProviderBookingPrompt(prompt: string): boolean {
   );
 }
 
-/** Book or reschedule to the earliest open slot. */
+/** Book or reschedule to the earliest open slot (acc-3.14 semantic, not regex). */
 export function isFirstAvailableBookingPrompt(prompt: string): boolean {
-  const lower = prompt.toLowerCase();
-  const flexibleSlotWord =
-    /\b(?:slot|time|appointment|opening)\b/i.test(lower) ||
-    /\b(?:massage|haircut|facial|lashes|lips|service)\b/i.test(lower);
-  return (
-    /\bfirst\s+available\b/i.test(lower) ||
-    /\bearliest\s+(?:available\s+)?(?:slot|time|appointment)\b/i.test(lower) ||
-    /\bnext\s+available\b/i.test(lower) ||
-    /\bnearest\s+(?:available\s+)?(?:slot|time|appointment|opening)\b/i.test(
-      lower,
-    ) ||
-    /\bnearest\s+(?:free\s+)?(?:time|slot)\b/i.test(lower) ||
-    /\bnearest\s+time\s+slot\b/i.test(lower) ||
-    /\bbook\s+(?:the\s+)?nearest\b/i.test(lower) ||
-    (/\bsoonest\b/i.test(lower) && flexibleSlotWord) ||
-    /\b(?:reserve|schedule|get|grab)\b[\s\S]{0,30}\b(?:nearest|soonest|first|next|earliest)\b/i.test(
-      lower,
-    ) ||
-    /\bas soon as possible\b/i.test(lower) ||
-    /\basap\b/i.test(lower) ||
-    isMultilingualFirstAvailableBookingPrompt(prompt)
-  );
+  return matchHeuristicSemanticBoolean(prompt, 'first_available_booking');
 }
 
 /** Infer first-available / evening-window hints for booking intents (compound + rescue paths). */
@@ -817,20 +798,24 @@ export function extractCustomerFromReschedulePrompt(
   return matchEntityInPrompt(prompt, customers);
 }
 
+/** Named individual provider availability — not team-wide (acc-3.14 guard). */
+export function isNamedIndividualAvailabilityPrompt(prompt: string): boolean {
+  return (
+    /\b(?:check\s+)?availability\b/i.test(prompt) ||
+    /\b(?:is|are)\s+[A-Za-z][\w.'-]{1,40}\s+(?:available|free|open)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:available|free|open)\s+(?:at|on)\b/i.test(prompt) ||
+    /\b(?:slots?|schedule)\s+(?:for|does)\s+[A-Za-z]/i.test(prompt)
+  );
+}
+
 /** Team-wide provider availability — do not inherit a single provider from session. */
 export function isTeamWideProviderAvailabilityQuery(prompt: string): boolean {
-  const lower = prompt.toLowerCase();
-  return (
-    /\bwho\s+(is|has|are)\s+(?:a\s+)?(?:free|available|open)\b/i.test(lower) ||
-    /\bwho\s+has\s+(?:a\s+)?(?:free|open|available)\s+(?:slot|time)/i.test(
-      lower,
-    ) ||
-    /\b(free|available|open)\s+(?:slot|time)s?\s+for\b/i.test(lower) ||
-    /\bwho(?:'s|\s+is|\s+are)\s+(?:doing|performing|giving|offering|providing)\b/i.test(
-      lower,
-    ) ||
-    /\bwho\s+can\s+(?:do|give|perform|provide|offer)\b/i.test(lower) ||
-    /\bwho\s+(?:is|are)\s+(?:available|free|open)\b/i.test(lower)
+  if (isNamedIndividualAvailabilityPrompt(prompt)) return false;
+  return matchHeuristicSemanticBoolean(
+    prompt,
+    'team_wide_provider_availability',
   );
 }
 
@@ -947,23 +932,11 @@ export function resolveServiceMetric(
   params: Record<string, any>,
   prompt: string,
 ): ServiceInsightMetric {
-  const lower = prompt.toLowerCase();
-  if (/least popular|least booked|worst performing/i.test(lower))
-    return 'least_booked';
-  if (/revenue|earned|sales|money/i.test(lower) && /\bservice/i.test(lower))
-    return 'top_revenue';
-  if (
-    /most popular|most booked|top service|best service|busiest service/i.test(
-      lower,
-    )
-  ) {
-    return 'most_booked';
-  }
-  if (
-    /\bservice/i.test(lower) &&
-    /\b(popular|booked|performing)\b/i.test(lower)
-  )
-    return 'most_booked';
+  const semantic = matchHeuristicSemanticMetric<ServiceInsightMetric>(
+    prompt,
+    'service_metric',
+  );
+  if (semantic) return semantic;
 
   const raw = params.serviceMetric as string | undefined;
   const allowed: ServiceInsightMetric[] = [
@@ -981,22 +954,11 @@ export function resolveStaffMetric(
   params: Record<string, any>,
   prompt: string,
 ): StaffInsightMetric {
-  const lower = prompt.toLowerCase();
-  if (
-    /revenue|earned|sales|earnings?|income/i.test(lower) &&
-    STAFF_ROLE_WORDS.test(lower)
-  ) {
-    return 'most_revenue';
-  }
-  if (
-    /\btop\s+\d+\b/i.test(lower) &&
-    STAFF_ROLE_WORDS.test(lower) &&
-    /revenue|earnings?|earned|sales/i.test(lower)
-  ) {
-    return 'most_revenue';
-  }
-  if (/busiest|most packed|most appointments/i.test(lower)) return 'busiest';
-  if (/most bookings/i.test(lower)) return 'most_bookings';
+  const semantic = matchHeuristicSemanticMetric<StaffInsightMetric>(
+    prompt,
+    'staff_metric',
+  );
+  if (semantic) return semantic;
 
   const raw = params.staffMetric as string | undefined;
   const allowed: StaffInsightMetric[] = [
@@ -1020,20 +982,12 @@ export function resolveAppointmentMetric(
     | 'shortest'
     | 'earliest'
     | 'latest';
-  const lower = prompt.toLowerCase();
-  if (
-    /most expensive|highest price|priciest|costs the most|expensive appointment/i.test(
-      lower,
-    )
-  ) {
-    return 'most_expensive';
-  }
-  if (/longest|most time|takes the longest|longest appointment/i.test(lower))
-    return 'longest';
-  if (/shortest|least time|quickest|shortest appointment/i.test(lower))
-    return 'shortest';
-  if (/earliest|first appointment/i.test(lower)) return 'earliest';
-  if (/latest|last appointment|final appointment/i.test(lower)) return 'latest';
+
+  const semantic = matchHeuristicSemanticMetric<AppointmentMetric>(
+    prompt,
+    'appointment_metric',
+  );
+  if (semantic) return semantic;
 
   const allowed: AppointmentMetric[] = [
     'most_expensive',
@@ -1078,45 +1032,11 @@ export function resolveBookingMetric(
     | 'completed'
     | 'overview';
 
-  const lower = prompt.toLowerCase();
-  if (/upcoming|coming up|later today|rest of (the )?day/i.test(lower))
-    return 'upcoming';
-  if (
-    /busiest|most appointments|most bookings|fully booked|most packed/i.test(
-      lower,
-    )
-  ) {
-    return 'busiest_provider';
-  }
-  if (
-    /revenue|earnings?|income|how much.*(made|earned)|total.*(\$|usd|money)|sales/i.test(
-      lower,
-    )
-  ) {
-    return 'revenue';
-  }
-  if (/no[\s-]?show/i.test(lower)) return 'no_shows';
-  if (/cancel/i.test(lower) && !/reassign|recover/i.test(lower))
-    return 'cancelled';
-  if (/unpaid|not paid|pending payment/i.test(lower)) return 'unpaid';
-  if (/confirmed/i.test(lower)) return 'confirmed';
-  if (/pending/i.test(lower) && /\bappointments?\b|\bbookings?\b/i.test(lower))
-    return 'pending';
-  if (/completed|finished|done appointments/i.test(lower)) return 'completed';
-  if (
-    /how many|count|number of|total appointments|total bookings|summarize today|summarize.*for all providers|any appointments/i.test(
-      lower,
-    )
-  ) {
-    return 'count';
-  }
-  if (/empty|quiet|slow day|no bookings/i.test(lower)) return 'count';
-  if (
-    /overview|summary|breakdown|stats/i.test(lower) &&
-    /\bappointments?\b|\bbookings?\b/i.test(lower)
-  ) {
-    return 'overview';
-  }
+  const semantic = matchHeuristicSemanticMetric<BookingMetric>(
+    prompt,
+    'booking_metric',
+  );
+  if (semantic) return semantic;
 
   const allowed: BookingMetric[] = [
     'count',
@@ -1154,38 +1074,11 @@ export function resolveCustomerMetric(
     'overview',
   ];
 
-  const lower = prompt.toLowerCase();
-  if (
-    /pay(?:s|ing)?\s+(?:the\s+)?most|paid the most|spent the most|top spenders?|highest spend|most paid|who paid|best payers?|customers? who paid|biggest spender|most revenue from customers?/i.test(
-      lower,
-    )
-  ) {
-    return 'top_spenders';
-  }
-  if (/new customers?|recent customers?|first.?time|never booked/i.test(lower))
-    return 'new_customers';
-  if (/high no[\s-]?show|no[\s-]?show rate/i.test(lower)) return 'high_no_show';
-  if (/no[\s-]?show|no show/i.test(lower)) return 'most_no_shows';
-  if (/re[\s-]?engage|win[\s-]?back/i.test(lower)) return 'at_risk';
-  if (
-    /at[\s-]?risk|churn|inactive|not been back|haven't been|lapsed/i.test(lower)
-  )
-    return 'at_risk';
-  if (/cancel/i.test(lower)) return 'most_cancellations';
-  if (/vip|loyal/i.test(lower)) return 'vip';
-  if (
-    /best customer|top customer/i.test(lower) &&
-    !/paid|spend|spent|\$|revenue|pay/i.test(lower)
-  ) {
-    return 'vip';
-  }
-  if (
-    /most booking|most appointment|books the most|frequent|top booker/i.test(
-      lower,
-    )
-  ) {
-    return 'most_bookings';
-  }
+  const semantic = matchHeuristicSemanticMetric<CustomerInsightMetric>(
+    prompt,
+    'customer_metric',
+  );
+  if (semantic) return semantic;
 
   const raw = params.customerMetric as string | undefined;
   if (raw && allowed.includes(raw as CustomerInsightMetric)) {

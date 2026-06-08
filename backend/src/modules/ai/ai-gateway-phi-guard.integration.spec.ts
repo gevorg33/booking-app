@@ -59,9 +59,11 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
       planEntitlements as never,
       sprintMocks.aiSettings as never,
       sprintMocks.platform as never,
+      sprintMocks.commandTrace as never,
+      sprintMocks.classificationEngine as never,
     );
 
-    return { gateway, dashboardCommands };
+    return { gateway, dashboardCommands, sprintMocks };
   }
 
   it('allows dashboard AI when HIPAA is off even if context includes PHI fields', async () => {
@@ -117,7 +119,7 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
   });
 
   it('blocks dashboard AI when HIPAA prompt embeds PHI field payloads', async () => {
-    const { gateway, dashboardCommands } = buildGateway();
+    const { gateway, dashboardCommands, sprintMocks } = buildGateway();
 
     const result = await gateway.execute({
       surface: 'dashboard',
@@ -135,5 +137,12 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
       }),
     });
     expect(dashboardCommands.executeCommand).not.toHaveBeenCalled();
+    expect(sprintMocks.commandTrace.recordTrace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessSettings: expect.objectContaining({
+          hipaa: expect.objectContaining({ enabled: true }),
+        }),
+      }),
+    );
   });
 });

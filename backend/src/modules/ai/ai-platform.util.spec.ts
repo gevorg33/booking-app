@@ -13,6 +13,7 @@ import {
   isTaskStuck,
   mapAccessTierToRoleProfile,
   pickActiveAbExperiment,
+  pickActiveClassificationAbExperiment,
   resolveAbSuggestionVariant,
   resolveAiRoleProfile,
   resolveBranchScope,
@@ -236,6 +237,19 @@ describe('ai-platform.util', () => {
     expect(
       pickActiveAbExperiment([{ id: 'x', name: 'x', enabled: false }]),
     ).toBeNull();
+    expect(
+      pickActiveClassificationAbExperiment([
+        {
+          id: 'classification-appendix-v1',
+          name: 'Classifier appendix A/B',
+          enabled: true,
+          classificationVariants: [
+            { id: 'control', label: 'control' },
+            { id: 'fewshot_heavy', label: 'heavy' },
+          ],
+        },
+      ])?.id,
+    ).toBe('classification-appendix-v1');
     expect(
       resolveAbSuggestionVariant('b', { id: 'x', name: 'x', enabled: true }),
     ).toBeNull();

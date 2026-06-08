@@ -2,14 +2,17 @@ import {
   IonButton,
   IonContent,
   IonHeader,
+  IonIcon,
   IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
+  useIonToast,
 } from '@ionic/react';
+import { shareOutline } from 'ionicons/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useHistory } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import type { ConsumerCopy } from '../lib/copy.js';
@@ -28,6 +31,13 @@ import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js'
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
 import { RescheduleConfirmationCard } from '../components/RescheduleConfirmationCard.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
+import { ConsumerRewardsCard } from '../components/ConsumerRewardsCard.js';
+import { ConsumerNotificationPreferencesCard } from '../components/ConsumerNotificationPreferencesCard.js';
+import { ConsumerAccountGrowthCard } from '../components/ConsumerAccountGrowthCard.js';
+import { PostVisitReviewPrompt } from '../components/PostVisitReviewPrompt.js';
+import { shareBookingLink } from '../lib/consumer-growth-loops.util.js';
+import { resolvePostVisitReviewCandidate } from '../lib/store-review-prompt.util.js';
 
 function statusLabel(status: string, copy: ConsumerCopy): string {
   switch (status) {
@@ -45,20 +55,46 @@ function statusLabel(status: string, copy: ConsumerCopy): string {
 function BookingCard({
   booking,
   slug,
+  businessName,
   locale,
   copy,
   authed,
   onUpdated,
   onRescheduled,
+  onReview,
 }: {
   booking: PublicCustomerBookingItem;
   slug: string;
+  businessName: string;
   locale: string;
   copy: ConsumerCopy;
   authed: boolean;
   onUpdated: () => void;
   onRescheduled: (previous: string, next: string) => void;
+  onReview?: (booking: PublicCustomerBookingItem) => void;
 }) {
+  const [presentToast] = useIonToast();
+  const [sharing, setSharing] = useState(false);
+  const canShare = booking.status === 'confirmed' || booking.status === 'completed';
+
+  const onShareBooking = async () => {
+    setSharing(true);
+    try {
+      const result = await shareBookingLink({
+        slug,
+        businessName,
+        booking,
+      });
+      if (result === 'copied') {
+        await presentToast({ message: copy.growthShareCopied, duration: 2000 });
+      } else if (result === 'unavailable') {
+        await presentToast({ message: copy.growthShareUnavailable, duration: 2500 });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="salon-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -72,6 +108,30 @@ function BookingCard({
         </div>
         <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{statusLabel(booking.status, copy)}</span>
       </div>
+      {booking.canReview && onReview ? (
+        <IonButton
+          expand="block"
+          fill="outline"
+          size="small"
+          style={{ marginTop: 8 }}
+          onClick={() => onReview(booking)}
+        >
+          {copy.postBookingTenantReviewAction}
+        </IonButton>
+      ) : null}
+      {canShare ? (
+        <IonButton
+          expand="block"
+          fill="clear"
+          size="small"
+          style={{ marginTop: 4 }}
+          disabled={sharing}
+          onClick={() => void onShareBooking()}
+        >
+          <IonIcon slot="start" icon={shareOutline} />
+          {copy.growthShareBookingAction}
+        </IonButton>
+      ) : null}
       <ConsumerBookingActions
         booking={booking}
         slug={slug}
@@ -103,6 +163,9 @@ export default function AccountPage({
     newStartTime: string;
   } | null>(null);
 
+  const [reviewPromptBooking, setReviewPromptBooking] =
+    useState<PublicCustomerBookingItem | null>(null);
+
   const bookingsQuery = useQuery({
     queryKey: ['bookings', slug],
     queryFn: () => fetchMyBookings(slug),
@@ -118,6 +181,18 @@ export default function AccountPage({
   const reloadBookings = () => {
     void queryClient.invalidateQueries({ queryKey: ['bookings', slug] });
   };
+
+  useEffect(() => {
+    if (!authed || bookingsQuery.isLoading || reviewPromptBooking) return;
+    const candidate = resolvePostVisitReviewCandidate(bookingsQuery.data ?? []);
+    if (candidate) {
+      setReviewPromptBooking(candidate);
+    }
+  }, [authed, bookingsQuery.data, bookingsQuery.isLoading, reviewPromptBooking]);
+
+  const openReviewPrompt = useCallback((booking: PublicCustomerBookingItem) => {
+    setReviewPromptBooking(booking);
+  }, []);
 
   const signOut = () => {
     clearCustomerSession(slug);
@@ -152,6 +227,7 @@ export default function AccountPage({
             <IonButton expand="block" onClick={() => history.push(buildSalonPath(slug, '/login'))}>
               Sign in with Google
             </IonButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
           </>
         ) : (
           <>
@@ -163,6 +239,25 @@ export default function AccountPage({
             <IonButton expand="block" fill="outline" color="medium" onClick={signOut}>
               Sign out
             </IonButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
+
+            <ConsumerRewardsCard
+              slug={slug}
+              profile={profile}
+              copy={copy}
+              authed
+              onBook={() => history.push(buildSalonPath(slug, '/services'))}
+            />
+
+            <ConsumerNotificationPreferencesCard slug={slug} copy={copy} authed />
+
+            <ConsumerAccountGrowthCard
+              slug={slug}
+              profile={profile}
+              copy={copy}
+              bookings={bookingsQuery.data ?? []}
+              loading={bookingsQuery.isLoading}
+            />
 
             {showClinicAlerts ? (
               <>
@@ -223,6 +318,7 @@ export default function AccountPage({
                     key={b.id}
                     booking={b}
                     slug={slug}
+                    businessName={profile.name}
                     locale={locale}
                     copy={copy}
                     authed={authed}
@@ -230,6 +326,7 @@ export default function AccountPage({
                     onRescheduled={(previous, next) =>
                       setRescheduleNotice({ previousStartTime: previous, newStartTime: next })
                     }
+                    onReview={openReviewPrompt}
                   />
                 ))}
                 {grouped.standalone.length === 0 && grouped.packageGroups.length === 0 && (
@@ -257,6 +354,19 @@ export default function AccountPage({
             )}
           </>
         )}
+        {reviewPromptBooking ? (
+          <PostVisitReviewPrompt
+            isOpen={Boolean(reviewPromptBooking)}
+            slug={slug}
+            booking={reviewPromptBooking}
+            copy={copy}
+            customerToken={token}
+            customerEmail={customer?.email}
+            zendeskWidgetConfigured={Boolean(profile.support?.zendeskWidgetKey)}
+            onClose={() => setReviewPromptBooking(null)}
+            onReviewSubmitted={reloadBookings}
+          />
+        ) : null}
       </IonContent>
     </IonPage>
   );

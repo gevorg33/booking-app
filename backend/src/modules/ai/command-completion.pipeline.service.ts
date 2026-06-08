@@ -36,6 +36,28 @@ import {
   getSharedParamsForIntent,
   SHARED_ENTITY_SESSION_INHERIT_KEYS,
 } from './ai-command-entity-params.registry.js';
+import {
+  buildClarifyFieldContext,
+  filterTargetedClarifyIssues,
+} from './ai-targeted-clarify.util.js';
+import {
+  attachMultiFieldClarifyMetadata,
+  dedupeValidationIssuesByField,
+  sortValidationIssuesForClarify,
+} from './ai-multi-field-clarify.util.js';
+import {
+  buildAutofillSessionPromotion,
+} from './ai-n99-autofill.util.js';
+import {
+  promoteParamsToClarifyMemory,
+  readClarifyMemory,
+  syncSessionContextFromClarifyMemory,
+} from './ai-clarify-answer-reuse.util.js';
+import { attachAutofillExecutionMetadata } from './ai-n99-wrong-execution-watchdog.util.js';
+import {
+  mergeParamsWithoutLoss,
+  readClarifyPartialParams,
+} from './ai-clarify-cross-turn-merge.util.js';
 
 const SESSION_INHERIT_KEYS = [
   'employeeName',
@@ -60,6 +82,9 @@ const SESSION_INHERIT_KEYS = [
   'timeTo',
   'allProviders',
   'lastAction',
+  'lastEmployeeName',
+  'lastServiceName',
+  'lastCustomerName',
   'lastMetric',
   'appointmentMetric',
   'customerMetric',
@@ -100,7 +125,7 @@ export class CommandCompletionPipelineService {
     action?: string,
   ): Record<string, any> {
     if (!session) return params;
-    const merged = { ...params };
+    const merged = mergeParamsWithoutLoss(params, readClarifyPartialParams(session));
     for (const key of SESSION_INHERIT_KEYS) {
       if (
         action === 'reschedule_booking' &&
@@ -135,7 +160,10 @@ export class CommandCompletionPipelineService {
     session?: Record<string, any>,
   ): Record<string, any> {
     if (!session) return params;
-    const merged = { ...params };
+    const merged = mergeParamsWithoutLoss(
+      params,
+      readClarifyPartialParams(session),
+    );
     for (const key of PROVIDER_SESSION_INHERIT_KEYS) {
       const value = merged[key];
       if (
@@ -215,12 +243,12 @@ export class CommandCompletionPipelineService {
     const entities: ResolvedEntities = {
       employee,
       employees,
-      service: services.length === 1 ? services[0] : services[0],
+      service: services.length === 1 ? services[0] : undefined,
       services,
       customer,
       template,
       dateRange,
-      employeeId: employee?.id ?? employees[0]?.id,
+      employeeId: employee?.id,
     };
 
     const enrichedParams: Record<string, any> = {
@@ -284,26 +312,48 @@ export class CommandCompletionPipelineService {
     return validateCommand(resolved);
   }
 
-  /** Stage 6: Clarify — structured follow-up instead of generic failure */
+  /** Stage 6: Clarify — structured follow-up instead of generic failure (acc-4.1). */
   toClarifyResult(
     resolved: ResolvedCommand,
     validation: ValidationResult,
-  ): CommandResult {
-    const summary = buildClarifySummary(validation.issues);
-    return {
-      success: false,
-      action: resolved.action,
-      summary,
-      details: {
-        needsClarification: true,
-        missing: validation.issues,
-        partialParams: resolved.params,
-        enrichedParams: resolved.enrichedParams,
-        reasoning: resolved.reasoning,
-        pipelineStage: 'clarify',
-        sessionContext: this.buildSessionContext(resolved),
+    sessionContext?: Record<string, unknown>,
+  ): CommandResult | null {
+    const issues = sortValidationIssuesForClarify(
+      dedupeValidationIssuesByField(
+        filterTargetedClarifyIssues(
+          validation.issues,
+          buildClarifyFieldContext({
+            params: resolved.params,
+            prompt: resolved.prompt,
+            sessionContext,
+            resolved,
+          }),
+        ),
+      ),
+    );
+    if (issues.length === 0) return null;
+
+    const summary = buildClarifySummary(issues);
+    return attachMultiFieldClarifyMetadata(
+      {
+        success: false,
+        action: resolved.action,
+        summary,
+        details: {
+          needsClarification: true,
+          clarify: true,
+          clarifySource: 'targeted_slots',
+          clarifyKind: 'targeted_slots',
+          missing: issues,
+          partialParams: resolved.params,
+          enrichedParams: resolved.enrichedParams,
+          reasoning: resolved.reasoning,
+          pipelineStage: 'clarify',
+          sessionContext: this.buildSessionContext(resolved),
+        },
       },
-    };
+      issues,
+    );
   }
 
   buildSessionContext(resolved: ResolvedCommand): Record<string, any> {
@@ -332,6 +382,7 @@ export class CommandCompletionPipelineService {
       timeTo: p.timeTo ?? null,
       allProviders: p.allProviders ?? null,
       lastAction: resolved.action ?? null,
+      ...buildAutofillSessionPromotion(p),
       lastMetric:
         p.lastMetric ??
         resolved.params.appointmentMetric ??
@@ -434,12 +485,38 @@ export class CommandCompletionPipelineService {
       sessionContext.serviceName = String(result.details.serviceName);
     }
 
-    return {
-      ...result,
-      details: {
-        ...result.details,
+    const memory = promoteParamsToClarifyMemory(
+      {
+        ...(resolved.enrichedParams ?? {}),
+        ...(resolved.params ?? {}),
+      },
+      readClarifyMemory(sessionContext as Record<string, unknown>),
+    );
+    if (Object.keys(memory).length > 0) {
+      Object.assign(
         sessionContext,
-        pipelineTrace: result.details?.pipelineTrace,
+        syncSessionContextFromClarifyMemory({
+          ...(sessionContext as Record<string, unknown>),
+          _clarifyMemory: memory,
+        }),
+      );
+    }
+
+    const mergedParams = {
+      ...(resolved.enrichedParams ?? {}),
+      ...(resolved.params ?? {}),
+    };
+    const withAutofillMetadata = attachAutofillExecutionMetadata(result, mergedParams);
+    if (typeof sessionContext._autoFillFieldThreshold === 'number') {
+      sessionContext._autoFillWatchdogThreshold = sessionContext._autoFillFieldThreshold;
+    }
+
+    return {
+      ...withAutofillMetadata,
+      details: {
+        ...withAutofillMetadata.details,
+        sessionContext,
+        pipelineTrace: withAutofillMetadata.details?.pipelineTrace,
       },
     };
   }
@@ -448,12 +525,14 @@ export class CommandCompletionPipelineService {
     stage: PipelineTrace['stage'],
     action: string,
     detail?: string,
+    traceId?: string,
   ): PipelineTrace {
     const entry: PipelineTrace = {
       stage,
       action,
       at: new Date().toISOString(),
       detail,
+      ...(traceId ? { traceId } : {}),
     };
     this.logger.debug(
       `Pipeline [${stage}] ${action}${detail ? `: ${detail}` : ''}`,

@@ -2,6 +2,10 @@ import { GiftCardDeliveryService } from './gift-card-delivery.service.js';
 
 describe('GiftCardDeliveryService integration', () => {
   const giftCardRepo = { findOne: jest.fn(), save: jest.fn() };
+  const customerRepo = { findOne: jest.fn().mockResolvedValue(null) };
+  const notificationsService = {
+    sendGiftCardReceivedPush: jest.fn().mockResolvedValue(undefined),
+  };
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
   const whatsappService = {
     sendGiftCardMessage: jest.fn().mockResolvedValue({ ok: true }),
@@ -21,10 +25,12 @@ describe('GiftCardDeliveryService integration', () => {
 
   const service = new GiftCardDeliveryService(
     giftCardRepo as any,
+    customerRepo as any,
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
+    notificationsService as any,
   );
 
   const business = { name: 'Glow Salon', slug: 'glow-salon', settings: {} };

@@ -3,6 +3,7 @@ import {
   isDashboardIntentAllowed,
   isProviderIntentAllowed,
   isCustomerIntentAllowed,
+  isPublicIntentAllowed,
 } from './access-control.matrix.js';
 import { SCHEDULING_INTENTS } from './ai-scheduling.util.js';
 import { OPERATIONS_INTENTS } from './ai-operations.util.js';
@@ -59,6 +60,10 @@ import {
   CUSTOMER_PUSH_NOTIFICATIONS_INTENTS,
 } from './ai-push-notifications.util.js';
 import {
+  CUSTOMER_ADOPT_6_GROWTH_INTENTS,
+  PROVIDER_ADOPT_6_GROWTH_INTENTS,
+} from './ai-adopt-6-growth-loops.util.js';
+import {
   SELF_SERVICE_BOOKING_INTENTS,
   SELF_SERVICE_BOOKING_MUTATE_INTENTS,
 } from './ai-self-service-booking.util.js';
@@ -105,6 +110,14 @@ import {
   PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS,
 } from './ai-provider-clinic-collection.util.js';
 import { CLINIC_BOOKING_INTENTS } from './ai-clinic-booking.util.js';
+import {
+  DASHBOARD_REVIEWS_READ_INTENTS,
+  CUSTOMER_REVIEWS_MUTATE_INTENTS,
+} from './ai-reviews.util.js';
+import {
+  TEAM_MEMBER_INTENTS,
+  TEAM_MEMBER_MUTATE_INTENTS,
+} from './ai-team-members.util.js';
 import {
   CONSUMER_CLINIC_LAB_BOOKING_INTENTS,
   DASHBOARD_CLINIC_LAB_BOOKING_INTENTS,
@@ -218,6 +231,12 @@ const SURFACE_HANDLER_OVERRIDES: Record<
   string,
   Partial<Record<CommandSurface, string>>
 > = {
+  list_capabilities: {
+    dashboard: 'AiCommandService',
+    provider: 'ProviderAiCommandService',
+    customer: 'CustomerAiCommandService',
+    public: 'PublicBookingAssistantService',
+  },
   mark_paid: {
     dashboard: 'AiBookingDepthService',
     provider: 'AiProviderBookingService',
@@ -307,7 +326,7 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
   },
   {
     intents: [...CLINIC_TEST_RESULT_INTENTS],
-    surfaces: ['dashboard'],
+    surfaces: ['dashboard', 'provider'],
     apiModule: 'clinic-test-results',
     handler: 'AiClinicTestResultService',
     sprint: 'clinicTestResults',
@@ -315,7 +334,7 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
   },
   {
     intents: [...CLINIC_PATIENT_CHART_INTENTS],
-    surfaces: ['dashboard'],
+    surfaces: ['dashboard', 'provider'],
     apiModule: 'patient-clinical-profiles',
     handler: 'AiClinicPatientChartService',
     sprint: 'clinicPatientChart',
@@ -682,6 +701,37 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     ],
   },
   {
+    intents: ['buy_gift_card', 'buy_gift_card_physical'],
+    surfaces: ['public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+    mutateIntents: ['buy_gift_card', 'buy_gift_card_physical'],
+  },
+  {
+    intents: [...DASHBOARD_REVIEWS_READ_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'reviews',
+    handler: 'AiReviewsService',
+    sprint: 'reviews',
+  },
+  {
+    intents: [...CUSTOMER_REVIEWS_MUTATE_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'reviews',
+    handler: 'AiReviewsService',
+    sprint: 'reviews',
+    mutateIntents: [...CUSTOMER_REVIEWS_MUTATE_INTENTS],
+  },
+  {
+    intents: [...TEAM_MEMBER_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'business',
+    handler: 'AiTeamMembersService',
+    sprint: 'teamMembers',
+    mutateIntents: [...TEAM_MEMBER_MUTATE_INTENTS],
+  },
+  {
     intents: [
       ...DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
       ...DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS,
@@ -786,6 +836,22 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: CUSTOMER_PUSH_NOTIFICATIONS_INTENTS,
   },
   {
+    intents: [...CUSTOMER_ADOPT_6_GROWTH_INTENTS],
+    surfaces: ['customer'],
+    apiModule: 'ai-command',
+    handler: 'AiAdopt6GrowthLoopsService',
+    sprint: 'adopt6Growth',
+    mutateIntents: ['manage_notification_preferences'],
+  },
+  {
+    intents: [...PROVIDER_ADOPT_6_GROWTH_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'push-notifications',
+    handler: 'AiAdopt6GrowthLoopsService',
+    sprint: 'adopt6Growth',
+    mutateIntents: ['enable_push_notifications'],
+  },
+  {
     intents: SELF_SERVICE_BOOKING_INTENTS,
     surfaces: ['customer'],
     apiModule: 'public-booking',
@@ -826,6 +892,7 @@ const LEGACY_CORE_BINDINGS: Array<{
   apiModule: CommandApiModule;
   handler: string;
   mutateIntents: readonly string[];
+  sprint?: string;
 }> = [
   {
     intents: [
@@ -926,6 +993,14 @@ const LEGACY_CORE_BINDINGS: Array<{
     mutateIntents: [],
   },
   {
+    intents: ['list_capabilities'],
+    surfaces: ['dashboard', 'provider', 'customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiCommandService',
+    sprint: 'parity-3.7',
+    mutateIntents: [],
+  },
+  {
     intents: [...SHARED_PROVIDER_OPERATIONAL_INTENTS, 'mark_paid'],
     surfaces: ['dashboard', 'provider'],
     apiModule: 'ai-command',
@@ -971,21 +1046,27 @@ const LEGACY_CORE_BINDINGS: Array<{
   },
 ];
 
+const OPS_ACCESS_TIERS: AccessTier[] = ['staff', 'manager', 'owner'];
+
 function tiersForSurface(
   surface: CommandSurface,
   intentId: string,
 ): AccessTier[] {
   if (intentId === 'unknown') return ALL_TIERS;
   if (surface === 'dashboard') {
-    return ALL_TIERS.filter((tier) => isDashboardIntentAllowed(tier, intentId));
+    return OPS_ACCESS_TIERS.filter((tier) =>
+      isDashboardIntentAllowed(tier, intentId),
+    );
   }
   if (surface === 'provider') {
-    return ALL_TIERS.filter((tier) => isProviderIntentAllowed(tier, intentId));
+    return OPS_ACCESS_TIERS.filter((tier) =>
+      isProviderIntentAllowed(tier, intentId),
+    );
   }
   if (surface === 'customer') {
     return ALL_TIERS.filter((tier) => isCustomerIntentAllowed(tier, intentId));
   }
-  return ['client'];
+  return ALL_TIERS.filter((tier) => isPublicIntentAllowed(tier, intentId));
 }
 
 function resolveExecutionMode(

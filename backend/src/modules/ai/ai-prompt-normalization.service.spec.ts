@@ -117,5 +117,33 @@ describe('AiPromptNormalizationService', () => {
     expect(result.method).toBe('passthrough');
     expect(result.normalized).toBe('');
     expect(result.classifierContext).toBeNull();
+    expect(result.expansions).toEqual([]);
+  });
+
+  it('acc-3.7 — expands abbreviations and times for English prompts', async () => {
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      'Book apt tomrw at 2pm',
+    );
+    expect(result.normalized).toContain('appointment');
+    expect(result.normalized).toContain('tomorrow');
+    expect(result.normalized).toContain('14:00');
+    expect(result.expansions.length).toBeGreaterThan(0);
+    expect(result.classifierContext).toContain('acc-3.7');
+  });
+
+  it('acc-3.7 — applies spell correction and mixed-script split for multilingual prompts', async () => {
+    const result = await service.normalizeForClassifier(
+      'biz-1',
+      'u1',
+      'book masageՄարիա tomorow at nine am',
+    );
+    expect(result.method).toBe('multilingual');
+    expect(result.normalized).toContain('massage');
+    expect(result.normalized).toContain('Մարիա');
+    expect(result.normalized).toContain('tomorrow');
+    expect(result.normalized).toContain('09:00');
+    expect(result.expansions.some((entry) => entry.includes('spell:'))).toBe(true);
   });
 });

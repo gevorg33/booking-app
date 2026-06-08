@@ -1,0 +1,217 @@
+{
+  "appId": "com.optischedule.consumer",
+  "packageName": "com.optischedule.consumer",
+  "locales": [
+    "en",
+    "hy",
+    "ru"
+  ],
+  "listings": {
+    "en": {
+      "locale": "en",
+      "ios": {
+        "title": "OptiSchedule — Book Salons",
+        "subtitle": "Appointments in a few taps",
+        "keywords": "salon,booking,appointment,hair,nails,spa,beauty,schedule,barber",
+        "promotionalText": "Scan your salon QR or open their booking link — the app remembers where you wanted to go.",
+        "description": "Book beauty and wellness appointments at salons you already trust.\n\n• Open a link or scan a QR at your salon — land directly on their services\n• See real availability and pick your stylist\n• Confirm in seconds; manage upcoming visits from one place\n• Rebook with one tap; switch between salons without losing your account\n\nOptiSchedule is the customer app for businesses that run on OptiSchedule. Your salon sends you a link — you book in the app."
+      },
+      "android": {
+        "title": "OptiSchedule — Book Salons",
+        "shortDescription": "Book beauty & wellness appointments at your favorite salon.",
+        "fullDescription": "Book beauty and wellness appointments at salons you already trust.\n\nOPEN YOUR SALON INSTANTLY\nScan a QR at the front desk or tap a booking link — the app opens on that salon's menu. No searching, no re-entering the salon code.\n\nBOOK IN A FEW TAPS\nBrowse services, see open times, choose your provider, and confirm. Your upcoming visits stay in one place.\n\nRETURN ANYTIME\nRecent and saved salons on the home screen. Switch between salons you've booked before without signing in again.\n\nOptiSchedule is the customer app for OptiSchedule-powered salons, clinics, and studios."
+      }
+    },
+    "hy": {
+      "locale": "hy",
+      "ios": {
+        "title": "OptiSchedule — Սրահ ամրագրում",
+        "subtitle": "Ամրագրում մի քանի հպումով",
+        "keywords": "salon,amragrum,gorcakic,matna,hair,nails,spa,beauty,barber,wellness",
+        "promotionalText": "Սканավորեք սրահի QR-ը կամ բացեք ամրագրման հղումը — հավելվածը հիշում է ձեր սրահը։",
+        "description": "Ամրագրեք գեղեցկության և wellness ծառայություններ այն սրահներում, որտեղ արդեն հաճախում եք։\n\n• Բացեք հղումը կամ սканավորեք QR-ը — անմիջապես բացվում են ծառայությունները\n• Տեսեք ազատ ժամերն և ընտրեք մասնագետ\n• Հաստատեք վայրկյաններում, կառավարեք գրանցումները մեկ տեղից\n• Մեկ հպումով կրկնակի ամրագրում, հեշտ անցում սրահների միջև\n\nOptiSchedule-ը հաճախորդների հավելվածն է OptiSchedule-ով աշխատող բիզնեսների համար։"
+      },
+      "android": {
+        "title": "OptiSchedule — Սրահ ամրագրում",
+        "shortDescription": "Ամրագրեք գեղեցկության և wellness ծառայություններ ձեր սրահում։",
+        "fullDescription": "Ամրագրեք գեղեցկության և wellness ծառայություններ այն սրահներում, որտեղ արդեն հաճախում եք։\n\nԲԱՑԵՔ ՁԵՐ ՍՐԱՀԸ ԱՆՄԻՋԱՊԵՍ\nՍканավորեք QR-ը կամ սեղմեք ամրագրման հղումը — հավելվածը բացում է հենց այդ սրահի մենյուն։\n\nԱՄՐագրում մի քանի հպումով\nԸնտրեք ծառայություն, ժամ և մասնագետ, հաստատեք։ Բոլոր գրանցումները մեկ տեղում են։\n\nՎերադարձեք ցանկացած ժամ\nՎերջին և պահպանված սրահներ գլխավոր էկրանին։ Անցեք սրահների միջև առանց կրկին մուտք գործելու։"
+      }
+    },
+    "ru": {
+      "locale": "ru",
+      "ios": {
+        "title": "OptiSchedule — Запись в салон",
+        "subtitle": "Запись в несколько касаний",
+        "keywords": "salon,booking,zapis,strizhka,manikyur,spa,beauty,barber,wellness",
+        "promotionalText": "Отсканируйте QR салона или откройте ссылку — приложение запомнит, куда вы хотели попасть.",
+        "description": "Записывайтесь на услуги красоты и wellness в салонах, которым уже доверяете.\n\n• Откройте ссылку или QR — сразу попадёте в меню услуг салона\n• Свободное время и выбор мастера\n• Подтверждение за секунды; все записи в одном месте\n• Повторная запись в одно касание; переключение между салонами\n\nOptiSchedule — приложение для клиентов салонов и студий на платформе OptiSchedule."
+      },
+      "android": {
+        "title": "OptiSchedule — Запись в салон",
+        "shortDescription": "Запись на услуги красоты и wellness в вашем салоне.",
+        "fullDescription": "Записывайтесь на услуги красоты и wellness в салонах, которым уже доверяете.\n\nОТКРОЙТЕ САЛОН СРАЗУ\nQR на стойке или ссылка на запись — приложение открывается на меню этого салона.\n\nЗАПИСЬ В НЕСКОЛЬКО КАСАНИЙ\nУслуга, время, мастер, подтверждение. Предстоящие визиты — в одном месте.\n\nВОЗВРАЩАЙТЕСЬ ЛЕГКО\nНедавние и сохранённые салоны на главном экране. Переключайтесь без повторного входа."
+      }
+    }
+  },
+  "screenshots": [
+    {
+      "id": "welcome-salons",
+      "captureRoute": "/ (WelcomePage — Your salons + recent)",
+      "caption": {
+        "en": "Return to your salons in one tap",
+        "hy": "Մեկ հպումով վերադարձեք ձեր սրահներ",
+        "ru": "Возвращайтесь к салонам в одно касание"
+      }
+    },
+    {
+      "id": "service-menu",
+      "captureRoute": "/s/{slug}/services",
+      "caption": {
+        "en": "Browse services and prices",
+        "hy": "Դիտեք ծառայություններն ու գները",
+        "ru": "Услуги и цены в одном списке"
+      }
+    },
+    {
+      "id": "pick-time",
+      "captureRoute": "/s/{slug}/book/{serviceId}",
+      "caption": {
+        "en": "Pick a stylist and time that works",
+        "hy": "Ընտրեք մասնագետ և հարմար ժամ",
+        "ru": "Выберите мастера и удобное время"
+      }
+    },
+    {
+      "id": "booking-confirmed",
+      "captureRoute": "/s/{slug}/book/{serviceId} (success state)",
+      "caption": {
+        "en": "Confirm in seconds — booking done",
+        "hy": "Հաստատեք վայրկյաններում",
+        "ru": "Подтверждение за секунды"
+      }
+    },
+    {
+      "id": "my-appointments",
+      "captureRoute": "/s/{slug}/account",
+      "caption": {
+        "en": "Manage upcoming visits anytime",
+        "hy": "Կառավարեք գրանցումները ցանկացած պահի",
+        "ru": "Управляйте записями в любое время"
+      }
+    }
+  ],
+  "screenshotSizes": [
+    {
+      "platform": "ios",
+      "label": "iPhone 6.7\"",
+      "width": 1290,
+      "height": 2796
+    },
+    {
+      "platform": "ios",
+      "label": "iPhone 6.5\"",
+      "width": 1284,
+      "height": 2778
+    },
+    {
+      "platform": "android",
+      "label": "Phone",
+      "width": 1080,
+      "height": 1920
+    },
+    {
+      "platform": "android",
+      "label": "7\" tablet",
+      "width": 1200,
+      "height": 1920
+    }
+  ],
+  "previewVideo": {
+    "spec": {
+      "durationSec": 30,
+      "aspectRatio": "9:16",
+      "formats": [
+        "mp4",
+        "mov"
+      ],
+      "maxFileSizeMb": 500,
+      "notes": "No PHI or real customer names in capture. Use demo tenant slug and synthetic booking data."
+    },
+    "scenes": [
+      {
+        "id": "web-banner",
+        "startSec": 0,
+        "endSec": 5,
+        "visual": {
+          "en": "Public booking page with violet smart app banner",
+          "hy": "Հանրային ամրագրման էջ՝ բջջային հավելվածի բանнерով",
+          "ru": "Страница записи с фиолетовым баннером приложения"
+        },
+        "onScreenText": {
+          "en": "Open in app",
+          "hy": "Բացել հավելվածում",
+          "ru": "Открыть в приложении"
+        }
+      },
+      {
+        "id": "deferred-install",
+        "startSec": 5,
+        "endSec": 12,
+        "visual": {
+          "en": "Install from App Store → app opens directly on salon services",
+          "hy": "Տեղադրում App Store-ից → հավելվածը բացում է սրահի ծառայությունները",
+          "ru": "Установка из Store → приложение открывается на услугах салона"
+        },
+        "onScreenText": {
+          "en": "Same salon, zero re-search",
+          "hy": "Նույն սրահը, առանց նորից փնտրելու",
+          "ru": "Тот же салон без повторного поиска"
+        }
+      },
+      {
+        "id": "book-flow",
+        "startSec": 12,
+        "endSec": 22,
+        "visual": {
+          "en": "Service → time slot → confirm booking animation",
+          "hy": "Ծառայություն → ժամ → ամրագրում",
+          "ru": "Услуга → время → подтверждение"
+        },
+        "onScreenText": {
+          "en": "Book in a few taps",
+          "hy": "Ամրագրում մի քանի հպումով",
+          "ru": "Запись в несколько касаний"
+        }
+      },
+      {
+        "id": "success-review",
+        "startSec": 22,
+        "endSec": 30,
+        "visual": {
+          "en": "Booking confirmed checkmark + optional rate-app prompt",
+          "hy": "Հաստատված ամրագրում + գնահատման հրավեր",
+          "ru": "Подтверждение записи + приглашение оценить"
+        },
+        "onScreenText": {
+          "en": "OptiSchedule — Book Salons",
+          "hy": "OptiSchedule — Սրահ ամրագրում",
+          "ru": "OptiSchedule — Запись в салон"
+        }
+      }
+    ]
+  },
+  "markdown": {
+    "en": {
+      "appStoreConnect": "# App Store Connect — EN\n\n## App Information\n- **Name:** OptiSchedule — Book Salons\n- **Subtitle:** Appointments in a few taps\n- **Keywords:** salon,booking,appointment,hair,nails,spa,beauty,schedule,barber\n\n## Promotional Text\nScan your salon QR or open their booking link — the app remembers where you wanted to go.\n\n## Description\nBook beauty and wellness appointments at salons you already trust.\n\n• Open a link or scan a QR at your salon — land directly on their services\n• See real availability and pick your stylist\n• Confirm in seconds; manage upcoming visits from one place\n• Rebook with one tap; switch between salons without losing your account\n\nOptiSchedule is the customer app for businesses that run on OptiSchedule. Your salon sends you a link — you book in the app.\n\n## Screenshots\n1. **welcome-salons** — Return to your salons in one tap\n2. **service-menu** — Browse services and prices\n3. **pick-time** — Pick a stylist and time that works\n4. **booking-confirmed** — Confirm in seconds — booking done\n5. **my-appointments** — Manage upcoming visits anytime\n\n## App Preview Video\n- 0s–5s: Public booking page with violet smart app banner (on-screen: \"Open in app\")\n- 5s–12s: Install from App Store → app opens directly on salon services (on-screen: \"Same salon, zero re-search\")\n- 12s–22s: Service → time slot → confirm booking animation (on-screen: \"Book in a few taps\")\n- 22s–30s: Booking confirmed checkmark + optional rate-app prompt (on-screen: \"OptiSchedule — Book Salons\")",
+      "googlePlay": "# Google Play Console — EN\n\n## Store Listing\n- **Title:** OptiSchedule — Book Salons\n- **Short description:** Book beauty & wellness appointments at your favorite salon.\n\n## Full description\nBook beauty and wellness appointments at salons you already trust.\n\nOPEN YOUR SALON INSTANTLY\nScan a QR at the front desk or tap a booking link — the app opens on that salon's menu. No searching, no re-entering the salon code.\n\nBOOK IN A FEW TAPS\nBrowse services, see open times, choose your provider, and confirm. Your upcoming visits stay in one place.\n\nRETURN ANYTIME\nRecent and saved salons on the home screen. Switch between salons you've booked before without signing in again.\n\nOptiSchedule is the customer app for OptiSchedule-powered salons, clinics, and studios.\n\n## Phone screenshots\n1. **welcome-salons** — Return to your salons in one tap\n2. **service-menu** — Browse services and prices\n3. **pick-time** — Pick a stylist and time that works\n4. **booking-confirmed** — Confirm in seconds — booking done\n5. **my-appointments** — Manage upcoming visits anytime\n\n## Feature video\nDuration: 30s · Aspect: 9:16\n- 0s–5s: Public booking page with violet smart app banner\n- 5s–12s: Install from App Store → app opens directly on salon services\n- 12s–22s: Service → time slot → confirm booking animation\n- 22s–30s: Booking confirmed checkmark + optional rate-app prompt"
+    },
+    "hy": {
+      "appStoreConnect": "# App Store Connect — HY\n\n## App Information\n- **Name:** OptiSchedule — Սրահ ամրագրում\n- **Subtitle:** Ամրագրում մի քանի հպումով\n- **Keywords:** salon,amragrum,gorcakic,matna,hair,nails,spa,beauty,barber,wellness\n\n## Promotional Text\nՍканավորեք սրահի QR-ը կամ բացեք ամրագրման հղումը — հավելվածը հիշում է ձեր սրահը։\n\n## Description\nԱմրագրեք գեղեցկության և wellness ծառայություններ այն սրահներում, որտեղ արդեն հաճախում եք։\n\n• Բացեք հղումը կամ սканավորեք QR-ը — անմիջապես բացվում են ծառայությունները\n• Տեսեք ազատ ժամերն և ընտրեք մասնագետ\n• Հաստատեք վայրկյաններում, կառավարեք գրանցումները մեկ տեղից\n• Մեկ հպումով կրկնակի ամրագրում, հեշտ անցում սրահների միջև\n\nOptiSchedule-ը հաճախորդների հավելվածն է OptiSchedule-ով աշխատող բիզնեսների համար։\n\n## Screenshots\n1. **welcome-salons** — Մեկ հպումով վերադարձեք ձեր սրահներ\n2. **service-menu** — Դիտեք ծառայություններն ու գները\n3. **pick-time** — Ընտրեք մասնագետ և հարմար ժամ\n4. **booking-confirmed** — Հաստատեք վայրկյաններում\n5. **my-appointments** — Կառավարեք գրանցումները ցանկացած պահի\n\n## App Preview Video\n- 0s–5s: Հանրային ամրագրման էջ՝ բջջային հավելվածի բանнерով (on-screen: \"Բացել հավելվածում\")\n- 5s–12s: Տեղադրում App Store-ից → հավելվածը բացում է սրահի ծառայությունները (on-screen: \"Նույն սրահը, առանց նորից փնտրելու\")\n- 12s–22s: Ծառայություն → ժամ → ամրագրում (on-screen: \"Ամրագրում մի քանի հպումով\")\n- 22s–30s: Հաստատված ամրագրում + գնահատման հրավեր (on-screen: \"OptiSchedule — Սրահ ամրագրում\")",
+      "googlePlay": "# Google Play Console — HY\n\n## Store Listing\n- **Title:** OptiSchedule — Սրահ ամրագրում\n- **Short description:** Ամրագրեք գեղեցկության և wellness ծառայություններ ձեր սրահում։\n\n## Full description\nԱմրագրեք գեղեցկության և wellness ծառայություններ այն սրահներում, որտեղ արդեն հաճախում եք։\n\nԲԱՑԵՔ ՁԵՐ ՍՐԱՀԸ ԱՆՄԻՋԱՊԵՍ\nՍканավորեք QR-ը կամ սեղմեք ամրագրման հղումը — հավելվածը բացում է հենց այդ սրահի մենյուն։\n\nԱՄՐագրում մի քանի հպումով\nԸնտրեք ծառայություն, ժամ և մասնագետ, հաստատեք։ Բոլոր գրանցումները մեկ տեղում են։\n\nՎերադարձեք ցանկացած ժամ\nՎերջին և պահպանված սրահներ գլխավոր էկրանին։ Անցեք սրահների միջև առանց կրկին մուտք գործելու։\n\n## Phone screenshots\n1. **welcome-salons** — Մեկ հպումով վերադարձեք ձեր սրահներ\n2. **service-menu** — Դիտեք ծառայություններն ու գները\n3. **pick-time** — Ընտրեք մասնագետ և հարմար ժամ\n4. **booking-confirmed** — Հաստատեք վայրկյաններում\n5. **my-appointments** — Կառավարեք գրանցումները ցանկացած պահի\n\n## Feature video\nDuration: 30s · Aspect: 9:16\n- 0s–5s: Հանրային ամրագրման էջ՝ բջջային հավելվածի բանнерով\n- 5s–12s: Տեղադրում App Store-ից → հավելվածը բացում է սրահի ծառայությունները\n- 12s–22s: Ծառայություն → ժամ → ամրագրում\n- 22s–30s: Հաստատված ամրագրում + գնահատման հրավեր"
+    },
+    "ru": {
+      "appStoreConnect": "# App Store Connect — RU\n\n## App Information\n- **Name:** OptiSchedule — Запись в салон\n- **Subtitle:** Запись в несколько касаний\n- **Keywords:** salon,booking,zapis,strizhka,manikyur,spa,beauty,barber,wellness\n\n## Promotional Text\nОтсканируйте QR салона или откройте ссылку — приложение запомнит, куда вы хотели попасть.\n\n## Description\nЗаписывайтесь на услуги красоты и wellness в салонах, которым уже доверяете.\n\n• Откройте ссылку или QR — сразу попадёте в меню услуг салона\n• Свободное время и выбор мастера\n• Подтверждение за секунды; все записи в одном месте\n• Повторная запись в одно касание; переключение между салонами\n\nOptiSchedule — приложение для клиентов салонов и студий на платформе OptiSchedule.\n\n## Screenshots\n1. **welcome-salons** — Возвращайтесь к салонам в одно касание\n2. **service-menu** — Услуги и цены в одном списке\n3. **pick-time** — Выберите мастера и удобное время\n4. **booking-confirmed** — Подтверждение за секунды\n5. **my-appointments** — Управляйте записями в любое время\n\n## App Preview Video\n- 0s–5s: Страница записи с фиолетовым баннером приложения (on-screen: \"Открыть в приложении\")\n- 5s–12s: Установка из Store → приложение открывается на услугах салона (on-screen: \"Тот же салон без повторного поиска\")\n- 12s–22s: Услуга → время → подтверждение (on-screen: \"Запись в несколько касаний\")\n- 22s–30s: Подтверждение записи + приглашение оценить (on-screen: \"OptiSchedule — Запись в салон\")",
+      "googlePlay": "# Google Play Console — RU\n\n## Store Listing\n- **Title:** OptiSchedule — Запись в салон\n- **Short description:** Запись на услуги красоты и wellness в вашем салоне.\n\n## Full description\nЗаписывайтесь на услуги красоты и wellness в салонах, которым уже доверяете.\n\nОТКРОЙТЕ САЛОН СРАЗУ\nQR на стойке или ссылка на запись — приложение открывается на меню этого салона.\n\nЗАПИСЬ В НЕСКОЛЬКО КАСАНИЙ\nУслуга, время, мастер, подтверждение. Предстоящие визиты — в одном месте.\n\nВОЗВРАЩАЙТЕСЬ ЛЕГКО\nНедавние и сохранённые салоны на главном экране. Переключайтесь без повторного входа.\n\n## Phone screenshots\n1. **welcome-salons** — Возвращайтесь к салонам в одно касание\n2. **service-menu** — Услуги и цены в одном списке\n3. **pick-time** — Выберите мастера и удобное время\n4. **booking-confirmed** — Подтверждение за секунды\n5. **my-appointments** — Управляйте записями в любое время\n\n## Feature video\nDuration: 30s · Aspect: 9:16\n- 0s–5s: Страница записи с фиолетовым баннером приложения\n- 5s–12s: Установка из Store → приложение открывается на услугах салона\n- 12s–22s: Услуга → время → подтверждение\n- 22s–30s: Подтверждение записи + приглашение оценить"
+    }
+  }
+}

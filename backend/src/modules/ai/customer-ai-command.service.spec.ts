@@ -1,8 +1,20 @@
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import * as intentDecomposition from './intent-decomposition.util.js';
+import {
+  createClassificationEngineMock,
+  createEscalationHandoffMock,
+} from './ai-gateway.test-mocks.js';
+import * as smartClarify from './ai-smart-clarify.util.js';
 
 describe('CustomerAiCommandService', () => {
+  beforeEach(() => {
+    jest.spyOn(smartClarify, 'resolveSmartClarify').mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
   const compoundResult: CommandResult = {
     success: true,
     action: 'compound_intent',
@@ -24,7 +36,10 @@ describe('CustomerAiCommandService', () => {
       prepareUserPromptForClassifier: jest.fn((p: string) => p),
       stripParams: jest.fn((p: Record<string, unknown>) => p),
     };
-    const platform = { gateCustomerAction: jest.fn(() => null) };
+    const platform = {
+      gateCustomerAction: jest.fn(() => null),
+      hydrateAutofillWatchdogSession: jest.fn(async () => undefined),
+    };
     const aiEvents = { emitMisrouteTelemetry: jest.fn() };
     const selfServiceBooking = {
       isCustomerBookingCompound: jest.fn(() => true),
@@ -51,10 +66,22 @@ describe('CustomerAiCommandService', () => {
         details: { promoCode: 'SPRING25' },
       })),
     };
+    const adopt6Growth = {
+      isAdopt6GrowthCompound: jest.fn(() => false),
+      handleAdopt6GrowthCompound: jest.fn(async () => compoundResult),
+    };
     const sprintHandlers = {
       handleMyProfile: jest.fn(),
       handleMyAppointments: jest.fn(),
       handleDiscoverPackages: jest.fn(),
+    };
+    const reviews = {
+      handleLeaveReview: jest.fn(async () => ({
+        success: true,
+        action: 'leave_review',
+        summary: 'ok',
+        details: {},
+      })),
     };
     const publicAssistant = {
       chat: jest.fn(async () => ({
@@ -215,6 +242,7 @@ describe('CustomerAiCommandService', () => {
       giftFulfillment: noopSprint,
       integrations: noopSprint,
       marketingGrowth,
+      adopt6Growth,
       pushNotifications: noopSprint,
       selfServiceBooking,
       businessCurrency,
@@ -227,7 +255,12 @@ describe('CustomerAiCommandService', () => {
       consumerClinicTestResults: noopSprint,
       clinicLabBooking: noopSprint,
       clinicBooking: noopSprint,
+      reviews,
       publicAssistant,
+      classificationEngine: createClassificationEngineMock(),
+      escalationHandoff: createEscalationHandoffMock(),
+      employeeRepo: { find: jest.fn(async () => []) },
+      serviceRepo: { find: jest.fn(async () => []) },
     };
   }
 
@@ -243,6 +276,7 @@ describe('CustomerAiCommandService', () => {
       mocks.giftFulfillment as any,
       mocks.integrations as any,
       mocks.marketingGrowth as any,
+      mocks.adopt6Growth as any,
       mocks.pushNotifications as any,
       mocks.selfServiceBooking as any,
       mocks.businessCurrency as any,
@@ -255,7 +289,12 @@ describe('CustomerAiCommandService', () => {
       mocks.consumerClinicTestResults as any,
       mocks.clinicLabBooking as any,
       mocks.clinicBooking as any,
+      mocks.reviews as any,
       mocks.publicAssistant as any,
+      mocks.classificationEngine as any,
+      mocks.escalationHandoff as any,
+      mocks.employeeRepo as any,
+      mocks.serviceRepo as any,
     );
     return { service, ...mocks };
   }
@@ -307,7 +346,13 @@ describe('CustomerAiCommandService', () => {
   it('dispatches classified customer self-service intents', async () => {
     const mocks = createMocks();
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
-    const { service, selfServiceBooking } = createService(mocks);
+    mocks.customerCrm.handleMyAppointments = jest.fn(async () => ({
+      success: true,
+      action: 'my_appointments',
+      summary: 'ok',
+      details: {},
+    }));
+    const { service, customerCrm } = createService(mocks);
 
     const result = await service.executeCommand(
       'biz-1',
@@ -318,8 +363,8 @@ describe('CustomerAiCommandService', () => {
       },
     );
 
-    expect(result.action).toBe('list_my_appointments');
-    expect(selfServiceBooking.handleListMyAppointments).toHaveBeenCalled();
+    expect(result.action).toBe('my_appointments');
+    expect(customerCrm.handleMyAppointments).toHaveBeenCalled();
   });
 
   it('returns error when LLM is unavailable', async () => {

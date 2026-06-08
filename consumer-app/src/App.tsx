@@ -1,45 +1,68 @@
-import { IonApp, IonRouterOutlet } from '@ionic/react';
+import { lazy, Suspense } from 'react';
+import { IonApp, IonRouterOutlet, IonSpinner } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { useEffect } from 'react';
-import { Route, useHistory } from 'react-router-dom';
+import { Route } from 'react-router-dom';
 import { useDeepLinkRouter } from './hooks/use-deep-link-router.js';
-import { CONSUMER_PUSH_NAVIGATE_EVENT } from './lib/consumer-native-push.util.js';
-import WelcomePage from './pages/WelcomePage.js';
-import SalonTabShell from './components/SalonTabShell.js';
-import BookPage from './pages/BookPage.js';
-import LoginPage from './pages/LoginPage.js';
-import ManageBookingPage from './pages/ManageBookingPage.js';
+import { useFirstRunLanding } from './hooks/use-first-run-landing.js';
+import { useBookingDraftResume } from './hooks/use-booking-draft-resume.js';
+import { AccessibilityBootstrap } from './components/AccessibilityBootstrap.js';
+import { AppAnalyticsBootstrap } from './components/AppAnalyticsBootstrap.js';
+import { AppStartupBridge } from './components/AppStartupBridge.js';
+import { AppVersionGate } from './components/AppVersionGate.js';
+import { ConsumerPushBridge } from './components/ConsumerPushBridge.js';
+import { ConsumerProvisionalUpgradeBridge } from './components/ConsumerProvisionalUpgradeBridge.js';
+import { ConsumerPushDeniedReaskBridge } from './components/ConsumerPushDeniedReaskBridge.js';
+import { ConsumerPushForegroundHost } from './components/ConsumerPushForegroundHost.js';
+import { OperationFeedbackHost } from './components/OperationFeedbackHost.js';
+
+const WelcomePage = lazy(() => import('./pages/WelcomePage.js'));
+const LoginPage = lazy(() => import('./pages/LoginPage.js'));
+const SalonTabShell = lazy(() => import('./components/SalonTabShell.js'));
+const BookPage = lazy(() => import('./pages/BookPage.js'));
+const ManageBookingPage = lazy(() => import('./pages/ManageBookingPage.js'));
+
+function RouteFallback() {
+  return (
+    <div className="ion-padding ion-text-center">
+      <IonSpinner name="crescent" />
+    </div>
+  );
+}
 
 function AppRoutes() {
-  const history = useHistory();
   useDeepLinkRouter();
-
-  useEffect(() => {
-    const onPushNavigate = (event: Event) => {
-      const path = (event as CustomEvent<{ path: string }>).detail?.path;
-      if (path) history.push(path);
-    };
-    window.addEventListener(CONSUMER_PUSH_NAVIGATE_EVENT, onPushNavigate);
-    return () => window.removeEventListener(CONSUMER_PUSH_NAVIGATE_EVENT, onPushNavigate);
-  }, [history]);
+  useBookingDraftResume();
+  useFirstRunLanding();
 
   return (
-    <IonRouterOutlet>
-      <Route exact path="/" component={WelcomePage} />
-      <Route exact path="/s/:slug/manage" component={ManageBookingPage} />
-      <Route exact path="/s/:slug/book/:serviceId" component={BookPage} />
-      <Route exact path="/s/:slug/login" component={LoginPage} />
-      <Route path="/s/:slug" component={SalonTabShell} />
-    </IonRouterOutlet>
+    <Suspense fallback={<RouteFallback />}>
+      <IonRouterOutlet>
+        <Route exact path="/" component={WelcomePage} />
+        <Route exact path="/s/:slug/manage" component={ManageBookingPage} />
+        <Route exact path="/s/:slug/book/:serviceId" component={BookPage} />
+        <Route exact path="/s/:slug/login" component={LoginPage} />
+        <Route path="/s/:slug" component={SalonTabShell} />
+      </IonRouterOutlet>
+    </Suspense>
   );
 }
 
 export default function App() {
   return (
     <IonApp>
-      <IonReactRouter>
-        <AppRoutes />
-      </IonReactRouter>
+      <AppVersionGate>
+        <AccessibilityBootstrap />
+        <AppAnalyticsBootstrap />
+        <AppStartupBridge />
+        <OperationFeedbackHost />
+        <ConsumerPushForegroundHost />
+        <IonReactRouter>
+          <ConsumerPushBridge />
+          <ConsumerProvisionalUpgradeBridge />
+          <ConsumerPushDeniedReaskBridge />
+          <AppRoutes />
+        </IonReactRouter>
+      </AppVersionGate>
     </IonApp>
   );
 }

@@ -37,6 +37,7 @@ APP_LINKS="            ${MARKER}
                 <category android:name=\"android.intent.category.DEFAULT\" />
                 <category android:name=\"android.intent.category.BROWSABLE\" />
                 <data android:scheme=\"https\" android:host=\"${HOST}\" android:pathPrefix=\"/book\" />
+                <data android:scheme=\"https\" android:host=\"${HOST}\" android:pathPrefix=\"/s\" />
             </intent-filter>
 
             "
@@ -53,5 +54,5 @@ if not pattern.search(text):
 path.write_text(pattern.sub(block.rstrip() + "\n\n            ", text, count=1))
 PY
 
-echo "✓ Android App Links configured for https://${HOST}/book/*"
-echo "  Publish frontend/public/.well-known/assetlinks.json with your signing cert SHA-256"
+echo "✓ Android App Links configured for https://${HOST}/book/* and /s/*"
+echo "  Publish frontend/.well-known/assetlinks.json (npm run generate:well-known) with signing cert SHA-256"

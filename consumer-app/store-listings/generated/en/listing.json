@@ -1,0 +1,15 @@
+{
+  "locale": "en",
+  "ios": {
+    "title": "OptiSchedule — Book Salons",
+    "subtitle": "Appointments in a few taps",
+    "keywords": "salon,booking,appointment,hair,nails,spa,beauty,schedule,barber",
+    "promotionalText": "Scan your salon QR or open their booking link — the app remembers where you wanted to go.",
+    "description": "Book beauty and wellness appointments at salons you already trust.\n\n• Open a link or scan a QR at your salon — land directly on their services\n• See real availability and pick your stylist\n• Confirm in seconds; manage upcoming visits from one place\n• Rebook with one tap; switch between salons without losing your account\n\nOptiSchedule is the customer app for businesses that run on OptiSchedule. Your salon sends you a link — you book in the app."
+  },
+  "android": {
+    "title": "OptiSchedule — Book Salons",
+    "shortDescription": "Book beauty & wellness appointments at your favorite salon.",
+    "fullDescription": "Book beauty and wellness appointments at salons you already trust.\n\nOPEN YOUR SALON INSTANTLY\nScan a QR at the front desk or tap a booking link — the app opens on that salon's menu. No searching, no re-entering the salon code.\n\nBOOK IN A FEW TAPS\nBrowse services, see open times, choose your provider, and confirm. Your upcoming visits stay in one place.\n\nRETURN ANYTIME\nRecent and saved salons on the home screen. Switch between salons you've booked before without signing in again.\n\nOptiSchedule is the customer app for OptiSchedule-powered salons, clinics, and studios."
+  }
+}

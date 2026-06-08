@@ -1,5 +1,10 @@
-/** Heuristic intent rescue for provider mobile commands (Sprint 19). */
+import { rescueListCapabilitiesIntent } from '../ai/ai-role-capability-listing.util.js';
+
+/** Heuristic intent rescue for provider mobile commands (Sprint 19 / parity-2.2). */
 export function rescueProviderAiIntent(prompt: string, action: string): string {
+  const listCapabilities = rescueListCapabilitiesIntent(prompt, action);
+  if (listCapabilities) return listCapabilities.action;
+
   const lower = prompt.toLowerCase();
 
   if (

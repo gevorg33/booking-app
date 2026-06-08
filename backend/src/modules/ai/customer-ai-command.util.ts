@@ -3,6 +3,7 @@ import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import { mergeCheckProvidersHandoffIntoContext } from './ai-check-book-handoff.util.js';
 import { CLASSIFIER_MULTILINGUAL_RULES } from './ai-prompt-i18n.js';
+import { CUSTOMER_LIST_CAPABILITIES_CLASSIFIER_RULES } from './ai-role-capability-listing.fixtures.js';
 import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from './ai-checkout-currency.fixtures.js';
 import { CHECKOUT_TAX_CLASSIFIER_RULES } from './ai-checkout-tax.fixtures.js';
 import { NOTIFICATION_CURRENCY_CLASSIFIER_RULES } from './ai-notification-currency.fixtures.js';
@@ -22,12 +23,18 @@ import { CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from './ai-clinic-v2
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
+import { CUSTOMER_ADOPT_6_CLASSIFIER_RULES } from './ai-adopt-6-growth-loops.util.js';
+import {
+  CUSTOMER_SELF_SERVICE_CLASSIFIER_RULES,
+} from './ai-customer-public-self-service.fixtures.js';
+import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from './ai-tour-day-slots.fixtures.js';
 import { CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import {
   CUSTOMER_INTENTS,
   PUBLIC_INTENTS,
 } from './ai-command-registry.build.js';
+import { formatDynamicActionEnum } from './ai-classification-shortlist.util.js';
 import type { PublicAssistantResult } from '../public-booking/public-booking-assistant.service.js';
 
 /** Anonymous public-booking assistant intents routed via PublicBookingAssistantService. */
@@ -88,6 +95,27 @@ export function commandResultToPublicAssistantResult(
   if (details.checkProvidersHandoff) {
     assistantDetails.checkProvidersHandoff = details.checkProvidersHandoff;
   }
+  for (const key of [
+    'needsClarification',
+    'humanHandoff',
+    'getHelp',
+    'escalationRoute',
+    'clarifyCandidates',
+    'entityOptions',
+    'suggestedCommands',
+    'showSomethingElseEscape',
+    'somethingElseAlternatives',
+    'somethingElseLabel',
+    'clarifyContext',
+    'openSupportWidget',
+  ] as const) {
+    if (details[key] !== undefined) {
+      assistantDetails[key] = details[key];
+    }
+  }
+  const traceId =
+    typeof details.traceId === 'string' ? details.traceId : undefined;
+
   return {
     success: result.success,
     action: result.action ?? 'unknown',
@@ -96,21 +124,21 @@ export function commandResultToPublicAssistantResult(
       details.sessionContext as PublicAssistantResult['sessionContext'],
     navigate: details.navigate as PublicAssistantResult['navigate'],
     bookingId: details.bookingId as string | undefined,
+    traceId,
     details:
       Object.keys(assistantDetails).length > 0 ? assistantDetails : undefined,
   };
 }
 
-export function buildCustomerClassifierSchema(): string {
-  const customerActions = CUSTOMER_INTENTS.filter(
-    (id) => id !== 'unknown',
-  ).join(' | ');
-  const publicActions = PUBLIC_ONLY_ASSISTANT_ACTIONS.join(' | ');
+export function buildCustomerClassifierSchema(shortlist?: string[]): string {
+  const actionLine = shortlist?.length
+    ? formatDynamicActionEnum(shortlist)
+    : `${CUSTOMER_INTENTS.filter((id) => id !== 'unknown').join(' | ')} | ${PUBLIC_ONLY_ASSISTANT_ACTIONS.join(' | ')} | unknown`;
   return `You are a customer-facing booking assistant (public web + consumer app).
 Classify the user's message and extract parameters. Return JSON:
 
 {
-  "action": ${customerActions} | ${publicActions} | unknown,
+  "action": ${actionLine},
   "params": {
     "employeeName": "string or null",
     "allProviders": "boolean or null — true when no named provider and user asks who is free / any provider",
@@ -161,6 +189,10 @@ ${DATA_RIGHTS_CLASSIFIER_RULES}
 ${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
 ${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
 ${CLINIC_BOOKING_CLASSIFIER_RULES}
+${CUSTOMER_ADOPT_6_CLASSIFIER_RULES}
+${CUSTOMER_SELF_SERVICE_CLASSIFIER_RULES}
+${CUSTOMER_LIST_CAPABILITIES_CLASSIFIER_RULES}
+${GIFT_CARD_PAYMENTS_CLASSIFIER_RULES}
 ${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;

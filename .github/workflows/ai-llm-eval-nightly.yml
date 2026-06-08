@@ -1,0 +1,37 @@
+name: AI LLM eval nightly
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  llm-eval:
+    name: acc-2.10 LLM-path nightly eval
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Run cost-bounded LLM eval
+        env:
+          AI_EVAL_LLM: '1'
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_EVAL_LLM_ALERT_WEBHOOK: ${{ secrets.AI_EVAL_LLM_ALERT_WEBHOOK }}
+        run: node scripts/ai-llm-eval-nightly.mjs

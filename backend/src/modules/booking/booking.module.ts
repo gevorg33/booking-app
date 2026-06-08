@@ -36,6 +36,8 @@ import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
 import { BusinessModule } from '../business/business.module.js';
+import { ReferralProgramModule } from '../referral-program/referral-program.module.js';
+import { AiModule } from '../ai/ai.module.js';
 
 @Module({
   imports: [
@@ -57,6 +59,7 @@ import { BusinessModule } from '../business/business.module.js';
     forwardRef(() => PublicBookingModule),
     forwardRef(() => AgentModule),
     LoyaltyModule,
+    ReferralProgramModule,
     InventoryModule,
     ReviewsModule,
     NotificationsModule,
@@ -69,6 +72,7 @@ import { BusinessModule } from '../business/business.module.js';
     forwardRef(() => GiftCardsModule),
     ComplianceModule,
     BusinessModule,
+    forwardRef(() => AiModule),
   ],
   controllers: [BookingController, AgentController],
   providers: [

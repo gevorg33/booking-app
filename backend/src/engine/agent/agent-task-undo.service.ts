@@ -13,6 +13,7 @@ import { EmployeeService } from '../../modules/employee/employee.service.js';
 import { EventStoreService } from '../../events/store/event-store.service.js';
 import { EventType } from '../../events/event-types.js';
 import { StepStatus } from '../workflow/interfaces/workflow.interfaces.js';
+import type { AutoRollbackAttemptResult } from '../../modules/ai/ai-post-exec-auto-rollback.util.js';
 
 const READONLY_ACTIONS = new Set([
   'list_appointments',
@@ -30,7 +31,8 @@ const READONLY_ACTIONS = new Set([
   'notify_cancelled_customers',
 ]);
 
-const UNDOABLE_ACTIONS = new Set([
+/** ai-d7 / parity-2.6 — agent workflow steps that support one-tap undo. */
+export const AGENT_UNDOABLE_ACTIONS = new Set([
   'create_booking',
   'execute_reassignment',
   'cancel_bookings',
@@ -42,7 +44,8 @@ const UNDOABLE_ACTIONS = new Set([
   'create_direct_schedule',
 ]);
 
-const NON_UNDOABLE_ACTIONS = new Set([
+/** ai-d7 / parity-2.6 — destructive or irreversible mutations (documented, no undo). */
+export const AGENT_NON_UNDOABLE_ACTIONS = new Set([
   'clear_schedule',
   'fill_schedule_gaps',
   'apply_template',
@@ -53,7 +56,16 @@ const NON_UNDOABLE_ACTIONS = new Set([
   'mark_no_shows',
   'payment_sweep',
   'apply_conflict_resolutions',
+  'mark_paid',
+  'block_schedule',
+  'merge_customers',
+  'delete_customer_data',
+  'privacy_delete',
+  'admin_delete_customer_data',
 ]);
+
+const UNDOABLE_ACTIONS = AGENT_UNDOABLE_ACTIONS;
+const NON_UNDOABLE_ACTIONS = AGENT_NON_UNDOABLE_ACTIONS;
 
 export interface AgentTaskUndoPreview {
   taskId: string;
@@ -67,6 +79,8 @@ export interface AgentTaskUndoPreview {
 export interface AgentTaskUndoResult {
   taskId: string;
   intent: string;
+  commandTraceId?: string;
+  executedAt?: Date;
   reversedSteps: Array<{
     action: string;
     description: string;
@@ -120,6 +134,69 @@ export class AgentTaskUndoService {
       );
     }
     return this.undoTask(task, userId);
+  }
+
+  async undoTaskById(
+    taskId: string,
+    userId: string,
+  ): Promise<AgentTaskUndoResult> {
+    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    if (!task) {
+      throw new BadRequestException('Task not found');
+    }
+    if ((task.result as Record<string, unknown> | undefined)?.undone) {
+      throw new BadRequestException('This command was already undone');
+    }
+    return this.undoTask(task, userId);
+  }
+
+  /** acc-5.5 — revert workflow mutations when post-exec assertion fails. */
+  async attemptAutoRollbackForAssertionFailure(
+    task: AgentTask,
+    userId: string,
+  ): Promise<AutoRollbackAttemptResult> {
+    const preview = this.buildUndoPreview(task);
+    if (!preview.undoable) {
+      return {
+        attempted: false,
+        succeeded: false,
+        reason:
+          preview.reason ?? 'This command cannot be automatically reverted',
+      };
+    }
+
+    try {
+      const undoResult = await this.undoTask(task, userId);
+      return { attempted: true, succeeded: true, undoResult };
+    } catch (error: any) {
+      const message = error?.message ?? String(error);
+      this.logger.warn(
+        `Auto rollback failed for task ${task.id}: ${message}`,
+      );
+      return { attempted: true, succeeded: false, error: message };
+    }
+  }
+
+  async attemptAutoRollbackByTaskId(
+    taskId: string,
+    userId: string,
+  ): Promise<AutoRollbackAttemptResult> {
+    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    if (!task) {
+      return {
+        attempted: false,
+        succeeded: false,
+        reason: 'No workflow log found for automatic revert',
+      };
+    }
+    if ((task.result as Record<string, unknown> | undefined)?.undone) {
+      return {
+        attempted: false,
+        succeeded: false,
+        reason: 'This command was already undone',
+      };
+    }
+    return this.attemptAutoRollbackForAssertionFailure(task, userId);
   }
 
   private async findLatestUndoCandidate(
@@ -268,6 +345,11 @@ export class AgentTaskUndoService {
     return {
       taskId: task.id,
       intent: task.intent,
+      commandTraceId:
+        typeof task.context?._traceId === 'string'
+          ? task.context._traceId
+          : undefined,
+      executedAt: task.updatedAt,
       reversedSteps,
     };
   }

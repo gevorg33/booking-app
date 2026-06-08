@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-07",
+  "note": "acc-3.12 canonical phrasing bank — add EN/HY/RU utterances here or via eval cases (corpus: semantic_paraphrase)",
+  "phrases": [
+    {
+      "id": "canon-en-create-booking-1",
+      "action": "create_booking",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "book an appointment with provider at time"
+    },
+    {
+      "id": "canon-en-create-booking-2",
+      "action": "create_booking",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "schedule client for service tomorrow morning"
+    },
+    {
+      "id": "canon-hy-create-booking-1",
+      "action": "create_booking",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "պատվիրել այցելություն մասնագետի հետ ժամանակին"
+    },
+    {
+      "id": "canon-ru-create-booking-1",
+      "action": "create_booking",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "записать клиента на услугу к мастеру"
+    },
+    {
+      "id": "canon-en-check-providers-1",
+      "action": "check_providers_for_service",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "who is available tomorrow for lashes"
+    },
+    {
+      "id": "canon-en-check-providers-2",
+      "action": "check_providers_for_service",
+      "surface": "customer",
+      "locale": "en",
+      "phrase": "which specialists are free for massage"
+    },
+    {
+      "id": "canon-hy-check-providers-1",
+      "action": "check_providers_for_service",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "ով է ազատ վաղը հավելված lashes-ի համար"
+    },
+    {
+      "id": "canon-ru-check-providers-1",
+      "action": "check_providers_for_service",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "кто свободен завтра для ресниц"
+    },
+    {
+      "id": "canon-en-book-nearest-1",
+      "action": "book_nearest_slot",
+      "surface": "customer",
+      "locale": "en",
+      "phrase": "grab the soonest opening for massage"
+    },
+    {
+      "id": "canon-hy-book-nearest-1",
+      "action": "book_nearest_slot",
+      "surface": "customer",
+      "locale": "hy",
+      "phrase": "ամրագրիր ամենամոտ ազատ slot massage-ի համար"
+    },
+    {
+      "id": "canon-ru-book-nearest-1",
+      "action": "book_nearest_slot",
+      "surface": "customer",
+      "locale": "ru",
+      "phrase": "запиши на ближайшее свободное время на массаж"
+    },
+    {
+      "id": "canon-en-book-appointment-1",
+      "action": "book_appointment",
+      "surface": "public",
+      "locale": "en",
+      "phrase": "reserve the earliest slot on any stylist"
+    },
+    {
+      "id": "canon-hy-book-appointment-1",
+      "action": "book_appointment",
+      "surface": "public",
+      "locale": "hy",
+      "phrase": "ամրագրիր ամենավաղ slot-ը ցանկացած stylist-ի համար"
+    },
+    {
+      "id": "canon-ru-book-appointment-1",
+      "action": "book_appointment",
+      "surface": "public",
+      "locale": "ru",
+      "phrase": "забронируй самое раннее время у любого мастера"
+    },
+    {
+      "id": "canon-en-cancel-1",
+      "action": "cancel_bookings",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "call off all of Maria appointments Friday afternoon"
+    },
+    {
+      "id": "canon-hy-cancel-1",
+      "action": "cancel_bookings",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "չեղարկիր Մարիայի բոլոր այցելությունները ուրբաթ"
+    },
+    {
+      "id": "canon-ru-cancel-1",
+      "action": "cancel_bookings",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "отмени все записи Марии в пятницу"
+    },
+    {
+      "id": "canon-en-summarize-revenue-1",
+      "action": "summarize_bookings",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "total earnings for today"
+    },
+    {
+      "id": "canon-hy-summarize-revenue-1",
+      "action": "summarize_bookings",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "այսօրվա ընդհանուր եկամուտ"
+    },
+    {
+      "id": "canon-ru-summarize-revenue-1",
+      "action": "summarize_bookings",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "общая выручка за сегодня"
+    },
+    {
+      "id": "canon-en-clear-schedule-1",
+      "action": "clear_schedule",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "wipe provider calendar for Friday"
+    },
+    {
+      "id": "canon-hy-clear-schedule-1",
+      "action": "clear_schedule",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "մաքրիր մասնագետի օրացույցը ուրբաթի համար"
+    },
+    {
+      "id": "canon-ru-clear-schedule-1",
+      "action": "clear_schedule",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "очисти расписание мастера на пятницу"
+    },
+    {
+      "id": "canon-en-lookup-assignment-1",
+      "action": "lookup_service_assignment",
+      "surface": "dashboard",
+      "locale": "en",
+      "phrase": "who is doing facemassage today"
+    },
+    {
+      "id": "canon-hy-lookup-assignment-1",
+      "action": "lookup_service_assignment",
+      "surface": "dashboard",
+      "locale": "hy",
+      "phrase": "ով է անում facemassage այսօր"
+    },
+    {
+      "id": "canon-ru-lookup-assignment-1",
+      "action": "lookup_service_assignment",
+      "surface": "dashboard",
+      "locale": "ru",
+      "phrase": "кто делает facemassage сегодня"
+    }
+  ]
+}

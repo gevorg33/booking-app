@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-08",
+  "lastMinCoverage": 1,
+  "lastSnapshotAt": "2026-06-08T00:00:00.000Z",
+  "history": [
+    {
+      "at": "2026-06-08T00:00:00.000Z",
+      "minCoverage": 1
+    }
+  ],
+  "note": "parity-4.4 — AI-ops parity widget trend baseline. Update via npm run ratchet:parity-coverage after a green parity gate; never lower lastMinCoverage without review."
+}

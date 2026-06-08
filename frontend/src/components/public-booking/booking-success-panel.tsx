@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
+import { TenantAppInstallQrCompact } from '@/components/public-booking/tenant-app-install-qr-compact';
 
 export function BookingSuccessPanel({
   slug,
@@ -12,6 +13,8 @@ export function BookingSuccessPanel({
   manageToken,
   customerEmail,
   cashDueLabel,
+  serviceId,
+  publicOrigin,
 }: {
   slug: string;
   primary: string;
@@ -19,6 +22,8 @@ export function BookingSuccessPanel({
   manageToken?: string;
   customerEmail?: string;
   cashDueLabel?: string | null;
+  serviceId?: string;
+  publicOrigin?: string;
 }) {
   const { t } = useI18n();
   const { customer } = usePublicCustomerAuth();
@@ -53,6 +58,14 @@ export function BookingSuccessPanel({
           {t('public.manageBookingEmailHint', { email: customerEmail })}
         </p>
       )}
+      {publicOrigin ? (
+        <TenantAppInstallQrCompact
+          slug={slug}
+          publicOrigin={publicOrigin}
+          serviceId={serviceId}
+          campaign="confirmation_qr"
+        />
+      ) : null}
     </div>
   );
 }

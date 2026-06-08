@@ -18,11 +18,11 @@ import {
 import { resolveCommandBarExamples } from '@/lib/ai-command-bar-examples.util';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { AiAvailableProvidersPanel } from '@/components/ai-available-providers-panel';
-import { AiClarifyForm, type ClarifyIssue } from '@/components/ai-clarify-form';
+import { AiClarifyChips } from '@/components/ai-clarify-chips';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
 import { normalizeAvailableProviders } from '@/lib/ai-available-providers.util';
 import { useAiEvents } from '@/lib/use-ai-events';
-import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
+import { normalizeExecutionTimeline, filterClarifyIssuesForEntityOptions, hasPreResolvedEntityCatalog } from '@/lib/ai-clarify.util';
 import {
   extractDashboardNavigate,
   extractSessionContext,
@@ -34,7 +34,9 @@ import {
 import { buildDashboardNavigateUrl } from '@/lib/compliance-dashboard-nav';
 import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
-import { AiCommandWizard, type WizardStepView } from '@/components/ai-command-wizard';
+import { AiClarifyWizard, AiCommandWizard, type WizardStepView } from '@/components/ai-command-wizard';
+import type { ClarifyIssue } from '@/components/ai-clarify-form';
+import { AiCommandFeedback, findPendingClarifyTraceId, reportClarifyAbandoned } from '@/components/ai-command-feedback';
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname, useRouter } from 'next/navigation';
@@ -352,9 +354,28 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   );
 
   const runPrompt = useCallback(
-    async (rawPrompt: string) => {
+    async (
+      rawPrompt: string,
+      clarifyAnswers?: Record<string, string>,
+      selectedIntentAction?: string,
+      handoffContext?: Record<string, unknown>,
+    ) => {
       const prompt = rawPrompt.trim();
       if (!prompt || !business?.id || loading) return;
+
+      const mergedSessionContext: SessionContext = {
+        ...sessionContext,
+        ...(handoffContext ?? {}),
+        ...(clarifyAnswers && Object.keys(clarifyAnswers).length > 0
+          ? {
+              _clarifyMemory: {
+                ...(sessionContext._clarifyMemory ?? {}),
+                ...clarifyAnswers,
+              },
+            }
+          : {}),
+        ...(selectedIntentAction ? { _selectedIntentAction: selectedIntentAction } : {}),
+      };
 
       const userMsg: Message = {
         id: `u-${Date.now()}`,
@@ -376,7 +397,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
           prompt,
           history,
-          context: buildAiRequestContext(pathname, sessionContext, pageCtx),
+          context: buildAiRequestContext(pathname, mergedSessionContext, pageCtx),
         });
         const result = data.data || data;
 
@@ -507,10 +528,14 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   };
 
   const closeAssistant = useCallback(() => {
+    const traceId = findPendingClarifyTraceId(messages);
+    if (business?.id && traceId) {
+      reportClarifyAbandoned(business.id, traceId);
+    }
     setOpen(false);
     setMessages([]);
     setSessionContext({});
-  }, []);
+  }, [business?.id, messages]);
 
   const handleUndoLatest = useCallback(async () => {
     if (!undoPreview?.undoable || undoLatestMutation.isPending) return;
@@ -629,6 +654,17 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                   ? (msg.details as Record<string, unknown>)
                   : undefined;
               const availableProviders = normalizeAvailableProviders(msgDetails);
+              const entityOptions = msgDetails?.entityOptions as
+                | Array<{ id: string; field: string; label: string; value: string }>
+                | undefined;
+              const clarifyOriginalPrompt =
+                typeof (msgDetails?.clarifyContext as { originalPrompt?: string } | undefined)
+                  ?.originalPrompt === 'string'
+                  ? (msgDetails?.clarifyContext as { originalPrompt: string }).originalPrompt
+                  : undefined;
+              const showClarifyWizard =
+                msg.details?.needsClarification === true &&
+                (Array.isArray(msg.details.missing) || hasPreResolvedEntityCatalog(entityOptions));
               const providerServiceName =
                 typeof msgDetails?.serviceName === 'string'
                   ? msgDetails.serviceName
@@ -660,6 +696,18 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                     />
                   )}
 
+                  {msg.role === 'assistant' && business?.id && (
+                    <AiCommandFeedback
+                      businessId={business.id}
+                      traceId={
+                        typeof msgDetails?.traceId === 'string'
+                          ? msgDetails.traceId
+                          : undefined
+                      }
+                      compact
+                    />
+                  )}
+
                   {msg.role === 'assistant' && availableProviders.length > 0 && (
                     <AiAvailableProvidersPanel
                       providers={availableProviders}
@@ -669,17 +717,81 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                     />
                   )}
 
-                  {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
-                    <AiClarifyForm
-                      issues={msg.details.missing as ClarifyIssue[]}
+                  {msg.details?.needsClarification && (
+                    <AiClarifyChips
+                      clarifyCandidates={
+                        msgDetails?.clarifyCandidates as
+                          | Array<{ action: string; label: string; score?: number }>
+                          | undefined
+                      }
+                      originalPrompt={clarifyOriginalPrompt}
+                      hideEntityOptions={hasPreResolvedEntityCatalog(entityOptions)}
+                      entityOptions={entityOptions}
+                      suggestedCommands={
+                        msgDetails?.suggestedCommands as
+                          | Array<{ id: string; label: string; prompt: string }>
+                          | undefined
+                      }
+                      showSomethingElseEscape={msgDetails?.showSomethingElseEscape === true}
+                      somethingElseLabel={
+                        typeof msgDetails?.somethingElseLabel === 'string'
+                          ? msgDetails.somethingElseLabel
+                          : undefined
+                      }
+                      somethingElseAlternatives={
+                        msgDetails?.somethingElseAlternatives as
+                          | Array<{ id: string; label: string; prompt: string }>
+                          | undefined
+                      }
+                      humanHandoff={msgDetails?.humanHandoff === true}
+                      escalationRoute={
+                        typeof msgDetails?.escalationRoute === 'string'
+                          ? msgDetails.escalationRoute
+                          : undefined
+                      }
+                      onGetHelp={() => {
+                        const clarifyContext =
+                          (msgDetails?.clarifyContext as
+                            | { originalPrompt?: string; clarifyRound?: number }
+                            | undefined) ??
+                          (msgDetails?.sessionContext as
+                            | { _clarifyContext?: { originalPrompt?: string } }
+                            | undefined)?._clarifyContext;
+                        void runPrompt('Get help', undefined, undefined, {
+                          _executeHumanHandoff: true,
+                          _handoffSurface: 'dashboard',
+                          _clarifyContext: clarifyContext,
+                        });
+                      }}
+                      onSelect={(composed, answers, selectedIntentAction) =>
+                        void runPrompt(composed, answers, selectedIntentAction)
+                      }
+                    />
+                  )}
+
+                  {showClarifyWizard && (
+                    <AiClarifyWizard
+                      issues={filterClarifyIssuesForEntityOptions(
+                        (Array.isArray(msg.details?.missing)
+                          ? msg.details.missing
+                          : []) as ClarifyIssue[],
+                        entityOptions,
+                      )}
+                      entityOptions={entityOptions}
+                      originalPrompt={clarifyOriginalPrompt}
+                      knownFields={{
+                        ...(msgDetails?.partialParams as Record<string, unknown> | undefined),
+                        ...(sessionContext._clarifyMemory ?? {}),
+                      }}
                       options={{
                         employees,
                         services,
                         availableProviderNames:
-                          (msg.details.availableProviders as string[] | undefined) ??
+                          (msg.details?.availableProviders as string[] | undefined) ??
                           availableProviders.map((provider) => provider.name),
+                        availabilityProviders: availableProviders,
                       }}
-                      onSubmit={(composed) => void runPrompt(composed)}
+                      onSubmit={(composed, answers) => void runPrompt(composed, answers)}
                     />
                   )}
 
@@ -697,7 +809,77 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                       />
                     )}
 
-                  {msg.id === lastUndoableMessageId && undoPreview?.undoable && (
+                  {msg.details?.postExecAssertionFailed &&
+                    msg.details?.autoRollbackSucceeded === true && (
+                    <div className="mt-2 rounded-md border border-emerald-500/30 bg-emerald-950/30 px-2 py-1.5">
+                      <p className="text-[11px] text-emerald-100/90">
+                        {typeof msg.details.assertionMessage === 'string'
+                          ? `${msg.details.assertionMessage} ${t('ai.postExecAutoReverted')}`
+                          : msg.text}
+                      </p>
+                    </div>
+                  )}
+
+                  {msg.details?.postExecAssertionFailed &&
+                    msg.details?.rollbackOffered &&
+                    msg.details?.autoRollbackSucceeded !== true && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-950/30 px-2 py-1.5">
+                      <p className="text-[11px] text-amber-100/90 flex-1 min-w-[12rem]">
+                        {typeof msg.details.assertionMessage === 'string'
+                          ? msg.details.assertionMessage
+                          : msg.text}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleInlineUndo()}
+                        disabled={undoLatestMutation.isPending}
+                        className="text-[11px] px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
+                      >
+                        {undoLatestMutation.isPending ? t('ai.undoing') : t('ai.undoNow')}
+                      </button>
+                    </div>
+                  )}
+
+                  {msg.id === lastUndoableMessageId &&
+                    undoPreview?.undoable &&
+                    !msg.details?.postExecAssertionFailed &&
+                    Array.isArray(msg.details?.autofillPreview) &&
+                    (msg.details.autofillPreview as Array<{ label: string; value: unknown }>).length >
+                      0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-sky-500/30 bg-sky-950/30 px-2 py-1.5">
+                      <div className="flex-1 min-w-[12rem]">
+                        <p className="text-[11px] text-sky-100/90">
+                          {t('ai.autofillPreviewBanner')}
+                        </p>
+                        <ul className="mt-1 text-[10px] text-sky-100/75 list-disc list-inside">
+                          {(msg.details.autofillPreview as Array<{ label: string; value: unknown }>).map(
+                            (entry) => (
+                              <li key={entry.label}>
+                                {t('ai.autofillPreviewFilled')}: {entry.label} —{' '}
+                                {String(entry.value ?? '')}
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                      {msg.details?.oneTapUndo && (
+                        <button
+                          type="button"
+                          onClick={() => void handleInlineUndo()}
+                          disabled={undoLatestMutation.isPending}
+                          className="text-[11px] px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-50"
+                        >
+                          {undoLatestMutation.isPending ? t('ai.undoing') : t('ai.undoNow')}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {msg.id === lastUndoableMessageId &&
+                    undoPreview?.undoable &&
+                    !msg.details?.postExecAssertionFailed &&
+                    (!Array.isArray(msg.details?.autofillPreview) ||
+                      (msg.details.autofillPreview as unknown[]).length === 0) && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-violet-500/30 bg-violet-950/30 px-2 py-1.5">
                       <p className="text-[11px] text-violet-100/90 flex-1 min-w-[12rem]">
                         {t('ai.undoPromptBanner')}
@@ -729,15 +911,74 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                     </pre>
                   )}
 
+                  {msg.details?.proposeOnly && (
+                    <p className="mt-2 text-[11px] text-sky-100/90 rounded-md border border-sky-500/30 bg-sky-950/30 px-2 py-1.5">
+                      {typeof msg.details.graduationStatus === 'object' &&
+                      msg.details.graduationStatus !== null
+                        ? `Propose-only until graduation (${(msg.details.graduationStatus as { samples: number; minSamples: number; accurateRate: number; minAccuracy: number }).samples}/${(msg.details.graduationStatus as { minSamples: number }).minSamples} samples, ${Math.round((msg.details.graduationStatus as { accurateRate: number }).accurateRate * 100)}% vs ${Math.round((msg.details.graduationStatus as { minAccuracy: number }).minAccuracy * 100)}% required).`
+                        : 'This action is in propose-only mode until it meets accuracy targets on real traffic.'}
+                    </p>
+                  )}
+
                   {msg.details?.requiresExecutionConfirmation && (
-                    <button
-                      type="button"
-                      onClick={() => confirmExecution(msg)}
-                      disabled={confirmingId === msg.id}
-                      className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
-                    >
-                      {confirmingId === msg.id ? t('ai.executing') : t('ai.confirmExecute')}
-                    </button>
+                    <>
+                      {Array.isArray(msg.details.planStepPreview) &&
+                        msg.details.planStepPreview.length > 0 && (
+                          <ol className="mt-2 text-xs list-decimal list-inside space-y-0.5 text-violet-100/90">
+                            {(
+                              msg.details.planStepPreview as Array<{
+                                label: string;
+                                paramSummary?: string;
+                              }>
+                            ).map((step, index) => (
+                              <li key={`plan-step-${index}`}>
+                                {step.label}
+                                {step.paramSummary ? ` (${step.paramSummary})` : ''}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      {msg.details?.atomicRollbackSupported === false &&
+                        typeof msg.details.atomicRollbackReason === 'string' && (
+                          <p className="mt-2 text-[11px] text-amber-100/90 rounded-md border border-amber-500/30 bg-amber-950/30 px-2 py-1.5">
+                            {msg.details.atomicRollbackReason as string}
+                          </p>
+                        )}
+                      {msg.details?.multiStepDryRun === true && (
+                        <p className="mt-2 text-[11px] text-sky-100/90 rounded-md border border-sky-500/30 bg-sky-950/30 px-2 py-1.5">
+                          {msg.details.destructiveMultiStep === true
+                            ? 'Destructive multi-step plan — dry-run approval required before execution.'
+                            : 'Propose-only steps detected — approve the workflow plan in AI Ops to execute.'}
+                        </p>
+                      )}
+                      {msg.details?.blastRadius &&
+                        typeof msg.details.blastRadius === 'object' &&
+                        Array.isArray(
+                          (msg.details.blastRadius as { capViolations?: string[] })
+                            .capViolations,
+                        ) &&
+                        ((msg.details.blastRadius as { capViolations: string[] })
+                          .capViolations.length > 0) && (
+                          <p className="mt-2 text-[11px] text-amber-100/90 rounded-md border border-amber-500/30 bg-amber-950/30 px-2 py-1.5">
+                            {(msg.details.blastRadius as { capViolations: string[] }).capViolations.join(
+                              ' · ',
+                            )}
+                          </p>
+                        )}
+                      {msg.details?.requiresPreviewDiff &&
+                        Array.isArray(msg.details.planDiff) &&
+                        msg.details.planDiff.length > 0 && (
+                          <PlanDiffPreview steps={msg.details.planDiff} />
+                        )}
+                      <button
+                        type="button"
+                        onClick={() => confirmExecution(msg)}
+                        disabled={confirmingId === msg.id}
+                        className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                      >
+                        {confirmingId === msg.id ? t('ai.executing') : t('ai.confirmExecute')}
+                      </button>
+                    </>
                   )}
 
                   {msg.details?.requiresApproval && msg.details?.taskId && (

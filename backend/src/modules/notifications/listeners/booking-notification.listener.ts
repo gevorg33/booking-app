@@ -40,4 +40,39 @@ export class BookingNotificationListener {
       );
     }
   }
+
+  @OnEvent(EventType.BOOKING_RESCHEDULED)
+  async handleBookingRescheduled(event: OperationalEvent): Promise<void> {
+    try {
+      const booking = await this.bookingRepo.findOne({
+        where: { id: event.aggregateId },
+        select: {
+          id: true,
+          packagePurchaseId: true,
+          multiServiceGroupId: true,
+        },
+      });
+      if (booking?.packagePurchaseId || booking?.multiServiceGroupId) {
+        return;
+      }
+      await this.notificationsService.sendBookingRescheduleToCustomer(
+        event.aggregateId,
+        {
+          previousStartTime:
+            typeof event.payload?.oldStartTime === 'string'
+              ? event.payload.oldStartTime
+              : undefined,
+          newStartTime:
+            typeof event.payload?.newStartTime === 'string'
+              ? event.payload.newStartTime
+              : undefined,
+        },
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Reschedule push failed for booking ${event.aggregateId}`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
 }

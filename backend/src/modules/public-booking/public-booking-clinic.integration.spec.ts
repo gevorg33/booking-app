@@ -2,7 +2,8 @@ import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import type { PublicBookingService } from './public-booking.service.js';
 import type { Business } from '../business/entities/business.entity.js';
 
 function createClinicPublicBookingHarness() {
@@ -143,32 +144,26 @@ function createClinicPublicBookingHarness() {
     ),
   } as unknown as ConfigService;
 
-  const service = new PublicBookingService(
-    {
+  const service = createPublicBookingServiceHarness({
+    businessService: {
       findBySlug: jest.fn().mockResolvedValue(business),
       findOne: jest.fn().mockResolvedValue(business),
-    } as any,
-    bookingService as any,
-    customerService as any,
-    {} as any,
-    { isConnectReady: jest.fn().mockReturnValue(false) } as any,
-    {} as any,
-    bookingPaymentService as any,
-    checkoutPricingService as any,
-    {} as any,
-    subscriptionsService as any,
-    {} as any,
-    multiServiceBookingsService as any,
-    { sendMultiAppointmentConfirmation: jest.fn() } as any,
-    {} as any,
+    },
+    bookingService,
+    customerService,
+    bookingPaymentService,
+    checkoutPricingService,
+    subscriptionsService,
+    multiServiceBookingsService,
+    notificationsService: { sendMultiAppointmentConfirmation: jest.fn() },
     configService,
-    { find: jest.fn() } as any,
-    serviceRepo as any,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    createClinicBookingRepo(storedBookings) as any,
-    publicPreVisitIntakeService as any,
-  );
+    referralProgramService: { find: jest.fn() },
+    serviceRepo,
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+    bookingRepo: createClinicBookingRepo(storedBookings),
+    publicPreVisitIntakeService,
+  });
 
   return {
     service,

@@ -7,6 +7,7 @@ import { CommandResult } from './ai-command.service.js';
 import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
+import { resolveGraduatedAutoExecute } from './ai-intent-graduation.util.js';
 import {
   resolveEmployees,
   resolveServices,
@@ -138,12 +139,31 @@ export async function executeOperationsPlan(
   plan: AgentPlan,
   businessId: string,
   userId: string | undefined,
+  commandParams?: Record<string, unknown>,
 ): Promise<CommandResult> {
+  const graduationContext = {
+    _intentTraffic: commandParams?._intentTraffic,
+    _confidenceHigh: commandParams?._confidenceHigh,
+  };
+  const autoExecute = resolveGraduatedAutoExecute({
+    action: plan.intent,
+    autoExecute: shouldAutoExecuteOperations(plan.intent, plan.steps.length),
+    context: graduationContext,
+  });
+
   const result = await deps.orchestration.executePlan({
     plan,
     businessId,
     userId,
-    autoExecute: shouldAutoExecuteOperations(plan.intent, plan.steps.length),
+    autoExecute,
+    executionConfirmed: commandParams?._executionConfirmed === true,
+    intentTraffic: commandParams?._intentTraffic as
+      | Record<string, { samples: number; accurateRate: number }>
+      | undefined,
+    confidenceHigh:
+      typeof commandParams?._confidenceHigh === 'number'
+        ? commandParams._confidenceHigh
+        : undefined,
   });
   return mapOperationsOrchestrationResult(result);
 }

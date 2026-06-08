@@ -1,0 +1,133 @@
+import type { DeferredInstallLink } from './deferred-install-link.util.js';
+import { parseDeferredInstallFromUrl } from './deferred-install-link.util.js';
+import {
+  mergeDeferredInstallLink,
+  resolveDeferredInstallNavigationPath,
+} from './deferred-install-resume.util.js';
+import { buildRebookBookServicePath } from './consumer-rebook.util.js';
+import {
+  buildBookServicePath,
+  buildManageBookingPath,
+  buildResultsPath,
+  buildSalonPath,
+  parseAccountRoute,
+  parseBookServiceRoute,
+  parseLabBookingRequestRoute,
+  parseManageBookingRoute,
+  parseResultReadyRoute,
+  parseTenantSlugFromUrl,
+  resolveLabBookingRequestNavigationPath,
+} from './deep-link.js';
+
+export interface DeepLinkLaunchTarget {
+  path: string;
+  deferredLink?: DeferredInstallLink;
+}
+
+function bookServiceLaunchPath(
+  bookService: NonNullable<ReturnType<typeof parseBookServiceRoute>>,
+  deferredLink?: DeferredInstallLink,
+): string {
+  if (bookService.date && bookService.slot) {
+    const link = mergeDeferredInstallLink(
+      deferredLink ?? {
+        slug: bookService.slug,
+        capturedAt: new Date().toISOString(),
+      },
+      {
+        serviceId: bookService.serviceId,
+        date: bookService.date,
+        slot: bookService.slot,
+        employeeId: bookService.employeeId,
+      },
+    );
+    return resolveDeferredInstallNavigationPath(link);
+  }
+
+  if (bookService.rebookBookingId && bookService.slot) {
+    return buildRebookBookServicePath(bookService.slug, {
+      id: bookService.rebookBookingId,
+      serviceId: bookService.serviceId,
+      startTime: bookService.slot,
+      employeeId: bookService.employeeId,
+    });
+  }
+
+  return buildBookServicePath(bookService.slug, bookService.serviceId, {
+    employeeId: bookService.employeeId,
+  });
+}
+
+/** Resolve first-open / appUrlOpen navigation with deferred salon+service restore (adopt-2.4 / n99-3.1). */
+export function resolveDeepLinkLaunchTarget(
+  rawUrl: string,
+  storedDeferred?: DeferredInstallLink | null,
+): DeepLinkLaunchTarget | null {
+  const deferredFromUrl = parseDeferredInstallFromUrl(rawUrl);
+
+  const bookService = parseBookServiceRoute(rawUrl);
+  if (bookService) {
+    const deferredLink = deferredFromUrl
+      ? mergeDeferredInstallLink(deferredFromUrl, {
+          serviceId: bookService.serviceId,
+          date: bookService.date,
+          slot: bookService.slot,
+          employeeId: bookService.employeeId,
+        })
+      : undefined;
+    return {
+      path: bookServiceLaunchPath(bookService, deferredLink),
+      deferredLink,
+    };
+  }
+
+  const account = parseAccountRoute(rawUrl);
+  if (account) {
+    return {
+      path: buildSalonPath(account.slug, '/account'),
+      deferredLink: deferredFromUrl ?? undefined,
+    };
+  }
+
+  const manage = parseManageBookingRoute(rawUrl);
+  if (manage) {
+    return {
+      path: buildManageBookingPath(manage.slug, manage.bookingId, manage.token),
+      deferredLink: deferredFromUrl ?? undefined,
+    };
+  }
+
+  const labBookingRequest = parseLabBookingRequestRoute(rawUrl);
+  if (labBookingRequest) {
+    return {
+      path: resolveLabBookingRequestNavigationPath(labBookingRequest),
+      deferredLink: deferredFromUrl ?? undefined,
+    };
+  }
+
+  const resultReady = parseResultReadyRoute(rawUrl);
+  if (resultReady) {
+    return {
+      path: buildResultsPath(resultReady.slug),
+      deferredLink: deferredFromUrl ?? undefined,
+    };
+  }
+
+  const slug = parseTenantSlugFromUrl(rawUrl);
+  if (slug) {
+    const link = deferredFromUrl ?? undefined;
+    return {
+      path: link ? resolveDeferredInstallNavigationPath(link) : buildSalonPath(slug),
+      deferredLink: link,
+    };
+  }
+
+  if (storedDeferred) {
+    return {
+      path: resolveDeferredInstallNavigationPath(storedDeferred),
+      deferredLink: storedDeferred,
+    };
+  }
+
+  return null;
+}

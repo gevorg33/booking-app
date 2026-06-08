@@ -6,10 +6,12 @@ import {
   AiSettings,
   AutopilotRule,
   BusinessPlaybook,
+  BusinessParaphraseEntry,
   DEFAULT_AI_SETTINGS,
   EntityMemory,
   EntityMemoryEntry,
 } from './ai-settings.types.js';
+import { mergeBusinessParaphrases } from './ai-business-paraphrase.util.js';
 
 @Injectable()
 export class AiSettingsService {
@@ -39,6 +41,7 @@ export class AiSettingsService {
           ai.entityMemory?.aliases ??
           DEFAULT_AI_SETTINGS.entityMemory?.aliases ??
           {},
+        paraphrases: ai.entityMemory?.paraphrases ?? [],
       },
       rag: {
         enabled: ai.rag?.enabled ?? DEFAULT_AI_SETTINGS.rag?.enabled ?? false,
@@ -57,6 +60,7 @@ export class AiSettingsService {
           ? ai.enterprise.abExperiments
           : DEFAULT_AI_SETTINGS.enterprise?.abExperiments,
       },
+      accuracyProgram: ai.accuracyProgram ?? DEFAULT_AI_SETTINGS.accuracyProgram,
     };
   }
 
@@ -93,6 +97,9 @@ export class AiSettingsService {
       enterprise: patch.enterprise
         ? { ...current.enterprise, ...patch.enterprise }
         : current.enterprise,
+      accuracyProgram: patch.accuracyProgram
+        ? { ...current.accuracyProgram, ...patch.accuracyProgram }
+        : current.accuracyProgram,
     };
 
     business.settings = { ...business.settings, ai: next };
@@ -168,7 +175,66 @@ export class AiSettingsService {
 
     business.settings = {
       ...business.settings,
-      ai: { ...current, entityMemory: { aliases: merged } },
+      ai: {
+        ...current,
+        entityMemory: {
+          aliases: merged,
+          paraphrases: current.entityMemory?.paraphrases ?? [],
+          pendingAliasSuggestions:
+            current.entityMemory?.pendingAliasSuggestions ?? [],
+        },
+      },
+    };
+    await this.businessRepo.save(business);
+  }
+
+  async saveEntityMemory(
+    businessId: string,
+    entityMemory: EntityMemory,
+  ): Promise<EntityMemory> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const current = this.mergeSettings(business.settings);
+    business.settings = {
+      ...business.settings,
+      ai: {
+        ...current,
+        entityMemory,
+      },
+    };
+    await this.businessRepo.save(business);
+    return entityMemory;
+  }
+
+  async mergeBusinessParaphrases(
+    businessId: string,
+    incoming: BusinessParaphraseEntry[],
+  ): Promise<void> {
+    if (incoming.length === 0) return;
+
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+
+    const current = this.mergeSettings(business.settings);
+    const merged = mergeBusinessParaphrases(
+      current.entityMemory?.paraphrases ?? [],
+      incoming,
+    );
+
+    business.settings = {
+      ...business.settings,
+      ai: {
+        ...current,
+        entityMemory: {
+          aliases: current.entityMemory?.aliases ?? {},
+          paraphrases: merged,
+        },
+      },
     };
     await this.businessRepo.save(business);
   }

@@ -1,6 +1,8 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
+import { rescueProviderBookingIntent } from '../ai/ai-provider-booking.util.js';
+import * as smartClarify from '../ai/ai-smart-clarify.util.js';
 
 describe('Provider mobile AI (ai-cmd-h3.5)', () => {
   const businessId = 'biz-h35';
@@ -49,6 +51,7 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
   };
 
   beforeEach(() => {
+    jest.spyOn(smartClarify, 'resolveSmartClarify').mockReturnValue(null);
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
       completeJson: jest.fn(),
@@ -78,7 +81,9 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
       })),
       isProviderBookingCompound: jest.fn(() => false),
       handleProviderBookingCompound: jest.fn(),
-      rescueProviderBookingIntent: jest.fn(() => null),
+      rescueProviderBookingIntent: jest.fn((prompt, action) =>
+        rescueProviderBookingIntent(prompt, action),
+      ),
     };
     pushNotifications = {
       isPushNotificationsCompound: jest.fn(() => false),
@@ -104,13 +109,14 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
       mergeProviderSessionContext: jest.fn((params) => params),
       normalizeDateParams: jest.fn(),
       buildProviderSessionContext: jest.fn((params) => params),
+      trace: jest.fn((_stage, action) => ({ stage: 'classify', action, at: new Date().toISOString() })),
     };
 
     service = new ProviderAiCommandService(
       { find: jest.fn(async () => []) } as any,
       { find: jest.fn(async () => []) } as any,
-      { find: jest.fn() } as any,
-      { createQueryBuilder: jest.fn() } as any,
+      { find: jest.fn(async () => []) } as any,
+      { find: jest.fn(async () => []) } as any,
       { find: jest.fn(async () => []) } as any,
       {} as any,
       {} as any,
@@ -128,6 +134,7 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
         applyStaffScope: jest.fn((_tier, _action, params) => params),
       } as any,
       pushNotifications as any,
+      { rescueProviderIntent: jest.fn(() => null) } as any,
       providerBooking as any,
       {} as any,
       {} as any,
@@ -170,6 +177,14 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
         })),
       } as any,
       pushActions as any,
+      {
+        enrichClassification: jest.fn(async (input: { intent: { action: string } }) => ({
+          intent: input.intent,
+          verification: { ok: true, confidence: 0.9, fieldConfidence: {}, reasons: [] },
+          consensus: { needsEscalation: false, llmAction: input.intent.action },
+        })),
+      } as any,
+      { shouldExecute: jest.fn(() => false), execute: jest.fn() } as any,
     );
   });
 

@@ -51,7 +51,11 @@ describe('Sprint 17 AI dashboard depth integration', () => {
       status: PlanStatus.REQUIRES_APPROVAL,
       intent: 'setup_week_schedule',
       plan: {
-        steps: [{ id: '1' }, { id: '2' }],
+        intent: 'setup_week_schedule',
+        steps: [
+          { id: '1', params: {}, description: 'Apply weekday' },
+          { id: '2', params: {}, description: 'Fill gaps' },
+        ],
         reasoning: 'Week setup',
         riskAssessment: { level: 'high' },
       },
@@ -109,7 +113,10 @@ describe('Sprint 17 AI dashboard depth integration', () => {
     });
 
     const result = await orchestration.executePlan({
-      plan: { steps: [] } as any,
+      plan: {
+        intent: 'optimize_schedule',
+        steps: [{ id: 's1', params: {}, description: 'Optimize' }],
+      } as any,
       businessId: 'biz-1',
     });
 

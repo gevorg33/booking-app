@@ -5,6 +5,7 @@ import {
   enrichPaymentSweepParams,
   extractMenuTextFromParams,
   filterBookingsForPaymentSweep,
+  filterIsoSlotsByTimeOfDay,
   filterSlotsByTimeOfDay,
   formatTimeOfDayLabel,
   isBookingOutsideBusinessHours,
@@ -234,6 +235,17 @@ describe('ai-operations.util', () => {
       'evening',
     );
     expect(slots).toHaveLength(1);
+
+    const isoSlots = filterIsoSlotsByTimeOfDay(
+      [
+        { startTime: '09:00', endTime: '09:30' },
+        { startTime: '18:00', endTime: '18:30' },
+      ],
+      'evening',
+      (hhmm) => hhmm,
+    );
+    expect(isoSlots).toHaveLength(1);
+    expect(isoSlots[0]?.startTime).toBe('18:00');
   });
 
   it('parses sick employee name', () => {

@@ -15,6 +15,8 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
+import { AiCommandFeedback } from '@/components/ai-command-feedback';
+import { AiClarifyChips } from '@/components/ai-clarify-chips';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
@@ -24,14 +26,21 @@ interface Message {
   text: string;
   navigate?: PublicAssistantResponse['navigate'];
   success?: boolean;
+  traceId?: string;
+  details?: Record<string, unknown>;
 }
 
 interface SessionContext {
   employeeName?: string | null;
   date?: string | null;
   serviceName?: string | null;
+  serviceId?: string | null;
+  employeeId?: string | null;
   timeSlot?: string | null;
   customerName?: string | null;
+  customerId?: string | null;
+  bookingId?: string | null;
+  route?: string | null;
 }
 
 const EXAMPLE_KEYS = [
@@ -44,9 +53,10 @@ const EXAMPLE_KEYS = [
 interface PublicBookingAssistantProps {
   slug: string;
   tenant: PublicBusinessProfile;
+  pageContext?: Record<string, string>;
 }
 
-export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantProps) {
+export function PublicBookingAssistant({ slug, tenant, pageContext = {} }: PublicBookingAssistantProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
@@ -97,9 +107,9 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     [router, slug],
   );
 
-  const submit = useCallback(async () => {
-    const prompt = input.trim();
-    if (!prompt || loading) return;
+  const submitPrompt = useCallback(
+    async (prompt: string, handoffContext?: Record<string, unknown>) => {
+    if (!prompt.trim() || loading) return;
 
     setMessages((prev) => [
       ...prev,
@@ -114,7 +124,11 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       const result = await sendPublicAssistantMessage(slug, {
         prompt,
         history,
-        context: sessionContext as Record<string, unknown>,
+        context: {
+          ...pageContext,
+          ...(sessionContext as Record<string, unknown>),
+          ...(handoffContext ?? {}),
+        },
         locale,
       });
 
@@ -126,6 +140,8 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           text: result.summary,
           navigate: result.navigate,
           success: result.success,
+          traceId: result.traceId,
+          details: result.details,
         },
       ]);
 
@@ -145,7 +161,13 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, sessionContext, slug, locale, t]);
+  },
+  [loading, messages, pageContext, sessionContext, slug, locale, t],
+  );
+
+  const submit = useCallback(async () => {
+    await submitPrompt(input.trim());
+  }, [input, submitPrompt]);
 
   const handleVoiceError = useCallback(
     (code: SpeechRecognitionErrorCode) => {
@@ -296,6 +318,14 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                       primaryColor={primary}
                     />
                   )}
+                  {isAssistant && (
+                    <AiCommandFeedback
+                      slug={slug}
+                      traceId={msg.traceId}
+                      compact
+                      variant="light"
+                    />
+                  )}
                   {msg.navigate && msg.role === 'assistant' && (
                     <button
                       type="button"
@@ -305,6 +335,61 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                     >
                       {t('public.continueBooking')}
                     </button>
+                  )}
+                  {msg.details?.needsClarification === true && (
+                    <AiClarifyChips
+                      clarifyCandidates={
+                        msg.details.clarifyCandidates as
+                          | Array<{ action: string; label: string; score?: number }>
+                          | undefined
+                      }
+                      entityOptions={
+                        msg.details.entityOptions as
+                          | Array<{
+                              id: string;
+                              field: string;
+                              label: string;
+                              value: string;
+                            }>
+                          | undefined
+                      }
+                      suggestedCommands={
+                        msg.details.suggestedCommands as
+                          | Array<{ id: string; label: string; prompt: string }>
+                          | undefined
+                      }
+                      showSomethingElseEscape={msg.details.showSomethingElseEscape === true}
+                      somethingElseLabel={
+                        typeof msg.details.somethingElseLabel === 'string'
+                          ? msg.details.somethingElseLabel
+                          : undefined
+                      }
+                      somethingElseAlternatives={
+                        msg.details.somethingElseAlternatives as
+                          | Array<{ id: string; label: string; prompt: string }>
+                          | undefined
+                      }
+                      humanHandoff={msg.details.humanHandoff === true}
+                      escalationRoute={
+                        typeof msg.details.escalationRoute === 'string'
+                          ? msg.details.escalationRoute
+                          : undefined
+                      }
+                      originalPrompt={
+                        typeof (msg.details.clarifyContext as { originalPrompt?: string } | undefined)
+                          ?.originalPrompt === 'string'
+                          ? (msg.details.clarifyContext as { originalPrompt: string }).originalPrompt
+                          : undefined
+                      }
+                      onGetHelp={() => {
+                        void submitPrompt('Get help', {
+                          _executeHumanHandoff: true,
+                          _handoffSurface: 'public',
+                          _clarifyContext: msg.details?.clarifyContext,
+                        });
+                      }}
+                      onSelect={(composed) => void submitPrompt(composed)}
+                    />
                   )}
                 </div>
               </div>

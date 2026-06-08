@@ -246,10 +246,12 @@ describe('Gift card end-to-end integration', () => {
   };
   const deliveryService = new GiftCardDeliveryService(
     giftCardRepo as any,
+    { findOne: jest.fn().mockResolvedValue(null) } as any,
     emailService as any,
     whatsappService as any,
     whatsappIntegrationService as any,
     deliveryConfigService as any,
+    { sendGiftCardReceivedPush: jest.fn().mockResolvedValue(undefined) } as any,
   );
   const giftCardsService = new GiftCardsService(
     giftCardRepo as any,

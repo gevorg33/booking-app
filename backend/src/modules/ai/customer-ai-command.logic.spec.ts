@@ -3,6 +3,7 @@ import {
   executeCustomerCompoundFromSteps,
   type CustomerAiCommandLogicDeps,
 } from './customer-ai-command.logic.js';
+import { CUSTOMER_ADOPT_6_GROWTH_INTENTS } from './ai-adopt-6-growth-loops.fixtures.js';
 
 type HandlerCall = jest.Mock;
 
@@ -162,6 +163,25 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
       handleLoyaltyPointsBalance: register(
         's34.loyalty_points_balance',
         'loyalty_points_balance',
+      ),
+    } as any,
+    adopt6Growth: {
+      handleExplainMyNotifications: register(
+        'adopt6.explain_my_notifications',
+        'explain_my_notifications',
+      ),
+      handleManageNotificationPreferences: register(
+        'adopt6.manage_notification_preferences',
+        'manage_notification_preferences',
+      ),
+      handleReferAFriend: register('adopt6.refer_a_friend', 'refer_a_friend'),
+      handleRebookLastAppointment: register(
+        'adopt6.rebook_last_appointment',
+        'rebook_last_appointment',
+      ),
+      handleFindMySavedSalons: register(
+        'adopt6.find_my_saved_salons',
+        'find_my_saved_salons',
       ),
     } as any,
     pushNotifications: {
@@ -670,6 +690,25 @@ describe('customer-ai-command.logic', () => {
     expect(result.action).toBe('unknown');
     expect(result.details?.clarify).toBe(true);
   });
+
+  it.each(CUSTOMER_ADOPT_6_GROWTH_INTENTS)(
+    'dispatches adopt-6 growth intent %s (adopt-6.6)',
+    async (action) => {
+      const deps = buildDeps();
+      await dispatchCustomerIntent(
+        deps,
+        'biz-1',
+        action,
+        { sessionCustomerId: 'cust-1' },
+        session,
+      );
+      expect(deps.calls[`adopt6.${action}`]).toHaveBeenCalled();
+      expect(deps.calls[`adopt6.${action}`].mock.calls[0]?.[0]).toBe('biz-1');
+      expect(deps.calls[`adopt6.${action}`].mock.calls[0]?.[1]).toEqual(
+        expect.objectContaining({ sessionCustomerId: 'cust-1' }),
+      );
+    },
+  );
 
   it('executes multi-step customer compound decomposition', async () => {
     const deps = buildDeps();

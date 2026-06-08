@@ -29,6 +29,7 @@ import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 import { ServicePackagesModule } from '../service-packages/service-packages.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
 import { CustomerModule } from '../customer/customer.module.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { GiftCardClaimService } from './gift-card-claim.service.js';
 
 @Module({
@@ -42,6 +43,7 @@ import { GiftCardClaimService } from './gift-card-claim.service.js';
       Business,
       Service,
       Employee,
+      Customer,
     ]),
     BusinessModule,
     CustomerModule,

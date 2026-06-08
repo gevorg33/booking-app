@@ -4,6 +4,10 @@ import {
   buildMultilingualClassifierContext,
   needsMultilingualNormalization,
 } from './ai-prompt-i18n.js';
+import {
+  buildNormalizationClassifierContext,
+  normalizePromptForClassifier,
+} from './ai-prompt-normalization.util.js';
 
 /** passthrough = English; multilingual = hy/ru/translit handled directly by classify_intent */
 export type PromptNormalizationMethod = 'passthrough' | 'multilingual';
@@ -13,6 +17,7 @@ export interface PromptNormalizationResult {
   normalized: string;
   method: PromptNormalizationMethod;
   classifierContext: string | null;
+  expansions: string[];
 }
 
 const CACHE_MAX = 512;
@@ -33,15 +38,20 @@ export class AiPromptNormalizationService {
         normalized: '',
         method: 'passthrough',
         classifierContext: null,
+        expansions: [],
       };
     }
 
     if (!needsMultilingualNormalization(original)) {
+      const normalizedUpgrade = normalizePromptForClassifier(original);
       return {
         original,
-        normalized: original,
+        normalized: normalizedUpgrade.normalized,
         method: 'passthrough',
-        classifierContext: null,
+        classifierContext: buildNormalizationClassifierContext(
+          normalizedUpgrade.expansions,
+        ),
+        expansions: normalizedUpgrade.expansions,
       };
     }
 
@@ -58,7 +68,19 @@ export class AiPromptNormalizationService {
         original,
         'multilingual',
       ),
+      expansions: [],
     };
+    const normalizedUpgrade = normalizePromptForClassifier(original);
+    if (normalizedUpgrade.expansions.length > 0) {
+      result.normalized = normalizedUpgrade.normalized;
+      result.expansions = normalizedUpgrade.expansions;
+      result.classifierContext = [
+        result.classifierContext,
+        buildNormalizationClassifierContext(normalizedUpgrade.expansions),
+      ]
+        .filter(Boolean)
+        .join('\n');
+    }
 
     this.putCache(cacheKey, result);
     return result;

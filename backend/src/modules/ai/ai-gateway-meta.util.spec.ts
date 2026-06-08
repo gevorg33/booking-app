@@ -195,4 +195,28 @@ describe('ai-gateway-meta.util', () => {
       executionTimeline: undefined,
     });
   });
+
+  it('attachGatewayMeta stamps traceId on pipeline stages (acc-1.3)', () => {
+    const attached = attachGatewayMeta(
+      {
+        success: true,
+        action: 'list_bookings',
+        summary: 'ok',
+        details: {
+          pipelineTrace: [
+            { stage: 'classify', action: 'list_bookings', at: 't1' },
+            { stage: 'execute', action: 'list_bookings', at: 't2' },
+          ],
+        },
+      },
+      'dashboard',
+      'owner',
+      'corr-123',
+    );
+    expect(attached.details?.traceId).toBe('corr-123');
+    expect(attached.details?.pipelineTrace).toEqual([
+      { stage: 'classify', action: 'list_bookings', at: 't1', traceId: 'corr-123' },
+      { stage: 'execute', action: 'list_bookings', at: 't2', traceId: 'corr-123' },
+    ]);
+  });
 });

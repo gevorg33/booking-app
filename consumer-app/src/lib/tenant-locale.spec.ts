@@ -1,9 +1,11 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
+  CONSUMER_LOCALE_LABELS,
   localeStorageKey,
   readDefaultLocale,
   readEnabledLocales,
   resolveConsumerLocale,
+  formatStoredTenantLocaleLabel,
   writeStoredConsumerLocale,
 } from './tenant-locale.js';
 
@@ -15,6 +17,24 @@ describe('tenant-locale (Sprint 29)', () => {
   };
 
   beforeEach(() => {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value);
+        },
+        removeItem: (key: string) => {
+          store.delete(key);
+        },
+        clear: () => store.clear(),
+        get length() {
+          return store.size;
+        },
+        key: (index: number) => [...store.keys()][index] ?? null,
+      },
+    });
     localStorage.clear();
   });
 
@@ -42,5 +62,11 @@ describe('tenant-locale (Sprint 29)', () => {
   it('ignores stored locale when it is not enabled', () => {
     writeStoredConsumerLocale('salon', 'ru');
     expect(resolveConsumerLocale('salon', profile)).toBe('hy');
+  });
+
+  it('formats stored tenant locale labels for switcher subtitles', () => {
+    writeStoredConsumerLocale('salon', 'hy');
+    expect(formatStoredTenantLocaleLabel('salon')).toBe(CONSUMER_LOCALE_LABELS.hy);
+    expect(formatStoredTenantLocaleLabel('missing')).toBeNull();
   });
 });

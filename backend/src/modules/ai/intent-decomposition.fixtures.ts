@@ -267,6 +267,43 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     compoundRecipeId: 'public_clinic_compound',
     noLlm: true,
   },
+  {
+    id: 'false_compound_multi_service_booking',
+    surface: 'dashboard',
+    prompt: 'Book haircut and beard trim Tuesday 10am with Anna',
+    expectEmpty: true,
+    noLlm: true,
+  },
+  {
+    id: 'false_compound_dual_entity_show',
+    surface: 'dashboard',
+    prompt: 'Show appointments for Gevorg and Maria tomorrow',
+    expectEmpty: true,
+    noLlm: true,
+  },
+  {
+    id: 'false_compound_datetime_range',
+    surface: 'dashboard',
+    prompt: 'Cancel all appointments between 16:30 and 17:30 tomorrow',
+    expectEmpty: true,
+    noLlm: true,
+  },
+  {
+    id: 'false_compound_orchestration_fallback',
+    surface: 'dashboard',
+    prompt:
+      'Book facemassage on Gevorg tomorrow at 9; if not available then Mary at 9',
+    expectEmpty: true,
+    noLlm: true,
+  },
+  {
+    id: 'dashboard_compound_plus_split',
+    surface: 'dashboard',
+    prompt: 'Summarize unpaid bookings plus export accounting',
+    minSteps: 2,
+    actions: ['summarize_unpaid', 'export_accounting'],
+    noLlm: true,
+  },
 ];
 
 export const COMPOUND_MARKER_PROMPTS: Array<{
@@ -284,4 +321,9 @@ export const COMPOUND_MARKER_PROMPTS: Array<{
   { prompt: 'Export data after that send reengagement', compound: true },
   { prompt: 'Book haircut, and cancel old appointment', compound: true },
   { prompt: 'Clear schedule. cancel remaining bookings', compound: true },
+  { prompt: 'Who is free tomorrow and who can do lashes', compound: false },
+  { prompt: 'Book haircut and beard trim Tuesday 10am with Anna', compound: false },
+  { prompt: 'Show appointments for Gevorg and Maria tomorrow', compound: false },
+  { prompt: 'Cancel all appointments between 16:30 and 17:30', compound: false },
+  { prompt: 'Summarize unpaid bookings plus export accounting', compound: true },
 ];

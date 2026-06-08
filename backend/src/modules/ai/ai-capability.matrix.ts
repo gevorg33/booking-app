@@ -3,6 +3,7 @@ import {
   isCustomerIntentAllowed,
   isDashboardIntentAllowed,
   isProviderIntentAllowed,
+  isPublicIntentAllowed,
   resolveAccessTier,
   tierAccessSummary,
 } from './access-control.matrix.js';
@@ -46,7 +47,11 @@ export function getAllowedIntents(
   surface: AiSurface,
   tier: AccessTier,
 ): readonly string[] {
-  if (surface === 'public') return PUBLIC_INTENTS;
+  if (surface === 'public') {
+    return PUBLIC_INTENTS.filter((action) =>
+      isPublicIntentAllowed(tier, action),
+    );
+  }
   if (surface === 'customer') {
     return CUSTOMER_SURFACE_INTENTS.filter((action) =>
       isCustomerIntentAllowed(tier, action),
@@ -112,7 +117,9 @@ export function isIntentAllowed(
   )
     return true;
   if (surface === 'public') {
-    return PUBLIC_INTENTS.includes(action);
+    return (
+      isPublicIntentAllowed(tier, action) && PUBLIC_INTENTS.includes(action)
+    );
   }
   if (surface === 'customer') {
     return (
@@ -120,9 +127,16 @@ export function isIntentAllowed(
       CUSTOMER_SURFACE_INTENTS.includes(action)
     );
   }
-  return surface === 'dashboard'
-    ? isDashboardIntentAllowed(tier, action)
-    : isProviderIntentAllowed(tier, action);
+  if (surface === 'dashboard') {
+    return (
+      DASHBOARD_INTENTS.includes(action) &&
+      isDashboardIntentAllowed(tier, action)
+    );
+  }
+  return (
+    PROVIDER_INTENTS.includes(action) &&
+    isProviderIntentAllowed(tier, action)
+  );
 }
 
 export function isMutatingIntent(surface: AiSurface, action: string): boolean {

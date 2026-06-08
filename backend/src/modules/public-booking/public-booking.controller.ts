@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -12,6 +13,8 @@ import {
 import { PublicBookingService } from './public-booking.service.js';
 import { BusinessService } from '../business/business.service.js';
 import { AiGatewayService } from '../ai/ai-gateway.service.js';
+import { AiCommandTraceService } from '../ai/ai-command-trace.service.js';
+import { AiCommandTraceFeedbackDto } from '../ai/dto/ai-command-trace-feedback.dto.js';
 import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
@@ -65,6 +68,12 @@ import { PatientClinicalAlertsService } from '../patient-clinical-profiles/patie
 import type { ClinicPatientAlertType } from '../../common/utils/clinic-patient-alert.types.js';
 import { ConsumerPushTokenService } from '../notifications/consumer-push-token.service.js';
 import { RegisterConsumerNativePushDto } from '../notifications/dto/register-consumer-native-push.dto.js';
+import { AckConsumerPushDeliveryDto } from '../notifications/dto/ack-consumer-push-delivery.dto.js';
+import { PublicConsumerSupportService } from './public-consumer-support.service.js';
+import { PublicConsumerSupportTicketDto } from './dto/public-consumer-support-ticket.dto.js';
+import { UpdatePublicConsumerNotificationPreferencesDto } from './dto/public-consumer-notification-preferences.dto.js';
+import { ClaimReferralCodeDto } from './dto/claim-referral.dto.js';
+import { SubmitCustomerReviewDto } from './dto/submit-customer-review.dto.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -72,6 +81,7 @@ export class PublicBookingController {
     private publicBookingService: PublicBookingService,
     private businessService: BusinessService,
     private aiGateway: AiGatewayService,
+    private commandTrace: AiCommandTraceService,
     private bookingPaymentService: BookingPaymentService,
     private reviewsService: ReviewsService,
     private publicCustomerAuthService: PublicCustomerAuthService,
@@ -83,6 +93,7 @@ export class PublicBookingController {
     private publicPreVisitIntakeService: PublicPreVisitIntakeService,
     private patientClinicalAlertsService: PatientClinicalAlertsService,
     private consumerPushTokenService: ConsumerPushTokenService,
+    private publicConsumerSupportService: PublicConsumerSupportService,
   ) {}
 
   @Get()
@@ -405,6 +416,18 @@ export class PublicBookingController {
     );
   }
 
+  @Get('services/:serviceId/nearest-slot')
+  getNearestServiceSlot(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query('employeeId') employeeId?: string,
+  ) {
+    return this.publicBookingService.findNearestBookableSlot(slug, {
+      serviceId,
+      employeeId: employeeId ?? null,
+    });
+  }
+
   @Get('services/:serviceId/providers')
   getProvidersForServiceSlot(
     @Param('slug') slug: string,
@@ -569,6 +592,17 @@ export class PublicBookingController {
     );
   }
 
+  @Post('assistant/trace/:traceId/feedback')
+  async recordAssistantTraceFeedback(
+    @Param('slug') slug: string,
+    @Param('traceId') traceId: string,
+    @Body() dto: AiCommandTraceFeedbackDto,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    await this.commandTrace.recordFeedback(traceId, business.id, dto);
+    return { ok: true };
+  }
+
   @Get('reviews/context')
   getReviewContext(
     @Param('slug') slug: string,
@@ -607,7 +641,35 @@ export class PublicBookingController {
     @Param('slug') slug: string,
     @Body() dto: PublicCustomerGoogleLoginDto,
   ) {
-    return this.publicCustomerAuthService.loginWithGoogle(slug, dto.idToken);
+    return this.publicCustomerAuthService.loginWithGoogle(
+      slug,
+      dto.idToken,
+      dto.analyticsAnonId,
+    );
+  }
+
+  @Post('auth/apple')
+  loginWithApple(
+    @Param('slug') slug: string,
+    @Body() dto: PublicCustomerGoogleLoginDto,
+  ) {
+    return this.publicCustomerAuthService.loginWithApple(
+      slug,
+      dto.idToken,
+      dto.analyticsAnonId,
+    );
+  }
+
+  @Post('auth/phone')
+  loginWithPhone(
+    @Param('slug') slug: string,
+    @Body() dto: PublicCustomerGoogleLoginDto,
+  ) {
+    return this.publicCustomerAuthService.loginWithPhone(
+      slug,
+      dto.idToken,
+      dto.analyticsAnonId,
+    );
   }
 
   @Get('auth/me')
@@ -755,6 +817,20 @@ export class PublicBookingController {
     };
   }
 
+  @Post('me/support/ticket')
+  @UseGuards(PublicCustomerAuthGuard)
+  createPostBookingSupportTicket(
+    @Param('slug') slug: string,
+    @Body() dto: PublicConsumerSupportTicketDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicConsumerSupportService.createPostBookingSupportTicket(
+      slug,
+      user.customerId,
+      dto,
+    );
+  }
+
   @Post('me/bookings/:bookingId/cancel')
   @UseGuards(PublicCustomerAuthGuard)
   cancelMyBooking(
@@ -884,6 +960,11 @@ export class PublicBookingController {
     );
   }
 
+  @Get('promotions')
+  getPublicPromotions(@Param('slug') slug: string) {
+    return this.publicBookingService.getPublicPromotions(slug);
+  }
+
   @Get('me/loyalty')
   @UseGuards(PublicCustomerAuthGuard)
   getMyLoyalty(
@@ -891,6 +972,71 @@ export class PublicBookingController {
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicBookingService.getCustomerLoyalty(slug, user.customerId);
+  }
+
+  @Get('me/rewards')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyRewards(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerRewards(slug, user.customerId);
+  }
+
+  @Get('me/referral')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyReferralProgram(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerReferralProgram(
+      slug,
+      user.customerId,
+    );
+  }
+
+  @Post('me/referral/claim')
+  @UseGuards(PublicCustomerAuthGuard)
+  claimReferralCode(
+    @Param('slug') slug: string,
+    @Body() dto: ClaimReferralCodeDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.claimCustomerReferralCode(
+      slug,
+      user.customerId,
+      dto.referralCode,
+    );
+  }
+
+  @Get('me/bookings/:bookingId/review')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyReviewSession(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.getCustomerReviewSession(
+      slug,
+      user.customerId,
+      bookingId,
+    );
+  }
+
+  @Post('me/bookings/:bookingId/review')
+  @UseGuards(PublicCustomerAuthGuard)
+  submitMyReview(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @Body() dto: SubmitCustomerReviewDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.submitCustomerReview(
+      slug,
+      user.customerId,
+      bookingId,
+      dto,
+    );
   }
 
   @Get('me/subscriptions')
@@ -935,14 +1081,34 @@ export class PublicBookingController {
 
   @Post('me/push/register-native')
   @UseGuards(PublicCustomerAuthGuard)
-  registerConsumerNativePush(
+  async registerConsumerNativePush(
     @CurrentUser() user: PublicCustomerRequestUser,
     @Body() dto: RegisterConsumerNativePushDto,
   ) {
-    return this.consumerPushTokenService.registerToken(
+    const result = await this.consumerPushTokenService.registerToken(
       user.customerId,
       user.businessId,
       dto,
+    );
+    await this.publicCustomerAuthService.linkAnalyticsAnonByCustomerId(
+      user.businessId,
+      user.customerId,
+      dto.analyticsAnonId,
+    );
+    return result;
+  }
+
+  @Post('me/push/delivery-ack')
+  @UseGuards(PublicCustomerAuthGuard)
+  ackConsumerPushDelivery(
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Body() dto: AckConsumerPushDeliveryDto,
+  ) {
+    return this.consumerPushTokenService.recordDeliveryAck(
+      user.customerId,
+      user.businessId,
+      dto.platform,
+      dto.deliveryId,
     );
   }
 
@@ -956,6 +1122,32 @@ export class PublicBookingController {
       user.customerId,
       user.businessId,
       platform,
+    );
+  }
+
+  @Get('me/notification-preferences')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyNotificationPreferences(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerAuthService.getNotificationPreferences(
+      slug,
+      user.customerId,
+    );
+  }
+
+  @Patch('me/notification-preferences')
+  @UseGuards(PublicCustomerAuthGuard)
+  updateMyNotificationPreferences(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Body() dto: UpdatePublicConsumerNotificationPreferencesDto,
+  ) {
+    return this.publicCustomerAuthService.updateNotificationPreferences(
+      slug,
+      user.customerId,
+      dto,
     );
   }
 

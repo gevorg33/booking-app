@@ -30,6 +30,9 @@ import { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
 import { AiIntegrationsService } from './ai-integrations.service.js';
 import { AiRetailFinanceService } from './ai-retail-finance.service.js';
 import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
+import { AiReviewsService } from './ai-reviews.service.js';
+import { AiTeamMembersService } from './ai-team-members.service.js';
+import { AiAdopt6GrowthLoopsService } from './ai-adopt-6-growth-loops.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
 import { AiProviderBookingService } from './ai-provider-booking.service.js';
@@ -83,6 +86,12 @@ import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { AiEntityMemoryService } from './ai-entity-memory.service.js';
 import { AiConversationSummaryService } from './ai-conversation-summary.service.js';
 import { AiRagService } from './ai-rag.service.js';
+import { AiClassificationEngineService } from './ai-classification-engine.service.js';
+import { AiClassificationFewShotService } from './ai-classification-fewshot.service.js';
+import { AiClassificationSelfCheckService } from './ai-classification-selfcheck.service.js';
+import { AiClassificationEscalationService } from './ai-classification-escalation.service.js';
+import { AiSemanticIntentService } from './ai-semantic-intent.service.js';
+import { AiSemanticPhrasingBankService } from './ai-semantic-phrasing-bank.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
 import { AiWeeklyReportService } from './ai-weekly-report.service.js';
 import { CommandComplexityRouterService } from './command-complexity-router.service.js';
@@ -120,8 +129,21 @@ import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-re
 import { ClinicTestType } from '../clinic-test-results/entities/clinic-test-type.entity.js';
 import { ClinicTestPanel } from '../clinic-test-results/entities/clinic-test-panel.entity.js';
 import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
 import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
+import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiEvalLabelQueue } from './entities/ai-eval-label-queue.entity.js';
+import { AiEvalHarvestService } from './ai-eval-harvest.service.js';
+import { AiFailureClosureService } from './ai-failure-closure.service.js';
+import { AiAliasSuggestionService } from './ai-alias-suggestion.service.js';
+import { AiAccuracyRatchetService } from './ai-accuracy-ratchet.service.js';
+import { AiEscalationHandoffService } from './ai-escalation-handoff.service.js';
+import { AiAccuracyReviewService } from './ai-accuracy-review.service.js';
+import { AiAccuracyReviewScheduler } from './ai-accuracy-review.scheduler.js';
+import { AiEvalHarvestScheduler } from './ai-eval-harvest.scheduler.js';
+import { AiPromptSimilarityService } from './ai-prompt-similarity.service.js';
 
 @Module({
   imports: [
@@ -150,6 +172,8 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
       ClinicTestResult,
       ClinicTestType,
       ClinicTestPanel,
+      AiCommandTrace,
+      AiEvalLabelQueue,
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
@@ -179,6 +203,7 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     NotificationsModule,
     ComplianceModule,
     ClinicTestResultsModule,
+    ReviewsModule,
     PatientClinicalProfilesModule,
     forwardRef(() => PublicBookingModule),
     ServiceModule,
@@ -217,6 +242,9 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiIntegrationsService,
     AiRetailFinanceService,
     AiMarketingGrowthService,
+    AiReviewsService,
+    AiTeamMembersService,
+    AiAdopt6GrowthLoopsService,
     AiPushNotificationsService,
     AiSelfServiceBookingService,
     AiProviderBookingService,
@@ -241,6 +269,12 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiEntityMemoryService,
     AiConversationSummaryService,
     AiRagService,
+    AiClassificationEngineService,
+    AiClassificationFewShotService,
+    AiClassificationSelfCheckService,
+    AiClassificationEscalationService,
+    AiSemanticIntentService,
+    AiSemanticPhrasingBankService,
     AiIntelligenceService,
     AiWeeklyReportService,
     CommandComplexityRouterService,
@@ -249,10 +283,21 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
+    AiCommandTraceService,
+    AiPromptSimilarityService,
+    AiEvalHarvestService,
+    AiEvalHarvestScheduler,
+    AiFailureClosureService,
+    AiAliasSuggestionService,
+    AiAccuracyRatchetService,
+    AiEscalationHandoffService,
+    AiAccuracyReviewService,
+    AiAccuracyReviewScheduler,
   ],
   exports: [
     AiPlatformService,
     AiPushNotificationsService,
+    AiAdopt6GrowthLoopsService,
     AiProviderBookingService,
     AiProviderClinicCollectionService,
     AiClinicLabBookingService,
@@ -265,6 +310,8 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     CommandOrchestrationService,
     AiSettingsService,
     AiGatewayService,
+    AiCommandTraceService,
+    AiPromptSimilarityService,
     CustomerAiCommandService,
     AiBusinessCurrencyService,
     AiBusinessLanguagesService,
@@ -276,12 +323,23 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiPackageLocalizedNamesService,
     AiTourServiceService,
     AiIntelligenceService,
+    AiClassificationEngineService,
+    AiClassificationFewShotService,
+    AiClassificationSelfCheckService,
+    AiClassificationEscalationService,
+    AiSemanticIntentService,
+    AiSemanticPhrasingBankService,
     CommandComplexityRouterService,
     AiIntentRescueService,
     AiCommandRegistryService,
     AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
+    AiEscalationHandoffService,
+    AiReviewsService,
+    AiPaymentsService,
+    AiCustomerCrmService,
+    AiMarketingGrowthService,
   ],
 })
 export class AiModule {}

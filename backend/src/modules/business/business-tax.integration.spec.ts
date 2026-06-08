@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BusinessService } from './business.service.js';
-import { PublicBookingService } from '../public-booking/public-booking.service.js';
+import { createPublicBookingServiceHarness } from '../public-booking/public-booking-test.harness.js';
+import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import { CheckoutPricingService } from '../promo-codes/checkout-pricing.service.js';
@@ -24,27 +25,12 @@ function buildPublicBookingService(): PublicBookingService {
     { findOne: jest.fn(), save: jest.fn() } as never,
     { find: jest.fn() } as never,
   );
-  return new PublicBookingService(
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    stripeIntegrationService as unknown as StripeIntegrationService,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
+  return createPublicBookingServiceHarness({
+    stripeIntegrationService:
+      stripeIntegrationService as unknown as StripeIntegrationService,
     multiServiceBookingsService,
-    {} as never,
-    {} as never,
-    config as unknown as ConfigService,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-  );
+    configService: config as unknown as ConfigService,
+  });
 }
 
 const baseBusiness = (settings: Record<string, unknown>): Business =>

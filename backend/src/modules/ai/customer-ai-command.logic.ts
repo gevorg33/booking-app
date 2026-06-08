@@ -1,9 +1,12 @@
 import type { CommandResult } from './command-completion.types.js';
+import { buildRoleCapabilityListingResult } from './ai-role-capability-listing.util.js';
+import type { PlanTierId } from '../billing/plan-limits.js';
 import type { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import type { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
 import type { AiPaymentsService } from './ai-payments.service.js';
 import type { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
 import type { AiIntegrationsService } from './ai-integrations.service.js';
+import type { AiAdopt6GrowthLoopsService } from './ai-adopt-6-growth-loops.service.js';
 import type { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import type { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
@@ -17,6 +20,7 @@ import type { AiRecommendationProductService } from './ai-recommendation-product
 import type { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import type { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import type { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import type { AiReviewsService } from './ai-reviews.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
 import { mergeCustomerCompoundContext } from './customer-ai-command.util.js';
@@ -30,6 +34,7 @@ export interface CustomerAiCommandLogicDeps {
   giftFulfillment: AiGiftFulfillmentService;
   integrations: AiIntegrationsService;
   marketingGrowth: AiMarketingGrowthService;
+  adopt6Growth: AiAdopt6GrowthLoopsService;
   pushNotifications: AiPushNotificationsService;
   selfServiceBooking: AiSelfServiceBookingService;
   businessCurrency: AiBusinessCurrencyService;
@@ -42,6 +47,7 @@ export interface CustomerAiCommandLogicDeps {
   consumerClinicTestResults: AiConsumerClinicTestResultsService;
   clinicLabBooking: AiClinicLabBookingService;
   clinicBooking: AiClinicBookingService;
+  reviews: AiReviewsService;
 }
 
 export interface CustomerIntentSession {
@@ -75,6 +81,7 @@ export interface CustomerIntentSession {
   userEmail?: string;
   userName?: string;
   prompt?: string;
+  planTierId?: PlanTierId;
 }
 
 function withCustomerSession(
@@ -260,6 +267,12 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'submit_review':
+      return deps.reviews.handleSubmitReview(
+        businessId,
+        session?.slug,
+        p,
+      );
     case 'explain_clinic_booking':
       return deps.clinicBooking.handleExplainClinicBooking(
         businessId,
@@ -300,6 +313,12 @@ export async function dispatchCustomerIntent(
         session.userEmail,
         session.userName,
       );
+    case 'list_capabilities':
+      return buildRoleCapabilityListingResult({
+        surface: 'customer',
+        accessTier: 'client',
+        planTierId: (session.planTierId as PlanTierId | undefined) ?? 'solo',
+      });
     case 'how_to_download_app':
       return deps.marketingGrowth.handleHowToDownloadApp(businessId);
     case 'switch_to_consumer_app':
@@ -308,6 +327,20 @@ export async function dispatchCustomerIntent(
       return deps.marketingGrowth.handlePromoCodeHelp(businessId, p, prompt);
     case 'loyalty_points_balance':
       return deps.marketingGrowth.handleLoyaltyPointsBalance(businessId, p);
+    case 'explain_my_notifications':
+      return deps.adopt6Growth.handleExplainMyNotifications(businessId, p);
+    case 'manage_notification_preferences':
+      return deps.adopt6Growth.handleManageNotificationPreferences(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'refer_a_friend':
+      return deps.adopt6Growth.handleReferAFriend(businessId, p);
+    case 'rebook_last_appointment':
+      return deps.adopt6Growth.handleRebookLastAppointment(businessId, p);
+    case 'find_my_saved_salons':
+      return deps.adopt6Growth.handleFindMySavedSalons(businessId, p);
     case 'explain_last_push':
       return deps.pushNotifications.handleExplainLastPush(p);
     case 'open_booking_from_push':

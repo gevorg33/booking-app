@@ -86,6 +86,8 @@ describe('ai-cmd gateway integration (ai-cmd-t3)', () => {
       planEntitlements as any,
       sprintMocks.aiSettings as any,
       sprintMocks.platform as any,
+      sprintMocks.commandTrace as any,
+      sprintMocks.classificationEngine as any,
     );
 
     return {

@@ -61,6 +61,8 @@ describe('customer AI gateway integration (ai-cmd-0.5)', () => {
       planEntitlements as any,
       sprintMocks.aiSettings as any,
       sprintMocks.platform as any,
+      sprintMocks.commandTrace as any,
+      sprintMocks.classificationEngine as any,
     );
 
     return {

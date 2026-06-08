@@ -13,6 +13,10 @@ import {
 } from './ai-clinic-test-order.util.js';
 import { extractCustomerNameFromPrompt } from './ai-retail-finance.util.js';
 import {
+  isEnablePushNotificationsPrompt,
+  isExplainPushSetupPrompt,
+} from './ai-adopt-6-growth-loops.fixtures.js';
+import {
   AWAITING_PATIENT_BOOKING_LIST_PROMPTS,
   BOOK_LAB_COLLECTION_PROMPTS,
   LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
@@ -164,6 +168,23 @@ const PATIENT_RESULT_READY_NOTIFY_BLOCK = new RegExp(
 );
 
 export function isPushLabBookingToPatientPrompt(prompt: string): boolean {
+  if (
+    isEnablePushNotificationsPrompt(prompt) ||
+    isExplainPushSetupPrompt(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(manage\s+link|reschedule\s+link|cancel\s+link|self[\s-]?service\s+link)\b/i.test(
+      prompt,
+    ) ||
+    (/\b(get|send|show)\b/i.test(prompt) &&
+      /\bmanage\b/i.test(prompt) &&
+      /\blink\b/i.test(prompt) &&
+      /\b(booking|appointment)\b/i.test(prompt))
+  ) {
+    return false;
+  }
   if (PATIENT_RESULT_READY_NOTIFY_BLOCK.test(prompt)) return false;
   if (CREATE_LAB_ORDER_BLOCK.test(prompt)) return false;
   if (

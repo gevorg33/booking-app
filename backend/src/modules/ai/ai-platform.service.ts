@@ -11,6 +11,7 @@ import type {
   CommandResult,
 } from './command-completion.types.js';
 import type { AiSettings } from './ai-settings.types.js';
+import { resolveClassificationAppendixVariantId as resolveClassificationAppendixVariantIdUtil } from './ai-classification-ab-harness.util.js';
 import type { AiSuggestion } from './ai-suggestions.service.js';
 import {
   applyAbToSuggestionsLogic,
@@ -38,6 +39,8 @@ import {
   type AiRoleProfile,
   type BranchScope,
 } from './ai-platform.util.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { mergeAutofillWatchdogIntoSession } from './ai-n99-wrong-execution-watchdog.util.js';
 
 @Injectable()
 export class AiPlatformService {
@@ -46,6 +49,7 @@ export class AiPlatformService {
   constructor(
     eventStore: EventStoreService,
     aiEvents: AiEventsService,
+    commandTrace: AiCommandTraceService,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(AgentTask) agentTaskRepo: Repository<AgentTask>,
@@ -56,6 +60,7 @@ export class AiPlatformService {
       businessRepo,
       agentTaskRepo,
       aiEvents,
+      commandTrace,
     };
   }
 
@@ -153,6 +158,13 @@ export class AiPlatformService {
     return resolveExperimentConfidenceHigh(baseHigh, experiment, businessId);
   }
 
+  resolveClassificationAppendixVariantId(
+    businessId: string,
+    settings: AiSettings,
+  ) {
+    return resolveClassificationAppendixVariantIdUtil(businessId, settings);
+  }
+
   recordCommandOutcome(params: {
     businessId: string;
     userId?: string;
@@ -168,6 +180,25 @@ export class AiPlatformService {
 
   getCommandAnalytics(businessId: string, periodDays = 30) {
     return getCommandAnalyticsLogic(this.deps, businessId, periodDays);
+  }
+
+  /** n99-2.7 — tighten autofill confidence when undo/👎 rate rises on auto-fill traces. */
+  async hydrateAutofillWatchdogSession(
+    businessId: string,
+    sessionContext: Record<string, unknown>,
+    periodDays = 7,
+  ): Promise<void> {
+    if (typeof sessionContext._autoFillFieldThreshold === 'number') return;
+    if (!this.deps.commandTrace?.loadTraceAnalyticsRowsForEval) return;
+    try {
+      const rows = await this.deps.commandTrace.loadTraceAnalyticsRowsForEval(
+        businessId,
+        periodDays,
+      );
+      mergeAutofillWatchdogIntoSession(sessionContext, rows);
+    } catch {
+      // Trace unavailable — keep default autofill threshold.
+    }
   }
 
   scanStuckTasks(businessId: string, settings: AiSettings) {

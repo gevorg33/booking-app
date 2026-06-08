@@ -2,10 +2,12 @@ import { IonContent, IonPage, IonSpinner } from '@ionic/react';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import SalonTabs from './SalonTabs.js';
 import { useConsumerNativePush } from '../hooks/use-consumer-native-push.js';
+import { useSalonAppAnalytics } from '../hooks/use-salon-app-analytics.js';
 
 export default function SalonTabShell() {
-  const { slug, profile, loading, error } = useTenantBootstrap();
+  const { slug, profile, loading, error, fromCache } = useTenantBootstrap();
   useConsumerNativePush(slug);
+  useSalonAppAnalytics(slug, profile);
 
   if (loading) {
     return (
@@ -27,5 +29,5 @@ export default function SalonTabShell() {
     );
   }
 
-  return <SalonTabs slug={slug} profile={profile} />;
+  return <SalonTabs slug={slug} profile={profile} fromCache={fromCache} />;
 }

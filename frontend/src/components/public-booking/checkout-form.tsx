@@ -487,6 +487,12 @@ export function CheckoutForm({
           manageToken={successMeta.manageToken}
           customerEmail={form.email.trim() || undefined}
           cashDueLabel={successMeta.cashDueLabel}
+          serviceId={service.id}
+          publicOrigin={
+            typeof window !== 'undefined'
+              ? window.location.origin
+              : process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || ''
+          }
         />
         <ProductRecommendationCards
           slug={tenant.slug}
@@ -963,6 +969,9 @@ export function CheckoutForm({
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
             placeholder={t('public.enterNamePlaceholder')}
             value={form.name}
+            name="name"
+            id="checkout-name"
+            autoComplete="name"
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             required
           />
@@ -984,6 +993,11 @@ export function CheckoutForm({
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
             placeholder={t('public.enterEmailPlaceholder')}
             value={form.email}
+            name="email"
+            id="checkout-email"
+            autoComplete="email"
+            inputMode="email"
+            enterKeyHint="next"
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
         </div>

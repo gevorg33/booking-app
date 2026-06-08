@@ -21,7 +21,7 @@ export const RAG_CONTENT_SNIPPET_LIMIT = 800;
 export function tokenizeForRag(text: string): string[] {
   return text
     .toLowerCase()
-    .split(/\W+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter((token) => token.length > 2);
 }
 

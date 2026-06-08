@@ -34,7 +34,15 @@ npm run build:ios:lan
 npm run cap:ios
 ```
 
-Also configure `frontend/public/.well-known/apple-app-site-association` (replace `TEAMID`).
+Also configure Universal Links on the web host (adopt-2.6):
+
+```bash
+cd frontend
+# Set CONSUMER_APPLE_TEAM_ID + CONSUMER_ANDROID_SHA256_FINGERPRINTS in .env.local
+npm run generate:well-known
+```
+
+Next.js serves `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` at runtime with `Content-Type: application/json`. Verified https links on `/book/*` and `/s/*` open the app directly; when the app is not installed the same URL loads public booking web.
 
 ## Android
 
@@ -52,13 +60,25 @@ npm run cap:android
 
 **App Links verification**
 
-1. `frontend/public/.well-known/assetlinks.json` — set `sha256_cert_fingerprints` (release + debug as needed):
+1. Set env on the frontend host and generate files:
+
+   ```bash
+   cd frontend
+   CONSUMER_APPLE_TEAM_ID=YOUR_TEAM_ID \
+   CONSUMER_ANDROID_SHA256_FINGERPRINTS='AA:BB:...' \
+     npm run generate:well-known
+   npm run verify:app-links
+   ```
+
+   Or rely on Next.js route handlers (`frontend/src/app/.well-known/*/route.ts`) when `CONSUMER_*` env vars are set in production.
+
+2. Host must match `CONSUMER_UNIVERSAL_LINK_HOST` and serve `assetlinks.json` over HTTPS with `Content-Type: application/json`.
+
+Debug keystore fingerprint:
 
    ```bash
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep SHA256
    ```
-
-2. Host must match `CONSUMER_UNIVERSAL_LINK_HOST` and serve `assetlinks.json` over HTTPS with `Content-Type: application/json`.
 
 **Custom scheme** (works without domain verification): `optischedule://book/{slug}`
 
@@ -75,4 +95,6 @@ Public booking banner shows platform-appropriate store buttons + “Open in app�
 
 ```bash
 npm run test:sprint11
+npm run test:aso          # adopt-2.1 store listing limits + export
+npm run store-listings:export   # writes store-listings/generated/
 ```

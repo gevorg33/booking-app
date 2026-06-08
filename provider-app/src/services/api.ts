@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
 import { flushQueue } from '../lib/offline-queue';
+import type { MobileAppConfigView } from '../lib/app-version-gate.util';
 import {
   shouldReplayOfflineQueue,
   tryQueueOfflineAxiosError,
@@ -75,6 +76,35 @@ if (typeof window !== 'undefined') {
 
 export function unwrap<T>(data: unknown): T {
   return ((data as { data?: T })?.data ?? data) as T;
+}
+
+export interface AppAnalyticsIngestBody {
+  businessId?: string;
+  tenantSlug?: string;
+  consentGranted: boolean;
+  events: Array<Record<string, unknown>>;
+}
+
+/** adopt-1.1 — batched adoption telemetry ingest (consent-gated, no PII). */
+export async function recordAppAnalyticsEvents(
+  body: AppAnalyticsIngestBody,
+): Promise<{ recorded: number; skipped: number }> {
+  const { data } = await api.post('/events/app', body);
+  return unwrap<{ recorded: number; skipped: number }>(data);
+}
+
+export async function fetchMobileAppConfig(input: {
+  surface: 'consumer_app' | 'provider_app';
+  platform: 'ios' | 'android' | 'web';
+  version?: string;
+}): Promise<MobileAppConfigView> {
+  const params = new URLSearchParams({
+    surface: input.surface,
+    platform: input.platform,
+  });
+  if (input.version?.trim()) params.set('version', input.version.trim());
+  const { data } = await api.get(`/mobile-app/config?${params.toString()}`);
+  return unwrap<MobileAppConfigView>(data);
 }
 
 export default api;

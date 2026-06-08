@@ -1,0 +1,5 @@
+{
+  "consumer": 3350000,
+  "provider": 3850000,
+  "maxRegressionRatio": 1.05
+}

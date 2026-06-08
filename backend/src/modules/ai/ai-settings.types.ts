@@ -43,12 +43,21 @@ export interface AiSuggestionVariant {
   prompt: string;
 }
 
+export interface AiClassificationVariant {
+  id: string;
+  label: string;
+}
+
 /** ai-e5 — A/B experiment for suggestion copy and auto-execute thresholds. */
 export interface AiAbExperiment {
   id: string;
   name: string;
   enabled: boolean;
   suggestionVariants?: AiSuggestionVariant[];
+  /** acc-3.10 — classifier appendix variants (control vs fewshot_heavy). */
+  classificationVariants?: AiClassificationVariant[];
+  /** acc-3.10 — harness winner promoted after eval scoring. */
+  promotedClassificationVariantId?: string | null;
   confidenceHigh?: number;
 }
 
@@ -57,6 +66,8 @@ export interface AiEnterpriseSettings {
   defaultLocationId?: string | null;
   /** Maps membership role → AI role profile (e.g. staff → receptionist). */
   roleProfiles?: Partial<Record<string, AiRoleProfile>>;
+  /** acc-3.10 — promoted classifier appendix variant after A/B harness. */
+  classificationAppendixVariantId?: string | null;
   abExperiments?: AiAbExperiment[];
   /** Minutes before pending tasks escalate to owner (ai-e7). */
   hitlSlaMinutes?: number;
@@ -71,8 +82,33 @@ export interface EntityMemoryEntry {
   templateName?: string | null;
 }
 
+/** acc-3.13 — per-business prompt→action shorthand learned from corrections and recurring use. */
+export interface BusinessParaphraseEntry {
+  id: string;
+  phrase: string;
+  normalizedPhrase: string;
+  action: string;
+  surface: 'dashboard' | 'provider' | 'customer' | 'public';
+  locale?: string;
+  source: 'correction' | 'recurring';
+  hitCount: number;
+  learnedAt: string;
+}
+
+export interface PendingAliasSuggestion {
+  id: string;
+  alias: string;
+  entry: EntityMemoryEntry;
+  correctionCount: number;
+  lastSeenAt: string;
+  source: 'entity_disambiguation' | 'correction';
+}
+
 export interface EntityMemory {
   aliases: Record<string, EntityMemoryEntry>;
+  paraphrases?: BusinessParaphraseEntry[];
+  /** acc-6.3 — admin one-click approve into aliases. */
+  pendingAliasSuggestions?: PendingAliasSuggestion[];
 }
 
 export type RagDocumentType =
@@ -96,6 +132,39 @@ export interface AiRagSettings {
   documents: RagDocument[];
 }
 
+/** acc-6.2 / acc-3.8 — business-specific rescue learned from triaged failures. */
+export interface LearnedTelemetryRescueRule {
+  id: string;
+  fromAction: string;
+  toAction: string;
+  rescueReason: string;
+  promptSnippet: string;
+  promptHash: string;
+  surfaces?: Array<'dashboard' | 'provider' | 'customer' | 'public'>;
+  sourceEvalCaseId?: string;
+  learnedAt: string;
+}
+
+/** acc-6.2 — clarify prompt fix learned from triaged clarify failures. */
+export interface ClarifyPromptFix {
+  id: string;
+  promptHash: string;
+  promptSnippet: string;
+  clarifyAction: string;
+  clarifyFields: string[];
+  sourceEvalCaseId?: string;
+  learnedAt: string;
+}
+
+export interface AiAccuracyProgramSettings {
+  lastWeeklyReview?: Record<string, unknown>;
+  lastWeeklyReviewPublishedAt?: string;
+  /** acc-6.2 — learned telemetry rescue rules from labeling pipeline. */
+  learnedRescueRules?: LearnedTelemetryRescueRule[];
+  /** acc-6.2 — clarify field expectations from labeling pipeline. */
+  clarifyPromptFixes?: ClarifyPromptFix[];
+}
+
 export interface AiSettings {
   autopilot: {
     enabled: boolean;
@@ -108,6 +177,8 @@ export interface AiSettings {
   entityMemory?: EntityMemory;
   rag?: AiRagSettings;
   enterprise?: AiEnterpriseSettings;
+  /** acc-6.1 — last published weekly accuracy review snapshot. */
+  accuracyProgram?: AiAccuracyProgramSettings;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
@@ -188,6 +259,19 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
               'Fill unused slots between 9-19 for all providers for the rest of this week',
           },
         ],
+      },
+      {
+        id: 'classification-appendix-v1',
+        name: 'Classifier appendix A/B',
+        enabled: false,
+        classificationVariants: [
+          { id: 'control', label: 'baseline classifier appendix' },
+          {
+            id: 'fewshot_heavy',
+            label: 'extra few-shot examples in appendix',
+          },
+        ],
+        promotedClassificationVariantId: 'control',
       },
     ],
     hitlSlaMinutes: 30,

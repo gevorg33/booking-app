@@ -72,6 +72,13 @@ describe('ai-rag.util', () => {
     expect(tokenizeForRag('a be holiday')).toEqual(['holiday']);
   });
 
+  it('tokenizeForRag preserves Cyrillic and Armenian tokens', () => {
+    expect(tokenizeForRag('Запиши на ближайшее свободное время')).toContain(
+      'запиши',
+    );
+    expect(tokenizeForRag('Ով ունի ազատ slot')).toContain('ունի');
+  });
+
   it('resolveRagContextFromSettings handles all rag settings states', () => {
     expect(resolveRagContextFromSettings({}, 'holiday')).toBe('');
     expect(

@@ -1,6 +1,7 @@
 import { resolveTenantLocale } from '../../common/utils/business-locale.util.js';
 import { BusinessService } from './business.service.js';
-import { PublicBookingService } from '../public-booking/public-booking.service.js';
+import { createPublicBookingServiceHarness } from '../public-booking/public-booking-test.harness.js';
+import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { ConfigService } from '@nestjs/config';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
@@ -17,30 +18,10 @@ function buildPublicBookingService(): PublicBookingService {
     { findOne: jest.fn(), save: jest.fn() } as never,
     { find: jest.fn() } as never,
   );
-  return new PublicBookingService(
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {
-      isConnectReady: jest.fn().mockReturnValue(false),
-    } as unknown as StripeIntegrationService,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
+  return createPublicBookingServiceHarness({
     multiServiceBookingsService,
-    {} as never,
-    {} as never,
-    config as unknown as ConfigService,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-  );
+    configService: config as unknown as ConfigService,
+  });
 }
 
 const baseBusiness = (settings: Record<string, unknown>): Business =>

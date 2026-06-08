@@ -17,8 +17,11 @@ import { useHistory } from 'react-router-dom';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { getGoogleIdToken, isGoogleSignInAvailable } from '../services/google-auth';
+import { getAppleIdToken, isAppleSignInAvailable } from '../services/apple-auth';
 import { enableNativePush } from '../services/native-push';
 import { canAccessProviderApp } from '../lib/provider-access';
+import { configureAppAnalytics, track } from '../lib/app-analytics';
+import { resolveAnalyticsLocale } from '../lib/app-analytics-context.util';
 import {
   getLoginTenantHint,
   savePreferredBusinessSlug,
@@ -36,10 +39,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<'google' | 'apple' | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotMsg, setForgotMsg] = useState('');
   const [pendingBusinesses, setPendingBusinesses] = useState<AuthResult['businesses'] | null>(null);
   const googleEnabled = isGoogleSignInAvailable();
+  const appleEnabled = isAppleSignInAvailable();
 
   const finishLogin = (result: AuthResult) => {
     if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
@@ -54,6 +60,13 @@ export default function LoginPage() {
       businesses: result.businesses,
       employee: result.employee,
     });
+    configureAppAnalytics({
+      appSurface: 'provider_app',
+      businessId: result.business.id,
+      tenantSlug: result.business.slug,
+      locale: resolveAnalyticsLocale(),
+    });
+    track('signed_in');
     savePreferredBusinessSlug(result.business.slug);
     void enableNativePush(result.business.id);
     history.replace('/tabs/today');
@@ -71,6 +84,7 @@ export default function LoginPage() {
       });
       const result = unwrapAuthResult(data);
       if (result.requiresBusinessSelection) {
+        setOauthProvider(null);
         setPendingBusinesses(result.businesses);
         return;
       }
@@ -84,21 +98,26 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setPendingBusinesses(null);
+    setOauthProvider(null);
     await completeLogin();
   };
 
-  const handleGoogleLogin = async (businessId?: string) => {
-    setGoogleLoading(true);
+  const handleOAuthLogin = async (provider: 'google' | 'apple', businessId?: string) => {
+    const setLoading = provider === 'apple' ? setAppleLoading : setGoogleLoading;
+    setLoading(true);
     setError('');
     try {
-      const idToken = await getGoogleIdToken();
-      const { data } = await api.post('/auth/google', {
+      const idToken =
+        provider === 'apple' ? await getAppleIdToken() : await getGoogleIdToken();
+      const endpoint = provider === 'apple' ? '/auth/apple' : '/auth/google';
+      const { data } = await api.post(endpoint, {
         idToken,
         ...getLoginTenantHint(),
         ...(businessId ? { businessId } : {}),
       });
       const result = unwrapAuthResult(data);
       if (result.requiresBusinessSelection) {
+        setOauthProvider(provider);
         setPendingBusinesses(result.businesses);
         return;
       }
@@ -106,8 +125,16 @@ export default function LoginPage() {
     } catch (err: unknown) {
       setError(readAuthError(err, t, t('provider.googleSignInFailed')));
     } finally {
-      setGoogleLoading(false);
+      setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async (businessId?: string) => {
+    await handleOAuthLogin('google', businessId);
+  };
+
+  const handleAppleLogin = async (businessId?: string) => {
+    await handleOAuthLogin('apple', businessId);
   };
 
   const handleForgot = async () => {
@@ -137,8 +164,12 @@ export default function LoginPage() {
               expand="block"
               fill="outline"
               className="ion-margin-bottom"
-              disabled={loading || googleLoading}
-              onClick={() => void completeLogin(biz.id)}
+              disabled={loading || googleLoading || appleLoading}
+              onClick={() => {
+                if (oauthProvider === 'apple') void handleAppleLogin(biz.id);
+                else if (oauthProvider === 'google') void handleGoogleLogin(biz.id);
+                else void completeLogin(biz.id);
+              }}
             >
               {biz.name}
             </IonButton>
@@ -173,10 +204,21 @@ export default function LoginPage() {
               expand="block"
               fill="outline"
               onClick={() => void handleGoogleLogin()}
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || appleLoading}
             >
               {googleLoading ? <IonSpinner name="crescent" /> : t('provider.continueWithGoogle')}
             </IonButton>
+            {appleEnabled ? (
+              <IonButton
+                expand="block"
+                fill="outline"
+                className="ion-margin-top"
+                onClick={() => void handleAppleLogin()}
+                disabled={loading || googleLoading || appleLoading}
+              >
+                {appleLoading ? <IonSpinner name="crescent" /> : 'Continue with Apple'}
+              </IonButton>
+            ) : null}
             <p className="booking-meta ion-text-center ion-margin-vertical">
               {t('provider.orSignInWithEmail')}
             </p>
@@ -202,7 +244,7 @@ export default function LoginPage() {
           expand="block"
           className="ion-margin-top"
           onClick={() => void handleLogin()}
-          disabled={loading || googleLoading}
+          disabled={loading || googleLoading || appleLoading}
         >
           {loading ? <IonSpinner name="crescent" /> : t('auth.signIn')}
         </IonButton>

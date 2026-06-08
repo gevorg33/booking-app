@@ -216,9 +216,12 @@ export function isSubscriptionUsagePrompt(prompt: string): boolean {
 }
 
 export function isMyGiftCardsPrompt(prompt: string): boolean {
+  if (/\b(contact|support|help|zendesk|ticket)\b/i.test(prompt)) {
+    return false;
+  }
   return (
     /\bmy\b/i.test(prompt) &&
-    /\b(gift\s*cards?|orders?)\b/i.test(prompt) &&
+    /\b(gift\s*cards?|gift\s*card\s+orders?)\b/i.test(prompt) &&
     !/\b(balance|redemption|track|cancel|modify)\b/i.test(prompt)
   );
 }
@@ -298,6 +301,13 @@ export function isDiscoverSubscriptionPlansPrompt(prompt: string): boolean {
 }
 
 export function isDiscoverGiftCardProductsPrompt(prompt: string): boolean {
+  if (
+    /\b(creation\s+queue|card\s+creation|delivery\s+queue|orders?\s+waiting|waiting\s+to\s+ship|fulfillment|packing\s+slip|assign\s+creator|assign\s+delivery)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(what|which|show|list|discover|available|buy)\b/i.test(prompt) &&
     /\b(gift\s*cards?|presets?|bundles?)\b/i.test(prompt) &&

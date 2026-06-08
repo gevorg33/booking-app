@@ -11,6 +11,8 @@ import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiClassificationEngineService } from './ai-classification-engine.service.js';
 import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
 import type { CommandResult } from './command-completion.types.js';
 
@@ -74,6 +76,22 @@ describe('AiGatewayService', () => {
     const rag = {
       buildRagContextBlock: jest.fn(async () => 'rag context'),
     };
+    const classificationEngine = {
+      buildClassifierAppendix: jest.fn(async () => ({
+        block: 'few-shot appendix',
+        fewShotCount: 2,
+        shortlistCount: 10,
+        shortlist: ['unknown', 'create_booking', 'list_bookings'],
+        abVariantId: 'control',
+      })),
+      enrichClassification: jest.fn(async (input: { intent: { action: string } }) => ({
+        intent: input.intent,
+        verification: { ok: true, confidence: 0.9, fieldConfidence: {}, reasons: [] },
+        consensus: { needsEscalation: false, llmAction: input.intent.action },
+      })),
+      matchSemanticIntentLexical: jest.fn(() => null),
+      matchSemanticIntentEmbedding: jest.fn(async () => null),
+    };
     const sprintMocks = createAiGatewayPlatformMocks();
     return {
       dashboardCommands,
@@ -85,6 +103,7 @@ describe('AiGatewayService', () => {
       conversationSummary,
       rag,
       ...sprintMocks,
+      classificationEngine,
     };
   }
 
@@ -100,6 +119,8 @@ describe('AiGatewayService', () => {
       mocks.planEntitlements as any,
       mocks.aiSettings as any,
       mocks.platform as any,
+      mocks.commandTrace as any,
+      mocks.classificationEngine as any,
     );
     return { service, ...mocks };
   }
@@ -122,6 +143,11 @@ describe('AiGatewayService', () => {
         { provide: PlanEntitlementsService, useValue: mocks.planEntitlements },
         { provide: AiSettingsService, useValue: mocks.aiSettings },
         { provide: AiPlatformService, useValue: mocks.platform },
+        { provide: AiCommandTraceService, useValue: mocks.commandTrace },
+        {
+          provide: AiClassificationEngineService,
+          useValue: mocks.classificationEngine,
+        },
       ],
     }).compile();
     expect(moduleRef.get(AiGatewayService)).toBeInstanceOf(AiGatewayService);
@@ -156,6 +182,7 @@ describe('AiGatewayService', () => {
           _planTierId: 'starter',
           _scopedEmployeeId: 'emp-1',
           _conversationSummary: 'summary',
+          _classificationEngineBlock: 'few-shot appendix',
         }),
       }),
     );

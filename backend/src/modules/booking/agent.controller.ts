@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.service.js';
 import { AgentTaskUndoService } from '../../engine/agent/agent-task-undo.service.js';
+import { AiCommandTraceService } from '../ai/ai-command-trace.service.js';
 import { AgentIntentDto } from './dto/agent-intent.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -19,6 +20,7 @@ export class AgentController {
   constructor(
     private agentOrchestrator: AgentOrchestratorService,
     private agentTaskUndo: AgentTaskUndoService,
+    private commandTrace: AiCommandTraceService,
   ) {}
 
   @Post('intent')
@@ -56,11 +58,18 @@ export class AgentController {
   }
 
   @Post('tasks/undo-latest')
-  undoLatest(
+  async undoLatest(
     @Param('businessId') businessId: string,
     @CurrentUser() user: any,
   ) {
-    return this.agentTaskUndo.undoLatest(businessId, user.id);
+    const result = await this.agentTaskUndo.undoLatest(businessId, user.id);
+    void this.commandTrace.markWrongExecutionFromUndo({
+      businessId,
+      userId: user.id,
+      traceId: result.commandTraceId,
+      anchorTime: result.executedAt,
+    });
+    return result;
   }
 
   @Get('tasks/pending')

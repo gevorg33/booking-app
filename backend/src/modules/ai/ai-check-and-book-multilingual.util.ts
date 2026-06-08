@@ -18,7 +18,7 @@ export const MULTILINGUAL_BOOK_VERBS =
 
 /** Nearest / soonest / first-available slot phrasing. */
 export const MULTILINGUAL_FLEXIBLE_SLOT =
-  /(?:մոտակա|ամենամոտ|ամենաառաջին|ближайш\w*|скорейш\w*|первый\s+свободн|blizhaysh\w*|\bskoreysh\b|perviy\s+svobodn|\basap\b)/iu;
+  /(?:մոտակա|ամենամոտ|ամենաառաջին|ближайш\w*|скорейш\w*|первый\s+свободн|blizhaysh\w*|blizhayshee|\bskoreysh\b|perviy\s+svobodn|\basap\b)/iu;
 
 /** Slot / appointment / time nouns (Latin + Cyrillic). */
 const MULTILINGUAL_SLOT_NOUNS =

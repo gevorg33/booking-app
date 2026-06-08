@@ -1,4 +1,7 @@
-import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
+import {
+  buildNearestBookableSlotQuery,
+  buildPublicAvailabilityTimeFilter,
+} from './ai-nearest-slot-resolver.util.js';
 
 describe('ai-nearest-slot-resolver.util (ai-cmd-h2.3)', () => {
   it('maps evening window to notBeforeTime 17:00', () => {
@@ -31,6 +34,15 @@ describe('ai-nearest-slot-resolver.util (ai-cmd-h2.3)', () => {
       'book nearest after 16:00',
     );
     expect(query.notBeforeTime).toBe('16:00');
+  });
+
+  it('maps evening availability to notBeforeTime 17:00', () => {
+    const filter = buildPublicAvailabilityTimeFilter(
+      { timeOfDay: 'evening', serviceName: 'Permanent lashes' },
+      'who is free for permanent lashes tomorrow evening',
+    );
+    expect(filter.timeOfDay).toBe('evening');
+    expect(filter.notBeforeTime).toBe('17:00');
   });
 
   it('resolves tomorrow start date from prompt', () => {

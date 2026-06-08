@@ -79,7 +79,7 @@ const PAYMENTS_COMPOUND_BOUNDARY =
 const PAYMENTS_VERB = new RegExp(`\\b(${PAYMENTS_COMPOUND_BOUNDARY})\\b`, 'i');
 
 const COMPOUND_SPLIT = new RegExp(
-  `\\s*;\\s*|\\?\\s*(?=(?:book|find|get|reserve|schedule)\\b)|\\s*,\\s*(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+and\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+then\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)`,
+  `\\s*;\\s*|\\?\\s*(?=(?:book|find|get|reserve|schedule)\\b)|\\s*,\\s*(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+plus\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+and\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)|\\s+then\\s+(?=(?:${PAYMENTS_COMPOUND_BOUNDARY})\\b)`,
   'i',
 );
 

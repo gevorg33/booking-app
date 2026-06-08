@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import type { PublicBookingService } from './public-booking.service.js';
 import type { Business } from '../business/entities/business.entity.js';
 
 function createRecommendationPublicBookingHarness() {
@@ -22,32 +23,21 @@ function createRecommendationPublicBookingHarness() {
     getCheckoutRecommendations: jest.fn(),
   };
 
-  const publicBookingService = new PublicBookingService(
-    { findBySlug: jest.fn().mockResolvedValue(business) } as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    productRecommendationService as any,
-    {
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: { findBySlug: jest.fn().mockResolvedValue(business) },
+    productRecommendationService,
+    configService: {
       get: jest.fn((key: string) =>
         key === 'PUBLIC_API_URL' ? 'https://app.test' : undefined,
       ),
     } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-  );
+    referralProgramService: { find: jest.fn() },
+    employeeRepo: { find: jest.fn() },
+    serviceRepo: { find: jest.fn() },
+    slotRepo: { find: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+    bookingRepo: { find: jest.fn() },
+  });
 
   return { publicBookingService, business, productRecommendationService };
 }

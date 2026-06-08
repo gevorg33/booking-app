@@ -64,6 +64,7 @@ describe('AgentTaskUndoService', () => {
   const eventStore = { publish: jest.fn(), getEvents: jest.fn(async () => []) };
   const taskRepo = {
     find: jest.fn(),
+    findOne: jest.fn(),
     save: jest.fn(async (t: AgentTask) => t),
   };
 
@@ -71,6 +72,18 @@ describe('AgentTaskUndoService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    bookingService.cancel.mockResolvedValue(undefined);
+    bookingService.restoreCancelled.mockResolvedValue(undefined);
+    bookingService.setHiddenFromCalendar.mockResolvedValue(undefined);
+    bookingService.update.mockResolvedValue(undefined);
+    blockScheduleService.remove.mockResolvedValue(undefined);
+    scheduleService.revertCreatedSchedule.mockResolvedValue({
+      periodsRemoved: 1,
+      slotsRemoved: 2,
+    });
+    employeeService.update.mockResolvedValue(undefined);
+    eventStore.publish.mockResolvedValue(undefined);
+    eventStore.getEvents.mockResolvedValue([]);
     service = new AgentTaskUndoService(
       taskRepo as any,
       bookingService as any,
@@ -270,6 +283,84 @@ describe('AgentTaskUndoService', () => {
       await expect((service as any).undoTask(task, 'user-1')).rejects.toThrow(
         /not supported for: clear_schedule/,
       );
+    });
+  });
+
+  describe('undoTaskById / attemptAutoRollback', () => {
+    it('undoTaskById throws when task is missing', async () => {
+      taskRepo.findOne = jest.fn(async () => null);
+      await expect(service.undoTaskById('missing', 'user-1')).rejects.toThrow(
+        /Task not found/,
+      );
+    });
+
+    it('attemptAutoRollbackByTaskId returns reason when task is missing', async () => {
+      taskRepo.findOne = jest.fn(async () => null);
+      const result = await service.attemptAutoRollbackByTaskId(
+        'missing',
+        'user-1',
+      );
+      expect(result.attempted).toBe(false);
+      expect(result.reason).toMatch(/workflow log/);
+    });
+
+    it('attemptAutoRollbackForAssertionFailure reverts undoable workflow', async () => {
+      const task = buildTask(
+        [{ action: 'create_booking' }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
+      );
+      const result = await service.attemptAutoRollbackForAssertionFailure(
+        task,
+        'user-1',
+      );
+      expect(result.attempted).toBe(true);
+      expect(result.succeeded).toBe(true);
+      expect(bookingService.cancel).toHaveBeenCalledWith(
+        'b1',
+        'Undone AI command',
+        'user-1',
+      );
+    });
+
+    it('attemptAutoRollbackForAssertionFailure returns reason when not undoable', async () => {
+      const task = buildTask(
+        [{ action: 'clear_schedule' }],
+        [{ stepId: 'step-0', status: StepStatus.COMPLETED, result: {} }],
+      );
+      const result = await service.attemptAutoRollbackForAssertionFailure(
+        task,
+        'user-1',
+      );
+      expect(result.attempted).toBe(false);
+      expect(result.succeeded).toBe(false);
+      expect(result.reason).toMatch(/clear_schedule/);
+    });
+
+    it('attemptAutoRollbackForAssertionFailure captures undo failure', async () => {
+      bookingService.cancel.mockRejectedValue(new Error('cancel failed'));
+      const task = buildTask(
+        [{ action: 'create_booking' }],
+        [
+          {
+            stepId: 'step-0',
+            status: StepStatus.COMPLETED,
+            result: { bookingId: 'b1' },
+          },
+        ],
+      );
+      const result = await service.attemptAutoRollbackForAssertionFailure(
+        task,
+        'user-1',
+      );
+      expect(result.attempted).toBe(true);
+      expect(result.succeeded).toBe(false);
+      expect(result.error).toMatch(/cancel failed/);
     });
   });
 

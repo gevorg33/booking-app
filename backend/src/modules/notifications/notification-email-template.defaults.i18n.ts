@@ -13,17 +13,17 @@ const hy: Partial<
   booking_confirmation: {
     subject: 'Հաստատված՝ {{serviceName}} {{businessName}}-ում',
     bodyText:
-      'Բարև {{customerName}},\n\nՁեր հանդիպումը {{businessName}}-ում հաստատված է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Բարև {{customerName}},\n\nՁեր հանդիպումը {{businessName}}-ում հաստատված է։\n\n{{serviceName}} {{providerName}}-ի հետ\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Բարև {{customerName}},</p><p>Ձեր հանդիպումը {{businessName}}-ում հաստատված է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Բարև {{customerName}},</p><p>Ձեր հանդիպումը {{businessName}}-ում հաստատված է։</p><p>{{serviceName}} {{providerName}}-ի հետ<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}{{appInstallLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
     subject:
       'Հաստատված՝ {{appointmentCount}} {{appointmentWord}} {{businessName}}-ում',
     bodyText:
-      'Բարև {{customerName}},\n\nՁեր {{appointmentWord}}-ը {{businessName}}-ում հաստատված են{{groupLabelSuffix}}.\n\n{{appointmentsListText}}\n\n{{footerNote}}',
+      'Բարև {{customerName}},\n\nՁեր {{appointmentWord}}-ը {{businessName}}-ում հաստատված են{{groupLabelSuffix}}.\n\n{{appointmentsListText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Բարև {{customerName}},</p><p>Ձեր {{appointmentWord}}-ը {{businessName}}-ում հաստատված են{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}<p>{{footerNote}}</p>',
+      '<p>Բարև {{customerName}},</p><p>Ձեր {{appointmentWord}}-ը {{businessName}}-ում հաստատված են{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}{{appInstallLinkHtml}}<p>{{footerNote}}</p>',
   },
   booking_reminder: {
     subject: 'Հիշեցում՝ հանդիպումը {{reminderLabel}}-ում է — {{businessName}}',
@@ -68,17 +68,17 @@ const ru: Partial<
   booking_confirmation: {
     subject: 'Подтверждено: {{serviceName}} в {{businessName}}',
     bodyText:
-      'Здравствуйте, {{customerName}}!\n\nВаша запись в {{businessName}} подтверждена.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Здравствуйте, {{customerName}}!\n\nВаша запись в {{businessName}} подтверждена.\n\n{{serviceName}} у {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Здравствуйте, {{customerName}}!</p><p>Ваша запись в {{businessName}} подтверждена.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Здравствуйте, {{customerName}}!</p><p>Ваша запись в {{businessName}} подтверждена.</p><p>{{serviceName}} у {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}{{appInstallLinkHtml}}</p><p>{{footerNote}}</p>',
   },
   booking_confirmation_grouped: {
     subject:
       'Подтверждено: {{appointmentCount}} {{appointmentWord}} в {{businessName}}',
     bodyText:
-      'Здравствуйте, {{customerName}}!\n\nВаши {{appointmentWord}} в {{businessName}} подтверждены{{groupLabelSuffix}}.\n\n{{appointmentsListText}}\n\n{{footerNote}}',
+      'Здравствуйте, {{customerName}}!\n\nВаши {{appointmentWord}} в {{businessName}} подтверждены{{groupLabelSuffix}}.\n\n{{appointmentsListText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Здравствуйте, {{customerName}}!</p><p>Ваши {{appointmentWord}} в {{businessName}} подтверждены{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}<p>{{footerNote}}</p>',
+      '<p>Здравствуйте, {{customerName}}!</p><p>Ваши {{appointmentWord}} в {{businessName}} подтверждены{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}{{appInstallLinkHtml}}<p>{{footerNote}}</p>',
   },
   booking_reminder: {
     subject: 'Напоминание: запись через {{reminderLabel}} — {{businessName}}',

@@ -115,6 +115,11 @@ function dashboardOrCustomerAvailabilityAction(
   return null;
 }
 
+/** Booking-page prompts that should run through PublicBookingAssistantService. */
+export function shouldDelegatePublicBookingAssistant(prompt: string): boolean {
+  return resolveAvailabilityIntentFromPrompt('public', prompt) != null;
+}
+
 /** Deterministic availability intent from prompt (ai-cmd-h1.4). */
 export function resolveAvailabilityIntentFromPrompt(
   surface: AvailabilityDisambiguationSurface,
@@ -133,11 +138,33 @@ export function disambiguateMisclassifiedAvailabilityIntent(
   action: string,
   params: Record<string, unknown>,
 ): AvailabilityDisambiguationResult | null {
+  const resolved = resolveAvailabilityIntentFromPrompt(surface, prompt);
+
+  if (action === 'unknown') {
+    if (resolved) {
+      return {
+        action: resolved.action,
+        rescueReason: resolved.rescueReason,
+        params: { ...params, ...resolved.params },
+      };
+    }
+    if (
+      surface === 'public' &&
+      hasBookVerb(prompt) &&
+      !isCheckProvidersForServicePrompt(prompt)
+    ) {
+      return {
+        action: 'book_appointment',
+        rescueReason: 'public_book_request_unknown',
+      };
+    }
+    return null;
+  }
+
   if (hasBookVerb(prompt) && !isCheckProvidersForServicePrompt(prompt)) {
     return null;
   }
 
-  const resolved = resolveAvailabilityIntentFromPrompt(surface, prompt);
   if (!resolved || resolved.action === action) return null;
 
   const confusedActions = new Set([
@@ -145,6 +172,7 @@ export function disambiguateMisclassifiedAvailabilityIntent(
     'lookup_service_assignment',
     'check_availability',
     'book_appointment',
+    'unknown',
   ]);
   if (!confusedActions.has(action)) return null;
 
@@ -171,4 +199,32 @@ export function disambiguateMisclassifiedAvailabilityIntent(
     rescueReason,
     params: { ...params, ...resolved.params },
   };
+}
+
+export interface AvailabilityIntentRescueTarget {
+  action: string;
+  params?: Record<string, unknown>;
+  confidence?: number;
+}
+
+/** Deterministic availability/booking rescue — run before no-clarify guardrails. */
+export function applyAvailabilityIntentRescue(
+  target: AvailabilityIntentRescueTarget,
+  surface: AvailabilityDisambiguationSurface,
+  prompt: string,
+): { rescueReason: string } | null {
+  const fix = disambiguateMisclassifiedAvailabilityIntent(
+    surface,
+    prompt,
+    target.action,
+    target.params ?? {},
+  );
+  if (!fix) return null;
+
+  target.action = fix.action;
+  target.params = fix.params;
+  if (typeof target.confidence !== 'number' || target.confidence < 0.75) {
+    target.confidence = 0.88;
+  }
+  return { rescueReason: fix.rescueReason };
 }

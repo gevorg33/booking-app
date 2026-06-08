@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-07",
+  "accuracyFloor": 0.85,
+  "minTotalCases": 14,
+  "maxTotalTokens": 20000,
+  "lastAccuracy": null,
+  "lastLlmCases": 14,
+  "note": "acc-2.10 — nightly LLM eval tracked separately from deterministic CI. Ratchet accuracyFloor after green nightly runs; update lastAccuracy when baseline is refreshed."
+}

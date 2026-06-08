@@ -45,9 +45,48 @@ import {
   pickCheckProvidersHandoff,
   type CheckProvidersHandoff,
 } from '../ai/ai-check-book-handoff.util.js';
-import { buildNearestBookableSlotQuery } from '../ai/ai-nearest-slot-resolver.util.js';
+import {
+  buildNearestBookableSlotQuery,
+  buildPublicAvailabilityTimeFilter,
+} from '../ai/ai-nearest-slot-resolver.util.js';
+import {
+  filterIsoSlotsByTimeOfDay,
+  formatTimeOfDayLabel,
+} from '../ai/ai-operations.util.js';
 import { CLASSIFIER_MULTILINGUAL_RULES } from '../ai/ai-prompt-i18n.js';
 import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.fixtures.js';
+import { AiClassificationEngineService } from '../ai/ai-classification-engine.service.js';
+import { formatDynamicActionEnum } from '../ai/ai-classification-shortlist.util.js';
+import {
+  buildSmartClarifySessionContext,
+  mergeClarifyFollowUpPrompt,
+  resolveSmartClarify,
+} from '../ai/ai-smart-clarify.util.js';
+import { applySelectedIntentFromSession } from '../ai/ai-intent-disambiguation-clarify.util.js';
+import {
+  readClarifyMemory,
+  syncSessionContextFromClarifyMemory,
+} from '../ai/ai-clarify-answer-reuse.util.js';
+import {
+  mergeCrossTurnClarifyParams,
+  mergeParamsWithoutLoss,
+  readClarifyPartialParams,
+  restoreOriginalIntentFromClarifySession,
+} from '../ai/ai-clarify-cross-turn-merge.util.js';
+import {
+  enrichSessionWithLosslessClarifyPartials,
+  isClarifyFollowUpTurn,
+  mergeLosslessClarifyFollowUp,
+} from '../ai/ai-lossless-clarify-merge.util.js';
+import {
+  applyNoClarifyEnrichmentToParsed,
+  enrichParamsForNoClarifyCompletion,
+  resolveEntityMemoryForNoClarify,
+  resolveRequestScreenContext,
+} from '../ai/ai-n99-no-clarify-completion.util.js';
+import { rejectInvalidClarifyFollowUpIfNeeded } from '../ai/ai-inline-clarify-validation.util.js';
+import { resolveSomethingElseClarifyFollowUpIfNeeded } from '../ai/ai-something-else-clarify.util.js';
+import { readClassificationShortlistFromContext } from '../ai/ai-classification-shortlist.util.js';
 import { BOOKING_LANGUAGES_CLASSIFIER_RULES } from '../ai/ai-booking-languages.fixtures.js';
 import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from '../ai/ai-booking-date-format.fixtures.js';
 import { PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from '../ai/ai-package-display-name.fixtures.js';
@@ -82,13 +121,35 @@ import { rescueConsumerClinicLabBookingIntent } from '../ai/ai-clinic-lab-bookin
 import { rescueExplainClinicBookingIntent } from '../ai/ai-clinic-booking.util.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-booking.fixtures.js';
 import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
+import { AiReviewsService } from '../ai/ai-reviews.service.js';
+import { AiPaymentsService } from '../ai/ai-payments.service.js';
+import { AiCustomerCrmService } from '../ai/ai-customer-crm.service.js';
+import { AiMarketingGrowthService } from '../ai/ai-marketing-growth.service.js';
+import {
+  dispatchPublicSelfServiceIntent,
+  mergePublicSessionCustomerId,
+} from '../ai/ai-customer-public-self-service.logic.js';
+import { rescueCustomerPublicSelfServiceIntent } from '../ai/ai-customer-public-self-service.util.js';
+import {
+  PUBLIC_SELF_SERVICE_CLASSIFIER_RULES,
+} from '../ai/ai-customer-public-self-service.fixtures.js';
+import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
+import {
+  buildRoleCapabilityListingResult,
+  PUBLIC_LIST_CAPABILITIES_CLASSIFIER_RULES,
+  tryRoleCapabilityListingEarlyReturn,
+} from '../ai/ai-role-capability-listing.util.js';
+import { AiEscalationHandoffService } from '../ai/ai-escalation-handoff.service.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
 import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
 import { AiBusinessLanguagesService } from '../ai/ai-business-languages.service.js';
 import { AiPackageLocalizedNamesService } from '../ai/ai-package-localized-names.service.js';
 import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
-import { disambiguateMisclassifiedAvailabilityIntent } from '../ai/ai-intent-disambiguation.util.js';
+import {
+  applyAvailabilityIntentRescue,
+  disambiguateMisclassifiedAvailabilityIntent,
+} from '../ai/ai-intent-disambiguation.util.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import {
@@ -114,15 +175,22 @@ export interface PublicAssistantResult {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  traceId?: string;
   details?: Record<string, unknown>;
 }
 
-export function buildPublicClassifierSchema(): string {
+const PUBLIC_CLASSIFIER_FULL_ACTION_ENUM =
+  '"list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "submit_review" | "buy_gift_card" | "buy_gift_card_physical" | "my_profile" | "my_appointments" | "my_subscriptions" | "subscription_usage" | "my_gift_cards" | "gift_card_balance" | "discover_packages" | "discover_subscription_plans" | "discover_gift_card_products" | "loyalty_points_balance" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "list_capabilities" | "unknown"';
+
+export function buildPublicClassifierSchema(shortlist?: string[]): string {
+  const actionLine = shortlist?.length
+    ? formatDynamicActionEnum(shortlist)
+    : PUBLIC_CLASSIFIER_FULL_ACTION_ENUM;
   return `You are a friendly booking assistant for a customer-facing online appointment page.
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
+  "action": ${actionLine},
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "serviceName": "string or null — one exact or closest catalog service name",
@@ -192,6 +260,8 @@ ${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
 ${CLINIC_BOOKING_CLASSIFIER_RULES}
 ${PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 ${PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX}
+${PUBLIC_SELF_SERVICE_CLASSIFIER_RULES}
+${PUBLIC_LIST_CAPABILITIES_CLASSIFIER_RULES}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }
@@ -218,6 +288,12 @@ export class PublicBookingAssistantService {
     private consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private clinicLabBooking: AiClinicLabBookingService,
     private clinicBooking: AiClinicBookingService,
+    private reviews: AiReviewsService,
+    private payments: AiPaymentsService,
+    private customerCrm: AiCustomerCrmService,
+    private marketingGrowth: AiMarketingGrowthService,
+    private escalationHandoff: AiEscalationHandoffService,
+    private classificationEngine: AiClassificationEngineService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -239,11 +315,76 @@ export class PublicBookingAssistantService {
     );
     const aiConfig = await this.aiSettings.getSettings(business.id);
     const businessType = business.settings?.businessType as string | undefined;
-    const orchestratedSession = this.platform.enrichPublicSession(
-      session?.context,
-      businessType,
-      aiConfig,
+    const tz = resolveTimezone(business.timezone);
+    const orchestratedSession = enrichSessionWithLosslessClarifyPartials(
+      syncSessionContextFromClarifyMemory(
+        this.platform.enrichPublicSession(
+          session?.context,
+          businessType,
+          aiConfig,
+        ),
+      ),
     );
+
+    const inlineRejected = rejectInvalidClarifyFollowUpIfNeeded({
+      prompt,
+      sessionContext: orchestratedSession,
+      timeZone: tz,
+      surface: 'public',
+    });
+    if (inlineRejected) {
+      return {
+        success: false,
+        action: inlineRejected.action,
+        summary: inlineRejected.summary,
+        details: inlineRejected.details,
+      };
+    }
+
+    const somethingElseRouted = resolveSomethingElseClarifyFollowUpIfNeeded({
+      prompt,
+      sessionContext: orchestratedSession,
+      surface: 'public',
+      shortlist: readClassificationShortlistFromContext(orchestratedSession),
+    });
+    if (somethingElseRouted) {
+      return {
+        success: false,
+        action: somethingElseRouted.action,
+        summary: somethingElseRouted.summary,
+        details: somethingElseRouted.details,
+      };
+    }
+
+    if (
+      this.escalationHandoff.shouldExecute(prompt, orchestratedSession)
+    ) {
+      const handoff = await this.escalationHandoff.execute({
+        businessId: business.id,
+        surface: 'public',
+        sessionContext: orchestratedSession,
+        customerId:
+          (orchestratedSession.customerId as string | undefined) ??
+          (orchestratedSession.sessionCustomerId as string | undefined),
+        prompt,
+      });
+      return {
+        success: handoff.success,
+        action: handoff.action,
+        summary: handoff.summary,
+        details: handoff.details,
+      };
+    }
+
+    const capabilityEarly = tryRoleCapabilityListingEarlyReturn({
+      prompt,
+      surface: 'public',
+      accessTier: 'client',
+      isClarifyFollowUp: isClarifyFollowUpTurn(orchestratedSession),
+    });
+    if (capabilityEarly) {
+      return commandResultToPublicAssistantResult(capabilityEarly);
+    }
 
     if (!(await this.openAi.isAvailableForBusiness(business.id))) {
       return {
@@ -252,7 +393,6 @@ export class PublicBookingAssistantService {
         summary: t(locale, 'assistant.unavailable'),
       };
     }
-    const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const todayDisplay = formatDateDisplay(todayKey, locale);
 
@@ -279,6 +419,14 @@ Providers: ${
     }
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
+    const classificationAppendix =
+      await this.classificationEngine.buildClassifierAppendix({
+        businessId: business.id,
+        prompt,
+        surface: 'public',
+        entityMemory: aiConfig.entityMemory,
+      });
+
     const parsed = await this.classifyIntent(
       business.id,
       prompt,
@@ -286,12 +434,102 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       session?.history,
       orchestratedSession,
       locale,
+      classificationAppendix.block,
+      classificationAppendix.shortlist,
     );
     if (!parsed) {
       return {
         success: false,
         action: 'unknown',
         summary: t(locale, 'assistant.unknown'),
+      };
+    }
+
+    const enrichedClassification = await this.classificationEngine.enrichClassification({
+      businessId: business.id,
+      prompt,
+      surface: 'public',
+      intent: parsed,
+      entityMemory: aiConfig.entityMemory,
+      shortlist: classificationAppendix.shortlist,
+    });
+    Object.assign(parsed, enrichedClassification.intent);
+    parsed.params = enrichedClassification.intent.params;
+    applySelectedIntentFromSession(parsed, orchestratedSession);
+    restoreOriginalIntentFromClarifySession(parsed, orchestratedSession);
+    parsed.params = mergeCrossTurnClarifyParams(
+      parsed.params ?? {},
+      orchestratedSession,
+      { surface: 'public' },
+    );
+    if (isClarifyFollowUpTurn(orchestratedSession)) {
+      const lossless = mergeLosslessClarifyFollowUp({
+        followUpPrompt: prompt,
+        followUpAnswers: readClarifyMemory(orchestratedSession),
+        sessionContext: orchestratedSession,
+        surface: 'public',
+        classifierAction: parsed.action,
+        classifierParams: parsed.params,
+      });
+      parsed.action = lossless.restoredAction;
+      parsed.params = lossless.mergedParams;
+    }
+
+    const effectivePrompt = mergeClarifyFollowUpPrompt(prompt, orchestratedSession);
+    applyAvailabilityIntentRescue(parsed, 'public', effectivePrompt);
+    await this.platform.hydrateAutofillWatchdogSession(business.id, orchestratedSession);
+    const entityMemory = resolveEntityMemoryForNoClarify(
+      aiConfig.entityMemory,
+      orchestratedSession,
+    );
+    const noClarifyEnriched = enrichParamsForNoClarifyCompletion({
+      prompt: effectivePrompt,
+      action: parsed.action,
+      params: parsed.params ?? {},
+      surface: 'public',
+      sessionContext: orchestratedSession,
+      screenContext: resolveRequestScreenContext(
+        parsed.params?.context as Record<string, unknown> | undefined,
+        orchestratedSession,
+      ),
+      entityMemory,
+      actionConfidence: parsed.confidence,
+      fieldThreshold:
+        typeof orchestratedSession._autoFillFieldThreshold === 'number'
+          ? orchestratedSession._autoFillFieldThreshold
+          : undefined,
+    });
+    applyNoClarifyEnrichmentToParsed(parsed, noClarifyEnriched);
+    const earlyClarify = resolveSmartClarify({
+      prompt: effectivePrompt,
+      surface: 'public',
+      action: parsed.action,
+      params: parsed.params,
+      reasoning: parsed.reasoning,
+      confidence: parsed.confidence,
+      fieldConfidence: parsed.params?._fieldConfidence as
+        | import('../ai/ai-classification-engine.types.js').FieldLevelConfidence
+        | undefined,
+      sessionContext: orchestratedSession,
+      entityMemory,
+      employees: employees.map((row) => ({ id: row.id, name: row.name })),
+      services: services.map((row) => ({ id: row.id, name: row.name })),
+      phase: 'early',
+      shortlist: classificationAppendix.shortlist,
+      fieldThreshold: noClarifyEnriched.fieldThreshold,
+    });
+    if (earlyClarify) {
+      return {
+        success: false,
+        action: earlyClarify.action,
+        summary: earlyClarify.summary,
+        details: {
+          ...earlyClarify.details,
+          sessionContext: buildSmartClarifySessionContext(
+            orchestratedSession,
+            earlyClarify,
+          ),
+        },
       };
     }
 
@@ -425,6 +663,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       parsed.action = clinicBookingRescue.action;
     }
 
+    const publicSelfServiceRescue = rescueCustomerPublicSelfServiceIntent(
+      prompt,
+      parsed.action,
+      'public',
+    );
+    if (publicSelfServiceRescue) {
+      parsed.action = publicSelfServiceRescue.action;
+    }
+
     const compoundDecomposition = isCompoundPrompt(prompt)
       ? decomposeDeterministicForSurface('public', prompt)
       : null;
@@ -445,6 +692,37 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       parsed.action,
     );
     this.normalizeDateParams(parsed.params, todayKey);
+
+    const lateClarify = resolveSmartClarify({
+      prompt: effectivePrompt,
+      surface: 'public',
+      action: parsed.action,
+      params: parsed.params ?? {},
+      reasoning: parsed.reasoning,
+      confidence: classifierConfidence,
+      fieldConfidence: parsed.params?._fieldConfidence as
+        | import('../ai/ai-classification-engine.types.js').FieldLevelConfidence
+        | undefined,
+      sessionContext: orchestratedSession,
+      employees: employees.map((row) => ({ id: row.id, name: row.name })),
+      services: services.map((row) => ({ id: row.id, name: row.name })),
+      phase: 'late',
+      shortlist: classificationAppendix.shortlist,
+    });
+    if (lateClarify) {
+      return {
+        success: false,
+        action: parsed.action,
+        summary: lateClarify.summary,
+        details: {
+          ...lateClarify.details,
+          sessionContext: buildSmartClarifySessionContext(
+            orchestratedSession,
+            lateClarify,
+          ),
+        },
+      };
+    }
 
     this.logger.log(
       `Public assistant action="${parsed.action}" — ${parsed.reasoning}`,
@@ -467,6 +745,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           services,
           locale,
           tz,
+          effectivePrompt,
         );
         break;
       case 'recommend_specialists':
@@ -477,6 +756,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           services,
           locale,
           tz,
+          effectivePrompt,
         );
         break;
       case 'business_info':
@@ -549,6 +829,13 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'explain_data_rights':
         result = await this.handleExplainDataRights(business.id, prompt);
         break;
+      case 'submit_review':
+        result = await this.reviews.handleSubmitReview(
+          business.id,
+          slug,
+          parsed.params ?? {},
+        );
+        break;
       case 'explain_clinic_booking':
         result = await this.handleExplainClinicBooking(
           business.id,
@@ -605,12 +892,39 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           prompt,
         );
         break;
-      default:
+      case 'list_capabilities':
+        result = commandResultToPublicAssistantResult(
+          buildRoleCapabilityListingResult({
+            surface: 'public',
+            accessTier: 'client',
+          }),
+        );
+        break;
+      default: {
+        const selfService = await dispatchPublicSelfServiceIntent(
+          {
+            payments: this.payments,
+            crm: this.customerCrm,
+            marketing: this.marketingGrowth,
+          },
+          business.id,
+          parsed.action,
+          mergePublicSessionCustomerId(
+            parsed.params ?? {},
+            (orchestratedSession.customerId as string | undefined) ??
+              (parsed.params?.sessionCustomerId as string | undefined),
+          ),
+        );
+        if (selfService) {
+          result = commandResultToPublicAssistantResult(selfService);
+          break;
+        }
         result = {
           success: false,
           action: 'unknown',
           summary: t(locale, 'assistant.helpPrompt'),
         };
+      }
     }
 
     const final = this.attachSession(result, parsed.params, employees, locale);
@@ -716,7 +1030,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     services: Service[],
     locale: AppLocale,
     tz: string,
+    prompt = '',
   ): Promise<PublicAssistantResult> {
+    const { timeOfDay, notBeforeTime } = buildPublicAvailabilityTimeFilter(
+      params,
+      prompt,
+    );
     const matchedServices = this.resolveServicesFromParams(params, services);
 
     if (
@@ -808,15 +1127,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             continue;
           }
 
-          const { slots } = await this.publicBookingService.getProviderSlots(
+          let { slots } = await this.publicBookingService.getProviderSlots(
             slug,
             employee.id,
             dateKey,
             {
               serviceId,
-              notBeforeTime: params.timeFrom ?? null,
+              notBeforeTime: notBeforeTime ?? params.timeFrom ?? null,
             },
           );
+
+          if (timeOfDay) {
+            slots = filterIsoSlotsByTimeOfDay(slots, timeOfDay, (iso) =>
+              formatTimeDisplay(iso),
+            );
+          }
 
           if (slots.length === 0) continue;
 
@@ -894,6 +1219,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       );
     }
 
+    const timeWindowLabel = timeOfDay
+      ? ` — ${formatTimeOfDayLabel(timeOfDay)}`
+      : '';
     const lines: string[] = [
       t(locale, 'assistant.availabilityHeader', {
         service: serviceLabel,
@@ -901,7 +1229,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           dayCount === 1
             ? formatDateDisplay(dateKeys[0], locale)
             : String(dayReports.length),
-      }),
+      }) + timeWindowLabel,
       '',
     ];
 
@@ -977,7 +1305,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     services: Service[],
     locale: AppLocale,
     tz: string,
+    prompt = '',
   ): Promise<PublicAssistantResult> {
+    const { notBeforeTime } = buildPublicAvailabilityTimeFilter(params, prompt);
     const matchedServices = this.resolveServicesFromParams(params, services);
 
     if (
@@ -1872,6 +2202,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
     locale: AppLocale = 'en',
+    classificationEngineBlock?: string,
+    shortlist?: string[],
   ) {
     const sessionBlock =
       sessionContext &&
@@ -1884,10 +2216,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       content: m.content,
     }));
 
+    const engineBlock = classificationEngineBlock
+      ? `\n\n${classificationEngineBlock}`
+      : '';
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${buildPublicClassifierSchema()}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+        content: `${buildPublicClassifierSchema(shortlist)}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}${engineBlock}`,
       },
       ...historyMessages,
       { role: 'user', content: prompt },
@@ -1933,7 +2269,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       serviceName: params.serviceName ?? params.serviceCategory ?? undefined,
       date: dateKey ?? params.date,
       timeOfDay: params.timeOfDay ?? null,
-      notBeforeTime: params.timeFrom ?? null,
+      notBeforeTime:
+        buildPublicAvailabilityTimeFilter(params).notBeforeTime ??
+        params.timeFrom ??
+        null,
       availableProviders,
       noProviders,
     };
@@ -1967,7 +2306,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     action?: string,
   ) {
     if (!session) return params;
-    const merged = { ...params };
+    const merged = mergeParamsWithoutLoss(params, readClarifyPartialParams(session));
     const skipForNearest =
       action === 'book_appointment' && params.bookingFirstAvailable === true;
     const skipSessionDate =

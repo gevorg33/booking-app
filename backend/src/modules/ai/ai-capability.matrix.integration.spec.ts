@@ -29,6 +29,7 @@ import {
   resolveCompoundRecipesForPrompt,
 } from './ai-command-registry.util.js';
 import { SELF_SERVICE_BOOKING_INTENTS } from './ai-self-service-booking.util.js';
+import { assertReadMutateParity } from './ai-parity-2.6-read-mutate.util.js';
 
 describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
   it('bootstraps registry service and validates zero drift against generated intent lists', async () => {
@@ -178,6 +179,12 @@ describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
       );
       expect(recipe?.allowedStepIntentIds).toContain(id);
     }
+  });
+
+  it('parity-2.6 — mutating registry intents have preview/confirm + undo + post-exec coverage', () => {
+    const status = assertReadMutateParity(COMMAND_REGISTRY);
+    expect(status.complete).toBe(true);
+    expect(status.mutatingIntents).toBeGreaterThan(80);
   });
 
   it('builds customer capabilities view for logged-in clients only', () => {

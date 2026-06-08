@@ -550,6 +550,10 @@ export interface AiPageContext {
   selectionTimeFrom?: string | null;
   selectionTimeTo?: string | null;
   selectionEmployeeId?: string | null;
+  bookingId?: string | null;
+  customerId?: string | null;
+  serviceId?: string | null;
+  employeeId?: string | null;
 }
 
 let pageContext: AiPageContext = {};

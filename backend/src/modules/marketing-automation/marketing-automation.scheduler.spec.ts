@@ -2,7 +2,11 @@ import { MarketingAutomationScheduler } from './marketing-automation.scheduler.j
 import { MarketingAutomationService } from './marketing-automation.service.js';
 
 describe('MarketingAutomationScheduler', () => {
-  const marketingAutomationService = { processAllBusinesses: jest.fn() };
+  const marketingAutomationService = {
+    processAllBusinesses: jest.fn(),
+    processAllRebookingNudges: jest.fn(),
+    processAllActivationConciergeNudges: jest.fn(),
+  };
   const scheduler = new MarketingAutomationScheduler(
     marketingAutomationService as unknown as MarketingAutomationService,
   );
@@ -59,5 +63,33 @@ describe('MarketingAutomationScheduler', () => {
       'Marketing automation job failed',
       'db offline',
     );
+  });
+
+  it('runs daily rebooking nudge job and logs when messages sent', async () => {
+    marketingAutomationService.processAllRebookingNudges.mockResolvedValue(2);
+    const logSpy = jest
+      .spyOn((scheduler as any).logger, 'log')
+      .mockImplementation();
+
+    await scheduler.handleRebookingNudges();
+
+    expect(
+      marketingAutomationService.processAllRebookingNudges,
+    ).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith('Sent 2 rebooking nudge(s)');
+  });
+
+  it('runs hourly activation concierge job and logs when messages sent', async () => {
+    marketingAutomationService.processAllActivationConciergeNudges.mockResolvedValue(1);
+    const logSpy = jest
+      .spyOn((scheduler as any).logger, 'log')
+      .mockImplementation();
+
+    await scheduler.handleActivationConcierge();
+
+    expect(
+      marketingAutomationService.processAllActivationConciergeNudges,
+    ).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith('Sent 1 activation concierge nudge(s)');
   });
 });

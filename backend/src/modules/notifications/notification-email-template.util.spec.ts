@@ -100,6 +100,8 @@ describe('notification-email-template.util', () => {
         timeLabel: '14:00',
         manageLinkText: '',
         manageLinkHtml: '',
+        appInstallLinkText: '',
+        appInstallLinkHtml: '',
         footerNote: 'See you soon!',
       },
     );

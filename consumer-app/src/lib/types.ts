@@ -12,6 +12,10 @@ export interface PublicBusinessTaxSettings {
   rules?: Array<{ name: string; rate: number }>;
 }
 
+export interface PublicSupportWidgets {
+  zendeskWidgetKey?: string;
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -28,6 +32,8 @@ export interface PublicBusinessProfile {
   publicBookingEnabled: boolean;
   tax?: PublicBusinessTaxSettings;
   businessType?: string;
+  support?: PublicSupportWidgets;
+  acceptCashPayments?: boolean;
 }
 
 export interface PublicCheckoutQuote {
@@ -63,6 +69,9 @@ export interface PublicService {
   durationMinutes: number;
   price: number;
   currency?: string | null;
+  prepaymentMode?: 'none' | 'full' | 'deposit';
+  onlinePaymentEnabled?: boolean;
+  depositAmount?: number | null;
   category?: PublicServiceCategory | null;
   isClinic?: boolean;
   clinicServiceType?: 'consultation' | 'lab_test' | 'procedure';
@@ -106,6 +115,7 @@ export interface PublicCustomerBookingItem {
   serviceId: string;
   canCancel: boolean;
   canReschedule: boolean;
+  canReview?: boolean;
   policyMessage?: string | null;
   rescheduleCount?: number;
   maxReschedules?: number;

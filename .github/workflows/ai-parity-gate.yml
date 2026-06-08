@@ -1,0 +1,42 @@
+name: AI feature parity gate
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/ai-parity-gate.mjs'
+      - '.github/workflows/ai-parity-gate.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/ai-parity-gate.mjs'
+      - '.github/workflows/ai-parity-gate.yml'
+
+jobs:
+  ai-parity:
+    name: parity-4.5 exit gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run parity-4.5 exit gate
+        run: npm run test:parity-4.5

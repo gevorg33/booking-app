@@ -24,7 +24,7 @@ import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { ProviderOfflineBanner } from '../components/ProviderOfflineBanner';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
-import { PROVIDER_OPEN_BOOKING_EVENT } from '../lib/provider-push-deep-link.util';
+import { useProviderAiScreenGrounding } from '../lib/use-provider-ai-screen-grounding';
 
 export default function TodayPage() {
   const { t } = useI18n();
@@ -85,6 +85,12 @@ export default function TodayPage() {
     },
     enabled: !!business?.id,
     refetchInterval: 60_000,
+  });
+
+  useProviderAiScreenGrounding({
+    route: '/tabs/today',
+    selectedBookingId: selectedId,
+    bookings: data?.bookings,
   });
 
   return (

@@ -7,6 +7,17 @@ describe('AiIntentRescueService', () => {
     { id: '2', name: 'Mary Torgomyan' },
   ];
 
+  it('rescues what-can-you-do prompts to list_capabilities (parity-3.7)', () => {
+    const result = rescue.rescue({
+      prompt: 'What can you do?',
+      action: 'unknown',
+      params: {},
+      surface: 'dashboard',
+    });
+    expect(result?.action).toBe('list_capabilities');
+    expect(result?.rescueReason).toBe('role_capability_discovery');
+  });
+
   it('rescues unknown clear schedule prompts', () => {
     const result = rescue.rescue({
       prompt: 'Clear Gevorg schedule for tomorrow',

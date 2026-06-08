@@ -1,7 +1,12 @@
 import { AI_COMMAND_EVAL_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { IntentDecompositionService } from './intent-decomposition.service.js';
-import { buildDecompositionSchemaView } from './intent-decomposition.schema.js';
+import {
+  buildCapabilityBoundedDecompositionSchemaView,
+  buildDecompositionSchemaView,
+} from './intent-decomposition.schema.js';
+import { resolvePlannerAllowedIntents } from './ai-capability-bounded-planner.util.js';
+import { GOAL_EXECUTION_SCENARIOS } from './ai-goal-execution.util.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
 import { GOLDEN_COMPOUND_PROMPT_BY_ID } from './ai-rescue-pipeline.fixtures.js';
 import {
@@ -51,6 +56,43 @@ describe('intent-decomposition integration (ai-cmd-0.3)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new IntentDecompositionService(llm as any);
+  });
+
+  it('parity-3.2 — IntentDecompositionService decomposes stylist setup goals', async () => {
+    const service = new IntentDecompositionService({} as never);
+    for (const scenario of GOAL_EXECUTION_SCENARIOS) {
+      const steps = await service.decomposeGoal(
+        scenario.prompt,
+        scenario.surface,
+      );
+      expect(steps.length).toBeGreaterThanOrEqual(2);
+      if ('orderedActions' in scenario && scenario.orderedActions) {
+        expect(steps.map((step) => step.action)).toEqual(
+          scenario.orderedActions,
+        );
+      }
+    }
+  });
+
+  it('parity-3.1 — capability-bounded schema is subset of surface schema for staff dashboard', () => {
+    const base = buildDecompositionSchemaView('dashboard');
+    const bounded = buildCapabilityBoundedDecompositionSchemaView({
+      surface: 'dashboard',
+      accessTier: 'staff',
+      planTierId: 'solo',
+    });
+    const staffAllowed = new Set(
+      resolvePlannerAllowedIntents({
+        surface: 'dashboard',
+        accessTier: 'staff',
+        planTierId: 'solo',
+      }),
+    );
+    for (const action of bounded.allowedActions) {
+      expect(base.allowedActions).toContain(action);
+      expect(staffAllowed.has(action)).toBe(true);
+    }
+    expect(bounded.allowedActions).not.toContain('list_employees');
   });
 
   it('wires registry compound recipes to decomposition schema per surface', () => {

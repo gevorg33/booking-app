@@ -85,6 +85,18 @@ const COMMON_BOOKING_VARS: NotificationEmailTemplateVariable[] = [
     description: 'Custom closing line (tenant variable)',
     sampleValue: 'See you soon!',
   },
+  {
+    key: 'appInstallLinkText',
+    label: 'App install link (plain text)',
+    description: 'Consumer app install / open link with QR URL for text email',
+    sampleValue: '\n\nGet the app: https://…',
+  },
+  {
+    key: 'appInstallLinkHtml',
+    label: 'App install block (HTML)',
+    description: 'Consumer app promo with link and optional QR image',
+    sampleValue: '<br/><br/><strong>Get the app</strong>…',
+  },
 ];
 
 export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
@@ -94,9 +106,9 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
     description: 'Sent when a single appointment is confirmed.',
     subject: 'Confirmed: {{serviceName}} at {{businessName}}',
     bodyText:
-      'Hi {{customerName}},\n\nYour appointment at {{businessName}} is confirmed.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}\n\n{{footerNote}}',
+      'Hi {{customerName}},\n\nYour appointment at {{businessName}} is confirmed.\n\n{{serviceName}} with {{providerName}}\n{{dateLabel}} · {{timeLabel}}{{priceLineText}}{{manageLinkText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Hi {{customerName}},</p><p>Your appointment at {{businessName}} is confirmed.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}</p><p>{{footerNote}}</p>',
+      '<p>Hi {{customerName}},</p><p>Your appointment at {{businessName}} is confirmed.</p><p>{{serviceName}} with {{providerName}}<br/>{{dateLabel}} · {{timeLabel}}{{priceLineHtml}}{{manageLinkHtml}}{{appInstallLinkHtml}}</p><p>{{footerNote}}</p>',
     variables: COMMON_BOOKING_VARS,
   },
   {
@@ -106,9 +118,9 @@ export const EMAIL_TEMPLATE_DEFINITIONS: EmailTemplateDefinition[] = [
     subject:
       'Confirmed: {{appointmentCount}} {{appointmentWord}} at {{businessName}}',
     bodyText:
-      'Hi {{customerName}},\n\nYour {{appointmentWord}} at {{businessName}} are confirmed{{groupLabelSuffix}}.\n\n{{appointmentsListText}}\n\n{{footerNote}}',
+      'Hi {{customerName}},\n\nYour {{appointmentWord}} at {{businessName}} are confirmed{{groupLabelSuffix}}.\n\n{{appointmentsListText}}{{appInstallLinkText}}\n\n{{footerNote}}',
     bodyHtml:
-      '<p>Hi {{customerName}},</p><p>Your {{appointmentWord}} at {{businessName}} are confirmed{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}<p>{{footerNote}}</p>',
+      '<p>Hi {{customerName}},</p><p>Your {{appointmentWord}} at {{businessName}} are confirmed{{groupLabelSuffix}}.</p>{{appointmentsListHtml}}{{appInstallLinkHtml}}<p>{{footerNote}}</p>',
     variables: [
       ...COMMON_BOOKING_VARS.filter(
         (v) =>

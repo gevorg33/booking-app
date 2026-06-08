@@ -51,6 +51,7 @@ import { useI18n } from '@/i18n';
 import { BookingLabSection } from '@/components/clinic/booking-lab-section';
 import { BookingIntakeSection } from '@/components/clinic/booking-intake-section';
 import { shouldShowPatientResultsTab, isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { useAiPageContextSync } from '@/lib/use-ai-page-context-sync';
 
 export interface BookingDetail {
   id: string;
@@ -126,6 +127,24 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
     },
     enabled: !!businessId && !!bookingId,
   });
+
+  const aiScreenContext = useMemo(() => {
+    if (!booking) return null;
+    return {
+      route: '/dashboard/bookings',
+      bookingId: booking.id,
+      customerId: booking.customer?.id ?? null,
+      customerName: booking.customer?.name ?? null,
+      serviceId: booking.service?.id ?? null,
+      serviceName: booking.service?.name ?? null,
+      employeeId: booking.employee?.id ?? null,
+      employeeName: booking.employee?.name ?? null,
+      date: bookingDayISO(booking.startTime),
+      timeSlot: bookingTimeHHmm(booking.startTime),
+    };
+  }, [booking]);
+
+  useAiPageContextSync(aiScreenContext);
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', businessId],

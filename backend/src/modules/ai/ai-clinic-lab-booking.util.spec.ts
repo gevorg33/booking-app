@@ -86,6 +86,19 @@ describe('ai-clinic-lab-booking.util', () => {
     },
   );
 
+  it('does not classify provider enable-push setup as lab push-to-patient', () => {
+    expect(
+      isPushLabBookingToPatientPrompt(
+        'Միացնել push-ը նոր ամրագրումների համար',
+      ),
+    ).toBe(false);
+    expect(
+      isPushLabBookingToPatientPrompt(
+        'Enable push notifications for new bookings',
+      ),
+    ).toBe(false);
+  });
+
   it.each(DASHBOARD_LAB_BOOKING_RESCUE_SCENARIOS)(
     'rescues dashboard misclassification for $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {

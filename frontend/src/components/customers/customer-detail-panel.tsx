@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FileHeart, Loader2, Save, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import {
   type CustomerTag,
 } from '@/lib/customer-types';
 import { useI18n } from '@/i18n';
+import { useAiPageContextSync } from '@/lib/use-ai-page-context-sync';
 
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
@@ -199,6 +200,17 @@ export function CustomerDetailPanel({ businessId, customerId, onClose }: Custome
       queueMicrotask(() => setSelectedTag(resolveCustomerTagForEdit(data.customer)));
     }
   }, [data]);
+
+  const aiScreenContext = useMemo(() => {
+    if (!data?.customer) return null;
+    return {
+      route: '/dashboard/customers',
+      customerId: data.customer.id,
+      customerName: data.customer.name ?? null,
+    };
+  }, [data]);
+
+  useAiPageContextSync(aiScreenContext);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

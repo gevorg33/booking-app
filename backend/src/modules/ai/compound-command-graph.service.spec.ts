@@ -1,3 +1,4 @@
+import * as perStepPermission from './ai-per-step-permission-recheck.util.js';
 import { CompoundCommandGraphService } from './compound-command-graph.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
@@ -61,6 +62,13 @@ describe('CompoundCommandGraphService (ai-cmd-h2.4)', () => {
   beforeEach(() => {
     capturedPlanParams.length = 0;
     jest.clearAllMocks();
+    jest
+      .spyOn(perStepPermission, 'validateStepPermissionAtExecute')
+      .mockReturnValue({ ok: true });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('enriches booking hints on every check+book sub-step via LangGraph compound path', async () => {
@@ -70,7 +78,7 @@ describe('CompoundCommandGraphService (ai-cmd-h2.4)', () => {
     const result = await graph.run({
       businessId: 'biz-1',
       prompt,
-      sessionContext: {},
+      sessionContext: { confirmed: true },
       subIntents: [
         {
           action: 'check_providers_for_service',

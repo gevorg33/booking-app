@@ -41,6 +41,12 @@ vi.mock('../services/public-api.js', () => ({
     },
   ]),
   fetchMyClinicPatientAlerts: vi.fn(async () => ({ data: { alerts: [], totalCount: 0 } })),
+  fetchPublicPromotions: vi.fn(async () => ({ promotions: [] })),
+  fetchMyRewards: vi.fn(async () => ({
+    loyaltyEnabled: false,
+    loyalty: null,
+    promotions: [],
+  })),
 }));
 
 const profile = {

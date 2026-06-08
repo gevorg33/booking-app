@@ -118,11 +118,15 @@ describe('command-completion.validator', () => {
     expect(result.issues.some((i) => i.field === 'timeSlot')).toBe(false);
   });
 
-  it('accepts check_availability with timeOfDay only', () => {
+  it('accepts check_availability with timeOfDay and date', () => {
     const result = validateCommand(
       baseCmd({
         action: 'check_availability',
-        params: { timeOfDay: 'afternoon', notBeforeTime: '12:00' },
+        params: {
+          timeOfDay: 'afternoon',
+          notBeforeTime: '12:00',
+          date: '2026-06-09',
+        },
         enrichedParams: {},
         entities: {},
       }),

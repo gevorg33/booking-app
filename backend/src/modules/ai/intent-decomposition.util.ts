@@ -1,10 +1,27 @@
 import { Logger } from '@nestjs/common';
 import type { LlmService } from '../../engine/agent/llm.service.js';
 import { todayDisplay } from '../../common/utils/date-format.util.js';
-import { buildDecompositionSchemaView } from './intent-decomposition.schema.js';
+import {
+  buildCapabilityBoundedDecompositionSchemaView,
+  buildDecompositionSchemaView,
+} from './intent-decomposition.schema.js';
+import {
+  filterDecomposedStepsToAllowedIntents,
+  sanitizeCompoundDecomposition,
+  type CapabilityPlannerBounds,
+} from './ai-capability-bounded-planner.util.js';
 import { COMPOUND_COMMAND_RECIPES } from './ai-command-registry.js';
 import { getCompoundRecipesForSurface } from './ai-command-registry.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
+import type { AiActorType } from '../integrations/openai/openai.types.js';
+import type { AccessTier } from './access-control.matrix.js';
+
+function mapAccessTierToActorType(tier: AccessTier): AiActorType {
+  if (tier === 'client') return 'customer';
+  if (tier === 'staff') return 'provider';
+  if (tier === 'manager') return 'manager';
+  return 'owner';
+}
 import {
   enrichParamsWithSharedEntities,
   propagateCompoundStepParamsAcrossSteps,
@@ -23,6 +40,7 @@ import { decomposeIntegrationsCompoundPrompt } from './ai-integrations.util.js';
 import { decomposeMarketingGrowthCompoundPrompt } from './ai-marketing-growth.util.js';
 import { decomposePushNotificationsCompoundPrompt } from './ai-push-notifications.util.js';
 import { decomposeCustomerBookingCompoundPrompt } from './ai-self-service-booking.util.js';
+import { shouldSuppressFalseCompound } from './ai-compound-precision.util.js';
 import { decomposeProviderBookingCompoundPrompt } from './ai-provider-booking.util.js';
 import { decomposeDashboardPackageMultiServiceCompoundPrompt } from './ai-package-multi-service-hints.util.js';
 import {
@@ -42,10 +60,10 @@ import type {
 } from './intent-decomposition.types.js';
 
 export const COMPOUND_PROMPT_MARKERS =
-  /\band\s+then\b|\bthen\b|\balso\b|\bafter\s+that\b|\bfollowed\s+by\b|;\s*|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download|tag|coordinate|send|tell|alert|message|when|order|place|schedule|reserve|release)\b)|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule|notify|promo))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify|promo))\b/i;
+  /\band\s+then\b|\bthen\b|\balso\b|\bplus\b|\bafter\s+that\b|\bfollowed\s+by\b|;\s*|\s+(?:և|и|плюс)\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|find|explain|buy|choose|validate|export|summarize|trigger|switch|download|tag|coordinate|send|tell|alert|message|when|order|place|schedule|reserve|release)\b)|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|find|explain|buy|choose|validate|export|summarize|trigger|switch|download|tag|coordinate|send|tell|alert|message|when|order|place|schedule|reserve|release)\b)|(?:,\s*(?:and\s+)?(?:cleanup|clear|hide|cancel|wipe|remove|book|apply|block|fill|reschedule|notify|promo))|(?:\.\s+(?:clear|cancel|hide|apply|block|fill|book|reschedule|unhide|notify|promo))\b/i;
 
 export const UNIVERSAL_COMPOUND_SPLIT =
-  /\s*;\s*|\s+and\s+then\s+|\s+then\s+|\s+and\s+also\s+|\s+also\s+|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|explain|buy|choose|validate|export|summarize|trigger|switch|download|when|tell|send|alert|message|order|place|schedule|reserve|release)\b)/i;
+  /\s*;\s*|\s+and\s+then\s+|\s+then\s+|\s+and\s+also\s+|\s+also\s+|\s+plus\s+|\s+(?:և|и|плюс)\s+|\s+and\s+(?=(?:book|list|show|cancel|mark|pay|create|configure|track|add|remove|apply|notify|promo|fill|check|discover|use|get|find|explain|buy|choose|validate|export|summarize|trigger|switch|download|when|tell|send|alert|message|order|place|schedule|reserve|release)\b)/i;
 
 type RawCompoundStep = {
   action: string;
@@ -321,6 +339,7 @@ export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
 export function isCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 12) return false;
+  if (shouldSuppressFalseCompound(trimmed)) return false;
   return COMPOUND_PROMPT_MARKERS.test(trimmed);
 }
 
@@ -378,10 +397,14 @@ export function validateStepsAgainstRecipe(
 export function matchGoldenCompoundPattern(
   surface: CommandSurface,
   prompt: string,
+  allowedIntents?: readonly string[],
 ): CompoundDecompositionResult | null {
   for (const pattern of GOLDEN_COMPOUND_PATTERNS) {
     if (pattern.surface !== surface || !pattern.matches(prompt)) continue;
-    const steps = pattern.buildSteps(prompt);
+    let steps = pattern.buildSteps(prompt);
+    if (allowedIntents) {
+      steps = filterDecomposedStepsToAllowedIntents(steps, allowedIntents);
+    }
     if (steps.length < 2) continue;
     return {
       surface,
@@ -459,12 +482,21 @@ export function decomposeCustomerSelfServiceCompound(
 export function decomposeDeterministicForSurface(
   surface: CommandSurface,
   prompt: string,
+  allowedIntents?: readonly string[],
 ): CompoundDecompositionResult | null {
-  const golden = matchGoldenCompoundPattern(surface, prompt);
+  if (shouldSuppressFalseCompound(prompt)) return null;
+
+  const golden = matchGoldenCompoundPattern(surface, prompt, allowedIntents);
   if (golden) return golden;
 
   if (surface === 'customer') {
-    const customerSteps = decomposeCustomerSelfServiceCompound(prompt);
+    let customerSteps = decomposeCustomerSelfServiceCompound(prompt);
+    if (allowedIntents) {
+      customerSteps = filterDecomposedStepsToAllowedIntents(
+        customerSteps,
+        allowedIntents,
+      );
+    }
     if (customerSteps.length >= 2) {
       return {
         surface,
@@ -483,10 +515,13 @@ export function decomposeDeterministicForSurface(
     const handler = DECOMPOSE_HANDLER_BY_UTIL[recipe.decomposeUtil];
     if (!handler) continue;
 
-    const normalized = normalizeHandlerSteps(
-      handler(prompt),
-      recipe.allowedStepIntentIds,
-    );
+    const recipeAllowed = allowedIntents
+      ? recipe.allowedStepIntentIds.filter((intentId) =>
+          allowedIntents.includes(intentId),
+        )
+      : recipe.allowedStepIntentIds;
+
+    const normalized = normalizeHandlerSteps(handler(prompt), recipeAllowed);
     if (normalized.length < 2) continue;
 
     best = pickLongerCompoundMatch(best, {
@@ -533,23 +568,37 @@ export async function decomposeCompoundPrompt(
   prompt: string,
   timeZone = 'UTC',
   surface: CommandSurface = 'dashboard',
+  plannerBounds?: CapabilityPlannerBounds,
 ): Promise<DecomposedIntentStep[]> {
   if (!isCompoundPrompt(prompt)) return [];
 
-  const deterministic = decomposeDeterministicForSurface(surface, prompt);
+  const allowedIntents = plannerBounds
+    ? buildCapabilityBoundedDecompositionSchemaView(plannerBounds).allowedActions
+    : undefined;
+
+  const deterministicRaw = decomposeDeterministicForSurface(
+    surface,
+    prompt,
+    allowedIntents,
+  );
+  const deterministic = allowedIntents
+    ? sanitizeCompoundDecomposition(deterministicRaw, allowedIntents)
+    : deterministicRaw;
   if (deterministic && deterministic.steps.length >= 2) {
     decompositionLogger.log(
       `Decomposed (${deterministic.source}/${decompositionLogLabel(deterministic.recipeId, surface)}) into ${deterministic.steps.length} sub-intent(s)`,
     );
-    return deterministic.steps.slice(
-      0,
-      buildDecompositionSchemaView(surface).maxSteps,
-    );
+    const schema = plannerBounds
+      ? buildCapabilityBoundedDecompositionSchemaView(plannerBounds)
+      : buildDecompositionSchemaView(surface);
+    return deterministic.steps.slice(0, schema.maxSteps);
   }
 
   if (surface !== 'dashboard') return [];
 
-  const schema = buildDecompositionSchemaView(surface);
+  const schema = plannerBounds
+    ? buildCapabilityBoundedDecompositionSchemaView(plannerBounds)
+    : buildDecompositionSchemaView(surface);
 
   try {
     const result = await llm.completeJson<{ intents: DecomposedIntentStep[] }>(
@@ -559,7 +608,7 @@ export async function decomposeCompoundPrompt(
       {
         surface: 'dashboard',
         operation: 'decompose_intent',
-        actorType: 'owner',
+        actorType: mapAccessTierToActorType(plannerBounds?.accessTier ?? 'owner'),
         userId,
       },
       0.1,

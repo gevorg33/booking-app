@@ -46,6 +46,15 @@ export class AuthController {
     });
   }
 
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  loginWithApple(@Body() dto: GoogleLoginDto) {
+    return this.authService.loginWithApple(dto.idToken, {
+      businessId: dto.businessId,
+      businessSlug: dto.businessSlug,
+    });
+  }
+
   @Post('switch-business')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)

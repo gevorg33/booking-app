@@ -33,7 +33,9 @@ export type CommandApiModule =
   | 'public-booking'
   | 'provider-mobile'
   | 'clinic-test-results'
-  | 'patient-clinical-profiles';
+  | 'patient-clinical-profiles'
+  | 'reviews'
+  | 'business';
 
 export interface CommandRegistryEntry {
   /** Stable intent id (classifier action). */

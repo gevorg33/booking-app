@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // n99-4.1 — provisional only: quiet Notification Center delivery, no upfront prompt.
+        UNUserNotificationCenter.current().requestAuthorization(options: [.provisional]) { _, _ in
+            DispatchQueue.main.async {
+                application.registerForRemoteNotifications()
+            }
+        }
         return true
     }
 

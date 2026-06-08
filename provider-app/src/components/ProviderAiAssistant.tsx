@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
@@ -37,6 +37,12 @@ import {
 } from '../lib/provider-ai-quick-chips';
 import { ProviderAiVoiceButton } from './ProviderAiVoiceButton';
 import type { SpeechRecognitionErrorCode } from '../lib/use-speech-recognition';
+import type { ProviderAiScreenContext } from '../lib/provider-ai-context';
+import {
+  getProviderAiScreenOverlay,
+  subscribeProviderAiScreenOverlay,
+} from '../lib/provider-ai-screen-store';
+import { mergeProviderAiScreenContext } from '../lib/use-provider-ai-screen-grounding';
 
 interface PreviewItem {
   id: string;
@@ -62,9 +68,13 @@ interface SessionContext {
 }
 
 interface MessageDetails {
+  traceId?: string;
   requiresConfirmation?: boolean;
   needsClarification?: boolean;
   missing?: ClarifyIssue[];
+  clarifyCandidates?: Array<{ action: string; label: string }>;
+  entityOptions?: Array<{ id: string; field: string; label: string; value: string }>;
+  clarifyContext?: { originalPrompt?: string };
   bookingIds?: string[];
   preview?: string[];
   previewItems?: PreviewItem[];
@@ -80,13 +90,25 @@ interface Message {
   details?: MessageDetails;
 }
 
-export interface ProviderAiScreenContext {
-  date?: string | null;
-  customerName?: string | null;
-  serviceName?: string | null;
-  timeSlot?: string | null;
-  route?: string;
+function reportClarifyAbandoned(businessId: string, traceId: string) {
+  void api.post(`/businesses/${businessId}/ai/trace/${traceId}/abandon`).catch(() => {
+    // Best-effort telemetry.
+  });
 }
+
+function findPendingClarifyTraceId(messages: Message[]) {
+  const pending = [...messages]
+    .reverse()
+    .find(
+      (msg) =>
+        msg.role === 'assistant' &&
+        msg.details?.needsClarification === true &&
+        typeof msg.details.traceId === 'string',
+    );
+  return pending?.details?.traceId;
+}
+
+export type { ProviderAiScreenContext } from '../lib/provider-ai-context';
 
 interface ProviderAiAssistantProps {
   businessId: string;
@@ -105,6 +127,105 @@ function mergeSession(prev: SessionContext, next: SessionContext): SessionContex
     serviceName: next.serviceName ?? prev.serviceName,
     allAppointments: next.allAppointments ?? prev.allAppointments,
   };
+}
+
+function ProviderAiFeedback({
+  businessId,
+  traceId,
+}: {
+  businessId: string;
+  traceId?: string;
+}) {
+  const { t } = useI18n();
+  const [rating, setRating] = useState<'up' | 'down' | null>(null);
+  const [showReasons, setShowReasons] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!traceId) return null;
+
+  if (rating) {
+    return (
+      <div className="ai-assistant-feedback ion-margin-top">
+        <IonText color="medium">
+          <p className="booking-meta">{t('ai.feedbackThanks')}</p>
+        </IonText>
+      </div>
+    );
+  }
+
+  const submitFeedback = async (nextRating: 'up' | 'down', reason?: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await api.post(`/businesses/${businessId}/ai/trace/${traceId}/feedback`, {
+        rating: nextRating,
+        reason,
+      });
+      setRating(nextRating);
+      setShowReasons(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const reasons = [
+    'wrong_action',
+    'wrong_date',
+    'wrong_person',
+    'wrong_service',
+    'did_not_understand',
+  ] as const;
+
+  return (
+    <div className="ai-assistant-feedback ion-margin-top">
+      <div className="ai-assistant-feedback-actions">
+        <button
+          type="button"
+          disabled={submitting}
+          className="ai-assistant-feedback-thumb"
+          aria-label={t('ai.feedbackUp')}
+          title={t('ai.feedbackUp')}
+          onClick={() => void submitFeedback('up')}
+        >
+          👍
+        </button>
+        <button
+          type="button"
+          disabled={submitting}
+          className="ai-assistant-feedback-thumb"
+          aria-label={t('ai.feedbackDown')}
+          title={t('ai.feedbackDown')}
+          onClick={() => setShowReasons(true)}
+        >
+          👎
+        </button>
+      </div>
+
+      {showReasons && (
+        <div className="ai-assistant-feedback-reasons">
+          {reasons.map((reason) => (
+            <button
+              key={reason}
+              type="button"
+              disabled={submitting}
+              className="ai-assistant-feedback-reason"
+              onClick={() => void submitFeedback('down', reason)}
+            >
+              {t(`ai.feedbackReason.${reason}`)}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={submitting}
+            className="ai-assistant-feedback-reason"
+            onClick={() => void submitFeedback('down')}
+          >
+            {t('ai.feedbackReasonSkip')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ProviderAiAssistant({
@@ -127,10 +248,33 @@ export default function ProviderAiAssistant({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
+  const [screenOverlay, setScreenOverlay] = useState(getProviderAiScreenOverlay);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(
+    () => subscribeProviderAiScreenOverlay(() => setScreenOverlay({ ...getProviderAiScreenOverlay() })),
+    [],
+  );
+
+  const mergedScreenContext = useMemo(
+    () => mergeProviderAiScreenContext(screenContext, screenOverlay),
+    [screenContext, screenOverlay],
+  );
+
   useProviderAiEvents(businessId, (type) => {
     if (type === 'ai.clarify' || type === 'ai.task.progress') setOpen(true);
   });
+
+  const setAssistantOpen = useCallback(
+    (next: boolean) => {
+      if (!next && open) {
+        const traceId = findPendingClarifyTraceId(messages);
+        if (traceId) reportClarifyAbandoned(businessId, traceId);
+      }
+      setOpen(next);
+    },
+    [businessId, messages, open],
+  );
 
   const invalidateBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', businessId] });
@@ -139,7 +283,11 @@ export default function ProviderAiAssistant({
   }, [businessId, queryClient]);
 
   const sendPrompt = useCallback(
-    async (prompt: string) => {
+    async (
+      prompt: string,
+      selectedIntentAction?: string,
+      clarifyAnswers?: Record<string, string>,
+    ) => {
       if (!prompt.trim() || loading) return;
 
       const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: prompt.trim() };
@@ -169,7 +317,19 @@ export default function ProviderAiAssistant({
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
-          context: { ...sessionContext, ...screenContext },
+          context: {
+            ...sessionContext,
+            ...mergedScreenContext,
+            ...(selectedIntentAction ? { _selectedIntentAction: selectedIntentAction } : {}),
+            ...(clarifyAnswers && Object.keys(clarifyAnswers).length > 0
+              ? {
+                  _clarifyMemory: {
+                    ...(sessionContext as Record<string, unknown>)._clarifyMemory,
+                    ...clarifyAnswers,
+                  },
+                }
+              : {}),
+          },
         });
         const result = unwrap<{
           success: boolean;
@@ -213,7 +373,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
+    [businessId, invalidateBookings, loading, mergedScreenContext, messages, online, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -308,9 +468,9 @@ export default function ProviderAiAssistant({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setAssistantOpen(!open)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') setOpen((v) => !v);
+          if (e.key === 'Enter' || e.key === ' ') setAssistantOpen(!open);
         }}
         className="ai-assistant-card__header"
       >
@@ -379,9 +539,74 @@ export default function ProviderAiAssistant({
                 >
                   <p>{msg.text}</p>
 
+                  {msg.role === 'assistant' && (
+                    <ProviderAiFeedback businessId={businessId} traceId={msg.details?.traceId} />
+                  )}
+
+                  {msg.details?.needsClarification &&
+                    Array.isArray(msg.details.clarifyCandidates) &&
+                    msg.details.clarifyCandidates.length >= 2 && (
+                      <div className="ai-assistant-clarify">
+                        <p className="booking-meta">Did you mean one of these?</p>
+                        {msg.details.clarifyCandidates.map((candidate) => (
+                          <button
+                            key={`${candidate.action}-${candidate.label}`}
+                            type="button"
+                            className="ai-assistant-clarify-btn"
+                            onClick={() => {
+                              const original = msg.details?.clarifyContext?.originalPrompt;
+                              const followUp = original
+                                ? `${original}. I meant ${candidate.label.toLowerCase()}.`
+                                : `I meant ${candidate.label.toLowerCase()}.`;
+                              void sendPrompt(followUp, candidate.action);
+                            }}
+                          >
+                            {candidate.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                  {msg.details?.needsClarification &&
+                    Array.isArray(msg.details.entityOptions) &&
+                    msg.details.entityOptions.length >= 2 && (
+                      <div className="ai-assistant-clarify">
+                        <p className="booking-meta">
+                          {msg.details.entityOptions[0]?.field === 'serviceName'
+                            ? 'Which service did you mean?'
+                            : msg.details.entityOptions[0]?.field === 'customerName'
+                              ? 'Which customer did you mean?'
+                              : 'Which provider did you mean?'}
+                        </p>
+                        {msg.details.entityOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            className="ai-assistant-clarify-btn"
+                            onClick={() => {
+                              const original = msg.details?.clarifyContext?.originalPrompt;
+                              const followUp = original
+                                ? `${original}. I meant ${option.label}.`
+                                : option.label;
+                              void sendPrompt(followUp, undefined, {
+                                [option.field]: option.value,
+                              });
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <div className="ai-assistant-clarify">
-                      {msg.details.missing.map((issue) =>
+                      {msg.details.missing
+                        .filter((issue) => {
+                          const entityField = msg.details?.entityOptions?.[0]?.field;
+                          return !entityField || issue.field !== entityField;
+                        })
+                        .map((issue) =>
                         issue.example ? (
                           <button
                             key={`${issue.field}-${issue.label}`}

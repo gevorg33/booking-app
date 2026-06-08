@@ -1,4 +1,8 @@
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
+import {
+  createClassificationEngineMock,
+  createEscalationHandoffMock,
+} from './ai-gateway.test-mocks.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
 
 describe('customer-ai-command integration (ai-cmd-0.5)', () => {
@@ -90,8 +94,12 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     const service = new CustomerAiCommandService(
       llm as any,
       promptSecurity as any,
-      { gateCustomerAction: jest.fn(() => null) } as any,
+      {
+        gateCustomerAction: jest.fn(() => null),
+        hydrateAutofillWatchdogSession: jest.fn(async () => undefined),
+      } as any,
       { emitMisrouteTelemetry: jest.fn() } as any,
+      sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
       sprintHandlers as any,
@@ -151,7 +159,12 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       } as any,
       sprintHandlers as any,
       sprintHandlers as any,
+      sprintHandlers as any,
       { chat: jest.fn() } as any,
+      createClassificationEngineMock() as any,
+      createEscalationHandoffMock() as any,
+      { find: jest.fn(async () => []) } as any,
+      { find: jest.fn(async () => []) } as any,
     );
 
     return { service, llm };
@@ -215,17 +228,17 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     const publicAssistant = {
       chat: jest.fn(async () => ({
         success: true,
-        action: 'check_availability',
-        summary: 'slots found',
+        action: 'list_services',
+        summary: 'Massage, Facial',
         sessionContext: { serviceName: 'Massage' },
       })),
     };
     const llm = {
       isAvailableForBusiness: jest.fn(async () => true),
       completeJson: jest.fn(async () => ({
-        action: 'check_availability',
-        params: { serviceName: 'Massage' },
-        reasoning: 'find slots',
+        action: 'list_services',
+        params: {},
+        reasoning: 'browse services',
       })),
     };
     const promptSecurity = {
@@ -249,8 +262,12 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     const service = new CustomerAiCommandService(
       llm as any,
       promptSecurity as any,
-      { gateCustomerAction: jest.fn(() => null) } as any,
+      {
+        gateCustomerAction: jest.fn(() => null),
+        hydrateAutofillWatchdogSession: jest.fn(async () => undefined),
+      } as any,
       { emitMisrouteTelemetry: jest.fn() } as any,
+      noop as any,
       noop as any,
       noop as any,
       noop as any,
@@ -297,12 +314,17 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       {} as any,
       {} as any,
       {} as any,
+      noop as any,
       publicAssistant as any,
+      createClassificationEngineMock() as any,
+      createEscalationHandoffMock() as any,
+      { find: jest.fn(async () => []) } as any,
+      { find: jest.fn(async () => []) } as any,
     );
 
     const result = await service.executeCommand(
       'biz-1',
-      'Any slots for massage tomorrow?',
+      'What services do you offer?',
       [],
       {
         slug: 'salon',
@@ -311,11 +333,11 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
-      'Any slots for massage tomorrow?',
+      'What services do you offer?',
       expect.objectContaining({ locale: undefined }),
       { recordMetrics: false },
     );
-    expect(result.action).toBe('check_availability');
+    expect(result.action).toBe('list_services');
     expect(result.details?.sessionContext).toEqual({ serviceName: 'Massage' });
   });
 });

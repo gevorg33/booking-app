@@ -61,6 +61,8 @@ export interface PipelineTrace {
   action: string;
   at: string;
   detail?: string;
+  /** acc-1.3 — correlation id threaded through the pipeline */
+  traceId?: string;
 }
 
 export interface CommandResult {

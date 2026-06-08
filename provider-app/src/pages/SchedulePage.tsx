@@ -25,6 +25,7 @@ import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { useProviderAiScreenGrounding } from '../lib/use-provider-ai-screen-grounding';
 
 export default function SchedulePage() {
   const { t } = useI18n();
@@ -77,6 +78,12 @@ export default function SchedulePage() {
   });
 
   const isLoading = loadingSummary || loadingUpcoming;
+
+  useProviderAiScreenGrounding({
+    route: '/tabs/schedule',
+    selectedBookingId: selectedId,
+    bookings: upcoming?.bookings,
+  });
 
   const isManagerView = isMobileManagerRole(business?.membershipRole);
 

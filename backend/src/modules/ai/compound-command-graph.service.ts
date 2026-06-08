@@ -12,11 +12,28 @@ import {
 import { shouldValidateAction } from './command-completion.validator.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import type { CommandResult } from './command-completion.types.js';
+import { extractPipelineTraceId } from './ai-pipeline-trace.util.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { mergeCompoundStepParams } from './ai-command-entity-params.util.js';
+import { wrapCompoundStepClarifyForMidPlan } from './ai-mid-plan-clarify.util.js';
+import {
+  buildPerStepPermissionDeniedCommandResult,
+  resolvePlannerBoundsFromSession,
+  validateStepPermissionAtExecute,
+} from './ai-per-step-permission-recheck.util.js';
+import { isExecutionConfirmed } from './ai-execution-confirm.util.js';
+import {
+  buildMultiStepExecutionPreviewGate,
+  enrichMultiStepExecutionRollbackDetails,
+} from './ai-plan-preview-rollback.util.js';
+import {
+  buildMultiStepBlastRadiusGate,
+  enrichMultiStepSafetyDetails,
+  resolveMultiStepGraduatedAutoExecute,
+} from './ai-multi-step-safety.util.js';
 import {
   enrichCompoundSubStepBookingHints,
   isBookingCompoundSubStepAction,
@@ -113,7 +130,7 @@ const CompoundState = Annotation.Root({
     reducer: (_p, n) => n,
     default: () => [],
   }),
-  pipelineTrace: Annotation<string[]>({
+  pipelineTrace: Annotation<import('./command-completion.types.js').PipelineTrace[]>({
     reducer: (_p, n) => n,
     default: () => [],
   }),
@@ -158,6 +175,8 @@ export class CompoundCommandGraphService {
     this.toCommandResultFn = input.toCommandResult;
     this.executeReadOnlyFn = input.executeReadOnlySubIntent;
 
+    const traceId = extractPipelineTraceId(input.sessionContext);
+
     const finalState = (await this.graph.invoke({
       businessId: input.businessId,
       prompt: input.prompt,
@@ -175,6 +194,7 @@ export class CompoundCommandGraphService {
           'classify',
           'compound_intent',
           `${input.subIntents.length} sub-intent(s) via LangGraph`,
+          traceId,
         ),
       ],
       error: undefined,
@@ -213,6 +233,32 @@ export class CompoundCommandGraphService {
     const sub = state.subIntents[state.currentIndex];
     if (!sub) {
       return { currentIndex: state.currentIndex };
+    }
+
+    const traceId = extractPipelineTraceId(state.sessionContext);
+    const plannerBounds = resolvePlannerBoundsFromSession(state.sessionContext);
+    const stepPermission = validateStepPermissionAtExecute(
+      sub.action,
+      plannerBounds,
+    );
+    if (!stepPermission.ok) {
+      const goalDetails = state.sessionContext._goalExecutionDetails as
+        | Record<string, unknown>
+        | undefined;
+      const parentAction =
+        goalDetails?.goalExecution === true
+          ? 'goal_execution'
+          : 'compound_intent';
+      return {
+        error: buildPerStepPermissionDeniedCommandResult({
+          parentAction,
+          deniedAction: stepPermission.deniedAction,
+          stepIndex: state.currentIndex,
+          totalSteps: state.subIntents.length,
+          bounds: plannerBounds,
+          pipelineTrace: state.pipelineTrace,
+        }),
+      };
     }
 
     const sessionMerged = this.completionPipeline.mergeSessionContext(
@@ -315,15 +361,41 @@ export class CompoundCommandGraphService {
 
     if (shouldValidateAction(parsed.action)) {
       const validation = this.completionPipeline.validate(resolved);
-      if (!validation.ok) {
-        const clarify = this.completionPipeline.toClarifyResult(
-          resolved,
-          validation,
-        );
-        clarify.details.pipelineTrace = state.pipelineTrace;
-        clarify.details.compoundStep = parsed.action;
-        return { error: clarify };
-      }
+        if (!validation.ok) {
+          const clarify = this.completionPipeline.toClarifyResult(
+            resolved,
+            validation,
+          );
+          if (clarify) {
+            clarify.details.pipelineTrace = [
+              ...state.pipelineTrace,
+              this.completionPipeline.trace(
+                'validate',
+                parsed.action,
+                `${validation.issues.length} issue(s)`,
+                traceId,
+              ),
+            ];
+            const goalDetails = state.sessionContext._goalExecutionDetails as
+              | Record<string, unknown>
+              | undefined;
+            const parentAction =
+              goalDetails?.goalExecution === true
+                ? 'goal_execution'
+                : 'compound_intent';
+            return {
+              error: wrapCompoundStepClarifyForMidPlan(clarify, {
+                parentAction,
+                originalPrompt: state.prompt,
+                steps: state.subIntents,
+                currentStepIndex: state.currentIndex,
+                pausedParams: resolved.enrichedParams,
+                sessionContext: state.sessionContext,
+                goalDetails,
+              }),
+            };
+          }
+        }
     }
 
     let plan: AgentPlan | null = null;
@@ -414,6 +486,7 @@ export class CompoundCommandGraphService {
               'execute',
               parsed.action,
               readResult.summary,
+              traceId,
             ),
           ],
           readOnlySummaries: [...state.readOnlySummaries, readResult.summary],
@@ -430,6 +503,7 @@ export class CompoundCommandGraphService {
             'resolve',
             parsed.action,
             'Could not build plan for step',
+            traceId,
           ),
         ],
         skippedSteps: [...state.skippedSteps, parsed.action],
@@ -438,8 +512,18 @@ export class CompoundCommandGraphService {
 
     const pipelineTrace = [
       ...state.pipelineTrace,
-      this.completionPipeline.trace('resolve', parsed.action, sub.reasoning),
+      this.completionPipeline.trace('resolve', parsed.action, sub.reasoning, traceId),
     ];
+    if (shouldValidateAction(parsed.action)) {
+      pipelineTrace.push(
+        this.completionPipeline.trace(
+          'validate',
+          parsed.action,
+          'passed',
+          traceId,
+        ),
+      );
+    }
 
     let sessionContext = state.sessionContext;
     if (isBookingCompoundSubStepAction(parsed.action)) {
@@ -480,6 +564,7 @@ export class CompoundCommandGraphService {
   }
 
   private async mergeAndExecute(state: CompoundGraphState) {
+    const traceId = extractPipelineTraceId(state.sessionContext);
     if (!state.plans.length) {
       if (state.readOnlySummaries.length) {
         return {
@@ -525,17 +610,74 @@ export class CompoundCommandGraphService {
           .filter(Boolean),
       ).size || 1;
 
+    const goalDetails = state.sessionContext._goalExecutionDetails as
+      | Record<string, unknown>
+      | undefined;
+    const parentAction =
+      goalDetails?.goalExecution === true
+        ? 'goal_execution'
+        : 'compound_intent';
+
+    const blastRadiusGate = buildMultiStepBlastRadiusGate({
+      parentAction,
+      prompt: state.prompt,
+      subIntents: state.subIntents,
+      mergedPlan: merged,
+      session: { context: state.sessionContext },
+      pipelineTrace: state.pipelineTrace,
+    });
+    if (blastRadiusGate) {
+      return { result: blastRadiusGate };
+    }
+
+    const baseAutoExecute = resolveAutoExecute({
+      action: 'compound_intent',
+      stepCount: merged.steps.length,
+      providerCount,
+      confidence: 0.9,
+      thresholds: state.confidenceThresholds,
+    });
+
+    const previewGate = buildMultiStepExecutionPreviewGate({
+      parentAction,
+      prompt: state.prompt,
+      subIntents: state.subIntents,
+      mergedAgentSteps: merged.steps,
+      confirmed: isExecutionConfirmed({ context: state.sessionContext }),
+      pipelineTrace: state.pipelineTrace,
+      goalDetails,
+    });
+    if (previewGate) {
+      return {
+        result: {
+          ...previewGate,
+          details: enrichMultiStepSafetyDetails(previewGate.details, {
+            subIntents: state.subIntents,
+            mergedPlan: merged,
+            parentAction,
+            sessionContext: state.sessionContext,
+            autoExecuteRequested: baseAutoExecute,
+          }),
+        },
+      };
+    }
+
+    const autoExecute = resolveMultiStepGraduatedAutoExecute({
+      parentAction,
+      subIntents: state.subIntents,
+      autoExecute: baseAutoExecute,
+      context: state.sessionContext,
+    });
+
     const orch = await this.orchestration.executePlan({
       plan: merged,
       businessId: state.businessId,
       userId: state.userId,
-      autoExecute: resolveAutoExecute({
-        action: 'compound_intent',
-        stepCount: merged.steps.length,
-        providerCount,
-        confidence: 0.9,
-        thresholds: state.confidenceThresholds,
-      }),
+      autoExecute,
+      plannerBounds: resolvePlannerBoundsFromSession(state.sessionContext),
+      executionConfirmed:
+        state.sessionContext.confirmed === true ||
+        state.sessionContext._executionConfirmed === true,
     });
 
     const result = this.toCommandResultFn(orch);
@@ -544,17 +686,50 @@ export class CompoundCommandGraphService {
         .filter(Boolean)
         .join('\n\n');
     }
-    result.details = {
-      ...result.details,
-      pipelineTrace: state.pipelineTrace,
-      subIntents: state.subIntents.map((s) => s.action),
-      decomposed: true,
-      langGraphPath: 'compound',
-      readOnlySummaries: state.readOnlySummaries.length
-        ? state.readOnlySummaries
-        : undefined,
-      skippedSteps: state.skippedSteps.length ? state.skippedSteps : undefined,
-    };
+    result.details = enrichMultiStepSafetyDetails(
+      enrichMultiStepExecutionRollbackDetails(
+        {
+          ...result.details,
+          pipelineTrace: [
+            ...state.pipelineTrace,
+            this.completionPipeline.trace(
+              'execute',
+              parentAction,
+              result.success ? 'ok' : result.summary,
+              traceId,
+            ),
+          ],
+          subIntents: state.subIntents.map((s) => s.action),
+          decomposed: true,
+          langGraphPath: 'compound',
+          ...(goalDetails ?? {}),
+          readOnlySummaries: state.readOnlySummaries.length
+            ? state.readOnlySummaries
+            : undefined,
+          skippedSteps: state.skippedSteps.length
+            ? state.skippedSteps
+            : undefined,
+        },
+        {
+          taskId:
+            typeof result.details?.taskId === 'string'
+              ? result.details.taskId
+              : undefined,
+          mergedAgentSteps: merged.steps,
+        },
+      ),
+      {
+        subIntents: state.subIntents,
+        mergedPlan: merged,
+        parentAction,
+        sessionContext: state.sessionContext,
+        autoExecuteRequested: baseAutoExecute,
+        planApproved: isExecutionConfirmed({ context: state.sessionContext }),
+      },
+    );
+    if (parentAction === 'goal_execution') {
+      result.action = 'goal_execution';
+    }
 
     return { result };
   }

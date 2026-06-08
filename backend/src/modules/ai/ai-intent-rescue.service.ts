@@ -34,6 +34,7 @@ import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
 } from './dashboard-revenue-analytics.util.js';
+import { applyDeterministicRescue } from './ai-n99-deterministic-rescue.util.js';
 import {
   extractCustomerBookingContextFromPrompt,
   extractSingleProviderNameFromPrompt,
@@ -62,6 +63,16 @@ import { rescuePushNotificationsIntent } from './ai-push-notifications.util.js';
 import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
 import { rescueProviderBookingIntent } from './ai-provider-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
+import { rescueReviewsIntent } from './ai-reviews.util.js';
+import { rescueListCapabilitiesIntent } from './ai-role-capability-listing.util.js';
+import { rescueTeamMemberIntent } from './ai-team-members.util.js';
+import { rescueStaffScopeIntent } from './ai-provider-staff-scope.util.js';
+import { rescueCustomerPublicSelfServiceIntent } from './ai-customer-public-self-service.util.js';
+import {
+  CUSTOMER_ADOPT_6_GROWTH_INTENTS,
+  rescueCustomerAdopt6GrowthIntent,
+  rescueProviderAdopt6GrowthIntent,
+} from './ai-adopt-6-growth-loops.fixtures.js';
 import { rescueRetailFinanceIntent } from './ai-retail-finance.util.js';
 import {
   isBookNearestSlotPrompt,
@@ -288,6 +299,9 @@ export interface IntentRescueInput {
   employees?: Array<{ id: string; name: string }>;
   customers?: Array<{ id: string; name: string }>;
   timeZone?: string;
+  surface?: import('./ai-command-registry.types.js').CommandSurface;
+  /** acc-6.2 — business-specific rescue rules from failure closure pipeline. */
+  learnedRescueRules?: import('./ai-settings.types.js').LearnedTelemetryRescueRule[];
 }
 
 export interface IntentRescueResult {
@@ -401,6 +415,37 @@ export class AiIntentRescueService {
     const { prompt, employees = [], customers = [], timeZone = 'UTC' } = input;
     const { action, params, reasoning } = input;
 
+    const deterministicRescue = applyDeterministicRescue(
+      prompt,
+      action,
+      input.surface,
+      input.learnedRescueRules ?? [],
+    );
+    if (deterministicRescue) {
+      const rescuedParams = { ...params, ...deterministicRescue.params };
+      if (
+        deterministicRescue.toAction === 'reschedule_booking' ||
+        deterministicRescue.toAction === 'create_booking'
+      ) {
+        applyBookingRescheduleActionHints(
+          deterministicRescue.toAction,
+          rescuedParams,
+          prompt,
+          { employees, customers, timeZone },
+        );
+      }
+      return {
+        action: deterministicRescue.toAction,
+        params: rescuedParams,
+        reasoning: `Deterministic rescue (${deterministicRescue.ruleId}, n99-2.5/acc-3.8)`,
+        rescued: true,
+        rescueReason: deterministicRescue.rescueReason,
+      };
+    }
+
+    const listCapabilities = this.tryRescueListCapabilities(prompt, action);
+    if (listCapabilities) return listCapabilities;
+
     if (action !== 'unknown') {
       const disambiguated = this.disambiguateMisclassified(
         prompt,
@@ -409,6 +454,8 @@ export class AiIntentRescueService {
         employees,
         customers,
         timeZone,
+        input.surface,
+        input.learnedRescueRules ?? [],
       );
       if (disambiguated) return disambiguated;
       const clinicCompoundEarly = this.tryRescueClinicCompound(prompt, action);
@@ -425,6 +472,11 @@ export class AiIntentRescueService {
         action,
       );
       if (businessCurrencyEarly) return businessCurrencyEarly;
+      const adopt6AfterCurrencyEarly = this.tryRescueAdopt6GrowthCombined(
+        prompt,
+        action,
+      );
+      if (adopt6AfterCurrencyEarly) return adopt6AfterCurrencyEarly;
       const clinicTestResultEarly = this.tryRescueClinicTestResult(
         prompt,
         action,
@@ -490,6 +542,13 @@ export class AiIntentRescueService {
         customers,
       );
       if (bookingDepthEarly) return bookingDepthEarly;
+      const providerAdopt6Growth = this.tryRescueProviderAdopt6Growth(
+        prompt,
+        action,
+      );
+      if (providerAdopt6Growth) return providerAdopt6Growth;
+      const adopt6Growth = this.tryRescueAdopt6Growth(prompt, action);
+      if (adopt6Growth) return adopt6Growth;
       const selfServiceBooking = this.tryRescueSelfServiceBooking(
         prompt,
         action,
@@ -499,6 +558,17 @@ export class AiIntentRescueService {
       if (pushNotifications) return pushNotifications;
       const marketingGrowth = this.tryRescueMarketingGrowth(prompt, action);
       if (marketingGrowth) return marketingGrowth;
+      const reviews = this.tryRescueReviews(prompt, action);
+      if (reviews) return reviews;
+      const teamMembers = this.tryRescueTeamMembers(prompt, action);
+      if (teamMembers) return teamMembers;
+      const staffScope = this.tryRescueStaffScope(
+        prompt,
+        action,
+        params,
+        input.surface,
+      );
+      if (staffScope) return staffScope;
       const retailFinance = this.tryRescueRetailFinance(prompt, action);
       if (retailFinance) return retailFinance;
       const integrations = this.tryRescueIntegrations(prompt, action);
@@ -516,6 +586,12 @@ export class AiIntentRescueService {
         action,
       );
       if (providerBookingBeforeCrm) return providerBookingBeforeCrm;
+      const customerPublicSelfService = this.tryRescueCustomerPublicSelfService(
+        prompt,
+        action,
+        input.surface,
+      );
+      if (customerPublicSelfService) return customerPublicSelfService;
       const customerCrm = this.tryRescueCustomerCrm(prompt, action);
       if (customerCrm) return customerCrm;
       return null;
@@ -529,6 +605,52 @@ export class AiIntentRescueService {
 
     const revenueKpisUnknown = this.tryRescueRevenueKpis(prompt, action);
     if (revenueKpisUnknown) return revenueKpisUnknown;
+
+    if (input.surface === 'provider') {
+      const providerClinicCollectionVeryEarly =
+        this.tryRescueProviderClinicCollection(prompt, action);
+      if (providerClinicCollectionVeryEarly) {
+        return providerClinicCollectionVeryEarly;
+      }
+      const providerClinicLabBookingVeryEarly =
+        this.tryRescueProviderClinicLabBooking(prompt, action);
+      if (providerClinicLabBookingVeryEarly) {
+        return providerClinicLabBookingVeryEarly;
+      }
+    }
+
+    if (input.surface === 'customer' || input.surface === 'public') {
+      const clinicCompoundVeryEarly = this.tryRescueClinicCompound(
+        prompt,
+        action,
+      );
+      if (clinicCompoundVeryEarly) return clinicCompoundVeryEarly;
+      const consumerClinicTestResultsVeryEarly =
+        this.tryRescueConsumerClinicTestResults(prompt, action);
+      if (consumerClinicTestResultsVeryEarly) {
+        return consumerClinicTestResultsVeryEarly;
+      }
+      const consumerClinicLabBookingVeryEarly =
+        this.tryRescueConsumerClinicLabBooking(prompt, action);
+      if (consumerClinicLabBookingVeryEarly) {
+        return consumerClinicLabBookingVeryEarly;
+      }
+      const customerPublicSelfServiceEarly =
+        this.tryRescueCustomerPublicSelfService(prompt, action, input.surface);
+      if (customerPublicSelfServiceEarly) return customerPublicSelfServiceEarly;
+    }
+
+    const teamMembersEarly = this.tryRescueTeamMembers(prompt, action);
+    if (teamMembersEarly) return teamMembersEarly;
+    const staffScopeEarly = this.tryRescueStaffScope(
+      prompt,
+      action,
+      params,
+      input.surface,
+    );
+    if (staffScopeEarly) return staffScopeEarly;
+    const reviewsEarly = this.tryRescueReviews(prompt, action);
+    if (reviewsEarly) return reviewsEarly;
 
     if (isTopStaffRevenuePrompt(prompt)) {
       return {
@@ -575,6 +697,12 @@ export class AiIntentRescueService {
 
     const clinicCompoundUnknown = this.tryRescueClinicCompound(prompt, action);
     if (clinicCompoundUnknown) return clinicCompoundUnknown;
+
+    const providerAdopt6GrowthEarlyUnknown = this.tryRescueProviderAdopt6Growth(
+      prompt,
+      action,
+    );
+    if (providerAdopt6GrowthEarlyUnknown) return providerAdopt6GrowthEarlyUnknown;
 
     const dashboardClinicLabBookingBeforeResults =
       this.tryRescueDashboardClinicLabBooking(prompt, action);
@@ -795,6 +923,11 @@ export class AiIntentRescueService {
       action,
     );
     if (businessCurrencyUnknown) return businessCurrencyUnknown;
+    const adopt6AfterCurrencyUnknown = this.tryRescueAdopt6GrowthCombined(
+      prompt,
+      action,
+    );
+    if (adopt6AfterCurrencyUnknown) return adopt6AfterCurrencyUnknown;
     const recommendationProductUnknownEarly =
       this.tryRescueRecommendationProduct(prompt, action);
     if (recommendationProductUnknownEarly) {
@@ -804,6 +937,9 @@ export class AiIntentRescueService {
     if (operationsUnknown) return operationsUnknown;
     const catalogUnknown = this.tryRescueCatalog(prompt, action);
     if (catalogUnknown) return catalogUnknown;
+    const customerPublicSelfServiceUnknown =
+      this.tryRescueCustomerPublicSelfService(prompt, action, input.surface);
+    if (customerPublicSelfServiceUnknown) return customerPublicSelfServiceUnknown;
     const selfServiceBookingUnknown = this.tryRescueSelfServiceBooking(
       prompt,
       action,
@@ -819,6 +955,10 @@ export class AiIntentRescueService {
       action,
     );
     if (marketingGrowthUnknown) return marketingGrowthUnknown;
+    const reviewsUnknown = this.tryRescueReviews(prompt, action);
+    if (reviewsUnknown) return reviewsUnknown;
+    const teamMembersUnknown = this.tryRescueTeamMembers(prompt, action);
+    if (teamMembersUnknown) return teamMembersUnknown;
     const retailFinanceUnknown = this.tryRescueRetailFinance(prompt, action);
     if (retailFinanceUnknown) return retailFinanceUnknown;
     const integrationsUnknown = this.tryRescueIntegrations(prompt, action);
@@ -1219,6 +1359,53 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueAdopt6GrowthCombined(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const provider = this.tryRescueProviderAdopt6Growth(prompt, action);
+    if (provider) return provider;
+    return this.tryRescueAdopt6Growth(prompt, action);
+  }
+
+  private tryRescueAdopt6Growth(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueCustomerAdopt6GrowthIntent(prompt, action);
+    if (
+      !rescued ||
+      rescued.action === action ||
+      !(CUSTOMER_ADOPT_6_GROWTH_INTENTS as readonly string[]).includes(
+        rescued.action,
+      )
+    ) {
+      return null;
+    }
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Adopt-6 growth rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderAdopt6Growth(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderAdopt6GrowthIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider adopt-6 push rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueMarketingGrowth(
     prompt: string,
     action: string,
@@ -1229,6 +1416,89 @@ export class AiIntentRescueService {
       action: rescued.action,
       params: {},
       reasoning: `Marketing/growth rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueListCapabilities(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueListCapabilitiesIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: 'Role capability listing rescue → list_capabilities',
+      rescued: true,
+      rescueReason: 'role_capability_discovery',
+    };
+  }
+
+  private tryRescueReviews(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueReviewsIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Reviews rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueStaffScope(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+    surface?: import('./ai-command-registry.types.js').CommandSurface,
+  ): IntentRescueResult | null {
+    if (surface === 'customer' || surface === 'public') return null;
+    const rescued = rescueStaffScopeIntent(prompt, action);
+    if (!rescued) return null;
+    if (rescued.action === action && Object.keys(rescued.params).length === 0) {
+      return null;
+    }
+    return {
+      action: rescued.action,
+      params: { ...params, ...rescued.params },
+      reasoning: `Staff scope rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueCustomerPublicSelfService(
+    prompt: string,
+    action: string,
+    surface?: import('./ai-command-registry.types.js').CommandSurface,
+  ): IntentRescueResult | null {
+    if (surface !== 'customer' && surface !== 'public') return null;
+    const rescued = rescueCustomerPublicSelfServiceIntent(prompt, action, surface);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Customer/public self-service rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueTeamMembers(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueTeamMemberIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Team member rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -2606,6 +2876,8 @@ export class AiIntentRescueService {
     employees: Array<{ id: string; name: string }>,
     customers: Array<{ id: string; name: string }> = [],
     timeZone = 'UTC',
+    surface?: import('./ai-command-registry.types.js').CommandSurface,
+    learnedRescueRules: import('./ai-settings.types.js').LearnedTelemetryRescueRule[] = [],
   ): IntentRescueResult | null {
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/widget_business_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#6B7280"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:id="@+id/widget_next_block"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_next_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#6B7280"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_next_service"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#111827"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_next_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#6B7280"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_rebook_block"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_rebook_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#6B7280"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_rebook_service"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#111827"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_rebook_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#6B7280"
+            android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>

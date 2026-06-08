@@ -35,6 +35,8 @@ import {
 } from '../billing/plan-entitlements.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiClassificationEngineService } from './ai-classification-engine.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
 import {
   assessPhiInAiContext,
@@ -76,6 +78,8 @@ export class AiGatewayService {
   private readonly planEntitlements: PlanEntitlementsService;
   private readonly aiSettings: AiSettingsService;
   private readonly platform: AiPlatformService;
+  private readonly commandTrace: AiCommandTraceService;
+  private readonly classificationEngine: AiClassificationEngineService;
 
   /* istanbul ignore start */
   constructor(
@@ -91,6 +95,8 @@ export class AiGatewayService {
     planEntitlements: PlanEntitlementsService,
     aiSettings: AiSettingsService,
     platform: AiPlatformService,
+    commandTrace: AiCommandTraceService,
+    classificationEngine: AiClassificationEngineService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -102,6 +108,8 @@ export class AiGatewayService {
     this.planEntitlements = planEntitlements;
     this.aiSettings = aiSettings;
     this.platform = platform;
+    this.commandTrace = commandTrace;
+    this.classificationEngine = classificationEngine;
   }
   /* istanbul ignore end */
 
@@ -134,6 +142,8 @@ export class AiGatewayService {
   async execute(
     params: AiGatewayExecuteParams,
   ): Promise<CommandResult | Record<string, unknown>> {
+    const traceId = crypto.randomUUID();
+    const startedAtMs = Date.now();
     const tier = resolveAccessTier(params.membershipRole ?? params.role);
     const surface = params.surface;
 
@@ -143,25 +153,36 @@ export class AiGatewayService {
       );
     }
 
+    const businessRecord = await this.aiSettings.getBusinessRecord(
+      params.businessId,
+    );
+    const businessSettings = businessRecord.settings as Record<string, unknown>;
+
     const blocked = this.promptSecurity.preflightBlock(
       params.businessId,
       params.prompt,
       surface,
     );
     if (blocked) {
-      return attachGatewayMeta(blocked, surface, tier);
+      const attached = attachGatewayMeta(blocked, surface, tier, traceId);
+      void this.recordTrace(
+        params,
+        attached,
+        traceId,
+        startedAtMs,
+        tier,
+        businessSettings,
+      );
+      return attached;
     }
 
-    const businessRecord = await this.aiSettings.getBusinessRecord(
-      params.businessId,
-    );
     const phiGuard = assessPhiInAiContext(
       businessRecord.settings,
       businessRecord.settings?.businessType as string | undefined,
       { context: params.context, prompt: params.prompt },
     );
     if (phiGuard.blocked) {
-      return attachGatewayMeta(
+      const blockedResult = attachGatewayMeta(
         {
           success: false,
           action: 'security_blocked',
@@ -174,7 +195,17 @@ export class AiGatewayService {
         },
         surface,
         tier,
+        traceId,
       );
+      void this.recordTrace(
+        params,
+        blockedResult,
+        traceId,
+        startedAtMs,
+        tier,
+        businessSettings,
+      );
+      return blockedResult;
     }
 
     if (surface === 'dashboard') {
@@ -201,12 +232,25 @@ export class AiGatewayService {
         aiConfig.confidence.high,
         aiConfig,
       );
+    const classificationAbVariantId =
+      this.platform.resolveClassificationAppendixVariantId(
+        params.businessId,
+        aiConfig,
+      );
 
     const [memoryBlock, entityMemory, ragBlock] = await Promise.all([
       this.entityMemory.buildMemoryContextBlock(params.businessId),
       this.entityMemory.getEntityMemory(params.businessId),
       this.rag.buildRagContextBlock(params.businessId, params.prompt),
     ]);
+    const classificationAppendix =
+      await this.classificationEngine.buildClassifierAppendix({
+        businessId: params.businessId,
+        prompt: params.prompt,
+        surface: params.surface,
+        entityMemory,
+        abVariantId: classificationAbVariantId,
+      });
 
     const historyChannel =
       params.surface === 'dashboard'
@@ -223,11 +267,20 @@ export class AiGatewayService {
 
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
+      _traceId: traceId,
       _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,
       _entityMemoryAliases: entityMemory.aliases,
+      _entityMemoryParaphrases: entityMemory.paraphrases ?? [],
       _conversationSummary: summaryBlock || undefined,
       _ragContextBlock: ragBlock || undefined,
+      _classificationEngineBlock: classificationAppendix.block || undefined,
+      _classificationEngineMeta: {
+        fewShotCount: classificationAppendix.fewShotCount,
+        shortlistCount: classificationAppendix.shortlistCount,
+        shortlist: classificationAppendix.shortlist,
+        abVariantId: classificationAppendix.abVariantId,
+      },
       _accessTier: tier,
       _actorRole: tier,
       _roleProfile: roleProfile,
@@ -258,14 +311,25 @@ export class AiGatewayService {
         );
       }
 
-      const attached = attachGatewayMeta(result, params.surface, tier);
+      const attached = attachGatewayMeta(result, params.surface, tier, traceId);
       void this.recordOutcome(
         params,
-        result,
+        attached,
         'customer',
         roleProfile,
         scope.locationId,
         abVariantId,
+      );
+      void this.recordTrace(
+        params,
+        attached,
+        traceId,
+        startedAtMs,
+        tier,
+        businessSettings,
+        scope.locationId,
+        abVariantId,
+        enrichedContext,
       );
       return attached;
     }
@@ -305,7 +369,24 @@ export class AiGatewayService {
         scope.locationId,
         abVariantId,
       );
-      return result;
+      const attached = attachGatewayMeta(
+        result as CommandResult,
+        params.surface,
+        tier,
+        traceId,
+      );
+      void this.recordTrace(
+        params,
+        attached,
+        traceId,
+        startedAtMs,
+        tier,
+        businessSettings,
+        scope.locationId,
+        abVariantId,
+        enrichedContext,
+      );
+      return attached;
     }
 
     const result = await this.dashboardCommands.executeCommand(
@@ -328,16 +409,57 @@ export class AiGatewayService {
       );
     }
 
-    const attached = attachGatewayMeta(result, params.surface, tier);
+    const attached = attachGatewayMeta(result, params.surface, tier, traceId);
     void this.recordOutcome(
       params,
-      result,
+      attached,
       surface,
       roleProfile,
       scope.locationId,
       abVariantId,
     );
+    void this.recordTrace(
+      params,
+      attached,
+      traceId,
+      startedAtMs,
+      tier,
+      businessSettings,
+      scope.locationId,
+      abVariantId,
+      enrichedContext,
+    );
     return attached;
+  }
+
+  private recordTrace(
+    params: AiGatewayExecuteParams,
+    result: CommandResult | Record<string, unknown>,
+    traceId: string,
+    startedAtMs: number,
+    tier: string,
+    businessSettings?: Record<string, unknown>,
+    locationId?: string,
+    abVariantId?: string,
+    context?: Record<string, unknown>,
+  ) {
+    const routingTier = (
+      context?._complexityRoute as { tier?: string } | undefined
+    )?.tier;
+    void this.commandTrace.recordTrace({
+      traceId,
+      businessId: params.businessId,
+      surface: params.surface as AiCommandSurface,
+      userId: params.userId,
+      role: tier,
+      rawPrompt: params.prompt,
+      result,
+      startedAtMs,
+      locationId,
+      abVariantId,
+      businessSettings,
+      routingTier,
+    });
   }
 
   private recordOutcome(

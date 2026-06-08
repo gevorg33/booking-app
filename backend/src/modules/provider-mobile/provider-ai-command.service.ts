@@ -25,6 +25,8 @@ import {
 } from '../../common/utils/date-format.util.js';
 import { ProviderAiConfirmDto } from './dto/provider-ai-command.dto.js';
 import { CommandCompletionPipelineService } from '../ai/command-completion.pipeline.service.js';
+import { extractPipelineTraceId } from '../ai/ai-pipeline-trace.util.js';
+import type { PipelineTrace } from '../ai/command-completion.types.js';
 import {
   shouldValidateProviderAction,
   validateProviderCommand,
@@ -32,6 +34,7 @@ import {
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
+import { AiEscalationHandoffService } from '../ai/ai-escalation-handoff.service.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
 import { isIntentAllowed } from '../ai/ai-capability.matrix.js';
 import {
@@ -48,6 +51,42 @@ import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engi
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveDateRange } from '../ai/ai-orchestration.helpers.js';
 import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
+import {
+  buildRoleCapabilityListingResult,
+  PROVIDER_LIST_CAPABILITIES_CLASSIFIER_RULES,
+  tryRoleCapabilityListingEarlyReturn,
+} from '../ai/ai-role-capability-listing.util.js';
+import type { PlanTierId } from '../billing/plan-limits.js';
+import { rescueStaffScopeIntent } from '../ai/ai-provider-staff-scope.util.js';
+import { AiClassificationEngineService } from '../ai/ai-classification-engine.service.js';
+import { readClassificationShortlistFromContext } from '../ai/ai-classification-shortlist.util.js';
+import {
+  buildSmartClarifySessionContext,
+  mergeClarifyFollowUpPrompt,
+  resolveSmartClarify,
+} from '../ai/ai-smart-clarify.util.js';
+import { applySelectedIntentFromSession } from '../ai/ai-intent-disambiguation-clarify.util.js';
+import {
+  readClarifyMemory,
+  syncSessionContextFromClarifyMemory,
+} from '../ai/ai-clarify-answer-reuse.util.js';
+import {
+  mergeCrossTurnClarifyParams,
+  restoreOriginalIntentFromClarifySession,
+} from '../ai/ai-clarify-cross-turn-merge.util.js';
+import {
+  enrichSessionWithLosslessClarifyPartials,
+  isClarifyFollowUpTurn,
+  mergeLosslessClarifyFollowUp,
+} from '../ai/ai-lossless-clarify-merge.util.js';
+import {
+  applyNoClarifyEnrichmentToParsed,
+  enrichParamsForNoClarifyCompletion,
+  resolveEntityMemoryForNoClarify,
+  resolveRequestScreenContext,
+} from '../ai/ai-n99-no-clarify-completion.util.js';
+import { rejectInvalidClarifyFollowUpIfNeeded } from '../ai/ai-inline-clarify-validation.util.js';
+import { resolveSomethingElseClarifyFollowUpIfNeeded } from '../ai/ai-something-else-clarify.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import {
   buildAfternoonAvailabilityResult,
@@ -81,6 +120,8 @@ import {
   canRunCoordinationOnProvider,
 } from '../ai/ai-coordination.util.js';
 import { AiPushNotificationsService } from '../ai/ai-push-notifications.service.js';
+import { AiAdopt6GrowthLoopsService } from '../ai/ai-adopt-6-growth-loops.service.js';
+import { PROVIDER_ADOPT_6_CLASSIFIER_RULES } from '../ai/ai-adopt-6-growth-loops.util.js';
 import { AiProviderBookingService } from '../ai/ai-provider-booking.service.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
@@ -104,6 +145,7 @@ import {
 import { AiProviderClinicCollectionService } from '../ai/ai-provider-clinic-collection.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { PROVIDER_MOBILE_CLASSIFIER_RULES } from '../ai/ai-provider-mobile.fixtures.js';
+import { PROVIDER_STAFF_SCOPE_CLASSIFIER_RULES } from '../ai/ai-provider-staff-scope.fixtures.js';
 import {
   applyProviderMobilePromptHints,
   decomposeProviderMobileCompoundPrompt,
@@ -134,7 +176,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "list_capabilities" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -190,12 +232,16 @@ Rules:
 - Default date to today when the user says "today" or gives no date for today's context.
 - If unclear, use action "unknown".
 
-${PROVIDER_MOBILE_CLASSIFIER_RULES}`;
+${PROVIDER_MOBILE_CLASSIFIER_RULES}
+${PROVIDER_ADOPT_6_CLASSIFIER_RULES}
+${PROVIDER_LIST_CAPABILITIES_CLASSIFIER_RULES}
+${PROVIDER_STAFF_SCOPE_CLASSIFIER_RULES}`;
 
 interface ParsedIntent {
   action: string;
   params: Record<string, unknown>;
   reasoning: string;
+  confidence?: number;
 }
 
 @Injectable()
@@ -221,6 +267,8 @@ export class ProviderAiCommandService {
     private promptSecurity: AiPromptSecurityService,
     @Inject(forwardRef(() => AiPushNotificationsService))
     private pushNotifications: AiPushNotificationsService,
+    @Inject(forwardRef(() => AiAdopt6GrowthLoopsService))
+    private adopt6Growth: AiAdopt6GrowthLoopsService,
     @Inject(forwardRef(() => AiProviderBookingService))
     private providerBooking: AiProviderBookingService,
     @Inject(forwardRef(() => AiProviderClinicCollectionService))
@@ -232,6 +280,8 @@ export class ProviderAiCommandService {
     private businessTax: AiBusinessTaxService,
     private businessCompliance: AiBusinessComplianceService,
     private pushActions: ProviderPushActionService,
+    private classificationEngine: AiClassificationEngineService,
+    private escalationHandoff: AiEscalationHandoffService,
   ) {}
 
   async executeCommand(
@@ -273,6 +323,53 @@ export class ProviderAiCommandService {
 
     const providerName = access.employee?.name ?? 'Admin';
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    const normalizedContext = enrichSessionWithLosslessClarifyPartials(
+      syncSessionContextFromClarifyMemory(context ?? {}),
+    );
+
+    const inlineRejected = rejectInvalidClarifyFollowUpIfNeeded({
+      prompt,
+      sessionContext: normalizedContext,
+      timeZone: (normalizedContext.timeZone as string | undefined) ?? 'UTC',
+      surface: 'provider',
+    });
+    if (inlineRejected) return inlineRejected as ProviderCommandResult;
+
+    const somethingElseRouted = resolveSomethingElseClarifyFollowUpIfNeeded({
+      prompt,
+      sessionContext: normalizedContext,
+      surface: 'provider',
+      shortlist: readClassificationShortlistFromContext(normalizedContext),
+    });
+    if (somethingElseRouted) return somethingElseRouted as ProviderCommandResult;
+
+    if (this.escalationHandoff.shouldExecute(prompt, normalizedContext)) {
+      return this.escalationHandoff.execute({
+        businessId,
+        surface: 'provider',
+        sessionContext: normalizedContext,
+        userId,
+        prompt,
+      });
+    }
+
+    const capabilityEarly = tryRoleCapabilityListingEarlyReturn({
+      prompt,
+      surface: 'provider',
+      accessTier: actorTier,
+      planTierId:
+        (normalizedContext._planTierId as PlanTierId | undefined) ?? 'solo',
+      isClarifyFollowUp: isClarifyFollowUpTurn(normalizedContext),
+    });
+    if (capabilityEarly) {
+      return {
+        success: capabilityEarly.success,
+        action: capabilityEarly.action,
+        summary: capabilityEarly.summary,
+        details: capabilityEarly.details as Record<string, unknown>,
+      };
+    }
 
     if (this.providerBooking.isProviderBookingCompound(prompt)) {
       const providerBookingCompound =
@@ -343,17 +440,98 @@ export class ProviderAiCommandService {
       };
     }
 
+    const enrichedClassification = await this.classificationEngine.enrichClassification({
+      businessId,
+      prompt,
+      surface: 'provider',
+      intent: parsed,
+      entityMemory: normalizedContext?._entityMemoryAliases
+        ? { aliases: normalizedContext._entityMemoryAliases as Record<string, any> }
+        : undefined,
+      shortlist: readClassificationShortlistFromContext(normalizedContext),
+    });
+    Object.assign(parsed, enrichedClassification.intent);
+    parsed.params = enrichedClassification.intent.params as Record<string, unknown>;
+    applySelectedIntentFromSession(parsed, normalizedContext);
+    restoreOriginalIntentFromClarifySession(parsed, normalizedContext);
+    const intentShortlist = readClassificationShortlistFromContext(normalizedContext);
+    parsed.params = mergeCrossTurnClarifyParams(
+      parsed.params as Record<string, unknown>,
+      normalizedContext,
+      { surface: 'provider' },
+    );
+    if (isClarifyFollowUpTurn(normalizedContext)) {
+      const lossless = mergeLosslessClarifyFollowUp({
+        followUpPrompt: prompt,
+        followUpAnswers: readClarifyMemory(normalizedContext),
+        sessionContext: normalizedContext,
+        surface: 'provider',
+        classifierAction: parsed.action,
+        classifierParams: parsed.params,
+      });
+      parsed.action = lossless.restoredAction;
+      parsed.params = lossless.mergedParams;
+    }
+
+    const entityCatalog = await this.loadEntityDisambiguationCatalog(
+      businessId,
+      scopedEmployeeId,
+    );
+
+    const effectivePrompt = mergeClarifyFollowUpPrompt(prompt, normalizedContext);
+    const entityMemory = resolveEntityMemoryForNoClarify(undefined, normalizedContext);
+    const noClarifyEnriched = enrichParamsForNoClarifyCompletion({
+      prompt: effectivePrompt,
+      action: parsed.action,
+      params: parsed.params as Record<string, unknown>,
+      surface: 'provider',
+      sessionContext: normalizedContext,
+      screenContext: resolveRequestScreenContext(
+        parsed.params.context as Record<string, unknown> | undefined,
+        normalizedContext,
+      ),
+      entityMemory,
+      actionConfidence: parsed.confidence,
+      fieldThreshold:
+        typeof normalizedContext._autoFillFieldThreshold === 'number'
+          ? normalizedContext._autoFillFieldThreshold
+          : undefined,
+    });
+    applyNoClarifyEnrichmentToParsed(parsed, noClarifyEnriched);
+    const earlyClarify = resolveSmartClarify({
+      prompt: effectivePrompt,
+      surface: 'provider',
+      action: parsed.action,
+      params: parsed.params,
+      reasoning: parsed.reasoning,
+      sessionContext: normalizedContext,
+      entityMemory,
+      employees: entityCatalog.employees,
+      services: entityCatalog.services,
+      customers: entityCatalog.customers,
+      phase: 'early',
+      shortlist: intentShortlist,
+      fieldThreshold: noClarifyEnriched.fieldThreshold,
+    });
+    if (earlyClarify) {
+      earlyClarify.details = {
+        ...earlyClarify.details,
+        sessionContext: buildSmartClarifySessionContext(normalizedContext, earlyClarify),
+      };
+      return earlyClarify as ProviderCommandResult;
+    }
+
     parsed.params = this.completionPipeline.mergeProviderSessionContext(
       parsed.params as Record<string, any>,
-      context,
+      normalizedContext,
     ) as Record<string, unknown>;
-    parsed.params = applyProviderEntityMemory(parsed.params, prompt, context);
+    parsed.params = applyProviderEntityMemory(parsed.params, prompt, normalizedContext);
     applyProviderMobilePromptHints(
       parsed.action,
       parsed.params as Record<string, any>,
       prompt,
       {
-        session: context,
+        session: normalizedContext,
       },
     );
     this.completionPipeline.normalizeDateParams(
@@ -367,6 +545,15 @@ export class ProviderAiCommandService {
     if (providerHeuristic !== parsed.action) {
       parsed.action = providerHeuristic;
       rescueReason = 'provider_heuristic';
+    }
+
+    const staffScopeRescue = rescueStaffScopeIntent(prompt, parsed.action);
+    if (staffScopeRescue && staffScopeRescue.action !== parsed.action) {
+      parsed.action = staffScopeRescue.action;
+      parsed.params = { ...parsed.params, ...staffScopeRescue.params };
+      rescueReason = staffScopeRescue.rescueReason;
+    } else if (staffScopeRescue) {
+      parsed.params = { ...parsed.params, ...staffScopeRescue.params };
     }
 
     const coordination = rescueCoordinationIntent(prompt, parsed.action);
@@ -446,6 +633,15 @@ export class ProviderAiCommandService {
       rescueReason = providerBookingRescue.rescueReason;
     }
 
+    const adopt6Rescue = this.adopt6Growth.rescueProviderIntent(
+      prompt,
+      parsed.action,
+    );
+    if (adopt6Rescue && adopt6Rescue.rescueReason !== 'already_adopt6') {
+      parsed.action = adopt6Rescue.action;
+      rescueReason = adopt6Rescue.rescueReason;
+    }
+
     const pushRescue = this.pushNotifications.rescuePushNotificationsIntent(
       prompt,
       parsed.action,
@@ -478,12 +674,66 @@ export class ProviderAiCommandService {
       parsed.params as Record<string, any>,
       prompt,
       {
-        session: context,
+        session: normalizedContext,
       },
     );
 
+    const traceId = extractPipelineTraceId(normalizedContext);
+    const pipelineTrace: PipelineTrace[] = [
+      this.completionPipeline.trace(
+        'classify',
+        parsed.action,
+        parsed.reasoning,
+        traceId,
+      ),
+    ];
+
+    const lateClarify = resolveSmartClarify({
+      prompt: effectivePrompt,
+      surface: 'provider',
+      action: parsed.action,
+      params: parsed.params as Record<string, unknown>,
+      reasoning: parsed.reasoning,
+      confidence:
+        (parsed.params?._fieldConfidence as { action?: number } | undefined)
+          ?.action ?? undefined,
+      fieldConfidence: parsed.params?._fieldConfidence as
+        | import('../ai/ai-classification-engine.types.js').FieldLevelConfidence
+        | undefined,
+      sessionContext: normalizedContext,
+      employees: entityCatalog.employees,
+      services: entityCatalog.services,
+      customers: entityCatalog.customers,
+      phase: 'late',
+      shortlist: intentShortlist,
+    });
+    if (lateClarify) {
+      lateClarify.details = {
+        ...lateClarify.details,
+        sessionContext: buildSmartClarifySessionContext(normalizedContext, lateClarify),
+        pipelineTrace: [
+          ...pipelineTrace,
+          this.completionPipeline.trace(
+            'clarify',
+            parsed.action,
+            lateClarify.details.clarifyKind ?? 'smart_clarify',
+            traceId,
+          ),
+        ],
+      };
+      return lateClarify as ProviderCommandResult;
+    }
+
     if (shouldValidateProviderAction(parsed.action)) {
       const validation = validateProviderCommand(parsed.action, parsed.params);
+      pipelineTrace.push(
+        this.completionPipeline.trace(
+          'validate',
+          parsed.action,
+          validation.ok ? 'passed' : `${validation.issues.length} issue(s)`,
+          traceId,
+        ),
+      );
       if (!validation.ok) {
         const clarify = this.completionPipeline.toProviderClarifyResult(
           parsed.action,
@@ -491,6 +741,7 @@ export class ProviderAiCommandService {
           parsed.reasoning,
           validation,
         );
+        clarify.details.pipelineTrace = pipelineTrace;
         this.aiEvents.emitClarify(businessId, {
           action: parsed.action,
           summary: clarify.summary,
@@ -700,6 +951,12 @@ export class ProviderAiCommandService {
       case 'new_booking_push_actions':
         result = await this.pushNotifications.handleNewBookingPushActions();
         break;
+      case 'explain_push_setup':
+        result = this.adopt6Growth.handleExplainPushSetup();
+        break;
+      case 'enable_push_notifications':
+        result = this.adopt6Growth.handleEnablePushNotifications();
+        break;
       case 'confirm_booking_from_push':
         result = await this.handleConfirmBookingFromPush(
           businessId,
@@ -832,6 +1089,21 @@ export class ProviderAiCommandService {
             },
           );
         break;
+      case 'list_capabilities': {
+        const capability = buildRoleCapabilityListingResult({
+          surface: 'provider',
+          accessTier: actorTier,
+          planTierId:
+            (context?._planTierId as PlanTierId | undefined) ?? 'solo',
+        });
+        result = {
+          success: capability.success,
+          action: capability.action,
+          summary: capability.summary,
+          details: capability.details as Record<string, unknown>,
+        };
+        break;
+      }
       default:
         result = {
           success: false,
@@ -843,7 +1115,21 @@ export class ProviderAiCommandService {
     }
 
     return this.attachProviderSession(
-      result,
+      {
+        ...result,
+        details: {
+          ...result.details,
+          pipelineTrace: [
+            ...pipelineTrace,
+            this.completionPipeline.trace(
+              'execute',
+              parsed.action,
+              result.success ? 'ok' : result.summary,
+              traceId,
+            ),
+          ],
+        },
+      },
       mergeProviderMobileHintsIntoSessionContext(
         context ?? {},
         parsed.params,
@@ -1331,12 +1617,16 @@ Logged-in user: ${providerName}
 View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appointments' : ' — own appointments only'}`;
 
     const intelligenceBlock = buildProviderClassifierAppendix(sessionContext);
+    const engineBlock =
+      typeof sessionContext?._classificationEngineBlock === 'string'
+        ? `\n\n${sessionContext._classificationEngineBlock}`
+        : '';
     const sessionBlock = buildProviderSessionContextBlock(sessionContext);
     const historyBlock = formatProviderHistoryBlock(history);
 
     const result = await this.llm.completeJson<ParsedIntent>(
       businessId,
-      `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${intelligenceBlock}${sessionBlock}${historyBlock}`,
+      `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${intelligenceBlock}${engineBlock}${sessionBlock}${historyBlock}`,
       prompt,
       {
         surface: 'provider_mobile',
@@ -1402,13 +1692,17 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
     const status = this.normalizeStatus(params.status);
     const paymentStatus = this.normalizePaymentStatus(params.paymentStatus);
+    const notes =
+      typeof params.notes === 'string' && params.notes.trim()
+        ? params.notes.trim()
+        : undefined;
 
-    if (!status && !paymentStatus) {
+    if (!status && !paymentStatus && notes == null) {
       return {
         success: false,
         action: 'update_bookings',
         summary:
-          'Tell me what to change — e.g. mark as done, set payment to paid.',
+          'Tell me what to change — e.g. check in, mark as done, set payment to paid, or add a note.',
         details: {},
       };
     }
@@ -1434,6 +1728,7 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const changeParts = [
       status ? `status → ${status}` : null,
       paymentStatus ? `payment → ${paymentStatus}` : null,
+      notes != null ? 'notes updated' : null,
     ].filter(Boolean);
 
     if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
@@ -1443,12 +1738,12 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
         summary: `Update ${bookings.length} appointments (${changeParts.join(', ')})?`,
         details: this.buildConfirmationDetails(bookings, {
           action: 'update_bookings',
-          params: { status, paymentStatus },
+          params: { status, paymentStatus, notes },
         }),
       };
     }
 
-    return this.executeUpdate(bookings, { status, paymentStatus }, userId);
+    return this.executeUpdate(bookings, { status, paymentStatus, notes }, userId);
   }
 
   private resolveProviderAccessTier(access: MobileAccess): AccessTier {
@@ -1624,14 +1919,20 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
   ): Promise<ProviderCommandResult> {
     const status = this.normalizeStatus(params.status);
     const paymentStatus = this.normalizePaymentStatus(params.paymentStatus);
+    const notes =
+      typeof params.notes === 'string' ? params.notes.trim() : undefined;
     let updated = 0;
 
     for (const booking of bookings) {
       if (booking.status === BookingStatus.CANCELLED) continue;
-      const payload: { status?: BookingStatus; paymentStatus?: PaymentStatus } =
-        {};
+      const payload: {
+        status?: BookingStatus;
+        paymentStatus?: PaymentStatus;
+        notes?: string;
+      } = {};
       if (status) payload.status = status;
       if (paymentStatus) payload.paymentStatus = paymentStatus;
+      if (notes !== undefined) payload.notes = notes;
       if (!Object.keys(payload).length) continue;
       await this.bookingService.update(booking.id, payload, userId);
       updated += 1;
@@ -1640,6 +1941,7 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
     const changeParts = [
       status ? `status set to ${status}` : null,
       paymentStatus ? `payment set to ${paymentStatus}` : null,
+      notes !== undefined ? 'notes saved' : null,
     ].filter(Boolean);
 
     return {
@@ -2263,6 +2565,37 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
         ? (value as BookingStatus)
         : undefined)
     );
+  }
+
+  private async loadEntityDisambiguationCatalog(
+    businessId: string,
+    scopedEmployeeId: string | null | undefined,
+  ) {
+    const [employees, services, customers] = await Promise.all([
+      this.employeeRepo.find({
+        where: { businessId, isActive: true },
+        order: { name: 'ASC' },
+      }),
+      this.serviceRepo.find({
+        where: { businessId, isActive: true },
+        order: { name: 'ASC' },
+      }),
+      this.customerRepo.find({
+        where: { businessId, isActive: true },
+        order: { name: 'ASC' },
+        take: 200,
+      }),
+    ]);
+
+    const scopedEmployees = scopedEmployeeId
+      ? employees.filter((row) => row.id === scopedEmployeeId)
+      : employees;
+
+    return {
+      employees: scopedEmployees.map((row) => ({ id: row.id, name: row.name })),
+      services: services.map((row) => ({ id: row.id, name: row.name })),
+      customers: customers.map((row) => ({ id: row.id, name: row.name })),
+    };
   }
 
   private normalizePaymentStatus(value: unknown): PaymentStatus | undefined {

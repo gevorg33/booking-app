@@ -15,6 +15,9 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
+		A7WIDGET0000000000000002 /* HomeScreenWidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7WIDGET0000000000000001 /* HomeScreenWidgetPlugin.swift */; };
+		A7WIDGET0000000000000004 /* OptiScheduleWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7WIDGET0000000000000003 /* OptiScheduleWidget.swift */; };
+		A7WIDGET000000000000000E /* OptiScheduleWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A7WIDGET0000000000000007 /* OptiScheduleWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,7 +33,55 @@
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
+		A7WIDGET0000000000000001 /* HomeScreenWidgetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenWidgetPlugin.swift; sourceTree = "<group>"; };
+		A7WIDGET0000000000000003 /* OptiScheduleWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptiScheduleWidget.swift; sourceTree = "<group>"; };
+		A7WIDGET0000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A7WIDGET0000000000000006 /* OptiScheduleWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OptiScheduleWidget.entitlements; sourceTree = "<group>"; };
+		A7WIDGET0000000000000007 /* OptiScheduleWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OptiScheduleWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+
+/* Begin PBXContainerItemProxy section */
+		A7WIDGET000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A7WIDGET0000000000000009;
+			remoteInfo = OptiScheduleWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A7WIDGET000000000000000D /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7WIDGET000000000000000E /* OptiScheduleWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A7WIDGET0000000000000010 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A7WIDGET0000000000000009 /* OptiScheduleWidget */;
+			targetProxy = A7WIDGET000000000000000F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXFrameworksBuildPhase section */
+				A7WIDGET000000000000000C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		504EC3011FED79650016851F /* Frameworks */ = {
@@ -56,6 +107,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3061FED79650016851F /* App */,
+				A7WIDGET0000000000000008 /* OptiScheduleWidget */,
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
 				27E2DDA53C4D2A4D1A88CE4A /* Frameworks */,
@@ -66,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				A7WIDGET0000000000000007 /* OptiScheduleWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -75,6 +128,7 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				A7WIDGET0000000000000001 /* HomeScreenWidgetPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -94,7 +148,38 @@
 			name = Pods;
 			sourceTree = "<group>";
 		};
+
+		A7WIDGET0000000000000008 /* OptiScheduleWidget */ = {
+			isa = PBXGroup;
+			children = (
+				A7WIDGET0000000000000003 /* OptiScheduleWidget.swift */,
+				A7WIDGET0000000000000005 /* Info.plist */,
+				A7WIDGET0000000000000006 /* OptiScheduleWidget.entitlements */,
+			);
+			path = OptiScheduleWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A7WIDGET0000000000000009 /* OptiScheduleWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A7WIDGET0000000000000013 /* Build configuration list for PBXNativeTarget "OptiScheduleWidget" */;
+			buildPhases = (
+				A7WIDGET000000000000000A /* Sources */,
+				A7WIDGET000000000000000C /* Frameworks */,
+				A7WIDGET000000000000000B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OptiScheduleWidget;
+			productName = OptiScheduleWidget;
+			productReference = A7WIDGET0000000000000007 /* OptiScheduleWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+
 
 /* Begin PBXNativeTarget section */
 		504EC3031FED79650016851F /* App */ = {
@@ -106,10 +191,12 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				9592DBEFFC6D2A0C8D5DEB22 /* [CP] Embed Pods Frameworks */,
+				A7WIDGET000000000000000D /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A7WIDGET0000000000000010 /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
@@ -148,6 +235,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				A7WIDGET0000000000000009 /* OptiScheduleWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -210,10 +298,33 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				A7WIDGET0000000000000002 /* HomeScreenWidgetPlugin.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		A7WIDGET000000000000000A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7WIDGET0000000000000004 /* OptiScheduleWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A7WIDGET000000000000000B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -346,6 +457,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -366,6 +478,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -381,7 +494,58 @@
 			};
 			name = Release;
 		};
+
+		A7WIDGET0000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OptiScheduleWidget/OptiScheduleWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OptiScheduleWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.optischedule.consumer.OptiScheduleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A7WIDGET0000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OptiScheduleWidget/OptiScheduleWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OptiScheduleWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.optischedule.consumer.OptiScheduleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A7WIDGET0000000000000013 /* Build configuration list for PBXNativeTarget "OptiScheduleWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7WIDGET0000000000000011 /* Debug */,
+				A7WIDGET0000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
 
 /* Begin XCConfigurationList section */
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {

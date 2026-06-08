@@ -1,0 +1,162 @@
+import type { ClassificationSurface } from './ai-classification-engine.types.js';
+import type { FieldConfidenceParamKey } from './ai-classification-field-confidence.fixtures.js';
+
+/** n99-2.1 — minimum source trust to auto-fill a missing field (acc-3.6 gate). */
+export const N99_AUTOFILL_SOURCE_TRUST = {
+  screen_context: 0.95,
+  entity_memory: 0.92,
+  last_provider: 0.88,
+  last_service: 0.88,
+  last_customer: 0.86,
+  business_default_duration: 0.85,
+  service_catalog_duration: 0.9,
+  first_available: 0.84,
+  any_provider: 0.84,
+} as const;
+
+export type N99AutofillSource = keyof typeof N99_AUTOFILL_SOURCE_TRUST;
+
+export const N99_AUTOFILL_RISK_TIER_THRESHOLDS = {
+  low: 0.65,
+  medium: 0.72,
+  high: 0.85,
+} as const;
+
+export const N99_AUTOFILL_SCENARIOS = [
+  {
+    id: 'en-last-provider',
+    prompt: 'book massage tomorrow at 10',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { serviceName: 'Massage', date: '2026-06-09', timeSlot: '10:00' },
+    sessionContext: { lastEmployeeName: 'Anna Smith' },
+    actionConfidence: 0.88,
+    expectFilled: { employeeName: 'Anna Smith' },
+    expectSources: ['last_provider'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-usual-service',
+    prompt: 'book the usual with gevorg tomorrow at 2pm',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { employeeName: 'Gevorg Gasparyan', date: '2026-06-09', timeSlot: '14:00' },
+    entityMemory: {
+      aliases: { 'the usual': { serviceName: 'Facemassage' } },
+    },
+    actionConfidence: 0.9,
+    expectFilled: { serviceName: 'Facemassage' },
+    expectSources: ['entity_memory'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-screen-context',
+    prompt: 'book this tomorrow at 3pm',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { date: '2026-06-09', timeSlot: '15:00' },
+    screenContext: { serviceName: 'Haircut', employeeName: 'Sam Rivera' },
+    actionConfidence: 0.91,
+    expectFilled: { serviceName: 'Haircut', employeeName: 'Sam Rivera' },
+    expectSources: ['screen_context'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-business-default-duration',
+    prompt: 'add service express polish for $40',
+    surface: 'dashboard' as const,
+    action: 'create_service',
+    params: { serviceName: 'Express Polish', price: 40 },
+    businessDefaults: { defaultServiceDurationMinutes: 45 },
+    actionConfidence: 0.86,
+    expectFilled: { durationMinutes: 45 },
+    expectSources: ['business_default_duration'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-service-catalog-duration',
+    prompt: 'book haircut tomorrow 11:00',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { serviceName: 'Haircut', date: '2026-06-09', timeSlot: '11:00' },
+    sessionContext: { lastEmployeeName: 'Maria Lopez' },
+    catalogServices: [{ name: 'Haircut', durationMinutes: 30 }],
+    actionConfidence: 0.87,
+    expectFilled: { employeeName: 'Maria Lopez' },
+    expectSources: ['last_provider'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-first-available',
+    prompt: 'book color tomorrow first available',
+    surface: 'customer' as const,
+    action: 'create_booking',
+    params: { serviceName: 'Color', date: '2026-06-09' },
+    actionConfidence: 0.84,
+    expectFilled: { bookingFirstAvailable: true },
+    expectSources: ['first_available'] as N99AutofillSource[],
+  },
+  {
+    id: 'hy-usual-alias',
+    prompt: 'ամրագրել սովորականը gevorg-ի հետ',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { employeeName: 'Gevorg Gasparyan' },
+    entityMemory: {
+      aliases: { 'սովորական': { serviceName: 'Massage' } },
+    },
+    actionConfidence: 0.86,
+    expectFilled: { serviceName: 'Massage' },
+    expectSources: ['entity_memory'] as N99AutofillSource[],
+  },
+  {
+    id: 'ru-last-provider',
+    prompt: 'записаться на стрижку завтра в 11:00',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { serviceName: 'Haircut', date: '2026-06-09', timeSlot: '11:00' },
+    sessionContext: { lastEmployeeName: 'Maria Lopez' },
+    actionConfidence: 0.85,
+    expectFilled: { employeeName: 'Maria Lopez' },
+    expectSources: ['last_provider'] as N99AutofillSource[],
+  },
+  {
+    id: 'en-reject-low-action-confidence',
+    prompt: 'book something maybe',
+    surface: 'dashboard' as const,
+    action: 'create_booking',
+    params: { serviceName: 'Massage' },
+    sessionContext: { lastEmployeeName: 'Anna Smith' },
+    actionConfidence: 0.58,
+    expectFilled: {},
+    expectBlocked: true,
+    expectBlockReason: 'low_action_confidence',
+  },
+  {
+    id: 'en-reject-high-risk-autofill',
+    prompt: 'cancel tomorrow',
+    surface: 'dashboard' as const,
+    action: 'cancel_bookings',
+    params: { date: '2026-06-09' },
+    sessionContext: { lastEmployeeName: 'Anna Smith' },
+    actionConfidence: 0.88,
+    expectFilled: {},
+    expectBlocked: true,
+    expectBlockReason: 'destructive_scope_unconfirmed',
+  },
+] as const;
+
+export const N99_AUTOFILL_PROCEED_SCENARIOS = [
+  {
+    id: 'en-booking-complete-after-autofill',
+    action: 'create_booking',
+    prompt: 'book massage tomorrow at 10',
+    paramsBefore: { serviceName: 'Massage', date: '2026-06-09', timeSlot: '10:00' },
+    sessionContext: { lastEmployeeName: 'Anna Smith' },
+    actionConfidence: 0.88,
+    expectProceed: true,
+  },
+  {
+    id: 'en-still-missing-date',
+    action: 'create_booking',
+    prompt: 'book massage with anna',
+    paramsBefore: { serviceName: 'Massage', employeeName: 'Anna Smith' },
+    actionConfidence: 0.82,
+    expectProceed: false,
+  },
+] as const;

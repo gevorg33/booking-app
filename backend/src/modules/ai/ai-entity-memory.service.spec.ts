@@ -12,6 +12,7 @@ describe('AiEntityMemoryService', () => {
   const aiSettings = {
     getEntityMemory: jest.fn(),
     mergeEntityMemory: jest.fn(),
+    mergeBusinessParaphrases: jest.fn(),
   };
 
   let service: AiEntityMemoryService;
@@ -52,10 +53,59 @@ describe('AiEntityMemoryService', () => {
     expect(block).toContain('Gevorg');
   });
 
-  it('learnFromCommand skips when OpenAI unavailable', async () => {
+  it('learnFromCommand merges deterministic phrasing aliases without OpenAI', async () => {
     openAi.isAvailableForBusiness.mockResolvedValue(false);
-    await service.learnFromCommand('biz-1', 'show gevorg', 'list_bookings', {});
+    await service.learnFromCommand(
+      'biz-1',
+      'Book the usual with Gevorg tomorrow',
+      'create_booking',
+      { employee: 'Gevorg', service: 'Face massage' },
+    );
+    expect(aiSettings.mergeEntityMemory).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({
+        'the usual': expect.objectContaining({
+          employeeName: 'Gevorg',
+          serviceName: 'Face massage',
+        }),
+      }),
+    );
     expect(openAi.completeJson).not.toHaveBeenCalled();
+  });
+
+  it('learnFromCommand merges clarify-memory aliases (acc-4.4)', async () => {
+    openAi.isAvailableForBusiness.mockResolvedValue(false);
+    await service.learnFromCommand(
+      'biz-1',
+      'book with Anna tomorrow',
+      'create_booking',
+      {
+        _clarifyMemory: { employeeName: 'Anna Smith' },
+      },
+    );
+    expect(aiSettings.mergeEntityMemory).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({
+        anna: expect.objectContaining({ employeeName: 'Anna Smith' }),
+      }),
+    );
+  });
+
+  it('learnFromCommand skips when OpenAI unavailable and no deterministic aliases', async () => {
+    openAi.isAvailableForBusiness.mockResolvedValue(false);
+    await service.learnFromCommand('biz-1', 'show appointments today', 'list_bookings', {});
+    expect(openAi.completeJson).not.toHaveBeenCalled();
+    expect(aiSettings.mergeEntityMemory).not.toHaveBeenCalled();
+    expect(aiSettings.mergeBusinessParaphrases).toHaveBeenCalledWith(
+      'biz-1',
+      [
+        expect.objectContaining({
+          action: 'list_bookings',
+          source: 'recurring',
+          normalizedPhrase: 'show appointments today',
+        }),
+      ],
+    );
   });
 
   it('learnFromCommand merges aliases from LLM on dashboard surface', async () => {
@@ -103,6 +153,37 @@ describe('AiEntityMemoryService', () => {
     openAi.completeJson.mockResolvedValue(null);
     await service.learnFromCommand('biz-1', 'hi', 'list_bookings', {});
     expect(aiSettings.mergeEntityMemory).not.toHaveBeenCalled();
+  });
+
+  it('learnFromCorrection stores correction paraphrase', async () => {
+    await service.learnFromCorrection(
+      'biz-1',
+      'pull the morning sheet',
+      'list_bookings',
+      'dashboard',
+      'unknown',
+    );
+    expect(aiSettings.mergeBusinessParaphrases).toHaveBeenCalledWith(
+      'biz-1',
+      [
+        expect.objectContaining({
+          action: 'list_bookings',
+          source: 'correction',
+          surface: 'dashboard',
+        }),
+      ],
+    );
+  });
+
+  it('learnFromCorrection skips when corrected action matches wrong action', async () => {
+    await service.learnFromCorrection(
+      'biz-1',
+      'pull the morning sheet',
+      'list_bookings',
+      'dashboard',
+      'list_bookings',
+    );
+    expect(aiSettings.mergeBusinessParaphrases).not.toHaveBeenCalled();
   });
 
   it('resolveMention returns direct alias hit with trimmed mention', async () => {

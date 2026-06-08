@@ -100,4 +100,9 @@ describe('vertical-playbooks.constants (tour)', () => {
     expect(resolveVerticalPlaybookId('hair_salon')).toBe('salon');
     expect(resolveVerticalPlaybookId('dental')).toBe('clinic');
   });
+
+  it('falls back to salon playbook for unknown business types', () => {
+    expect(resolveVerticalPlaybookId('unknown_vertical')).toBe('salon');
+    expect(getVerticalPlaybook('unknown_vertical').id).toBe('salon');
+  });
 });

@@ -1,9 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ListChecks } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import type { PlanDiffStep } from '@/components/ai-agent-workspaces';
+import {
+  AiClarifyForm,
+  type ClarifyFormOptions,
+  type ClarifyIssue,
+} from '@/components/ai-clarify-form';
+import type { EntityCatalogOption } from '@/lib/ai-clarify.util';
 
 export interface WizardStepView extends PlanDiffStep {
   index: number;
@@ -62,6 +68,42 @@ export function AiCommandWizard({ steps, onApprove, approving }: AiCommandWizard
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** n99-1.1 — clarify-as-form wizard shell: structured tap controls only (ai-d4). */
+export function AiClarifyWizard({
+  issues,
+  options,
+  entityOptions,
+  originalPrompt,
+  knownFields,
+  onSubmit,
+}: {
+  issues: ClarifyIssue[];
+  options?: ClarifyFormOptions;
+  entityOptions?: EntityCatalogOption[];
+  originalPrompt?: string;
+  knownFields?: Record<string, unknown>;
+  onSubmit: (composedPrompt: string, answers?: Record<string, string>) => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="mt-2 rounded-lg border border-amber-700/40 bg-amber-950/20 p-2">
+      <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-amber-300/80">
+        <ListChecks className="h-3 w-3" />
+        {t('ai.clarifyWizardTitle')}
+      </p>
+      <AiClarifyForm
+        issues={issues}
+        options={options}
+        entityOptions={entityOptions}
+        originalPrompt={originalPrompt}
+        knownFields={knownFields}
+        onSubmit={onSubmit}
+      />
     </div>
   );
 }

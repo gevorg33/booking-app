@@ -2,6 +2,12 @@ import { describe, expect, it } from '@jest/globals';
 import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
 
 describe('rescueProviderAiIntent', () => {
+  it('rescues capability discovery prompts (parity-3.7)', () => {
+    expect(rescueProviderAiIntent('What can you do?', 'unknown')).toBe(
+      'list_capabilities',
+    );
+  });
+
   it('maps quick-action phrasing to provider intents', () => {
     expect(rescueProviderAiIntent("Who's next?", 'unknown')).toBe(
       'show_appointments',

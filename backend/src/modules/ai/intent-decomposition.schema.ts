@@ -8,6 +8,11 @@ import { COMPOUND_COMMAND_RECIPES } from './ai-command-registry.js';
 import { getCompoundRecipesForSurface } from './ai-command-registry.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import { buildSharedEntityParamsPromptBlock } from './ai-command-entity-params.util.js';
+import {
+  intersectAllowedActions,
+  resolvePlannerAllowedIntents,
+  type CapabilityPlannerBounds,
+} from './ai-capability-bounded-planner.util.js';
 import { GOLDEN_COMPOUND_PATTERNS } from './intent-decomposition.util.js';
 import type { DecompositionSchemaView } from './intent-decomposition.types.js';
 
@@ -82,19 +87,11 @@ export function resolveAllowedActionsFromRecipes(
     : [...SURFACE_INTENT_LISTS[surface]].filter((id) => id !== 'unknown');
 }
 
-/** Registry-driven LLM decomposition schema for a surface (ai-cmd-0.3). */
-export function buildDecompositionSchemaView(
+function buildDecompositionSchemaViewFromAllowed(
   surface: CommandSurface,
+  allowedActions: readonly string[],
 ): DecompositionSchemaView {
   const recipes = getCompoundRecipesForSurface(surface);
-  const allowedFromRecipes = [
-    ...new Set(recipes.flatMap((recipe) => recipe.allowedStepIntentIds)),
-  ].sort();
-  const allowedActions = resolveAllowedActionsFromRecipes(
-    allowedFromRecipes,
-    surface,
-  );
-
   const promptBlock = `Split a compound ${surface} command into ordered sub-intents.
 Return JSON:
 {
@@ -118,6 +115,35 @@ ${rulesForSurface(surface)}`;
     ).map((pattern) => pattern.id),
     promptBlock,
   };
+}
+
+/** Registry-driven LLM decomposition schema for a surface (ai-cmd-0.3). */
+export function buildDecompositionSchemaView(
+  surface: CommandSurface,
+): DecompositionSchemaView {
+  const recipes = getCompoundRecipesForSurface(surface);
+  const allowedFromRecipes = [
+    ...new Set(recipes.flatMap((recipe) => recipe.allowedStepIntentIds)),
+  ].sort();
+  const allowedActions = resolveAllowedActionsFromRecipes(
+    allowedFromRecipes,
+    surface,
+  );
+  return buildDecompositionSchemaViewFromAllowed(surface, allowedActions);
+}
+
+/** parity-3.1 — decomposition schema limited to role-effective allowed intents. */
+export function buildCapabilityBoundedDecompositionSchemaView(
+  bounds: CapabilityPlannerBounds,
+): DecompositionSchemaView {
+  const surface = bounds.surface;
+  const base = buildDecompositionSchemaView(surface);
+  const capabilityAllowed = resolvePlannerAllowedIntents(bounds);
+  const allowedActions = intersectAllowedActions(
+    base.allowedActions,
+    capabilityAllowed,
+  );
+  return buildDecompositionSchemaViewFromAllowed(surface, allowedActions);
 }
 
 /** All compound recipe ids registered in the command registry. */

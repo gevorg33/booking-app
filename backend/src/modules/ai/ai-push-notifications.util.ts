@@ -1,4 +1,8 @@
 import { isTestWebhookPrompt } from './ai-integrations.util.js';
+import {
+  isEnablePushNotificationsPrompt,
+  isExplainPushSetupPrompt,
+} from './ai-adopt-6-growth-loops.util.js';
 
 export const DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'configure_push_recipients',
@@ -443,6 +447,13 @@ export function rescuePushNotificationsIntent(
 ): { action: PushNotificationsIntent; rescueReason: string } | null {
   if (isPushNotificationsIntent(action)) return null;
   if (isPushNotificationsCompoundPrompt(prompt)) return null;
+
+  if (
+    isEnablePushNotificationsPrompt(prompt) ||
+    isExplainPushSetupPrompt(prompt)
+  ) {
+    return null;
+  }
 
   if (isAppointmentReminderPreferencesPrompt(prompt)) {
     return {

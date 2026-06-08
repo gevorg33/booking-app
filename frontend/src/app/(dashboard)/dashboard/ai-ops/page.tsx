@@ -43,6 +43,16 @@ import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
 import { AiAuditLog } from '@/components/ai-audit-log';
 import { AiWeeklyReportPanel } from '@/components/ai-weekly-report-panel';
 import { AiAnalyticsPanel } from '@/components/ai-analytics-panel';
+import { AiAccuracyDashboardPanel } from '@/components/ai-accuracy-dashboard-panel';
+import { AiParityDashboardPanel } from '@/components/ai-parity-dashboard-panel';
+import { AiAccuracySloPanel } from '@/components/ai-accuracy-slo-panel';
+import { AiConfusionMatrixPanel } from '@/components/ai-confusion-matrix-panel';
+import { AiWorstPromptsPanel } from '@/components/ai-worst-prompts-panel';
+import { AiEvalLabelingPanel } from '@/components/ai-eval-labeling-panel';
+import { AiAccuracyProgramPanel } from '@/components/ai-accuracy-program-panel';
+import { AiAliasSuggestionsPanel } from '@/components/ai-alias-suggestions-panel';
+import { AiAccuracyReviewPanel } from '@/components/ai-accuracy-review-panel';
+import { AiEscalationAnalyticsPanel } from '@/components/ai-escalation-analytics-panel';
 import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-panel';
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
@@ -370,8 +380,45 @@ export default function AiOpsPage() {
         )}
       </div>
 
+      <div className="mt-8">
+        <AiAccuracySloPanel />
+      </div>
+
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AiAnalyticsPanel />
+        <AiAccuracyDashboardPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiParityDashboardPanel />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <AiConfusionMatrixPanel />
+        <AiWorstPromptsPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiAccuracyReviewPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiEscalationAnalyticsPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiAliasSuggestionsPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiAccuracyProgramPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiEvalLabelingPanel />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AiWeeklyReportPanel />
       </div>
 

@@ -1,4 +1,4 @@
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class RegisterConsumerNativePushDto {
   @IsString()
@@ -6,4 +6,12 @@ export class RegisterConsumerNativePushDto {
 
   @IsIn(['ios', 'android'])
   platform: 'ios' | 'android';
+
+  @IsOptional()
+  @IsString()
+  analyticsAnonId?: string;
+
+  @IsOptional()
+  @IsIn(['full', 'provisional', 'default_on'])
+  permissionState?: 'full' | 'provisional' | 'default_on';
 }

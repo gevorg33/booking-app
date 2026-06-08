@@ -3,9 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GiftCard } from './entities/gift-card.entity.js';
+import { Customer } from '../customer/entities/customer.entity.js';
 import { EmailService } from '../notifications/email.service.js';
 import { WhatsAppService } from '../notifications/whatsapp.service.js';
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   buildPublicBookingLinks,
   buildPurchaserReceiptEmail,
@@ -20,10 +22,12 @@ export class GiftCardDeliveryService {
 
   constructor(
     @InjectRepository(GiftCard) private giftCardRepo: Repository<GiftCard>,
+    @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     private emailService: EmailService,
     private whatsappService: WhatsAppService,
     private whatsappIntegrationService: WhatsAppIntegrationService,
     private configService: ConfigService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async deliverDigitalGiftCard(giftCardId: string): Promise<void> {
@@ -113,5 +117,38 @@ export class GiftCardDeliveryService {
 
     card.fulfillmentStatus = 'delivered';
     await this.giftCardRepo.save(card);
+
+    const recipientCustomerId = await this.resolveGiftCardRecipientCustomerId(
+      card,
+      recipientEmail,
+    );
+    if (recipientCustomerId) {
+      await this.notificationsService.sendGiftCardReceivedPush(
+        card,
+        recipientCustomerId,
+      );
+    }
+  }
+
+  private async resolveGiftCardRecipientCustomerId(
+    card: GiftCard,
+    recipientEmail: string | null,
+  ): Promise<string | null> {
+    if (card.purchaserCustomerId) {
+      if (
+        !recipientEmail ||
+        card.recipientEmail?.trim().toLowerCase() ===
+          card.purchaserEmail?.trim().toLowerCase()
+      ) {
+        return card.purchaserCustomerId;
+      }
+    }
+    const email = recipientEmail?.trim().toLowerCase();
+    if (!email) return null;
+    const customer = await this.customerRepo.findOne({
+      where: { businessId: card.businessId, email },
+      select: { id: true },
+    });
+    return customer?.id ?? null;
   }
 }

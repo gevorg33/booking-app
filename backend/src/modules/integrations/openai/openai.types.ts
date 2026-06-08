@@ -3,6 +3,12 @@ export type AiKeySource = 'platform' | 'business';
 /** Default chat model for all OpenAI gateway calls unless overridden per request or via OPENAI_MODEL. */
 export const DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini';
 
+/** Stronger model for acc-3.5 classification tie-breaker when router and classify disagree. */
+export const DEFAULT_OPENAI_ESCALATION_MODEL = 'gpt-5.4';
+
+/** Default embedding model for prompt similarity (acc-1.4 retry/rephrase detection). */
+export const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small';
+
 export type AiUsageSurface =
   | 'dashboard'
   | 'provider_mobile'

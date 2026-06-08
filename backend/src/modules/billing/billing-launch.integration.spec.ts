@@ -348,7 +348,8 @@ describe('Sprint 12.a billing launch integration', () => {
         action: 'noop',
       })),
     };
-    const { aiSettings, platform } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace, classificationEngine } =
+      createAiGatewayPlatformMocks();
 
     const gateway = new AiGatewayService(
       dashboardCommands as any,
@@ -361,6 +362,8 @@ describe('Sprint 12.a billing launch integration', () => {
       planEntitlements,
       aiSettings as any,
       platform as any,
+      commandTrace as any,
+      classificationEngine as any,
     );
 
     it('blocks dashboard AI when monthly command cap reached', async () => {
@@ -401,6 +404,8 @@ describe('Sprint 12.a billing launch integration', () => {
         planEntitlements,
         aiSettings as any,
         platform as any,
+        commandTrace as any,
+        classificationEngine as any,
       );
       await mobileGateway.execute({
         surface: 'provider',

@@ -368,6 +368,10 @@ export function aiCmdScenarioToEvalCase(
     id: `ai-cmd-${scenario.id}`,
     prompt: scenario.prompt,
     locale: 'en',
+    surface: scenario.surface,
+    domain: scenario.domain,
+    corpus: 'golden',
+    difficulty: scenario.paramsPartial ? 'medium' : 'easy',
     expect: {
       rescuedAction: scenario.expectedAction,
       ...(scenario.paramsPartial

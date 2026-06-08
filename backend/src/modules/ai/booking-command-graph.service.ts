@@ -2,6 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BookingAgentRouterService } from '../../engine/langgraph/services/booking-agent-router.service.js';
 import { ReactBookingAgentService } from '../../engine/langgraph/services/react-booking-agent.service.js';
 import { IntentDecompositionService } from './intent-decomposition.service.js';
+import { normalizeActorRole } from './ai-capability.matrix.js';
+import type { PlanTierId } from '../billing/plan-limits.js';
+import {
+  buildGoalCapabilityDeniedSummary,
+  buildGoalExecutionPreviewDetails,
+  decomposeGoalPrompt,
+  validateGoalStepsAgainstCapabilities,
+} from './ai-goal-execution.util.js';
 import { CompoundCommandGraphService } from './compound-command-graph.service.js';
 import { CommandReasoningService } from './command-reasoning.service.js';
 import { ReactResultCompilerService } from './react-result-compiler.service.js';
@@ -90,6 +98,7 @@ export class BookingCommandGraphService {
 
     const graphPath =
       this.decomposition.isCompoundPrompt(input.effectivePrompt) ||
+      this.decomposition.isGoalExecutionPrompt(input.effectivePrompt) ||
       input.complexityRoute?.tier === 'compound'
         ? 'compound'
         : 'single';
@@ -172,12 +181,63 @@ export class BookingCommandGraphService {
   private async runCompound(
     input: CommandGraphRunInput,
   ): Promise<CommandResult> {
-    const subIntents = await this.decomposition.decompose(
-      input.businessId,
-      input.userId,
-      input.effectivePrompt,
-      input.timeZone,
-    );
+    let goalPreview: Record<string, unknown> | undefined;
+    let subIntents: Array<{
+      action: string;
+      params: Record<string, any>;
+      reasoning: string;
+    }> = [];
+
+    if (this.decomposition.isGoalExecutionPrompt(input.effectivePrompt)) {
+      const bounds = {
+        surface: 'dashboard' as const,
+        accessTier: normalizeActorRole(
+          (input.session?.context?._accessTier as string | undefined) ??
+            (input.session?.context?._actorRole as string | undefined) ??
+            'owner',
+        ),
+        planTierId:
+          (input.session?.context?._planTierId as PlanTierId | undefined) ??
+          'solo',
+      };
+      const goal = decomposeGoalPrompt(input.effectivePrompt, 'dashboard');
+      if (goal) {
+        const validation = validateGoalStepsAgainstCapabilities(
+          goal.steps,
+          bounds,
+        );
+        if (!validation.ok) {
+          return {
+            success: false,
+            action: 'goal_execution',
+            summary: buildGoalCapabilityDeniedSummary(validation.outOfScope),
+            details: {
+              goalExecution: true,
+              goalRecipeId: goal.recipeId,
+              outOfScopeActions: validation.outOfScope,
+              plannerBounds: bounds,
+            },
+          };
+        }
+        subIntents = await this.decomposition.decomposeGoalWithCapabilities(
+          input.effectivePrompt,
+          bounds,
+        );
+        goalPreview = buildGoalExecutionPreviewDetails({
+          ...goal,
+          steps: validation.steps,
+        });
+      }
+    }
+
+    if (subIntents.length <= 1) {
+      subIntents = await this.decomposition.decompose(
+        input.businessId,
+        input.userId,
+        input.effectivePrompt,
+        input.timeZone,
+      );
+    }
 
     if (subIntents.length <= 1) {
       return input.delegates.executeSingleIntent();
@@ -185,13 +245,14 @@ export class BookingCommandGraphService {
 
     if (this.router.useCompoundGraph()) {
       try {
-        return await this.compoundGraph.run({
+        const compoundResult = await this.compoundGraph.run({
           businessId: input.businessId,
           prompt: input.effectivePrompt,
           userId: input.userId,
           sessionContext: {
             ...input.session?.context,
             timeZone: input.timeZone,
+            ...(goalPreview ? { _goalExecutionDetails: goalPreview } : {}),
           },
           subIntents,
           catalog: input.catalog,
@@ -201,6 +262,14 @@ export class BookingCommandGraphService {
           toCommandResult: input.delegates.toCommandResult,
           executeReadOnlySubIntent: input.delegates.executeReadOnlySubIntent,
         });
+        if (goalPreview) {
+          compoundResult.action = 'goal_execution';
+          compoundResult.details = {
+            ...compoundResult.details,
+            ...goalPreview,
+          };
+        }
+        return compoundResult;
       } catch (err: any) {
         this.logger.warn(
           `Compound LangGraph failed, falling back: ${err?.message ?? err}`,

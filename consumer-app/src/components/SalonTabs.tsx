@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
-import { fetchMyClinicLabBookingRequests } from '../services/public-api.js';
+import { fetchMyClinicLabBookingRequests, fetchMyBookings } from '../services/public-api.js';
 import SalonHomePage from '../pages/SalonHomePage.js';
 import ServicesPage from '../pages/ServicesPage.js';
 import AccountPage from '../pages/AccountPage.js';
@@ -21,18 +21,25 @@ import MyResultsPage from '../pages/MyResultsPage.js';
 import LabToBookPage from '../pages/LabToBookPage.js';
 import LabRequestsPage from '../pages/LabRequestsPage.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { useConsumerLocale } from '../hooks/use-consumer-locale.js';
+import { useHomeScreenWidgetSync } from '../hooks/use-home-screen-widget-sync.js';
+import { ConsumerAiAssistant } from './ConsumerAiAssistant.js';
+import { ConsumerOfflineBanner } from './ConsumerOfflineBanner.js';
 
 export default function SalonTabs({
   slug,
   profile,
+  fromCache = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
+  fromCache?: boolean;
 }) {
   const base = `/s/${slug}`;
   const showResultsTab = shouldShowPatientResultsTab(profile.businessType);
   const authed = !!getCustomerToken(slug);
   const { copy } = useConsumerCopy(slug, profile);
+  const { locale } = useConsumerLocale(slug, profile);
 
   const pendingLabRequestsQuery = useQuery({
     queryKey: ['clinic-lab-booking-requests', slug],
@@ -41,14 +48,31 @@ export default function SalonTabs({
   });
   const pendingLabCount = pendingLabRequestsQuery.data?.length ?? 0;
 
+  const bookingsQuery = useQuery({
+    queryKey: ['bookings', slug],
+    queryFn: () => fetchMyBookings(slug),
+    enabled: authed,
+  });
+
+  useHomeScreenWidgetSync({
+    slug,
+    profile,
+    authed,
+    bookings: bookingsQuery.data,
+    copy,
+    locale,
+  });
+
   return (
-    <IonTabs>
+    <>
+      <ConsumerOfflineBanner copy={copy} fromCache={fromCache} />
+      <IonTabs>
       <IonRouterOutlet>
         <Route exact path={base} render={() => <SalonHomePage slug={slug} profile={profile} />} />
         <Route
           exact
           path={`${base}/services`}
-          render={() => <ServicesPage slug={slug} profile={profile} />}
+          render={() => <ServicesPage slug={slug} profile={profile} fromCache={fromCache} copy={copy} />}
         />
         {showResultsTab ? (
           <>
@@ -104,6 +128,8 @@ export default function SalonTabs({
           <IonLabel>Account</IonLabel>
         </IonTabButton>
       </IonTabBar>
-    </IonTabs>
+      <ConsumerAiAssistant slug={slug} profile={profile} copy={copy} locale={locale} />
+      </IonTabs>
+    </>
   );
 }

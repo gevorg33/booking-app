@@ -6,6 +6,7 @@ import {
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { applyBrandingCss } from '../lib/branding.js';
 import { rememberSalon } from '../lib/recent-salons.js';
+import { recordActiveTenant } from '../lib/customer-auth.js';
 
 interface TenantState {
   profile: PublicBusinessProfile | null;
@@ -24,6 +25,7 @@ export const useTenantStore = create<TenantState>((set) => ({
         name: profile.name,
         logoUrl: profile.branding.logoUrl,
       });
+      recordActiveTenant(profile.slug);
     }
     set({ profile });
   },

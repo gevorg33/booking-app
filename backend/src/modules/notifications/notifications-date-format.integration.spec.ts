@@ -51,7 +51,10 @@ function createHarness() {
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
-    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
+    {
+      sendResultReady: jest.fn(async () => ({ delivered: [] })),
+      sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 0 }),
+    } as any,
   );
 
   return { service, bookingRepo, emailService, smsService, whatsappService };
@@ -383,10 +386,12 @@ describe('Sprint 34 — fmt-1.5 notification date format integration', () => {
         };
         const delivery = new GiftCardDeliveryService(
           giftCardRepo as any,
+          { findOne: jest.fn().mockResolvedValue(null) } as any,
           emailService as any,
           whatsappService as any,
           whatsappIntegrationService as any,
           { get: jest.fn(() => 'https://app.test') } as any,
+          { sendGiftCardReceivedPush: jest.fn().mockResolvedValue(undefined) } as any,
         );
 
         giftCardRepo.findOne.mockResolvedValue({

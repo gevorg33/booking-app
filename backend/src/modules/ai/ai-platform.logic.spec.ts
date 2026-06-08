@@ -147,6 +147,57 @@ describe('ai-platform.logic', () => {
     expect(defaultPeriod.periodDays).toBe(30);
   });
 
+  it('merges ai_command_trace accuracy into analytics (acc-1.8)', async () => {
+    const traceAccuracy = {
+      periodDays: 30,
+      totalCommands: 4,
+      noClarifyCompletionRate: 0.5,
+      clarifyRate: 0.25,
+      misclassificationRate: 0.25,
+      explicitNegativeRate: 0.25,
+      byIntent: {
+        list_bookings: { total: 2, accurate: 2, clarify: 0, failures: 0 },
+      },
+      byLocale: { en: { total: 3, accurate: 2 }, hy: { total: 1, accurate: 1 } },
+      bySurface: {
+        dashboard: { total: 2, accurate: 2 },
+        provider: { total: 2, accurate: 1 },
+      },
+      confusionMatrix: [
+        {
+          from: 'create_booking',
+          to: 'list_bookings',
+          count: 1,
+          share: 1,
+          retryCount: 1,
+          undoCount: 0,
+        },
+      ],
+      worstPrompts: [],
+      accuracySlo: {
+        target: 0.99,
+        rolling7DayAccuracy: 0.75,
+        weeklyDelta: -0.03,
+        alert: true,
+        trend: [],
+      },
+    };
+    const traceDeps = {
+      ...deps,
+      commandTrace: {
+        getAccuracyAnalytics: jest.fn().mockResolvedValue(traceAccuracy),
+      },
+    } as unknown as PlatformLogicDeps;
+
+    const metrics = await getCommandAnalyticsLogic(traceDeps, 'biz-1', 30);
+    expect(traceDeps.commandTrace?.getAccuracyAnalytics).toHaveBeenCalledWith(
+      'biz-1',
+      30,
+    );
+    expect(metrics.accuracy).toEqual(traceAccuracy);
+    expect(metrics.accuracy?.bySurface.provider.total).toBe(2);
+  });
+
   it('scans stuck tasks for escalation', async () => {
     const stuck = await scanStuckTasksForEscalationLogic(
       deps,

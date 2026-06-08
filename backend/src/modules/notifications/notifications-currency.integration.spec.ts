@@ -54,7 +54,10 @@ function createNotificationsHarness() {
     whatsappService as any,
     whatsappIntegrationService as any,
     configService as any,
-    { sendResultReady: jest.fn(async () => ({ delivered: [] })) } as any,
+    {
+      sendResultReady: jest.fn(async () => ({ delivered: [] })),
+      sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 0 }),
+    } as any,
   );
 
   return {
@@ -413,10 +416,12 @@ describe('Sprint 28 — notifications currency integration', () => {
     const configService = { get: jest.fn(() => 'https://app.test') };
     const giftCardDelivery = new GiftCardDeliveryService(
       giftCardRepo as any,
+      { findOne: jest.fn().mockResolvedValue(null) } as any,
       emailService as any,
       giftCardWhatsapp as any,
       whatsappIntegrationService as any,
       configService as any,
+      { sendGiftCardReceivedPush: jest.fn().mockResolvedValue(undefined) } as any,
     );
 
     beforeEach(() => {

@@ -72,10 +72,25 @@ import {
   clinicCompoundMultilingualScenarioToEvalCase,
 } from '../ai-clinic-compound-multilingual.util.js';
 import { MULTILINGUAL_CLINIC_V2_EVAL_SCENARIOS } from '../ai-clinic-v2-6-multilingual.fixtures.js';
-import {
-  clinicV2MultilingualScenarioToEvalCase,
+import { clinicV2MultilingualScenarioToEvalCase,
   clinicV2ScenarioToEvalCase,
 } from '../ai-clinic-v2-6.util.js';
+import { AI_COMMAND_EVAL_ADOPT_6_GROWTH_CASES } from './ai-adopt-6-growth-loops.eval.util.js';
+import { AI_COMMAND_EVAL_PARITY_24_CASES } from './ai-parity-2.4-eval.util.js';
+import { AI_COMMAND_EVAL_PARITY_37_CASES } from './ai-parity-3.7-eval.util.js';
+import { AI_COMMAND_EVAL_N99_CLARIFY_FOLLOWUP_CASES } from './ai-n99-clarify-followup.eval.util.js';
+import { AI_COMMAND_EVAL_N99_NO_CLARIFY_CASES } from './ai-n99-no-clarify.eval.util.js';
+import { AI_COMMAND_EVAL_N99_FEWSHOT_RETRIEVAL_CASES } from './ai-n99-fewshot-retrieval.eval.util.js';
+import { AI_COMMAND_EVAL_N99_DETERMINISTIC_RESCUE_CASES } from './ai-n99-deterministic-rescue.eval.util.js';
+import { AI_COMMAND_EVAL_N99_WRONG_EXECUTION_WATCHDOG_CASES } from './ai-n99-wrong-execution-watchdog.eval.util.js';
+import { AI_COMMAND_EVAL_N99_AMBIGUOUS_DESTRUCTIVE_CASES } from './ai-n99-ambiguous-destructive-clarify.eval.util.js';
+
+export { AI_COMMAND_EVAL_CLARIFY_FOLLOWUP_CASES } from './ai-n99-clarify-followup.eval.util.js';
+export { AI_COMMAND_EVAL_NO_CLARIFY_CASES } from './ai-n99-no-clarify.eval.util.js';
+export { AI_COMMAND_EVAL_N99_FEWSHOT_RETRIEVAL_CASES } from './ai-n99-fewshot-retrieval.eval.util.js';
+export { AI_COMMAND_EVAL_N99_DETERMINISTIC_RESCUE_CASES } from './ai-n99-deterministic-rescue.eval.util.js';
+export { AI_COMMAND_EVAL_N99_WRONG_EXECUTION_WATCHDOG_CASES } from './ai-n99-wrong-execution-watchdog.eval.util.js';
+export { AI_COMMAND_EVAL_N99_AMBIGUOUS_DESTRUCTIVE_CASES } from './ai-n99-ambiguous-destructive-clarify.eval.util.js';
 import {
   AVAILABILITY_DISAMBIGUATION_SCENARIOS,
   type AvailabilityDisambiguationScenario,
@@ -283,6 +298,11 @@ import type {
   AiCommandEvalExpectation,
   AiEvalLocale,
 } from './ai-command-eval.types.js';
+import { AI_COMMAND_EVAL_CORPUS_CASES } from './ai-command-eval.corpus.js';
+import { AI_COMMAND_EVAL_HARVESTED_CASES } from './ai-command-eval.harvested.cases.js';
+import { AI_COMMAND_EVAL_TELEMETRY_RESCUE_CASES } from '../ai-telemetry-rescue.fixtures.js';
+import { AI_COMMAND_EVAL_BALANCE_CASES } from './ai-command-eval.balance.fixtures.js';
+import { buildLocaleParityEvalCases } from './ai-command-eval.locale-parity.util.js';
 
 export const AI_COMMAND_EVAL_AI_CMD_DOMAIN_CASES = AI_CMD_DOMAIN_EVAL_CASES;
 
@@ -846,6 +866,7 @@ export const AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_CASES: AiCommandEvalCase
       id: `list-my-collection-queue-${entry.id}`,
       prompt: entry.prompt,
       locale: 'en' as const,
+      surface: 'provider' as const,
       expect: {
         rescuedAction: 'list_my_collection_queue',
         rescueReason: 'list_my_collection_queue',
@@ -3191,6 +3212,7 @@ export const AI_COMMAND_EVAL_EXPLAIN_PROVIDER_DATE_DISPLAY_CASES: AiCommandEvalC
     id: `explain-provider-date-display-${entry.id}`,
     prompt: entry.prompt,
     locale: 'en' as const,
+    surface: 'provider' as const,
     expect: {
       rescuedAction: 'explain_provider_date_display',
       rescueReason: 'explain_provider_date_display',
@@ -3438,6 +3460,28 @@ export function multilingualCheckAndBookScenarioToEvalCase(
   };
 }
 
+function inferCompoundScenarioDomain(
+  scenario: CompoundScenarioExpectation,
+): string {
+  if (/gift|gift_card/.test(scenario.id)) return 'gift';
+  if (/crm|subscription|tag_customer|lookup_customer|inactive/.test(scenario.id)) {
+    return 'crm';
+  }
+  if (/integration|zendesk|support|sync_customer/.test(scenario.id)) {
+    return 'integrations';
+  }
+  if (/schedule|clear_schedule|resource|capacity/.test(scenario.id)) {
+    return 'schedule';
+  }
+  if (/catalog|package|service|subscription_plan/.test(scenario.id)) {
+    return 'catalog';
+  }
+  if (/payment|revenue|tax|currency|checkout|paid|unpaid/.test(scenario.id)) {
+    return 'payments';
+  }
+  return 'booking';
+}
+
 /** Map shared compound scenarios (ai-cmd-0.3) to eval golden cases (ai-cmd-0.4). */
 export function compoundScenarioToEvalCase(
   scenario: CompoundScenarioExpectation,
@@ -3490,6 +3534,10 @@ export function compoundScenarioToEvalCase(
     id: `compound-${scenario.id}`,
     prompt: scenario.prompt,
     locale: 'en',
+    surface: scenario.surface,
+    domain: inferCompoundScenarioDomain(scenario),
+    corpus: 'golden',
+    difficulty: scenario.expectEmpty ? 'ambiguity' : 'hard',
     expect,
   };
 }
@@ -3839,7 +3887,7 @@ export const AI_COMMAND_EVAL_DASHBOARD_OPS_CASES: AiCommandEvalCase[] =
   ALL_DASHBOARD_OPS_SCENARIOS.map(dashboardOpsScenarioToEvalCase);
 
 /** Full deterministic CI suite: routing/rescue + compound decomposition. */
-export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
+export const AI_COMMAND_EVAL_DETERMINISTIC_BASE_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_CASES,
   ...AI_COMMAND_EVAL_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_CHECK_AND_BOOK_CASES,
@@ -3957,7 +4005,29 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES,
+  ...AI_COMMAND_EVAL_ADOPT_6_GROWTH_CASES,
+  ...AI_COMMAND_EVAL_PARITY_24_CASES,
+  ...AI_COMMAND_EVAL_PARITY_37_CASES,
+  ...AI_COMMAND_EVAL_N99_CLARIFY_FOLLOWUP_CASES,
+  ...AI_COMMAND_EVAL_N99_NO_CLARIFY_CASES,
+  ...AI_COMMAND_EVAL_N99_FEWSHOT_RETRIEVAL_CASES,
+  ...AI_COMMAND_EVAL_N99_DETERMINISTIC_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_N99_WRONG_EXECUTION_WATCHDOG_CASES,
+  ...AI_COMMAND_EVAL_N99_AMBIGUOUS_DESTRUCTIVE_CASES,
   ...AI_CMD_DOMAIN_EVAL_CASES,
+  ...AI_COMMAND_EVAL_CORPUS_CASES,
+  ...AI_COMMAND_EVAL_HARVESTED_CASES,
+  ...AI_COMMAND_EVAL_TELEMETRY_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_BALANCE_CASES,
+];
+
+/** acc-2.4 — HY/RU/translit siblings for EN golden cases missing locale parity. */
+export const AI_COMMAND_EVAL_LOCALE_PARITY_CASES: AiCommandEvalCase[] =
+  buildLocaleParityEvalCases(AI_COMMAND_EVAL_DETERMINISTIC_BASE_CASES);
+
+export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
+  ...AI_COMMAND_EVAL_DETERMINISTIC_BASE_CASES,
+  ...AI_COMMAND_EVAL_LOCALE_PARITY_CASES,
 ];
 
 /** Live LLM regression — check+book and flexible booking classification (ai-cmd-h1.3). */
@@ -4053,3 +4123,6 @@ export const AI_COMMAND_EVAL_LLM_CASES: AiCommandEvalCase[] = [
     expect: { action: 'cancel_bookings' },
   },
 ];
+
+/** acc-3.16 — EN/HY/RU semantic paraphrase corpus (5+ per locale per intent). */
+export { AI_COMMAND_EVAL_SEMANTIC_PARAPHRASE_CASES } from './ai-command-eval.semantic-paraphrase.cases.js';

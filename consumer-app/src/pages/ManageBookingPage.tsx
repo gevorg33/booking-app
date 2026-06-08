@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   IonBackButton,
   IonButton,
@@ -9,16 +10,18 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import type { PublicBookingManageContext, PublicCustomerBookingItem } from '../lib/types.js';
 import { fetchBookingManageContext } from '../services/public-api.js';
 import { ConsumerBookingActions } from '../components/ConsumerBookingActions.js';
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
+import { ConsumerNetworkErrorCard } from '../components/ConsumerNetworkErrorCard.js';
+import { ConsumerOfflineBanner } from '../components/ConsumerOfflineBanner.js';
 import { RescheduleConfirmationCard } from '../components/RescheduleConfirmationCard.js';
 
 function parseQuery(search: string) {
@@ -33,7 +36,7 @@ export default function ManageBookingPage() {
   const history = useHistory();
   const location = useLocation();
   const { slug: routeSlug } = useParams<{ slug: string }>();
-  const { slug, profile, loading, error: tenantError } = useTenantBootstrap();
+  const { slug, profile, loading, error: tenantError, fromCache } = useTenantBootstrap();
   const { bookingId, token } = useMemo(() => parseQuery(location.search), [location.search]);
 
   const [context, setContext] = useState<PublicBookingManageContext | null>(null);
@@ -47,36 +50,28 @@ export default function ManageBookingPage() {
   const effectiveSlug = slug || routeSlug || '';
   const { copy, locale } = useConsumerCopy(effectiveSlug, profile ?? { locale: 'en' });
 
-  useEffect(() => {
+  const loadContext = useCallback(async () => {
     if (!effectiveSlug || !bookingId || !token) {
       setError(copy.manageBookingInvalidLink);
       setLoadingContext(false);
       return;
     }
-    let cancelled = false;
     setLoadingContext(true);
-    void fetchBookingManageContext(effectiveSlug, bookingId, token)
-      .then((ctx) => {
-        if (!cancelled) setContext(ctx);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : copy.manageBookingInvalidLink);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingContext(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveSlug, bookingId, token, copy.manageBookingInvalidLink]);
+    setError(null);
+    try {
+      const ctx = await fetchBookingManageContext(effectiveSlug, bookingId, token);
+      setContext(ctx);
+    } catch (err: unknown) {
+      setContext(null);
+      setError(formatFriendlyNetworkError(err, copy.networkLoadFailed));
+    } finally {
+      setLoadingContext(false);
+    }
+  }, [bookingId, copy.manageBookingInvalidLink, copy.networkLoadFailed, effectiveSlug, token]);
 
-  const reload = async () => {
-    if (!effectiveSlug || !bookingId || !token) return;
-    const ctx = await fetchBookingManageContext(effectiveSlug, bookingId, token);
-    setContext(ctx);
-  };
+  useEffect(() => {
+    void loadContext();
+  }, [loadContext]);
 
   const bookingItem: PublicCustomerBookingItem | null = context
     ? {
@@ -108,7 +103,7 @@ export default function ManageBookingPage() {
     );
   }
 
-  if (tenantError || !profile || error || !context || !bookingItem) {
+  if (tenantError || !profile) {
     return (
       <IonPage>
         <IonHeader>
@@ -120,7 +115,43 @@ export default function ManageBookingPage() {
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
-          <p>{error ?? tenantError ?? copy.manageBookingInvalidLink}</p>
+          <ConsumerOfflineBanner copy={copy} fromCache={fromCache} />
+          <ConsumerNetworkErrorCard
+            message={tenantError || copy.networkLoadFailed}
+            retryLabel={copy.networkRetryAction}
+            onRetry={() => window.location.reload()}
+          />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (error || !context || !bookingItem) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref={buildSalonPath(effectiveSlug)} />
+            </IonButtons>
+            <IonTitle>Manage</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <ConsumerOfflineBanner copy={copy} fromCache={fromCache} />
+          <ConsumerNetworkErrorCard
+            message={error ?? copy.manageBookingInvalidLink}
+            retryLabel={copy.networkRetryAction}
+            onRetry={() => void loadContext()}
+          />
+          <IonButton
+            expand="block"
+            fill="clear"
+            className="ion-margin-top"
+            onClick={() => history.push(buildSalonPath(effectiveSlug))}
+          >
+            Back to salon
+          </IonButton>
         </IonContent>
       </IonPage>
     );
@@ -137,6 +168,7 @@ export default function ManageBookingPage() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
+        <ConsumerOfflineBanner copy={copy} fromCache={fromCache} />
         <div className="salon-card">
           {context.packageVisit ? (
             <>
@@ -175,7 +207,7 @@ export default function ManageBookingPage() {
             manageToken={token}
             authed={false}
             copy={copy}
-            onUpdated={() => void reload()}
+            onUpdated={() => void loadContext()}
             onRescheduled={(previous, next) => setRescheduleNotice({ previousStartTime: previous, newStartTime: next })}
           />
         ) : (
@@ -185,7 +217,7 @@ export default function ManageBookingPage() {
             manageToken={token}
             authed={false}
             copy={copy}
-            onUpdated={() => void reload()}
+            onUpdated={() => void loadContext()}
             onRescheduled={(previous, next) => setRescheduleNotice({ previousStartTime: previous, newStartTime: next })}
           />
         )}

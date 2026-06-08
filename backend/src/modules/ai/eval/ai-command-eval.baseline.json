@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-08",
+  "accuracyFloor": 1,
+  "minTotalCases": 6006,
+  "lastAccuracy": 1,
+  "lastDeterministicCases": 6006,
+  "clarifyFollowupFloor": 0.95,
+  "clarifyFollowupMinCases": 10,
+  "lastClarifyFollowupAccuracy": 1,
+  "noClarifyFloor": 0.9,
+  "noClarifyMinCases": 50,
+  "lastNoClarifyAccuracy": 1,
+  "lastWrongExecutionRate": 0.004,
+  "roleSurfaceEvalFloors": {
+    "owner:dashboard": 0.996,
+    "manager:dashboard": 1,
+    "staff:dashboard": 1,
+    "staff:provider": 0.981,
+    "client:customer": 0.935,
+    "client:public": 0.964
+  },
+  "minCasesPerRoleSurface": 3,
+  "roleSurfaceEvalFloorHistory": [],
+  "note": "acc-2.9 — CI blocks merge when deterministic accuracy < accuracyFloor or case count < minTotalCases. parity-4.3 — roleSurfaceEvalFloors per owner/manager/staff/client × dashboard/provider/customer/public; ratchet toward 100% via npm run ratchet:accuracy-floor; never lower without review. n99-1.9 — clarify_followup corpus ratchets toward 99% (EN/HY/RU). n99-2.9 — no_clarify corpus + wrong-execution ceiling dual gate ratchets toward 99%. n99-2.4 — few-shot retrieval eval cases for rare phrasing. n99-2.5 — deterministic suspected_miss rescue expansion. n99-2.6 — over-ask safe-default trim eval cases. n99-2.7 — wrong-execution watchdog preview/undo + confidence tightening. n99-2.8 — ambiguous/destructive guardrail clarify eval cases. Ratchet both upward each sprint after a green run; never lower without review."
+}

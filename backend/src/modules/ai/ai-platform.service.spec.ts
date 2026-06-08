@@ -15,9 +15,33 @@ describe('AiPlatformService', () => {
     save: jest.fn(),
   };
 
+  const commandTrace = {
+    getAccuracyAnalytics: jest.fn().mockResolvedValue({
+      periodDays: 30,
+      totalCommands: 0,
+      noClarifyCompletionRate: 0,
+      clarifyRate: 0,
+      misclassificationRate: 0,
+      explicitNegativeRate: 0,
+      byIntent: {},
+      byLocale: {},
+      bySurface: {},
+      confusionMatrix: [],
+      worstPrompts: [],
+      accuracySlo: {
+        target: 0.99,
+        rolling7DayAccuracy: 0,
+        weeklyDelta: 0,
+        alert: false,
+        trend: [],
+      },
+    }),
+  };
+
   const service = new AiPlatformService(
     eventStore as any,
     aiEvents as any,
+    commandTrace as any,
     bookingRepo as any,
     businessRepo as any,
     agentTaskRepo as any,

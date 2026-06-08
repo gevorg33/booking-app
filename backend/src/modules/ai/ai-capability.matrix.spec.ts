@@ -8,11 +8,18 @@ import {
   normalizeActorRole,
 } from './ai-capability.matrix.js';
 import {
+  buildCommandRegistry,
+  buildCompoundCommandRecipes,
+  collectCompoundStepIds,
   CUSTOMER_INTENTS,
   DASHBOARD_INTENTS,
   PROVIDER_INTENTS,
   PUBLIC_INTENTS,
 } from './ai-command-registry.build.js';
+import {
+  assertIntentPermissionParity,
+  buildIntentPermissionCases,
+} from './ai-parity-2.5-permission.util.js';
 
 describe('ai-capability.matrix (Sprint 15)', () => {
   it('restricts staff from owner-only dashboard intents', () => {
@@ -180,5 +187,46 @@ describe('ai-capability.matrix (Sprint 15)', () => {
     expect(
       isIntentAllowed('provider', 'owner', 'list_package_appointments_today'),
     ).toBe(true);
+  });
+
+  it('blocks elevated tiers on public surface (parity-2.5)', () => {
+    expect(isIntentAllowed('public', 'staff', 'book_appointment')).toBe(false);
+    expect(isIntentAllowed('public', 'owner', 'list_providers')).toBe(false);
+    expect(getAllowedIntents('public', 'staff')).toEqual(['unknown']);
+    expect(getAllowedIntents('public', 'owner')).toEqual(['unknown']);
+  });
+
+  describe('parity-2.5 capability matrix permission gate', () => {
+    const registry = buildCommandRegistry(
+      collectCompoundStepIds(buildCompoundCommandRecipes()),
+    );
+    const permissionCases = buildIntentPermissionCases(registry);
+
+    it.each(
+      permissionCases.filter((row) => row.kind === 'in_role').slice(0, 80),
+    )('allows in-role $intentId on $surface/$tier', (row) => {
+      expect(isIntentAllowed(row.surface, row.tier, row.intentId)).toBe(true);
+    });
+
+    it.each(
+      permissionCases
+        .filter((row) => row.kind === 'out_of_role')
+        .slice(0, 80),
+    )('denies out-of-role $intentId on $surface/$tier', (row) => {
+      expect(isIntentAllowed(row.surface, row.tier, row.intentId)).toBe(false);
+    });
+
+    it.each(
+      permissionCases
+        .filter((row) => row.kind === 'surface_isolation')
+        .slice(0, 80),
+    )('isolates $intentId from $surface/$tier', (row) => {
+      expect(isIntentAllowed(row.surface, row.tier, row.intentId)).toBe(false);
+    });
+
+    it('passes full registry permission parity gate', () => {
+      const status = assertIntentPermissionParity(registry);
+      expect(status.complete).toBe(true);
+    });
   });
 });
