@@ -1,4 +1,5 @@
 import { EXPLAIN_PACKAGE_CURRENCY_PROMPTS } from './ai-package-currency.fixtures.js';
+import { CATALOG_NOTIFY_DASHBOARD_SCENARIOS } from './ai-catalog-notify.fixtures.js';
 import {
   isExplainPackageCurrencyPrompt,
   isPackageCurrencyIntent,
@@ -58,5 +59,14 @@ describe('ai-package-currency.util (ai-cmd-curr-7)', () => {
   it('recognizes package currency intent id', () => {
     expect(isPackageCurrencyIntent('explain_package_currency')).toBe(true);
     expect(isPackageCurrencyIntent('explain_checkout_currency')).toBe(false);
+  });
+
+  it.each(
+    CATALOG_NOTIFY_DASHBOARD_SCENARIOS.filter((s) =>
+      /[\u0530-\u058F]/.test(s.prompt),
+    ).map((s) => [s.id, s.prompt] as const),
+  )('does not steal catalog-notify mutate prompt %s', (_id, prompt) => {
+    expect(isExplainPackageCurrencyPrompt(prompt)).toBe(false);
+    expect(rescuePackageCurrencyIntent(prompt, 'unknown')).toBeNull();
   });
 });

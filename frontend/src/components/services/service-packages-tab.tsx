@@ -22,6 +22,17 @@ import {
 import { useBusinessCurrency } from '@/hooks/use-business-currency';
 import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
 import { LocalizedNamesFields } from '@/components/services/localized-names-fields';
+import { CatalogNotifyCustomersFields } from '@/components/dashboard/catalog-notify-customers-fields';
+import {
+  buildCatalogNotifySavePayload,
+  buildCatalogNotifyBookUrl,
+  catalogNotifyTemplateIsComplete,
+  defaultCatalogNotifyFormState,
+  formatCatalogNotifyDiscountLabel,
+  type CatalogNotifyFormState,
+  type CatalogNotifyPreviewContext,
+} from '@/lib/catalog-notify-customers.util';
+import { useAuthStore } from '@/lib/store';
 
 type PackageFilter = 'all' | 'active' | 'inactive' | 'expired';
 
@@ -35,11 +46,16 @@ interface ServicePackagesTabProps {
 
 export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
   const { t, locale } = useI18n();
+  const { business } = useAuthStore();
   const { formatMoney } = useBusinessCurrency();
   const { enabledLocales } = useBusinessEnabledLocales();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<PackageFilter>('all');
   const [form, setForm] = useState<PackageFormState>(defaultPackageFormState());
+  const [catalogNotify, setCatalogNotify] = useState<CatalogNotifyFormState>(
+    defaultCatalogNotifyFormState(),
+  );
+  const [notifyError, setNotifyError] = useState<string | null>(null);
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [graceHours, setGraceHours] = useState('0');
@@ -117,6 +133,21 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
     discountValue: parseFloat(form.discountValue) || 0,
   });
 
+  const catalogNotifyPreviewContext = useMemo((): CatalogNotifyPreviewContext => {
+    const discountValue = parseFloat(form.discountValue) || 0;
+    return {
+      kind: 'package',
+      catalogName: form.name.trim() || t('catalogNotify.previewSamplePackageName'),
+      discountLabel: formatCatalogNotifyDiscountLabel(
+        form.discountType,
+        discountValue,
+        formatMoney,
+      ),
+      businessName: business?.name?.trim() || t('catalogNotify.previewSampleBusiness'),
+      bookUrl: buildCatalogNotifyBookUrl(business?.slug ?? 'your-salon', 'package'),
+    };
+  }, [business?.name, business?.slug, form.discountType, form.discountValue, form.name, formatMoney, t]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const expiresAt = form.expiresAtDay
@@ -132,6 +163,7 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
         displayOrder: parseInt(form.displayOrder, 10) || 0,
         expiresAt,
         items: buildPackageItemsPayload(form.selectedServiceIds, form.quantities),
+        ...buildCatalogNotifySavePayload(catalogNotify),
       };
       if (editingPackageId) {
         const { data } = await api.put(
@@ -197,6 +229,8 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
 
   const resetForm = () => {
     setForm(defaultPackageFormState());
+    setCatalogNotify(defaultCatalogNotifyFormState());
+    setNotifyError(null);
     setEditingPackageId(null);
     setShowForm(false);
   };
@@ -297,6 +331,11 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
           className="card grid grid-cols-1 md:grid-cols-2 gap-4"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!catalogNotifyTemplateIsComplete(catalogNotify, enabledLocales)) {
+              setNotifyError(t('catalogNotify.incompleteTemplate'));
+              return;
+            }
+            setNotifyError(null);
             saveMutation.mutate();
           }}
         >
@@ -440,6 +479,17 @@ export function ServicePackagesTab({ businessId }: ServicePackagesTabProps) {
               </div>
             </div>
           )}
+          <CatalogNotifyCustomersFields
+            value={catalogNotify}
+            onChange={setCatalogNotify}
+            enabledLocales={enabledLocales}
+            variableHints={t('catalogNotify.packageVariables')}
+            previewContext={catalogNotifyPreviewContext}
+            t={t}
+          />
+          {notifyError ? (
+            <p className="md:col-span-2 text-sm text-red-400">{notifyError}</p>
+          ) : null}
           <div className="md:col-span-2 flex gap-2">
             <button
               type="submit"

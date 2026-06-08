@@ -132,9 +132,55 @@ export const fetchServiceSlots = fetchServiceDaySlots;
 export async function loginWithGoogle(
   slug: string,
   idToken: string,
+  options?: { preferredLocale?: string; analyticsAnonId?: string },
 ): Promise<{ token: string; customer: PublicCustomerProfile }> {
-  const { data } = await http.post(`/public/${slug}/auth/google`, { idToken });
+  const { data } = await http.post(`/public/${slug}/auth/google`, {
+    idToken,
+    preferredLocale: options?.preferredLocale,
+    analyticsAnonId: options?.analyticsAnonId,
+  });
   return unwrap<{ token: string; customer: PublicCustomerProfile }>(data);
+}
+
+export async function fetchMyPreferredLocale(
+  slug: string,
+): Promise<{ preferredLocale: string; storedLocale: string | null }> {
+  const { data } = await http.get(`/public/${slug}/me/locale`, publicConfig(slug));
+  return unwrap(data);
+}
+
+export async function updateMyPreferredLocale(
+  slug: string,
+  preferredLocale: string,
+): Promise<{ preferredLocale: string; storedLocale: string | null }> {
+  const { data } = await http.patch(
+    `/public/${slug}/me/locale`,
+    { preferredLocale },
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function fetchMyNotificationPreferences(
+  slug: string,
+): Promise<import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferences> {
+  const { data } = await http.get(
+    `/public/${slug}/me/notification-preferences`,
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function updateMyNotificationPreferences(
+  slug: string,
+  patch: import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferencesPatch,
+): Promise<import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferences> {
+  const { data } = await http.patch(
+    `/public/${slug}/me/notification-preferences`,
+    patch,
+    publicConfig(slug),
+  );
+  return unwrap(data);
 }
 
 export async function fetchMyBookings(slug: string): Promise<PublicCustomerBookingItem[]> {

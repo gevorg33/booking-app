@@ -34,6 +34,13 @@ import {
   mapPublicConsumerNotificationPreferences,
   type UpdatePublicConsumerNotificationPreferencesInput,
 } from './public-consumer-notification-preferences.util.js';
+import {
+  applyCustomerPreferredLocale,
+  assertCustomerPreferredLocale,
+  readCustomerPreferredLocale,
+  resolveCustomerNotificationLocale,
+} from '../../common/utils/customer-notification-locale.util.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
 
 @Injectable()
 export class PublicCustomerAuthService {
@@ -53,14 +60,22 @@ export class PublicCustomerAuthService {
     slug: string,
     idToken: string,
     analyticsAnonId?: string,
+    preferredLocale?: string,
   ): Promise<PublicCustomerAuthResponse> {
-    return this.loginWithOAuthIdToken(slug, idToken, 'apple', analyticsAnonId);
+    return this.loginWithOAuthIdToken(
+      slug,
+      idToken,
+      'apple',
+      analyticsAnonId,
+      preferredLocale,
+    );
   }
 
   async loginWithPhone(
     slug: string,
     idToken: string,
     analyticsAnonId?: string,
+    preferredLocale?: string,
   ): Promise<PublicCustomerAuthResponse> {
     if (!this.firebase.isReady) {
       throw new BadRequestException('Phone sign-in is not configured on the server');
@@ -169,6 +184,11 @@ export class PublicCustomerAuthService {
       this.resolveCustomerJwtEmail(customer, phone),
     );
     customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+    customer = await this.syncPreferredLocaleForCustomer(
+      customer,
+      business,
+      preferredLocale,
+    );
     return { token, customer: this.toProfile(customer) };
   }
 
@@ -176,8 +196,15 @@ export class PublicCustomerAuthService {
     slug: string,
     idToken: string,
     analyticsAnonId?: string,
+    preferredLocale?: string,
   ): Promise<PublicCustomerAuthResponse> {
-    return this.loginWithOAuthIdToken(slug, idToken, 'google', analyticsAnonId);
+    return this.loginWithOAuthIdToken(
+      slug,
+      idToken,
+      'google',
+      analyticsAnonId,
+      preferredLocale,
+    );
   }
 
   private async loginWithOAuthIdToken(
@@ -185,6 +212,7 @@ export class PublicCustomerAuthService {
     idToken: string,
     provider: 'google' | 'apple',
     analyticsAnonId?: string,
+    preferredLocale?: string,
   ): Promise<PublicCustomerAuthResponse> {
     if (!this.firebase.isReady) {
       throw new BadRequestException(
@@ -279,6 +307,11 @@ export class PublicCustomerAuthService {
 
     const token = this.signToken(customer, business.id, email);
     customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+    customer = await this.syncPreferredLocaleForCustomer(
+      customer,
+      business,
+      preferredLocale,
+    );
     return { token, customer: this.toProfile(customer) };
   }
 
@@ -394,6 +427,63 @@ export class PublicCustomerAuthService {
     );
     await this.customerRepo.save(customer);
     return mapPublicConsumerNotificationPreferences(customer.metadata);
+  }
+
+  async getPreferredLocale(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.getCustomerById(business.id, customerId);
+    return this.mapCustomerPreferredLocaleView(customer, business.settings);
+  }
+
+  async updatePreferredLocale(
+    slug: string,
+    customerId: string,
+    preferredLocale: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.getCustomerById(business.id, customerId);
+    const normalized = assertCustomerPreferredLocale(
+      preferredLocale,
+      business.settings as Record<string, unknown> | undefined,
+    );
+    if (readCustomerPreferredLocale(customer.metadata) === normalized) {
+      return this.mapCustomerPreferredLocaleView(customer, business.settings);
+    }
+    customer.metadata = applyCustomerPreferredLocale(customer.metadata, normalized);
+    await this.customerRepo.save(customer);
+    return this.mapCustomerPreferredLocaleView(customer, business.settings);
+  }
+
+  private mapCustomerPreferredLocaleView(
+    customer: Customer,
+    businessSettings?: Record<string, unknown>,
+  ): { preferredLocale: AppLocale; storedLocale: AppLocale | null } {
+    const storedLocale = readCustomerPreferredLocale(customer.metadata);
+    return {
+      preferredLocale: resolveCustomerNotificationLocale(
+        customer.metadata,
+        businessSettings,
+      ),
+      storedLocale,
+    };
+  }
+
+  private async syncPreferredLocaleForCustomer(
+    customer: Customer,
+    business: Business,
+    preferredLocale?: string | null,
+  ): Promise<Customer> {
+    const raw = preferredLocale?.trim();
+    if (!raw) return customer;
+    const normalized = assertCustomerPreferredLocale(
+      raw,
+      business.settings as Record<string, unknown> | undefined,
+    );
+    if (readCustomerPreferredLocale(customer.metadata) === normalized) {
+      return customer;
+    }
+    customer.metadata = applyCustomerPreferredLocale(customer.metadata, normalized);
+    return this.customerRepo.save(customer);
   }
 
   async listBookings(

@@ -81,6 +81,8 @@ import { REVENUE_KPIS_CLASSIFIER_RULES } from './ai-revenue-kpis.fixtures.js';
 import { BUSINESS_LANGUAGES_CLASSIFIER_RULES } from './ai-business-languages.fixtures.js';
 import { BUSINESS_DATE_FORMAT_CLASSIFIER_RULES } from './ai-business-date-format.fixtures.js';
 import { PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES } from './ai-package-localized-names.fixtures.js';
+import { CATALOG_NOTIFY_CLASSIFIER_RULES } from './ai-catalog-notify.fixtures.js';
+import { applyCatalogNotifyPromptHints } from './ai-catalog-notify.util.js';
 import { DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from './ai-package-display-name.fixtures.js';
 import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
 import { parseBusinessLanguagesFromPrompt } from './ai-business-languages.util.js';
@@ -1265,6 +1267,11 @@ export class AiCommandService {
         parsed.params,
         effectivePrompt,
         { session: sessionContext },
+      );
+      applyCatalogNotifyPromptHints(
+        parsed.action,
+        parsed.params,
+        effectivePrompt,
       );
     }
 
@@ -4885,6 +4892,7 @@ export class AiCommandService {
       session,
     });
     applyGiftCardPaymentsPromptHints(action, params, prompt, { session });
+    applyCatalogNotifyPromptHints(action, params, prompt);
 
     if (action === 'check_providers_for_service' && params.allProviders) {
       params.employeeName = null;
@@ -4937,7 +4945,7 @@ export class AiCommandService {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${CATALOG_NOTIFY_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       {

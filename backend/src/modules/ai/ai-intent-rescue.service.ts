@@ -54,6 +54,7 @@ import {
 } from './ai-category-assignment.util.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
 import { rescueCatalogIntent } from './ai-catalog.util.js';
+import { enrichCatalogNotifyRescueParams } from './ai-catalog-notify.util.js';
 import { rescueCustomerCrmIntent } from './ai-customer-crm.util.js';
 import { rescueScheduleResourceIntent } from './ai-schedule-resources.util.js';
 import { rescueGiftFulfillmentIntent } from './ai-gift-fulfillment.util.js';
@@ -2602,9 +2603,11 @@ export class AiIntentRescueService {
 
     const rescued = rescueCatalogIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    const params: Record<string, unknown> = {};
+    enrichCatalogNotifyRescueParams(rescued.action, params, prompt);
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Catalog command rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,

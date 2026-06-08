@@ -35,6 +35,11 @@ describe('ServicePackagesService', () => {
     })),
   };
 
+  const catalogAnnouncement = {
+    announcePackage: jest.fn().mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
+    announceSubscriptionPlan: jest.fn().mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
+  };
+
   const service = new ServicePackagesService(
     packageRepo as any,
     itemRepo as any,
@@ -42,6 +47,7 @@ describe('ServicePackagesService', () => {
     serviceRepo as any,
     bookingRepo as any,
     businessRepo as any,
+    catalogAnnouncement as any,
   );
 
   const baseItems = [
@@ -177,6 +183,37 @@ describe('ServicePackagesService', () => {
           localizedNames: { en: ['Spa EN'], hy: ['Սպա'] },
         },
       }),
+    );
+  });
+
+  it('announces package when notifyCustomers is true', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        enabledLocales: ['en'],
+        defaultLocale: 'en',
+        notifications: { emailEnabled: true },
+      },
+    });
+    packageRepo.save.mockImplementation(async (value) => ({
+      id: 'pkg-1',
+      ...value,
+    }));
+
+    await service.createPackage('biz-1', {
+      name: 'Spa day',
+      items: [{ serviceId: 'svc-1', quantity: 1 }],
+      notifyCustomers: true,
+      notificationTemplate: {
+        en: { subject: 'New package', bodyText: 'Book now' },
+      },
+    });
+
+    expect(catalogAnnouncement.announcePackage).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ name: 'Spa day' }),
+      expect.objectContaining({ notifyCustomers: true }),
     );
   });
 

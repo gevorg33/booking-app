@@ -675,25 +675,25 @@ cd frontend && npm run test:sprint54
 
 **Surfaces:** Dashboard admin (Services → Packages, Monetization → Memberships). Customer locale from server `customer.metadata.preferredLocale` (not device-only).
 
-- [ ] **catalog-notify-1** — Notify customers on package / subscription plan save
+- [x] **catalog-notify-1** — Notify customers on package / subscription plan save
 
 ### catalog-notify-1.1 — Customer locale (prerequisite)
-- [ ] **catalog-notify-1.1** — Persist `customer.metadata.preferredLocale` when customer picks language in **consumer app** (`ConsumerLanguagePicker`) and **public booking**; sync on sign-in
-- [ ] **catalog-notify-1.2** — `resolveCustomerNotificationLocale(customer, businessSettings)` — customer preference → business `defaultLocale` → `en`; clamp to `enabledLocales`
+- [x] **catalog-notify-1.1** — Persist `customer.metadata.preferredLocale` when customer picks language in **consumer app** (`ConsumerLanguagePicker`) and **public booking**; sync on sign-in
+- [x] **catalog-notify-1.2** — `resolveCustomerNotificationLocale(customer, businessSettings)` — customer preference → business `defaultLocale` → `en`; clamp to `enabledLocales`
 
 ### catalog-notify-1.2 — Dashboard UI
-- [ ] **catalog-notify-1.3** — Shared `CatalogNotifyCustomersFields` — radio: *Don't notify* / *Notify customers*; when notify: subject + body per enabled locale (tab pattern like `notification-email-templates-panel.tsx`)
-- [ ] **catalog-notify-1.4** — Wire into **Services → Packages** save (`service-packages-tab.tsx`) — package name, discount, expiry variables in placeholder hints
-- [ ] **catalog-notify-1.5** — Wire into **Monetization → Memberships** plan save (`monetization/page.tsx`) — plan name, service, duration, appointments, price variables
+- [x] **catalog-notify-1.3** — Shared `CatalogNotifyCustomersFields` — radio: *Don't notify* / *Notify customers*; when notify: subject + body per enabled locale (tab pattern like `notification-email-templates-panel.tsx`)
+- [x] **catalog-notify-1.4** — Wire into **Services → Packages** save (`service-packages-tab.tsx`) — package name, discount, expiry variables in placeholder hints
+- [x] **catalog-notify-1.5** — Wire into **Monetization → Memberships** plan save (`monetization/page.tsx`) — plan name, service, duration, appointments, price variables
 
 ### catalog-notify-1.3 — Backend send on save
-- [ ] **catalog-notify-1.6** — Extend package + subscription plan create/update DTOs: `notifyCustomers?: boolean`, `notificationTemplate?: Partial<Record<locale, { subject, bodyText }>>`
-- [ ] **catalog-notify-1.7** — `CatalogAnnouncementService` — after save, if `notifyCustomers`: eligible customers (active + email; respect marketing prefs `pushNews` / email offers), render per-customer locale, send **email** + **consumer push** when configured; log to `notification_log`
-- [ ] **catalog-notify-1.8** — Template render — `{{customerName}}`, `{{packageName}}`, `{{planName}}`, `{{discount}}`, `{{businessName}}`, `{{bookUrl}}`; optional reusable defaults in `business.settings.catalogAnnouncementTemplates`
+- [x] **catalog-notify-1.6** — Extend package + subscription plan create/update DTOs: `notifyCustomers?: boolean`, `notificationTemplate?: Partial<Record<locale, { subject, bodyText }>>`
+- [x] **catalog-notify-1.7** — `CatalogAnnouncementService` — after save, if `notifyCustomers`: eligible customers (active + email; respect marketing prefs `pushNews` / email offers), render per-customer locale, send **email** + **consumer push** when configured; log to `marketing_automation_logs`
+- [x] **catalog-notify-1.8** — Template render — `{{customerName}}`, `{{packageName}}`, `{{planName}}`, `{{discount}}`, `{{businessName}}`, `{{bookUrl}}`; optional reusable defaults in `business.settings.catalogAnnouncementTemplates`
 
 ### catalog-notify-1.4 — AI + tests (dashboard)
-- [ ] **catalog-notify-1.9** — Dashboard AI: create/update package or plan + notify customers (compound); classifier rules + fixtures (≥10 EN/HY/RU) + eval cases `surface: dashboard`
-- [ ] **catalog-notify-1.10** — Tests: `catalog-announcement.util.spec.ts`, package/subscription integration specs, gate `npm run test:catalog-notify`
+- [x] **catalog-notify-1.9** — Dashboard AI: create/update package or plan + notify customers (compound); classifier rules + fixtures (≥10 EN/HY/RU) + eval cases `surface: dashboard`
+- [x] **catalog-notify-1.10** — Tests: `catalog-announcement.util.spec.ts`, package/subscription integration specs, gate `npm run test:catalog-notify`
 
 **Depends on:** enabled locales (**lang-1**), email templates spine (`notifications.service.ts`), consumer push (**adopt-4.2** for salon push breadth).
 
@@ -1378,5 +1378,5 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 5. Subscription at checkout                                   ← recurring revenue
 - [x] **6. Professionals-first + provider profiles** — consumer `/professionals` picker → `/professionals/services` → `BookPage` with slot; `/providers/:employeeId` profile + reviews; home CTA + services tab entry; assistant `professionals` navigate; gate `npm run test:consumer-professionals`
 - [x] **7. adopt-6.6 AI intents + screen context** — consumer assistant example chips (subscriptions, rebook, referral, notifications, saved salons); `recentSalons` + `screen` in context; account navigate (`?tab=subscriptions`); rich subscriptions section with usage expand + book-next; gate `npm run test:consumer-subscriptions-account` + `test:adopt-6`
-- [ ] **8. Catalog notify on package/subscription save** — dashboard "Notify customers" + per-locale template; send email/push in customer's `preferredLocale` (**catalog-notify-1**)
+- [x] **8. Catalog notify on package/subscription save** — dashboard "Notify customers" + per-locale template; send email/push in customer's `preferredLocale` (**catalog-notify-1**)
 - [ ] **9. GDPR, profile hub, meta booking**   

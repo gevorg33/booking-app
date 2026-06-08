@@ -49,7 +49,7 @@ export default async function PublicBookingLayout({
         <PublicBookingShell slug={slug}>{children}</PublicBookingShell>
         <PublicGrowthWidgetsHost tenant={tenant} />
         <PublicBookingAssistantHost slug={slug} tenant={tenant} />
-        <PublicBookingFooter />
+        <PublicBookingFooter slug={slug} />
         <CookieConsentBanner slug={slug} tenant={tenant} />
       </div>
     </I18nProvider>

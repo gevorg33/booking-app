@@ -393,5 +393,22 @@ describe('Sprint 27 catalog & monetization AI scenarios', () => {
       expect(result.success).toBe(false);
       expect((result.details as any).failedStep).toBe('bulk_create_catalog');
     });
+
+    it('passes notifyCustomers when creating package via compound decompose', async () => {
+      const result = await catalog.handleCreatePackage(
+        'biz-1',
+        {
+          packageName: 'Spa Day',
+          serviceNames: ['Massage'],
+          notifyCustomers: true,
+        },
+        services,
+      );
+      expect(result.success).toBe(true);
+      expect(packagesService.createPackage).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({ notifyCustomers: true }),
+      );
+    });
   });
 });

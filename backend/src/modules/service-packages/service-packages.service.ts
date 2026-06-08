@@ -33,6 +33,11 @@ import {
   type LocalizedNamesInput,
 } from '../../common/i18n/service-localized-names.util.js';
 import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
+import { CatalogAnnouncementService } from '../catalog-announcement/catalog-announcement.service.js';
+import {
+  parseCatalogNotifyRequest,
+  stripCatalogNotifyFields,
+} from '../catalog-announcement/catalog-announcement.util.js';
 
 export interface PackageItemDto {
   serviceId: string;
@@ -49,6 +54,11 @@ export interface CreateServicePackageDto {
   expiresAt?: string | null;
   localizedNames?: LocalizedNamesInput;
   items: PackageItemDto[];
+  notifyCustomers?: boolean;
+  notificationTemplate?: Record<
+    string,
+    { subject?: string; bodyText?: string }
+  >;
 }
 
 export type PackageListFilter = 'active' | 'inactive' | 'expired' | 'all';
@@ -68,6 +78,7 @@ export class ServicePackagesService {
     private bookingRepo: Repository<Booking>,
     @InjectRepository(Business)
     private businessRepo: Repository<Business>,
+    private catalogAnnouncement: CatalogAnnouncementService,
   ) {}
 
   async listPackages(
@@ -103,26 +114,33 @@ export class ServicePackagesService {
   }
 
   async createPackage(businessId: string, dto: CreateServicePackageDto) {
-    await this.validateItems(businessId, dto.items);
-    this.validateDiscount(dto.discountType, dto.discountValue);
     const businessSettings = await this.loadBusinessSettings(businessId);
+    const notify = parseCatalogNotifyRequest(
+      dto as Record<string, unknown>,
+      businessSettings,
+    );
+    const payload = stripCatalogNotifyFields(
+      dto as Record<string, unknown>,
+    ) as CreateServicePackageDto;
+    await this.validateItems(businessId, payload.items);
+    this.validateDiscount(payload.discountType, payload.discountValue);
     const enabledLocales = getBusinessEnabledLocales(businessSettings);
-    const metadata = applyLocalizedNamesToMetadata({}, dto.localizedNames, {
+    const metadata = applyLocalizedNamesToMetadata({}, payload.localizedNames, {
       enabledLocales,
     });
 
     const pkg = this.packageRepo.create({
       businessId,
-      name: dto.name.trim(),
-      description: dto.description?.trim() || null,
-      imageUrl: dto.imageUrl?.trim() || null,
-      discountType: dto.discountType ?? PackageDiscountType.PERCENT,
-      discountValue: dto.discountValue ?? 0,
-      displayOrder: dto.displayOrder ?? 0,
-      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      name: payload.name.trim(),
+      description: payload.description?.trim() || null,
+      imageUrl: payload.imageUrl?.trim() || null,
+      discountType: payload.discountType ?? PackageDiscountType.PERCENT,
+      discountValue: payload.discountValue ?? 0,
+      displayOrder: payload.displayOrder ?? 0,
+      expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
       metadata,
       isActive: true,
-      items: dto.items.map((item, index) =>
+      items: payload.items.map((item, index) =>
         this.itemRepo.create({
           serviceId: item.serviceId,
           quantity: item.quantity,
@@ -131,7 +149,16 @@ export class ServicePackagesService {
       ),
     });
     const saved = await this.packageRepo.save(pkg);
-    return this.getPackage(businessId, saved.id);
+    const result = await this.getPackage(businessId, saved.id);
+    if (notify) {
+      void this.catalogAnnouncement
+        .announcePackage(businessId, saved, notify)
+        .catch((error) => {
+          // save succeeds even if broadcast fails
+          console.error('catalog package announcement failed', error);
+        });
+    }
+    return result;
   }
 
   async updatePackage(
@@ -139,53 +166,60 @@ export class ServicePackagesService {
     packageId: string,
     dto: Partial<CreateServicePackageDto & { isActive: boolean }>,
   ) {
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    const notify = parseCatalogNotifyRequest(
+      dto as Record<string, unknown>,
+      businessSettings,
+    );
+    const payload = stripCatalogNotifyFields(
+      dto as Record<string, unknown>,
+    ) as Partial<CreateServicePackageDto & { isActive: boolean }>;
     const pkg = await this.findPackageOrThrow(businessId, packageId);
-    if (dto.items) {
-      await this.validateItems(businessId, dto.items);
+    if (payload.items) {
+      await this.validateItems(businessId, payload.items);
     }
-    if (dto.discountType !== undefined || dto.discountValue !== undefined) {
+    if (payload.discountType !== undefined || payload.discountValue !== undefined) {
       this.validateDiscount(
-        (dto.discountType ?? pkg.discountType) as DiscountType,
-        dto.discountValue ?? Number(pkg.discountValue),
+        (payload.discountType ?? pkg.discountType) as DiscountType,
+        payload.discountValue ?? Number(pkg.discountValue),
       );
     }
-    if (dto.localizedNames !== undefined) {
-      const businessSettings = await this.loadBusinessSettings(businessId);
+    if (payload.localizedNames !== undefined) {
       const enabledLocales = getBusinessEnabledLocales(businessSettings);
       pkg.metadata = applyLocalizedNamesToMetadata(
         pkg.metadata ?? {},
-        dto.localizedNames,
+        payload.localizedNames,
         { enabledLocales },
       );
     }
 
     Object.assign(pkg, {
-      name: dto.name?.trim() ?? pkg.name,
+      name: payload.name?.trim() ?? pkg.name,
       description:
-        dto.description !== undefined
-          ? dto.description?.trim() || null
+        payload.description !== undefined
+          ? payload.description?.trim() || null
           : pkg.description,
       imageUrl:
-        dto.imageUrl !== undefined
-          ? dto.imageUrl?.trim() || null
+        payload.imageUrl !== undefined
+          ? payload.imageUrl?.trim() || null
           : pkg.imageUrl,
-      discountType: dto.discountType ?? pkg.discountType,
-      discountValue: dto.discountValue ?? pkg.discountValue,
-      displayOrder: dto.displayOrder ?? pkg.displayOrder,
+      discountType: payload.discountType ?? pkg.discountType,
+      discountValue: payload.discountValue ?? pkg.discountValue,
+      displayOrder: payload.displayOrder ?? pkg.displayOrder,
       expiresAt:
-        dto.expiresAt !== undefined
-          ? dto.expiresAt
-            ? new Date(dto.expiresAt)
+        payload.expiresAt !== undefined
+          ? payload.expiresAt
+            ? new Date(payload.expiresAt)
             : null
           : pkg.expiresAt,
-      isActive: dto.isActive ?? pkg.isActive,
+      isActive: payload.isActive ?? pkg.isActive,
     });
 
     await this.packageRepo.save(pkg);
 
-    if (dto.items) {
+    if (payload.items) {
       await this.itemRepo.delete({ packageId: pkg.id });
-      const items = dto.items.map((item, index) =>
+      const items = payload.items.map((item, index) =>
         this.itemRepo.create({
           packageId: pkg.id,
           serviceId: item.serviceId,
@@ -196,7 +230,15 @@ export class ServicePackagesService {
       await this.itemRepo.save(items);
     }
 
-    return this.getPackage(businessId, packageId);
+    const result = await this.getPackage(businessId, packageId);
+    if (notify) {
+      void this.catalogAnnouncement
+        .announcePackage(businessId, pkg, notify)
+        .catch((error) => {
+          console.error('catalog package announcement failed', error);
+        });
+    }
+    return result;
   }
 
   async deactivatePackage(businessId: string, packageId: string) {

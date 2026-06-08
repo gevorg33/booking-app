@@ -1,4 +1,8 @@
 import type { AiCommandEvalCase } from './eval/ai-command-eval.types.js';
+import {
+  CATALOG_NOTIFY_DASHBOARD_SCENARIOS,
+  type CatalogNotifyDashboardScenario,
+} from './ai-catalog-notify.fixtures.js';
 
 export type AiCmdDomain =
   | 'booking'
@@ -27,6 +31,22 @@ export interface AiCmdRescueScenario {
   action?: string;
   paramsPartial?: Record<string, unknown>;
 }
+
+export function catalogNotifyDashboardToRescueScenario(
+  scenario: CatalogNotifyDashboardScenario,
+): AiCmdRescueScenario {
+  return {
+    id: `catalog-notify-${scenario.id}`,
+    domain: 'catalog',
+    surface: 'dashboard',
+    prompt: scenario.prompt,
+    expectedAction: scenario.expectedAction,
+    paramsPartial: { notifyCustomers: scenario.notifyCustomers },
+  };
+}
+
+export const CATALOG_NOTIFY_RESCUE_SCENARIOS: AiCmdRescueScenario[] =
+  CATALOG_NOTIFY_DASHBOARD_SCENARIOS.map(catalogNotifyDashboardToRescueScenario);
 
 /** Per-domain NL rescue scenarios (ai-cmd-t2 / ai-cmd-t3). */
 export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [
@@ -126,6 +146,7 @@ export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [
     prompt: 'Add 12-month nail plan 24 visits for Nail Care',
     expectedAction: 'create_subscription_plan',
   },
+  ...CATALOG_NOTIFY_RESCUE_SCENARIOS,
   // Sprint 28 — CRM (dashboard + customer)
   {
     id: 'crm-list-subscriptions',

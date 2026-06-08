@@ -187,6 +187,28 @@ describe('Public customer auth integration', () => {
     );
   });
 
+  it('persists preferredLocale on Google login when provided', async () => {
+    customers.set('cust-1', {
+      id: 'cust-1',
+      businessId: business.id,
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      isActive: true,
+      metadata: {},
+    });
+
+    firebase.verifyIdToken.mockResolvedValue({
+      email: 'jane@example.com',
+      name: 'Jane Doe',
+      uid: 'google-sub-1',
+    });
+
+    await service.loginWithGoogle('salon', 'google-id-token', undefined, 'hy');
+    expect(customers.get('cust-1')?.metadata).toMatchObject({
+      preferredLocale: 'hy',
+    });
+  });
+
   it('updates existing customer metadata on Google login', async () => {
     customers.set('cust-1', {
       id: 'cust-1',

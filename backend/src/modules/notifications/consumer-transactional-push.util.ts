@@ -12,7 +12,8 @@ export type ConsumerTransactionalPushType =
   | 'gift_card_received'
   | 'rebooking_nudge'
   | 'win_back'
-  | 'activation_concierge';
+  | 'activation_concierge'
+  | 'catalog_announcement';
 
 export interface ConsumerResultReadyPushPayload {
   pushType: 'result_ready';
@@ -99,6 +100,16 @@ export interface ConsumerActivationConciergePushPayload {
   foregroundHint?: string;
 }
 
+export interface ConsumerCatalogAnnouncementPushPayload {
+  pushType: 'catalog_announcement';
+  url: string;
+  businessId: string;
+  customerId: string;
+  title: string;
+  body: string;
+  foregroundHint?: string;
+}
+
 export type ConsumerTransactionalPushPayload =
   | ConsumerResultReadyPushPayload
   | ConsumerLabBookingRequestPushPayload
@@ -106,7 +117,8 @@ export type ConsumerTransactionalPushPayload =
   | ConsumerGiftCardReceivedPushPayload
   | ConsumerRebookingNudgePushPayload
   | ConsumerWinBackPushPayload
-  | ConsumerActivationConciergePushPayload;
+  | ConsumerActivationConciergePushPayload
+  | ConsumerCatalogAnnouncementPushPayload;
 
 function resolveServiceName(serviceName: string, locale: AppLocale): string {
   return serviceName.trim() || t(locale, 'email.defaultServiceName');
@@ -436,6 +448,25 @@ export function buildConsumerActivationConciergePushPayload(input: {
         : 'email.activationConcierge72hPushForegroundHint',
       { serviceName },
     ),
+  };
+}
+
+export function buildConsumerCatalogAnnouncementPushPayload(input: {
+  url: string;
+  businessId: string;
+  customerId: string;
+  title: string;
+  body: string;
+}): ConsumerCatalogAnnouncementPushPayload {
+  const body = input.body.trim();
+  return {
+    pushType: 'catalog_announcement',
+    url: input.url,
+    businessId: input.businessId,
+    customerId: input.customerId,
+    title: input.title.trim() || 'Update',
+    body: body.length > 180 ? `${body.slice(0, 177)}…` : body,
+    foregroundHint: body,
   };
 }
 

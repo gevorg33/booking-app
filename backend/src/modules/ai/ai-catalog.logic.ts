@@ -26,6 +26,7 @@ import {
   type CatalogCompoundStep,
   type CatalogServiceDraft,
 } from './ai-catalog.util.js';
+import { resolveAiCatalogNotifyPayload } from './ai-catalog-notify.util.js';
 
 export interface CatalogLogicDeps {
   businessRepo: Repository<Business>;
@@ -73,6 +74,21 @@ async function saveBusinessSettings(
 ) {
   business.settings = settings;
   await deps.businessRepo.save(business);
+}
+
+async function resolveCatalogNotifyFields(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  kind: 'package' | 'subscription_plan',
+) {
+  if (params.notifyCustomers !== true) return {};
+  const business = await loadBusiness(deps, businessId);
+  return resolveAiCatalogNotifyPayload(
+    params,
+    (business?.settings ?? {}) as Record<string, unknown>,
+    kind,
+  );
 }
 
 export async function handleCreateServiceCategoryLogic(
@@ -318,11 +334,19 @@ export async function handleCreatePackageLogic(
     discountValue: discount.discountValue,
     expiresAt: params.expiresAt ?? null,
     items: matched.map((s) => ({ serviceId: s.id, quantity: 1 })),
+    ...(await resolveCatalogNotifyFields(
+      deps,
+      businessId,
+      params,
+      'package',
+    )),
   });
 
   return success(
     'create_package',
-    `Created package "${created.name}" with ${matched.length} service(s).`,
+    `Created package "${created.name}" with ${matched.length} service(s).${
+      params.notifyCustomers ? ' Customer announcement queued.' : ''
+    }`,
     {
       packageId: created.id,
       packageName: created.name,
@@ -366,9 +390,19 @@ export async function handleUpdatePackageLogic(
       params.discountValue != null ? Number(params.discountValue) : undefined,
     discountType: params.discountType,
     expiresAt: params.expiresAt,
+    ...(await resolveCatalogNotifyFields(
+      deps,
+      businessId,
+      params,
+      'package',
+    )),
   });
 
-  return success('update_package', `Updated package "${updated.name}".`, {
+  return success(
+    'update_package',
+    `Updated package "${updated.name}".${
+      params.notifyCustomers ? ' Customer announcement queued.' : ''
+    }`, {
     packageId: updated.id,
   });
 }
@@ -496,11 +530,19 @@ export async function handleCreateSubscriptionPlanLogic(
     discountValue:
       params.discountValue != null ? Number(params.discountValue) : undefined,
     discountType: params.discountType,
+    ...(await resolveCatalogNotifyFields(
+      deps,
+      businessId,
+      params,
+      'subscription_plan',
+    )),
   });
 
   return success(
     'create_subscription_plan',
-    `Created plan "${plan.name}" — ${includedAppointments} visits over ${durationMonths} months.`,
+    `Created plan "${plan.name}" — ${includedAppointments} visits over ${durationMonths} months.${
+      params.notifyCustomers ? ' Customer announcement queued.' : ''
+    }`,
     { planId: plan.id, serviceId: service.id },
   );
 }
@@ -538,12 +580,20 @@ export async function handleUpdateSubscriptionPlanLogic(
       durationMonths: params.durationMonths,
       discountValue:
         params.discountValue != null ? Number(params.discountValue) : undefined,
+      ...(await resolveCatalogNotifyFields(
+        deps,
+        businessId,
+        params,
+        'subscription_plan',
+      )),
     },
   );
 
   return success(
     'update_subscription_plan',
-    `Updated plan "${updated.name}".`,
+    `Updated plan "${updated.name}".${
+      params.notifyCustomers ? ' Customer announcement queued.' : ''
+    }`,
     { planId: updated.id },
   );
 }

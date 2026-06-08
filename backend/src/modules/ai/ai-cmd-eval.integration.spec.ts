@@ -1,3 +1,4 @@
+import { enrichCatalogNotifyRescueParams } from './ai-catalog-notify.util.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import {
   AI_CMD_RESCUE_SCENARIOS,
@@ -5,6 +6,7 @@ import {
   scenariosByDomain,
   scenariosBySurface,
   type AiCmdDomain,
+  type AiCmdRescueScenario,
 } from './ai-cmd-eval.fixtures.js';
 import {
   evaluateDeterministicEvalCase,
@@ -18,7 +20,7 @@ describe('ai-cmd eval integration (ai-cmd-t2)', () => {
   describe('intent rescue per domain scenario', () => {
     it.each(AI_CMD_RESCUE_SCENARIOS.map((scenario) => [scenario.id, scenario]))(
       'rescues %s',
-      (_id, scenario) => {
+      (_id, scenario: AiCmdRescueScenario) => {
         const result = rescue.rescue({
           prompt: scenario.prompt,
           action: scenario.action ?? 'unknown',
@@ -27,6 +29,19 @@ describe('ai-cmd eval integration (ai-cmd-t2)', () => {
         });
         expect(result?.rescued).toBe(true);
         expect(result?.action).toBe(scenario.expectedAction);
+        if (scenario.paramsPartial) {
+          expect(result?.params).toBeDefined();
+          if (result?.params && result.action) {
+            enrichCatalogNotifyRescueParams(
+              result.action,
+              result.params,
+              scenario.prompt,
+            );
+          }
+          expect(result?.params).toEqual(
+            expect.objectContaining(scenario.paramsPartial),
+          );
+        }
       },
     );
   });

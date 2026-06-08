@@ -1,4 +1,5 @@
 import { PackageDiscountType } from '../service-packages/entities/service-package.entity.js';
+import { CATALOG_NOTIFY_DASHBOARD_SCENARIOS } from './ai-catalog-notify.fixtures.js';
 import {
   rescueCatalogIntent,
   isCatalogIntent,
@@ -150,6 +151,16 @@ describe('ai-catalog.util', () => {
       );
     });
 
+    it('detects catalog-notify multilingual package and plan prompts', () => {
+      for (const scenario of CATALOG_NOTIFY_DASHBOARD_SCENARIOS.filter(
+        (s) => s.localeHint === 'hy',
+      )) {
+        expect(rescueCatalogIntent(scenario.prompt, 'unknown')?.action).toBe(
+          scenario.expectedAction,
+        );
+      }
+    });
+
     it('detects gift card, multi-service, and compatibility prompts', () => {
       expect(
         isConfigureGiftCardProductsPrompt('Enable gift card presets'),
@@ -234,6 +245,12 @@ describe('ai-catalog.util', () => {
       ).toBe('create_subscription_plan');
       expect(
         rescueCatalogIntent('update nail subscription plan', 'unknown')?.action,
+      ).toBe('update_subscription_plan');
+      expect(
+        rescueCatalogIntent(
+          'Թարմացրի՛r nail club membership-ը և տեղեկացրի՛r հաճախորդներին',
+          'unknown',
+        )?.action,
       ).toBe('update_subscription_plan');
       expect(
         rescueCatalogIntent('deactivate nail subscription plan', 'unknown')
@@ -453,6 +470,13 @@ describe('ai-catalog.util', () => {
       expect(
         decomposeCatalogCompoundPrompt('not a catalog command at all here'),
       ).toEqual([]);
+
+      const updateNotify = decomposeCatalogCompoundPrompt(
+        'Update Glow package discount to 20% and notify customers',
+      );
+      expect(updateNotify[0]?.action).toBe('update_package');
+      expect(updateNotify[0]?.params.notifyCustomers).toBe(true);
+      expect(updateNotify[0]?.params.packageName).toBe('Glow');
     });
   });
 

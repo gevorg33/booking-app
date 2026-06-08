@@ -6,6 +6,10 @@ import { Mail, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n, LOCALE_LABELS, type AppLocale } from '@/i18n';
+import {
+  NotificationEmailTemplatePreviewButton,
+  NotificationEmailTemplatePreviewModal,
+} from '@/components/dashboard/notification-email-template-preview-modal';
 import { readSettingsFromAuthBusiness } from '@/hooks/use-business-enabled-locales';
 import {
   readBusinessDefaultLocale,
@@ -103,6 +107,7 @@ export function NotificationEmailTemplatesPanel({ businessId }: { businessId: st
   const [customVars, setCustomVars] = useState<CustomVariable[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['email-templates', businessId],
@@ -333,6 +338,10 @@ export function NotificationEmailTemplatesPanel({ businessId }: { businessId: st
             <button type="button" className="btn-primary text-sm" disabled={saveTemplate.isPending} onClick={() => saveTemplate.mutate()}>
               {saveTemplate.isPending ? t('common.saving') : t('settings.emailTemplateSave')}
             </button>
+            <NotificationEmailTemplatePreviewButton
+              onClick={() => setPreviewOpen(true)}
+              t={t}
+            />
             <button
               type="button"
               className="btn-secondary text-sm inline-flex items-center gap-1"
@@ -418,6 +427,25 @@ export function NotificationEmailTemplatesPanel({ businessId }: { businessId: st
           )}
 
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+          {draft ? (
+            <NotificationEmailTemplatePreviewModal
+              open={previewOpen}
+              onClose={() => setPreviewOpen(false)}
+              businessId={businessId}
+              templateKey={selectedKey}
+              activeLocale={activeLocale}
+              draft={draft}
+              variables={selected.variables}
+              customDefaults={Object.fromEntries(
+                customVars
+                  .filter((v) => v.key.trim())
+                  .map((v) => [v.key.trim(), v.defaultValue ?? '']),
+              )}
+              businessName={business?.name ?? t('catalogNotify.previewSampleBusiness')}
+              t={t}
+            />
+          ) : null}
         </div>
       )}
     </div>

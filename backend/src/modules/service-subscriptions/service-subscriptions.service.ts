@@ -22,6 +22,12 @@ import {
   type SubscriptionDiscountType as DiscountType,
 } from '../../common/utils/subscription-pricing.util.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
+import { CatalogAnnouncementService } from '../catalog-announcement/catalog-announcement.service.js';
+import {
+  parseCatalogNotifyRequest,
+  stripCatalogNotifyFields,
+} from '../catalog-announcement/catalog-announcement.util.js';
+import { Business } from '../business/entities/business.entity.js';
 
 export interface CreateSubscriptionPlanDto {
   name: string;
@@ -30,6 +36,11 @@ export interface CreateSubscriptionPlanDto {
   includedAppointments: number;
   discountType?: DiscountType;
   discountValue?: number;
+  notifyCustomers?: boolean;
+  notificationTemplate?: Record<
+    string,
+    { subject?: string; bodyText?: string }
+  >;
 }
 
 @Injectable()
@@ -45,7 +56,10 @@ export class ServiceSubscriptionsService {
     private serviceRepo: Repository<Service>,
     @InjectRepository(Customer)
     private customerRepo: Repository<Customer>,
+    @InjectRepository(Business)
+    private businessRepo: Repository<Business>,
     private planEntitlements: PlanEntitlementsService,
+    private catalogAnnouncement: CatalogAnnouncementService,
   ) {}
 
   async listPlans(
@@ -127,25 +141,41 @@ export class ServiceSubscriptionsService {
 
   async createPlan(businessId: string, dto: CreateSubscriptionPlanDto) {
     await this.planEntitlements.assertFeature(businessId, 'memberships');
-    await this.assertService(businessId, dto.serviceId);
-    if (dto.includedAppointments < 1) {
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    const notify = parseCatalogNotifyRequest(
+      dto as Record<string, unknown>,
+      businessSettings,
+    );
+    const payload = stripCatalogNotifyFields(
+      dto as Record<string, unknown>,
+    ) as CreateSubscriptionPlanDto;
+    await this.assertService(businessId, payload.serviceId);
+    if (payload.includedAppointments < 1) {
       throw new BadRequestException('includedAppointments must be at least 1');
     }
-    if (dto.durationMonths < 1) {
+    if (payload.durationMonths < 1) {
       throw new BadRequestException('durationMonths must be at least 1');
     }
 
     const plan = this.planRepo.create({
       businessId,
-      serviceId: dto.serviceId,
-      name: dto.name.trim(),
-      durationMonths: dto.durationMonths,
-      includedAppointments: dto.includedAppointments,
-      discountType: dto.discountType ?? SubscriptionDiscountType.PERCENT,
-      discountValue: dto.discountValue ?? 0,
+      serviceId: payload.serviceId,
+      name: payload.name.trim(),
+      durationMonths: payload.durationMonths,
+      includedAppointments: payload.includedAppointments,
+      discountType: payload.discountType ?? SubscriptionDiscountType.PERCENT,
+      discountValue: payload.discountValue ?? 0,
       isActive: true,
     });
-    return this.planRepo.save(plan);
+    const saved = await this.planRepo.save(plan);
+    if (notify) {
+      void this.catalogAnnouncement
+        .announceSubscriptionPlan(businessId, saved, notify)
+        .catch((error) => {
+          console.error('catalog subscription announcement failed', error);
+        });
+    }
+    return saved;
   }
 
   async updatePlan(
@@ -153,16 +183,32 @@ export class ServiceSubscriptionsService {
     planId: string,
     dto: Partial<CreateSubscriptionPlanDto & { isActive: boolean }>,
   ) {
+    const businessSettings = await this.loadBusinessSettings(businessId);
+    const notify = parseCatalogNotifyRequest(
+      dto as Record<string, unknown>,
+      businessSettings,
+    );
+    const payload = stripCatalogNotifyFields(
+      dto as Record<string, unknown>,
+    ) as Partial<CreateSubscriptionPlanDto & { isActive: boolean }>;
     const plan = await this.planRepo.findOne({
       where: { id: planId, businessId },
     });
     if (!plan) throw new NotFoundException('Subscription plan not found');
-    if (dto.serviceId) await this.assertService(businessId, dto.serviceId);
+    if (payload.serviceId) await this.assertService(businessId, payload.serviceId);
     Object.assign(plan, {
-      ...dto,
-      name: dto.name?.trim() ?? plan.name,
+      ...payload,
+      name: payload.name?.trim() ?? plan.name,
     });
-    return this.planRepo.save(plan);
+    const saved = await this.planRepo.save(plan);
+    if (notify) {
+      void this.catalogAnnouncement
+        .announceSubscriptionPlan(businessId, saved, notify)
+        .catch((error) => {
+          console.error('catalog subscription announcement failed', error);
+        });
+    }
+    return saved;
   }
 
   async previewPlanPricing(businessId: string, planId: string) {
@@ -418,6 +464,15 @@ export class ServiceSubscriptionsService {
       sub.status = CustomerSubscriptionStatus.ACTIVE;
     }
     return sub;
+  }
+
+  private async loadBusinessSettings(
+    businessId: string,
+  ): Promise<Record<string, unknown>> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    return (business?.settings as Record<string, unknown>) ?? {};
   }
 
   private async assertService(businessId: string, serviceId: string) {

@@ -32,9 +32,24 @@ describe('ServiceSubscriptionsService', () => {
   };
   const serviceRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
+  const businessRepo = {
+    findOne: jest.fn().mockResolvedValue({
+      id: 'biz-1',
+      settings: { enabledLocales: ['en'], currency: 'USD' },
+    }),
+  };
 
   const planEntitlements = {
     assertFeature: jest.fn().mockResolvedValue(undefined),
+  };
+  const catalogAnnouncement = {
+    announcePackage: jest.fn(),
+    announceSubscriptionPlan: jest.fn().mockResolvedValue({
+      emailed: 0,
+      pushed: 0,
+      skipped: 0,
+      failed: 0,
+    }),
   };
 
   const service = new ServiceSubscriptionsService(
@@ -43,7 +58,9 @@ describe('ServiceSubscriptionsService', () => {
     usageRepo as any,
     serviceRepo as any,
     customerRepo as any,
+    businessRepo as any,
     planEntitlements as any,
+    catalogAnnouncement as any,
   );
 
   const basePlan = {
@@ -93,6 +110,51 @@ describe('ServiceSubscriptionsService', () => {
       discountValue: 10,
     });
     expect(plan.includedAppointments).toBe(12);
+  });
+
+  it('announces subscription plan when notifyCustomers is true', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        enabledLocales: ['en'],
+        defaultLocale: 'en',
+        notifications: { emailEnabled: true },
+      },
+    });
+    planRepo.save.mockImplementation(async (value) => ({
+      id: 'plan-1',
+      ...value,
+    }));
+
+    await service.createPlan('biz-1', {
+      name: 'Nail club',
+      serviceId: 'svc-1',
+      durationMonths: 12,
+      includedAppointments: 24,
+      notifyCustomers: true,
+      notificationTemplate: {
+        en: { subject: 'New plan', bodyText: 'Join now' },
+      },
+    });
+
+    expect(catalogAnnouncement.announceSubscriptionPlan).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ name: 'Nail club' }),
+      expect.objectContaining({ notifyCustomers: true }),
+    );
+    expect(catalogAnnouncement.announceSubscriptionPlan).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not announce subscription plan when notifyCustomers is absent', async () => {
+    await service.createPlan('biz-1', {
+      name: 'Medium',
+      serviceId: 'svc-1',
+      durationMonths: 6,
+      includedAppointments: 12,
+    });
+
+    expect(catalogAnnouncement.announceSubscriptionPlan).not.toHaveBeenCalled();
   });
 
   it('rejects invalid appointment count', async () => {
@@ -324,6 +386,44 @@ describe('ServiceSubscriptionsService', () => {
       name: 'New',
     });
     expect(updated.name).toBe('New');
+  });
+
+  it('announces subscription plan on update when notifyCustomers is true', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        enabledLocales: ['en'],
+        defaultLocale: 'en',
+        notifications: { emailEnabled: true },
+      },
+    });
+    planRepo.findOne.mockResolvedValue({
+      id: 'plan-1',
+      businessId: 'biz-1',
+      name: 'Nail club',
+      serviceId: 'svc-1',
+      durationMonths: 12,
+      includedAppointments: 24,
+    });
+    planRepo.save.mockImplementation(async (value) => ({
+      id: 'plan-1',
+      ...value,
+    }));
+
+    await service.updatePlan('biz-1', 'plan-1', {
+      name: 'Nail club Plus',
+      notifyCustomers: true,
+      notificationTemplate: {
+        en: { subject: 'Updated plan', bodyText: 'Renew now' },
+      },
+    });
+
+    expect(catalogAnnouncement.announceSubscriptionPlan).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ name: 'Nail club Plus' }),
+      expect.objectContaining({ notifyCustomers: true }),
+    );
   });
 
   it('returns usage history', async () => {

@@ -1008,11 +1008,29 @@ export function submitProviderPortalReview(
   );
 }
 
-export function loginPublicCustomer(slug: string, idToken: string) {
+export function loginPublicCustomer(
+  slug: string,
+  idToken: string,
+  options?: { preferredLocale?: string; analyticsAnonId?: string },
+) {
   return publicFetch<PublicCustomerAuthResponse>(`/public/${slug}/auth/google`, {
     method: 'POST',
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({
+      idToken,
+      preferredLocale: options?.preferredLocale,
+      analyticsAnonId: options?.analyticsAnonId,
+    }),
   });
+}
+
+export function updatePublicCustomerPreferredLocale(
+  slug: string,
+  preferredLocale: string,
+) {
+  return publicFetch<{ preferredLocale: string; storedLocale: string | null }>(
+    `/public/${slug}/me/locale`,
+    { method: 'PATCH', body: JSON.stringify({ preferredLocale }) },
+  );
 }
 
 export type PublicGiftCardType = 'monetary' | 'service' | 'bundle' | 'package' | 'subscription';
