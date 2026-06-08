@@ -39,6 +39,7 @@ describe('ProviderMobileService lab collection queue', () => {
     clinicTestOrderService as any,
     clinicTestResultService as any,
     customerRepo as any,
+    { find: jest.fn() } as any,
     patientClinicalProfilesService as any,
     patientClinicalProfileAccessService as any,
     clinicTasksService as any,

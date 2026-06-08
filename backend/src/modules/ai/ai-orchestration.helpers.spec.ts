@@ -8,7 +8,10 @@ import {
   resolvePublicAvailabilityDateKeys,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
+  enrichListServicesParamsFromPrompt,
+  extractServiceTypeKeywordFromListPrompt,
   matchServicesByQuery,
+  resolveServicesFromCatalogParams,
   extractRecommendServicesFromPrompt,
   stripServiceRoleNoise,
 } from './ai-orchestration.helpers.js';
@@ -195,6 +198,89 @@ describe('resolveDateRange bare weekday', () => {
     );
     expect(range).not.toBeNull();
     expect(new Date(`${range!.start}T12:00:00.000Z`).getUTCDay()).toBe(1);
+  });
+});
+
+describe('extractServiceTypeKeywordFromListPrompt', () => {
+  it.each([
+    ['which kind of massage you have?', 'massage'],
+    ['What types of hair services do you offer?', 'hair'],
+    ['which alexandrite services do you have', 'alexandrite'],
+  ])('extracts %s → %s', (prompt, keyword) => {
+    expect(extractServiceTypeKeywordFromListPrompt(prompt)).toBe(keyword);
+  });
+});
+
+describe('enrichListServicesParamsFromPrompt', () => {
+  it('adds serviceCategory when the prompt names a service type keyword', () => {
+    expect(
+      enrichListServicesParamsFromPrompt('which kind of massage you have?', {}),
+    ).toEqual({ serviceCategory: 'massage' });
+  });
+
+  it('keeps existing classifier params', () => {
+    expect(
+      enrichListServicesParamsFromPrompt('list services', {
+        serviceCategory: 'hair',
+      }),
+    ).toEqual({ serviceCategory: 'hair' });
+  });
+});
+
+describe('resolveServicesFromCatalogParams', () => {
+  const catalog = [
+    { id: '1', name: 'Deep tissue massage' },
+    { id: '2', name: 'facemassage' },
+    { id: '3', name: 'full body massage' },
+    { id: '4', name: 'Hot stone massage' },
+    { id: '5', name: 'Swedish massage' },
+    { id: '6', name: 'hairstyle' },
+  ];
+
+  it('filters by serviceCategory token', () => {
+    expect(
+      resolveServicesFromCatalogParams(catalog, {
+        serviceCategory: 'massage',
+      }).map((s) => s.name),
+    ).toEqual([
+      'Deep tissue massage',
+      'facemassage',
+      'full body massage',
+      'Hot stone massage',
+      'Swedish massage',
+    ]);
+  });
+
+  it('filters by serviceName when category is absent', () => {
+    expect(
+      resolveServicesFromCatalogParams(catalog, {
+        serviceName: 'Swedish massage',
+      }),
+    ).toEqual([{ id: '5', name: 'Swedish massage' }]);
+  });
+
+  it('prefers service type name matches over catalog category names', () => {
+    const withCategories = [
+      { id: '1', name: 'Deep tissue massage', category: { name: 'Body' } },
+      { id: '6', name: 'hairstyle', category: { name: 'Hair' } },
+    ];
+    expect(
+      resolveServicesFromCatalogParams(withCategories, {
+        serviceCategory: 'massage',
+      }).map((s) => s.name),
+    ).toEqual(['Deep tissue massage']);
+  });
+
+  it('falls back to catalog category name when no service type name matches', () => {
+    const withCategories = [
+      { id: '1', name: 'Blow dry', category: { name: 'Hair' } },
+      { id: '2', name: 'Color', category: { name: 'Hair' } },
+    ];
+    expect(
+      resolveServicesFromCatalogParams(withCategories, {
+        serviceCategory: 'Hair',
+      }).map((s) => s.name),
+    ).toEqual(['Blow dry', 'Color']);
   });
 });
 

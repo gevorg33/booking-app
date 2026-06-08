@@ -7,8 +7,21 @@ import { CONSUMER_PUSH_NAVIGATE_EVENT } from './lib/consumer-native-push.util.js
 import WelcomePage from './pages/WelcomePage.js';
 import SalonTabShell from './components/SalonTabShell.js';
 import BookPage from './pages/BookPage.js';
+import MultiServicePickerPage from './pages/MultiServicePickerPage.js';
+import MultiServiceAvailabilityPage from './pages/MultiServiceAvailabilityPage.js';
+import MultiServiceConfirmPage from './pages/MultiServiceConfirmPage.js';
+import MultiServiceCheckoutPage from './pages/MultiServiceCheckoutPage.js';
+import MultiServiceRedirectPage from './pages/MultiServiceRedirectPage.js';
 import LoginPage from './pages/LoginPage.js';
 import ManageBookingPage from './pages/ManageBookingPage.js';
+import GiftCardCatalogPage from './pages/GiftCardCatalogPage.js';
+import GiftCardCheckoutPage from './pages/GiftCardCheckoutPage.js';
+import PackageConfirmPage from './pages/PackageConfirmPage.js';
+import PackageCheckoutPage from './pages/PackageCheckoutPage.js';
+import ProfessionalsPage from './pages/ProfessionalsPage.js';
+import ProfessionalServicesPage from './pages/ProfessionalServicesPage.js';
+import ProviderProfilePage from './pages/ProviderProfilePage.js';
+import SalonProfilePage from './pages/SalonProfilePage.js';
 
 function AppRoutes() {
   const history = useHistory();
@@ -27,8 +40,21 @@ function AppRoutes() {
     <IonRouterOutlet>
       <Route exact path="/" component={WelcomePage} />
       <Route exact path="/s/:slug/manage" component={ManageBookingPage} />
+      <Route exact path="/s/:slug/book/any" component={MultiServicePickerPage} />
+      <Route exact path="/s/:slug/book/packages/:packageId/checkout" component={PackageCheckoutPage} />
+      <Route exact path="/s/:slug/book/packages/:packageId" component={PackageConfirmPage} />
+      <Route exact path="/s/:slug/professionals/services" component={ProfessionalServicesPage} />
+      <Route exact path="/s/:slug/professionals" component={ProfessionalsPage} />
+      <Route exact path="/s/:slug/providers/:employeeId" component={ProviderProfilePage} />
+      <Route exact path="/s/:slug/book/multi/checkout" component={MultiServiceCheckoutPage} />
+      <Route exact path="/s/:slug/book/multi/availability" component={MultiServiceAvailabilityPage} />
+      <Route exact path="/s/:slug/book/multi/confirm" component={MultiServiceConfirmPage} />
+      <Route exact path="/s/:slug/book/multi" component={MultiServiceRedirectPage} />
       <Route exact path="/s/:slug/book/:serviceId" component={BookPage} />
+      <Route exact path="/s/:slug/gift-cards/checkout" component={GiftCardCheckoutPage} />
+      <Route exact path="/s/:slug/gift-cards" component={GiftCardCatalogPage} />
       <Route exact path="/s/:slug/login" component={LoginPage} />
+      <Route exact path="/s/:slug/profile" component={SalonProfilePage} />
       <Route path="/s/:slug" component={SalonTabShell} />
     </IonRouterOutlet>
   );

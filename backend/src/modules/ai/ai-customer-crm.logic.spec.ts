@@ -733,9 +733,12 @@ describe('ai-customer-crm.logic', () => {
 
   describe('discovery handlers', () => {
     it('discovers packages, plans, and gift card products', async () => {
-      expect(
-        (await handleDiscoverPackagesLogic(buildDeps(), 'biz-1')).success,
-      ).toBe(true);
+      const discovered = await handleDiscoverPackagesLogic(buildDeps(), 'biz-1');
+      expect(discovered.success).toBe(true);
+      expect(discovered.details?.navigate).toEqual({
+        path: 'packages',
+        query: {},
+      });
       expect(
         (
           await handleDiscoverPackagesLogic(

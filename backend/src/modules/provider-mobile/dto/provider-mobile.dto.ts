@@ -86,3 +86,13 @@ export class SuggestCancelNoteDto {
   @IsString()
   prompt?: string;
 }
+
+export class UpdateProviderProfileDto {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+}

@@ -10,6 +10,7 @@ import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import { Review } from '../reviews/entities/review.entity.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
 import { BusinessModule } from '../business/business.module.js';
@@ -47,6 +48,7 @@ import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
       NativePushToken,
       Service,
       Customer,
+      Review,
     ]),
     BusinessModule,
     forwardRef(() => BookingModule),

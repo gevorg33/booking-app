@@ -90,6 +90,15 @@ export function buildSalonPath(slug: string, subpath = ''): string {
   return `${base}${subpath.startsWith('/') ? subpath : `/${subpath}`}`;
 }
 
+export function buildMultiServiceBookPath(
+  slug: string,
+  query: Record<string, string>,
+): string {
+  const params = new URLSearchParams(query);
+  const qs = params.toString();
+  return buildSalonPath(slug, `/book/multi/checkout${qs ? `?${qs}` : ''}`);
+}
+
 export function buildBookServicePath(
   slug: string,
   serviceId: string,

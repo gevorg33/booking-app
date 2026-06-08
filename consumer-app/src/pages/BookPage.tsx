@@ -30,7 +30,24 @@ import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
 import { ConsumerNetworkErrorCard } from '../components/ConsumerNetworkErrorCard.js';
 import { ConsumerOfflineBanner } from '../components/ConsumerOfflineBanner.js';
-import { CheckoutTaxSummary } from '../components/CheckoutTaxSummary.js';
+import { ConsumerCheckoutDiscounts } from '../components/ConsumerCheckoutDiscounts.js';
+import { ConsumerCheckoutQuoteSummary } from '../components/ConsumerCheckoutQuoteSummary.js';
+import { ConsumerCheckoutSubscriptionOptions } from '../components/ConsumerCheckoutSubscriptionOptions.js';
+import { ConsumerTourPaxPicker } from '../components/ConsumerTourPaxPicker.js';
+import { ConsumerClinicPatientNotesSection } from '../components/ConsumerClinicPatientNotesSection.js';
+import { formatPublicMoney } from '../lib/business-currency.js';
+import { buildClinicPatientNotesPayload, shouldShowClinicPatientNotesSection } from '../lib/clinic-booking.util.js';
+import {
+  formatRemainingTourSpots,
+  formatTourLineTotalCopy,
+  formatTourSlotLabel,
+  resolveTourFallbackSubtotal,
+  resolveTourMaxPax,
+} from '../lib/tour-booking.util.js';
+import {
+  isDayLevelTourService,
+  isPublicTourService,
+} from '../lib/tour-service.util.js';
 import type { PublicCheckoutQuote } from '../lib/types.js';
 import {
   getCustomerToken,
@@ -99,11 +116,22 @@ import {
 import {
   clearPendingCheckoutPayment,
   loadPendingCheckoutPayment,
-  requiresOnlinePayment,
+  prepaymentDue,
   savePendingCheckoutPayment,
-  showCashPaymentOption,
   type CheckoutPaymentMethod,
 } from '../lib/checkout-payment.util.js';
+import {
+  buildBookingSubscriptionFields,
+  isUsingSubscriptionCredit,
+  requiresCheckoutOnlinePayment,
+  shouldShowSubscriptionCheckoutOptions,
+  showCheckoutCashOption,
+} from '../lib/checkout-subscription.util.js';
+import {
+  buildQuoteRequest,
+  isSubscriptionCheckoutSelection,
+  resolveCheckoutAmountDue,
+} from '../lib/subscription-plans.util.js';
 import {
   normalizeGuestContact,
   resolveCheckoutContact,
@@ -143,6 +171,7 @@ import {
   requestAndroidPostBookingNotificationPermission,
   readConsumerPushPermissionState,
 } from '../services/native-push.js';
+import { useCheckoutDiscounts } from '../hooks/use-checkout-discounts.js';
 import {
   confirmPublicBookingPayment,
   createBooking,
@@ -150,6 +179,9 @@ import {
   fetchNearestBookableSlot,
   fetchPublicProviders,
   fetchServiceSlots,
+  getPublicActiveSubscription,
+  getPublicCustomerLoyalty,
+  getPublicServiceSubscriptionPlans,
   quotePublicBooking,
 } from '../services/public-api.js';
 
@@ -218,6 +250,8 @@ function applyBookingSuccess(
       queryKey: ['clinic-lab-booking-requests', slug],
     });
   }
+  void queryClient.invalidateQueries({ queryKey: ['active-subscription', slug] });
+  void queryClient.invalidateQueries({ queryKey: ['subscriptions', slug] });
   const completedCount = incrementCompletedBookingCount();
   void completedCount;
 }
@@ -312,6 +346,14 @@ export default function BookPage() {
     isFetching: servicesFetching,
   } = useCachedTenantServices(slug ?? '');
   const service = services.find((s) => s.id === serviceId);
+  const isTour = service ? isPublicTourService(service) : false;
+  const isDayLevelTour = service ? isDayLevelTourService(service) : false;
+  const maxPax = service ? resolveTourMaxPax(service) : 99;
+  const [paxCount, setPaxCount] = useState(1);
+  const [symptoms, setSymptoms] = useState('');
+  const [referralNotes, setReferralNotes] = useState('');
+  const showClinicPatientNotes =
+    Boolean(slot) && shouldShowClinicPatientNotesSection(service);
 
   const { data: providers = [] } = useQuery({
     queryKey: ['providers', slug],
@@ -320,7 +362,7 @@ export default function BookPage() {
   });
 
   const {
-    data: slots = [],
+    data: daySlots = { slots: [], remainingSpots: null },
     isLoading: slotsLoading,
     isError: slotsError,
     refetch: refetchSlots,
@@ -330,18 +372,72 @@ export default function BookPage() {
     enabled: !!slug && !!serviceId && !!date,
     retry: 2,
   });
-
-  const { data: checkoutQuote } = useQuery({
-    queryKey: ['booking-quote', slug, serviceId],
-    queryFn: () => quotePublicBooking(slug!, { serviceId: serviceId! }),
-    enabled: !!slug && !!serviceId && !bookingSuccess,
-  });
+  const slots = daySlots.slots;
+  const remainingSpots = daySlots.remainingSpots;
 
   const [bookingPhase, setBookingPhase] = useState<'schedule' | 'intake'>('schedule');
   const [preVisitIntakeId, setPreVisitIntakeId] = useState<string | undefined>();
+  const [purchaseType, setPurchaseType] = useState<'one-time' | 'subscription'>('one-time');
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [useExistingSubscription, setUseExistingSubscription] = useState(true);
 
   const profileStored = slug ? getStoredCustomerProfile(slug) : null;
   const authed = slug ? !!getCustomerToken(slug) : false;
+
+  const { data: loyalty } = useQuery({
+    queryKey: ['customer-loyalty', slug],
+    queryFn: () => getPublicCustomerLoyalty(slug!),
+    enabled: !!slug && authed && !bookingSuccess,
+  });
+
+  const { data: subscriptionPlans = [] } = useQuery({
+    queryKey: ['subscription-plans', slug, serviceId],
+    queryFn: () => getPublicServiceSubscriptionPlans(slug!, serviceId!),
+    enabled: Boolean(slug && serviceId && service?.hasSubscriptionPlans),
+  });
+
+  const { data: activeSubscriptionData } = useQuery({
+    queryKey: ['active-subscription', slug, serviceId],
+    queryFn: () => getPublicActiveSubscription(slug!, serviceId!),
+    enabled: Boolean(slug && serviceId && authed && !bookingSuccess),
+  });
+  const activeSubscription = activeSubscriptionData?.subscription ?? null;
+
+  const fallbackSubtotal = service
+    ? resolveTourFallbackSubtotal(service, paxCount)
+    : 0;
+  const {
+    promoCode,
+    setPromoCode,
+    appliedPromo,
+    promoError,
+    loyaltyPoints,
+    setLoyaltyPoints,
+    quote: checkoutQuote,
+    quoteLoading: checkoutQuoteLoading,
+    quoteError: checkoutQuoteError,
+    applyPromoCode,
+    clearPromoCode,
+    useMaxLoyaltyPoints,
+    discountPayload,
+  } = useCheckoutDiscounts({
+    enabled: !!slug && !!serviceId && !bookingSuccess,
+    fetchQuote: (discounts) =>
+      quotePublicBooking(
+        slug!,
+        buildQuoteRequest({
+          serviceId: serviceId!,
+          purchaseType,
+          selectedPlanId,
+          ...(isTour ? { paxCount } : {}),
+          ...discounts,
+        }),
+      ),
+    loyalty: loyalty ?? null,
+    fallbackSubtotal,
+    quoteFailedMessage: copy.networkLoadFailed,
+    deps: [slug, serviceId, purchaseType, selectedPlanId, isTour ? paxCount : null],
+  });
   const activationPathVariants = useMemo(
     () => resolveActivationPathVariants(getOrCreateAnonId()),
     [activationPathRefresh],
@@ -649,8 +745,45 @@ export default function BookPage() {
   }, [slug, serviceId, slot, guestContact.name, date, employeeId]);
 
   useEffect(() => {
+    setPurchaseType('one-time');
+    setSelectedPlanId('');
+    setUseExistingSubscription(true);
+  }, [serviceId]);
+
+  useEffect(() => {
+    if (!activeSubscription?.appointmentsRemaining) return;
+    setUseExistingSubscription(true);
+    setPurchaseType('one-time');
+    setSelectedPlanId('');
+  }, [activeSubscription?.id, activeSubscription?.appointmentsRemaining]);
+
+  useEffect(() => {
     if (!profile || !service) return;
-    const cash = showCashPaymentOption(profile, service, checkoutQuote ?? null);
+    const usingCredit = isUsingSubscriptionCredit({
+      activeSubscription,
+      useExistingSubscription,
+      purchaseType,
+    });
+    const selectedPlan = subscriptionPlans.find((plan) => plan.id === selectedPlanId);
+    const chargeBase = prepaymentDue(service) > 0
+      ? prepaymentDue(service) * (isTour ? paxCount : 1)
+      : resolveTourFallbackSubtotal(service, paxCount);
+    const amountDue = resolveCheckoutAmountDue({
+      usingSubscriptionCredit: usingCredit,
+      quoteAmountDue: checkoutQuote?.amountDue,
+      subscriptionPlanPrice:
+        purchaseType === 'subscription' && selectedPlan
+          ? selectedPlan.preview.pricing.subscriptionPrice
+          : undefined,
+      fallback: checkoutQuote?.amountDue ?? chargeBase,
+    });
+    const cash = showCheckoutCashOption({
+      profile,
+      purchaseType,
+      usingSubscriptionCredit: usingCredit,
+      amountDue,
+      service,
+    });
     const activation = isActivationBookingPath({
       completedBookingCount: getCompletedBookingCount(),
       isDeferredResume: deferredResume.isResume,
@@ -664,7 +797,20 @@ export default function BookPage() {
         paymentTiming: activationPathVariants.paymentTiming,
       }),
     );
-  }, [profile, service, checkoutQuote, deferredResume.isResume, activationPathVariants.paymentTiming]);
+  }, [
+    profile,
+    service,
+    checkoutQuote,
+    deferredResume.isResume,
+    activationPathVariants.paymentTiming,
+    purchaseType,
+    selectedPlanId,
+    useExistingSubscription,
+    activeSubscription,
+    subscriptionPlans,
+    isTour,
+    paxCount,
+  ]);
 
   const showIntakeStep = Boolean(service?.offersPreVisitIntake && authed);
 
@@ -741,7 +887,62 @@ export default function BookPage() {
     completedBookingCount,
     isDeferredResume: deferredResume.isResume,
   });
-  const cashAvailable = showCashPaymentOption(profile, service, checkoutQuote ?? null);
+  const selectedPlan = subscriptionPlans.find((plan) => plan.id === selectedPlanId);
+  const usingSubscriptionCredit = isUsingSubscriptionCredit({
+    activeSubscription,
+    useExistingSubscription,
+    purchaseType,
+  });
+  const chargeBase = prepaymentDue(service) > 0
+    ? prepaymentDue(service) * (isTour ? paxCount : 1)
+    : resolveTourFallbackSubtotal(service, paxCount);
+  const remainingSpotsLabel = formatRemainingTourSpots(copy, remainingSpots);
+  const tourPriceLine =
+    isTour && service
+      ? formatTourLineTotalCopy(copy, {
+          unitLabel: formatPublicMoney(
+            service.price,
+            service.currency,
+            profile.currency,
+          ),
+          paxCount,
+          totalLabel: formatPublicMoney(
+            service.price * paxCount,
+            service.currency,
+            profile.currency,
+          ),
+          pricePerPerson: service.pricePerPerson === true,
+        })
+      : null;
+  const amountDue = resolveCheckoutAmountDue({
+    usingSubscriptionCredit,
+    quoteAmountDue: checkoutQuote?.amountDue,
+    subscriptionPlanPrice:
+      purchaseType === 'subscription' && selectedPlan
+        ? selectedPlan.preview.pricing.subscriptionPrice
+        : undefined,
+    fallback: checkoutQuote?.amountDue ?? chargeBase,
+  });
+  const cashAvailable = showCheckoutCashOption({
+    profile,
+    purchaseType,
+    usingSubscriptionCredit,
+    amountDue,
+    service,
+  });
+  const checkoutOnlineRequired = requiresCheckoutOnlinePayment({
+    amountDue,
+    paymentMethod,
+    purchaseType,
+    service,
+  });
+  const showSubscriptionOptions =
+    Boolean(slot) &&
+    shouldShowSubscriptionCheckoutOptions({
+      hasSubscriptionPlans: service.hasSubscriptionPlans,
+      activeSubscription,
+      subscriptionPlans,
+    });
   const activationPaymentCopy = buildActivationPaymentCopy(locale);
   const showPaymentHiccupFallback = shouldShowPaymentHiccupFallback({
     isActivationPath,
@@ -776,6 +977,10 @@ export default function BookPage() {
       setMessage(validationError ?? 'Enter your contact details to book.');
       return;
     }
+    if (purchaseType === 'subscription' && !isSubscriptionCheckoutSelection(purchaseType, selectedPlanId)) {
+      setMessage(copy.checkoutSubscriptionPlanRequired);
+      return;
+    }
     const method = options?.paymentOverride ?? paymentMethod;
     setSubmitting(true);
     setMessage('');
@@ -790,6 +995,15 @@ export default function BookPage() {
           : {}),
         ...(clinicOrderToken ? { clinicOrderToken } : {}),
         ...(method === 'cash' ? { paymentMethod: 'cash' as const } : {}),
+        ...discountPayload,
+        ...buildBookingSubscriptionFields({
+          usingSubscriptionCredit,
+          activeSubscriptionId: activeSubscription?.id,
+          purchaseType,
+          selectedPlanId,
+        }),
+        ...(isTour ? { paxCount } : {}),
+        ...buildClinicPatientNotesPayload(service, { symptoms, referralNotes }),
         customer: {
           name: customer.name,
           email: customer.email ?? undefined,
@@ -797,7 +1011,7 @@ export default function BookPage() {
         },
       };
 
-      if (requiresOnlinePayment(service, checkoutQuote, method)) {
+      if (checkoutOnlineRequired) {
         try {
           const checkout = await createPublicBookingCheckout(slug, bookingBody);
           savePendingCheckoutPayment({
@@ -893,6 +1107,7 @@ export default function BookPage() {
     if (submitting) return 'Booking…';
     if (awaitingPaymentReturn) return 'Complete payment…';
     if (showIntakeStep && bookingPhase === 'schedule') return copy.publicIntakeContinueToBooking;
+    if (checkoutOnlineRequired) return 'Pay & confirm booking';
     const kind = resolveCheckoutAmountLabel({
       quote: checkoutQuote ?? null,
       service,
@@ -955,15 +1170,10 @@ export default function BookPage() {
           </p>
           {bookingSuccess.quote && (
             <div style={{ maxWidth: 360, margin: '16px auto 0' }}>
-              <CheckoutTaxSummary
+              <ConsumerCheckoutQuoteSummary
                 quote={bookingSuccess.quote}
-                currency={bookingSuccess.quote.currency}
                 tenantCurrency={profile.currency}
-                labels={{
-                  subtotal: copy.checkoutSubtotal,
-                  totalDue: copy.checkoutTotalDue,
-                  taxIncluded: copy.taxIncluded,
-                }}
+                copy={copy}
               />
             </div>
           )}
@@ -1154,6 +1364,11 @@ export default function BookPage() {
           </div>
         ) : (
           <>
+        {remainingSpotsLabel ? (
+          <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: 8 }}>
+            {remainingSpotsLabel}
+          </p>
+        ) : null}
         <IonItem lines="none">
           <IonLabel position="stacked">Date</IonLabel>
           <IonDatetime
@@ -1167,7 +1382,7 @@ export default function BookPage() {
           />
         </IonItem>
 
-        {providers.length > 0 && (
+        {providers.length > 0 && !isTour && (
           <IonItem>
             <IonLabel>Specialist</IonLabel>
             <IonSelect
@@ -1196,6 +1411,11 @@ export default function BookPage() {
           />
         ) : (
           <IonList className="ion-margin-top">
+            {isDayLevelTour ? (
+              <p style={{ padding: '0 16px', color: '#6b7280', fontSize: '0.875rem' }}>
+                {copy.tourDayDeparture}
+              </p>
+            ) : null}
             {slots.map((s) => (
               <IonItem
                 key={s.startTime}
@@ -1204,18 +1424,44 @@ export default function BookPage() {
                 onClick={() => setSlot(s.startTime)}
               >
                 <IonLabel>
-                  {new Date(s.startTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {service
+                    ? formatTourSlotLabel(s.startTime, service, locale)
+                    : new Date(s.startTime).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                 </IonLabel>
               </IonItem>
             ))}
-            {slots.length === 0 && <p className="ion-padding">No times available this day.</p>}
+            {slots.length === 0 && <p className="ion-padding">{copy.noSlotsThisDay}</p>}
           </IonList>
         )}
           </>
         )}
+
+        {isTour ? (
+          <ConsumerTourPaxPicker
+            copy={copy}
+            paxCount={paxCount}
+            maxPax={maxPax}
+            onChange={setPaxCount}
+          />
+        ) : null}
+
+        {tourPriceLine ? (
+          <p style={{ marginTop: 12, color: '#374151', fontWeight: 500 }}>{tourPriceLine}</p>
+        ) : null}
+
+        {showClinicPatientNotes && service ? (
+          <ConsumerClinicPatientNotesSection
+            copy={copy}
+            service={service}
+            symptoms={symptoms}
+            referralNotes={referralNotes}
+            onSymptomsChange={setSymptoms}
+            onReferralNotesChange={setReferralNotes}
+          />
+        ) : null}
 
         {!authed ? null : (
           <p style={{ color: '#6b7280', marginTop: 16 }}>
@@ -1223,18 +1469,64 @@ export default function BookPage() {
           </p>
         )}
 
-        {checkoutQuote && (
-          <CheckoutTaxSummary
-            quote={checkoutQuote}
-            currency={checkoutQuote.currency}
+        {showSubscriptionOptions ? (
+          <ConsumerCheckoutSubscriptionOptions
+            copy={copy}
+            locale={locale}
+            primary={profile.branding.primaryColor || '#7c3aed'}
+            currency={checkoutQuote?.currency ?? service.currency ?? profile.currency}
             tenantCurrency={profile.currency}
-            labels={{
-              subtotal: copy.checkoutSubtotal,
-              totalDue: copy.checkoutTotalDue,
-              taxIncluded: copy.taxIncluded,
+            activeSubscription={activeSubscription}
+            subscriptionPlans={subscriptionPlans}
+            purchaseType={purchaseType}
+            selectedPlanId={selectedPlanId}
+            usingSubscriptionCredit={usingSubscriptionCredit}
+            onSelectOneTime={() => {
+              setPurchaseType('one-time');
+              setUseExistingSubscription(false);
+              setSelectedPlanId('');
+            }}
+            onSelectUseExisting={() => {
+              setPurchaseType('one-time');
+              setUseExistingSubscription(true);
+              setSelectedPlanId('');
+            }}
+            onSelectPlan={(planId) => {
+              setPurchaseType('subscription');
+              setUseExistingSubscription(false);
+              setSelectedPlanId(planId);
             }}
           />
-        )}
+        ) : null}
+
+        <ConsumerCheckoutDiscounts
+          copy={copy}
+          currency={checkoutQuote?.currency ?? profile.currency}
+          tenantCurrency={profile.currency}
+          authed={authed}
+          loyalty={loyalty ?? null}
+          quote={checkoutQuote}
+          quoteLoading={checkoutQuoteLoading}
+          promoCode={promoCode}
+          appliedPromo={appliedPromo}
+          promoError={promoError}
+          quoteError={checkoutQuoteError}
+          loyaltyPoints={loyaltyPoints}
+          fallbackSubtotal={fallbackSubtotal}
+          onPromoCodeChange={setPromoCode}
+          onApplyPromo={applyPromoCode}
+          onClearPromo={clearPromoCode}
+          onLoyaltyPointsChange={setLoyaltyPoints}
+          onUseMaxLoyalty={useMaxLoyaltyPoints}
+        />
+
+        {checkoutQuote ? (
+          <ConsumerCheckoutQuoteSummary
+            quote={checkoutQuote}
+            tenantCurrency={profile.currency}
+            copy={copy}
+          />
+        ) : null}
 
         {cashAvailable ? (
           <div className="ion-margin-top">

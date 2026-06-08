@@ -30,6 +30,7 @@ import {
   extractGiftCardCodeFromPrompt,
   extractServiceNameFromPrompt,
   extractAmountFromPrompt,
+  resolveAvailabilityDateKey,
   resolveTomorrowDateKey,
   notBeforeTimeFromWindow,
   parseCashPaymentsToggle,
@@ -169,6 +170,16 @@ describe('ai-payments.util', () => {
       expect(resolveTomorrowDateKey(new Date('2026-06-05T12:00:00Z'))).toBe(
         '2026-06-06',
       );
+      expect(
+        resolveAvailabilityDateKey(
+          { date: '09/06/2026' },
+          'which time is available tomorrow evening for hair coloring',
+          'UTC',
+        ),
+      ).toBe('2026-06-09');
+      expect(
+        resolveAvailabilityDateKey({ date: '09/06/2026' }, undefined, 'UTC'),
+      ).toBe('2026-06-09');
       expect(notBeforeTimeFromWindow('evening massage', {})).toBe('17:00');
       expect(notBeforeTimeFromWindow('afternoon', {})).toBe('12:00');
       expect(notBeforeTimeFromWindow('morning', {})).toBe('00:00');

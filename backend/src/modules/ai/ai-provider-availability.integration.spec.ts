@@ -99,7 +99,7 @@ describe('ai provider availability integration', () => {
         }),
       ]);
       expect(result.details?.serviceName).toBe('Permanent lips');
-      expect(result.details?.date).toBe('2026-06-06');
+      expect(result.details?.date).toBe('2026-06-09');
     });
 
     it('requires a service name', async () => {
@@ -126,6 +126,44 @@ describe('ai provider availability integration', () => {
 
       expect(result.success).toBe(false);
       expect(result.summary).toContain('Business not found');
+    });
+
+    it('normalizes DD/MM classifier dates before querying slots', async () => {
+      const recommendProviders = jest.fn(async () => ({
+        providers: [
+          {
+            id: 'e1',
+            name: 'Jujo Karapetyan',
+            earliestDateKey: '2026-06-09',
+            earliestStartTime: '2026-06-09T17:00:00.000Z',
+            previewTimes: ['17:00', '17:30', '18:00'],
+            matchedServiceName: 'Massage',
+          },
+        ],
+      }));
+      const result = await handleCheckProvidersForServiceLogic(
+        buildDeps({
+          publicBookingService: { recommendProviders } as any,
+        }),
+        'biz-1',
+        {
+          serviceName: 'Massage',
+          date: '09/06/2026',
+          timeOfDay: 'evening',
+        },
+        'which time is available evening for massage ?',
+      );
+
+      expect(recommendProviders).toHaveBeenCalledWith('salon', {
+        serviceId: 's1',
+        dateKeys: ['2026-06-09'],
+        notBeforeTime: '17:00',
+        limit: undefined,
+      });
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('Jujo Karapetyan');
+      expect(result.details?.date).toBe('2026-06-09');
+      expect(result.summary).toContain('17:00');
     });
 
     it('returns no-provider summary when recommendProviders is empty', async () => {

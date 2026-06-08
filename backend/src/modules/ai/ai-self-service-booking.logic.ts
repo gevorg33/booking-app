@@ -24,9 +24,22 @@ import {
   pickSharedEntitySessionSlice,
 } from './ai-command-entity-params.util.js';
 import {
+  addDaysToDateKey,
+  getDateKeyInTimezone,
+  resolveTimezone,
+} from '../../common/utils/timezone.util.js';
+import { formatDateDisplay, formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import { PUBLIC_AVAILABILITY_SCAN_DAYS } from './ai-orchestration.helpers.js';
+import type { TimeOfDayWindow } from './ai-operations.util.js';
+import {
+  buildMultiServiceAvailabilityFromSlots,
+  buildMultiServiceAvailabilitySummary,
+  buildMultiServiceNoSlotsSummary,
   decomposeCustomerBookingCompoundPrompt,
+  enrichMultiServiceAvailabilityParams,
   extractPackageNameFromPrompt,
   extractServiceNamesFromPrompt,
+  filterMultiServiceSlotsByTimePreference,
   parseCartServiceIds,
   type CustomerBookingCompoundStep,
 } from './ai-self-service-booking.util.js';
@@ -277,7 +290,11 @@ export async function handleCheckPackageAvailabilityLogic(
       lines.lines?.length
         ? `Found a package block with ${lines.lines.length} service line(s).`
         : 'No package blocks available right now.',
-      { packageId, lines },
+      {
+        packageId,
+        lines,
+        navigate: { path: 'packages', query: { packageId } },
+      },
     );
   } catch (err: any) {
     return failure(
@@ -292,12 +309,24 @@ export async function handleCheckMultiServiceAvailabilityLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt?: string,
 ): Promise<CommandResult> {
-  const slug = await resolveBusinessSlug(deps, businessId);
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  const slug = business?.slug ?? null;
   if (!slug)
     return failure('check_multi_service_availability', 'Business not found.');
 
-  const services = await resolveServices(deps, businessId, params);
+  const tz = resolveTimezone(business?.timezone);
+  const effectivePrompt = prompt ?? String(params._prompt ?? '');
+  const enriched = enrichMultiServiceAvailabilityParams(
+    effectivePrompt,
+    params,
+    tz,
+  ) as Record<string, any>;
+
+  const services = await resolveServices(deps, businessId, enriched);
   if (!services.length) {
     return failure(
       'check_multi_service_availability',
@@ -307,26 +336,98 @@ export async function handleCheckMultiServiceAvailabilityLogic(
   }
 
   const serviceIds = services.map((s) => s.id);
+  const timeOfDay = (enriched.timeOfDay as TimeOfDayWindow | undefined) ?? null;
+  const notBeforeTime = (enriched.notBeforeTime as string | undefined) ?? null;
+  const hasTimePreference = Boolean(timeOfDay || notBeforeTime);
+
   try {
-    if (params.date) {
+    const listDaySlots = async (dateKey: string) => {
       const day = await deps.publicBookingService.getMultiServiceBlockDaySlots(
         slug,
         serviceIds,
-        params.date as string,
+        dateKey,
       );
+      return filterMultiServiceSlotsByTimePreference(day.slots ?? [], {
+        timeOfDay,
+        notBeforeTime,
+      });
+    };
+
+    if (enriched.date) {
+      const dateKey = String(enriched.date);
+      const slots = await listDaySlots(dateKey);
+      if (!slots.length) {
+        return failure(
+          'check_multi_service_availability',
+          buildMultiServiceNoSlotsSummary({ dateKey, timeOfDay }),
+          { serviceIds, date: dateKey, timeOfDay, reason: 'no_slots' },
+        );
+      }
       return success(
         'check_multi_service_availability',
-        `${day.slots?.length ?? 0} block slot(s) on ${params.date}.`,
-        { slots: day.slots, date: params.date, serviceIds },
+        buildMultiServiceAvailabilitySummary({
+          slots,
+          dateKey,
+          timeOfDay,
+        }),
+        {
+          slots,
+          date: dateKey,
+          serviceIds,
+          serviceNames: services.map((s) => s.name),
+          timeOfDay,
+          availability: buildMultiServiceAvailabilityFromSlots(slots),
+        },
       );
     }
+
+    if (hasTimePreference) {
+      const todayKey = getDateKeyInTimezone(new Date(), tz);
+      for (let offset = 0; offset < PUBLIC_AVAILABILITY_SCAN_DAYS; offset++) {
+        const dateKey = addDaysToDateKey(todayKey, offset, tz);
+        const slots = await listDaySlots(dateKey);
+        if (!slots.length) continue;
+        return success(
+          'check_multi_service_availability',
+          buildMultiServiceAvailabilitySummary({
+            slots,
+            dateKey,
+            timeOfDay,
+          }),
+          {
+            slots,
+            date: dateKey,
+            serviceIds,
+            serviceNames: services.map((s) => s.name),
+            timeOfDay,
+            availability: buildMultiServiceAvailabilityFromSlots(slots),
+          },
+        );
+      }
+      return failure(
+        'check_multi_service_availability',
+        buildMultiServiceNoSlotsSummary({
+          timeOfDay,
+          scanDays: PUBLIC_AVAILABILITY_SCAN_DAYS,
+        }),
+        { serviceIds, timeOfDay, reason: 'no_slots' },
+      );
+    }
+
     const block = await deps.publicBookingService.suggestMultiServiceBlock(
       slug,
       serviceIds,
     );
+    const dateLabel = block.dateKey
+      ? formatDateDisplay(block.dateKey)
+      : undefined;
+    const timeLabel = formatTimeDisplay(block.startTime);
+    const summary = dateLabel
+      ? `Next available block: ${timeLabel} on ${dateLabel} with ${block.employeeName}.`
+      : `Next available block: ${timeLabel} with ${block.employeeName}.`;
     return success(
       'check_multi_service_availability',
-      `Next available block: ${block.startTime} with ${block.employeeName}.`,
+      summary,
       { block, serviceIds },
     );
   } catch (err: any) {

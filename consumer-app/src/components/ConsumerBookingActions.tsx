@@ -58,9 +58,9 @@ export function ConsumerBookingActions({
     let cancelled = false;
     setSlotsLoading(true);
     void fetchServiceDaySlots(slug, booking.serviceId, selectedDate)
-      .then((list) => {
+      .then((result) => {
         if (cancelled) return;
-        const mapped = list.filter((slot) =>
+        const mapped = result.slots.filter((slot) =>
           allowProviderChange ? true : slot.employeeId === booking.employeeId,
         );
         setSlots(mapped);

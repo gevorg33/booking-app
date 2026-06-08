@@ -487,6 +487,7 @@ export type BookPublicPackageBody = {
   notes?: string;
   promoCode?: string;
   loyaltyPointsToRedeem?: number;
+  markPaid?: boolean;
   customer: CreatePublicBookingBody['customer'];
 };
 
@@ -898,6 +899,7 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  details?: Record<string, unknown>;
 }
 
 export function sendPublicAssistantMessage(

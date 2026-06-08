@@ -36,6 +36,9 @@ import { AiProviderBookingService } from './ai-provider-booking.service.js';
 import { AiProviderClinicCollectionService } from './ai-provider-clinic-collection.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
+import { AiProviderPushSetupService } from './ai-provider-push-setup.service.js';
+import { AiProviderEarningsService } from './ai-provider-earnings.service.js';
 import { AiClinicServiceService } from './ai-clinic-service.service.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ServiceModule } from '../service/service.module.js';
@@ -223,6 +226,9 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiProviderClinicCollectionService,
     AiClinicLabBookingService,
     AiClinicBookingService,
+    AiConsumerAdoptionService,
+    AiProviderPushSetupService,
+    AiProviderEarningsService,
     AiClinicServiceService,
     AiSuggestionsService,
     CommandCompletionPipelineService,
@@ -272,6 +278,9 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiBusinessTaxService,
     AiBusinessComplianceService,
     AiConsumerClinicTestResultsService,
+    AiConsumerAdoptionService,
+    AiProviderPushSetupService,
+    AiProviderEarningsService,
     AiRecommendationProductService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,

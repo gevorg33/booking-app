@@ -246,6 +246,7 @@ import {
   parseViewPhiAccessAuditFromPrompt,
 } from './ai-business-compliance.util.js';
 import { rescueProviderSessionTimeoutIntent } from './ai-provider-session-timeout.util.js';
+import { rescueProviderPushSetupIntent } from './ai-provider-push-setup.util.js';
 import {
   parseExplainDataRightsFromPrompt,
   rescueExplainDataRightsIntent,
@@ -1646,6 +1647,17 @@ export class AiIntentRescueService {
         reasoning: `Date input format rescue → ${dateInput.action}`,
         rescued: true,
         rescueReason: dateInput.rescueReason,
+      };
+    }
+
+    const providerPushSetup = rescueProviderPushSetupIntent(prompt, action);
+    if (providerPushSetup) {
+      return {
+        action: providerPushSetup.action,
+        params: {},
+        reasoning: `Provider push setup rescue → ${providerPushSetup.action}`,
+        rescued: true,
+        rescueReason: providerPushSetup.rescueReason,
       };
     }
 

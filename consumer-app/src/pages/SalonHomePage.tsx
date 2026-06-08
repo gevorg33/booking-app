@@ -30,6 +30,7 @@ import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js'
 import { isSalonPinned, toggleSalonPin } from '../lib/recent-salons.js';
 import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
 import { ConsumerRewardsCard } from '../components/ConsumerRewardsCard.js';
+import { ConsumerGrowthLinks } from '../components/ConsumerGrowthLinks.js';
 
 export default function SalonHomePage({
   slug,
@@ -125,12 +126,25 @@ export default function SalonHomePage({
           profile={profile}
           copy={copy}
           authed={authed}
-          onBook={() => history.push(buildSalonPath(slug, '/services'))}
+          onBook={() => history.push(buildSalonPath(slug, '/professionals'))}
         />
 
-        <IonButton expand="block" onClick={() => history.push(buildSalonPath(slug, '/services'))}>
-          Book an appointment
+        <IonButton
+          expand="block"
+          onClick={() => history.push(buildSalonPath(slug, '/professionals'))}
+        >
+          {copy.bookAppointment}
         </IonButton>
+        {profile.giftCardsPurchaseEnabled ? (
+          <IonButton
+            expand="block"
+            fill="outline"
+            className="ion-margin-top"
+            onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
+          >
+            {copy.giftCardBuyGiftCard}
+          </IonButton>
+        ) : null}
         {showClinicAlerts ? (
           <IonButton
             expand="block"
@@ -154,10 +168,20 @@ export default function SalonHomePage({
           expand="block"
           fill="outline"
           className="ion-margin-top"
+          onClick={() => history.push(buildSalonPath(slug, '/profile'))}
+        >
+          {copy.profileViewDetails}
+        </IonButton>
+        <IonButton
+          expand="block"
+          fill="outline"
+          className="ion-margin-top"
           onClick={() => history.push(buildSalonPath(slug, '/account'))}
         >
           My account
         </IonButton>
+
+        <ConsumerGrowthLinks profile={profile} copy={copy} />
       </IonContent>
     </IonPage>
   );

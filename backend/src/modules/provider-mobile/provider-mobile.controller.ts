@@ -21,6 +21,7 @@ import {
   UpdateProviderBookingDto,
   CancelProviderBookingDto,
   SuggestCancelNoteDto,
+  UpdateProviderProfileDto,
 } from './dto/provider-mobile.dto.js';
 import {
   ProviderAiCommandDto,
@@ -107,6 +108,40 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
   ) {
     return this.providerService.getTodayBookings(businessId, user.id);
+  }
+
+  @Get('bookings/by-date')
+  getBookingsByDate(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Query('date') date: string,
+  ) {
+    return this.providerService.getBookingsByDate(businessId, user.id, date);
+  }
+
+  @Get('profile')
+  getProfile(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getProviderProfile(businessId, user.id);
+  }
+
+  @Put('profile')
+  updateProfile(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: UpdateProviderProfileDto,
+  ) {
+    return this.providerService.updateProviderProfile(businessId, user.id, dto);
+  }
+
+  @Get('reviews')
+  getReviews(
+    @Param('businessId') businessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.providerService.getProviderReviews(businessId, user.id);
   }
 
   @Get('lab-collection/today')

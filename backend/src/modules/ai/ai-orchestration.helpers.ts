@@ -509,6 +509,109 @@ export function resolveTemplate(
   return fuzzyMatchByName(templates, name);
 }
 
+type CatalogServiceRow = {
+  id: string;
+  name: string;
+  category?: { name: string } | null;
+};
+
+function matchServicesByCatalogCategoryName<T extends CatalogServiceRow>(
+  catalog: T[],
+  query: string,
+): T[] {
+  const lower = query.toLowerCase().trim();
+  if (!lower) return [];
+  return catalog.filter((item) => item.category?.name?.toLowerCase() === lower);
+}
+
+/**
+ * Match catalog service types from list/check/recommend params.
+ * `serviceCategory` is a keyword on service TYPE NAMES (e.g. "massage" → Swedish massage),
+ * not a requirement for a ServiceCategory entity named "Massage".
+ * Falls back to exact catalog category name only when no service name matches exist.
+ */
+export function resolveServicesFromCatalogParams<
+  T extends CatalogServiceRow,
+>(
+  catalog: T[],
+  params: {
+    serviceCategory?: string | null;
+    serviceName?: string | null;
+    serviceNames?: string[] | null;
+  },
+): T[] {
+  if (Array.isArray(params.serviceNames) && params.serviceNames.length) {
+    const matched: T[] = [];
+    const seen = new Set<string>();
+    for (const name of params.serviceNames) {
+      if (typeof name !== 'string') continue;
+      const svc = fuzzyMatchServiceByName(catalog, name);
+      if (svc && !seen.has(svc.id)) {
+        seen.add(svc.id);
+        matched.push(svc);
+      }
+    }
+    if (matched.length) return matched;
+  }
+
+  const keyword = params.serviceCategory ?? params.serviceName;
+  if (keyword) {
+    const byServiceTypeName = matchServicesByQuery(catalog, String(keyword));
+    if (byServiceTypeName.length > 0) return byServiceTypeName;
+    return matchServicesByCatalogCategoryName(catalog, String(keyword));
+  }
+
+  return [];
+}
+
+/** Extract a service-type keyword from "what kinds of massage do you have?" prompts. */
+export function extractServiceTypeKeywordFromListPrompt(
+  prompt: string,
+): string | null {
+  const patterns = [
+    /\b(?:what|which)\s+(?:kind|type|sort)s?\s+of\s+([a-z][\w\s-]{1,30}?)(?:\s+do\s+you|\s+you\s+(?:have|offer)|\?|$)/i,
+    /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\s+(?:do\s+you\s+)?(?:have|offer)/i,
+    /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:services?|options?)\s+(?:do\s+you\s+)?(?:have|offer)/i,
+    /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
+  ];
+
+  for (const re of patterns) {
+    const match = prompt.match(re);
+    const raw = match?.[1]?.trim();
+    if (!raw) continue;
+    const cleaned = stripServiceRoleNoise(
+      raw.replace(/\s+(services?|types?)$/i, '').trim(),
+    );
+    if (cleaned.length >= 3) return cleaned;
+  }
+
+  return null;
+}
+
+export function enrichListServicesParamsFromPrompt(
+  prompt: string,
+  params: {
+    serviceCategory?: string | null;
+    serviceName?: string | null;
+    serviceNames?: string[] | null;
+  },
+): {
+  serviceCategory?: string | null;
+  serviceName?: string | null;
+  serviceNames?: string[] | null;
+} {
+  const hasFilter = !!(
+    params.serviceCategory ||
+    params.serviceName ||
+    (Array.isArray(params.serviceNames) && params.serviceNames.length)
+  );
+  if (hasFilter) return params;
+
+  const keyword = extractServiceTypeKeywordFromListPrompt(prompt);
+  if (!keyword) return params;
+  return { ...params, serviceCategory: keyword };
+}
+
 export function resolveServices(
   catalog: Service[],
   params: { serviceName?: string | null; serviceNames?: string[] | null },

@@ -54,6 +54,23 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'show_appointments';
   }
+  if (
+    /\bhow many\b/i.test(lower) &&
+    /\bappointments?\b/i.test(lower) &&
+    /\b(my|mine|do i have|i have)\b/i.test(lower)
+  ) {
+    return 'summarize_my_appointments';
+  }
+  if (
+    /\b(how much|my revenue|my earnings|did i make|what did i make)\b/i.test(
+      lower,
+    ) &&
+    /\b(my|mine|today|tomorrow|week|month|revenue|earnings?|made)\b/i.test(
+      lower,
+    )
+  ) {
+    return 'summarize_my_revenue';
+  }
 
   return action;
 }
@@ -62,6 +79,8 @@ export const PROVIDER_MOBILE_READ_ACTIONS = new Set([
   'list_bookings',
   'show_appointments',
   'summarize_day',
+  'summarize_my_appointments',
+  'summarize_my_revenue',
   'check_availability',
   'summarize_utilization',
 ]);

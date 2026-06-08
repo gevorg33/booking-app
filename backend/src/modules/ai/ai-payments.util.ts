@@ -12,6 +12,12 @@ import {
 export { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
+  applyRelativeDateFromPrompt,
+  getTodayDateKey,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
+import { resolveTimezone } from '../../common/utils/timezone.util.js';
+import {
   isCheckMultiServiceBlockAvailabilityPrompt,
   isCheckPackageLineAvailabilityPrompt,
   isEarliestSlotAllServicesPrompt,
@@ -380,6 +386,24 @@ export function extractAmountFromPrompt(prompt: string): number | null {
 export function resolveTomorrowDateKey(now: Date = new Date()): string {
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   return tomorrow.toISOString().slice(0, 10);
+}
+
+/** Normalize classifier/prompt dates to YYYY-MM-DD for public slot queries. */
+export function resolveAvailabilityDateKey(
+  params: Record<string, unknown>,
+  prompt: string | undefined,
+  timeZone = 'UTC',
+): string {
+  const tz = resolveTimezone(timeZone);
+  const merged: Record<string, unknown> = { ...params };
+  applyRelativeDateFromPrompt(merged, prompt, tz);
+
+  const rawDate = merged.date;
+  if (typeof rawDate === 'string' && rawDate.trim()) {
+    return toIsoDay(rawDate.trim(), tz);
+  }
+
+  return getTodayDateKey(tz);
 }
 
 export function notBeforeTimeFromWindow(

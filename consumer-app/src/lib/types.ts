@@ -4,6 +4,39 @@ export interface PublicBranding {
   tagline?: string;
 }
 
+export interface PublicSocialLinks {
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  x?: string;
+  tiktok?: string;
+  linkedin?: string;
+  youtube?: string;
+}
+
+export interface PublicLocation {
+  mapEmbedHtml?: string;
+}
+
+export interface PublicSupportWidgets {
+  zendeskWidgetKey?: string;
+}
+
+export interface PublicMetaBooking {
+  bookingUrl: string;
+  buttonLabel: string;
+  facebookPageUrl?: string;
+  instagramUsername?: string;
+}
+
+export interface PublicMessagingLinks {
+  publicBookingUrl: string;
+  telegramUrl?: string | null;
+  whatsappUrl?: string | null;
+  facebookBookingUrl?: string | null;
+  instagramBookingUrl?: string | null;
+}
+
 export interface PublicBusinessTaxSettings {
   enabled: boolean;
   name: string;
@@ -17,6 +50,9 @@ export interface PublicBusinessProfile {
   name: string;
   slug: string;
   description?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
   timezone: string;
   locale: string;
   defaultLocale?: string;
@@ -25,14 +61,46 @@ export interface PublicBusinessProfile {
   timeFormat?: string;
   currency: string;
   branding: PublicBranding;
+  social?: PublicSocialLinks;
+  location?: PublicLocation;
+  support?: PublicSupportWidgets;
+  metaBooking?: PublicMetaBooking;
+  messaging?: PublicMessagingLinks;
   publicBookingEnabled: boolean;
+  acceptCashPayments?: boolean;
+  onlinePaymentsEnabled?: boolean;
+  giftCardsPurchaseEnabled?: boolean;
   tax?: PublicBusinessTaxSettings;
   businessType?: string;
+  multiService?: {
+    enabled: boolean;
+    maxServiceCount: number;
+    maxDurationMinutes: number;
+    turnoverBufferMinutes: number;
+    schedulingMode: 'same_visit' | 'per_service';
+    incompatiblePairMode: 'service' | 'category';
+    incompatiblePairs: Array<[string, string]>;
+    incompatibleCategoryPairs: Array<[string, string]>;
+  };
+}
+
+export interface PublicCheckoutAdjustment {
+  type: 'promo' | 'gift_card' | 'loyalty';
+  code?: string;
+  label: string;
+  amount: number;
+  points?: number;
 }
 
 export interface PublicCheckoutQuote {
   servicePrice: number;
   subtotal: number;
+  afterPromo?: number;
+  afterGiftCard?: number;
+  promoDiscount?: number;
+  giftCardDiscount?: number;
+  loyaltyDiscount?: number;
+  totalDiscount?: number;
   amountDue: number;
   taxEnabled?: boolean;
   taxName?: string | null;
@@ -42,6 +110,33 @@ export interface PublicCheckoutQuote {
   netAmount?: number;
   taxRules?: Array<{ id: string; name: string; rate: number; amount: number }>;
   currency: string;
+  loyaltyPointsToRedeem?: number;
+  loyaltyPointsBalance?: number | null;
+  pointsToEarn?: number;
+  promoCode?: string;
+  giftCardCode?: string;
+  adjustments?: PublicCheckoutAdjustment[];
+}
+
+export interface PublicCustomerLoyalty {
+  pointsBalance: number;
+  lifetimeEarned: number;
+  bonusDollarValue: number;
+  earnPercentCashback: number;
+  pointsValue: number;
+}
+
+export interface PublicProviderSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface PublicProviderReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: string;
 }
 
 export interface PublicProvider {
@@ -49,11 +144,31 @@ export interface PublicProvider {
   name: string;
   role?: string | null;
   avatarUrl?: string | null;
+  nearestDate?: string | null;
+  nearestDateLabel?: string | null;
+  slots: PublicProviderSlot[];
+  averageRating: number | null;
+  reviewCount: number;
+  recentReviews?: PublicProviderReview[];
+}
+
+export interface PublicProviderReviewsPage {
+  employeeId: string;
+  employeeName: string;
+  employeeRole: string | null;
+  avatarUrl: string | null;
+  averageRating: number | null;
+  reviewCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: PublicProviderReview[];
 }
 
 export interface PublicServiceCategory {
   id: string;
   name: string;
+  sortOrder?: number;
 }
 
 export interface PublicService {
@@ -61,11 +176,28 @@ export interface PublicService {
   name: string;
   description?: string | null;
   durationMinutes: number;
+  bufferMinutes?: number;
   price: number;
   currency?: string | null;
+  onlinePaymentEnabled?: boolean;
+  prepaymentMode?: 'none' | 'deposit' | 'full';
+  depositAmount?: number | null;
   category?: PublicServiceCategory | null;
+  hasSubscriptionPlans?: boolean;
+  isTour?: boolean;
+  tourDurationBadge?: string;
+  coverImage?: string;
+  maxGroupSize?: number;
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+  meetingPoint?: string;
+  includedItems?: string;
+  durationDays?: number;
+  dayLevelBooking?: boolean;
+  pricePerPerson?: boolean;
   isClinic?: boolean;
   clinicServiceType?: 'consultation' | 'lab_test' | 'procedure';
+  clinicServiceTypeBadge?: string;
+  requiresFasting?: boolean;
   acceptsPatientNotes?: boolean;
   offersPreVisitIntake?: boolean;
   preparationNotes?: string;
@@ -85,6 +217,14 @@ export interface PublicSlot {
   endTime: string;
   employeeId?: string;
   employeeName?: string;
+}
+
+export interface PublicServiceDaySlots {
+  date: string;
+  serviceId: string;
+  serviceName: string;
+  slots: PublicSlot[];
+  remainingSpots?: number | null;
 }
 
 export interface PublicCustomerProfile {
@@ -166,10 +306,36 @@ export type PackageVisitRescheduleLine = {
   employeeId?: string;
 };
 
+export interface PublicSubscriptionPlan {
+  id: string;
+  name: string;
+  durationMonths: number;
+  includedAppointments: number;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  preview: {
+    pricing: {
+      regularTotal: number;
+      subscriptionPrice: number;
+      savings: number;
+      perAppointmentPrice: number;
+    };
+  };
+}
+
 export interface PublicCustomerSubscription {
   id: string;
-  planName: string;
+  planName?: string;
   status: string;
   appointmentsRemaining: number;
+  appointmentsIncluded?: number;
   expiresAt: string;
+  plan?: { name: string; service?: { id: string; name: string } };
+}
+
+export interface PublicSubscriptionUsageRow {
+  id: string;
+  action: string;
+  appointmentsRemainingAfter: number;
+  createdAt: string;
 }

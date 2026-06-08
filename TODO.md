@@ -669,6 +669,36 @@ cd frontend && npm run test:sprint54
 
 ---
 
+## Catalog customer announcements — packages & subscription plans
+
+**Goal:** Dashboard admin can optionally **notify customers** when saving a service package or subscription plan — custom message per enabled locale; each customer receives the text in **their selected app language** (EN/HY/RU).
+
+**Surfaces:** Dashboard admin (Services → Packages, Monetization → Memberships). Customer locale from server `customer.metadata.preferredLocale` (not device-only).
+
+- [ ] **catalog-notify-1** — Notify customers on package / subscription plan save
+
+### catalog-notify-1.1 — Customer locale (prerequisite)
+- [ ] **catalog-notify-1.1** — Persist `customer.metadata.preferredLocale` when customer picks language in **consumer app** (`ConsumerLanguagePicker`) and **public booking**; sync on sign-in
+- [ ] **catalog-notify-1.2** — `resolveCustomerNotificationLocale(customer, businessSettings)` — customer preference → business `defaultLocale` → `en`; clamp to `enabledLocales`
+
+### catalog-notify-1.2 — Dashboard UI
+- [ ] **catalog-notify-1.3** — Shared `CatalogNotifyCustomersFields` — radio: *Don't notify* / *Notify customers*; when notify: subject + body per enabled locale (tab pattern like `notification-email-templates-panel.tsx`)
+- [ ] **catalog-notify-1.4** — Wire into **Services → Packages** save (`service-packages-tab.tsx`) — package name, discount, expiry variables in placeholder hints
+- [ ] **catalog-notify-1.5** — Wire into **Monetization → Memberships** plan save (`monetization/page.tsx`) — plan name, service, duration, appointments, price variables
+
+### catalog-notify-1.3 — Backend send on save
+- [ ] **catalog-notify-1.6** — Extend package + subscription plan create/update DTOs: `notifyCustomers?: boolean`, `notificationTemplate?: Partial<Record<locale, { subject, bodyText }>>`
+- [ ] **catalog-notify-1.7** — `CatalogAnnouncementService` — after save, if `notifyCustomers`: eligible customers (active + email; respect marketing prefs `pushNews` / email offers), render per-customer locale, send **email** + **consumer push** when configured; log to `notification_log`
+- [ ] **catalog-notify-1.8** — Template render — `{{customerName}}`, `{{packageName}}`, `{{planName}}`, `{{discount}}`, `{{businessName}}`, `{{bookUrl}}`; optional reusable defaults in `business.settings.catalogAnnouncementTemplates`
+
+### catalog-notify-1.4 — AI + tests (dashboard)
+- [ ] **catalog-notify-1.9** — Dashboard AI: create/update package or plan + notify customers (compound); classifier rules + fixtures (≥10 EN/HY/RU) + eval cases `surface: dashboard`
+- [ ] **catalog-notify-1.10** — Tests: `catalog-announcement.util.spec.ts`, package/subscription integration specs, gate `npm run test:catalog-notify`
+
+**Depends on:** enabled locales (**lang-1**), email templates spine (`notifications.service.ts`), consumer push (**adopt-4.2** for salon push breadth).
+
+---
+
 ## Sprint 33 — Ameria payment integration
 
 **Goal:** Add Ameriabank (Armenia) as a payment gateway option alongside Stripe; admin enables it in settings; public booking checkout routes to Ameria when Stripe is disabled or Ameria is selected.
@@ -1081,8 +1111,8 @@ cd frontend && npm run test:sprint54
 - [ ] **adopt-6.5** — Smart reminder cadence — learn each customer's rebooking interval; nudge at the right time (respect preference center **adopt-4.8**)
 
 ### adopt-6.3 — AI command coverage (per `feature-ai-prompt-coverage`)
-- [ ] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface
-- [ ] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; depends on **ai-cmd-h1**
+- [x] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface; `AiConsumerAdoptionService` + rescue; gate `npm run test:adopt-6` (includes `ai-consumer-adoption.*`)
+- [x] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; classifier rules + rescue + eval cases (EN/HY/RU); `AiProviderPushSetupService`; gate `npm run test:adopt-6` (includes `ai-provider-push-setup.*`)
 
 ### adopt-6.4 — Program exit criteria
 - [ ] **adopt-6.8** — **Adoption gate met** — rolling 30-day: install→activation ≥ 60%, push opt-in ≥ 80%, crash-free sessions ≥ 99.5%, D30 retention and referral K-factor trending up, all three locales within 3 pts; documented on the adoption dashboard
@@ -1341,3 +1371,12 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 5. crm-1 + crm-2 — Customer history + no-shows  
 
 <!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
+
+2. Multi payment return + cash on multi checkout              ← completes multi-service
+3. Gift cards (purchase + account)                            ← whole new revenue surface
+- [x] **4. Package purchase flow** — consumer mirrors web `/any` + `packages/*` (picker → confirm → checkout); Stripe web success URL → consumer pending-payment return (`consumer-checkout-return.util` + deep links); pay-at-visit on web + consumer when tenant allows; customer AI `book_package` / `discover_packages`; gate `npm run test:consumer-packages` (27)
+5. Subscription at checkout                                   ← recurring revenue
+- [x] **6. Professionals-first + provider profiles** — consumer `/professionals` picker → `/professionals/services` → `BookPage` with slot; `/providers/:employeeId` profile + reviews; home CTA + services tab entry; assistant `professionals` navigate; gate `npm run test:consumer-professionals`
+- [x] **7. adopt-6.6 AI intents + screen context** — consumer assistant example chips (subscriptions, rebook, referral, notifications, saved salons); `recentSalons` + `screen` in context; account navigate (`?tab=subscriptions`); rich subscriptions section with usage expand + book-next; gate `npm run test:consumer-subscriptions-account` + `test:adopt-6`
+- [ ] **8. Catalog notify on package/subscription save** — dashboard "Notify customers" + per-locale template; send email/push in customer's `preferredLocale` (**catalog-notify-1**)
+- [ ] **9. GDPR, profile hub, meta booking**   

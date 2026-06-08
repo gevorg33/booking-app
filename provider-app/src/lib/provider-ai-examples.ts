@@ -9,5 +9,9 @@ export function buildProviderAiExamples(t: ProviderAiTranslateFn): string[] {
     t('provider.exampleMarkJohn'),
     t('provider.exampleMarkAllPaid'),
     t('provider.exampleScheduleToday'),
+    t('provider.exampleCountAppointmentsTomorrow'),
+    t('provider.exampleRevenueLastWeek'),
+    t('provider.exampleExplainPushSetup'),
+    t('provider.exampleEnablePush'),
   ];
 }

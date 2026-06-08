@@ -19,6 +19,8 @@ import { CONSUMER_CHECKOUT_TAX_CLASSIFIER_RULES } from './ai-consumer-checkout-t
 import { TAX_DISPLAY_EN_CLASSIFIER_RULES } from './ai-tax-display-en.fixtures.js';
 import { DATA_RIGHTS_CLASSIFIER_RULES } from './ai-data-rights.fixtures.js';
 import { CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from './ai-clinic-v2-6.fixtures.js';
+import { CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES } from './ai-consumer-package-booking.fixtures.js';
+import { CONSUMER_ADOPTION_CLASSIFIER_RULES } from './ai-consumer-adoption.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
@@ -80,13 +82,30 @@ export function publicAssistantResultToCommandResult(
   };
 }
 
+const PUBLIC_ASSISTANT_UI_DETAIL_KEYS = [
+  'availability',
+  'availableProviders',
+  'providers',
+  'serviceName',
+  'serviceId',
+  'date',
+  'timeOfDay',
+  'notBeforeTime',
+  'checkProvidersHandoff',
+  'slots',
+  'serviceNames',
+  'serviceIds',
+] as const;
+
 export function commandResultToPublicAssistantResult(
   result: CommandResult,
 ): PublicAssistantResult {
   const details = (result.details ?? {}) as Record<string, unknown>;
   const assistantDetails: Record<string, unknown> = {};
-  if (details.checkProvidersHandoff) {
-    assistantDetails.checkProvidersHandoff = details.checkProvidersHandoff;
+  for (const key of PUBLIC_ASSISTANT_UI_DETAIL_KEYS) {
+    if (details[key] !== undefined) {
+      assistantDetails[key] = details[key];
+    }
   }
   return {
     success: result.success,
@@ -162,6 +181,8 @@ ${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
 ${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
 ${CLINIC_BOOKING_CLASSIFIER_RULES}
 ${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
+${CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES}
+${CONSUMER_ADOPTION_CLASSIFIER_RULES}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }

@@ -15,6 +15,13 @@ import {
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
+import { AiAvailableProvidersPanel } from '@/components/ai-available-providers-panel';
+import {
+  buildProviderBookingPrompt,
+  normalizeAvailableProviders,
+  type AiAvailableProvider,
+} from '@/lib/ai-available-providers.util';
+import { buildPublicAssistantCheckoutNavigate } from '@/lib/public-assistant-checkout.util';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
@@ -24,6 +31,7 @@ interface Message {
   text: string;
   navigate?: PublicAssistantResponse['navigate'];
   success?: boolean;
+  details?: Record<string, unknown>;
 }
 
 interface SessionContext {
@@ -97,55 +105,94 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     [router, slug],
   );
 
-  const submit = useCallback(async () => {
-    const prompt = input.trim();
-    if (!prompt || loading) return;
-
-    setMessages((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: 'user', text: prompt },
-    ]);
-    setInput('');
-    setLoading(true);
-
-    const history = messages.map((m) => ({ role: m.role, content: m.text }));
-
-    try {
-      const result = await sendPublicAssistantMessage(slug, {
-        prompt,
-        history,
-        context: sessionContext as Record<string, unknown>,
-        locale,
-      });
+  const submit = useCallback(
+    async (overridePrompt?: string) => {
+      const prompt = (overridePrompt ?? input).trim();
+      if (!prompt || loading) return;
 
       setMessages((prev) => [
         ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          text: result.summary,
-          navigate: result.navigate,
-          success: result.success,
-        },
+        { id: `u-${Date.now()}`, role: 'user', text: prompt },
       ]);
+      if (!overridePrompt) setInput('');
+      setLoading(true);
 
-      if (result.sessionContext) {
-        setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
+      const history = messages.map((m) => ({ role: m.role, content: m.text }));
+
+      try {
+        const result = await sendPublicAssistantMessage(slug, {
+          prompt,
+          history,
+          context: sessionContext as Record<string, unknown>,
+          locale,
+        });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            text: result.summary,
+            navigate: result.navigate,
+            success: result.success,
+            details: result.details,
+          },
+        ]);
+
+        if (result.sessionContext) {
+          setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
+        }
+      } catch (err: unknown) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text: err instanceof Error ? err.message : t('common.errorGeneric'),
+            success: false,
+          },
+        ]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: unknown) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `e-${Date.now()}`,
-          role: 'assistant',
-          text: err instanceof Error ? err.message : t('common.errorGeneric'),
-          success: false,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [input, loading, messages, sessionContext, slug, locale, t]);
+    },
+    [input, loading, messages, sessionContext, slug, locale, t],
+  );
+
+  const handleProviderSlotSelect = useCallback(
+    (
+      details: Record<string, unknown> | undefined,
+      selection: {
+        provider: AiAvailableProvider;
+        time?: string;
+        prompt: string;
+      },
+      serviceLabel?: string,
+      date?: string,
+    ) => {
+      if (selection.time) {
+        const checkout = buildPublicAssistantCheckoutNavigate(
+          details,
+          selection.provider,
+          selection.time,
+        );
+        if (checkout) {
+          followNavigate(checkout);
+          return;
+        }
+      }
+      void submit(
+        selection.prompt ||
+          buildProviderBookingPrompt({
+            provider: selection.provider,
+            serviceName: serviceLabel,
+            date,
+            time: selection.time,
+          }),
+      );
+    },
+    [followNavigate, submit],
+  );
 
   const handleVoiceError = useCallback(
     (code: SpeechRecognitionErrorCode) => {
@@ -260,6 +307,9 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
               const isAssistant = msg.role === 'assistant';
               const isError = isAssistant && msg.success === false && !msg.navigate;
               const isAction = isAssistant && !!msg.navigate;
+              const availableProviders = isAssistant
+                ? normalizeAvailableProviders(msg.details)
+                : [];
 
               return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -287,6 +337,40 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                   }
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  {availableProviders.length > 0 && (
+                    <AiAvailableProvidersPanel
+                      providers={availableProviders}
+                      serviceName={
+                        Array.isArray(msg.details?.serviceNames) &&
+                        msg.details.serviceNames.length > 0
+                          ? msg.details.serviceNames.map(String).join(' and ')
+                          : typeof msg.details?.serviceName === 'string'
+                            ? msg.details.serviceName
+                            : undefined
+                      }
+                      date={
+                        typeof msg.details?.date === 'string' ? msg.details.date : undefined
+                      }
+                      variant="light"
+                      primaryColor={primary}
+                      onSelectSlot={(selection) =>
+                        handleProviderSlotSelect(
+                          msg.details,
+                          selection,
+                          Array.isArray(msg.details?.serviceNames) &&
+                            msg.details.serviceNames.length > 0
+                            ? msg.details.serviceNames.map(String).join(' and ')
+                            : typeof msg.details?.serviceName === 'string'
+                              ? msg.details.serviceName
+                              : undefined,
+                          typeof msg.details?.date === 'string'
+                            ? msg.details.date
+                            : undefined,
+                        )
+                      }
+                      onBook={(composed) => void submit(composed)}
+                    />
+                  )}
                   {isAssistant && isSpeechSynthesisSupported() && (
                     <AiSpeakReplyButton
                       text={msg.text}

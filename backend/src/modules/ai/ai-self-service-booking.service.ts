@@ -114,11 +114,13 @@ export class AiSelfServiceBookingService {
   handleCheckMultiServiceAvailability(
     businessId: string,
     params: Record<string, any>,
+    prompt?: string,
   ) {
     return handleCheckMultiServiceAvailabilityLogic(
       this.deps,
       businessId,
       params,
+      prompt,
     );
   }
 

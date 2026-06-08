@@ -3,6 +3,12 @@ import { useHistory } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import {
+  mergeMultiCheckoutReturnQuery,
+  mergePackageCheckoutReturnQuery,
+  parseCheckoutReturnRoute,
+  resolveCheckoutReturnNavigationPath,
+} from '../lib/consumer-checkout-return.util.js';
+import {
   buildManageBookingPath,
   buildResultsPath,
   buildSalonPath,
@@ -20,6 +26,39 @@ export function useDeepLinkRouter() {
 
   useEffect(() => {
     const navigateFromUrl = (url: string) => {
+      const checkoutReturn = parseCheckoutReturnRoute(url);
+      if (checkoutReturn) {
+        if (checkoutReturn.kind === 'package' && checkoutReturn.packageId) {
+          const merged = mergePackageCheckoutReturnQuery(
+            checkoutReturn.slug,
+            checkoutReturn.packageId,
+            checkoutReturn.query,
+          );
+          history.replace(
+            resolveCheckoutReturnNavigationPath({
+              ...checkoutReturn,
+              query: merged,
+            }),
+          );
+          return;
+        }
+        if (checkoutReturn.kind === 'multi') {
+          const merged = mergeMultiCheckoutReturnQuery(
+            checkoutReturn.slug,
+            checkoutReturn.query,
+          );
+          history.replace(
+            resolveCheckoutReturnNavigationPath({
+              ...checkoutReturn,
+              query: merged,
+            }),
+          );
+          return;
+        }
+        history.replace(resolveCheckoutReturnNavigationPath(checkoutReturn));
+        return;
+      }
+
       const manage = parseManageBookingRoute(url);
       if (manage) {
         history.replace(

@@ -35,6 +35,9 @@ import {
   PUBLIC_AVAILABILITY_SCAN_DAYS,
   resolveEmployees,
   resolvePublicAvailabilityDateKeys,
+  resolveServicesFromCatalogParams,
+  enrichListServicesParamsFromPrompt,
+  stripServiceRoleNoise,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
@@ -126,7 +129,7 @@ Classify the user's message and extract ALL parameters needed to execute the req
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "serviceName": "string or null — one exact or closest catalog service name",
-    "serviceCategory": "string or null — broad category when user means several services, e.g. 'massage' for all massage types; never include words like specialist/therapist/provider",
+    "serviceCategory": "string or null — keyword to filter SERVICE TYPE NAMES in the catalog (e.g. 'massage' matches Swedish massage, facemassage); NOT a catalog category entity — never include words like specialist/therapist/provider",
     "serviceNames": ["string"] or null — explicit list of catalog service names when user wants multiple related services,
     "date": "DD/MM/YYYY or null",
     "dateFrom": "DD/MM/YYYY or null",
@@ -152,7 +155,7 @@ Action rules:
 - recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
 - check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set weekdays for "Monday and Friday", dateFrom/dateTo for "this week". Set timeOfDay for morning/afternoon/evening/tonight.
 - list_providers: who works here (not ratings/availability).
-- list_services: prices, durations, catalog.
+- list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required.
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
 - business_info / booking_help: as named.
@@ -164,7 +167,7 @@ Action rules:
 ${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
 
 Service extraction (critical):
-- "massage specialist" / "best rated massage" → serviceCategory: "massage" (NOT serviceName "massage specialist").
+- "massage specialist" / "best rated massage" / "what kinds of massage" → serviceCategory: "massage" — keyword on service type names, NOT serviceName "massage specialist".
 - "Swedish massage" → serviceName: "Swedish massage".
 - Never invent services — only names from the Services list in context.
 - Multi-turn: fill missing employeeName/serviceName/date/timeSlot from Active session when the user omits them, EXCEPT bookingFirstAvailable (always fresh) and EXCEPT when this message sets new dates/weekdays.
@@ -457,7 +460,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         result = await this.handleListProviders(slug, parsed.params, locale);
         break;
       case 'list_services':
-        result = await this.handleListServices(slug, parsed.params, employees);
+        result = await this.handleListServices(
+          slug,
+          enrichListServicesParamsFromPrompt(prompt, parsed.params ?? {}),
+          employees,
+          locale,
+        );
         break;
       case 'check_availability':
         result = await this.handleCheckAvailability(
@@ -674,16 +682,17 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     slug: string,
     params: any,
     employees: Employee[],
+    locale: AppLocale,
   ): Promise<PublicAssistantResult> {
     const employee = params.employeeName
       ? this.fuzzyMatchByName(employees, params.employeeName)
       : undefined;
 
-    const { services } = await this.publicBookingService.getServices(
+    const { services: catalog } = await this.publicBookingService.getServices(
       slug,
       employee?.id,
     );
-    if (services.length === 0) {
+    if (catalog.length === 0) {
       return {
         success: true,
         action: 'list_services',
@@ -693,14 +702,38 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
+    const hasServiceFilter = !!(
+      params.serviceCategory ||
+      params.serviceName ||
+      (Array.isArray(params.serviceNames) && params.serviceNames.length)
+    );
+    const matched = hasServiceFilter
+      ? resolveServicesFromCatalogParams(catalog, params)
+      : catalog;
+
+    if (hasServiceFilter && matched.length === 0) {
+      return {
+        success: false,
+        action: 'list_services',
+        summary: t(locale, 'assistant.availabilityServiceNotFound', {
+          service: params.serviceCategory ?? params.serviceName,
+          available: catalog.map((s) => s.name).join(', '),
+        }),
+      };
+    }
+
+    const services = matched;
     const lines = services.map(
       (s) =>
         `• ${s.name} — ${s.durationMinutes} min · ${s.price} ${s.currency}`,
     );
 
+    const serviceQuery = params.serviceCategory ?? params.serviceName;
     const header = employee
       ? `Services with ${employee.name}:`
-      : 'Our services:';
+      : serviceQuery
+        ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
+        : 'Our service types:';
 
     return {
       success: true,
@@ -1157,26 +1190,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: Record<string, any>,
     catalog: Service[],
   ): Service[] {
-    if (Array.isArray(params.serviceNames) && params.serviceNames.length) {
-      const matched: Service[] = [];
-      const seen = new Set<string>();
-      for (const name of params.serviceNames) {
-        if (typeof name !== 'string') continue;
-        const svc = fuzzyMatchServiceByName(catalog, name);
-        if (svc && !seen.has(svc.id)) {
-          seen.add(svc.id);
-          matched.push(svc);
-        }
-      }
-      if (matched.length) return matched;
-    }
-    if (params.serviceCategory) {
-      return matchServicesByQuery(catalog, String(params.serviceCategory));
-    }
-    if (params.serviceName) {
-      return matchServicesByQuery(catalog, String(params.serviceName));
-    }
-    return [];
+    return resolveServicesFromCatalogParams(catalog, params);
   }
 
   private formatProviderRating(

@@ -96,6 +96,7 @@ import {
   rescueProviderDateFormatIntent,
 } from '../ai/ai-provider-date-format.util.js';
 import { rescueProviderSessionTimeoutIntent } from '../ai/ai-provider-session-timeout.util.js';
+import { rescueProviderPushSetupIntent } from '../ai/ai-provider-push-setup.util.js';
 import {
   parseListMyCollectionQueueFromPrompt,
   parseMarkSpecimenCollectedFromPrompt,
@@ -112,6 +113,9 @@ import {
   mergeProviderMobileHintsIntoSessionContext,
 } from '../ai/ai-provider-mobile-hints.util.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
+import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
+import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
+import { rescueProviderEarningsIntent } from '../ai/ai-provider-earnings.util.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -134,7 +138,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -167,6 +171,8 @@ Rules:
 - mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
 - payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
 - list_bookings / show_appointments / summarize_day: view-only; no mutations. show_appointments supports serviceName and status/statusFilter.
+- summarize_my_appointments: READ — count own appointments for today/tomorrow/a day/date range. Triggers: how many appointments do I have. NOT show_appointments (full list).
+- summarize_my_revenue: READ — net provider earnings after tax and salon commission for a period. Triggers: how much did I make, my revenue last week. NOT explain_appointment_tax.
 - check_availability: READ-ONLY — open slots and schedule blocks for own calendar (managers may query team when scoped).
 - block_schedule: block lunch/break on own calendar only for providers; managers may block team when allowed.
 - summarize_utilization: READ-ONLY utilization % for date range — own stats for providers; team summary for managers.
@@ -231,6 +237,10 @@ export class ProviderAiCommandService {
     private businessDateFormat: AiBusinessDateFormatService,
     private businessTax: AiBusinessTaxService,
     private businessCompliance: AiBusinessComplianceService,
+    @Inject(forwardRef(() => AiProviderPushSetupService))
+    private providerPushSetup: AiProviderPushSetupService,
+    @Inject(forwardRef(() => AiProviderEarningsService))
+    private providerEarnings: AiProviderEarningsService,
     private pushActions: ProviderPushActionService,
   ) {}
 
@@ -437,6 +447,24 @@ export class ProviderAiCommandService {
       if (parsedTimeFormat?.timeFormat) {
         parsed.params.timeFormat = parsedTimeFormat.timeFormat;
       }
+    }
+
+    const providerPushSetupRescue = rescueProviderPushSetupIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerPushSetupRescue) {
+      parsed.action = providerPushSetupRescue.action;
+      rescueReason = providerPushSetupRescue.rescueReason;
+    }
+
+    const providerEarningsRescue = rescueProviderEarningsIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerEarningsRescue) {
+      parsed.action = providerEarningsRescue.action;
+      rescueReason = providerEarningsRescue.rescueReason;
     }
 
     const providerBookingRescue =
@@ -699,6 +727,40 @@ export class ProviderAiCommandService {
         break;
       case 'new_booking_push_actions':
         result = await this.pushNotifications.handleNewBookingPushActions();
+        break;
+      case 'explain_push_setup':
+      case 'enable_push_notifications':
+        result =
+          (await this.providerPushSetup.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            {
+              ...parsed.params,
+              nativePlatform: context?.nativePlatform ?? parsed.params.nativePlatform,
+            },
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+            details: { clarify: true },
+          };
+        break;
+      case 'summarize_my_appointments':
+      case 'summarize_my_revenue':
+        result =
+          (await this.providerEarnings.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            parsed.params,
+            prompt,
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+            details: { clarify: true },
+          };
         break;
       case 'confirm_booking_from_push':
         result = await this.handleConfirmBookingFromPush(

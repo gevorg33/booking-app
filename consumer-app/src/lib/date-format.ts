@@ -31,6 +31,20 @@ export function formatDateTimeLabel(iso: string, locale = 'en'): string {
   return `${formatDateDisplay(iso, locale)} ${formatScheduleTime(iso, locale)}`;
 }
 
+/** Prefer API-localized nearest slot label; format date key as fallback. */
+export function resolveNearestSlotDateLabel(
+  provider: { nearestDate?: string | null; nearestDateLabel?: string | null },
+  todayInline = 'Today',
+): string | null {
+  if (provider.nearestDateLabel?.trim()) return provider.nearestDateLabel.trim();
+  if (!provider.nearestDate?.trim()) return null;
+  const dateKey = provider.nearestDate.slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const formatted = formatDateDisplay(provider.nearestDate, 'en');
+  if (dateKey === today) return `${todayInline}, ${formatted}`;
+  return formatted;
+}
+
 export function formatBookingDateTimeRange(
   start: Date | string,
   end: Date | string,

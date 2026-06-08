@@ -317,6 +317,20 @@ export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [
     expectedAction: 'book_package',
   },
   {
+    id: 'customer-buy-package',
+    domain: 'customer',
+    surface: 'customer',
+    prompt: 'Buy the spa day package',
+    expectedAction: 'book_package',
+  },
+  {
+    id: 'customer-discover-packages',
+    domain: 'customer',
+    surface: 'customer',
+    prompt: 'What packages do you have?',
+    expectedAction: 'discover_packages',
+  },
+  {
     id: 'customer-list-appointments',
     domain: 'customer',
     surface: 'customer',

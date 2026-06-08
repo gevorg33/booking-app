@@ -169,6 +169,16 @@ describe('Provider mobile AI (ai-cmd-h3.5)', () => {
           details: {},
         })),
       } as any,
+      {} as any,
+      {} as any,
+      {
+        handleIntent: jest.fn(async () => ({
+          success: true,
+          action: 'explain_push_setup',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
       pushActions as any,
     );
   });

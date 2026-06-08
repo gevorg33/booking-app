@@ -1,3 +1,9 @@
+import {
+  mergeMultiCheckoutReturnQuery,
+  mergePackageCheckoutReturnQuery,
+  parseCheckoutReturnRoute,
+  resolveCheckoutReturnNavigationPath,
+} from './consumer-checkout-return.util.js';
 import type { DeferredInstallLink } from './deferred-install-link.util.js';
 import { parseDeferredInstallFromUrl } from './deferred-install-link.util.js';
 import {
@@ -64,6 +70,24 @@ export function resolveDeepLinkLaunchTarget(
   storedDeferred?: DeferredInstallLink | null,
 ): DeepLinkLaunchTarget | null {
   const deferredFromUrl = parseDeferredInstallFromUrl(rawUrl);
+
+  const checkoutReturn = parseCheckoutReturnRoute(rawUrl);
+  if (checkoutReturn) {
+    let query = checkoutReturn.query;
+    if (checkoutReturn.kind === 'package' && checkoutReturn.packageId) {
+      query = mergePackageCheckoutReturnQuery(
+        checkoutReturn.slug,
+        checkoutReturn.packageId,
+        checkoutReturn.query,
+      );
+    } else if (checkoutReturn.kind === 'multi') {
+      query = mergeMultiCheckoutReturnQuery(checkoutReturn.slug, checkoutReturn.query);
+    }
+    return {
+      path: resolveCheckoutReturnNavigationPath({ ...checkoutReturn, query }),
+      deferredLink: deferredFromUrl ?? undefined,
+    };
+  }
 
   const bookService = parseBookServiceRoute(rawUrl);
   if (bookService) {
