@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
@@ -36,7 +38,8 @@ import {
   type ProviderMobileRoute,
 } from '../lib/provider-ai-quick-chips';
 import { ProviderAiVoiceButton } from './ProviderAiVoiceButton';
-import type { SpeechRecognitionErrorCode } from '../lib/use-speech-recognition';
+import { enableNativePush } from '../services/native-push';
+import type { SpeechRecognitionErrorCode } from '../lib/use-speech-recognition.js';
 
 interface PreviewItem {
   id: string;
@@ -116,6 +119,7 @@ export default function ProviderAiAssistant({
   isManager = false,
 }: ProviderAiAssistantProps) {
   const { t, locale } = useI18n();
+  const history = useHistory();
   const online = useOnlineStatus();
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const quickChips = getProviderQuickChips(mobileRoute, t, { isManager });
@@ -169,12 +173,19 @@ export default function ProviderAiAssistant({
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
-          context: { ...sessionContext, ...screenContext },
+          context: {
+            ...sessionContext,
+            ...screenContext,
+            nativePlatform: Capacitor.getPlatform(),
+          },
         });
         const result = unwrap<{
           success: boolean;
           summary: string;
-          details?: MessageDetails;
+          details?: MessageDetails & {
+            navigate?: { path?: string; query?: Record<string, string> };
+            clientAction?: string;
+          };
         }>(res);
 
         if (result.details?.sessionContext) {
@@ -195,6 +206,16 @@ export default function ProviderAiAssistant({
         if (result.success && !result.details?.requiresConfirmation) {
           invalidateBookings();
         }
+
+        const navigate = result.details?.navigate;
+        if (navigate?.path) {
+          const params = new URLSearchParams(navigate.query ?? {});
+          const qs = params.toString();
+          history.push(`${navigate.path}${qs ? `?${qs}` : ''}`);
+          if (result.details?.clientAction === 'enableNativePush') {
+            void enableNativePush(businessId);
+          }
+        }
       } catch (err: unknown) {
         const text = networkPromptErrorMessage(err, t, 'provider.assistantErrorGeneric');
         setMessages((prev) => [
@@ -213,7 +234,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
+    [businessId, history, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(

@@ -44,6 +44,8 @@ import { AiRecommendationProductService } from './ai-recommendation-product.serv
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
+import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
 import { rescueConsumerClinicLabBookingIntent } from './ai-clinic-lab-booking.util.js';
 import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
 import { rescueExplainCheckoutRecommendationsIntent } from './ai-checkout-recommendations.util.js';
@@ -96,6 +98,7 @@ export class CustomerAiCommandService {
     private readonly consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private readonly clinicLabBooking: AiClinicLabBookingService,
     private readonly clinicBooking: AiClinicBookingService,
+    private readonly consumerAdoption: AiConsumerAdoptionService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
   ) {
@@ -118,6 +121,7 @@ export class CustomerAiCommandService {
       consumerClinicTestResults: this.consumerClinicTestResults,
       clinicLabBooking: this.clinicLabBooking,
       clinicBooking: this.clinicBooking,
+      consumerAdoption: this.consumerAdoption,
     };
   }
 
@@ -364,6 +368,7 @@ export class CustomerAiCommandService {
       rescueBookingDateFormatIntent(prompt, action) ??
       rescueSelfServiceBookingIntent(prompt, action) ??
       rescueMarketingGrowthIntent(prompt, action) ??
+      rescueConsumerAdoptionIntent(prompt, action) ??
       rescuePaymentsIntent(prompt, action)
     );
   }

@@ -45,6 +45,7 @@ function buildService(
     findOne: jest.fn(),
     ...overrides.customerRepo,
   };
+  const reviewRepo = { find: jest.fn() };
   const patientClinicalProfilesService = {
     getProfileForCustomer: jest.fn(),
     ...overrides.patientClinicalProfilesService,
@@ -71,6 +72,7 @@ function buildService(
     clinicTestOrderService as any,
     clinicTestResultService as any,
     customerRepo as any,
+    reviewRepo as any,
     patientClinicalProfilesService as any,
     patientClinicalProfileAccessService as any,
     clinicTasksService as any,

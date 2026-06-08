@@ -8,9 +8,11 @@ import type {
   PublicCustomerSubscription,
   PackageVisitRescheduleLine,
   PublicProvider,
+  PublicProviderReview,
   PublicRecommendationProduct,
   PublicService,
   PublicCheckoutQuote,
+  PublicServiceDaySlots,
   PublicSlot,
 } from '../lib/types.js';
 import type { PublicCustomerReleasedClinicResult } from '../lib/public-clinic-results.js';
@@ -51,22 +53,77 @@ export async function fetchPublicServices(slug: string): Promise<PublicService[]
   return body.services ?? [];
 }
 
-export async function fetchPublicProviders(slug: string): Promise<PublicProvider[]> {
-  const { data } = await http.get(`/public/${slug}/providers`);
+export async function fetchPublicProviders(
+  slug: string,
+  opts?: { date?: string; locale?: string },
+): Promise<PublicProvider[]> {
+  const params = new URLSearchParams();
+  if (opts?.date?.trim()) params.set('date', opts.date.trim());
+  if (opts?.locale?.trim()) params.set('locale', opts.locale.trim());
+  const qs = params.toString();
+  const { data } = await http.get(`/public/${slug}/providers${qs ? `?${qs}` : ''}`);
   const body = unwrap<{ providers: PublicProvider[] }>(data);
-  return body.providers ?? [];
+  return (body.providers ?? []).map((provider) => ({
+    ...provider,
+    slots: provider.slots ?? [],
+    averageRating: provider.averageRating ?? null,
+    reviewCount: provider.reviewCount ?? 0,
+  }));
+}
+
+export async function fetchPublicServicesForSlot(
+  slug: string,
+  employeeId: string,
+  startTime: string,
+  locale?: string,
+): Promise<PublicService[]> {
+  const params = new URLSearchParams({ employeeId, startTime });
+  if (locale?.trim()) params.set('locale', locale.trim());
+  const { data } = await http.get(`/public/${slug}/services/for-slot?${params.toString()}`);
+  const body = unwrap<{ services: PublicService[] }>(data);
+  return body.services ?? [];
+}
+
+export async function fetchPublicProviderReviews(
+  slug: string,
+  employeeId: string,
+  page = 1,
+): Promise<import('../lib/types.js').PublicProviderReviewsPage> {
+  const { data } = await http.get(
+    `/public/${slug}/providers/${employeeId}/reviews?page=${page}`,
+  );
+  return unwrap(data);
+}
+
+export async function submitPublicProviderReview(
+  slug: string,
+  employeeId: string,
+  body: { rating: number; comment?: string; idToken?: string },
+): Promise<PublicProviderReview> {
+  const { data } = await http.post(
+    `/public/${slug}/providers/${employeeId}/reviews`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap(data);
 }
 
 export async function fetchServiceDaySlots(
   slug: string,
   serviceId: string,
   date: string,
-): Promise<PublicSlot[]> {
+): Promise<PublicServiceDaySlots> {
   const { data } = await http.get(
     `/public/${slug}/services/${serviceId}/slots?date=${encodeURIComponent(date)}`,
   );
-  const body = unwrap<{ slots: PublicSlot[] }>(data);
-  return body.slots ?? [];
+  const body = unwrap<PublicServiceDaySlots>(data);
+  return {
+    date: body.date ?? date,
+    serviceId: body.serviceId ?? serviceId,
+    serviceName: body.serviceName ?? '',
+    slots: body.slots ?? [],
+    remainingSpots: body.remainingSpots ?? null,
+  };
 }
 
 /** @deprecated Use fetchServiceDaySlots */
@@ -88,8 +145,32 @@ export async function fetchMyBookings(slug: string): Promise<PublicCustomerBooki
 
 export async function fetchMySubscriptions(slug: string): Promise<PublicCustomerSubscription[]> {
   const { data } = await http.get(`/public/${slug}/me/subscriptions`, publicConfig(slug));
-  const body = unwrap<{ subscriptions: PublicCustomerSubscription[] }>(data);
+  const body = unwrap<{ subscriptions: import('../lib/types.js').PublicCustomerSubscription[] }>(data);
   return body.subscriptions ?? [];
+}
+
+export async function fetchMySubscriptionUsage(
+  slug: string,
+  subscriptionId: string,
+): Promise<{
+  subscription: import('../lib/types.js').PublicCustomerSubscription;
+  usage: import('../lib/types.js').PublicSubscriptionUsageRow[];
+}> {
+  const { data } = await http.get(
+    `/public/${slug}/me/subscriptions/${subscriptionId}/usage`,
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function exportPublicCustomerData(slug: string): Promise<Record<string, unknown>> {
+  const { data } = await http.get(`/public/${slug}/me/data`, publicConfig(slug));
+  return unwrap<Record<string, unknown>>(data);
+}
+
+export async function deletePublicCustomerData(slug: string): Promise<{ deleted: true }> {
+  const { data } = await http.delete(`/public/${slug}/me/data`, publicConfig(slug));
+  return unwrap<{ deleted: true }>(data);
 }
 
 export async function fetchMyClinicTestResults(
@@ -246,12 +327,71 @@ export async function reschedulePackageVisitWithToken(
   return unwrap(data);
 }
 
+export async function fetchPublicPackages(slug: string): Promise<PublicServicePackage[]> {
+  const { data } = await http.get(`/public/${slug}/packages`);
+  const body = unwrap<{ packages: PublicServicePackage[] }>(data);
+  return body.packages ?? [];
+}
+
 export async function fetchPublicPackage(
   slug: string,
   packageId: string,
 ): Promise<{ package: PublicServicePackage }> {
   const { data } = await http.get(`/public/${slug}/packages/${packageId}`);
   return unwrap<{ package: PublicServicePackage }>(data);
+}
+
+export type BookPublicPackageBody = {
+  packageId: string;
+  lines: Array<{ serviceId: string; employeeId?: string; startTime: string }>;
+  notes?: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  markPaid?: boolean;
+  customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+    emailReminders?: boolean;
+    whatsappReminders?: boolean;
+    reminderHoursBefore?: number | null;
+    privacyConsentAccepted?: boolean;
+    marketingOptIn?: boolean;
+  };
+};
+
+export async function quotePublicPackage(
+  slug: string,
+  body: { packageId: string; promoCode?: string; loyaltyPointsToRedeem?: number },
+): Promise<PublicCheckoutQuote> {
+  const { data } = await http.post(`/public/${slug}/packages/quote`, body, publicConfig(slug));
+  return unwrap<PublicCheckoutQuote>(data);
+}
+
+export async function bookPublicPackage(slug: string, body: BookPublicPackageBody) {
+  const { data } = await http.post(`/public/${slug}/packages/book`, body, publicConfig(slug));
+  return unwrap<{ bookings: unknown[]; packagePurchase: { id: string } }>(data);
+}
+
+export async function createPublicPackageCheckout(slug: string, body: BookPublicPackageBody) {
+  const { data } = await http.post(`/public/${slug}/packages/checkout`, body, publicConfig(slug));
+  return unwrap<{ url: string; sessionId: string; amount: number; currency: string }>(data);
+}
+
+export async function fetchPackageProviders(
+  slug: string,
+  packageId: string,
+  startTime: string,
+  includeLaterDays = false,
+) {
+  const params = new URLSearchParams({ startTime });
+  if (includeLaterDays) params.set('includeLaterDays', 'true');
+  const { data } = await http.get(
+    `/public/${slug}/packages/${packageId}/providers?${params.toString()}`,
+  );
+  return unwrap<{
+    providers: Array<{ id: string; name: string; earliestStartTime?: string }>;
+  }>(data);
 }
 
 export async function suggestPackageBlock(slug: string, packageId: string) {
@@ -299,10 +439,50 @@ export async function fetchCheckoutRecommendations(
 
 export async function quotePublicBooking(
   slug: string,
-  body: { serviceId: string },
+  body: {
+    serviceId: string;
+    purchasePlanId?: string;
+    promoCode?: string;
+    loyaltyPointsToRedeem?: number;
+    paxCount?: number;
+  },
 ): Promise<PublicCheckoutQuote> {
   const { data } = await http.post(`/public/${slug}/bookings/quote`, body, publicConfig(slug));
   return unwrap<PublicCheckoutQuote>(data);
+}
+
+export async function getPublicServiceSubscriptionPlans(
+  slug: string,
+  serviceId: string,
+): Promise<import('../lib/types.js').PublicSubscriptionPlan[]> {
+  const { data } = await http.get(
+    `/public/${slug}/services/${serviceId}/subscription-plans`,
+    publicConfig(slug),
+  );
+  return unwrap<import('../lib/types.js').PublicSubscriptionPlan[]>(data);
+}
+
+export async function getPublicActiveSubscription(slug: string, serviceId: string) {
+  const { data } = await http.get(
+    `/public/${slug}/me/subscriptions/active?serviceId=${encodeURIComponent(serviceId)}`,
+    publicConfig(slug),
+  );
+  return unwrap<{ subscription: import('../lib/types.js').PublicCustomerSubscription | null }>(data);
+}
+
+export async function getPublicCustomerLoyalty(slug: string) {
+  const { data } = await http.get(`/public/${slug}/me/loyalty`, publicConfig(slug));
+  return unwrap<import('../lib/types.js').PublicCustomerLoyalty>(data);
+}
+
+export async function fetchPublicPromotions(slug: string) {
+  const { data } = await http.get(`/public/${slug}/promotions`);
+  return unwrap<import('../lib/consumer-rewards-display.util.js').PublicPromotionsPayload>(data);
+}
+
+export async function fetchMyRewards(slug: string) {
+  const { data } = await http.get(`/public/${slug}/me/rewards`, publicConfig(slug));
+  return unwrap<import('../lib/consumer-rewards-display.util.js').PublicCustomerRewardsPayload>(data);
 }
 
 export async function createBooking(
@@ -315,6 +495,13 @@ export async function createBooking(
     referralNotes?: string;
     symptoms?: string;
     clinicOrderToken?: string;
+    promoCode?: string;
+    loyaltyPointsToRedeem?: number;
+    useSubscriptionId?: string;
+    purchasePlanId?: string;
+    useSubscriptionCreditOnPurchase?: boolean;
+    paymentMethod?: 'online' | 'cash';
+    paxCount?: number;
     customer: { name: string; email?: string; phone?: string };
   },
 ): Promise<{ booking: { id: string }; customer: PublicCustomerProfile }> {
@@ -372,6 +559,280 @@ export async function submitPublicPreVisitIntakeAnswer(
     publicConfig(slug),
   );
   return unwrap<import('../lib/clinic-pre-visit-intake-types.js').PreVisitIntakeFlowView>(data);
+}
+
+export async function fetchNearestBookableSlot(
+  slug: string,
+  serviceId: string,
+  employeeId?: string,
+): Promise<{
+  dateKey: string;
+  startTime: string;
+  employeeId?: string | null;
+} | null> {
+  const params = new URLSearchParams({ serviceId });
+  if (employeeId) params.set('employeeId', employeeId);
+  const { data } = await http.get(`/public/${slug}/nearest-slot?${params.toString()}`);
+  const body = unwrap<{ nearest: { dateKey: string; startTime: string; employeeId?: string | null } | null }>(
+    data,
+  );
+  return body.nearest ?? null;
+}
+
+export async function createPublicBookingCheckout(
+  slug: string,
+  body: {
+    serviceId: string;
+    employeeId: string;
+    startTime: string;
+    preVisitIntakeId?: string;
+    clinicOrderToken?: string;
+    promoCode?: string;
+    loyaltyPointsToRedeem?: number;
+    useSubscriptionId?: string;
+    purchasePlanId?: string;
+    useSubscriptionCreditOnPurchase?: boolean;
+    paymentMethod?: 'cash';
+    paxCount?: number;
+    symptoms?: string;
+    referralNotes?: string;
+    customer: { name: string; email?: string; phone?: string };
+  },
+): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
+  const { data } = await http.post(`/public/${slug}/bookings/checkout`, body, publicConfig(slug));
+  return unwrap(data);
+}
+
+export async function confirmPublicBookingPayment(
+  slug: string,
+  sessionId: string,
+): Promise<{ booking: { id: string }; customer: PublicCustomerProfile }> {
+  const { data } = await http.post(
+    `/public/${slug}/bookings/confirm-payment`,
+    { sessionId },
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export interface PublicAssistantNavigate {
+  path: string;
+  query: Record<string, string>;
+}
+
+export interface PublicAssistantResponse {
+  success: boolean;
+  action: string;
+  summary: string;
+  sessionContext?: Record<string, string | null>;
+  navigate?: PublicAssistantNavigate;
+  bookingId?: string;
+  details?: Record<string, unknown>;
+}
+
+export async function sendPublicAssistantMessage(
+  slug: string,
+  body: {
+    prompt: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    context?: Record<string, unknown>;
+    locale?: string;
+  },
+): Promise<PublicAssistantResponse> {
+  const { data } = await http.post(`/public/${slug}/assistant`, body, publicConfig(slug));
+  return unwrap<PublicAssistantResponse>(data);
+}
+
+export type BookPublicMultiServiceBody = {
+  serviceIds: string[];
+  blockStartTime?: string;
+  employeeId?: string;
+  lines?: Array<{ serviceId: string; employeeId?: string; startTime: string }>;
+  notes?: string;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
+  markPaid?: boolean;
+  customer: { name: string; email?: string; phone?: string };
+};
+
+export async function bookPublicMultiService(
+  slug: string,
+  body: BookPublicMultiServiceBody,
+): Promise<{ multiServiceGroup: { id: string }; bookings: unknown[] }> {
+  const { data } = await http.post(`/public/${slug}/multi-service/book`, body, publicConfig(slug));
+  return unwrap(data);
+}
+
+export async function previewPublicMultiService(slug: string, serviceIds: string[]) {
+  const { data } = await http.post(`/public/${slug}/multi-service/preview`, { serviceIds });
+  return unwrap<{
+    valid: boolean;
+    errors: string[];
+    totals: {
+      totalPrice: number;
+      currency: string;
+      totalDurationMinutes: number;
+    } | null;
+  }>(data);
+}
+
+export async function getPublicMultiServiceBlockSlots(
+  slug: string,
+  serviceIds: string[],
+  date: string,
+) {
+  const params = new URLSearchParams({
+    date,
+    serviceIds: [...new Set(serviceIds)].join(','),
+  });
+  const { data } = await http.get(
+    `/public/${slug}/multi-service/block-slots?${params.toString()}`,
+  );
+  return unwrap<{
+    date: string;
+    serviceIds: string[];
+    totalDurationMinutes: number;
+    slots: PublicSlot[];
+  }>(data);
+}
+
+export async function suggestPublicMultiServiceBlock(slug: string, serviceIds: string[]) {
+  const params = new URLSearchParams({
+    serviceIds: [...new Set(serviceIds)].join(','),
+  });
+  const { data } = await http.get(
+    `/public/${slug}/multi-service/suggest-block?${params.toString()}`,
+  );
+  return unwrap<{
+    employeeId: string;
+    employeeName: string;
+    dateKey: string;
+    startTime: string;
+  }>(data);
+}
+
+export async function getPublicMultiServiceProviders(
+  slug: string,
+  serviceIds: string[],
+  startTime: string,
+  includeLaterDays = false,
+) {
+  const params = new URLSearchParams({
+    startTime,
+    serviceIds: serviceIds.join(','),
+    ...(includeLaterDays ? { includeLaterDays: 'true' } : {}),
+  });
+  const { data } = await http.get(
+    `/public/${slug}/multi-service/providers?${params.toString()}`,
+  );
+  return unwrap<{
+    providers: Array<PublicProvider & { earliestStartTime?: string }>;
+  }>(data);
+}
+
+export async function suggestPublicMultiServiceLines(slug: string, serviceIds: string[]) {
+  const params = new URLSearchParams({ serviceIds: serviceIds.join(',') });
+  const { data } = await http.get(
+    `/public/${slug}/multi-service/suggest-lines?${params.toString()}`,
+  );
+  return unwrap<{
+    lines: Array<{
+      serviceId: string;
+      serviceName: string;
+      startTime: string;
+      employeeId: string;
+      employeeName: string;
+    }>;
+  }>(data);
+}
+
+export async function quotePublicMultiService(
+  slug: string,
+  body: { serviceIds: string[]; promoCode?: string; loyaltyPointsToRedeem?: number },
+): Promise<PublicCheckoutQuote> {
+  const { data } = await http.post(`/public/${slug}/multi-service/quote`, body, publicConfig(slug));
+  return unwrap<PublicCheckoutQuote>(data);
+}
+
+export async function createPublicMultiServiceCheckout(
+  slug: string,
+  body: BookPublicMultiServiceBody,
+): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
+  const { data } = await http.post(`/public/${slug}/multi-service/checkout`, body, publicConfig(slug));
+  return unwrap(data);
+}
+
+/** @deprecated Use previewPublicMultiService */
+export async function quotePublicMultiServicePreview(
+  slug: string,
+  serviceIds: string[],
+) {
+  return previewPublicMultiService(slug, serviceIds);
+}
+
+export async function getPublicGiftCardCatalog(slug: string) {
+  const { data } = await http.get(`/public/${slug}/gift-cards/catalog`);
+  return unwrap<import('../lib/gift-card.types.js').PublicGiftCardCatalog>(data);
+}
+
+export async function quotePublicGiftCardPurchase(
+  slug: string,
+  body: import('../lib/gift-card.types.js').PurchasePublicGiftCardBody,
+) {
+  const { data } = await http.post(`/public/${slug}/gift-cards/quote`, body, publicConfig(slug));
+  return unwrap<import('../lib/gift-card.types.js').PublicGiftCardPurchaseQuote>(data);
+}
+
+export async function createPublicGiftCardCheckout(
+  slug: string,
+  body: import('../lib/gift-card.types.js').PurchasePublicGiftCardBody,
+) {
+  const { data } = await http.post(`/public/${slug}/gift-cards/checkout`, body, publicConfig(slug));
+  return unwrap<{ url: string; sessionId: string; amount: number; currency: string }>(data);
+}
+
+export async function purchasePublicGiftCard(
+  slug: string,
+  body: import('../lib/gift-card.types.js').PurchasePublicGiftCardBody,
+) {
+  const { data } = await http.post(`/public/${slug}/gift-cards/purchase`, body, publicConfig(slug));
+  return unwrap<{ giftCard: { id: string; code: string } }>(data);
+}
+
+export async function claimPublicGiftCard(slug: string, code: string) {
+  const { data } = await http.post(
+    `/public/${slug}/gift-cards/claim`,
+    { code },
+    publicConfig(slug),
+  );
+  return unwrap<{
+    giftCardId: string;
+    cardType: string;
+    packagePurchaseId?: string;
+    subscriptionId?: string;
+  }>(data);
+}
+
+export async function getPublicCustomerGiftCards(slug: string) {
+  const { data } = await http.get(`/public/${slug}/gift-cards/orders`, publicConfig(slug));
+  return unwrap<import('../lib/gift-card.types.js').PublicCustomerGiftCardAccount>(data);
+}
+
+export async function submitPublicGiftCardCancelRequest(
+  slug: string,
+  giftCardId: string,
+  body: { customerNotes?: string },
+) {
+  const { data } = await http.post(
+    `/public/${slug}/gift-cards/orders/${giftCardId}/cancel-request`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap<{
+    request: { status: string; requestType: string };
+    order: import('../lib/gift-card.types.js').PublicGiftCardOrder;
+    refundStatus?: 'refunded' | 'failed' | 'skipped' | 'already_refunded';
+  }>(data);
 }
 
 export async function registerConsumerNativePush(

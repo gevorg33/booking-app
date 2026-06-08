@@ -26,6 +26,37 @@ describe('customer-ai-command.util', () => {
     expect(isCustomerSurfaceIntent('security_blocked')).toBe(true);
   });
 
+  it('forwards provider availability details for public booking tap targets', () => {
+    const mapped = commandResultToPublicAssistantResult({
+      success: true,
+      action: 'check_providers_for_service',
+      summary: '1 provider(s) available',
+      details: {
+        availability: [
+          {
+            id: 'e1',
+            name: 'Mary Torgomyan',
+            role: 'Permanent + Alexandrite',
+            previewTimes: ['13:00', '13:30'],
+          },
+        ],
+        availableProviders: ['Mary Torgomyan'],
+        serviceName: 'Alexandrite full body',
+        serviceId: 'svc-1',
+        date: '2026-06-09',
+      },
+    });
+    expect(mapped.details).toEqual({
+      availability: [
+        expect.objectContaining({ id: 'e1', name: 'Mary Torgomyan' }),
+      ],
+      availableProviders: ['Mary Torgomyan'],
+      serviceName: 'Alexandrite full body',
+      serviceId: 'svc-1',
+      date: '2026-06-09',
+    });
+  });
+
   it('converts between public assistant and command results', () => {
     const command = publicAssistantResultToCommandResult({
       success: true,
@@ -83,6 +114,8 @@ describe('customer-ai-command.util', () => {
   it('builds classifier schema with customer and public actions', () => {
     const schema = buildCustomerClassifierSchema();
     expect(schema).toContain('book_package');
+    expect(schema).toContain('discover_packages');
+    expect(schema).toContain('buy|purchase|order|get');
     expect(schema).toContain('list_providers');
     expect(schema).toContain('unknown');
     expect(schema).toContain('check_providers_for_service');
@@ -127,6 +160,8 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('explain_tour_day_slots');
     expect(schema).toContain('explain_checkout_recommendations');
     expect(schema).toContain('explain_consumer_checkout_success');
+    expect(schema).toContain('explain_my_notifications');
+    expect(schema).toContain('rebook_last_appointment');
     expect(schema).toContain('explain_consumer_checkout_tax');
     expect(schema).toContain('Dismiss recommendations');
     expect(schema).toContain('You might also like');

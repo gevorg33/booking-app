@@ -28,9 +28,10 @@ import {
   extractGiftCardCodeFromPrompt,
   notBeforeTimeFromWindow,
   parseCashPaymentsToggle,
-  resolveTomorrowDateKey,
+  resolveAvailabilityDateKey,
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
+import { resolveTimezone } from '../../common/utils/timezone.util.js';
 import { buildNoNearestSlotMessage } from './ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
@@ -713,11 +714,14 @@ export async function handleCheckProvidersForServiceLogic(
     );
   }
 
-  const dateKey =
-    (params.date as string | undefined) ??
-    (/\btomorrow\b/i.test(prompt ?? '')
-      ? resolveTomorrowDateKey()
-      : new Date().toISOString().slice(0, 10));
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  const dateKey = resolveAvailabilityDateKey(
+    params,
+    prompt,
+    resolveTimezone(business?.timezone),
+  );
   const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
   const timeOfDay =
     (params.timeOfDay as string | undefined) ??

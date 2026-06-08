@@ -10,18 +10,30 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useAuthStore } from '../services/auth-store';
 import { isMobileManagerRole, managerRoleLabel } from '../lib/provider-access';
 import PushToggle from '../components/PushToggle';
+import { ProviderProfileSection } from '../components/ProviderProfileSection';
+import { enableNativePush, isFcmBuild } from '../services/native-push';
 import { useI18n } from '../i18n';
 
 export default function ProfilePage() {
   const { t } = useI18n();
   const history = useHistory();
+  const location = useLocation();
   const { user, business, logout } = useAuthStore();
   const isManager = isMobileManagerRole(business?.membershipRole);
   const roleLabel = managerRoleLabel(business?.membershipRole);
+
+  useEffect(() => {
+    const enablePush = new URLSearchParams(location.search).get('enablePush');
+    if (enablePush !== '1' || !business?.id) return;
+    if (!Capacitor.isNativePlatform() || !isFcmBuild()) return;
+    void enableNativePush(business.id);
+  }, [business?.id, location.search]);
 
   return (
     <IonPage>
@@ -33,18 +45,22 @@ export default function ProfilePage() {
       <IonContent className="ion-padding">
         <IonCard>
           <IonCardHeader>
-            <IonCardTitle>{user?.firstName} {user?.lastName}</IonCardTitle>
+            <IonCardTitle>
+              {user?.firstName} {user?.lastName}
+            </IonCardTitle>
           </IonCardHeader>
           <IonCardContent>
             <p>{user?.email}</p>
-            {business && (
+            {business ? (
               <p className="booking-meta">
                 {business.name}
                 {roleLabel ? ` · ${roleLabel}` : ''}
               </p>
-            )}
+            ) : null}
           </IonCardContent>
         </IonCard>
+
+        <ProviderProfileSection />
 
         <IonCard>
           <IonCardHeader>

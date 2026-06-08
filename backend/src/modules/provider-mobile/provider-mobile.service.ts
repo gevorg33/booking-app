@@ -25,6 +25,7 @@ import {
   UpdateProviderBookingDto,
   CancelProviderBookingDto,
   SuggestCancelNoteDto,
+  UpdateProviderProfileDto,
 } from './dto/provider-mobile.dto.js';
 import {
   buildClinicProviderResultsQueueWindow,
@@ -57,6 +58,7 @@ import {
   type ProviderClinicTaskInbox,
 } from './provider-mobile-clinic-tasks.util.js';
 import type { CompleteClinicTaskDto } from '../clinic-tasks/dto/clinic-task.dto.js';
+import { Review } from '../reviews/entities/review.entity.js';
 
 const ACTIVE_STATUSES = [
   BookingStatus.PENDING,
@@ -80,6 +82,7 @@ export class ProviderMobileService {
     private clinicTestOrderService: ClinicTestOrderService,
     private clinicTestResultService: ClinicTestResultService,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
+    @InjectRepository(Review) private reviewRepo: Repository<Review>,
     private patientClinicalProfilesService: PatientClinicalProfilesService,
     private patientClinicalProfileAccessService: PatientClinicalProfileAccessService,
     private clinicTasksService: ClinicTasksService,
@@ -576,6 +579,138 @@ export class ProviderMobileService {
     };
   }
 
+  async getBookingsByDate(
+    businessId: string,
+    userId: string,
+    dateKey: string,
+  ) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    const { start, end } = this.parseDateKeyBounds(dateKey);
+
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(start, end),
+      status: Not(In([BookingStatus.CANCELLED])),
+    };
+    if (access.viewMode === 'provider') {
+      where.employeeId = access.employee!.id;
+    }
+
+    const bookings = await this.bookingRepo.find({
+      where,
+      relations: { service: true, customer: true, employee: true },
+      order: { startTime: 'ASC' },
+    });
+
+    return {
+      date: dateKey,
+      viewMode: access.viewMode,
+      employee: access.employee
+        ? { id: access.employee.id, name: access.employee.name }
+        : null,
+      bookings: bookings.map((b) => this.toBookingSummary(b)),
+    };
+  }
+
+  async getProviderProfile(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    if (!access.employee) {
+      throw new ForbiddenException('No linked provider profile');
+    }
+
+    const employee = await this.employeeRepo.findOne({
+      where: { id: access.employee.id, businessId, isActive: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Provider profile not found');
+    }
+
+    const metadata = (employee.metadata ?? {}) as Record<string, string>;
+    return {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email ?? null,
+      phone: employee.phone ?? null,
+      title: metadata.title ?? metadata.role ?? null,
+      avatarUrl: metadata.avatarUrl ?? null,
+      viewMode: access.viewMode,
+    };
+  }
+
+  async updateProviderProfile(
+    businessId: string,
+    userId: string,
+    dto: UpdateProviderProfileDto,
+  ) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    if (!access.employee) {
+      throw new ForbiddenException('No linked provider profile');
+    }
+    if (access.employee.userId !== userId) {
+      throw new ForbiddenException('You can only edit your own provider profile');
+    }
+
+    const employee = await this.employeeRepo.findOne({
+      where: { id: access.employee.id, businessId, isActive: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Provider profile not found');
+    }
+
+    const metadata = {
+      ...((employee.metadata ?? {}) as Record<string, unknown>),
+    };
+    if (dto.title !== undefined) {
+      const trimmed = dto.title.trim();
+      if (trimmed) metadata.title = trimmed;
+      else delete metadata.title;
+    }
+    if (dto.avatarUrl !== undefined) {
+      const trimmed = dto.avatarUrl.trim();
+      if (trimmed) metadata.avatarUrl = trimmed;
+      else delete metadata.avatarUrl;
+    }
+    employee.metadata = metadata;
+    await this.employeeRepo.save(employee);
+    return this.getProviderProfile(businessId, userId);
+  }
+
+  async getProviderReviews(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    if (!access.employee) {
+      return {
+        employeeId: null,
+        averageRating: null,
+        reviewCount: 0,
+        reviews: [],
+      };
+    }
+
+    const reviews = await this.reviewRepo.find({
+      where: { businessId, employeeId: access.employee.id },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+    const reviewCount = reviews.length;
+    const averageRating =
+      reviewCount > 0
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount
+        : null;
+
+    return {
+      employeeId: access.employee.id,
+      averageRating,
+      reviewCount,
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        customerName: review.customerName,
+        createdAt: review.createdAt.toISOString(),
+      })),
+    };
+  }
+
   async findEmployeeUserId(employeeId: string): Promise<string | null> {
     const employee = await this.employeeRepo.findOne({
       where: { id: employeeId },
@@ -798,5 +933,18 @@ Write a cancellation note the provider can save.`,
         ? { id: booking.employee.id, name: booking.employee.name }
         : null,
     };
+  }
+
+  private parseDateKeyBounds(dateKey: string): { start: Date; end: Date } {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey.trim());
+    if (!match) {
+      throw new BadRequestException('Invalid date. Use YYYY-MM-DD.');
+    }
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+    return { start, end };
   }
 }

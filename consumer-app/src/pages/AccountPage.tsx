@@ -2,14 +2,17 @@ import {
   IonButton,
   IonContent,
   IonHeader,
+  IonIcon,
   IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
+  useIonToast,
 } from '@ionic/react';
+import { shareOutline } from 'ionicons/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useHistory } from 'react-router-dom';
-import { useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import type { ConsumerCopy } from '../lib/copy.js';
@@ -20,7 +23,11 @@ import {
   getCustomerToken,
   getStoredCustomerProfile,
 } from '../lib/customer-auth.js';
-import { fetchMyBookings, fetchMySubscriptions } from '../services/public-api.js';
+import { fetchMyBookings, fetchMySubscriptions, getPublicCustomerGiftCards } from '../services/public-api.js';
+import { ConsumerGiftCardClaimSection } from '../components/ConsumerGiftCardClaimSection.js';
+import { ConsumerGiftCardsOrdersSection } from '../components/ConsumerGiftCardsOrdersSection.js';
+import { ConsumerGiftCardsRedeemedSection } from '../components/ConsumerGiftCardsRedeemedSection.js';
+import type { PublicGiftCardOrder } from '../lib/gift-card.types.js';
 import { ConsumerBookingActions } from '../components/ConsumerBookingActions.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
 import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
@@ -28,6 +35,15 @@ import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js'
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
 import { RescheduleConfirmationCard } from '../components/RescheduleConfirmationCard.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
+import { ConsumerRewardsCard } from '../components/ConsumerRewardsCard.js';
+import { ConsumerNotificationPreferencesCard } from '../components/ConsumerNotificationPreferencesCard.js';
+import { ConsumerAccountGrowthCard } from '../components/ConsumerAccountGrowthCard.js';
+import { ConsumerSubscriptionsSection } from '../components/ConsumerSubscriptionsSection.js';
+import { ConsumerPrivacyDataSection } from '../components/ConsumerPrivacyDataSection.js';
+import { PostVisitReviewPrompt } from '../components/PostVisitReviewPrompt.js';
+import { shareBookingLink } from '../lib/consumer-growth-loops.util.js';
+import { resolvePostVisitReviewCandidate } from '../lib/store-review-prompt.util.js';
 
 function statusLabel(status: string, copy: ConsumerCopy): string {
   switch (status) {
@@ -45,20 +61,46 @@ function statusLabel(status: string, copy: ConsumerCopy): string {
 function BookingCard({
   booking,
   slug,
+  businessName,
   locale,
   copy,
   authed,
   onUpdated,
   onRescheduled,
+  onReview,
 }: {
   booking: PublicCustomerBookingItem;
   slug: string;
+  businessName: string;
   locale: string;
   copy: ConsumerCopy;
   authed: boolean;
   onUpdated: () => void;
   onRescheduled: (previous: string, next: string) => void;
+  onReview?: (booking: PublicCustomerBookingItem) => void;
 }) {
+  const [presentToast] = useIonToast();
+  const [sharing, setSharing] = useState(false);
+  const canShare = booking.status === 'confirmed' || booking.status === 'completed';
+
+  const onShareBooking = async () => {
+    setSharing(true);
+    try {
+      const result = await shareBookingLink({
+        slug,
+        businessName,
+        booking,
+      });
+      if (result === 'copied') {
+        await presentToast({ message: copy.growthShareCopied, duration: 2000 });
+      } else if (result === 'unavailable') {
+        await presentToast({ message: copy.growthShareUnavailable, duration: 2500 });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="salon-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -72,6 +114,30 @@ function BookingCard({
         </div>
         <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{statusLabel(booking.status, copy)}</span>
       </div>
+      {booking.canReview && onReview ? (
+        <IonButton
+          expand="block"
+          fill="outline"
+          size="small"
+          style={{ marginTop: 8 }}
+          onClick={() => onReview(booking)}
+        >
+          {copy.postBookingTenantReviewAction}
+        </IonButton>
+      ) : null}
+      {canShare ? (
+        <IonButton
+          expand="block"
+          fill="clear"
+          size="small"
+          style={{ marginTop: 4 }}
+          disabled={sharing}
+          onClick={() => void onShareBooking()}
+        >
+          <IonIcon slot="start" icon={shareOutline} />
+          {copy.growthShareBookingAction}
+        </IonButton>
+      ) : null}
       <ConsumerBookingActions
         booking={booking}
         slug={slug}
@@ -92,7 +158,11 @@ export default function AccountPage({
   profile: PublicBusinessProfile;
 }) {
   const history = useHistory();
+  const location = useLocation();
+  const subscriptionsSectionRef = useRef<HTMLHeadingElement>(null);
   const queryClient = useQueryClient();
+  const accountTab = new URLSearchParams(location.search).get('tab');
+  const subscriptionIdFromQuery = new URLSearchParams(location.search).get('subscriptionId');
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
@@ -102,6 +172,9 @@ export default function AccountPage({
     previousStartTime: string;
     newStartTime: string;
   } | null>(null);
+
+  const [reviewPromptBooking, setReviewPromptBooking] =
+    useState<PublicCustomerBookingItem | null>(null);
 
   const bookingsQuery = useQuery({
     queryKey: ['bookings', slug],
@@ -115,9 +188,42 @@ export default function AccountPage({
     enabled: authed,
   });
 
+  useEffect(() => {
+    if (accountTab !== 'subscriptions' || !subsQuery.isSuccess) return;
+    subscriptionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accountTab, subsQuery.isSuccess]);
+
+  const giftCardsQuery = useQuery({
+    queryKey: ['gift-cards-account', slug],
+    queryFn: () => getPublicCustomerGiftCards(slug),
+    enabled: authed,
+  });
+
+  const updateGiftCardOrder = (order: PublicGiftCardOrder) => {
+    queryClient.setQueryData(
+      ['gift-cards-account', slug],
+      (prev: { orders: PublicGiftCardOrder[]; redeemed: unknown[] } | undefined) =>
+        prev
+          ? { ...prev, orders: prev.orders.map((row) => (row.id === order.id ? order : row)) }
+          : prev,
+    );
+  };
+
   const reloadBookings = () => {
     void queryClient.invalidateQueries({ queryKey: ['bookings', slug] });
   };
+
+  useEffect(() => {
+    if (!authed || bookingsQuery.isLoading || reviewPromptBooking) return;
+    const candidate = resolvePostVisitReviewCandidate(bookingsQuery.data ?? []);
+    if (candidate) {
+      setReviewPromptBooking(candidate);
+    }
+  }, [authed, bookingsQuery.data, bookingsQuery.isLoading, reviewPromptBooking]);
+
+  const openReviewPrompt = useCallback((booking: PublicCustomerBookingItem) => {
+    setReviewPromptBooking(booking);
+  }, []);
 
   const signOut = () => {
     clearCustomerSession(slug);
@@ -152,6 +258,7 @@ export default function AccountPage({
             <IonButton expand="block" onClick={() => history.push(buildSalonPath(slug, '/login'))}>
               Sign in with Google
             </IonButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
           </>
         ) : (
           <>
@@ -163,6 +270,82 @@ export default function AccountPage({
             <IonButton expand="block" fill="outline" color="medium" onClick={signOut}>
               Sign out
             </IonButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
+
+            <ConsumerPrivacyDataSection
+              slug={slug}
+              businessName={profile.name}
+              copy={copy}
+              onDeleted={() => {
+                clearCustomerSession(slug);
+                history.replace(buildSalonPath(slug, '/account'));
+                window.location.reload();
+              }}
+            />
+
+            <ConsumerRewardsCard
+              slug={slug}
+              profile={profile}
+              copy={copy}
+              authed
+              onBook={() => history.push(buildSalonPath(slug, '/services'))}
+            />
+
+            <ConsumerNotificationPreferencesCard slug={slug} copy={copy} authed />
+
+            <ConsumerAccountGrowthCard
+              slug={slug}
+              profile={profile}
+              copy={copy}
+              bookings={bookingsQuery.data ?? []}
+              loading={bookingsQuery.isLoading}
+            />
+
+            <ConsumerGiftCardClaimSection
+              slug={slug}
+              copy={copy}
+              onClaimed={() => void queryClient.invalidateQueries({ queryKey: ['gift-cards-account', slug] })}
+            />
+
+            <h2 id="my-gift-cards" style={{ fontSize: '1.1rem', marginTop: 24 }}>
+              {copy.giftCardMyGiftCards}
+            </h2>
+            <h3 style={{ fontSize: '0.95rem', marginTop: 12, color: '#374151' }}>{copy.giftCardMyOrdered}</h3>
+            {giftCardsQuery.isLoading ? (
+              <IonSpinner />
+            ) : (
+              <ConsumerGiftCardsOrdersSection
+                slug={slug}
+                copy={copy}
+                locale={locale}
+                tenantCurrency={profile.currency}
+                orders={giftCardsQuery.data?.orders ?? []}
+                onOrderUpdated={updateGiftCardOrder}
+              />
+            )}
+            <h3 style={{ fontSize: '0.95rem', marginTop: 16, color: '#374151' }}>{copy.giftCardMyRedeemed}</h3>
+            {giftCardsQuery.isLoading ? (
+              <IonSpinner />
+            ) : (
+              <ConsumerGiftCardsRedeemedSection
+                slug={slug}
+                copy={copy}
+                locale={locale}
+                tenantCurrency={profile.currency}
+                redeemed={giftCardsQuery.data?.redeemed ?? []}
+              />
+            )}
+
+            {profile.giftCardsPurchaseEnabled ? (
+              <IonButton
+                expand="block"
+                fill="outline"
+                className="ion-margin-top"
+                onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
+              >
+                {copy.giftCardBuyGiftCard}
+              </IonButton>
+            ) : null}
 
             {showClinicAlerts ? (
               <>
@@ -223,6 +406,7 @@ export default function AccountPage({
                     key={b.id}
                     booking={b}
                     slug={slug}
+                    businessName={profile.name}
                     locale={locale}
                     copy={copy}
                     authed={authed}
@@ -230,6 +414,7 @@ export default function AccountPage({
                     onRescheduled={(previous, next) =>
                       setRescheduleNotice({ previousStartTime: previous, newStartTime: next })
                     }
+                    onReview={openReviewPrompt}
                   />
                 ))}
                 {grouped.standalone.length === 0 && grouped.packageGroups.length === 0 && (
@@ -238,25 +423,40 @@ export default function AccountPage({
               </div>
             )}
 
-            <h2 style={{ fontSize: '1.1rem', marginTop: 24 }}>Subscriptions</h2>
+            <h2
+              ref={subscriptionsSectionRef}
+              id="account-subscriptions"
+              style={{ fontSize: '1.1rem', marginTop: 24 }}
+            >
+              {copy.subscriptionsTitle}
+            </h2>
             {subsQuery.isLoading ? (
               <IonSpinner />
             ) : (
-              <>
-                {(subsQuery.data ?? []).map((s) => (
-                  <div key={s.id} className="salon-card">
-                    <h2 style={{ fontWeight: 600 }}>{s.planName}</h2>
-                    <p>
-                      {s.status} · {s.appointmentsRemaining} visits left
-                    </p>
-                    <p>Expires {formatDateDisplay(new Date(s.expiresAt))}</p>
-                  </div>
-                ))}
-                {(subsQuery.data ?? []).length === 0 && <p>No active subscriptions.</p>}
-              </>
+              <ConsumerSubscriptionsSection
+                slug={slug}
+                subscriptions={subsQuery.data ?? []}
+                primary={profile.branding.primaryColor || '#7c3aed'}
+                copy={copy}
+                locale={locale}
+                initialExpandedSubscriptionId={subscriptionIdFromQuery}
+              />
             )}
           </>
         )}
+        {reviewPromptBooking ? (
+          <PostVisitReviewPrompt
+            isOpen={Boolean(reviewPromptBooking)}
+            slug={slug}
+            booking={reviewPromptBooking}
+            copy={copy}
+            customerToken={token}
+            customerEmail={customer?.email}
+            zendeskWidgetConfigured={Boolean(profile.support?.zendeskWidgetKey)}
+            onClose={() => setReviewPromptBooking(null)}
+            onReviewSubmitted={reloadBookings}
+          />
+        ) : null}
       </IonContent>
     </IonPage>
   );

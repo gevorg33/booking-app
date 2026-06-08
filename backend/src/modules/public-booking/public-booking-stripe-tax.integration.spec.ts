@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import type { CheckoutPricingResult } from '../promo-codes/checkout-pricing.types.js';
 
 const taxPricing = (
@@ -131,18 +131,18 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
     find: jest.fn(),
   };
 
-  const publicBookingService = new PublicBookingService(
-    businessService as never,
-    bookingService as never,
-    customerService as never,
-    {} as never,
-    { isConnectReady: jest.fn().mockReturnValue(true) } as never,
-    {} as never,
-    bookingPaymentService as never,
-    { applyRedemptions: jest.fn().mockResolvedValue(undefined) } as never,
-    {} as never,
-    {} as never,
-    {
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: businessService as never,
+    bookingService: bookingService as never,
+    customerService: customerService as never,
+    stripeIntegrationService: {
+      isConnectReady: jest.fn().mockReturnValue(true),
+    } as never,
+    bookingPaymentService: bookingPaymentService as never,
+    checkoutPricingService: {
+      applyRedemptions: jest.fn().mockResolvedValue(undefined),
+    } as never,
+    packagesService: {
       assertPackageBookable: jest.fn(async () => ({
         id: 'pkg-1',
         name: 'Glow Package',
@@ -155,7 +155,7 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
       })),
       createPackagePurchase: jest.fn(async () => ({ id: 'purchase-1' })),
     } as never,
-    {
+    multiServiceBookingsService: {
       resolveSettingsFromBusiness: jest.fn(() => ({
         turnoverBufferMinutes: 5,
         schedulingMode: 'per_service',
@@ -179,14 +179,16 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
         },
       ]),
     } as never,
-    { sendMultiAppointmentConfirmation: jest.fn() } as never,
-    {} as never,
-    { get: jest.fn(() => 'https://app.test') } as unknown as ConfigService,
-    { find: jest.fn() } as never,
-    serviceRepo as never,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
-    { find: jest.fn() } as never,
-    {
+    notificationsService: {
+      sendMultiAppointmentConfirmation: jest.fn(),
+    } as never,
+    configService: {
+      get: jest.fn(() => 'https://app.test'),
+    } as unknown as ConfigService,
+    serviceRepo: serviceRepo as never,
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
+    schedulingPeriodRepo: { find: jest.fn() } as never,
+    bookingRepo: {
       findOne: jest.fn(
         async ({ where }: { where: { id: string } }) =>
           storedBookings.get(where.id) ?? null,
@@ -196,7 +198,7 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
         return booking;
       }),
     } as never,
-  );
+  });
 
   beforeEach(() => {
     storedBookings.clear();

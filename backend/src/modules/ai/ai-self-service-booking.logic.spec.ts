@@ -171,10 +171,14 @@ describe('ai-self-service-booking.logic', () => {
     expect((await handleBookPackageLogic(deps, 'biz-1', {})).action).toBe(
       'book_package',
     );
-    expect(
-      (await handleBookPackageLogic(deps, 'biz-1', { packageName: 'Spa Day' }))
-        .success,
-    ).toBe(true);
+    const bookNamed = await handleBookPackageLogic(deps, 'biz-1', {
+      packageName: 'Spa Day',
+    });
+    expect(bookNamed.success).toBe(true);
+    expect(bookNamed.details?.navigate).toEqual({
+      path: 'packages',
+      query: { packageId: 'pkg-1' },
+    });
     expect(
       (
         await handleBookPackageLogic(deps, 'biz-1', {
@@ -876,7 +880,7 @@ describe('ai-self-service-booking.logic', () => {
             date: '2026-06-03',
           })
         ).summary,
-      ).toContain('0 block slot');
+      ).toContain('No block slots on');
 
       (
         deps.publicBookingService.suggestMultiServiceBlock as jest.Mock
@@ -1146,7 +1150,7 @@ describe('ai-self-service-booking.logic', () => {
             date: '2026-06-03',
           })
         ).summary,
-      ).toContain('0 block slot');
+      ).toContain('No block slots on');
 
       expect(
         (await handleRescheduleMyBookingLogic(deps, 'biz-1', {})).summary,

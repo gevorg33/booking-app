@@ -65,17 +65,28 @@ export function normalizeAvailableProviders(
   return names.map((name) => ({ name }));
 }
 
-export function formatProviderTimes(provider: AiAvailableProvider): string | null {
+function normalizeBookableTime(value: string): string {
+  const isoMatch = value.match(/T(\d{2}:\d{2})/);
+  return isoMatch?.[1] ?? value;
+}
+
+export function listProviderBookableTimes(provider: AiAvailableProvider): string[] {
   if (provider.previewTimes?.length) {
-    return provider.previewTimes.join(', ');
+    return provider.previewTimes.map(normalizeBookableTime);
   }
   if (provider.openSlots?.length) {
-    return provider.openSlots
-      .map((slot) => `${slot.start}–${slot.end}`)
-      .join(', ');
+    return provider.openSlots.map((slot) => normalizeBookableTime(slot.start));
   }
   if (provider.earliestStartTime) {
-    return provider.earliestStartTime;
+    return [normalizeBookableTime(provider.earliestStartTime)];
+  }
+  return [];
+}
+
+export function formatProviderTimes(provider: AiAvailableProvider): string | null {
+  const times = listProviderBookableTimes(provider);
+  if (times.length > 0) {
+    return times.join(', ');
   }
   return null;
 }
@@ -84,12 +95,12 @@ export function buildProviderBookingPrompt(input: {
   provider: AiAvailableProvider;
   serviceName?: string;
   date?: string;
+  time?: string;
 }): string {
   const service = input.serviceName?.trim() || 'the service';
   const time =
-    input.provider.previewTimes?.[0] ??
-    input.provider.earliestStartTime ??
-    input.provider.openSlots?.[0]?.start;
+    input.time ??
+    listProviderBookableTimes(input.provider)[0];
   const datePart = input.date ? ` on ${input.date}` : '';
   if (time) {
     return `Book ${service} with ${input.provider.name}${datePart} at ${time}`;

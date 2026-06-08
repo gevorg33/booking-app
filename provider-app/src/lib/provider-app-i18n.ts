@@ -3,6 +3,7 @@ import { listClinicLabStateI18nKeys } from '@booking-lib/clinic-i18n';
 /** Provider mobile app keys under `provider.*` (Capacitor app). */
 export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.navToday',
+  'provider.navCalendar',
   'provider.navSchedule',
   'provider.navProfile',
   'provider.navGiftCards',
@@ -60,6 +61,10 @@ export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.exampleMarkJohn',
   'provider.exampleMarkAllPaid',
   'provider.exampleScheduleToday',
+  'provider.exampleExplainPushSetup',
+  'provider.exampleEnablePush',
+  'provider.exampleCountAppointmentsTomorrow',
+  'provider.exampleRevenueLastWeek',
   'provider.giftCardOrderFallback',
   'provider.inviteInvalidLink',
   'provider.inviteNotFound',
@@ -156,6 +161,23 @@ export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.upcomingAppointments',
   'provider.noUpcoming',
   'provider.profileTitle',
+  'provider.profilePublicTitle',
+  'provider.profileEditTitle',
+  'provider.profileTitlePlaceholder',
+  'provider.profileSave',
+  'provider.profileUploadPhoto',
+  'provider.profileReviewsTitle',
+  'provider.profileNoReviews',
+  'provider.profileAverageRating',
+  'provider.profileNoEmployee',
+  'provider.profileSaveFailed',
+  'provider.profilePhotoFailed',
+  'provider.profileAnonymousReview',
+  'provider.calendarTitle',
+  'provider.calendarSelectDay',
+  'provider.calendarNoAppointments',
+  'provider.calendarPreviousMonth',
+  'provider.calendarNextMonth',
 ] as const;
 
 /** Shared dashboard catalog keys used by the provider app. */

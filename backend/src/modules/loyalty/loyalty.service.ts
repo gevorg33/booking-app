@@ -177,6 +177,36 @@ export class LoyaltyService {
     return account;
   }
 
+  /** Flat bonus (referrals, campaigns) — idempotent by note per account. */
+  async awardFlatBonus(
+    businessId: string,
+    customerId: string,
+    points: number,
+    note: string,
+  ): Promise<boolean> {
+    const bonus = roundBonus(points);
+    if (bonus <= 0) return false;
+
+    const account = await this.getOrCreate(businessId, customerId);
+    const existing = await this.txRepo.findOne({
+      where: { accountId: account.id, type: 'earn', note },
+    });
+    if (existing) return false;
+
+    account.pointsBalance = roundBonus(account.pointsBalance + bonus);
+    account.lifetimeEarned = roundBonus(account.lifetimeEarned + bonus);
+    await this.accountRepo.save(account);
+    await this.txRepo.save(
+      this.txRepo.create({
+        accountId: account.id,
+        points: bonus,
+        type: 'earn',
+        note,
+      }),
+    );
+    return true;
+  }
+
   async redeem(
     businessId: string,
     customerId: string,

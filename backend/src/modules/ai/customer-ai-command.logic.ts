@@ -17,6 +17,7 @@ import type { AiRecommendationProductService } from './ai-recommendation-product
 import type { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import type { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import type { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import type { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
 import { mergeCustomerCompoundContext } from './customer-ai-command.util.js';
@@ -42,6 +43,7 @@ export interface CustomerAiCommandLogicDeps {
   consumerClinicTestResults: AiConsumerClinicTestResultsService;
   clinicLabBooking: AiClinicLabBookingService;
   clinicBooking: AiClinicBookingService;
+  consumerAdoption: AiConsumerAdoptionService;
 }
 
 export interface CustomerIntentSession {
@@ -220,6 +222,24 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'explain_my_notifications':
+    case 'manage_notification_preferences':
+    case 'refer_a_friend':
+    case 'rebook_last_appointment':
+    case 'find_my_saved_salons':
+      return (
+        (await deps.consumerAdoption.handleIntent(
+          businessId,
+          action,
+          p,
+          prompt,
+        )) ?? {
+          success: false,
+          action,
+          summary: `Customer assistant does not support "${action}" yet. Try rephrasing.`,
+          details: { clarify: true },
+        }
+      );
     case 'explain_consumer_checkout_tax':
       return deps.businessTax.handleExplainConsumerCheckoutTax(
         businessId,
@@ -347,6 +367,7 @@ export async function dispatchCustomerIntent(
       return deps.selfServiceBooking.handleCheckMultiServiceAvailability(
         businessId,
         p,
+        prompt,
       );
     case 'select_subscription_plan':
       return deps.selfServiceBooking.handleSelectSubscriptionPlan(

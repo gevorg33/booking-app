@@ -1,7 +1,9 @@
 import { Controller, Get, Query, Param, UseGuards, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { AnalyticsService } from './analytics.service.js';
+import { AppEventService } from './app-event.service.js';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto.js';
+import { AdoptionMetricsQueryDto } from './dto/adoption-metrics-query.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { BusinessService } from '../business/business.service.js';
@@ -11,8 +13,20 @@ import { BusinessService } from '../business/business.service.js';
 export class AnalyticsController {
   constructor(
     private analyticsService: AnalyticsService,
+    private appEventService: AppEventService,
     private businessService: BusinessService,
   ) {}
+
+  /** adopt-1.7 — adoption funnel, cohorts, activation dashboard */
+  @Get('adoption')
+  async adoption(
+    @Param('businessId') businessId: string,
+    @Query() query: AdoptionMetricsQueryDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(businessId, user.id);
+    return this.appEventService.getAdoptionDashboard(businessId, query.days ?? 30);
+  }
 
   @Get('staff')
   async staff(

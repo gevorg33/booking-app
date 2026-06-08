@@ -13,6 +13,8 @@ describe('ConsumerPushDispatchService', () => {
   const consumerPushTokens = {
     listTokensForCustomer: jest.fn(),
     deleteTokenById: jest.fn(),
+    recordFcmAccepted: jest.fn(),
+    recordDeliveryFailure: jest.fn(),
   };
   const firebase = {
     isReady: false,
@@ -106,8 +108,15 @@ describe('ConsumerPushDispatchService', () => {
           title: payload.title,
           body: payload.body,
         },
-        data: buildConsumerNativeFcmMessage(payload).data,
+        data: expect.objectContaining({
+          ...buildConsumerNativeFcmMessage(payload).data,
+          deliveryId: expect.any(String),
+        }),
       }),
+    );
+    expect(consumerPushTokens.recordFcmAccepted).toHaveBeenCalledWith(
+      'tok-1',
+      expect.any(String),
     );
   });
 
@@ -163,6 +172,10 @@ describe('ConsumerPushDispatchService', () => {
 
     expect(result.reason).toBe(CONSUMER_PUSH_SKIP_REASON);
     expect(consumerPushTokens.deleteTokenById).not.toHaveBeenCalled();
+    expect(consumerPushTokens.recordDeliveryFailure).toHaveBeenCalledWith(
+      'tok-1',
+      'unknown',
+    );
   });
 
   it('stringifies non-Error FCM failures', async () => {

@@ -596,7 +596,11 @@ export async function handleMySubscriptionsLogic(
     subs.length
       ? `You have ${subs.length} subscription(s).`
       : 'You have no subscriptions.',
-    { subscriptions: subs, count: subs.length },
+    {
+      subscriptions: subs,
+      count: subs.length,
+      navigate: { path: 'account', query: { tab: 'subscriptions' } },
+    },
   );
 }
 
@@ -629,7 +633,13 @@ export async function handleSubscriptionUsageLogic(
   return success(
     'subscription_usage',
     `${usage.usage.length} usage event(s) — ${sub.appointmentsRemaining} visit(s) remaining.`,
-    usage,
+    {
+      ...usage,
+      navigate: {
+        path: 'account',
+        query: { tab: 'subscriptions', subscriptionId: sub.id },
+      },
+    },
   );
 }
 
@@ -908,7 +918,11 @@ export async function handleDiscoverPackagesLogic(
     packages.length
       ? `${packages.length} package(s) available.`
       : 'No packages available right now.',
-    { packages, count: packages.length },
+    {
+      packages,
+      count: packages.length,
+      navigate: { path: 'packages', query: {} },
+    },
   );
 }
 

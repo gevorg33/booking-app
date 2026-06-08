@@ -111,6 +111,8 @@ export function PackageCheckoutClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
+  const [bookedWithCash, setBookedWithCash] = useState(false);
 
   useEffect(() => {
     if (authLoading || !customer) return;
@@ -279,14 +281,18 @@ export function PackageCheckoutClient({
       return;
     }
 
+    const bookPayload =
+      paymentMethod === 'cash' && showCashOption ? { ...payload, markPaid: true } : payload;
+
     setSubmitting(true);
     try {
       if (requiresPayment) {
-        const checkout = await createPublicPackageCheckout(slug, payload);
+        const checkout = await createPublicPackageCheckout(slug, bookPayload);
         window.location.href = checkout.url;
         return;
       }
-      await bookPublicPackage(slug, payload);
+      await bookPublicPackage(slug, bookPayload);
+      setBookedWithCash(paymentMethod === 'cash' && showCashOption);
       setSuccess(true);
     } catch (err: unknown) {
       setError((err as Error)?.message || t('public.bookingFailed'));
@@ -308,6 +314,13 @@ export function PackageCheckoutClient({
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{t('public.packageBookedTitle')}</h1>
             <p className="text-gray-600 mt-2">{t('public.packageBookedHint')}</p>
+            {bookedWithCash && confirmedTotal > 0 && (
+              <p className="text-sm text-amber-700 mt-3">
+                {t('public.payCashAtVisit', {
+                  amount: money(confirmedTotal, pkg.currency),
+                })}
+              </p>
+            )}
           </div>
 
           <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm text-left">
@@ -699,6 +712,45 @@ export function PackageCheckoutClient({
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
+          {showCashOption && (
+            <section className="border-b border-gray-100 pb-4 mb-4">
+              <p className="text-sm font-medium text-gray-900 mb-2">{t('public.paymentMethod')}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('online')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                    paymentMethod === 'online'
+                      ? 'border-transparent text-white'
+                      : 'border-gray-200 text-gray-700'
+                  }`}
+                  style={paymentMethod === 'online' ? { backgroundColor: primary } : undefined}
+                >
+                  {t('public.payOnline')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cash')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                    paymentMethod === 'cash'
+                      ? 'border-transparent text-white'
+                      : 'border-gray-200 text-gray-700'
+                  }`}
+                  style={paymentMethod === 'cash' ? { backgroundColor: primary } : undefined}
+                >
+                  {t('public.payCashAtVisitShort')}
+                </button>
+              </div>
+              {paymentMethod === 'cash' && (
+                <p className="text-xs text-gray-600 mt-2">
+                  {t('public.payCashAtVisit', {
+                    amount: money(amountDue, pkg.currency),
+                  })}
+                </p>
+              )}
+            </section>
+          )}
+
           <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
             <div className="max-w-lg mx-auto">
               <div className="flex justify-between text-sm mb-3">
@@ -716,9 +768,11 @@ export function PackageCheckoutClient({
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {submitting
                   ? t('public.submitting')
-                  : requiresPayment
-                    ? t('public.packagePayAndBook')
-                    : t('public.confirmBooking')}
+                  : paymentMethod === 'cash' && showCashOption
+                    ? t('public.confirmCashBooking')
+                    : requiresPayment
+                      ? t('public.packagePayAndBook')
+                      : t('public.confirmBooking')}
               </button>
             </div>
           </div>

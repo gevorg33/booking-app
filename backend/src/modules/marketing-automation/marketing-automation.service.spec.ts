@@ -4,17 +4,29 @@ import { MarketingAutomationService } from './marketing-automation.service.js';
 describe('MarketingAutomationService', () => {
   const businessRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const customerRepo = { find: jest.fn() };
-  const bookingRepo = { createQueryBuilder: jest.fn() };
+  const bookingRepo = { createQueryBuilder: jest.fn(), exists: jest.fn() };
   const logRepo = {
     count: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
   };
+  const appEventRepo = { find: jest.fn().mockResolvedValue([]) };
+  const serviceRepo = { findOne: jest.fn().mockResolvedValue(null) };
   const emailService = { send: jest.fn() };
   const smsService = { send: jest.fn() };
   const configService = {
     get: jest.fn().mockReturnValue('http://localhost:3000'),
+  };
+
+  const consumerPushDispatch = {
+    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true }),
+  };
+  const loyaltyService = {
+    adjust: jest.fn().mockResolvedValue({ pointsBalance: 0 }),
+  };
+  const customerRebookingCadenceService = {
+    computeLearnedCadenceDays: jest.fn().mockResolvedValue(null),
   };
 
   const service = new MarketingAutomationService(
@@ -22,9 +34,14 @@ describe('MarketingAutomationService', () => {
     customerRepo as any,
     bookingRepo as any,
     logRepo as any,
+    appEventRepo as any,
+    serviceRepo as any,
     emailService as any,
     smsService as any,
     configService as any,
+    consumerPushDispatch as any,
+    loyaltyService as any,
+    customerRebookingCadenceService as any,
   );
 
   const business = {
@@ -33,7 +50,10 @@ describe('MarketingAutomationService', () => {
     name: 'Demo Salon',
     isActive: true,
     settings: {
-      marketingAutomation: { reEngagementEnabled: true },
+      marketingAutomation: {
+        reEngagementEnabled: true,
+        reEngagementPushEnabled: false,
+      },
       notifications: { emailEnabled: true, smsEnabled: true },
     },
   };
@@ -48,6 +68,7 @@ describe('MarketingAutomationService', () => {
     logRepo.count.mockResolvedValue(2);
     emailService.send.mockResolvedValue({ ok: true });
     smsService.send.mockResolvedValue({ ok: true });
+    bookingRepo.exists.mockResolvedValue(false);
   });
 
   it('loads merged settings', async () => {
@@ -100,10 +121,14 @@ describe('MarketingAutomationService', () => {
         lastCompletedAt: null,
       },
     ]);
+    logRepo.count.mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+    jest.spyOn(service, 'findRebookingNudgeCandidates').mockResolvedValue([]);
     await expect(service.getSummary('biz-1')).resolves.toEqual({
       settings: expect.objectContaining({ reEngagementEnabled: true }),
       eligibleInactiveCustomers: 1,
       reEngagementSentLast30Days: 2,
+      eligibleRebookingNudges: 0,
+      rebookingNudgeSentLast30Days: 0,
     });
   });
 
@@ -243,12 +268,31 @@ describe('MarketingAutomationService', () => {
 
   it('logs failed email dispatch', async () => {
     emailService.send.mockResolvedValue({ ok: false, error: 'smtp down' });
+    consumerPushDispatch.sendTransactionalPush.mockResolvedValue({
+      ok: false,
+      reason: 'firebase_not_configured',
+    });
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        ...business.settings,
+        marketingAutomation: {
+          reEngagementEnabled: true,
+          reEngagementEmailEnabled: true,
+          reEngagementPushEnabled: true,
+        },
+      },
+    });
     jest.spyOn(service, 'findReEngagementCandidates').mockResolvedValue([
       {
         customerId: 'cust-1',
         name: 'Jane',
         email: 'jane@example.com',
         phone: null,
+        customerMetadata: {
+          gdpr: { marketingOptIn: true },
+          notifications: { pushReminders: true },
+        },
         lastCompletedAt: new Date().toISOString(),
       },
     ]);
@@ -424,6 +468,7 @@ describe('MarketingAutomationService', () => {
           reEngagementEnabled: true,
           reEngagementEmailEnabled: false,
           reEngagementSmsEnabled: true,
+          reEngagementPushEnabled: false,
         },
         notifications: { emailEnabled: true, smsEnabled: true },
       },
@@ -476,6 +521,7 @@ describe('MarketingAutomationService', () => {
           reEngagementEnabled: true,
           reEngagementEmailEnabled: false,
           reEngagementSmsEnabled: false,
+          reEngagementPushEnabled: false,
         },
         notifications: { emailEnabled: true, smsEnabled: true },
       },
@@ -527,6 +573,7 @@ describe('MarketingAutomationService', () => {
           reEngagementEnabled: true,
           reEngagementEmailEnabled: true,
           reEngagementSmsEnabled: true,
+          reEngagementPushEnabled: false,
         },
         notifications: { emailEnabled: true, smsEnabled: true },
       },
@@ -668,6 +715,59 @@ describe('MarketingAutomationService', () => {
       reEngagementPromoCode: '  NEWCODE  ',
     });
     expect(next.reEngagementPromoCode).toBe('NEWCODE');
+  });
+
+  it('updates rebooking nudge promo code settings', async () => {
+    const next = await service.updateSettings('biz-1', {
+      rebookingNudgePromoCode: '  REBOOK10  ',
+    });
+    expect(next.rebookingNudgePromoCode).toBe('REBOOK10');
+  });
+
+  it('clears rebooking nudge promo code when update receives null', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        marketingAutomation: { rebookingNudgePromoCode: 'OLD' },
+      },
+    });
+    const next = await service.updateSettings('biz-1', {
+      rebookingNudgePromoCode: null,
+    });
+    expect(next.rebookingNudgePromoCode).toBeNull();
+  });
+
+  it('preserves rebooking promo when update receives blank string', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: {
+        marketingAutomation: { rebookingNudgePromoCode: 'KEEP' },
+      },
+    });
+    const next = await service.updateSettings('biz-1', {
+      rebookingNudgePromoCode: '   ',
+    });
+    expect(next.rebookingNudgePromoCode).toBe('KEEP');
+  });
+
+  it('merges settings when business has no settings object', async () => {
+    businessRepo.findOne.mockResolvedValue({
+      ...business,
+      settings: undefined,
+    });
+    const next = await service.updateSettings('biz-1', {
+      rebookingNudgeEnabled: true,
+    });
+    expect(next.rebookingNudgeEnabled).toBe(true);
+    expect(businessRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          marketingAutomation: expect.objectContaining({
+            rebookingNudgeEnabled: true,
+          }),
+        }),
+      }),
+    );
   });
 
   it('finds candidates using custom inactivity settings', async () => {

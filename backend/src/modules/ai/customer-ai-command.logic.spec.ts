@@ -330,6 +330,16 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
         'explain_stripe_checkout_currency',
       ),
     } as any,
+    consumerAdoption: {
+      handleIntent: jest.fn(async (_biz, action) => {
+        const key = `adopt.${action}`;
+        if (!calls[key]) {
+          calls[key] = handler(action);
+        }
+        await calls[key]();
+        return { success: true, action, summary: 'ok', details: {} };
+      }),
+    } as any,
   };
 }
 
@@ -505,6 +515,14 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
     action: 'explain_consumer_checkout_success',
     callKey: 'rec.explain_consumer_checkout_success',
   },
+  { action: 'explain_my_notifications', callKey: 'adopt.explain_my_notifications' },
+  {
+    action: 'manage_notification_preferences',
+    callKey: 'adopt.manage_notification_preferences',
+  },
+  { action: 'refer_a_friend', callKey: 'adopt.refer_a_friend' },
+  { action: 'rebook_last_appointment', callKey: 'adopt.rebook_last_appointment' },
+  { action: 'find_my_saved_salons', callKey: 'adopt.find_my_saved_salons' },
   {
     action: 'explain_checkout_currency',
     callKey: 'curr.explain_checkout_currency',

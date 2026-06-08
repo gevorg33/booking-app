@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { BusinessService } from './business.service.js';
-import { PublicBookingService } from '../public-booking/public-booking.service.js';
+import { createPublicBookingServiceHarness } from '../public-booking/public-booking-test.harness.js';
 
 describe('Business public profile locales integration', () => {
   let business: Record<string, unknown>;
@@ -36,34 +36,19 @@ describe('Business public profile locales integration', () => {
     resolveSettingsFromBusiness: jest.fn().mockReturnValue({ enabled: false }),
   };
 
-  const publicBookingService = new PublicBookingService(
-    publicBusinessService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    stripeIntegrationService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    subscriptionsService as any,
-    {} as any,
-    multiServiceBookingsService as any,
-    {} as any,
-    {} as any,
-    {
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: publicBusinessService as any,
+    stripeIntegrationService: stripeIntegrationService as any,
+    subscriptionsService: subscriptionsService as any,
+    multiServiceBookingsService: multiServiceBookingsService as any,
+    configService: {
       get: jest.fn((key: string) => {
         if (key === 'PUBLIC_API_URL') return 'http://127.0.0.1:3001';
         if (key === 'FRONTEND_URL') return 'http://127.0.0.1:3000';
         return undefined;
       }),
     } as any,
-    { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
-    {} as any,
-    {} as any,
-    {} as any,
-  );
+  });
 
   beforeEach(() => {
     business = {

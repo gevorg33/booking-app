@@ -1,13 +1,20 @@
 import {
   IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonPage,
   IonTitle,
   IonToolbar,
   IonBadge,
 } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { bookmark, bookmarkOutline } from 'ionicons/icons';
+import { useEffect } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
+import { BookingProgressIndicator } from '../components/BookingProgressIndicator.js';
+import { track } from '../lib/app-analytics.js';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
@@ -20,6 +27,10 @@ import { getCustomerToken } from '../lib/customer-auth.js';
 import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 import { fetchMyClinicLabBookingRequests } from '../services/public-api.js';
 import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js';
+import { isSalonPinned, toggleSalonPin } from '../lib/recent-salons.js';
+import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
+import { ConsumerRewardsCard } from '../components/ConsumerRewardsCard.js';
+import { ConsumerGrowthLinks } from '../components/ConsumerGrowthLinks.js';
 
 export default function SalonHomePage({
   slug,
@@ -29,7 +40,9 @@ export default function SalonHomePage({
   profile: PublicBusinessProfile;
 }) {
   const history = useHistory();
+  const location = useLocation();
   const logo = profile.branding.logoUrl;
+  const [pinned, setPinned] = useState(() => isSalonPinned(slug));
   const { locale, setConsumerLocale, enabledLocales, localeLabels } = useConsumerLocale(
     slug,
     profile,
@@ -45,6 +58,10 @@ export default function SalonHomePage({
   });
   const pendingLabCount = pendingLabRequestsQuery.data?.length ?? 0;
 
+  useEffect(() => {
+    track('onboarding_step_viewed', { onboardingStep: 'salon' });
+  }, [slug]);
+
   const navigateToAlertSection = (route: ConsumerPatientAlertRoute, anchorId: string) => {
     history.push(buildSalonPath(slug, route));
     window.setTimeout(() => {
@@ -57,15 +74,28 @@ export default function SalonHomePage({
       <IonHeader>
         <IonToolbar>
           <IonTitle>{profile.name}</IonTitle>
-          <ConsumerLanguagePicker
-            locale={locale}
-            enabledLocales={enabledLocales}
-            localeLabels={localeLabels}
-            onChange={setConsumerLocale}
-          />
+          <IonButtons slot="start">
+            <ConsumerTenantSwitcher currentSlug={slug} />
+          </IonButtons>
+          <IonButtons slot="end">
+            <IonButton
+              aria-label={pinned ? 'Unsave salon' : 'Save salon'}
+              onClick={() => setPinned(toggleSalonPin(slug))}
+            >
+              <IonIcon icon={pinned ? bookmark : bookmarkOutline} color={pinned ? 'warning' : 'medium'} />
+            </IonButton>
+            <ConsumerLanguagePicker
+              locale={locale}
+              enabledLocales={enabledLocales}
+              localeLabels={localeLabels}
+              onChange={setConsumerLocale}
+            />
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
+        <BookingProgressIndicator pathname={location.pathname} />
+
         <div className="salon-card ion-text-center">
           {logo ? (
             <img
@@ -91,9 +121,30 @@ export default function SalonHomePage({
           />
         ) : null}
 
-        <IonButton expand="block" onClick={() => history.push(buildSalonPath(slug, '/services'))}>
-          Book an appointment
+        <ConsumerRewardsCard
+          slug={slug}
+          profile={profile}
+          copy={copy}
+          authed={authed}
+          onBook={() => history.push(buildSalonPath(slug, '/professionals'))}
+        />
+
+        <IonButton
+          expand="block"
+          onClick={() => history.push(buildSalonPath(slug, '/professionals'))}
+        >
+          {copy.bookAppointment}
         </IonButton>
+        {profile.giftCardsPurchaseEnabled ? (
+          <IonButton
+            expand="block"
+            fill="outline"
+            className="ion-margin-top"
+            onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
+          >
+            {copy.giftCardBuyGiftCard}
+          </IonButton>
+        ) : null}
         {showClinicAlerts ? (
           <IonButton
             expand="block"
@@ -117,10 +168,20 @@ export default function SalonHomePage({
           expand="block"
           fill="outline"
           className="ion-margin-top"
+          onClick={() => history.push(buildSalonPath(slug, '/profile'))}
+        >
+          {copy.profileViewDetails}
+        </IonButton>
+        <IonButton
+          expand="block"
+          fill="outline"
+          className="ion-margin-top"
           onClick={() => history.push(buildSalonPath(slug, '/account'))}
         >
           My account
         </IonButton>
+
+        <ConsumerGrowthLinks profile={profile} copy={copy} />
       </IonContent>
     </IonPage>
   );

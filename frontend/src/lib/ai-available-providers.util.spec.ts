@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProviderBookingPrompt,
   formatProviderTimes,
+  listProviderBookableTimes,
   normalizeAvailableProviders,
 } from './ai-available-providers.util';
 
@@ -144,6 +145,38 @@ describe('normalizeAvailableProviders', () => {
   });
 });
 
+describe('listProviderBookableTimes', () => {
+  it('returns preview times when present', () => {
+    expect(
+      listProviderBookableTimes({
+        name: 'Karo',
+        previewTimes: ['17:00', '17:30', '18:00'],
+      }),
+    ).toEqual(['17:00', '17:30', '18:00']);
+  });
+
+  it('normalizes ISO earliest start times to HH:mm', () => {
+    expect(
+      listProviderBookableTimes({
+        name: 'Karo',
+        earliestStartTime: '2026-06-09T17:30:00.000Z',
+      }),
+    ).toEqual(['17:30']);
+  });
+
+  it('uses open slot starts when preview times are missing', () => {
+    expect(
+      listProviderBookableTimes({
+        name: 'Karo',
+        openSlots: [
+          { start: '14:00', end: '15:00' },
+          { start: '16:00', end: '17:00' },
+        ],
+      }),
+    ).toEqual(['14:00', '16:00']);
+  });
+});
+
 describe('formatProviderTimes', () => {
   it('prefers preview times', () => {
     expect(
@@ -164,7 +197,7 @@ describe('formatProviderTimes', () => {
     ).toBeNull();
   });
 
-  it('formats open slot ranges', () => {
+  it('formats open slot start times for booking', () => {
     expect(
       formatProviderTimes({
         name: 'Karo',
@@ -173,7 +206,7 @@ describe('formatProviderTimes', () => {
           { start: '16:00', end: '17:00' },
         ],
       }),
-    ).toBe('14:00–15:00, 16:00–17:00');
+    ).toBe('14:00, 16:00');
   });
 
   it('falls back to earliest start time', () => {
@@ -202,6 +235,20 @@ describe('buildProviderBookingPrompt', () => {
         date: '2026-06-06',
       }),
     ).toBe('Book Permanent lips with Karo Mazmanyan on 2026-06-06 at 14:00');
+  });
+
+  it('uses an explicit time override when provided', () => {
+    expect(
+      buildProviderBookingPrompt({
+        provider: {
+          name: 'Gevorg Gasparyan',
+          previewTimes: ['17:00', '17:30', '18:00'],
+        },
+        serviceName: 'facemassage',
+        date: '2026-06-09',
+        time: '17:30',
+      }),
+    ).toBe('Book facemassage with Gevorg Gasparyan on 2026-06-09 at 17:30');
   });
 
   it('uses earliest start time when preview times are missing', () => {

@@ -24,6 +24,16 @@ import {
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
 import { GiftCardPurchaseService } from '../gift-cards/gift-card-purchase.service.js';
 import { resolveCustomerSelfServiceSettings } from '../../common/utils/customer-self-service.util.js';
+import {
+  mergeCustomerAnalyticsAnonMetadata,
+  readCustomerAnalyticsAnonId,
+} from '../../common/utils/customer-analytics-anon.util.js';
+import {
+  applyCustomerNotificationPreferences,
+  hasNotificationPreferenceUpdate,
+  mapPublicConsumerNotificationPreferences,
+  type UpdatePublicConsumerNotificationPreferencesInput,
+} from './public-consumer-notification-preferences.util.js';
 
 @Injectable()
 export class PublicCustomerAuthService {
@@ -39,13 +49,146 @@ export class PublicCustomerAuthService {
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
   ) {}
 
+  async loginWithApple(
+    slug: string,
+    idToken: string,
+    analyticsAnonId?: string,
+  ): Promise<PublicCustomerAuthResponse> {
+    return this.loginWithOAuthIdToken(slug, idToken, 'apple', analyticsAnonId);
+  }
+
+  async loginWithPhone(
+    slug: string,
+    idToken: string,
+    analyticsAnonId?: string,
+  ): Promise<PublicCustomerAuthResponse> {
+    if (!this.firebase.isReady) {
+      throw new BadRequestException('Phone sign-in is not configured on the server');
+    }
+
+    let decoded;
+    try {
+      decoded = await this.firebase.verifyIdToken(idToken);
+    } catch {
+      throw new UnauthorizedException('Invalid phone sign-in token');
+    }
+
+    const phone = String(decoded.phone_number ?? '').trim();
+    if (!phone) {
+      throw new UnauthorizedException('Phone sign-in token has no phone number');
+    }
+
+    const business = await this.resolveBusiness(slug);
+    const email = decoded.email?.trim().toLowerCase() ?? null;
+    const name =
+      decoded.name?.trim() ||
+      [decoded.given_name, decoded.family_name].filter(Boolean).join(' ').trim() ||
+      phone;
+
+    let customer = await this.customerRepo
+      .createQueryBuilder('customer')
+      .where('customer.business_id = :businessId', { businessId: business.id })
+      .andWhere('customer.isActive = :isActive', { isActive: true })
+      .andWhere('customer.phone = :phone', { phone })
+      .getOne();
+
+    if (!customer && email) {
+      customer = await this.customerRepo
+        .createQueryBuilder('customer')
+        .where('customer.business_id = :businessId', { businessId: business.id })
+        .andWhere('customer.isActive = :isActive', { isActive: true })
+        .andWhere('LOWER(customer.email) = :email', { email })
+        .getOne();
+    }
+
+    if (!customer) {
+      customer = await this.customerRepo.save(
+        this.customerRepo.create({
+          businessId: business.id,
+          name,
+          email,
+          phone,
+          metadata: {
+            authProvider: 'phone',
+            phoneSub: decoded.uid,
+          },
+        }),
+      );
+      this.eventEmitter.emit(CUSTOMER_REGISTERED_EVENT, {
+        businessId: business.id,
+        customerId: customer.id,
+        source: 'app',
+      });
+      this.eventEmitter.emit('customer.upserted', {
+        businessId: business.id,
+        customerId: customer.id,
+      });
+    } else {
+      const metadata = { ...(customer.metadata || {}) };
+      let dirty = false;
+      if (name && customer.name !== name) {
+        customer.name = name;
+        dirty = true;
+      }
+      if (!customer.phone) {
+        customer.phone = phone;
+        dirty = true;
+      }
+      if (email && !customer.email) {
+        customer.email = email;
+        dirty = true;
+      }
+      if (!metadata.phoneSub) {
+        metadata.phoneSub = decoded.uid;
+        metadata.authProvider = 'phone';
+        dirty = true;
+      }
+      if (dirty) {
+        customer.metadata = metadata;
+        customer = await this.customerRepo.save(customer);
+      }
+    }
+
+    if (email) {
+      await this.giftCardPurchaseService.linkGuestPurchasesToCustomer(
+        business.id,
+        customer.id,
+        email,
+      );
+    }
+    await this.linkGuestBookingsToCustomer(
+      business.id,
+      customer.id,
+      customer.email ?? email ?? '',
+      phone,
+    );
+
+    const token = this.signToken(
+      customer,
+      business.id,
+      this.resolveCustomerJwtEmail(customer, phone),
+    );
+    customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+    return { token, customer: this.toProfile(customer) };
+  }
+
   async loginWithGoogle(
     slug: string,
     idToken: string,
+    analyticsAnonId?: string,
+  ): Promise<PublicCustomerAuthResponse> {
+    return this.loginWithOAuthIdToken(slug, idToken, 'google', analyticsAnonId);
+  }
+
+  private async loginWithOAuthIdToken(
+    slug: string,
+    idToken: string,
+    provider: 'google' | 'apple',
+    analyticsAnonId?: string,
   ): Promise<PublicCustomerAuthResponse> {
     if (!this.firebase.isReady) {
       throw new BadRequestException(
-        'Google sign-in is not configured on the server',
+        `${provider === 'apple' ? 'Apple' : 'Google'} sign-in is not configured on the server`,
       );
     }
 
@@ -53,12 +196,12 @@ export class PublicCustomerAuthService {
     try {
       decoded = await this.firebase.verifyIdToken(idToken);
     } catch {
-      throw new UnauthorizedException('Invalid Google sign-in token');
+      throw new UnauthorizedException(`Invalid ${provider} sign-in token`);
     }
 
     const email = decoded.email?.trim().toLowerCase();
     if (!email) {
-      throw new UnauthorizedException('Google account has no email');
+      throw new UnauthorizedException(`${provider} account has no email`);
     }
 
     const business = await this.resolveBusiness(slug);
@@ -84,8 +227,8 @@ export class PublicCustomerAuthService {
           name,
           email,
           metadata: {
-            authProvider: 'google',
-            googleSub: decoded.uid,
+            authProvider: provider,
+            [`${provider}Sub`]: decoded.uid,
             photoUrl: decoded.picture ?? null,
           },
         }),
@@ -106,9 +249,10 @@ export class PublicCustomerAuthService {
         customer.name = name;
         dirty = true;
       }
-      if (!metadata.googleSub) {
-        metadata.googleSub = decoded.uid;
-        metadata.authProvider = 'google';
+      const providerSubKey = provider === 'apple' ? 'appleSub' : 'googleSub';
+      if (!metadata[providerSubKey]) {
+        metadata[providerSubKey] = decoded.uid;
+        metadata.authProvider = provider;
         dirty = true;
       }
       if (decoded.picture && metadata.photoUrl !== decoded.picture) {
@@ -126,9 +270,91 @@ export class PublicCustomerAuthService {
       customer.id,
       email,
     );
+    await this.linkGuestBookingsToCustomer(
+      business.id,
+      customer.id,
+      email,
+      customer.phone,
+    );
 
     const token = this.signToken(customer, business.id, email);
+    customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
     return { token, customer: this.toProfile(customer) };
+  }
+
+  async linkAnalyticsAnonForCustomer(
+    customer: Customer,
+    analyticsAnonId?: string | null,
+  ): Promise<Customer> {
+    const anon = analyticsAnonId?.trim();
+    if (!anon) return customer;
+    if (readCustomerAnalyticsAnonId(customer.metadata) === anon) return customer;
+    customer.metadata = mergeCustomerAnalyticsAnonMetadata(customer.metadata, anon);
+    return this.customerRepo.save(customer);
+  }
+
+  async linkAnalyticsAnonByCustomerId(
+    businessId: string,
+    customerId: string,
+    analyticsAnonId?: string | null,
+  ): Promise<void> {
+    const customer = await this.customerRepo.findOne({
+      where: { id: customerId, businessId, isActive: true },
+    });
+    if (!customer) return;
+    await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+  }
+
+  private resolveCustomerJwtEmail(customer: Customer, phone?: string | null): string {
+    const email = customer.email?.trim().toLowerCase();
+    if (email) return email;
+    const digits = String(phone ?? customer.phone ?? '').replace(/\D/g, '');
+    return `${digits || 'unknown'}@phone.local`;
+  }
+
+  async linkGuestBookingsToCustomer(
+    businessId: string,
+    customerId: string,
+    email: string,
+    phone?: string | null,
+  ): Promise<number> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone?.trim() || null;
+    if (!normalizedEmail && !normalizedPhone) return 0;
+
+    const duplicateQuery = this.customerRepo
+      .createQueryBuilder('customer')
+      .where('customer.business_id = :businessId', { businessId })
+      .andWhere('customer.id != :customerId', { customerId })
+      .andWhere('customer.isActive = :isActive', { isActive: true });
+
+    if (normalizedEmail && normalizedPhone) {
+      duplicateQuery.andWhere(
+        '(LOWER(customer.email) = :email OR customer.phone = :phone)',
+        { email: normalizedEmail, phone: normalizedPhone },
+      );
+    } else if (normalizedEmail) {
+      duplicateQuery.andWhere('LOWER(customer.email) = :email', {
+        email: normalizedEmail,
+      });
+    } else {
+      duplicateQuery.andWhere('customer.phone = :phone', { phone: normalizedPhone });
+    }
+
+    const duplicates = await duplicateQuery.getMany();
+    if (duplicates.length === 0) return 0;
+
+    const duplicateIds = duplicates.map((entry) => entry.id);
+    await this.bookingRepo
+      .createQueryBuilder()
+      .update(Booking)
+      .set({ customerId })
+      .where('business_id = :businessId', { businessId })
+      .andWhere('customer_id IN (:...duplicateIds)', { duplicateIds })
+      .execute();
+
+    await this.customerRepo.update({ id: In(duplicateIds) }, { isActive: false });
+    return duplicateIds.length;
   }
 
   getProfile(customer: Customer): PublicCustomerProfile {
@@ -144,6 +370,30 @@ export class PublicCustomerAuthService {
     });
     if (!customer) throw new UnauthorizedException('Customer session expired');
     return customer;
+  }
+
+  async getNotificationPreferences(slug: string, customerId: string) {
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.getCustomerById(business.id, customerId);
+    return mapPublicConsumerNotificationPreferences(customer.metadata);
+  }
+
+  async updateNotificationPreferences(
+    slug: string,
+    customerId: string,
+    input: UpdatePublicConsumerNotificationPreferencesInput,
+  ) {
+    if (!hasNotificationPreferenceUpdate(input)) {
+      throw new BadRequestException('No notification preference fields provided');
+    }
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.getCustomerById(business.id, customerId);
+    customer.metadata = applyCustomerNotificationPreferences(
+      customer.metadata,
+      input,
+    );
+    await this.customerRepo.save(customer);
+    return mapPublicConsumerNotificationPreferences(customer.metadata);
   }
 
   async listBookings(

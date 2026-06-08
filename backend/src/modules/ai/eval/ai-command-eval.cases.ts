@@ -263,6 +263,9 @@ import {
   type RecommendationProductEvalScenario,
 } from '../ai-recommendation-product-multilingual.fixtures.js';
 import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from '../ai-checkout-recommendations.fixtures.js';
+import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from '../ai-consumer-adoption.fixtures.js';
+import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from '../ai-provider-push-setup.fixtures.js';
+import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from '../ai-provider-earnings.fixtures.js';
 import { EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS } from '../ai-consumer-checkout-success.fixtures.js';
 import {
   EN_CONSUMER_CHECKOUT_SUCCESS_EVAL_SCENARIOS,
@@ -3074,6 +3077,56 @@ export const AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES: AiCommandEvalCa
     consumerCheckoutSuccessScenarioToEvalCase,
   );
 
+/** Map consumer adoption assistant prompts (adopt-6.6) to eval golden cases. */
+export const AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES: AiCommandEvalCase[] =
+  CONSUMER_ADOPTION_PROMPT_SCENARIOS.map((entry) => ({
+    id: `consumer-adoption-${entry.id}`,
+    prompt: entry.prompt,
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+    },
+  }));
+
+/** Map provider push setup prompts (adopt-6.7) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES: AiCommandEvalCase[] =
+  PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-push-setup-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+    },
+  }));
+
+/** Map provider earnings summary prompts to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES: AiCommandEvalCase[] =
+  PROVIDER_EARNINGS_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-earnings-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+    },
+  }));
+
 /** Map consumer app checkout success explain prompts (ai-cmd-rec-6) to eval golden cases. */
 export const AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES: AiCommandEvalCase[] =
   EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS.map((entry) => {
@@ -3957,6 +4010,9 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES,
   ...AI_CMD_DOMAIN_EVAL_CASES,
 ];
 

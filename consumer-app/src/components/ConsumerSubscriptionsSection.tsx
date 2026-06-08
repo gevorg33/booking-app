@@ -1,0 +1,172 @@
+import { IonButton, IonIcon, IonSpinner } from '@ionic/react';
+import { chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
+import { useEffect, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import { buildSalonPath } from '../lib/deep-link.js';
+import { formatDateDisplay } from '../lib/date-format.js';
+import { formatSubscriptionUsageLine } from '../lib/subscription-account.util.js';
+import type { PublicCustomerSubscription } from '../lib/types.js';
+import { fetchMySubscriptionUsage } from '../services/public-api.js';
+
+export function ConsumerSubscriptionsSection({
+  slug,
+  subscriptions,
+  primary,
+  copy,
+  locale,
+  initialExpandedSubscriptionId,
+}: {
+  slug: string;
+  subscriptions: PublicCustomerSubscription[];
+  primary: string;
+  copy: ConsumerCopy;
+  locale: string;
+  initialExpandedSubscriptionId?: string | null;
+}) {
+  const history = useHistory();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [usageById, setUsageById] = useState<
+    Record<string, { loading: boolean; rows: import('../lib/types.js').PublicSubscriptionUsageRow[] }>
+  >({});
+  const didAutoExpandRef = useRef(false);
+
+  async function toggleUsage(sub: PublicCustomerSubscription) {
+    if (expandedId === sub.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(sub.id);
+    if (usageById[sub.id]) return;
+    setUsageById((prev) => ({ ...prev, [sub.id]: { loading: true, rows: [] } }));
+    try {
+      const result = await fetchMySubscriptionUsage(slug, sub.id);
+      setUsageById((prev) => ({
+        ...prev,
+        [sub.id]: { loading: false, rows: result.usage ?? [] },
+      }));
+    } catch {
+      setUsageById((prev) => ({ ...prev, [sub.id]: { loading: false, rows: [] } }));
+    }
+  }
+
+  useEffect(() => {
+    if (!initialExpandedSubscriptionId || didAutoExpandRef.current) return;
+    const sub = subscriptions.find((row) => row.id === initialExpandedSubscriptionId);
+    if (!sub) return;
+    didAutoExpandRef.current = true;
+    void toggleUsage(sub);
+  }, [initialExpandedSubscriptionId, subscriptions]);
+
+  if (subscriptions.length === 0) {
+    return <p style={{ color: '#6b7280' }}>{copy.subscriptionsEmpty}</p>;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {subscriptions.map((sub) => {
+        const serviceId = sub.plan?.service?.id;
+        const expanded = expandedId === sub.id;
+        const usageState = usageById[sub.id];
+        const included = sub.appointmentsIncluded ?? sub.appointmentsRemaining;
+        return (
+          <div key={sub.id} className="salon-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h2 style={{ fontWeight: 600, margin: 0 }}>
+                  {sub.plan?.name ?? sub.planName ?? copy.subscriptionsFallbackName}
+                </h2>
+                {sub.plan?.service?.name ? (
+                  <p style={{ color: '#6b7280', margin: '4px 0 0', fontSize: '0.875rem' }}>
+                    {sub.plan.service.name}
+                  </p>
+                ) : null}
+                <p style={{ margin: '8px 0 0', color: '#374151', fontSize: '0.9375rem' }}>
+                  {copy.subscriptionsVisitsLeft
+                    .replace('{remaining}', String(sub.appointmentsRemaining))
+                    .replace('{included}', String(included))}
+                  {' · '}
+                  {copy.subscriptionsExpires.replace(
+                    '{date}',
+                    formatDateDisplay(new Date(sub.expiresAt), locale),
+                  )}
+                </p>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'capitalize',
+                  color: '#6b7280',
+                }}
+              >
+                {sub.status}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
+              {sub.status === 'active' && sub.appointmentsRemaining > 0 && serviceId ? (
+                <IonButton
+                  fill="clear"
+                  size="small"
+                  style={{ '--color': primary, margin: 0, height: 32 }}
+                  onClick={() =>
+                    history.push(buildSalonPath(slug, `/book/${serviceId}`))
+                  }
+                >
+                  {copy.subscriptionsBookNext}
+                </IonButton>
+              ) : null}
+              <IonButton
+                fill="clear"
+                size="small"
+                color="medium"
+                style={{ margin: 0, height: 32 }}
+                onClick={() => void toggleUsage(sub)}
+              >
+                {copy.subscriptionsUsageHistory}
+                <IonIcon
+                  slot="end"
+                  icon={expanded ? chevronUpOutline : chevronDownOutline}
+                />
+              </IonButton>
+            </div>
+
+            {expanded ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: '1px solid #e5e7eb',
+                }}
+              >
+                {usageState?.loading ? (
+                  <IonSpinner name="crescent" />
+                ) : usageState?.rows.length ? (
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 18,
+                      color: '#4b5563',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    {usageState.rows.map((row) => (
+                      <li key={row.id} style={{ marginBottom: 6 }}>
+                        {formatSubscriptionUsageLine(row, copy, locale)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
+                    {copy.subscriptionsNoUsage}
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

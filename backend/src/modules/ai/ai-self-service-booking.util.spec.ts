@@ -6,7 +6,12 @@ import {
   extractGiftCardCodeFromPrompt,
   extractPackageNameFromPrompt,
   extractPlanNameFromPrompt,
+  buildMultiServiceAvailabilitySummary,
+  enrichMultiServiceAvailabilityParams,
   extractServiceNamesFromPrompt,
+  filterMultiServiceSlotsByTimePreference,
+  isMultiServiceAvailabilityDiscoveryPrompt,
+  rescueSelfServiceBookingIntent,
   isAddServicesToCartPrompt,
   isBookMultiServicePrompt,
   isBookPackagePrompt,
@@ -50,6 +55,8 @@ describe('ai-self-service-booking.util', () => {
   describe('prompt classifiers', () => {
     it('detects package and multi-service booking prompts', () => {
       expect(isBookPackagePrompt('Book the Spa Day package for me')).toBe(true);
+      expect(isBookPackagePrompt('Buy the spa day package')).toBe(true);
+      expect(isBookPackagePrompt('Purchase deluxe bundle for me')).toBe(true);
       expect(isBookPackagePrompt('Create package Hair bundle')).toBe(false);
       expect(isBookMultiServicePrompt('Book massage and facial together')).toBe(
         true,
@@ -142,6 +149,11 @@ describe('ai-self-service-booking.util', () => {
       expect(
         extractServiceNamesFromPrompt('add massage and facial to my cart'),
       ).toEqual(expect.arrayContaining(['massage', 'facial']));
+      expect(
+        extractServiceNamesFromPrompt(
+          'I want facemassage and full body massage tomorrow afternoon',
+        ),
+      ).toEqual(['facemassage', 'full body massage']);
       expect(extractPlanNameFromPrompt('select the "Gold" plan')).toBe('Gold');
       expect(extractGiftCardCodeFromPrompt('pay with code GIFT1234')).toBe(
         'GIFT1234',
@@ -151,6 +163,100 @@ describe('ai-self-service-booking.util', () => {
       expect(parseCartServiceIds(undefined)).toEqual([]);
       expect(parseCartServiceIds(['svc-1', ''])).toEqual(['svc-1']);
       expect(parseCartServiceIds('  ')).toEqual([]);
+    });
+  });
+
+  describe('multi-service availability discovery', () => {
+    it('detects want + compound services + time as availability discovery', () => {
+      expect(
+        isMultiServiceAvailabilityDiscoveryPrompt(
+          'I want facemassage and full body massage tomorrow evening',
+        ),
+      ).toBe(true);
+    });
+
+    it('rescues book_multi_service to check_multi_service_availability', () => {
+      expect(
+        rescueSelfServiceBookingIntent(
+          'I want facemassage and full body massage tomorrow evening',
+          'book_multi_service',
+        ),
+      ).toEqual({
+        action: 'check_multi_service_availability',
+        rescueReason: 'multi_service_availability_discovery',
+      });
+    });
+
+    it('keeps explicit book-at-time prompts on booking', () => {
+      expect(
+        isMultiServiceAvailabilityDiscoveryPrompt(
+          'book facemassage and full body massage tomorrow at 17:00',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('multi-service availability enrichment', () => {
+    it('extracts tomorrow afternoon and service names from natural prompts', () => {
+      expect(
+        enrichMultiServiceAvailabilityParams(
+          'I want facemassage and full body massage tomorrow afternoon',
+          {},
+          'Asia/Yerevan',
+        ),
+      ).toEqual(
+        expect.objectContaining({
+          serviceNames: ['facemassage', 'full body massage'],
+          date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          timeOfDay: 'afternoon',
+          notBeforeTime: '12:00',
+        }),
+      );
+    });
+
+    it('filters afternoon multi-service block slots', () => {
+      const slots = filterMultiServiceSlotsByTimePreference(
+        [
+          {
+            startTime: '2026-06-09T09:00:00.000Z',
+            employeeName: 'Gevorg',
+          },
+          {
+            startTime: '2026-06-09T14:00:00.000Z',
+            employeeName: 'Mary',
+          },
+        ],
+        { timeOfDay: 'afternoon' },
+      );
+      expect(slots).toHaveLength(1);
+      expect(slots[0]?.employeeName).toBe('Mary');
+    });
+
+    it('formats filtered slot summaries for the assistant', () => {
+      expect(
+        buildMultiServiceAvailabilitySummary({
+          dateKey: '2026-06-09',
+          timeOfDay: 'afternoon',
+          slots: [
+            {
+              startTime: '2026-06-09T14:00:00.000Z',
+              employeeName: 'Mary Torgomyan',
+            },
+          ],
+        }),
+      ).toContain('afternoon (12:00–17:00)');
+      expect(
+        buildMultiServiceAvailabilitySummary({
+          dateKey: '2026-06-09',
+          timeOfDay: 'afternoon',
+          slots: [
+            {
+              startTime: '2026-06-09T14:00:00.000Z',
+              employeeName: 'Mary Torgomyan',
+            },
+          ],
+        }),
+      ).toContain('Mary Torgomyan');
     });
   });
 

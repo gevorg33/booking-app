@@ -1,8 +1,24 @@
+import {
+  applyRelativeDateFromPrompt,
+  formatDateDisplay,
+  formatTimeDisplay,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { hasDashboardCustomerReference } from './ai-customer-crm.util.js';
 import {
   enrichParamsWithSharedEntities,
   propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
+import {
+  formatTimeOfDayLabel,
+  parseTimeOfDayWindow,
+  slotOverlapsTimeWindow,
+  timeToMinutes,
+  type TimeOfDayWindow,
+} from './ai-operations.util.js';
+import { notBeforeTimeFromWindow } from './ai-payments.util.js';
+import { PUBLIC_AVAILABILITY_SCAN_DAYS } from './ai-orchestration.helpers.js';
 
 export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
   'book_package',
@@ -75,10 +91,21 @@ export function isSelfServiceCustomerPrompt(prompt: string): boolean {
 }
 
 export function isBookPackagePrompt(prompt: string): boolean {
+  const wantsPackage =
+    /\bpackage\b/i.test(prompt) ||
+    /\bbundle\b/i.test(prompt) ||
+    /\bspa\s+day\b/i.test(prompt) ||
+    /\bdeal\b/i.test(prompt) ||
+    /փաթեթ/i.test(prompt) ||
+    /пакет/i.test(prompt);
+  const wantsBook =
+    /\b(book|buy|purchase|order|get|reserve|schedule)\b/i.test(prompt) ||
+    /ամրագրել/i.test(prompt) ||
+    /(?:^|\s)(купить|купи)(?:\s|$|[.,!?])/i.test(prompt);
   return (
     isSelfServiceCustomerPrompt(prompt) &&
-    /\b(book|reserve|schedule)\b/i.test(prompt) &&
-    (/\bpackage\b/i.test(prompt) || /\bspa\s+day\b/i.test(prompt)) &&
+    wantsBook &&
+    wantsPackage &&
     !/\b(create|configure|update|deactivate)\b/i.test(prompt)
   );
 }
@@ -309,7 +336,182 @@ export function extractServiceNamesFromPrompt(prompt: string): string[] {
     /\bremove\s+(.+?)\s+from\s+(?:my\s+)?cart\b/i,
   );
   if (removeMatch?.[1]) names.push(removeMatch[1].trim());
+
+  const wantMatch = prompt.match(
+    /\b(?:want|need|would\s+like|looking\s+for)\s+(.+?)(?:\s+tomorrow|\s+today|\s+(?:this|next)\s+\w+|\s+on\s+|\s+(?:morning|afternoon|evening)|\?|$)/i,
+  );
+  if (wantMatch?.[1] && /\band\b/i.test(wantMatch[1])) {
+    for (const part of wantMatch[1].split(/\s+and\s+|,/i)) {
+      const trimmed = part.trim();
+      if (trimmed.length >= 3) names.push(trimmed);
+    }
+  }
+
   return [...new Set(names.filter(Boolean))];
+}
+
+export function enrichMultiServiceAvailabilityParams(
+  prompt: string,
+  params: Record<string, unknown>,
+  tz: string,
+): Record<string, unknown> {
+  const enriched = { ...params };
+  const effectivePrompt = prompt || String(params._prompt ?? '');
+
+  if (
+    !Array.isArray(enriched.serviceNames) ||
+    !(enriched.serviceNames as string[]).length
+  ) {
+    const names = extractServiceNamesFromPrompt(effectivePrompt);
+    if (names.length) enriched.serviceNames = names;
+  }
+
+  if (!enriched.date) {
+    const dateParams: Record<string, unknown> = {};
+    applyRelativeDateFromPrompt(dateParams, effectivePrompt, tz);
+    if (dateParams.date) {
+      enriched.date =
+        toIsoDay(String(dateParams.date), tz) ?? String(dateParams.date);
+    }
+  } else if (typeof enriched.date === 'string') {
+    enriched.date = toIsoDay(enriched.date.trim(), tz) ?? enriched.date;
+  }
+
+  const timeOfDay = parseTimeOfDayWindow(effectivePrompt, enriched);
+  if (timeOfDay) enriched.timeOfDay = timeOfDay;
+
+  const notBeforeTime = notBeforeTimeFromWindow(effectivePrompt, enriched);
+  if (notBeforeTime) enriched.notBeforeTime = notBeforeTime;
+
+  return enriched;
+}
+
+export function filterMultiServiceSlotsByTimePreference<
+  T extends { startTime: string },
+>(
+  slots: T[],
+  opts: {
+    timeOfDay?: TimeOfDayWindow | null;
+    notBeforeTime?: string | null;
+  },
+): T[] {
+  if (opts.timeOfDay) {
+    return slots.filter((slot) => {
+      const hhmm = formatTimeDisplay(slot.startTime);
+      return slotOverlapsTimeWindow(hhmm, undefined, opts.timeOfDay!);
+    });
+  }
+  if (opts.notBeforeTime) {
+    const floor = timeToMinutes(opts.notBeforeTime);
+    return slots.filter((slot) => {
+      const hhmm = formatTimeDisplay(slot.startTime);
+      return timeToMinutes(hhmm) >= floor;
+    });
+  }
+  return slots;
+}
+
+export function buildMultiServiceAvailabilitySummary(input: {
+  slots: Array<{ startTime: string; employeeName: string }>;
+  dateKey: string;
+  timeOfDay?: TimeOfDayWindow | null;
+}): string {
+  const dateLabel = formatDateDisplay(input.dateKey);
+  const windowLabel = input.timeOfDay
+    ? formatTimeOfDayLabel(input.timeOfDay)
+    : null;
+  const header = windowLabel
+    ? `${input.slots.length} block slot(s) on ${dateLabel} (${windowLabel}):`
+    : `${input.slots.length} block slot(s) on ${dateLabel}:`;
+  const lines = input.slots.map(
+    (slot) => `• ${formatTimeDisplay(slot.startTime)} with ${slot.employeeName}`,
+  );
+  return [header, '', ...lines].join('\n');
+}
+
+export function isMultiServiceAvailabilityDiscoveryPrompt(prompt: string): boolean {
+  const services = extractServiceNamesFromPrompt(prompt);
+  const hasCompoundServices =
+    services.length >= 2 ||
+    (/\band\b/i.test(prompt) &&
+      /\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt));
+  if (!hasCompoundServices) return false;
+
+  const hasExplicitBookTime =
+    /\b(book|reserve|schedule)\b/i.test(prompt) &&
+    !/\b(want|need|would\s+like)\b/i.test(prompt) &&
+    (/\bat\s+\d{1,2}(?::\d{2})?\b/i.test(prompt) ||
+      /\b\d{1,2}:\d{2}\b/.test(prompt));
+  if (hasExplicitBookTime) return false;
+
+  if (
+    /\b(book|reserve|schedule)\b/i.test(prompt) &&
+    !/\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  return (
+    /\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt) ||
+    /\b(who\s+is\s+free|availability|available)\b/i.test(prompt) ||
+    /\b(tomorrow|today|morning|afternoon|evening|tonight)\b/i.test(prompt)
+  );
+}
+
+export function buildMultiServiceAvailabilityFromSlots(
+  slots: Array<{
+    startTime: string;
+    employeeId?: string;
+    employeeName: string;
+  }>,
+): Array<{
+  id?: string;
+  name: string;
+  previewTimes: string[];
+}> {
+  const byEmployee = new Map<
+    string,
+    { id?: string; name: string; previewTimes: string[] }
+  >();
+
+  for (const slot of slots) {
+    const key = slot.employeeId ?? slot.employeeName;
+    const time = formatTimeDisplay(slot.startTime);
+    const existing = byEmployee.get(key);
+    if (existing) {
+      if (!existing.previewTimes.includes(time)) {
+        existing.previewTimes = [...existing.previewTimes, time].sort();
+      }
+      continue;
+    }
+    byEmployee.set(key, {
+      id: slot.employeeId,
+      name: slot.employeeName,
+      previewTimes: [time],
+    });
+  }
+
+  return [...byEmployee.values()];
+}
+
+export function buildMultiServiceNoSlotsSummary(input: {
+  dateKey?: string;
+  timeOfDay?: TimeOfDayWindow | null;
+  scanDays?: number;
+}): string {
+  const windowLabel = input.timeOfDay
+    ? formatTimeOfDayLabel(input.timeOfDay)
+    : null;
+  if (input.dateKey) {
+    const dateLabel = formatDateDisplay(input.dateKey);
+    return windowLabel
+      ? `No ${windowLabel} blocks on ${dateLabel} for these services together.`
+      : `No block slots on ${dateLabel} for these services together.`;
+  }
+  const days = input.scanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  return windowLabel
+    ? `No ${windowLabel} blocks in the next ${days} days for these services together.`
+    : `No multi-service blocks available for these services together.`;
 }
 
 export function extractPlanNameFromPrompt(prompt: string): string | undefined {
@@ -366,6 +568,15 @@ export function rescueSelfServiceBookingIntent(
   prompt: string,
   action: string,
 ): { action: SelfServiceBookingIntent; rescueReason: string } | null {
+  if (
+    action === 'book_multi_service' &&
+    isMultiServiceAvailabilityDiscoveryPrompt(prompt)
+  ) {
+    return {
+      action: 'check_multi_service_availability',
+      rescueReason: 'multi_service_availability_discovery',
+    };
+  }
   if (isSelfServiceBookingIntent(action)) return null;
   if (isCustomerBookingCompoundPrompt(prompt)) return null;
 
@@ -431,6 +642,12 @@ export function rescueSelfServiceBookingIntent(
   }
   if (isSelectSubscriptionPlanPrompt(prompt)) {
     return { action: 'select_subscription_plan', rescueReason: 'select_plan' };
+  }
+  if (isMultiServiceAvailabilityDiscoveryPrompt(prompt)) {
+    return {
+      action: 'check_multi_service_availability',
+      rescueReason: 'multi_service_availability_discovery',
+    };
   }
   if (isCheckMultiServiceAvailabilityPrompt(prompt)) {
     return {
@@ -532,7 +749,10 @@ function classifyCustomerBookingSegment(
   if (isSelectSubscriptionPlanPrompt(text)) {
     return { action: 'select_subscription_plan', params: base, segment: text };
   }
-  if (isCheckMultiServiceAvailabilityPrompt(text)) {
+  if (
+    isMultiServiceAvailabilityDiscoveryPrompt(text) ||
+    isCheckMultiServiceAvailabilityPrompt(text)
+  ) {
     return {
       action: 'check_multi_service_availability',
       params: base,

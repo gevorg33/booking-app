@@ -53,6 +53,13 @@ describe('Public customer auth integration', () => {
 
   const bookingRepo = {
     find: jest.fn(async () => bookings),
+    createQueryBuilder: jest.fn(() => ({
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
+    })),
   };
 
   const reviewRepo = {
@@ -99,9 +106,11 @@ describe('Public customer auth integration', () => {
           }
           return null;
         }),
+        getMany: jest.fn(async () => []),
       };
       return chain;
     }),
+    update: jest.fn().mockResolvedValue(undefined),
   };
 
   const publicCustomerBookingService = {

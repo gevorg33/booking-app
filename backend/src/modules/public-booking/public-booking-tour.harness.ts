@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 
@@ -82,29 +82,22 @@ export function createTourPublicBookingHarness(options?: {
 
   const bookingRepo = createTourBookingRepo(storedBookings);
 
-  const service = new PublicBookingService(
-    businessService as never,
-    bookingService as never,
-    customerService as never,
-    {} as never,
-    { isConnectReady: jest.fn().mockReturnValue(false) } as never,
-    {} as never,
-    bookingPaymentService as never,
-    { applyRedemptions: jest.fn() } as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    { sendMultiAppointmentConfirmation: jest.fn() } as never,
-    {} as never,
-    { get: jest.fn(() => 'https://app.test') } as unknown as ConfigService,
-    { find: jest.fn() } as never,
-    { findOne: jest.fn().mockResolvedValue(tourService) } as never,
-    { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
-    { find: jest.fn() } as never,
-    bookingRepo as never,
-    undefined,
-  );
+  const service = createPublicBookingServiceHarness({
+    businessService,
+    bookingService,
+    customerService,
+    bookingPaymentService,
+    checkoutPricingService: { applyRedemptions: jest.fn() },
+    notificationsService: { sendMultiAppointmentConfirmation: jest.fn() },
+    configService: {
+      get: jest.fn(() => 'https://app.test'),
+    } as unknown as ConfigService,
+    referralProgramService: { find: jest.fn() },
+    serviceRepo: { findOne: jest.fn().mockResolvedValue(tourService) },
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+    bookingRepo,
+  });
 
   return {
     service,

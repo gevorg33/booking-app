@@ -27,6 +27,7 @@ import {
   Plug,
   FlaskConical,
   TestTube2,
+  Smartphone,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
@@ -106,6 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/integrations', label: t('nav.crmIntegrations'), icon: Plug },
       { href: '/dashboard/billing', label: t('nav.billing'), icon: CreditCard },
       { href: '/dashboard/ai-ops', label: t('nav.aiOps'), icon: Brain },
+      { href: '/dashboard/adoption', label: t('nav.adoption'), icon: Smartphone },
       { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
       { href: '/dashboard/guide', label: t('nav.guide'), icon: BookOpen },
     ];

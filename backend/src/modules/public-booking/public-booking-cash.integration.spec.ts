@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
-import { PublicBookingService } from './public-booking.service.js';
+import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import {
   applyPublicPaymentSettingsToBusinessSettings,
   resolvePublicPaymentSettings,
@@ -91,28 +91,20 @@ describe('Public booking cash + manage token integration', () => {
   };
   const configService = { get: jest.fn(() => 'https://app.test') };
 
-  const publicBookingService = new PublicBookingService(
-    businessService as any,
-    bookingService as any,
-    customerService as any,
-    {} as any,
-    stripeIntegrationService as any,
-    {} as any,
-    bookingPaymentService as any,
-    checkoutPricingService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    { sendMultiAppointmentConfirmation: jest.fn() } as any,
-    {} as any,
-    configService as any,
-    {} as any,
-    serviceRepo as any,
-    {} as any,
-    {} as any,
-    bookingRepo as any,
-  );
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: businessService as any,
+    bookingService: bookingService as any,
+    customerService: customerService as any,
+    stripeIntegrationService: stripeIntegrationService as any,
+    bookingPaymentService: bookingPaymentService as any,
+    checkoutPricingService: checkoutPricingService as any,
+    notificationsService: {
+      sendMultiAppointmentConfirmation: jest.fn(),
+    } as any,
+    configService: configService as any,
+    serviceRepo: serviceRepo as any,
+    bookingRepo: bookingRepo as any,
+  });
 
   beforeEach(() => {
     storedBookings.clear();

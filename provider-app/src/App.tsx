@@ -12,7 +12,7 @@ import {
   IonTabs,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { calendarOutline, checklistOutline, documentTextOutline, flaskOutline, giftOutline, peopleOutline, personOutline, todayOutline } from 'ionicons/icons';
+import { calendarClearOutline, calendarOutline, checklistOutline, documentTextOutline, flaskOutline, giftOutline, peopleOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
 import { useI18n } from './i18n';
 import { useProviderLabFeaturesEnabled } from './lib/use-provider-lab-features';
@@ -20,6 +20,7 @@ import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import TodayPage from './pages/TodayPage';
 import SchedulePage from './pages/SchedulePage';
+import CalendarPage from './pages/CalendarPage';
 import ProfilePage from './pages/ProfilePage';
 import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
 import LabCollectionPage from './pages/LabCollectionPage';
@@ -78,6 +79,7 @@ function AuthedTabs() {
             <Route exact path="/tabs/patients/:customerId" component={PatientChartSummaryPage} />
           )}
           <Route exact path="/tabs/gift-cards" component={GiftCardQueuesPage} />
+          <Route exact path="/tabs/calendar" component={CalendarPage} />
           <Route exact path="/tabs/schedule" component={SchedulePage} />
           <Route exact path="/tabs/profile" component={ProfilePage} />
           <Route exact path="/tabs">
@@ -117,6 +119,10 @@ function AuthedTabs() {
         <IonTabButton tab="gift-cards" href="/tabs/gift-cards">
           <IonIcon icon={giftOutline} />
           <IonLabel>{t('provider.navGiftCards')}</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="calendar" href="/tabs/calendar">
+          <IonIcon icon={calendarClearOutline} />
+          <IonLabel>{t('provider.navCalendar')}</IonLabel>
         </IonTabButton>
         <IonTabButton tab="schedule" href="/tabs/schedule">
           <IonIcon icon={calendarOutline} />

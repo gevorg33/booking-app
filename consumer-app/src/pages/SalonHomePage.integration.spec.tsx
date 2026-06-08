@@ -16,9 +16,15 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../lib/customer-auth.js', () => ({
-  getCustomerToken: vi.fn(() => 'token'),
-}));
+vi.mock('../lib/customer-auth.js', async () => {
+  const actual = await vi.importActual<typeof import('../lib/customer-auth.js')>(
+    '../lib/customer-auth.js',
+  );
+  return {
+    ...actual,
+    getCustomerToken: vi.fn(() => 'token'),
+  };
+});
 
 vi.mock('../hooks/use-consumer-locale.js', () => ({
   useConsumerLocale: () => ({
@@ -41,6 +47,12 @@ vi.mock('../services/public-api.js', () => ({
     },
   ]),
   fetchMyClinicPatientAlerts: vi.fn(async () => ({ data: { alerts: [], totalCount: 0 } })),
+  fetchPublicPromotions: vi.fn(async () => ({ promotions: [] })),
+  fetchMyRewards: vi.fn(async () => ({
+    loyaltyEnabled: false,
+    loyalty: null,
+    promotions: [],
+  })),
 }));
 
 const profile = {

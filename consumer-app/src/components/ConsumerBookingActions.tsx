@@ -17,6 +17,7 @@ import {
   rescheduleCustomerBooking,
 } from '../services/public-api.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
 
 export function ConsumerBookingActions({
   booking,
@@ -37,6 +38,7 @@ export function ConsumerBookingActions({
 }) {
   const [busy, setBusy] = useState<'cancel' | 'reschedule' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [slots, setSlots] = useState<
@@ -56,9 +58,9 @@ export function ConsumerBookingActions({
     let cancelled = false;
     setSlotsLoading(true);
     void fetchServiceDaySlots(slug, booking.serviceId, selectedDate)
-      .then((list) => {
+      .then((result) => {
         if (cancelled) return;
-        const mapped = list.filter((slot) =>
+        const mapped = result.slots.filter((slot) =>
           allowProviderChange ? true : slot.employeeId === booking.employeeId,
         );
         setSlots(mapped);
@@ -100,13 +102,19 @@ export function ConsumerBookingActions({
     if (!window.confirm(copy.cancelBookingConfirm)) return;
     setBusy('cancel');
     setError(null);
+    setQueuedNotice(null);
     try {
+      let result: unknown;
       if (canActWithToken && manageToken) {
-        await cancelBookingWithToken(slug, booking.id, manageToken);
+        result = await cancelBookingWithToken(slug, booking.id, manageToken);
       } else if (canActWithAccount) {
-        await cancelCustomerBooking(slug, booking.id);
+        result = await cancelCustomerBooking(slug, booking.id);
       } else {
         throw new Error(copy.manageBookingSignInHint);
+      }
+      if (isOfflineQueuedPayload(result)) {
+        setQueuedNotice(copy.offlineMutationQueued);
+        return;
       }
       onUpdated();
     } catch (err: unknown) {
@@ -120,6 +128,7 @@ export function ConsumerBookingActions({
     if (!selectedSlot) return;
     setBusy('reschedule');
     setError(null);
+    setQueuedNotice(null);
     try {
       const body = {
         startTime: selectedSlot,
@@ -128,15 +137,24 @@ export function ConsumerBookingActions({
             ? selectedEmployeeId
             : booking.employeeId,
       };
+      let result: unknown;
       if (canActWithToken && manageToken) {
-        const result = await rescheduleBookingWithToken(slug, booking.id, manageToken, body);
-        onRescheduled?.(result.previousStartTime, result.booking.startTime);
+        result = await rescheduleBookingWithToken(slug, booking.id, manageToken, body);
       } else if (canActWithAccount) {
-        const result = await rescheduleCustomerBooking(slug, booking.id, body);
-        onRescheduled?.(result.previousStartTime, result.booking.startTime);
+        result = await rescheduleCustomerBooking(slug, booking.id, body);
       } else {
         throw new Error(copy.manageBookingSignInHint);
       }
+      if (isOfflineQueuedPayload(result)) {
+        setQueuedNotice(copy.offlineMutationQueued);
+        setRescheduleOpen(false);
+        return;
+      }
+      const typed = result as {
+        previousStartTime: string;
+        booking: { startTime: string };
+      };
+      onRescheduled?.(typed.previousStartTime, typed.booking.startTime);
       setRescheduleOpen(false);
       onUpdated();
     } catch (err: unknown) {
@@ -245,6 +263,9 @@ export function ConsumerBookingActions({
       )}
 
       {error ? <p className="ion-margin-top" style={{ color: '#dc2626' }}>{error}</p> : null}
+      {queuedNotice ? (
+        <p className="ion-margin-top" style={{ color: '#2563eb' }}>{queuedNotice}</p>
+      ) : null}
     </div>
   );
 }

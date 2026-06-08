@@ -49,22 +49,39 @@ describe('AiAvailableProvidersPanel integration', () => {
     });
   }
 
-  it('renders provider rows with times and book action', async () => {
+  it('renders provider rows with individual slot buttons', async () => {
     await mountPanel();
 
     expect(container.textContent).toContain('Available providers');
     expect(container.textContent).toContain('Karo Mazmanyan');
     expect(container.textContent).toContain('Cosmetologist');
-    expect(container.textContent).toContain('14:00, 14:30');
-    expect(container.textContent).toContain('Book');
+    expect(container.textContent).toContain('14:00');
+    expect(container.textContent).toContain('14:30');
   });
 
-  it('submits a booking prompt when a provider is clicked', async () => {
+  it('submits a booking prompt for the tapped time slot', async () => {
     await mountPanel();
 
-    const button = container.querySelector('button') as HTMLButtonElement;
+    const slotButtons = Array.from(container.querySelectorAll('button')).filter(
+      (button) => button.textContent === '14:30',
+    );
     act(() => {
-      button.click();
+      slotButtons[0]?.click();
+    });
+
+    expect(bookedPrompt).toBe(
+      'Book Permanent lips with Karo Mazmanyan on 2026-06-06 at 14:30',
+    );
+  });
+
+  it('defaults to the first slot when no explicit time is chosen', async () => {
+    await mountPanel();
+
+    const slotButtons = Array.from(container.querySelectorAll('button')).filter(
+      (button) => button.textContent === '14:00',
+    );
+    act(() => {
+      slotButtons[0]?.click();
     });
 
     expect(bookedPrompt).toBe(
@@ -88,9 +105,11 @@ describe('AiAvailableProvidersPanel integration', () => {
     expect(container.textContent).toContain('Mary Torgomyan');
     expect(container.textContent).not.toContain('14:00');
 
-    const button = container.querySelector('button') as HTMLButtonElement;
+    const bookButton = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Book',
+    ) as HTMLButtonElement;
     act(() => {
-      button.click();
+      bookButton.click();
     });
 
     expect(bookedPrompt).toBe('Book Massage with Mary Torgomyan');

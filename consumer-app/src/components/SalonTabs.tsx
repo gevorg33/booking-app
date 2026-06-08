@@ -21,6 +21,7 @@ import MyResultsPage from '../pages/MyResultsPage.js';
 import LabToBookPage from '../pages/LabToBookPage.js';
 import LabRequestsPage from '../pages/LabRequestsPage.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerAiShell } from './ConsumerAiShell.js';
 
 export default function SalonTabs({
   slug,
@@ -32,7 +33,7 @@ export default function SalonTabs({
   const base = `/s/${slug}`;
   const showResultsTab = shouldShowPatientResultsTab(profile.businessType);
   const authed = !!getCustomerToken(slug);
-  const { copy } = useConsumerCopy(slug, profile);
+  const { copy, locale } = useConsumerCopy(slug, profile);
 
   const pendingLabRequestsQuery = useQuery({
     queryKey: ['clinic-lab-booking-requests', slug],
@@ -42,6 +43,7 @@ export default function SalonTabs({
   const pendingLabCount = pendingLabRequestsQuery.data?.length ?? 0;
 
   return (
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
     <IonTabs>
       <IonRouterOutlet>
         <Route exact path={base} render={() => <SalonHomePage slug={slug} profile={profile} />} />
@@ -105,5 +107,6 @@ export default function SalonTabs({
         </IonTabButton>
       </IonTabBar>
     </IonTabs>
+    </ConsumerAiShell>
   );
 }

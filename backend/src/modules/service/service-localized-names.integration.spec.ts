@@ -1,7 +1,7 @@
 import { PrepaymentMode } from './entities/service.entity.js';
 import { ServiceCategoryService } from './service-category.service.js';
 import { ServiceService } from './service.service.js';
-import { PublicBookingService } from '../public-booking/public-booking.service.js';
+import { createPublicBookingServiceHarness } from '../public-booking/public-booking-test.harness.js';
 
 describe('Service localized names integration', () => {
   const business = {
@@ -96,28 +96,14 @@ describe('Service localized names integration', () => {
     stripeIntegrationService as any,
   );
 
-  const publicBookingService = new PublicBookingService(
-    businessService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    stripeIntegrationService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    subscriptionsService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    { get: jest.fn() } as any,
-    employeeRepo as any,
-    serviceRepo as any,
-    {} as any,
-    {} as any,
-    {} as any,
-  );
+  const publicBookingService = createPublicBookingServiceHarness({
+    businessService: businessService as any,
+    stripeIntegrationService: stripeIntegrationService as any,
+    subscriptionsService: subscriptionsService as any,
+    serviceRepo: serviceRepo as any,
+    employeeRepo: employeeRepo as any,
+    configService: { get: jest.fn() } as any,
+  });
 
   beforeEach(() => {
     categories.length = 0;

@@ -36,6 +36,7 @@ describe('NotificationsService.sendClinicResultReady', () => {
       skipped: true,
       reason: 'consumer_push_tokens_not_available',
     })),
+    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: false }),
   };
   const configService = { get: jest.fn(() => 'https://app.test') };
 
