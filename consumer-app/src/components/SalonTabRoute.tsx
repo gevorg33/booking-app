@@ -40,13 +40,16 @@ export function SalonTabRoute({ page }: { page: SalonTabId }) {
   }
 
   return (
-    <SalonTabChrome slug={slug} profile={profile} fromCache={fromCache}>
-      <SalonTabPageContent
-        page={page}
-        slug={slug}
-        profile={profile}
-        fromCache={fromCache}
-      />
-    </SalonTabChrome>
+    <IonPage key={`salon-tab-${slug}-${page}`}>
+      <SalonTabChrome slug={slug} profile={profile} fromCache={fromCache}>
+        <SalonTabPageContent
+          embedded
+          page={page}
+          slug={slug}
+          profile={profile}
+          fromCache={fromCache}
+        />
+      </SalonTabChrome>
+    </IonPage>
   );
 }

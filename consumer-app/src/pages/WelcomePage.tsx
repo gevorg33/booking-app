@@ -92,11 +92,11 @@ export default function WelcomePage() {
     [refreshKey, quickReturnSlugs],
   );
 
-  const openSalon = (slug: string, startOnBookTab = false) => {
+  const openSalon = (slug: string) => {
     if (!isValidSlug(slug)) return;
     markFirstRunComplete();
     track('onboarding_step_viewed', { onboardingStep: 'salon', onboardingVariant });
-    history.push(buildSalonPath(slug, startOnBookTab ? '/services' : undefined));
+    history.push(buildSalonPath(slug));
   };
 
   const togglePin = (slug: string) => {
@@ -129,7 +129,7 @@ export default function WelcomePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>OptiSchedule</IonTitle>
+          <IonTitle>OptiSchedule Book</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
@@ -175,7 +175,7 @@ export default function WelcomePage() {
           expand="block"
           className="ion-margin-top"
           disabled={!isValidSlug(code)}
-          onClick={() => openSalon(code, true)}
+          onClick={() => openSalon(code)}
         >
           Continue
         </IonButton>

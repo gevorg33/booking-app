@@ -41,8 +41,34 @@ export function buildProfessionalsFirstBookPath(
     employeeId,
     slot: startTime,
     date,
+    professionalsFirst: '1',
   });
   return buildSalonPath(slug, `/book/${serviceId}?${params.toString()}`);
+}
+
+export function buildAnyAvailabilityPath(
+  slug: string,
+  serviceId: string,
+  clinicOrderToken?: string,
+): string {
+  const params = new URLSearchParams({ serviceId });
+  if (clinicOrderToken?.trim()) params.set('clinicOrderToken', clinicOrderToken.trim());
+  return `${buildSalonPath(slug, '/book/any/availability')}?${params.toString()}`;
+}
+
+export function buildAutoAssignBookPath(
+  slug: string,
+  serviceId: string,
+  startTime: string,
+  clinicOrderToken?: string,
+): string {
+  const params = new URLSearchParams({
+    slot: startTime,
+    date: startTime.slice(0, 10),
+    autoAssign: '1',
+  });
+  if (clinicOrderToken?.trim()) params.set('clinicOrderToken', clinicOrderToken.trim());
+  return `${buildSalonPath(slug, `/book/${serviceId}`)}?${params.toString()}`;
 }
 
 export interface ServiceCategoryGroup {

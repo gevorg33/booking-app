@@ -10,6 +10,7 @@ import { SalonTabRoute } from './components/SalonTabRoute.js';
 import SalonRedirectToHome from './components/SalonRedirectToHome.js';
 import BookPage from './pages/BookPage.js';
 import MultiServicePickerPage from './pages/MultiServicePickerPage.js';
+import AnyAvailabilityPage from './pages/AnyAvailabilityPage.js';
 import MultiServiceAvailabilityPage from './pages/MultiServiceAvailabilityPage.js';
 import MultiServiceConfirmPage from './pages/MultiServiceConfirmPage.js';
 import MultiServiceCheckoutPage from './pages/MultiServiceCheckoutPage.js';
@@ -39,9 +40,10 @@ function AppRoutes() {
   }, [history]);
 
   return (
-    <IonRouterOutlet>
+    <IonRouterOutlet id="main" animated={false}>
       <Route exact path="/" component={WelcomePage} />
       <Route exact path="/s/:slug/manage" component={ManageBookingPage} />
+      <Route exact path="/s/:slug/book/any/availability" component={AnyAvailabilityPage} />
       <Route exact path="/s/:slug/book/any" component={MultiServicePickerPage} />
       <Route exact path="/s/:slug/book/packages/:packageId/checkout" component={PackageCheckoutPage} />
       <Route exact path="/s/:slug/book/packages/:packageId" component={PackageConfirmPage} />

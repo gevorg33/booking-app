@@ -31,11 +31,27 @@ set_var() {
   fi
 }
 
+force_set_var() {
+  local key="$1" val="$2"
+  if grep -q "^${key}=" "$ENV_LAN"; then
+    sed -i '' "s|^${key}=.*|${key}=${val}|" "$ENV_LAN"
+  else
+    echo "${key}=${val}" >> "$ENV_LAN"
+  fi
+}
+
 GS_JSON="$ROOT/android/app/google-services.json"
 if [ -f "$GS_JSON" ]; then
   PROJECT_ID="$(python3 -c "import json; d=json.load(open('$GS_JSON')); print(d['project_info']['project_id'])")"
   SENDER_ID="$(python3 -c "import json; d=json.load(open('$GS_JSON')); print(d['project_info']['project_number'])")"
-  API_KEY="$(python3 -c "import json; d=json.load(open('$GS_JSON')); print(d['client'][0]['api_key'][0]['current_key'])")"
+  API_KEY="$(python3 -c "
+import json
+d=json.load(open('$GS_JSON'))
+for c in d.get('client', []):
+  if c.get('client_info', {}).get('android_client_info', {}).get('package_name') == 'com.optischedule.consumer':
+    print(c['api_key'][0]['current_key'])
+    break
+" 2>/dev/null || true)"
   STORAGE="$(python3 -c "import json; d=json.load(open('$GS_JSON')); print(d['project_info']['storage_bucket'])")"
   APP_ID="$(python3 -c "
 import json
@@ -46,12 +62,12 @@ for c in d.get('client', []):
     break
 " 2>/dev/null || true)"
 
-  [ -n "$PROJECT_ID" ] && set_var VITE_FIREBASE_PROJECT_ID "$PROJECT_ID"
-  [ -n "$SENDER_ID" ] && set_var VITE_FIREBASE_MESSAGING_SENDER_ID "$SENDER_ID"
-  [ -n "$API_KEY" ] && set_var VITE_FIREBASE_API_KEY "$API_KEY"
-  [ -n "$STORAGE" ] && set_var VITE_FIREBASE_STORAGE_BUCKET "$STORAGE"
-  [ -n "$APP_ID" ] && set_var VITE_FIREBASE_APP_ID "$APP_ID"
-  [ -n "$PROJECT_ID" ] && set_var VITE_FIREBASE_AUTH_DOMAIN "${PROJECT_ID}.firebaseapp.com"
+  [ -n "$PROJECT_ID" ] && force_set_var VITE_FIREBASE_PROJECT_ID "$PROJECT_ID"
+  [ -n "$SENDER_ID" ] && force_set_var VITE_FIREBASE_MESSAGING_SENDER_ID "$SENDER_ID"
+  [ -n "$API_KEY" ] && force_set_var VITE_FIREBASE_API_KEY "$API_KEY"
+  [ -n "$STORAGE" ] && force_set_var VITE_FIREBASE_STORAGE_BUCKET "$STORAGE"
+  [ -n "$APP_ID" ] && force_set_var VITE_FIREBASE_APP_ID "$APP_ID"
+  [ -n "$PROJECT_ID" ] && force_set_var VITE_FIREBASE_AUTH_DOMAIN "${PROJECT_ID}.firebaseapp.com"
   echo "✓ Firebase config loaded from android/app/google-services.json"
 fi
 
@@ -61,14 +77,15 @@ if [ -f "$PLIST" ]; then
   SENDER_ID="$(/usr/libexec/PlistBuddy -c 'Print :GCM_SENDER_ID' "$PLIST" 2>/dev/null || true)"
   API_KEY="$(/usr/libexec/PlistBuddy -c 'Print :API_KEY' "$PLIST" 2>/dev/null || true)"
   STORAGE="$(/usr/libexec/PlistBuddy -c 'Print :STORAGE_BUCKET' "$PLIST" 2>/dev/null || true)"
-  APP_ID="$(/usr/libexec/PlistBuddy -c 'Print :GOOGLE_APP_ID' "$PLIST" 2>/dev/null || true)"
 
-  [ -n "$PROJECT_ID" ] && set_var VITE_FIREBASE_PROJECT_ID "$PROJECT_ID"
-  [ -n "$SENDER_ID" ] && set_var VITE_FIREBASE_MESSAGING_SENDER_ID "$SENDER_ID"
-  [ -n "$API_KEY" ] && set_var VITE_FIREBASE_API_KEY "$API_KEY"
-  [ -n "$STORAGE" ] && set_var VITE_FIREBASE_STORAGE_BUCKET "$STORAGE"
-  [ -n "$APP_ID" ] && set_var VITE_FIREBASE_APP_ID "$APP_ID"
-  [ -n "$PROJECT_ID" ] && set_var VITE_FIREBASE_AUTH_DOMAIN "${PROJECT_ID}.firebaseapp.com"
+  [ -n "$PROJECT_ID" ] && force_set_var VITE_FIREBASE_PROJECT_ID "$PROJECT_ID"
+  [ -n "$SENDER_ID" ] && force_set_var VITE_FIREBASE_MESSAGING_SENDER_ID "$SENDER_ID"
+  if [ ! -f "$GS_JSON" ] && [ -n "$API_KEY" ]; then
+    force_set_var VITE_FIREBASE_API_KEY "$API_KEY"
+  fi
+  [ -n "$STORAGE" ] && force_set_var VITE_FIREBASE_STORAGE_BUCKET "$STORAGE"
+  [ -n "$PROJECT_ID" ] && force_set_var VITE_FIREBASE_AUTH_DOMAIN "${PROJECT_ID}.firebaseapp.com"
+  echo "✓ Firebase config loaded from ios/App/App/GoogleService-Info.plist"
 fi
 
 FCM_READY=false

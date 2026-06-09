@@ -13,30 +13,38 @@ export function SalonTabPageContent({
   slug,
   profile,
   fromCache = false,
+  embedded = false,
 }: {
   page: SalonTabId;
   slug: string;
   profile: PublicBusinessProfile;
   fromCache?: boolean;
+  embedded?: boolean;
 }) {
   const { copy } = useConsumerCopy(slug, profile);
 
   switch (page) {
     case 'home':
-      return <SalonHomePage slug={slug} profile={profile} />;
+      return <SalonHomePage slug={slug} profile={profile} embedded={embedded} />;
     case 'services':
       return (
-        <ServicesPage slug={slug} profile={profile} fromCache={fromCache} copy={copy} />
+        <ServicesPage
+          slug={slug}
+          profile={profile}
+          fromCache={fromCache}
+          copy={copy}
+          embedded={embedded}
+        />
       );
     case 'results':
-      return <MyResultsPage slug={slug} profile={profile} />;
+      return <MyResultsPage slug={slug} profile={profile} embedded={embedded} />;
     case 'lab-to-book':
-      return <LabToBookPage slug={slug} profile={profile} />;
+      return <LabToBookPage slug={slug} profile={profile} embedded={embedded} />;
     case 'lab-requests':
-      return <LabRequestsPage slug={slug} />;
+      return <LabRequestsPage slug={slug} embedded={embedded} />;
     case 'account':
-      return <AccountPage slug={slug} profile={profile} />;
+      return <AccountPage slug={slug} profile={profile} embedded={embedded} />;
     default:
-      return <SalonHomePage slug={slug} profile={profile} />;
+      return <SalonHomePage slug={slug} profile={profile} embedded={embedded} />;
   }
 }

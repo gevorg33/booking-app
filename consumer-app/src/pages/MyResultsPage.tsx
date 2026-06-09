@@ -2,7 +2,6 @@ import {
   IonButton,
   IonContent,
   IonHeader,
-  IonPage,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
@@ -22,15 +21,18 @@ import {
 import { ConsumerMyResultsList } from '../components/ConsumerMyResultsList.js';
 import { ConsumerMyDocumentsList } from '../components/ConsumerMyDocumentsList.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js';
 
 export default function MyResultsPage({
   slug,
   profile,
+  embedded = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
+  embedded?: boolean;
 }) {
   const history = useHistory();
   const token = getCustomerToken(slug);
@@ -61,7 +63,7 @@ export default function MyResultsPage({
   });
 
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{copy.myResultsTitle}</IonTitle>
@@ -121,6 +123,6 @@ export default function MyResultsPage({
           </>
         )}
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

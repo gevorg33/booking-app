@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import type { PublicService } from './types.js';
 import {
   clampTourPaxCount,
@@ -9,6 +9,7 @@ import {
   resolveTourFallbackSubtotal,
   resolveTourMaxPax,
 } from './tour-booking.util.js';
+import { setActiveBusinessDateFormats } from './business-date-format.js';
 
 const cityTour: PublicService = {
   id: 'tour-1',
@@ -27,6 +28,10 @@ const copy = {
 };
 
 describe('tour-booking.util', () => {
+  beforeEach(() => {
+    setActiveBusinessDateFormats(undefined, undefined);
+  });
+
   it('resolves max pax and clamps group size', () => {
     expect(resolveTourMaxPax(cityTour)).toBe(12);
     expect(resolveTourMaxPax({ maxGroupSize: 0 } as PublicService)).toBe(99);
@@ -60,9 +65,10 @@ describe('tour-booking.util', () => {
   });
 
   it('formats day-level slot labels and remaining spots', () => {
-    expect(
-      formatTourSlotLabel('2026-06-15T09:00:00.000Z', cityTour, 'en-US'),
-    ).toMatch(/\d/);
+    setActiveBusinessDateFormats('DD/MM/YYYY', '24h');
+    expect(formatTourSlotLabel('2026-06-15T09:00:00.000Z', cityTour, 'en-US')).toBe(
+      '09:00',
+    );
     expect(
       formatTourSlotLabel('2026-06-15T09:00:00.000Z', {
         ...cityTour,

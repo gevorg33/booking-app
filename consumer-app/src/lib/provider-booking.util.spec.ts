@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildAnyAvailabilityPath,
+  buildAutoAssignBookPath,
   buildProfessionalsFirstBookPath,
   buildProfessionalsPath,
   buildProfessionalServicesPath,
@@ -23,7 +25,13 @@ describe('provider-booking.util', () => {
     ).toContain('/s/salon/professionals/services?');
     expect(buildProviderProfilePath('salon', 'emp-2')).toBe('/s/salon/providers/emp-2');
     expect(buildProfessionalsFirstBookPath('salon', 'svc-1', 'emp-1', '2026-06-09T14:00:00.000Z')).toBe(
-      '/s/salon/book/svc-1?employeeId=emp-1&slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09',
+      '/s/salon/book/svc-1?employeeId=emp-1&slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&professionalsFirst=1',
+    );
+    expect(buildAnyAvailabilityPath('salon', 'svc-1')).toBe(
+      '/s/salon/book/any/availability?serviceId=svc-1',
+    );
+    expect(buildAutoAssignBookPath('salon', 'svc-1', '2026-06-09T14:00:00.000Z')).toBe(
+      '/s/salon/book/svc-1?slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&autoAssign=1',
     );
   });
 

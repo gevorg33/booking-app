@@ -7,7 +7,14 @@ import {
   loadCachedTenantSnapshot,
   saveCachedTenantSnapshot,
 } from '../lib/cached-tenant-data.util.js';
+import { tenantDateFormatPreference, setActiveBusinessDateFormats } from '../lib/business-date-format.js';
 import { captureReferralFromSearch } from '../lib/consumer-referral.util.js';
+
+function applyTenantDateFormats(profile: { dateFormat?: string; timeFormat?: string } | null): void {
+  if (!profile) return;
+  const { dateFormat, timeFormat } = tenantDateFormatPreference(profile);
+  setActiveBusinessDateFormats(dateFormat, timeFormat);
+}
 
 function hasReadyProfile(slug: string): boolean {
   const profile = useTenantStore.getState().profile;
@@ -46,6 +53,7 @@ export function useTenantBootstrap() {
     const storeReady = hasReadyProfile(slug);
 
     if (storeReady) {
+      applyTenantDateFormats(useTenantStore.getState().profile);
       setLoading(false);
       setFromCache(false);
     } else if (cachedSnapshot?.profile.publicBookingEnabled) {

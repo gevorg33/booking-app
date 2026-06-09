@@ -3,7 +3,6 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -41,6 +40,7 @@ import { ConsumerNotificationPreferencesCard } from '../components/ConsumerNotif
 import { ConsumerAccountGrowthCard } from '../components/ConsumerAccountGrowthCard.js';
 import { ConsumerSubscriptionsSection } from '../components/ConsumerSubscriptionsSection.js';
 import { ConsumerPrivacyDataSection } from '../components/ConsumerPrivacyDataSection.js';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { PostVisitReviewPrompt } from '../components/PostVisitReviewPrompt.js';
 import { shareBookingLinkWithReward, formatShareRewardToast } from '../lib/consumer-share-flow.util.js';
 import { claimShareReward } from '../services/public-api.js';
@@ -177,9 +177,11 @@ function BookingCard({
 export default function AccountPage({
   slug,
   profile,
+  embedded = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
+  embedded?: boolean;
 }) {
   const history = useHistory();
   const location = useLocation();
@@ -300,7 +302,7 @@ export default function AccountPage({
   };
 
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>Account</IonTitle>
@@ -526,6 +528,6 @@ export default function AccountPage({
           />
         ) : null}
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

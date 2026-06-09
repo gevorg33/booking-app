@@ -15,6 +15,7 @@ import type {
   PublicProviderReview,
   PublicRecommendationProduct,
   PublicService,
+  PublicServiceSlotProvider,
   PublicCheckoutQuote,
   PublicServiceDaySlots,
   PublicSlot,
@@ -129,6 +130,18 @@ export async function fetchServiceDaySlots(
     slots: body.slots ?? [],
     remainingSpots: body.remainingSpots ?? null,
   };
+}
+
+export async function fetchServiceSlotProviders(
+  slug: string,
+  serviceId: string,
+  startTime: string,
+): Promise<PublicServiceSlotProvider[]> {
+  const { data } = await http.get(
+    `/public/${slug}/services/${serviceId}/providers?startTime=${encodeURIComponent(startTime)}`,
+  );
+  const body = unwrap<{ providers: PublicServiceSlotProvider[] }>(data);
+  return body.providers ?? [];
 }
 
 /** @deprecated Use fetchServiceDaySlots */
@@ -575,7 +588,7 @@ export async function createBooking(
   slug: string,
   body: {
     serviceId: string;
-    employeeId: string;
+    employeeId?: string;
     startTime: string;
     preVisitIntakeId?: string;
     referralNotes?: string;
@@ -669,7 +682,7 @@ export async function createPublicBookingCheckout(
   slug: string,
   body: {
     serviceId: string;
-    employeeId: string;
+    employeeId?: string;
     startTime: string;
     preVisitIntakeId?: string;
     clinicOrderToken?: string;

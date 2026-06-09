@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+bash "$ROOT/scripts/sync-firebase-from-provider.sh" || true
 bash "$ROOT/scripts/prepare-env.sh"
 
 ENV_FILE="$ROOT/.env"

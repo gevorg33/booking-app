@@ -152,6 +152,15 @@ export interface PublicProvider {
   recentReviews?: PublicProviderReview[];
 }
 
+export interface PublicServiceSlotProvider {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+  averageRating: number | null;
+  reviewCount: number;
+}
+
 export interface PublicProviderReviewsPage {
   employeeId: string;
   employeeName: string;

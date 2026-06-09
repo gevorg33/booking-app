@@ -66,6 +66,16 @@ export function resolveCheckoutContactPrefill(
   });
 }
 
+/** Collapse contact fields only when values look fully entered (not after one keystroke). */
+export function shouldCompactCheckoutContact(contact: GuestCheckoutContact): boolean {
+  const name = contact.name.trim();
+  if (name.length < 2) return false;
+  const email = contact.email.trim();
+  const phoneDigits = contact.phone.replace(/\D/g, '');
+  const emailLooksComplete = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return emailLooksComplete || phoneDigits.length >= 8;
+}
+
 export function guestContactFieldAttrs(field: 'name' | 'email' | 'phone'): {
   name: string;
   id: string;

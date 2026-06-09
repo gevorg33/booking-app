@@ -71,6 +71,9 @@ export type ConsumerCopy = {
   checkoutSubscriptionPlanRequired: string;
   checkoutUsingSubscriptionHint: string;
   checkoutPlanIncludesHint: string;
+  checkoutSelectedTime: string;
+  checkoutBookingService: string;
+  checkoutEdit: string;
   taxIncluded: string;
   myResultsTab: string;
   myResultsTitle: string;
@@ -417,6 +420,7 @@ export type ConsumerCopy = {
   specialistAiHint: string;
   anySpecialist: string;
   anySpecialistHint: string;
+  selectDateTime: string;
   selectService: string;
   nearestSlots: string;
   todayInline: string;

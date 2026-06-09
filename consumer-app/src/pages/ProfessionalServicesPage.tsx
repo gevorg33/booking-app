@@ -1,7 +1,5 @@
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonCheckbox,
   IonContent,
   IonHeader,
@@ -15,6 +13,7 @@ import {
 } from '@ionic/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
@@ -27,31 +26,62 @@ import {
   uniqueMultiServiceIds,
 } from '../lib/multi-service-booking.js';
 import {
+  pushConsumerRoute,
+  replaceConsumerRoute,
+} from '../lib/consumer-ion-navigation.util.js';
+import {
+  readProfessionalServicesContext,
+} from '../lib/professional-services-context.util.js';
+import {
+  buildProfessionalServicesPath,
   buildProfessionalsFirstBookPath,
   buildProfessionalsPath,
   groupServicesByCategory,
 } from '../lib/provider-booking.util.js';
+import { persistProfessionalsFirstBookState } from '../lib/professionals-first-book.util.js';
+import { ConsumerBackButton } from '../components/ConsumerBackButton.js';
 import { fetchPublicServicesForSlot } from '../services/public-api.js';
 
 export default function ProfessionalServicesPage() {
   const history = useHistory();
+  const ionRouter = useIonRouter();
   const location = useLocation();
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-
-  const employeeId = params.get('employeeId')?.trim() ?? '';
-  const startTime = params.get('startTime')?.trim() ?? '';
-  const employeeName = params.get('employeeName')?.trim() ?? copy.professionalFallbackName;
+  const servicesContext = useMemo(
+    () => (slug ? readProfessionalServicesContext(slug, params) : null),
+    [params, slug],
+  );
+  const employeeId = servicesContext?.employeeId ?? '';
+  const startTime = servicesContext?.startTime ?? '';
+  const employeeName = servicesContext?.employeeName ?? copy.professionalFallbackName;
 
   const multiEnabled = profile?.multiService?.enabled === true;
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!slug || employeeId && startTime) return;
-    history.replace(buildProfessionalsPath(slug));
-  }, [employeeId, history, slug, startTime]);
+    if (!slug || !servicesContext) return;
+    if (!location.pathname.endsWith('/professionals/services')) return;
+    if (params.get('employeeId')?.trim() && params.get('startTime')?.trim()) return;
+    replaceConsumerRoute(
+      history,
+      ionRouter,
+      buildProfessionalServicesPath(
+        slug,
+        servicesContext.employeeId,
+        servicesContext.startTime,
+        { employeeName: servicesContext.employeeName },
+      ),
+    );
+  }, [history, ionRouter, location.pathname, params, servicesContext, slug]);
+
+  useEffect(() => {
+    if (!slug || servicesContext) return;
+    if (!location.pathname.endsWith('/professionals/services')) return;
+    replaceConsumerRoute(history, ionRouter, buildProfessionalsPath(slug));
+  }, [history, ionRouter, location.pathname, servicesContext, slug]);
 
   const servicesQuery = useQuery({
     queryKey: ['public-services-for-slot', slug, employeeId, startTime, locale],
@@ -80,7 +110,7 @@ export default function ProfessionalServicesPage() {
       persistMultiServiceCart(slug, ids);
       const schedulingMode = profile?.multiService?.schedulingMode ?? 'same_visit';
       if (schedulingMode === 'per_service') {
-        history.push(buildMultiServiceConfirmPath(slug, ids));
+        pushConsumerRoute(history, ionRouter, buildMultiServiceConfirmPath(slug, ids));
         return;
       }
       const q = new URLSearchParams({
@@ -89,22 +119,38 @@ export default function ProfessionalServicesPage() {
         employeeId,
         employeeName,
       });
-      history.push(`/s/${slug}/book/multi/checkout?${q.toString()}`);
+      pushConsumerRoute(history, ionRouter, `/s/${slug}/book/multi/checkout?${q.toString()}`);
       return;
     }
 
     const effectiveServiceId =
       serviceId ?? (multiEnabled && selectedServiceIds.length === 1 ? selectedServiceIds[0] : null);
     if (!effectiveServiceId) return;
-    history.push(buildProfessionalsFirstBookPath(slug, effectiveServiceId, employeeId, startTime));
+    const selectedService = services.find((entry) => entry.id === effectiveServiceId);
+    const bookPath = buildProfessionalsFirstBookPath(
+      slug,
+      effectiveServiceId,
+      employeeId,
+      startTime,
+    );
+    const bookState = {
+      professionalsFirstService: selectedService,
+      employeeName,
+      employeeId,
+      startTime,
+    };
+    persistProfessionalsFirstBookState(slug, effectiveServiceId, bookState);
+    pushConsumerRoute(history, ionRouter, bookPath);
   }, [
     employeeId,
     employeeName,
     history,
+    ionRouter,
     multiEnabled,
     profile?.multiService?.schedulingMode,
     selectedServiceIds,
     serviceId,
+    services,
     slug,
     startTime,
   ]);
@@ -140,11 +186,9 @@ export default function ProfessionalServicesPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton
-              defaultHref={buildProfessionalsPath(slug, { employeeId, startTime })}
-            />
-          </IonButtons>
+          <ConsumerBackButton
+            defaultHref={buildProfessionalsPath(slug, { employeeId, startTime })}
+          />
           <IonTitle>{copy.selectService}</IonTitle>
         </IonToolbar>
       </IonHeader>

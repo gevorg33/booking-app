@@ -1,9 +1,16 @@
-import { IonContent, IonPage, IonSpinner } from '@ionic/react';
+import { IonContent, IonSpinner } from '@ionic/react';
 import { useEffect } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { resolveLabBookingRequestNavigationPath } from '../lib/deep-link.js';
 
-export default function LabRequestsPage({ slug }: { slug: string }) {
+export default function LabRequestsPage({
+  slug,
+  embedded = false,
+}: {
+  slug: string;
+  embedded?: boolean;
+}) {
   const history = useHistory();
   const location = useLocation();
 
@@ -19,10 +26,10 @@ export default function LabRequestsPage({ slug }: { slug: string }) {
   }, [history, location.search, slug]);
 
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonContent className="ion-padding ion-text-center">
         <IonSpinner style={{ marginTop: '40vh' }} />
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

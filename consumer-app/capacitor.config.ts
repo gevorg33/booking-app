@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 /** Customer booking app — separate from provider-app. */
 const config: CapacitorConfig = {
   appId: 'com.optischedule.consumer',
-  appName: 'OptiSchedule',
+  appName: 'OptiSchedule Book',
   webDir: 'dist',
   plugins: {
     CapacitorHttp: {

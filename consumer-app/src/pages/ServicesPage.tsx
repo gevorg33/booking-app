@@ -5,7 +5,6 @@ import {
   IonItem,
   IonLabel,
   IonList,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -28,17 +27,20 @@ import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js'
 import { useOnlineStatus } from '../lib/use-online-status.js';
 import { fetchPublicPackages } from '../services/public-api.js';
 import { isPublicTourService } from '../lib/tour-service.util.js';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 
 export default function ServicesPage({
   slug,
   profile,
   fromCache = false,
   copy,
+  embedded = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
   fromCache?: boolean;
   copy: ConsumerCopy;
+  embedded?: boolean;
 }) {
   const history = useHistory();
   const location = useLocation();
@@ -52,12 +54,16 @@ export default function ServicesPage({
     enabled: Boolean(slug && online),
   });
   const hasPackages = (packagesQuery.data?.length ?? 0) > 0;
-  const showAnyBookingEntry = multiEnabled || hasPackages;
-  const anyBookingLabel = multiEnabled ? copy.multiServiceEntryCta : copy.packagesTitle;
+  const showAnyBookingEntry = services.length > 0;
+  const anyBookingLabel = multiEnabled
+    ? copy.multiServiceEntryCta
+    : hasPackages
+      ? copy.packagesTitle
+      : copy.anySpecialist;
   const primary = profile.branding.primaryColor || '#7c3aed';
 
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>Services</IonTitle>
@@ -161,6 +167,6 @@ export default function ServicesPage({
           </>
         )}
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

@@ -1,12 +1,14 @@
 import { IonInput, IonItem, IonLabel } from '@ionic/react';
 import type { GuestCheckoutContact } from '../lib/guest-booking.util.js';
-import { guestContactFieldAttrs } from '../lib/checkout-autofill.util.js';
-import { validateGuestCheckoutContact } from '../lib/guest-booking.util.js';
+import {
+  guestContactFieldAttrs,
+  shouldCompactCheckoutContact,
+} from '../lib/checkout-autofill.util.js';
 
 export function ConsumerCheckoutContactForm({
   value,
   onChange,
-  compactWhenComplete = true,
+  compactWhenComplete = false,
 }: {
   value: GuestCheckoutContact;
   onChange: (next: GuestCheckoutContact) => void;
@@ -15,7 +17,7 @@ export function ConsumerCheckoutContactForm({
   const nameAttrs = guestContactFieldAttrs('name');
   const emailAttrs = guestContactFieldAttrs('email');
   const phoneAttrs = guestContactFieldAttrs('phone');
-  const isComplete = validateGuestCheckoutContact(value) === null;
+  const isComplete = shouldCompactCheckoutContact(value);
 
   if (compactWhenComplete && isComplete) {
     return (
