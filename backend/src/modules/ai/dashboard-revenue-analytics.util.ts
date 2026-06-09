@@ -1,3 +1,6 @@
+import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
+
 export const STAFF_ROLE_WORDS =
   /\b(staff|provider|providers|employee|employees|team|specialist|specialists|stylist|stylists|therapist|therapists)\b/i;
 
@@ -22,6 +25,8 @@ function isReportsCurrencyExplainPrompt(prompt: string): boolean {
 export function isTotalEarningsPrompt(prompt: string): boolean {
   if (isReportsCurrencyExplainPrompt(prompt)) return false;
   if (isTopStaffRevenuePrompt(prompt)) return false;
+  if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isMyStatsPrompt(prompt)) return false;
   if (
     /\b(?:for|of)\s+(?!today|tomorrow|yesterday|this|last|the\b|week|month|year)([A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?)\b/i.test(
       prompt,

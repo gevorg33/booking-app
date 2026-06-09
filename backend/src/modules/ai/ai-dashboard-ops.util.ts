@@ -4,6 +4,8 @@ import {
   STAFF_ROLE_WORDS,
 } from './dashboard-revenue-analytics.util.js';
 import { isRevenueForecastPrompt } from './ai-operations.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
+import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
 
 /** "Summarize customer Maria Lopez who has a booking with Gevorg today at 10:00". */
 export function isCustomerBookingContextPrompt(prompt: string): boolean {
@@ -100,6 +102,8 @@ function isReportsCurrencyExplainPrompt(prompt: string): boolean {
 /** Single named provider revenue — not top-N ranking. */
 export function isSingleProviderRevenuePrompt(prompt: string): boolean {
   if (isReportsCurrencyExplainPrompt(prompt)) return false;
+  if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isMyStatsPrompt(prompt)) return false;
   if (
     isTopStaffRevenuePrompt(prompt) ||
     isTotalEarningsPrompt(prompt) ||

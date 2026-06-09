@@ -251,6 +251,14 @@ export type ConsumerCopy = {
   pushPrimingBody: string;
   pushPrimingAccept: string;
   pushPrimingDecline: string;
+  pushProvisionalUpgradeTitle: string;
+  pushProvisionalUpgradeBody: string;
+  pushProvisionalUpgradeAccept: string;
+  pushProvisionalUpgradeDecline: string;
+  pushSettingsReaskTitle: string;
+  pushSettingsReaskBody: string;
+  pushSettingsReaskOpen: string;
+  pushSettingsReaskSkip: string;
   postBookingSignInTitle: string;
   postBookingSignInBody: string;
   postBookingSignInGoogle: string;

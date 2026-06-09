@@ -286,6 +286,7 @@ export interface PublicCustomerBookingItem {
   serviceId: string;
   canCancel: boolean;
   canReschedule: boolean;
+  canReview?: boolean;
   policyMessage?: string | null;
   rescheduleCount?: number;
   maxReschedules?: number;

@@ -113,8 +113,19 @@ describe('app-adoption-analytics.util', () => {
         email: 'a@b.com',
         bookingId: 'uuid-1',
         pushOptIn: true,
+        contactChannel: 'whatsapp',
+        messageBody: 'secret text',
       }),
-    ).toEqual({ bookingId: 'uuid-1', pushOptIn: true });
+    ).toEqual({ bookingId: 'uuid-1', pushOptIn: true, contactChannel: 'whatsapp' });
+    expect(
+      buildAppEventRecordPayload('biz-1', {
+        event: 'staff_contacted_customer',
+        anonId: 'anon-abc',
+        platform: 'ios',
+        appSurface: 'provider_app',
+        props: { bookingId: 'bk-1', contactChannel: 'call' },
+      })?.event,
+    ).toBe('staff_contacted_customer');
   });
 
   it('builds validated ingest payloads', () => {

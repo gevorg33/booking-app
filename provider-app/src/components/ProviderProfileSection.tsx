@@ -17,12 +17,10 @@ import { useAuthStore } from '../services/auth-store';
 import { useI18n } from '../i18n';
 import {
   fetchProviderProfile,
-  fetchProviderReviews,
-  renderStarRating,
   updateProviderProfile,
 } from '../lib/provider-profile';
+import { ProviderReviewsInboxSection } from './ProviderReviewsInboxSection';
 import { uploadProviderAvatar } from '../services/provider-upload';
-import { formatDateDisplay } from '../lib/date-format';
 
 export function ProviderProfileSection() {
   const { t } = useI18n();
@@ -35,12 +33,6 @@ export function ProviderProfileSection() {
   const profileQuery = useQuery({
     queryKey: ['provider-profile', business?.id],
     queryFn: () => fetchProviderProfile(business!.id),
-    enabled: !!business?.id,
-  });
-
-  const reviewsQuery = useQuery({
-    queryKey: ['provider-reviews', business?.id],
-    queryFn: () => fetchProviderReviews(business!.id),
     enabled: !!business?.id,
   });
 
@@ -87,7 +79,6 @@ export function ProviderProfileSection() {
 
   const titleValue = titleDraft ?? profile.title ?? '';
   const busy = saveMutation.isPending || uploadMutation.isPending;
-  const reviews = reviewsQuery.data;
 
   return (
     <>
@@ -169,42 +160,7 @@ export function ProviderProfileSection() {
         </IonCardContent>
       </IonCard>
 
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>{t('provider.profileReviewsTitle')}</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          {reviewsQuery.isLoading ? (
-            <IonSpinner />
-          ) : !reviews?.reviewCount ? (
-            <p className="booking-meta">{t('provider.profileNoReviews')}</p>
-          ) : (
-            <>
-              <p style={{ marginTop: 0 }}>
-                <span style={{ color: '#f59e0b', letterSpacing: 1 }}>
-                  {renderStarRating(reviews.averageRating ?? 0)}
-                </span>{' '}
-                {t('provider.profileAverageRating', {
-                  rating: (reviews.averageRating ?? 0).toFixed(1),
-                  count: reviews.reviewCount,
-                })}
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {reviews.reviews.map((review) => (
-                  <div key={review.id} className="salon-card" style={{ padding: 12 }}>
-                    <p style={{ margin: 0, color: '#f59e0b' }}>{renderStarRating(review.rating)}</p>
-                    {review.comment ? <p style={{ margin: '6px 0' }}>{review.comment}</p> : null}
-                    <p className="booking-meta" style={{ margin: 0 }}>
-                      {review.customerName ?? t('provider.profileAnonymousReview')} ·{' '}
-                      {formatDateDisplay(review.createdAt.slice(0, 10))}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </IonCardContent>
-      </IonCard>
+      <ProviderReviewsInboxSection />
     </>
   );
 }

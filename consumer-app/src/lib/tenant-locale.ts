@@ -1,6 +1,12 @@
 const SUPPORTED = ['en', 'hy', 'ru'] as const;
 export type ConsumerLocale = (typeof SUPPORTED)[number];
 
+export const CONSUMER_LOCALE_LABELS: Record<ConsumerLocale, string> = {
+  en: 'English',
+  hy: 'Հայերեն',
+  ru: 'Русский',
+};
+
 export function normalizeConsumerLocale(value?: string | null): ConsumerLocale | null {
   if (!value) return null;
   const code = value.trim().toLowerCase();
@@ -68,4 +74,9 @@ export function resolveConsumerLocale(
   const stored = readStoredConsumerLocale(slug);
   if (stored && enabled.includes(stored)) return stored;
   return readDefaultLocale(profile);
+}
+
+export function formatStoredTenantLocaleLabel(slug: string): string | null {
+  const stored = readStoredConsumerLocale(slug);
+  return stored ? CONSUMER_LOCALE_LABELS[stored] : null;
 }

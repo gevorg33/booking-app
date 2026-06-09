@@ -149,6 +149,15 @@ const en: MessageTree = {
       '{serviceName} on {scheduleLabel} was cancelled.',
     bookingCancelledPushForegroundHint:
       '{serviceName} cancelled — tap to rebook',
+    providerRunningLatePushTitle: '{businessName}: Running late',
+    providerRunningLatePushBody:
+      '{providerName} is running about {minutesLate} minutes late for {serviceName}.',
+    providerRunningLatePushForegroundHint:
+      '{providerName} is running {minutesLate}m late',
+    providerReadyNowPushTitle: '{businessName}: Ready for you',
+    providerReadyNowPushBody:
+      '{providerName} is ready for your {serviceName} now.',
+    providerReadyNowPushForegroundHint: '{providerName} is ready for you',
     giftCardReceivedPushTitle: '{businessName}: Gift card received',
     giftCardReceivedPushBody:
       'You received a gift card from {senderName}.',
@@ -390,6 +399,15 @@ const hy: MessageTree = {
       '{serviceName} {scheduleLabel} չեղարկվել է',
     bookingCancelledPushForegroundHint:
       '{serviceName} չեղարկված է — հպեք վերամրագրելու',
+    providerRunningLatePushTitle: '{businessName}՝ ուշացում',
+    providerRunningLatePushBody:
+      '{providerName}-ը մոտ {minutesLate} րոպե ուշ է {serviceName} համար',
+    providerRunningLatePushForegroundHint:
+      '{providerName}-ը {minutesLate} ր ուշ է',
+    providerReadyNowPushTitle: '{businessName}՝ պատրաստ է',
+    providerReadyNowPushBody:
+      '{providerName}-ը պատրաստ է ձեր {serviceName}-ին',
+    providerReadyNowPushForegroundHint: '{providerName}-ը պատրաստ է ձեզ',
     giftCardReceivedPushTitle: '{businessName}՝ նվեր քարտ',
     giftCardReceivedPushBody:
       'Դուք նվեր քարտ եք ստացել {senderName}-ից',
@@ -633,6 +651,15 @@ const ru: MessageTree = {
       '{serviceName} {scheduleLabel} отменена.',
     bookingCancelledPushForegroundHint:
       '{serviceName} отменена — нажмите, чтобы записаться снова',
+    providerRunningLatePushTitle: '{businessName}: Задержка',
+    providerRunningLatePushBody:
+      '{providerName} опаздывает примерно на {minutesLate} мин для {serviceName}.',
+    providerRunningLatePushForegroundHint:
+      '{providerName} опаздывает на {minutesLate} мин',
+    providerReadyNowPushTitle: '{businessName}: Готовы принять',
+    providerReadyNowPushBody:
+      '{providerName} готов к вашему {serviceName}.',
+    providerReadyNowPushForegroundHint: '{providerName} готов принять вас',
     giftCardReceivedPushTitle: '{businessName}: Подарочная карта',
     giftCardReceivedPushBody:
       'Вы получили подарочную карту от {senderName}.',

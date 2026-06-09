@@ -27,7 +27,7 @@ export function ConsumerGiftCardClaimSection({
     try {
       const result = await claimPublicGiftCard(slug, trimmed);
       const key = resolveGiftCardClaimSuccessCopyKey(result.cardType);
-      setSuccess(copy[key]);
+      setSuccess(typeof copy[key] === 'string' ? copy[key] : null);
       setCode('');
       onClaimed?.();
     } catch (err: unknown) {

@@ -99,7 +99,7 @@ describe('ai provider availability integration', () => {
         }),
       ]);
       expect(result.details?.serviceName).toBe('Permanent lips');
-      expect(result.details?.date).toBe('2026-06-09');
+      expect(result.details?.date).toBe('2026-06-06');
     });
 
     it('requires a service name', async () => {

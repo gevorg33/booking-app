@@ -154,7 +154,7 @@ describe('buildConsumerAssistantHref', () => {
         path: 'home',
         query: {},
       }),
-    ).toBe('/s/glow-nails');
+    ).toBe('/s/glow-nails/home');
     expect(
       buildConsumerAssistantHref('glow-nails', {
         path: 'checkout',

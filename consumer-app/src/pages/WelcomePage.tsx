@@ -92,11 +92,11 @@ export default function WelcomePage() {
     [refreshKey, quickReturnSlugs],
   );
 
-  const openSalon = (slug: string) => {
+  const openSalon = (slug: string, startOnBookTab = false) => {
     if (!isValidSlug(slug)) return;
     markFirstRunComplete();
     track('onboarding_step_viewed', { onboardingStep: 'salon', onboardingVariant });
-    history.push(buildSalonPath(slug));
+    history.push(buildSalonPath(slug, startOnBookTab ? '/services' : undefined));
   };
 
   const togglePin = (slug: string) => {
@@ -175,7 +175,7 @@ export default function WelcomePage() {
           expand="block"
           className="ion-margin-top"
           disabled={!isValidSlug(code)}
-          onClick={() => openSalon(code)}
+          onClick={() => openSalon(code, true)}
         >
           Continue
         </IonButton>

@@ -4,4 +4,6 @@
     <string name="title_activity_main">OptiSchedule</string>
     <string name="package_name">com.optischedule.consumer</string>
     <string name="custom_url_scheme">optischedule</string>
+    <string name="widget_consumer_home_description">Next appointment and quick rebook</string>
+    <string name="default_notification_channel_id">booking_alerts</string>
 </resources>

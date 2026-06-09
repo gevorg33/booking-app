@@ -207,7 +207,6 @@ function applyBookingSuccess(
       endTime: string;
       quote: PublicCheckoutQuote | null;
     }) => void;
-    setShowPushPriming: (value: boolean) => void;
     bookingCompletedRef: MutableRefObject<boolean>;
   },
   bookingId: string,
@@ -222,7 +221,6 @@ function applyBookingSuccess(
     queryClient,
     clinicOrderToken,
     setBookingSuccess,
-    setShowPushPriming,
     bookingCompletedRef,
   } = ctx;
 
@@ -635,7 +633,6 @@ export default function BookPage() {
           queryClient,
           clinicOrderToken,
           setBookingSuccess,
-          setShowPushPriming,
           bookingCompletedRef,
         },
         (result.booking as { id: string }).id,
@@ -1081,7 +1078,6 @@ export default function BookPage() {
           queryClient,
           clinicOrderToken,
           setBookingSuccess,
-          setShowPushPriming,
           bookingCompletedRef,
         },
         result.booking.id,
@@ -1200,7 +1196,7 @@ export default function BookPage() {
               locale={locale}
               guestContact={successGuestContact}
               busy={postBookingOneTapSignIn.busy}
-              message={postBookingOneTapSignIn.message}
+              message={postBookingOneTapSignIn.message ?? undefined}
               onSignInWithGoogle={postBookingOneTapSignIn.signInWithGoogle}
               onSignInWithApple={postBookingOneTapSignIn.signInWithApple}
               onSkipped={() => setPostBookingSignInDismissed(true)}
@@ -1617,7 +1613,7 @@ export default function BookPage() {
             locale={locale}
             guestContact={normalizeGuestContact(guestContact)}
             busy={preConfirmOneTapSignIn.busy}
-            message={preConfirmOneTapSignIn.message}
+            message={preConfirmOneTapSignIn.message ?? undefined}
             onSignInWithGoogle={preConfirmOneTapSignIn.signInWithGoogle}
             onSignInWithApple={preConfirmOneTapSignIn.signInWithApple}
             onSkipped={() => setPreConfirmSignInDismissed(true)}

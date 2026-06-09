@@ -14,6 +14,7 @@ export default defineConfig({
     fileParallelism: false,
     include: [
       'src/lib/provider-app.i18n.integration.spec.ts',
+      'src/lib/provider-i18n-parity.util.spec.ts',
       'src/i18n/resolve-locale.spec.ts',
       'src/i18n/locale-storage.spec.ts',
       'src/lib/provider-ai-examples.spec.ts',

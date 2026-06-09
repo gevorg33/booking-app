@@ -1,0 +1,43 @@
+.provider-team-whos-next {
+  margin-bottom: 1.25rem;
+}
+
+.provider-team-whos-next-header {
+  margin-bottom: 0.75rem;
+}
+
+.provider-team-whos-next-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.provider-team-whos-next-column + .provider-team-whos-next-column {
+  margin-top: 1rem;
+}
+
+.provider-team-whos-next-column-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.provider-team-whos-next-column-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.provider-team-whos-next-card {
+  margin: 0.5rem 0 0;
+}
+
+.provider-team-whos-next-card--next {
+  border: 1px solid var(--ion-color-primary);
+}
+
+.provider-team-whos-next-position {
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}

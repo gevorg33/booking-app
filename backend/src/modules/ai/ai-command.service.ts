@@ -136,8 +136,10 @@ import {
 } from './ai-recommendation-product.util.js';
 import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
 import { AiPlatformService } from './ai-platform.service.js';
-import { AiBookingDepthService } from './ai-booking-depth.service.js';
+import { AiProviderTimeOffService } from './ai-provider-time-off.service.js';
+import { DASHBOARD_TIME_OFF_CLASSIFIER_RULES } from '../provider-mobile/provider-time-off.fixtures.js';
 import { AiCatalogService } from './ai-catalog.service.js';
+import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
 import { AiPaymentsService } from './ai-payments.service.js';
@@ -287,7 +289,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "update_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "mark_no_shows" | "no_show_recovery" | "payment_sweep" | "day_replan" | "sick_day_replan" | "import_services_from_menu" | "update_service_prices" | "staff_service_matrix" | "check_schedule_compliance" | "revenue_forecast" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "swap_schedules" | "rebalance_capacity" | "holiday_mode" | "onboard_provider_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "update_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "mark_no_shows" | "no_show_recovery" | "payment_sweep" | "day_replan" | "sick_day_replan" | "import_services_from_menu" | "update_service_prices" | "staff_service_matrix" | "check_schedule_compliance" | "revenue_forecast" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "list_time_off_requests" | "approve_time_off_request" | "deny_time_off_request" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "swap_schedules" | "rebalance_capacity" | "holiday_mode" | "onboard_provider_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -511,6 +513,7 @@ Rules:
 - check_availability timeOfDay: morning (before 12:00), afternoon (12:00–17:00), evening (after 17:00). Set timeOfDay when user asks about morning/afternoon/evening availability.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules. "Block lunch 12-13 for everyone, repeat 4 weeks, skip holidays" → allProviders=true, timeFrom/timeTo, weeksCount=4, skipHolidays=true.
+${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 - swap_schedules: exchange applied schedules between two providers on a day or range. "Swap Friday schedules between Gevorg and Maria" → employeeNames=[Gevorg, Maria], date or applyDays for Friday.
 - rebalance_capacity: move N booked slots of a service from one provider to another on a day. "Move 2 facemassage slots from Gevorg to Maria on Friday" → fromEmployeeName, toEmployeeName, serviceName, slotCount=2, date.
 - holiday_mode: close business days for all providers and optionally extend hours before closure. "Close Dec 24-26 for all, extend Dec 23 hours until 21:00" → closeDates/holidayDates, allProviders=true, extendDate, extendTimeTo.
@@ -612,6 +615,7 @@ export class AiCommandService {
     private intentRescue: AiIntentRescueService,
     private promptSecurity: AiPromptSecurityService,
     private promptNormalization: AiPromptNormalizationService,
+    private providerTimeOff: AiProviderTimeOffService,
   ) {}
 
   async approveTask(
@@ -4481,6 +4485,23 @@ export class AiCommandService {
           employees,
           userId,
         );
+        break;
+      case 'list_time_off_requests':
+      case 'approve_time_off_request':
+      case 'deny_time_off_request':
+        result =
+          (await this.providerTimeOff.handleIntent(
+            businessId,
+            userId!,
+            parsed.action,
+            params,
+            'dashboard',
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: 'Could not process time-off request.',
+            details: { clarify: true },
+          };
         break;
       case 'clear_schedule':
         result = await this.scheduleHandlers.handleClearSchedule(

@@ -27,6 +27,7 @@ import type { PublicClinicLabBookingRequest } from '../lib/public-clinic-lab-boo
 import { normalizePublicClinicLabBookingRequestsPayload } from '../lib/public-clinic-lab-booking-requests.js';
 import type { PublicServicePackage } from '../lib/package-booking.js';
 import { buildCheckoutRecommendationsPath } from '../lib/checkout-recommendations.js';
+import type { MobileAppConfigView } from '../lib/app-version-gate.util.js';
 import { getPublicApiBaseUrl } from './api-base.js';
 
 const http = axios.create({
@@ -924,13 +925,28 @@ export async function registerConsumerNativePush(
   slug: string,
   token: string,
   platform: string,
-): Promise<{ registered: boolean; platform: 'ios' | 'android' }> {
+  analyticsAnonId?: string,
+  permissionState?: 'full' | 'provisional' | 'default_on',
+): Promise<{ registered: boolean; platform: 'ios' | 'android'; refreshed?: boolean }> {
   const { data } = await http.post(
     `/public/${slug}/me/push/register-native`,
-    { token, platform },
+    { token, platform, analyticsAnonId, permissionState },
     publicConfig(slug),
   );
-  return unwrap<{ registered: boolean; platform: 'ios' | 'android' }>(data);
+  return unwrap<{ registered: boolean; platform: 'ios' | 'android'; refreshed?: boolean }>(data);
+}
+
+export async function ackConsumerPushDelivery(
+  slug: string,
+  deliveryId: string,
+  platform: 'ios' | 'android',
+): Promise<{ acked: boolean }> {
+  const { data } = await http.post(
+    `/public/${slug}/me/push/delivery-ack`,
+    { deliveryId, platform },
+    publicConfig(slug),
+  );
+  return unwrap<{ acked: boolean }>(data);
 }
 
 export async function fetchConsumerNativePushStatus(
@@ -942,4 +958,56 @@ export async function fetchConsumerNativePushStatus(
     params: { platform },
   });
   return unwrap<{ registered: boolean; platform: 'ios' | 'android' | null }>(data);
+}
+
+export async function submitCustomerReview(
+  slug: string,
+  bookingId: string,
+  body: { rating: number; comment?: string },
+): Promise<{ id: string; rating: number }> {
+  const { data } = await http.post(
+    `/public/${slug}/me/bookings/${bookingId}/review`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap<{ id: string; rating: number }>(data);
+}
+
+export async function createPostBookingSupportTicket(
+  slug: string,
+  token: string,
+  body: { bookingId: string; message?: string },
+): Promise<{ ticketId: number; agentUrl?: string }> {
+  const { data } = await http.post(`/public/${slug}/me/support/ticket`, body, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap<{ ticketId: number; agentUrl?: string }>(data);
+}
+
+export async function fetchMobileAppConfig(input: {
+  surface: 'consumer_app' | 'provider_app';
+  platform: 'ios' | 'android' | 'web';
+  version?: string;
+}): Promise<MobileAppConfigView> {
+  const params = new URLSearchParams({
+    surface: input.surface,
+    platform: input.platform,
+  });
+  if (input.version?.trim()) params.set('version', input.version.trim());
+  const { data } = await http.get(`/mobile-app/config?${params.toString()}`);
+  return unwrap<MobileAppConfigView>(data);
+}
+
+export interface AppAnalyticsIngestBody {
+  businessId?: string;
+  tenantSlug?: string;
+  consentGranted: boolean;
+  events: Array<Record<string, unknown>>;
+}
+
+export async function recordAppAnalyticsEvents(
+  body: AppAnalyticsIngestBody,
+): Promise<{ recorded: number; skipped: number }> {
+  const { data } = await http.post('/events/app', body);
+  return unwrap<{ recorded: number; skipped: number }>(data);
 }

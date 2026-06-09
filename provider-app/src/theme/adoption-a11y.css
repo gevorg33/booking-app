@@ -1,29 +1,44 @@
-/** adopt-5.6 — dynamic type, RTL-safe spacing, reduced motion, focus rings. */
+/** adopt-5.6 / prov-exp-10.3 — dynamic type, RTL-safe spacing, reduced motion, focus rings. */
 
 .adoption-a11y-root {
+  --adoption-font-scale: 1;
+  --adoption-hit-target-min: 2.75rem;
+  --adoption-body-font-size: calc(1rem * var(--adoption-font-scale));
+  --adoption-caption-font-size: calc(0.875rem * var(--adoption-font-scale));
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  font-size: var(--adoption-body-font-size);
 }
 
+.adoption-a11y-root ion-card,
 .adoption-a11y-root [role='dialog'],
 .adoption-a11y-root [role='status'],
 .adoption-a11y-root [role='alert'] {
-  font-size: 0.875rem;
+  font-size: var(--adoption-caption-font-size);
   line-height: 1.5;
 }
 
 .adoption-a11y-root [role='dialog'] {
-  padding-inline: 1rem;
+  padding-inline: 1.5rem;
 }
 
 .adoption-a11y-root ion-button,
-.adoption-a11y-root button {
-  min-height: 2.75rem;
+.adoption-a11y-root button,
+.adoption-a11y-root ion-tab-button,
+.adoption-a11y-root ion-item[button='true'],
+.adoption-a11y-root ion-card[button='true'] {
+  min-height: var(--adoption-hit-target-min);
+}
+
+.adoption-a11y-root .provider-calendar-month__day {
+  min-height: var(--adoption-hit-target-min);
+  min-width: var(--adoption-hit-target-min);
 }
 
 .adoption-a11y-root button:focus-visible,
 .adoption-a11y-root a:focus-visible,
-.adoption-a11y-root ion-button:focus-visible {
+.adoption-a11y-root ion-button:focus-visible,
+.adoption-a11y-root ion-tab-button:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
@@ -37,4 +52,12 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+[dir='rtl'] .provider-ai-msg--user {
+  align-self: flex-start;
+}
+
+[dir='rtl'] .provider-ai-msg--assistant {
+  align-self: flex-end;
 }

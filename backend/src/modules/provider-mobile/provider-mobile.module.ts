@@ -32,6 +32,23 @@ import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
 import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
+import { LoyaltyModule } from '../loyalty/loyalty.module.js';
+import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
+import {
+  CustomerSubscription,
+  SubscriptionPlan,
+} from '../service-subscriptions/entities/subscription.entity.js';
+import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
+import { ClinicQuestionnairesModule } from '../clinic-questionnaires/clinic-questionnaires.module.js';
+import { ClinicPreVisitIntake } from '../clinic-pre-visit-intakes/entities/clinic-pre-visit-intake.entity.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
+import { ScheduleModule } from '../schedule/schedule.module.js';
+import { ProviderTimeOffRequest } from './entities/provider-time-off-request.entity.js';
+import { ProviderTimeOffService } from './provider-time-off.service.js';
+import { ProviderTimeOffDashboardController } from './provider-time-off-dashboard.controller.js';
+import { ProviderPushNotification } from './entities/provider-push-notification.entity.js';
+import { ProviderPushHistoryService } from './provider-push-history.service.js';
 
 @Module({
   imports: [
@@ -49,7 +66,15 @@ import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
       Service,
       Customer,
       Review,
+      MultiServiceBookingGroup,
+      CustomerSubscription,
+      SubscriptionPlan,
+      ClinicPreVisitIntake,
+      ProviderTimeOffRequest,
+      ProviderPushNotification,
     ]),
+    ClinicPreVisitIntakesModule,
+    ClinicQuestionnairesModule,
     BusinessModule,
     forwardRef(() => BookingModule),
     forwardRef(() => GiftCardsModule),
@@ -60,10 +85,15 @@ import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
     ClinicTestResultsModule,
     PatientClinicalProfilesModule,
     ClinicTasksModule,
+    LoyaltyModule,
+    NotificationsModule,
+    ReviewsModule,
+    ScheduleModule,
   ],
-  controllers: [ProviderMobileController],
+  controllers: [ProviderMobileController, ProviderTimeOffDashboardController],
   providers: [
     ProviderMobileService,
+    ProviderTimeOffService,
     ProviderAiCommandService,
     ProviderAiSuggestionsService,
     PushService,
@@ -71,12 +101,15 @@ import { ClinicTasksModule } from '../clinic-tasks/clinic-tasks.module.js';
     GiftCardFulfillmentPushListener,
     ProviderPushActionService,
     ProviderEndOfDayPushScheduler,
+    ProviderPushHistoryService,
   ],
   exports: [
     ProviderMobileService,
     PushService,
     ProviderPushActionService,
     ProviderAiCommandService,
+    ProviderTimeOffService,
+    ProviderPushHistoryService,
   ],
 })
 export class ProviderMobileModule {}

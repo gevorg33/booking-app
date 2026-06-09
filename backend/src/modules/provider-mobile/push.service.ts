@@ -14,6 +14,8 @@ import {
   SubscribePushDto,
   RegisterNativePushDto,
 } from './dto/provider-mobile.dto.js';
+import { ProviderPushHistoryService } from './provider-push-history.service.js';
+import { resolveProviderPushHistoryKind } from './provider-push-history.util.js';
 
 @Injectable()
 export class PushService {
@@ -27,6 +29,7 @@ export class PushService {
     private nativeTokenRepo: Repository<NativePushToken>,
     private config: ConfigService,
     private firebase: FirebaseAdminService,
+    private pushHistory: ProviderPushHistoryService,
   ) {
     const publicKey = this.config.get<string>('VAPID_PUBLIC_KEY');
     const privateKey = this.config.get<string>('VAPID_PRIVATE_KEY');
@@ -145,6 +148,22 @@ export class PushService {
     }
 
     sent += await this.notifyNativeTokens(userId, businessId, payload);
+    if (sent > 0) {
+      try {
+        await this.pushHistory.recordDelivery({
+          userId,
+          businessId,
+          title: payload.title,
+          body: payload.body,
+          bookingId: payload.bookingId,
+          url: payload.url,
+          kind: resolveProviderPushHistoryKind(payload.pushType),
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to record provider push history: ${message}`);
+      }
+    }
     return sent;
   }
 

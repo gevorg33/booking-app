@@ -18,9 +18,11 @@ const TYPE_DESC_KEYS: Record<PublicGiftCardType, keyof ConsumerCopy> = {
 };
 
 export function giftCardTypeLabel(copy: ConsumerCopy, cardType: PublicGiftCardType): string {
-  return copy[TYPE_LABEL_KEYS[cardType]];
+  const value = copy[TYPE_LABEL_KEYS[cardType]];
+  return typeof value === 'string' ? value : '';
 }
 
 export function giftCardTypeDescription(copy: ConsumerCopy, cardType: PublicGiftCardType): string {
-  return copy[TYPE_DESC_KEYS[cardType]];
+  const value = copy[TYPE_DESC_KEYS[cardType]];
+  return typeof value === 'string' ? value : '';
 }

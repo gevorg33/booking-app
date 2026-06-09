@@ -389,6 +389,11 @@ export function resolveTomorrowDateKey(now: Date = new Date()): string {
 }
 
 /** Normalize classifier/prompt dates to YYYY-MM-DD for public slot queries. */
+function hasExplicitAvailabilityDate(params: Record<string, unknown>): boolean {
+  const raw = params.date;
+  return typeof raw === 'string' && raw.trim().length > 0;
+}
+
 export function resolveAvailabilityDateKey(
   params: Record<string, unknown>,
   prompt: string | undefined,
@@ -396,7 +401,9 @@ export function resolveAvailabilityDateKey(
 ): string {
   const tz = resolveTimezone(timeZone);
   const merged: Record<string, unknown> = { ...params };
-  applyRelativeDateFromPrompt(merged, prompt, tz);
+  if (!hasExplicitAvailabilityDate(params)) {
+    applyRelativeDateFromPrompt(merged, prompt, tz);
+  }
 
   const rawDate = merged.date;
   if (typeof rawDate === 'string' && rawDate.trim()) {

@@ -56,6 +56,14 @@ describe('CustomerAiCommandService', () => {
       handleMyAppointments: jest.fn(),
       handleDiscoverPackages: jest.fn(),
     };
+    const consumerAdoption = {
+      handleIntent: jest.fn(async () => ({
+        success: true,
+        action: 'explain_my_notifications',
+        summary: 'ok',
+        details: {},
+      })),
+    };
     const publicAssistant = {
       chat: jest.fn(async () => ({
         success: true,
@@ -227,6 +235,7 @@ describe('CustomerAiCommandService', () => {
       consumerClinicTestResults: noopSprint,
       clinicLabBooking: noopSprint,
       clinicBooking: noopSprint,
+      consumerAdoption,
       publicAssistant,
     };
   }
@@ -255,6 +264,7 @@ describe('CustomerAiCommandService', () => {
       mocks.consumerClinicTestResults as any,
       mocks.clinicLabBooking as any,
       mocks.clinicBooking as any,
+      mocks.consumerAdoption as any,
       mocks.publicAssistant as any,
     );
     return { service, ...mocks };

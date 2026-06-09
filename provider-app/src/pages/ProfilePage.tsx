@@ -15,8 +15,10 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useAuthStore } from '../services/auth-store';
 import { isMobileManagerRole, managerRoleLabel } from '../lib/provider-access';
+import { ProviderPushNotificationsLink } from '../components/ProviderPushNotificationsLink';
 import PushToggle from '../components/PushToggle';
 import { ProviderProfileSection } from '../components/ProviderProfileSection';
+import { ProviderMyStatsSection } from '../components/ProviderMyStatsSection';
 import { enableNativePush, isFcmBuild } from '../services/native-push';
 import { useI18n } from '../i18n';
 
@@ -60,6 +62,8 @@ export default function ProfilePage() {
           </IonCardContent>
         </IonCard>
 
+        <ProviderMyStatsSection />
+
         <ProviderProfileSection />
 
         <IonCard>
@@ -68,6 +72,7 @@ export default function ProfilePage() {
           </IonCardHeader>
           <IonCardContent>
             <PushToggle />
+            <ProviderPushNotificationsLink />
             <p className="booking-meta">
               {isManager ? t('provider.pushHintTeam') : t('provider.pushHint')}
             </p>

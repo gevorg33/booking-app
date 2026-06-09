@@ -2,13 +2,16 @@ import { IonContent, IonPage, IonSpinner } from '@ionic/react';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
-import SalonTabs from './SalonTabs.js';
 import { useConsumerNativePush } from '../hooks/use-consumer-native-push.js';
 import { captureReferralFromSearch } from '../lib/consumer-referral.util.js';
+import type { SalonTabId } from '../lib/salon-tab-route.util.js';
+import { SalonTabChrome } from './SalonTabChrome.js';
+import { SalonTabPageContent } from './SalonTabPageContent.js';
 
-export default function SalonTabShell() {
+/** Single-outlet salon tab route: page renders in the app IonRouterOutlet (Android-safe). */
+export function SalonTabRoute({ page }: { page: SalonTabId }) {
   const location = useLocation();
-  const { slug, profile, loading, error } = useTenantBootstrap();
+  const { slug, profile, loading, error, fromCache } = useTenantBootstrap();
   useConsumerNativePush(slug);
 
   useEffect(() => {
@@ -36,5 +39,14 @@ export default function SalonTabShell() {
     );
   }
 
-  return <SalonTabs slug={slug} profile={profile} />;
+  return (
+    <SalonTabChrome slug={slug} profile={profile} fromCache={fromCache}>
+      <SalonTabPageContent
+        page={page}
+        slug={slug}
+        profile={profile}
+        fromCache={fromCache}
+      />
+    </SalonTabChrome>
+  );
 }

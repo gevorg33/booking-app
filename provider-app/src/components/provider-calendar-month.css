@@ -20,11 +20,32 @@
   font-size: 14px;
   font-weight: 600;
   position: relative;
-  padding: 0;
+  padding: 4px 2px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
 }
 
 .provider-calendar-month__day--muted {
   opacity: 0.35;
+}
+
+.provider-calendar-month__day--band-empty:not(.provider-calendar-month__day--selected) {
+  background: var(--ion-color-light);
+}
+
+.provider-calendar-month__day--band-low:not(.provider-calendar-month__day--selected) {
+  background: rgba(var(--ion-color-success-rgb), 0.18);
+}
+
+.provider-calendar-month__day--band-medium:not(.provider-calendar-month__day--selected) {
+  background: rgba(var(--ion-color-warning-rgb), 0.22);
+}
+
+.provider-calendar-month__day--band-high:not(.provider-calendar-month__day--selected) {
+  background: rgba(var(--ion-color-danger-rgb), 0.18);
 }
 
 .provider-calendar-month__day--selected {
@@ -36,19 +57,19 @@
   box-shadow: inset 0 0 0 2px var(--ion-color-primary);
 }
 
-.provider-calendar-month__badge {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ion-color-success);
+.provider-calendar-month__day-number {
+  line-height: 1;
 }
 
-.provider-calendar-month__day--selected .provider-calendar-month__badge {
-  background: #fff;
+.provider-calendar-month__count {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.provider-calendar-month__day--selected .provider-calendar-month__count {
+  opacity: 1;
 }
 
 .provider-calendar-month__header {
@@ -62,4 +83,31 @@
   font-size: 16px;
   font-weight: 700;
   margin: 0;
+}
+
+.provider-calendar-month__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ion-color-medium);
+}
+
+.provider-calendar-month__legend-title {
+  width: 100%;
+  font-weight: 600;
+}
+
+.provider-calendar-month__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.provider-calendar-month__legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
 }

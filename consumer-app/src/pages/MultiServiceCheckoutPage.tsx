@@ -368,6 +368,7 @@ export default function MultiServiceCheckoutPage() {
     turnover,
   );
   const subtotal = sumMultiServicePrice(selectedServices as Array<{ price: number }>);
+  void subtotal;
   const currency = resolveTenantPriceCurrency(selectedServices[0]?.currency, profile.currency);
   const scheduleEnd = scheduleStart
     ? new Date(new Date(scheduleStart).getTime() + totalDuration * 60_000).toISOString()

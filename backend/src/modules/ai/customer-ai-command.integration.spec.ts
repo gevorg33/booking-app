@@ -151,6 +151,9 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       } as any,
       sprintHandlers as any,
       sprintHandlers as any,
+      {} as any,
+      {} as any,
+      { handleIntent: jest.fn() } as any,
       { chat: jest.fn() } as any,
     );
 
@@ -297,6 +300,7 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       {} as any,
       {} as any,
       {} as any,
+      { handleIntent: jest.fn() } as any,
       publicAssistant as any,
     );
 

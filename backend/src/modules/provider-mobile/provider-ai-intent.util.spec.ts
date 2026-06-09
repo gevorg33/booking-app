@@ -6,6 +6,12 @@ describe('rescueProviderAiIntent', () => {
     expect(rescueProviderAiIntent("Who's next?", 'unknown')).toBe(
       'show_appointments',
     );
+    expect(
+      rescueProviderAiIntent(
+        "Who's next across the team in the next 2 hours?",
+        'unknown',
+      ),
+    ).toBe('team_whos_next');
     expect(rescueProviderAiIntent('Mark all today paid', 'unknown')).toBe(
       'payment_sweep',
     );

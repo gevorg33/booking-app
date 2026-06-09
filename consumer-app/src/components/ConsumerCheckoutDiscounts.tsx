@@ -1,4 +1,4 @@
-import { IonButton, IonInput, IonItem, IonLabel, IonSpinner } from '@ionic/react';
+import { IonButton, IonInput, IonLabel, IonSpinner } from '@ionic/react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import type { PublicCheckoutQuote } from '../lib/types.js';
 import type { PublicLoyaltySummary } from '../lib/consumer-rewards-display.util.js';

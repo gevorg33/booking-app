@@ -24,6 +24,15 @@ export class RetailPosService {
     @InjectRepository(Product) private productRepo: Repository<Product>,
   ) {}
 
+  async hasConfiguredRetailProducts(businessId: string): Promise<boolean> {
+    const products = await this.productRepo.find({
+      where: { businessId, isActive: true },
+      select: { id: true, retailPrice: true },
+      take: 100,
+    });
+    return products.some((product) => Number(product.retailPrice) > 0);
+  }
+
   async listSellableProducts(businessId: string): Promise<RetailProductView[]> {
     const products = await this.productRepo.find({
       where: { businessId, isActive: true },

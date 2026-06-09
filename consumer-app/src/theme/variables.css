@@ -17,6 +17,26 @@ ion-content {
   --background: #f5f5f7;
 }
 
+body.salon-tab-active ion-content {
+  --padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.salon-bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--ion-tab-bar-background, #fff);
+  border-top: 1px solid var(--ion-border-color, #e5e7eb);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.salon-bottom-tab-bar ion-tab-bar {
+  position: relative;
+  contain: none;
+}
+
 .salon-card {
   background: #fff;
   border-radius: 16px;

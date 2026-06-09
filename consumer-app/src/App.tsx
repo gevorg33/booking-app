@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 import { Route, useHistory } from 'react-router-dom';
 import { useDeepLinkRouter } from './hooks/use-deep-link-router.js';
 import { CONSUMER_PUSH_NAVIGATE_EVENT } from './lib/consumer-native-push.util.js';
+import { AccessibilityBootstrap } from './components/AccessibilityBootstrap.js';
 import WelcomePage from './pages/WelcomePage.js';
-import SalonTabShell from './components/SalonTabShell.js';
+import { SalonTabRoute } from './components/SalonTabRoute.js';
+import SalonRedirectToHome from './components/SalonRedirectToHome.js';
 import BookPage from './pages/BookPage.js';
 import MultiServicePickerPage from './pages/MultiServicePickerPage.js';
 import MultiServiceAvailabilityPage from './pages/MultiServiceAvailabilityPage.js';
@@ -55,7 +57,27 @@ function AppRoutes() {
       <Route exact path="/s/:slug/gift-cards" component={GiftCardCatalogPage} />
       <Route exact path="/s/:slug/login" component={LoginPage} />
       <Route exact path="/s/:slug/profile" component={SalonProfilePage} />
-      <Route path="/s/:slug" component={SalonTabShell} />
+      <Route exact path="/s/:slug/home">
+        <SalonTabRoute page="home" />
+      </Route>
+      <Route exact path="/s/:slug/services">
+        <SalonTabRoute page="services" />
+      </Route>
+      <Route exact path="/s/:slug/account">
+        <SalonTabRoute page="account" />
+      </Route>
+      <Route exact path="/s/:slug/results">
+        <SalonTabRoute page="results" />
+      </Route>
+      <Route exact path="/s/:slug/lab-to-book">
+        <SalonTabRoute page="lab-to-book" />
+      </Route>
+      <Route exact path="/s/:slug/lab-requests">
+        <SalonTabRoute page="lab-requests" />
+      </Route>
+      <Route exact path="/s/:slug">
+        <SalonRedirectToHome />
+      </Route>
     </IonRouterOutlet>
   );
 }
@@ -63,6 +85,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <IonApp>
+      <AccessibilityBootstrap />
       <IonReactRouter>
         <AppRoutes />
       </IonReactRouter>

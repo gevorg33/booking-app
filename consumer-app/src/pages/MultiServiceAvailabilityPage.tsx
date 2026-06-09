@@ -123,7 +123,15 @@ export default function MultiServiceAvailabilityPage() {
       try {
         const result = await getPublicMultiServiceBlockSlots(slug, ids, day);
         if (slotsRequestRef.current !== requestId) return;
-        setSlots(result.slots);
+        setSlots(
+          result.slots
+            .filter((slot): slot is typeof slot & { employeeId: string } => Boolean(slot.employeeId))
+            .map((slot) => ({
+              startTime: slot.startTime,
+              employeeId: slot.employeeId,
+              employeeName: slot.employeeName ?? '',
+            })),
+        );
         if (result.slots.length > 0) {
           const previousStart = preferredStart ?? selectedStartRef.current;
           const match = previousStart

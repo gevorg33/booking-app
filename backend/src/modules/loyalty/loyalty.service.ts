@@ -252,4 +252,19 @@ export class LoyaltyService {
     );
     return account;
   }
+
+  /** prov-exp-9.2 — latest earn/redeem for provider loyalty quick view (read-only). */
+  async getLastEarnRedeemTransactions(accountId: string) {
+    const [lastEarn, lastRedeem] = await Promise.all([
+      this.txRepo.findOne({
+        where: { accountId, type: 'earn' },
+        order: { createdAt: 'DESC' },
+      }),
+      this.txRepo.findOne({
+        where: { accountId, type: 'redeem' },
+        order: { createdAt: 'DESC' },
+      }),
+    ]);
+    return { lastEarn, lastRedeem };
+  }
 }

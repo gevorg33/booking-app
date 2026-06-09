@@ -114,9 +114,16 @@ import {
 import { NOTIFICATION_DATE_FORMAT_MUTATE_INTENTS } from './ai-notification-date-format.util.js';
 import { DATA_RIGHTS_INTENTS } from './ai-data-rights.util.js';
 import {
-  PACKAGE_LOCALIZED_NAMES_INTENTS,
-  PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
-} from './ai-package-localized-names.util.js';
+  DASHBOARD_TIME_OFF_INTENTS,
+  DASHBOARD_TIME_OFF_MUTATE_INTENTS,
+  PROVIDER_TIME_OFF_INTENTS,
+  PROVIDER_TIME_OFF_MUTATE_INTENTS,
+} from './ai-provider-time-off.util.js';
+import { PROVIDER_OPEN_SHIFTS_INTENTS } from './ai-provider-open-shifts.util.js';
+import {
+  PROVIDER_EXP_3_INTENTS,
+  PROVIDER_EXP_3_MUTATE_INTENTS,
+} from './ai-provider-exp-3.util.js';
 import {
   CLINIC_SERVICE_INTENTS,
   CLINIC_SERVICE_MUTATE_INTENTS,
@@ -125,6 +132,10 @@ import {
   TOUR_SERVICE_INTENTS,
   TOUR_SERVICE_MUTATE_INTENTS,
 } from './ai-tour-service.util.js';
+import {
+  PACKAGE_LOCALIZED_NAMES_INTENTS,
+  PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
+} from './ai-package-localized-names.util.js';
 import type {
   CommandApiModule,
   CommandExecutionMode,
@@ -189,9 +200,17 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'enable_push_notifications',
   'summarize_my_appointments',
   'summarize_my_revenue',
+  'summarize_client',
+  'show_client_history',
+  'add_client_note',
   'list_package_appointments_today',
   'list_my_package_visits',
   'list_my_multi_service_groups',
+  'team_whos_next',
+  'my_stats',
+  'team_floor_status',
+  'check_in_client',
+  'mark_running_late',
 ] as const;
 
 /** Anonymous public-booking assistant (pre-login). */
@@ -617,6 +636,59 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     handler: 'AiProviderEarningsService',
     sprint: 'providerEarnings',
     mutateIntents: [],
+  },
+  {
+    intents: ['summarize_client', 'show_client_history', 'add_client_note'],
+    surfaces: ['provider'],
+    apiModule: 'provider-client-context',
+    handler: 'AiProviderClientContextService',
+    sprint: 'providerClientContext',
+    mutateIntents: ['add_client_note'],
+  },
+  {
+    intents: [
+      'my_stats',
+      'team_floor_status',
+      'check_in_client',
+      'mark_running_late',
+    ],
+    surfaces: ['provider'],
+    apiModule: 'provider-exp-2',
+    handler: 'AiProviderExp2Service',
+    sprint: 'providerExp2',
+    mutateIntents: ['check_in_client', 'mark_running_late'],
+  },
+  {
+    intents: [...DASHBOARD_TIME_OFF_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'provider-time-off',
+    handler: 'AiProviderTimeOffService',
+    sprint: 'providerExp7',
+    mutateIntents: [...DASHBOARD_TIME_OFF_MUTATE_INTENTS],
+  },
+  {
+    intents: [...PROVIDER_TIME_OFF_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-time-off',
+    handler: 'AiProviderTimeOffService',
+    sprint: 'providerExp7',
+    mutateIntents: [...PROVIDER_TIME_OFF_MUTATE_INTENTS],
+  },
+  {
+    intents: [...PROVIDER_OPEN_SHIFTS_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-open-shifts',
+    handler: 'AiProviderOpenShiftsService',
+    sprint: 'providerExp7',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_EXP_3_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-exp-3',
+    handler: 'AiProviderExp3Service',
+    sprint: 'providerExp5',
+    mutateIntents: [...PROVIDER_EXP_3_MUTATE_INTENTS],
   },
   {
     intents: BOOKING_DEPTH_INTENTS,

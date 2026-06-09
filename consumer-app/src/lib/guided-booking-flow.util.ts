@@ -21,7 +21,7 @@ export function resolveGuidedBookingStep(
     return context.slotSelected ? 'confirm' : 'slot';
   }
   if (pathname.includes('/services')) return 'service';
-  if (/^\/s\/[^/]+\/?$/.test(pathname)) return 'salon';
+  if (/^\/s\/[^/]+(\/home)?\/?$/.test(pathname)) return 'salon';
   return 'salon';
 }
 

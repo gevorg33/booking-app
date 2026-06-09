@@ -28,7 +28,9 @@ export function getProviderQuickChips(
     case 'today':
       return [
         chip(t, 'markAllPaid', 'markAllPaid'),
-        chip(t, 'whosNext', 'whosNext'),
+        ...(isManager
+          ? [chip(t, 'teamWhosNext', 'teamWhosNext')]
+          : [chip(t, 'whosNext', 'whosNext')]),
         chip(t, 'gapsAfternoon', 'gapsAfternoon'),
         chip(t, 'summarizeToday', 'summarizeToday'),
       ];
@@ -53,8 +55,8 @@ export function getProviderQuickChips(
 
 export function providerQuickChipI18nKeys(): string[] {
   const keys = new Set<string>();
-  const labelKeys = ['markAllPaid', 'whosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
-  const promptKeys = ['markAllPaid', 'whosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
+  const labelKeys = ['markAllPaid', 'whosNext', 'teamWhosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
+  const promptKeys = ['markAllPaid', 'whosNext', 'teamWhosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
   labelKeys.forEach((k) => keys.add(`provider.quickChip.${k}`));
   promptKeys.forEach((k) => keys.add(`provider.quickPrompt.${k}`));
   return [...keys];

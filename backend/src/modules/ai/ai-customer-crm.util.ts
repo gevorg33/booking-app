@@ -357,6 +357,30 @@ export function extractGiftCardCode(prompt: string): string | null {
   return code?.[1] ?? null;
 }
 
+function isProviderMobileClientContextPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (
+    /\b(add (?:a )?staff note|staff note|client note|save (?:a )?note|note for|summarize client|client snapshot)\b/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(visit history|past visits?|previous visits?|recent completed|prior bookings?|last visit)\b/i.test(
+      lower,
+    ) &&
+    /\b(client|customer|for)\b/i.test(lower)
+  ) {
+    return true;
+  }
+  return (
+    /\bhistory\b/i.test(lower) &&
+    /\b(this client|client|customer)\b/i.test(lower) &&
+    !/\b(subscription|membership|plan)\b/i.test(lower)
+  );
+}
+
 /** NL rescue when classifier returns unknown or a nearby action. */
 export function rescueCustomerCrmIntent(
   prompt: string,
@@ -366,6 +390,7 @@ export function rescueCustomerCrmIntent(
   if (isCrmCompoundPrompt(prompt) && action !== 'compound_intent') {
     return null;
   }
+  if (isProviderMobileClientContextPrompt(prompt)) return null;
 
   if (isPrivacyDeletePrompt(prompt))
     return { action: 'privacy_delete', rescueReason: 'privacy_delete' };

@@ -1391,56 +1391,56 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 **Lever thesis:** providers open the app *during* the appointment; show who is in the chair and everything safe to know in one scroll.
 
 ### prov-exp-1 — Booking detail enrichment
-- [ ] **prov-exp-1.1** — **Customer snapshot on booking detail** — API `GET .../provider/bookings/:id/customer-context`: name, phone (tap-to-call), email, loyalty balance, visit count, last visit date, no-show count, GDPR marketing opt-in flag (read-only), referral source if referred; UI card above payment section
-- [ ] **prov-exp-1.2** — **Visit history strip** — last 3 completed services for this customer at this salon (service, provider, date); tap opens past booking read-only or AI “summarize this client”
-- [ ] **prov-exp-1.3** — **Staff notes on customer** — read + add quick note (≤500 chars) scoped to staff who can see booking; sync with dashboard customer notes if present; PHI/clinic tenants use existing encrypt path when notes are clinical
-- [ ] **prov-exp-1.4** — **Package / subscription / multi-service badges** — on booking detail: package name + visit # remaining, active subscription label, multi-service group summary (mirrors consumer checkout context)
-- [ ] **prov-exp-1.5** — **Pre-visit intake / questionnaire answers** — read-only summary when business enabled intake for service (clinic + salon questionnaires); link to full answers on dashboard for managers
+- [x] **prov-exp-1.1** — **Customer snapshot on booking detail** — API `GET .../provider/bookings/:id/customer-context`: name, phone (tap-to-call), email, loyalty balance, visit count, last visit date, no-show count, GDPR marketing opt-in flag (read-only), referral source if referred; UI card above payment section
+- [x] **prov-exp-1.2** — **Visit history strip** — last 3 completed services for this customer at this salon (service, provider, date); tap opens past booking read-only or AI “summarize this client”
+- [x] **prov-exp-1.3** — **Staff notes on customer** — read + add quick note (≤500 chars) scoped to staff who can see booking; sync with dashboard customer notes if present; PHI/clinic tenants use existing encrypt path when notes are clinical
+- [x] **prov-exp-1.4** — **Package / subscription / multi-service badges** — on booking detail: package name + visit # remaining, active subscription label, multi-service group summary (mirrors consumer checkout context)
+- [x] **prov-exp-1.5** — **Pre-visit intake / questionnaire answers** — read-only summary when business enabled intake for service (clinic + salon questionnaires); link to full answers on dashboard for managers
 
 ### prov-exp-1 — AI & tests
-- [ ] **prov-exp-1.6** — Provider AI: `summarize_client`, `show_client_history`, `add_client_note` on `PROVIDER_INTENT_SCHEMA`; ≥10 NL variants + rescue + eval `surface: provider`; gate `npm run test:provider-exp-1`
+- [x] **prov-exp-1.6** — Provider AI: `summarize_client`, `show_client_history`, `add_client_note` on `PROVIDER_INTENT_SCHEMA`; ≥10 NL variants + rescue + eval `surface: provider`; gate `npm run test:provider-exp-1`
 
 ## Sprint 60 — Performance, check-in & team floor
 
 **Lever thesis:** providers care about *their* numbers; managers care about *the floor right now*.
 
 ### prov-exp-2 — Personal stats & reputation
-- [ ] **prov-exp-2.1** — **My stats tab section** (Profile or new “Insights” segment) — this week / month: completed bookings, revenue attributed (paid), utilization % vs scheduled hours, average review score, new reviews count; manager sees team rollup toggle
-- [ ] **prov-exp-2.2** — **Reviews inbox** — expand profile reviews into scrollable list with filters (last 30d, ≤3★); tap to open booking if linked; optional “request review” only when dashboard policy allows
-- [ ] **prov-exp-2.3** — **Earnings / tips placeholder** — when `payment.tipsEnabled` on business, show tip totals on stats (read-only v1); hide section when feature off
+- [x] **prov-exp-2.1** — **My stats tab section** (Profile or new “Insights” segment) — this week / month: completed bookings, revenue attributed (paid), utilization % vs scheduled hours, average review score, new reviews count; manager sees team rollup toggle
+- [x] **prov-exp-2.2** — **Reviews inbox** — expand profile reviews into scrollable list with filters (last 30d, ≤3★); tap to open booking if linked; optional “request review” only when dashboard policy allows
+- [x] **prov-exp-2.3** — **Earnings / tips placeholder** — when `payment.tipsEnabled` on business, show tip totals on stats (read-only v1); hide section when feature off
 
 ### prov-exp-3 — Check-in & running late
-- [ ] **prov-exp-3.1** — **Check-in action** — `POST .../provider/bookings/:id/check-in` sets `checkedInAt`; Today list shows checked-in vs waiting vs completed; optional push to reception on check-in (business setting)
-- [ ] **prov-exp-3.2** — **Running late / ready** — provider marks “running 10m late” or “ready now”; stores on booking metadata; optional SMS/push to customer when enabled (respect notification prefs)
-- [ ] **prov-exp-3.3** — **Today timeline view** — optional compact timeline on Today: now-marker, gap lengths, next client countdown; uses existing schedule summary API
+- [x] **prov-exp-3.1** — **Check-in action** — `POST .../provider/bookings/:id/check-in` sets `checkedInAt`; Today list shows checked-in vs waiting vs completed; optional push to reception on check-in (business setting)
+- [x] **prov-exp-3.2** — **Running late / ready** — provider marks “running 10m late” or “ready now”; stores on booking metadata; optional SMS/push to customer when enabled (respect notification prefs)
+- [x] **prov-exp-3.3** — **Today timeline view** — optional compact timeline on Today: now-marker, gap lengths, next client countdown; uses existing schedule summary API
 
 ### prov-exp-4 — Manager floor board
-- [ ] **prov-exp-4.1** — **Team floor view** — for owner/manager/receptionist: all providers’ today columns or stacked list with status chips (waiting, in service, done, no-show); filter by provider
-- [ ] **prov-exp-4.2** — **Reassign booking** — manager moves booking to another provider same day (reuse slot resolver); staff cannot reassign outside own bookings unless manager role
-- [ ] **prov-exp-4.3** — **Who’s next across team** — single AI chip + UI panel: ordered queue per provider for next 2h
+- [x] **prov-exp-4.1** — **Team floor view** — for owner/manager/receptionist: all providers’ today columns or stacked list with status chips (waiting, in service, done, no-show); filter by provider
+- [x] **prov-exp-4.2** — **Reassign booking** — manager moves booking to another provider same day (reuse slot resolver); staff cannot reassign outside own bookings unless manager role
+- [x] **prov-exp-4.3** — **Who’s next across team** — single AI chip + UI panel: ordered queue per provider for next 2h
 
 ### prov-exp-2–4 — AI & tests
-- [ ] **prov-exp-2.4** — Provider AI: `my_stats`, `team_floor_status`, `check_in_client`, `mark_running_late`; fixtures + eval; gate `npm run test:provider-exp-2`
+- [x] **prov-exp-2.4** — Provider AI: `my_stats`, `team_floor_status`, `check_in_client`, `mark_running_late`; fixtures + eval; gate `npm run test:provider-exp-2`
 
 ## Sprint 61 — Retail, comms & schedule self-service
 
 **Lever thesis:** complete the appointment loop on mobile — sell retail, message the client, block time — without opening the dashboard.
 
 ### prov-exp-5 — Retail at chair
-- [ ] **prov-exp-5.1** — **Retail cart on booking detail** — mirror dashboard `retail-pos` on mobile: add in-stock products to booking, show retail + service total, save cart; stock deduct on booking complete (existing inventory listener)
-- [ ] **prov-exp-5.2** — **Barcode / quick-add** (stretch) — scan or search SKU; v1 search-only acceptable
+- [x] **prov-exp-5.1** — **Retail cart on booking detail** — mirror dashboard `retail-pos` on mobile: add in-stock products to booking, show retail + service total, save cart; stock deduct on booking complete (existing inventory listener)
+- [x] **prov-exp-5.2** — **Barcode / quick-add** (stretch) — scan or search SKU; v1 search-only acceptable
 
 ### prov-exp-6 — Customer communications
-- [ ] **prov-exp-6.1** — **Quick message actions** on booking detail — tap to call, SMS (native `sms:`), WhatsApp deep link when business has WhatsApp enabled; log `staff_contacted_customer` analytics (no message body stored)
-- [ ] **prov-exp-6.2** — **Canned message templates** — business-configured snippets (“running late”, “confirming tomorrow”); manager edits on dashboard; staff pick template → opens SMS/WhatsApp with prefilled text
+- [x] **prov-exp-6.1** — **Quick message actions** on booking detail — tap to call, SMS (native `sms:`), WhatsApp deep link when business has WhatsApp enabled; log `staff_contacted_customer` analytics (no message body stored)
+- [x] **prov-exp-6.2** — **Canned message templates** — business-configured snippets (“running late”, “confirming tomorrow”); manager edits on dashboard; staff pick template → opens SMS/WhatsApp with prefilled text
 
 ### prov-exp-7 — Schedule self-service
-- [ ] **prov-exp-7.1** — **Block time / break** — provider blocks slot on own calendar (lunch, break); AI `block_lunch` already exists — add form UI on Schedule tab
-- [ ] **prov-exp-7.2** — **Time-off request** — provider submits unavailable range; manager approves on dashboard (or AI approve for managers); status visible on Schedule
-- [ ] **prov-exp-7.3** — **Open shifts / gaps** — highlight unfilled gaps >30m on Calendar; tap AI “fill this gap” with waitlist suggestion (**parity-2.2**)
+- [x] **prov-exp-7.1** — **Block time / break** — provider blocks slot on own calendar (lunch, break); AI `block_lunch` already exists — add form UI on Schedule tab
+- [x] **prov-exp-7.2** — **Time-off request** — provider submits unavailable range; manager approves on dashboard (or AI approve for managers); status visible on Schedule
+- [x] **prov-exp-7.3** — **Open shifts / gaps** — highlight unfilled gaps >30m on Calendar; tap AI “fill this gap” with waitlist suggestion (**parity-2.2**)
 
 ### prov-exp-5–7 — AI & tests
-- [ ] **prov-exp-5.3** — Provider AI: `add_retail_to_booking`, `send_client_message`, `block_my_time`, `request_time_off`; gate `npm run test:provider-exp-3`
+- [x] **prov-exp-5.3** — Provider AI: `add_retail_to_booking`, `send_client_message`, `block_my_time`, `request_time_off`; gate `npm run test:provider-exp-3`
 
 ## Sprint 62 — Waitlist, growth visibility & polish
 
@@ -1449,17 +1449,17 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 - [ ] **prov-exp-8.2** — **Rebooking candidates** — after cancel/no-show, show top 3 waitlist + last-regular clients; one-tap AI draft message (manager send or copy)
 
 ### prov-exp-9 — Growth & CRM hints (read-only)
-- [ ] **prov-exp-9.1** — **Referral / first-visit badges** — “Referred by …”, “First visit”, “Win-back” labels on customer snapshot (from customer metadata + marketing automation flags)
-- [ ] **prov-exp-9.2** — **Loyalty quick view** — balance + last earn/redeem; staff cannot adjust points on mobile v1 (dashboard/AI only)
+- [x] **prov-exp-9.1** — **Referral / first-visit badges** — “Referred by …”, “First visit”, “Win-back” labels on customer snapshot (from customer metadata + marketing automation flags)
+- [x] **prov-exp-9.2** — **Loyalty quick view** — balance + last earn/redeem; staff cannot adjust points on mobile v1 (dashboard/AI only)
 
 ### prov-exp-10 — Notifications & UX polish
-- [ ] **prov-exp-10.1** — **In-app notification center** — list recent booking pushes with read/unread; tap opens booking; mirrors provider push history (30d)
-- [ ] **prov-exp-10.2** — **Calendar month perf** — lazy-load days with booking counts; color by utilization band
-- [ ] **prov-exp-10.3** — **Accessibility pass** — adoption a11y patterns from consumer app (font scale, hit targets); `provider-app` integration spec
-- [ ] **prov-exp-10.4** — **i18n parity** — HY/RU for all new `provider.*` keys; `provider-app.i18n.integration.spec.ts` updated
+- [x] **prov-exp-10.1** — **In-app notification center** — list recent booking pushes with read/unread; tap opens booking; mirrors provider push history (30d)
+- [x] **prov-exp-10.2** — **Calendar month perf** — lazy-load days with booking counts; color by utilization band
+- [x] **prov-exp-10.3** — **Accessibility pass** — adoption a11y patterns from consumer app (font scale, hit targets); `provider-app` integration spec
+- [x] **prov-exp-10.4** — **i18n parity** — HY/RU for all new `provider.*` keys; `provider-app.i18n.integration.spec.ts` updated
 
 ### prov-exp exit gate
-- [ ] **prov-exp-11** — **Program complete** — CI gate `npm run test:provider-exp` (union of prov-exp-1..3 specs + provider-mobile integration); parity checklist: every prov-exp UI action has provider AI intent or is explicitly dashboard-only; documented in `provider-app/README.md`
+- [x] **prov-exp-11** — **Program complete** — CI gate `npm run test:provider-exp` (union of prov-exp-1..10 specs + provider-mobile integration); parity checklist: every prov-exp UI action has provider AI intent or is explicitly dashboard-only; documented in `provider-app/README.md`
 
 ### Provider app expansion success metrics
 

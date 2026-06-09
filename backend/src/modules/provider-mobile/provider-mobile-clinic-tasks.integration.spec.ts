@@ -7,11 +7,13 @@ describe('ProviderMobileService clinic task inbox', () => {
   const memberRepo = { find: jest.fn() };
   const bookingRepo = { findOne: jest.fn(), find: jest.fn() };
   const slotRepo = { find: jest.fn() };
+  const schedulingPeriodRepo = { find: jest.fn() };
   const businessService = {
     ensureMember: jest.fn(),
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
+  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
@@ -30,15 +32,49 @@ describe('ProviderMobileService clinic task inbox', () => {
     claimClinicTask: jest.fn(),
     completeClinicTask: jest.fn(),
   };
+  const loyaltyService = {
+    getOrCreate: jest.fn(),
+    getPublicSummary: jest.fn(),
+  };
+  const staffNotesService = {
+    listNotesForCustomer: jest.fn(),
+    createNoteForCustomer: jest.fn(),
+  };
+  const staffNoteAccessService = {
+    resolveStaffContext: jest.fn(),
+  };
+  const multiServiceGroupRepo = { findOne: jest.fn() };
+  const customerSubscriptionRepo = { findOne: jest.fn() };
+  const intakeRepo = { find: jest.fn() };
+  const clinicPreVisitIntakeService = {
+    hasPublishedIntakeQuestionnaire: jest.fn(),
+  };
+  const questionnairesService = {
+    getPublishedQuestionnaireOrThrow: jest.fn(),
+    loadFlowContext: jest.fn(),
+  };
+  const questionnaireEngineService = {
+    getResponseFlow: jest.fn(),
+  };
+  const notificationsService = { sendReviewRequest: jest.fn() };
+  const reviewsService = { ensureReviewToken: jest.fn() };
+  const pushService = {
+    isConfigured: true,
+    sendToUser: jest.fn().mockResolvedValue(1),
+  };
 
   const service = new ProviderMobileService(
     employeeRepo as any,
     memberRepo as any,
     bookingRepo as any,
     slotRepo as any,
+    schedulingPeriodRepo as any,
     businessService as any,
     bookingService as any,
+    bookingSlotResolver as any,
     retailPosService as any,
+    { create: jest.fn() } as any,
+    { createRequest: jest.fn(), listForEmployee: jest.fn() } as any,
     llm as any,
     clinicTestOrderService as any,
     clinicTestResultService as any,
@@ -47,6 +83,18 @@ describe('ProviderMobileService clinic task inbox', () => {
     patientClinicalProfilesService as any,
     patientClinicalProfileAccessService as any,
     clinicTasksService as any,
+    loyaltyService as any,
+    staffNotesService as any,
+    staffNoteAccessService as any,
+    multiServiceGroupRepo as any,
+    customerSubscriptionRepo as any,
+    intakeRepo as any,
+    clinicPreVisitIntakeService as any,
+    questionnairesService as any,
+    questionnaireEngineService as any,
+    notificationsService as any,
+    reviewsService as any,
+    pushService as any,
   );
 
   beforeEach(() => {

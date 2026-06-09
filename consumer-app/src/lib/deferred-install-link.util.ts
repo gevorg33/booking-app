@@ -1,4 +1,4 @@
-import { buildSalonPath, isValidSlug, parseTenantSlugFromUrl } from './deep-link.js';
+import { isValidSlug, parseTenantSlugFromUrl } from './deep-link.js';
 import {
   normalizeDeferredBookingFields,
   resolveDeferredInstallNavigationPath,
@@ -76,7 +76,7 @@ export function buildAttributedBookUrl(
   origin: string,
   link: Pick<
     DeferredInstallLink,
-    'slug' | 'serviceId' | 'installSource' | 'campaign' | 'date' | 'slot' | 'employeeId'
+    'slug' | 'serviceId' | 'referralCode' | 'installSource' | 'campaign' | 'date' | 'slot' | 'employeeId'
   >,
 ): string {
   const base = origin.replace(/\/$/, '');

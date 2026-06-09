@@ -30,7 +30,6 @@ export type AppAnalyticsEvent =
   | 'referral_converted'
   | 'salon_shared'
   | 'booking_shared'
-  | 'share_reward_claimed'
   | 'review_prompt_shown'
   | 'tenant_review_submitted'
   | 'store_review_opened'
@@ -45,6 +44,9 @@ export type AppAnalyticsEvent =
   | 'push_permission_upgraded'
   | 'push_settings_reask_shown'
   | 'push_provisional_upgrade_shown'
+  | 'push_token_refreshed'
+  | 'push_delivery_ack'
+  | 'share_reward_claimed'
   | 'post_booking_sign_in_shown'
   | 'post_booking_sign_in_completed'
   | 'post_booking_sign_in_skipped'
@@ -70,12 +72,21 @@ export interface AppAnalyticsContext {
 export interface AppAnalyticsEventProps {
   bookingId?: string;
   serviceId?: string;
+  slug?: string;
+  channel?: string;
+  provider?: string;
   referralCode?: string;
   pushOptIn?: boolean;
   pushReachability?: boolean;
   pushReachabilityScope?: string;
   pushPermissionState?: string;
   pushReminders?: boolean;
+  pushTokenRefresh?: boolean;
+  pushDeliveryAck?: boolean;
+  platform?: string;
+  rating?: number;
+  deliveryId?: string;
+  source?: string;
   crashFree?: boolean;
   salonViewCount?: number;
   installSource?: string;

@@ -3,6 +3,9 @@
 export type ProviderPushType =
   | 'booking_created'
   | 'booking_updated'
+  | 'booking_cancelled'
+  | 'booking_rescheduled'
+  | 'payment_received'
   | 'end_of_day';
 
 export function buildNewBookingAiPrompt(

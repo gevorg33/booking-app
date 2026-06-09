@@ -100,7 +100,7 @@ export default function GiftCardCheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'digital' | 'physical'>(
     deliveryOptions[0] ?? 'digital',
   );
-  const [shippingMethodId, setShippingMethodId] = useState(settings?.shippingMethods[0]?.id ?? 'standard');
+  const [shippingMethodId] = useState(settings?.shippingMethods[0]?.id ?? 'standard');
   const [form, setForm] = useState<GiftCardCheckoutFormState>(emptyForm);
   const [quote, setQuote] = useState<PublicGiftCardPurchaseQuote | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);

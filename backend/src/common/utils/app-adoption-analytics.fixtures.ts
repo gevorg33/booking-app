@@ -37,6 +37,7 @@ export const APP_ADOPTION_EVENTS = [
   'post_booking_sign_in_skipped',
   'activation_payment_fallback',
   'app_interactive',
+  'staff_contacted_customer',
 ] as const satisfies readonly AppAdoptionEventName[];
 
 export const APP_ADOPTION_FUNNEL_STEPS = [
@@ -97,6 +98,8 @@ export const APP_EVENT_PROP_ALLOWLIST = new Set([
   'signInPlacement',
   'slotPreselection',
   'paymentTiming',
+  'contactChannel',
+  'templateId',
 ]);
 
 export interface AppAdoptionFixtureRow {

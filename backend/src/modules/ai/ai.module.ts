@@ -39,6 +39,11 @@ import { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { AiProviderPushSetupService } from './ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from './ai-provider-earnings.service.js';
+import { AiProviderClientContextService } from './ai-provider-client-context.service.js';
+import { AiProviderExp2Service } from './ai-provider-exp-2.service.js';
+import { AiProviderTimeOffService } from './ai-provider-time-off.service.js';
+import { AiProviderOpenShiftsService } from './ai-provider-open-shifts.service.js';
+import { AiProviderExp3Service } from './ai-provider-exp-3.service.js';
 import { AiClinicServiceService } from './ai-clinic-service.service.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ServiceModule } from '../service/service.module.js';
@@ -229,6 +234,11 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiConsumerAdoptionService,
     AiProviderPushSetupService,
     AiProviderEarningsService,
+    AiProviderClientContextService,
+    AiProviderExp2Service,
+    AiProviderTimeOffService,
+    AiProviderOpenShiftsService,
+    AiProviderExp3Service,
     AiClinicServiceService,
     AiSuggestionsService,
     CommandCompletionPipelineService,
@@ -281,6 +291,11 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiConsumerAdoptionService,
     AiProviderPushSetupService,
     AiProviderEarningsService,
+    AiProviderClientContextService,
+    AiProviderExp2Service,
+    AiProviderTimeOffService,
+    AiProviderOpenShiftsService,
+    AiProviderExp3Service,
     AiRecommendationProductService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,

@@ -2,6 +2,7 @@ import {
   CONSUMER_ADOPTION_PROMPT_SCENARIOS,
   CONSUMER_ADOPTION_CLASSIFIER_RULES,
 } from './ai-consumer-adoption.fixtures.js';
+import { isConfigureProviderPushDateFormatPrompt } from './ai-provider-date-format.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
@@ -18,7 +19,7 @@ export type ConsumerAdoptionIntent = (typeof CONSUMER_ADOPTION_INTENTS)[number];
 const EXPLAIN_NOTIFICATIONS =
   /\b(what|which|explain|tell me about|do i get|will i get|how do).{0,40}\b(notifications?|reminders?|texts?|sms|whatsapp|push|email alerts?)\b|ինչ.{0,30}ծանուց|ծանուցումներ.{0,20}ստան|что.{0,30}уведомлен|какие.{0,30}(уведомлен|напоминан)/i;
 const MANAGE_NOTIFICATIONS =
-  /\b(turn|switch|enable|disable|stop|manage|change|update|set).{0,30}\b(notifications?|reminders?|push|sms|whatsapp|alerts?)\b|անջատ.{0,20}(ծանուց|հիշեց)|միաց.{0,20}ծանուց|отключ.{0,30}(напоминан|уведом)|выключ.{0,30}(напоминан|уведом)/i;
+  /\b(turn|switch|disable|stop|manage|change|update|set)\b.{0,30}\b(notifications?|reminders?|push|sms|whatsapp|alerts?)\b|անջատ.{0,20}(ծանուց|հիշեց)|միաց.{0,20}ծանուց|отключ.{0,30}(напоминан|уведом)|выключ.{0,30}(напоминан|уведом)/i;
 const REFER_FRIEND =
   /\b(refer|invite).{0,30}\b(friend|buddy|someone|referral)\b|\breferral (code|link|program)\b|\bhow do i refer\b|հրավիր.{0,20}ընկեր|ինչպես.{0,20}հրավիր|приглас.{0,20}друг|реферал/i;
 const SHARE_BOOKING =
@@ -26,7 +27,7 @@ const SHARE_BOOKING =
 const SHARE_SALON =
   /\b(share).{0,30}\b(salon|business|place|link)\b|կիս.{0,20}(salon|սalon|բիզնես)|подел.{0,20}(салон|ссылк)/i;
 const REBOOK_LAST =
-  /\b(rebook|book again|repeat|same as last|last appointment|last visit|last booking|book my last)\b|повторн.{0,20}запис|прошл.{0,15}визит|վերամրագր|նույն.{0,20}(այց|visit)/i;
+  /\b(rebook(?:\s+my)?\s+last|book again|repeat(?:\s+my)?\s+last|same as last|last appointment|book my last)\b|повторн.{0,20}запис|վերամրագր|նույն.{0,20}(այց|visit)/i;
 const SAVED_SALONS =
   /\b(saved|recent|visited|pinned).{0,20}\b(salons?|places?|businesses?|tenants?)\b|\bmy salons\b|сохран.{0,20}салон|мои.{0,10}салон|показать.{0,20}салон/i;
 
@@ -57,12 +58,49 @@ export function rescueConsumerAdoptionIntent(
     return { action, rescueReason: action };
   }
 
+  if (isConfigureProviderPushDateFormatPrompt(text)) {
+    return null;
+  }
+
+  if (
+    /\b(push actions?|offline queue|last push|new booking push|push recipients|notification history)\b/i.test(
+      text,
+    )
+  ) {
+    return null;
+  }
+
+  if (/\benable notifications\b/i.test(text) && !/\bappointment reminders?\b/i.test(text)) {
+    return null;
+  }
+
+  if (/\bexplain\b[\s\S]{0,30}\blast push\b/i.test(text)) {
+    return null;
+  }
+
+  if (
+    /\b(configure|change|set|enable|switch)\b[\s\S]{0,40}\b(push|provider app)\b[\s\S]{0,40}\b(date|time)\b[\s\S]{0,20}\b(format|display|12|24)\b/i.test(
+      text,
+    ) ||
+    /\b12[\s-]?hour\b[\s\S]{0,30}\bpush\b/i.test(text)
+  ) {
+    return null;
+  }
+
+  if (
+    /\bexplain\b[\s\S]{0,40}\b(notification|whatsapp|sms)\b[\s\S]{0,20}\bcurrency\b/i.test(
+      text,
+    )
+  ) {
+    return null;
+  }
+
   const scenarioAction = matchAdoptionScenarioPrompt(text);
   if (scenarioAction) {
     return { action: scenarioAction, rescueReason: scenarioAction };
   }
 
-  if (EXPLAIN_NOTIFICATIONS.test(text) && !MANAGE_NOTIFICATIONS.test(text)) {
+  if (EXPLAIN_NOTIFICATIONS.test(text) && !MANAGE_NOTIFICATIONS.test(text) && !/\bcurrency\b/i.test(text)) {
     return {
       action: 'explain_my_notifications',
       rescueReason: 'explain_my_notifications',

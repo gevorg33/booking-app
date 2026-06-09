@@ -1,6 +1,7 @@
 import { resolveTenantPriceCurrency } from './business-currency';
 import { formatTimeRangeDisplay } from './date-format';
 import type { BookingPaymentSummary } from './booking-payment-summary';
+import type { ProviderBookingCheckoutContext } from './provider-booking-checkout-context.types';
 
 export type BookingStatus =
   | 'pending'
@@ -8,6 +9,12 @@ export type BookingStatus =
   | 'in_progress'
   | 'completed'
   | 'cancelled'
+  | 'no_show';
+
+export type ProviderBookingFloorStatus =
+  | 'waiting'
+  | 'checked_in'
+  | 'completed'
   | 'no_show';
 
 export type PaymentStatus =
@@ -140,6 +147,21 @@ export interface BookingDetail {
   endTime: string;
   status: string;
   paymentStatus?: string;
+  checkedInAt?: string | null;
+  floorStatus?: ProviderBookingFloorStatus;
+  checkIn?: {
+    allowed: boolean;
+    reason: string | null;
+  } | null;
+  visitStatus?: {
+    kind: 'running_late' | 'ready_now';
+    minutesLate?: number;
+    markedAt: string;
+  } | null;
+  visitStatusActions?: {
+    allowed: boolean;
+    reason: string | null;
+  } | null;
   notes?: string | null;
   description?: string | null;
   cancellationReason?: string | null;
@@ -149,6 +171,27 @@ export interface BookingDetail {
   employee?: { id: string; name: string } | null;
   paymentSummary?: BookingPaymentSummary | null;
   labFeaturesEnabled?: boolean;
+  checkoutContext?: ProviderBookingCheckoutContext | null;
+  reviewRequest?: {
+    allowed: boolean;
+    reason: string | null;
+  } | null;
+  reassign?: {
+    allowed: boolean;
+    reason: string | null;
+  } | null;
+  retailPosEnabled?: boolean;
+  customerContact?: {
+    phone: string;
+    callEnabled: boolean;
+    smsEnabled: boolean;
+    whatsappEnabled: boolean;
+  } | null;
+  staffMessageTemplates?: Array<{
+    id: string;
+    label: string;
+    body: string;
+  }> | null;
 }
 
 export interface BookingSummary {
@@ -156,6 +199,13 @@ export interface BookingSummary {
   startTime: string;
   endTime: string;
   status: string;
+  checkedInAt?: string | null;
+  floorStatus?: ProviderBookingFloorStatus;
+  visitStatus?: {
+    kind: 'running_late' | 'ready_now';
+    minutesLate?: number;
+    markedAt: string;
+  } | null;
   notes: string | null;
   service: { name: string; price?: number; currency?: string } | null;
   customer: { name: string; phone: string | null; email: string | null } | null;

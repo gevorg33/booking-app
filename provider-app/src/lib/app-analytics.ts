@@ -16,7 +16,8 @@ export type AppAnalyticsEvent =
   | 'completed_booking'
   | 'rebooked'
   | 'referral_sent'
-  | 'app_interactive';
+  | 'app_interactive'
+  | 'staff_contacted_customer';
 
 export type AppAnalyticsSurface = 'consumer_app' | 'provider_app' | 'public_web';
 
@@ -44,6 +45,8 @@ export interface AppAnalyticsEventProps {
   startupMs?: number;
   ttiBudgetMs?: number;
   lowEndAndroid?: boolean;
+  contactChannel?: 'call' | 'sms' | 'whatsapp';
+  templateId?: string;
 }
 
 interface QueuedEvent {

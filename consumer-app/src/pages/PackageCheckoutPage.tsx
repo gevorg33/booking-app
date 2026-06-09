@@ -475,38 +475,36 @@ export default function PackageCheckoutPage() {
           })}
         </IonList>
 
-        <ConsumerCheckoutContactForm
-          copy={copy}
-          contact={guestContact}
-          onChange={setGuestContact}
-          storedProfile={profileStored}
-        />
+        <ConsumerCheckoutContactForm value={guestContact} onChange={setGuestContact} />
 
         <ConsumerCheckoutDiscounts
           copy={copy}
+          currency={quote?.currency ?? pkg.currency}
+          tenantCurrency={profile!.currency}
+          authed={authed}
+          loyalty={loyalty ?? null}
+          quote={quote}
+          quoteLoading={quoteLoading}
           promoCode={promoCode}
-          onPromoCodeChange={setPromoCode}
           appliedPromo={appliedPromo}
           promoError={promoError}
+          quoteError={quoteError}
+          loyaltyPoints={loyaltyPoints}
+          fallbackSubtotal={fallbackSubtotal}
+          onPromoCodeChange={setPromoCode}
           onApplyPromo={applyPromoCode}
           onClearPromo={clearPromoCode}
-          loyalty={loyalty ?? null}
-          loyaltyPoints={loyaltyPoints}
           onLoyaltyPointsChange={setLoyaltyPoints}
           onUseMaxLoyalty={useMaxLoyaltyPoints}
-          quoteLoading={quoteLoading}
         />
 
-        <ConsumerCheckoutQuoteSummary
-          copy={copy}
-          profile={profile}
-          quote={quote}
-          fallbackSubtotal={fallbackSubtotal}
-          currency={pkg.currency}
-          locale={locale}
-          quoteLoading={quoteLoading}
-          quoteError={quoteError}
-        />
+        {quote ? (
+          <ConsumerCheckoutQuoteSummary
+            quote={quote}
+            tenantCurrency={profile!.currency}
+            copy={copy}
+          />
+        ) : null}
 
         {cashAvailable ? (
           <IonList>

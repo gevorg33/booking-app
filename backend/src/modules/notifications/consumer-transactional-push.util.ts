@@ -9,6 +9,7 @@ export type ConsumerTransactionalPushType =
   | 'booking_reminder'
   | 'booking_rescheduled'
   | 'booking_cancelled'
+  | 'provider_visit_status'
   | 'gift_card_received'
   | 'rebooking_nudge'
   | 'win_back'
@@ -45,7 +46,8 @@ export interface ConsumerSalonBookingPushPayload {
     | 'booking_confirmed'
     | 'booking_reminder'
     | 'booking_rescheduled'
-    | 'booking_cancelled';
+    | 'booking_cancelled'
+    | 'provider_visit_status';
   url: string;
   businessId: string;
   customerId: string;
@@ -54,6 +56,8 @@ export interface ConsumerSalonBookingPushPayload {
   body: string;
   foregroundHint?: string;
   reminderMinutesBefore?: number;
+  providerVisitStatusKind?: 'running_late' | 'ready_now';
+  providerVisitStatusMinutesLate?: number;
 }
 
 export interface ConsumerGiftCardReceivedPushPayload {
@@ -318,6 +322,67 @@ export function buildConsumerBookingCancelledPushPayload(input: {
       input.locale,
       'email.bookingCancelledPushForegroundHint',
       { serviceName },
+    ),
+  };
+}
+
+export function buildConsumerProviderVisitStatusPushPayload(input: {
+  url: string;
+  businessId: string;
+  customerId: string;
+  bookingId: string;
+  businessName: string;
+  providerName: string;
+  serviceName: string;
+  kind: 'running_late' | 'ready_now';
+  minutesLate?: number;
+  locale: AppLocale;
+}): ConsumerSalonBookingPushPayload {
+  const serviceName = resolveServiceName(input.serviceName, input.locale);
+  const providerName =
+    input.providerName.trim() || t(input.locale, 'email.defaultProviderName');
+  if (input.kind === 'ready_now') {
+    return {
+      pushType: 'provider_visit_status',
+      providerVisitStatusKind: 'ready_now',
+      url: input.url,
+      businessId: input.businessId,
+      customerId: input.customerId,
+      bookingId: input.bookingId,
+      title: t(input.locale, 'email.providerReadyNowPushTitle', {
+        businessName: input.businessName,
+      }),
+      body: t(input.locale, 'email.providerReadyNowPushBody', {
+        providerName,
+        serviceName,
+      }),
+      foregroundHint: t(input.locale, 'email.providerReadyNowPushForegroundHint', {
+        providerName,
+      }),
+    };
+  }
+
+  const minutesLate = input.minutesLate ?? 10;
+  return {
+    pushType: 'provider_visit_status',
+    providerVisitStatusKind: 'running_late',
+    providerVisitStatusMinutesLate: minutesLate,
+    url: input.url,
+    businessId: input.businessId,
+    customerId: input.customerId,
+    bookingId: input.bookingId,
+    title: t(input.locale, 'email.providerRunningLatePushTitle', {
+      businessName: input.businessName,
+    }),
+    body: t(input.locale, 'email.providerRunningLatePushBody', {
+      providerName,
+      serviceName,
+      minutesLate,
+    }),
+    foregroundHint: t(
+      input.locale,
+      'email.providerRunningLatePushForegroundHint',
+      { providerName, minutesLate },
     ),
   };
 }

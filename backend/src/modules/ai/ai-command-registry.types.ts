@@ -36,7 +36,12 @@ export type CommandApiModule =
   | 'patient-clinical-profiles'
   | 'consumer-adoption'
   | 'provider-push-setup'
-  | 'provider-earnings';
+  | 'provider-earnings'
+  | 'provider-client-context'
+  | 'provider-exp-2'
+  | 'provider-time-off'
+  | 'provider-open-shifts'
+  | 'provider-exp-3';
 
 export interface CommandRegistryEntry {
   /** Stable intent id (classifier action). */

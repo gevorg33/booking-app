@@ -14,6 +14,11 @@ import type { DateRange } from './ai-orchestration.helpers.js';
 import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from './ai-provider-earnings.fixtures.js';
 import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
 import { isExplainProviderPaymentCurrencyPrompt } from './ai-provider-payment-currency.util.js';
+import {
+  isBookNearestSlotPrompt,
+  isCheckProvidersForServicePrompt,
+} from './ai-payments.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
 
 export const PROVIDER_EARNINGS_INTENTS = [
   'summarize_my_appointments',
@@ -137,6 +142,14 @@ export function buildPeriodLabel(
 export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isBookNearestSlotPrompt(prompt) || isCheckProvidersForServicePrompt(prompt)) {
+    return false;
+  }
+  if (/\bhow many times has [A-Z][a-z]+/i.test(prompt)) return false;
+  if (/\bwhen did [A-Z][a-z]+ last visit\b/i.test(prompt)) return false;
+  if (/\b(client snapshot|summarize client|visit count)\b/i.test(lower)) {
+    return false;
+  }
   if (/\b(revenue|earnings?|income|made|earn(?:ed)?|money|paid)\b/i.test(lower)) {
     return false;
   }
@@ -195,6 +208,7 @@ export function rescueProviderEarningsIntent(
   prompt: string,
   action: string,
 ): { action: ProviderEarningsIntent; rescueReason: string } | null {
+  if (isMyStatsPrompt(prompt)) return null;
   if (isSummarizeMyRevenuePrompt(prompt)) {
     return {
       action: 'summarize_my_revenue',

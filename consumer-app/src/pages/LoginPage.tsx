@@ -127,7 +127,7 @@ export default function LoginPage() {
                   <IonLabel position="stacked">Verification code</IonLabel>
                   <IonInput
                     value={otp}
-                    autocomplete={phoneOtpAutocompleteToken()}
+                    autocomplete={phoneOtpAutocompleteToken() as 'one-time-code'}
                     inputmode="numeric"
                     onIonInput={(event) =>
                       setOtp(sanitizeSmsOtpCode(String(event.detail.value ?? '')))
